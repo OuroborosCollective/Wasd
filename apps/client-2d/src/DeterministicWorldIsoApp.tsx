@@ -11,6 +11,8 @@ import { initLootFeedback } from "./lootPickupFeedback";
 import { makeModularWeaponSprite } from "./modularWeaponAssembler";
 import { spawnFloatingStatus, spawnTouchRipple } from "./fxLogic";
 import { moveVisualTowards } from "./visualMotion";
+import { CombatFXManager } from "./render/CombatFXManager";
+import { initCombatFXBridge } from "./render/CombatFXEventBridge";
 
 const TILE_W = 96;
 const TILE_H = 48;
@@ -226,6 +228,7 @@ export function DeterministicWorldIsoApp() {
   const worldLayerRef = useRef<Container | null>(null);
   const actorLayerRef = useRef<Container | null>(null);
   const fxLayerRef = useRef<Container | null>(null);
+  const combatFXRef = useRef<CombatFXManager | null>(null);
   const entities = useRef<Map<string, Entity>>(new Map());
   const assetsRef = useRef<LoadedAssets | null>(null);
   const clientRef = useRef<ReturnType<typeof createClient> | null>(null);
@@ -261,6 +264,9 @@ export function DeterministicWorldIsoApp() {
     placeActor(root, x, z, app.screen.width, app.screen.height);
     layer.addChild(root);
     entities.current.set(id, { root, tx: x, tz: z, name, isPlayer: player, weaponVisualId, characterVisualId });
+    
+    // Register actor with CombatFXManager for O(1) target lookup
+    combatFXRef.current?.registerActor(id, root);
   }
 
   function rebuildActor(id: string, weaponVisualId: string | null) {
@@ -334,6 +340,12 @@ export function DeterministicWorldIsoApp() {
       worldLayerRef.current = world;
       actorLayerRef.current = actors;
       fxLayerRef.current = fx;
+      
+      // Initialize CombatFXManager for combat visual effects
+      if (fx) {
+        combatFXRef.current = new CombatFXManager(app, fx);
+      }
+      
       app.stage.sortableChildren = true;
       app.stage.eventMode = "static";
       app.stage.hitArea = app.screen;
@@ -371,6 +383,12 @@ export function DeterministicWorldIsoApp() {
     const c = createClient({ url: "https://arelorian.de", heartbeatInterval: 30000 });
     clientRef.current = c;
     initLootFeedback(app, c);
+    
+    // Initialize combat FX event bridge
+    if (combatFXRef.current) {
+      initCombatFXBridge(c, combatFXRef.current);
+    }
+    
     c.on("connect" as any, () => { setConnected(true); setMessages((items) => [...items.slice(-12), { from: "Net", txt: "World stream connected." }]); });
     c.on("disconnect" as any, () => setConnected(false));
     c.on("WORLD_HEARTBEAT", (event: any) => {
