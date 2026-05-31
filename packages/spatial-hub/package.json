@@ -12,8 +12,8 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@babylonjs/core": "^9.9.1",
-    "ioredis": "^5.10.1",
+    "@babylonjs/core": "^9.10.1",
+    "ioredis": "^5.11.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "three": "0.184.0"
