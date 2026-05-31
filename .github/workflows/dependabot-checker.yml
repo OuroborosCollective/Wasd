@@ -24,14 +24,14 @@ jobs:
           persist-credentials: true
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: pnpm
+          node-version: '22'
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
@@ -42,34 +42,11 @@ jobs:
           git diff origin/${{ github.base_ref }}...HEAD > diff.txt
 
       # ----------------------------
-      # SAFE AI PATCH GENERATION
-      # ----------------------------
-      - name: AI Patch Generation
-        id: ai
-        env:
-          AI_API_KEY: ${{ secrets.AI_API_KEY }}
-        run: |
-          DIFF_CONTENT=$(cat diff.txt | sed 's/"/\\"/g')
-
-          curl -s https://your-ai-endpoint \
-            -H "Authorization: Bearer $AI_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"prompt\":\"You are a senior TypeScript engineer. Output ONLY a git patch. Fix issues in this diff:\n\n$DIFF_CONTENT\"}" \
-            > patch.diff
-
-      # ----------------------------
-      # SAFETY CHECK
+      # SAFETY CHECK (skip AI for now)
       # ----------------------------
       - name: Block sensitive paths
         run: |
           git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E "core|auth|security|crypto" && exit 1 || echo "safe"
-
-      # ----------------------------
-      # APPLY PATCH
-      # ----------------------------
-      - name: Apply AI Patch
-        run: |
-          git apply patch.diff || (echo "Patch failed" && exit 1)
 
       - name: Reinstall deps
         run: pnpm install --no-frozen-lockfile
