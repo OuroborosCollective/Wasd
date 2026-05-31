@@ -81,6 +81,14 @@ export interface NPC {
     shopId?: string;
     stamina?: number;
     phaseShift?: number;
+    // ARE Systemic Emergence: NPC Inventory (Conservation Axiom - NPCs use same systems as players)
+    inventory?: any;
+    activeUtilityDecision?: {
+      action: string;
+      targetEntity?: string;
+      tick: number;
+      reason?: string;
+    };
 }
 
 type PlayerPerceptionContext = {
@@ -274,6 +282,60 @@ export class NPCSystem {
             if (npc.state === 'decomposition') continue;
             this.processPerception(npc, playerContexts);
             this.maybeEmitDeterministicChat(npc, currentTick, playerContexts);
+            
+            // ─────────────────────────────────────────────────────────────────
+            // WANDER STATE: Actual position movement
+            // ═════════════════════════════════════════════════════════════════
+            // 
+            // When NPC is in 'wandering' state, we deterministically move them
+            // by applying a small position delta based on their facing direction
+            // and a deterministic RNG seeded by tick count.
+            // 
+            // The position change is broadcast via world_snapshot in WorldTick.
+            // ═════════════════════════════════════════════════════════════════
+            if (npc.state === 'wandering') {
+                npc.stateTimer = (npc.stateTimer ?? 0) + 1;
+                
+                // Only move every few ticks to simulate casual wandering
+                if (npc.stateTimer % 10 === 0) {
+                    const wanderSeed = `${npc.id}:${currentTick}:wander-move`;
+                    const hash = deterministicHash(wanderSeed);
+                    
+                    // Create movement direction from hash
+                    // Hash is used to deterministically pick a direction
+                    const moveChance = hash % 100;
+                    if (moveChance < 60) { // 60% chance to move
+                        const directionIdx = (hash >> 8) % 4;
+                        const WANDER_SPEED = 0.05; // Kappa units per tick
+                        
+                        // Directions: 0=North(-z), 1=East(+x), 2=South(+z), 3=West(-x)
+                        switch (directionIdx) {
+                            case 0: // North
+                                npc.position.z -= WANDER_SPEED;
+                                break;
+                            case 1: // East
+                                npc.position.x += WANDER_SPEED;
+                                break;
+                            case 2: // South
+                                npc.position.z += WANDER_SPEED;
+                                break;
+                            case 3: // West
+                                npc.position.x -= WANDER_SPEED;
+                                break;
+                        }
+                        
+                        // Update rotation to face movement direction
+                        const rotations = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
+                        npc.rotation = rotations[directionIdx];
+                    }
+                    
+                    // Exit wandering after ~60 seconds (600 ticks)
+                    if ((npc.stateTimer ?? 0) > 600) {
+                        npc.state = 'observing';
+                        npc.stateTimer = 0;
+                    }
+                }
+            }
         }
     }
 
@@ -420,6 +482,10 @@ export class NPCSystem {
         }
 
         switch (result.finalAction) {
+            case 'WANDER':
+                npc.state = 'wandering';
+                npc.stateTimer ??= 0;
+                break;
             case 'HARVEST_RESOURCE':
                 npc.state = 'harvesting';
                 break;

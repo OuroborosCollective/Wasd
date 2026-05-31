@@ -16,6 +16,7 @@ export interface ArelorianStitchHudProps {
   onSkill: (skillId: string) => void;
   onChat: (text: string) => void;
   onInteract: () => void;
+  onStrike?: () => void;
   onEquipWeapon?: (item: InventoryItem) => void;
   onCycleWeapon?: () => void;
   onToggleAutoMove?: () => void;
@@ -68,6 +69,7 @@ export function ArelorianStitchHud({
   onSkill,
   onChat,
   onInteract,
+  onStrike,
   onEquipWeapon,
   onCycleWeapon,
   onToggleAutoMove,
@@ -164,6 +166,7 @@ export function ArelorianStitchHud({
 
   function handleSkill(id: string) {
     if (id === "talk") onInteract();
+    else if (id === "atk" && onStrike) onStrike();
     else onSkill(id);
   }
 

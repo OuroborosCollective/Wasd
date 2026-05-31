@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from "react";
 import { InventoryOverlay } from "./InventoryOverlay.js";
 import { CharacterOverlay } from "./CharacterOverlay.js";
+import { StorageOverlay, openStorageOverlay, closeStorageOverlay } from "./StorageOverlay.js";
+import type { StorageSnapshot } from "./StorageOverlay.js";
 
 export type ActiveOverlay =
   | { readonly type: "NONE" }
@@ -8,7 +10,8 @@ export type ActiveOverlay =
   | { readonly type: "DIALOGUE"; readonly targetId: string; readonly dialogueSeed: string; readonly lockedAtTick: number }
   | { readonly type: "CRAFT"; readonly targetId: string; readonly stationManifest: string; readonly lockedAtTick: number }
   | { readonly type: "INVENTORY" }
-  | { readonly type: "CHARACTER" };
+  | { readonly type: "CHARACTER" }
+  | { readonly type: "STORAGE"; readonly storageSnapshot: StorageSnapshot };
 
 class InteractionUIManager {
   private state: ActiveOverlay = { type: "NONE" };
@@ -50,6 +53,21 @@ class InteractionUIManager {
     this.notify();
   }
 
+  public openStorage(storageSnapshot: StorageSnapshot): void {
+    this.state = { type: "STORAGE", storageSnapshot };
+    openStorageOverlay(storageSnapshot);
+    this.notify();
+  }
+
+  public closeStorage(): void {
+    if (this.state.type === "STORAGE") {
+      closeStorageOverlay();
+      this.closeUI();
+    } else {
+      this.closeUI();
+    }
+  }
+
   public toggleCharacter(): void {
     if (this.state.type === "CHARACTER") {
       this.closeUI();
@@ -60,6 +78,10 @@ class InteractionUIManager {
 
   public closeUI(): void {
     if (this.state.type === "NONE") return;
+    // Close storage overlay if open
+    if (this.state.type === "STORAGE") {
+      closeStorageOverlay();
+    }
     this.state = { type: "NONE" };
     this.notify();
   }
@@ -95,6 +117,8 @@ export function useOverlayRenderer(): {
         return () => <InventoryOverlay isOpen={true} onClose={() => interactionUI.closeUI()} />;
       case "CHARACTER":
         return () => <CharacterOverlay isOpen={true} onClose={() => interactionUI.closeUI()} />;
+      case "STORAGE":
+        return () => <StorageOverlay isOpen={true} onClose={() => interactionUI.closeStorage()} />;
       // Add other overlay types as they are implemented
       default:
         return null;

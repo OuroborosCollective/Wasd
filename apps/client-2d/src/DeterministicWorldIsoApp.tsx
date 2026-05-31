@@ -15,6 +15,7 @@ import { CombatFXManager } from "./render/CombatFXManager";
 import { initCombatFXBridge } from "./render/CombatFXEventBridge";
 import { ChunkManager } from "./world/ChunkManager";
 import { InterpolatedSpriteManager } from "./math/InterpolatedSpriteManager";
+import { FacingDirection, inputToFacing, serverPosToKappa, getFacingEntity, type TargetableEntity } from "./input/Targeting";
 
 const EQUIPPED_WEAPON_KEY = "wasd:2d:equippedWeaponVisualId";
 const WORLD_SEED = "areloria:earth_1_1";
@@ -237,6 +238,22 @@ export function DeterministicWorldIsoApp() {
   const lastMoveAt = useRef(0);
   const lastPlayerKappa = useRef({ x: 0, z: 0 });
   const playerName = localStorage.getItem("wasd:2d:name") || "Architect";
+  
+  /**
+   * TRACKED OTHER PLAYERS
+   * ═══════════════════════════════════════════════════════════════════════
+   * 
+   * Set of other player IDs that are currently visible (within 3x3 chunk grid).
+   * Used for garbage collection: when an ID is no longer in this set,
+   * we destroy its sprite and remove it from the entity map.
+   * 
+   * Per-Axiom 4 (Spatial Plexity): Other players leave the visible set
+   * when they move outside our 3x3 chunk grid. The server sends us
+   * only entities within range, so missing IDs indicate they left.
+   * 
+   * ═══════════════════════════════════════════════════════════════════════
+   */
+  const otherPlayerIds = useRef<Set<string>>(new Set());
   const [connected, setConnected] = useState(false);
   const [assetStatus, setAssetStatus] = useState("ASSETS_LOADING");
   const [weaponCount, setWeaponCount] = useState(0);
@@ -247,6 +264,107 @@ export function DeterministicWorldIsoApp() {
     clientRef.current?.sendPlayerAction("interact", { targetId });
     dispatchClientAction("INTERACT_ENTITY", { targetId });
     setMessages((items) => [...items.slice(-12), { from: "System", txt: `Interaction intent sent: ${targetId}` }]);
+  }
+
+  /**
+   * Get all targetable entities from the current entity map.
+   * Converts server tile positions to KAPPA-units for deterministic targeting.
+   */
+  function getTargetableEntities(): TargetableEntity[] {
+    const entities: TargetableEntity[] = [];
+    
+    entities.current.forEach((entity, id) => {
+      // Skip self
+      if (id === "self") return;
+      
+      // Convert tile position to KAPPA-units
+      const kappaX = Math.round(entity.tx * 1000);
+      const kappaZ = Math.round(entity.tz * 1000);
+      
+      // Determine entity kind based on naming conventions
+      let kind: TargetableEntity["kind"] = "npc";
+      if (entity.isPlayer) kind = "player";
+      
+      entities.push({
+        id,
+        name: entity.name,
+        kappaX,
+        kappaZ,
+        kind,
+      });
+    });
+    
+    return entities;
+  }
+
+  /**
+   * Get the current facing direction based on last movement input.
+   */
+  function getCurrentFacing(): FacingDirection | null {
+    const k = keys.current;
+    let dx = 0, dz = 0;
+    if (k.has("w") || k.has("arrowup")) dz += 1;
+    if (k.has("s") || k.has("arrowdown")) dz -= 1;
+    if (k.has("a") || k.has("arrowleft")) dx -= 1;
+    if (k.has("d") || k.has("arrowright")) dx += 1;
+    return inputToFacing(dx, dz);
+  }
+
+  /**
+   * Spatial Auto-Targeting for Strike/Talk actions.
+   * Determines the entity directly in front of the player based on
+   * KAPPA-grid mathematics and current facing direction.
+   * 
+   * Returns null if no valid target found - NO RANDOM FALLBACK.
+   */
+  function getSpatialTarget(): string | null {
+    const self = entities.current.get("self");
+    if (!self) return null;
+    
+    const facing = getCurrentFacing();
+    if (!facing) return null;
+    
+    const playerKappa = {
+      x: Math.round(self.tx * 1000),
+      z: Math.round(self.tz * 1000),
+    };
+    
+    const allEntities = getTargetableEntities();
+    const result = getFacingEntity(playerKappa, facing, allEntities, 1500);
+    
+    return result.targetId;
+  }
+
+  /**
+   * Handle skill/action with spatial auto-targeting.
+   * Uses KAPPA-grid math to determine the entity directly in front of the player.
+   */
+  function performTargetedAction(actionType: "strike" | "talk"): void {
+    const targetId = getSpatialTarget();
+    
+    if (!targetId) {
+      setMessages((items) => [...items.slice(-12), { from: "System", txt: `No target in facing direction.` }]);
+      return;
+    }
+    
+    const targetEntity = entities.current.get(targetId);
+    const targetName = targetEntity?.name ?? targetId;
+    
+    if (actionType === "strike") {
+      clientRef.current?.sendPlayerAction("strike", { targetId });
+      dispatchClientAction("STRIKE_ENTITY", { targetId });
+      setMessages((items) => [...items.slice(-12), { from: "Combat", txt: `Striking: ${targetName}` }]);
+      
+      // Visual feedback
+      const fx = fxLayerRef.current;
+      const self = entities.current.get("self");
+      if (fx && self) {
+        spawnFloatingStatus(fx, { x: self.root.x + 20, y: self.root.y - 28, text: "⚔ STRIKE" });
+      }
+    } else {
+      sendInteractIntent(targetId);
+      setMessages((items) => [...items.slice(-12), { from: "System", txt: `Talking to: ${targetName}` }]);
+    }
   }
 
   function setActor(id: string, x: number, z: number, name: string, player: boolean, characterVisualId: string | null, weaponVisualId: string | null) {
@@ -495,6 +613,140 @@ export function DeterministicWorldIsoApp() {
         setActor(id, payloadCoord(npc, "x"), payloadCoord(npc, "z"), npc.name || npc.displayName || npc.role || "NPC", false, npc.characterVisualId ?? npc.visualId ?? null, null);
       });
     });
+    
+    /**
+     * WORLD_SNAPSHOT HANDLER
+     * ═══════════════════════════════════════════════════════════════════════════
+     * 
+     * Handles the spatial broadcast from the server (Axiom 4: Spatial Plexity).
+     * 
+     * The server sends only entities within the client's 3x3 chunk grid.
+     * This handler:
+     * 1. Extracts OTHER_PLAYER entities from the snapshot
+     * 2. Creates/updates sprite visuals for each other player
+     * 3. Garbage collects sprites for players who left the visible area
+     * 
+     * Per-Axiom 2 (Zero Client Prediction): Other player positions come
+     * ONLY from the server. We never predict or extrapolate movement.
+     * The InterpolatedSpriteManager handles smooth 60-FPS visual lerp.
+     * 
+     * GARBAGE COLLECTION STRATEGY:
+     * - otherPlayerIds tracks currently visible player IDs
+     * - After processing snapshot, any ID in the set but not in snapshot is gone
+     * - Destroy its sprite, remove from entity map, unregister from interpolation
+     * ═══════════════════════════════════════════════════════════════════════════
+     */
+    c.on("world_snapshot", (event: any) => {
+      const app = appRef.current;
+      const layer = actorLayerRef.current;
+      if (!app || !layer) return;
+      
+      const snapshot = event.payload;
+      if (!snapshot) return;
+      
+      // Get interpolation manager
+      const interp = InterpolatedSpriteManager.getInstance();
+      
+      // Track IDs seen in this snapshot
+      const seenPlayerIds = new Set<string>();
+      
+      // ─────────────────────────────────────────────────────────────────
+      // Process OTHER_PLAYERS
+      // These are players other than the local player (self)
+      // ─────────────────────────────────────────────────────────────────
+      const otherPlayers = snapshot.other_players ?? [];
+      
+      for (const player of otherPlayers) {
+        const playerId = String(player.id);
+        if (!playerId) continue;
+        
+        // Skip self - handled by WORLD_HEARTBEAT
+        if (playerId === snapshot.self) continue;
+        
+        seenPlayerIds.add(playerId);
+        
+        const x = payloadCoord(player, "x");
+        const z = payloadCoord(player, "z");
+        const name = String(player.name || "Traveler");
+        
+        const existing = entities.current.get(playerId);
+        
+        if (existing) {
+          // ─────────────────────────────────────────────────────────────────
+          // EXISTING OTHER PLAYER: Update position via interpolation
+          //
+          // Per-ARE-Logic: We NEVER set sprite.x/y directly.
+          // Only update logical position and push to InterpolatedSpriteManager.
+          // ─────────────────────────────────────────────────────────────────
+          existing.tx = x;
+          existing.tz = z;
+          
+          const screenPos = iso(x, z, app.screen.width, app.screen.height);
+          interp.setTarget(playerId, screenPos.x, screenPos.y);
+        } else {
+          // ─────────────────────────────────────────────────────────────────
+          // NEW OTHER PLAYER: Create sprite with visual indicator
+          //
+          // Other players get a distinct visual treatment (different from NPCs).
+          // Use player character visual + "other player" nameplate styling.
+          // ─────────────────────────────────────────────────────────────────
+          const root = buildActorVisual({ 
+            name, 
+            player: true, 
+            assets: assetsRef.current, 
+            characterVisualId: player.characterVisualId ?? null,
+            weaponVisualId: player.weaponVisualId ?? null,
+          });
+          placeActor(root, x, z, app.screen.width, app.screen.height);
+          layer.addChild(root);
+          
+          entities.current.set(playerId, { 
+            root, 
+            tx: x, 
+            tz: z, 
+            name, 
+            isPlayer: true, 
+            weaponVisualId: player.weaponVisualId ?? null,
+            characterVisualId: player.characterVisualId ?? null,
+          });
+          
+          // Register with interpolation for smooth visual movement
+          const screenPos = iso(x, z, app.screen.width, app.screen.height);
+          interp.register(playerId, root, screenPos.x, screenPos.y);
+          
+          // Optional: spawn join notification
+          // setMessages((items) => [...items.slice(-12), { from: "Net", txt: `${name} entered the area.` }]);
+        }
+      }
+      
+      // ─────────────────────────────────────────────────────────────────
+      // GARBAGE COLLECTION: Remove players no longer in visible set
+      //
+      // If a player ID was in our tracked set but is NOT in the current
+      // snapshot, they moved out of our 3x3 chunk grid or disconnected.
+      // We must clean up their sprite and interpolation registration.
+      // ─────────────────────────────────────────────────────────────────
+      for (const goneId of otherPlayerIds.current) {
+        if (!seenPlayerIds.has(goneId)) {
+          const entity = entities.current.get(goneId);
+          if (entity) {
+            // Destroy sprite and remove from layer
+            entity.root.destroy({ children: true });
+            entities.current.delete(goneId);
+            
+            // Unregister from interpolation manager
+            interp.remove(goneId);
+            
+            // Optional: spawn leave notification
+            // const goneName = entity.name;
+            // setMessages((items) => [...items.slice(-12), { from: "Net", txt: `${goneName} left the area.` }]);
+          }
+        }
+      }
+      
+      // Update tracked player IDs for next snapshot
+      otherPlayerIds.current = seenPlayerIds;
+    });
     c.on("dialogue", (event: any) => {
       const payload = event.payload ?? event;
       const source = String(payload.source ?? payload.npcName ?? "NPC");
@@ -513,6 +765,115 @@ export function DeterministicWorldIsoApp() {
       setMessages((items) => [
         ...items.slice(-12),
         { from: source, txt: text }
+      ]);
+    });
+    /**
+     * COMBAT_RESULT HANDLER
+     * ═══════════════════════════════════════════════════════════════════════════
+     * 
+     * Routes combat result events from the server to the chat overlay.
+     * 
+     * Event format:
+     * {
+     *   type: "combat_result",
+     *   payload: {
+     *     action: "strike" | "skill",
+     *     attacker: string,
+     *     target: string,
+     *     damage?: number,
+     *     success: boolean,
+     *     message?: string
+     *   }
+     * }
+     * 
+     * Per-Axiom 1 (Server Authority): Combat results come from the server
+     * and are displayed as system messages in the chat overlay.
+     * ═══════════════════════════════════════════════════════════════════════════
+     */
+    c.on("combat_result", (event: any) => {
+      const payload = event.payload ?? event;
+      const attacker = String(payload.attacker ?? "Unknown");
+      const target = String(payload.target ?? "Unknown");
+      const damage = Number(payload.damage ?? 0);
+      const success = Boolean(payload.success);
+      
+      let message = "";
+      if (payload.message) {
+        message = String(payload.message);
+      } else if (success && damage > 0) {
+        message = `${attacker} hits ${target} for ${damage} damage.`;
+      } else if (!success) {
+        message = `${attacker}'s attack on ${target} missed.`;
+      }
+      
+      if (!message) return;
+      
+      setMessages((items) => [
+        ...items.slice(-12),
+        { from: "Combat", txt: message }
+      ]);
+    });
+    /**
+     * NPC_CHAT_MESSAGE HANDLER
+     * ═══════════════════════════════════════════════════════════════════════════
+     * 
+     * Routes NPC chat messages to the chat overlay.
+     * NPCs emit periodic deterministic chat lines based on ARE-Logic.
+     * 
+     * Event format:
+     * {
+     *   type: "CHAT_MESSAGE",
+     *   payload: {
+     *     senderId: string,
+     *     senderName: string,
+     *     text: string,
+     *     channel: "global" | "local"
+     *   }
+     * }
+     * ═══════════════════════════════════════════════════════════════════════════
+     */
+    c.on("CHAT_MESSAGE", (event: any) => {
+      const payload = event.payload ?? event;
+      const senderName = String(payload.senderName ?? payload.sender ?? "Wanderer");
+      const text = String(payload.text ?? "");
+      
+      if (!text) return;
+      
+      setMessages((items) => [
+        ...items.slice(-12),
+        { from: senderName, txt: text }
+      ]);
+    });
+    /**
+     * WORLD_EMERGENCE_EVENT HANDLER
+     * ═══════════════════════════════════════════════════════════════════════════
+     * 
+     * Routes NPC decomposition events to the chat overlay.
+     * Shows when an NPC enters the decomposition phase (thermal collapse).
+     * 
+     * Event format:
+     * {
+     *   type: "WORLD_EMERGENCE_EVENT",
+     *   payload: {
+     *     npcId: string,
+     *     eventType: string,
+     *     reason: string
+     *   }
+     * }
+     * ═══════════════════════════════════════════════════════════════════════════
+     */
+    c.on("WORLD_EMERGENCE_EVENT", (event: any) => {
+      const payload = event.payload ?? event;
+      const npcId = String(payload.npcId ?? "Unknown");
+      const eventType = String(payload.eventType ?? "emergence");
+      const reason = String(payload.reason ?? "");
+      
+      let message = `[${eventType}]`;
+      if (reason) message += ` ${reason}`;
+      
+      setMessages((items) => [
+        ...items.slice(-12),
+        { from: "World", txt: message }
       ]);
     });
     c.connect();
@@ -579,6 +940,12 @@ export function DeterministicWorldIsoApp() {
   }
 
   function sendSkill(skillId: string) {
+    // Special handling for atk (Strike) - uses spatial auto-targeting
+    if (skillId === "atk") {
+      performTargetedAction("strike");
+      return;
+    }
+    
     const fx = fxLayerRef.current;
     const self = entities.current.get("self");
     if (fx && self) {
@@ -594,7 +961,15 @@ export function DeterministicWorldIsoApp() {
   }
 
   function interact() {
-    sendInteractIntent("npc_elder_0");
+    // Use spatial auto-targeting instead of hardcoded target
+    performTargetedAction("talk");
+  }
+
+  /**
+   * Direct strike action - uses spatial targeting to find entity in front.
+   */
+  function strikeAction() {
+    performTargetedAction("strike");
   }
 
   return (
@@ -611,6 +986,7 @@ export function DeterministicWorldIsoApp() {
         onSkill={sendSkill}
         onChat={sendChat}
         onInteract={interact}
+        onStrike={strikeAction}
         onCycleWeapon={cycleEquippedWeapon}
         onToggleAutoMove={() => setMessages((items) => [...items.slice(-12), { from: "Navigator", txt: "WorldDirector routes are generated; auto-route execution follows server validation." }])}
       />

@@ -65,6 +65,39 @@ Related pages:
 | `server/src/networking/WebSocketServer.ts` | Player message delivery |
 | `client/src/engine/renderer.ts` | Client interpolation / rendering layer |
 | `apps/client-2d/src/stackedProps.ts` | 2D prop rendering path |
+| `server/src/modules/world/ChunkModificationDirector.ts` | Depletion persistence for resources |
+| `server/src/modules/world/ResourcePopulator.ts` | Deterministic resource entity generation |
+
+## Resources Entity System
+
+As of 2026-05-31, WorldTick supports `type: 'RESOURCE'` entities in `world_snapshot`:
+
+```typescript
+// Resources broadcast to clients
+this.ws.sendToPlayer(socketId, {
+  type: "world_snapshot",
+  tick: this.tickCount,
+  self: selfId,
+  other_players: [...],
+  npcs: [...],
+  loot: [...],
+  resources: [  // NEW
+    {
+      id: 'res_wood_0_5_0',
+      type: 'RESOURCE',
+      resourceType: 'wood',
+      x, z,            // World space
+      kappaX, kappaZ,   // KAPPA space (1 unit = 1000 KAPPA)
+      yield: 5,
+      maxYield: 5,
+      depleted: false,
+      regrowRate: 600, // Ticks
+    }
+  ]
+});
+```
+
+Resource entity IDs format: `res_{type}_{chunkX}_{chunkZ}_{index}`
 
 ---
 

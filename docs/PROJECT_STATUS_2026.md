@@ -1,4 +1,4 @@
-# Project status — Areloria / Ouroboros (April 2026)
+# Project status — Areloria / Ouroboros (May 2026)
 
 This file is the practical "what is shipped now" snapshot.
 Use it before trusting older reconstruction or handover docs.
@@ -10,6 +10,7 @@ Use it before trusting older reconstruction or handover docs.
 | Monorepo layout | `client/` (Vite + Babylon.js), `client-2d/` (PixiJS v7 + React), `server/` (Express + WebSocket), `game-data/` (authoritative JSON content) |
 | Main server loop | `server/src/core/WorldTick.ts` at ~100 ms sim tick |
 | Main client entry | `client/src/main.ts` |
+| 2D client entry | `apps/client-2d/src/App.tsx` |
 | Primary rendering (3D) | Babylon.js (`@babylonjs/core` + loaders + materials + addons) |
 | Primary rendering (2D) | PixiJS v7 + React UI (`apps/client-2d/`) |
 | Networking | WebSocket (`ws`) via `server/src/networking/WebSocketServer.ts` |
@@ -39,6 +40,8 @@ Use it before trusting older reconstruction or handover docs.
 | NPC runtime | `NPCSystem` + memory cache/persistence + relationships + proactive chat are wired |
 | Ouroboros agents | `OuroborosEngine` is instantiated and ticked from `WorldTick` |
 | World systems | Chunks, observers, world objects, weather/time, terrain adapters are wired |
+| Resource entities | Deterministic RESOURCE entities with KAPPA-grid alignment via `ChunkModificationDirector` + `ResourcePopulator` |
+| Storage system | `StorageEntity` entities with inventory, `open_storage`/`transfer_item` handlers in WorldTick |
 | Warfront | `WarfrontSystem` lifecycle, status pushes, reward claims are wired |
 | World boss | `WorldBossDungeonSystem` encounter flow and ranking summaries are wired |
 | Vote system | Vote banner/session/status and reward claims are wired |

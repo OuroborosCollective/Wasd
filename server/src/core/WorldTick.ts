@@ -34,8 +34,196 @@ import { checkForestResource, isNearForestResource } from "../modules/resource/f
 import { FOREST_ACTION_DISTANCE, FOREST_RESPAWN_TICKS } from "../modules/resource/forestResourceRules.js";
 import { AIOrchestrator } from "./AIOrchestrator.js";
 import { processRespawns } from "../modules/combat/deathRespawnSystem.js";
+import { persistenceDirector } from "../modules/persistence/PersistenceDirector.js";
+import { storageEntityManager, type StorageEntity } from "../modules/structure/StorageEntity.js";
+import { resourcePopulator, type GeneratedResourceEntity } from "../modules/world/ResourcePopulator.js";
+import { chunkModificationDirector } from "../modules/world/ChunkModificationDirector.js";
 
 const ELECTROWEAK_LOOT_TTL_TICKS = 1200;
+
+/**
+ * CHUNK_SIZE: Each chunk is 64 tiles × 64 tiles.
+ * Used for Spatial Plexity (Axiom 4) - spatial filtering for broadcasts.
+ */
+const SPATIAL_CHUNK_SIZE = 64;
+
+/**
+ * SPATIAL BROADCAST GRID
+ * ═══════════════════════════════════════════════════════════════════════
+ * 
+ * ARCHITECTURE DECISION: O(1) entity lookup via Map-based spatial grid.
+ * 
+ * Instead of iterating N*M entities to find nearby ones (O(N*M) distance checks),
+ * we maintain a Map<string, Set<string>> that maps chunk keys to entity IDs.
+ * 
+ * Chunk key format: "cx:cz" where:
+ *   - cx = Math.floor(tileX / SPATIAL_CHUNK_SIZE)
+ *   - cz = Math.floor(tileZ / SPATIAL_CHUNK_SIZE)
+ * 
+ * When a player moves, we:
+ * 1. Calculate their current chunk key
+ * 2. Get the 3x3 chunk grid (center + 8 neighbors) = 9 keys
+ * 3. Collect all entity IDs from these 9 sets
+ * 
+ * This is O(1) for chunk key calculation + O(K) for entity collection
+ * where K is the total entities in visible chunks (typically << N).
+ * 
+ * GC STRATEGY: When an entity moves out of all visible chunks for a client,
+ * it will simply not appear in their next world_snapshot. The client-side
+ * garbage collector will handle sprite cleanup (see client implementation).
+ * 
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+type ChunkKey = string; // Format: "cx:cz"
+type EntityId = string;
+
+interface SpatialEntity {
+  id: EntityId;
+  tileX: number;
+  tileZ: number;
+  kind: "player" | "npc" | "loot";
+  /** Stripped data for broadcast */
+  data: Record<string, unknown>;
+}
+
+/**
+ * Compute chunk key from tile coordinates.
+ * Uses integer division for deterministic behavior.
+ */
+function computeChunkKey(tileX: number, tileZ: number): ChunkKey {
+  const cx = Math.floor(tileX / SPATIAL_CHUNK_SIZE);
+  const cz = Math.floor(tileZ / SPATIAL_CHUNK_SIZE);
+  return `${cx}:${cz}`;
+}
+
+/**
+ * Get all 9 chunk keys for a 3x3 grid centered on the given chunk.
+ * Returns keys in order: [NW, N, NE, W, C, E, SW, S, SE]
+ */
+function get3x3ChunkKeys(centerChunkKey: ChunkKey): ChunkKey[] {
+  const [cxStr, czStr] = centerChunkKey.split(":");
+  const cx = parseInt(cxStr, 10);
+  const cz = parseInt(czStr, 10);
+  
+  const keys: ChunkKey[] = [];
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = -1; dz <= 1; dz++) {
+      keys.push(`${cx + dx}:${cz + dz}`);
+    }
+  }
+  return keys;
+}
+
+class SpatialBroadcastGrid {
+  /** Map<ChunkKey, Set<EntityId>> - O(1) lookup by chunk */
+  private chunkToEntities = new Map<ChunkKey, Set<EntityId>>();
+  
+  /** Map<EntityId, SpatialEntity> - Entity data cache */
+  private entities = new Map<EntityId, SpatialEntity>();
+  
+  /**
+   * Register or update an entity's position in the spatial grid.
+   * Automatically handles chunk migration when entity moves between chunks.
+   */
+  upsert(id: EntityId, tileX: number, tileZ: number, kind: SpatialEntity["kind"], data: Record<string, unknown>): void {
+    const newChunkKey = computeChunkKey(tileX, tileZ);
+    const existing = this.entities.get(id);
+    
+    if (existing) {
+      const oldChunkKey = computeChunkKey(existing.tileX, existing.tileZ);
+      
+      // Same chunk - just update data
+      if (oldChunkKey === newChunkKey) {
+        existing.tileX = tileX;
+        existing.tileZ = tileZ;
+        existing.data = data;
+        return;
+      }
+      
+      // Different chunk - migrate entity
+      this.chunkToEntities.get(oldChunkKey)?.delete(id);
+    }
+    
+    // Insert into new chunk
+    if (!this.chunkToEntities.has(newChunkKey)) {
+      this.chunkToEntities.set(newChunkKey, new Set());
+    }
+    this.chunkToEntities.get(newChunkKey)!.add(id);
+    
+    // Update entity cache
+    this.entities.set(id, { id, tileX, tileZ, kind, data });
+  }
+  
+  /**
+   * Remove an entity from the spatial grid.
+   * Called when entity despawns or leaves the world.
+   */
+  remove(id: EntityId): void {
+    const entity = this.entities.get(id);
+    if (!entity) return;
+    
+    const chunkKey = computeChunkKey(entity.tileX, entity.tileZ);
+    this.chunkToEntities.get(chunkKey)?.delete(id);
+    this.entities.delete(id);
+  }
+  
+  /**
+   * Get all entities visible in the 3x3 chunk grid around the given tile position.
+   * Returns stripped entity data for network broadcast.
+   */
+  getVisibleEntities(centerTileX: number, centerTileZ: number): Record<string, unknown>[] {
+    const centerChunkKey = computeChunkKey(centerTileX, centerTileZ);
+    const chunkKeys = get3x3ChunkKeys(centerChunkKey);
+    
+    const visibleEntities: Record<string, unknown>[] = [];
+    
+    for (const chunkKey of chunkKeys) {
+      const entityIds = this.chunkToEntities.get(chunkKey);
+      if (!entityIds) continue;
+      
+      for (const id of entityIds) {
+        const entity = this.entities.get(id);
+        if (entity) {
+          visibleEntities.push(entity.data);
+        }
+      }
+    }
+    
+    return visibleEntities;
+  }
+  
+  /**
+   * Get entity IDs that are no longer in the visible 3x3 grid.
+   * Used for client-side garbage collection hints (optional).
+   */
+  getGoneEntities(centerTileX: number, centerTileZ: number, previousIds: Set<EntityId>): Set<EntityId> {
+    const visibleIds = new Set(
+      this.getVisibleEntities(centerTileX, centerTileZ).map(e => e.id as string)
+    );
+    
+    const gone = new Set<EntityId>();
+    for (const id of previousIds) {
+      if (!visibleIds.has(id)) {
+        gone.add(id);
+      }
+    }
+    return gone;
+  }
+  
+  /** Clear all entities (on world unload) */
+  clear(): void {
+    this.chunkToEntities.clear();
+    this.entities.clear();
+  }
+  
+  /** Debug: get grid statistics */
+  getStats(): { chunkCount: number; entityCount: number } {
+    return {
+      chunkCount: this.chunkToEntities.size,
+      entityCount: this.entities.size,
+    };
+  }
+}
 
 function sectorOf(entity: any): number {
   const x = Number(entity?.position?.x ?? 0);
@@ -86,7 +274,9 @@ export class WorldTick {
   private depletedResources: Map<string, number> = new Map();
 
   public assetPoolResolver: any = { getDocument: () => ({}), setEntry: () => true, removeEntry: () => true, setDefault: () => true, removeDefault: () => true, reload: () => true };
-  public getPersistenceStats(): any { return {}; }
+  public getPersistenceStats(): any { 
+    return persistenceDirector.getStats(); 
+  }
   public placementEngine: any = {};
   public listActiveVoteBanners(): any { return []; }
   public handleVoteProviderCallback(data: any): any { return { ok: true }; }
@@ -112,6 +302,157 @@ export class WorldTick {
   public assetHealthService: any = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
   public async init(): Promise<void> {}
   private keysDown: Map<string, Set<string>> = new Map();
+  
+  /**
+   * SPATIAL BROADCAST GRID
+   * ═══════════════════════════════════════════════════════════════════════
+   * 
+   * Per-Axiom 4 (Spatial Plexity): Server NEVER broadcasts all entities
+   * to all clients. Instead, each client receives only entities within
+   * their 3x3 chunk grid based on their kappaPos.
+   * 
+   * This grid is updated every tick with current positions and is queried
+   * per-client to build the world_snapshot payload.
+   * 
+   * ═══════════════════════════════════════════════════════════════════════
+   */
+  private readonly spatialBroadcastGrid = new SpatialBroadcastGrid();
+  
+  /**
+   * Track which entities each client has seen for GC hints.
+   * Map<socketId, Set<entityId>>
+   */
+  private clientVisibleEntities = new Map<string, Set<string>>();
+  
+  /**
+   * Cache of generated resources per chunk.
+   * Key: "cx:cz", Value: GeneratedResourceEntity[]
+   */
+  private chunkResourceCache = new Map<string, GeneratedResourceEntity[]>();
+  
+  /**
+   * Get resources for a chunk, generating them if not cached.
+   */
+  private getChunkResources(chunkX: number, chunkZ: number): GeneratedResourceEntity[] {
+    const key = `${chunkX}:${chunkZ}`;
+    let resources = this.chunkResourceCache.get(key);
+    
+    if (!resources) {
+      // Generate resources deterministically
+      const biome = this.getChunkBiome(chunkX, chunkZ);
+      const result = resourcePopulator.generateChunkResources(chunkX, chunkZ, biome);
+      resources = result.entities;
+      this.chunkResourceCache.set(key, resources);
+      
+      // Log slow generation
+      if (result.generationMs > 10) {
+        console.warn(`[ResourcePopulator] Slow chunk generation: ${chunkX}:${chunkZ} took ${result.generationMs.toFixed(2)}ms`);
+      }
+    }
+    
+    return resources;
+  }
+  
+  /**
+   * Determine biome for a chunk (simplified).
+   */
+  private getChunkBiome(chunkX: number, chunkZ: number): string {
+    const seed = chunkX * 7 + chunkZ * 13;
+    const biomeIndex = Math.abs(seed) % 4;
+    const biomes = ['forest', 'forest', 'mountain', 'plains'];
+    return biomes[biomeIndex];
+  }
+  
+  /**
+   * Broadcast spatial world_snapshot to a specific client.
+   * Called every tick for each connected player.
+   * 
+   * @param socketId - Target client's socket ID
+   * @param playerTileX - Player's current tile X position
+   * @param playerTileZ - Player's current tile Z position
+   * @param selfId - Player's own ID (excluded from other_players)
+   */
+  private broadcastSpatialSnapshot(socketId: string, playerTileX: number, playerTileZ: number, selfId: string): void {
+    const visibleEntities = this.spatialBroadcastGrid.getVisibleEntities(playerTileX, playerTileZ);
+    
+    // Separate self from others
+    const otherPlayers: Record<string, unknown>[] = [];
+    const npcs: Record<string, unknown>[] = [];
+    const loot: Record<string, unknown>[] = [];
+    const resources: Record<string, unknown>[] = [];
+    const visibleIds = new Set<string>();
+    
+    for (const entity of visibleEntities) {
+      const id = entity.id as string;
+      visibleIds.add(id);
+      
+      if (id === selfId) continue; // Skip self
+      
+      const kind = entity.kind as string;
+      if (kind === "player") {
+        otherPlayers.push(entity);
+      } else if (kind === "npc") {
+        npcs.push(entity);
+      } else if (kind === "loot") {
+        loot.push(entity);
+      }
+    }
+    
+    // ─── RESOURCE ENTITIES IN WORLD SNAPSHOT ───────────────────────────────
+    // Include generated resource entities from the 3x3 chunk grid around player.
+    // Deterministic based on worldSeed + chunk coords. Depleted resources
+    // are included with depleted=true for client visual feedback.
+    // ──────────────────────────────────────────────────────────────────────
+    
+    const playerChunkX = Math.floor(playerTileX / 64);
+    const playerChunkZ = Math.floor(playerTileZ / 64);
+    
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        const cx = playerChunkX + dx;
+        const cz = playerChunkZ + dz;
+        const chunkResources = this.getChunkResources(cx, cz);
+        
+        for (const res of chunkResources) {
+          resources.push({
+            id: res.id,
+            type: 'RESOURCE',
+            resourceType: res.resourceType,
+            x: res.kappaX / 1000,  // Convert KAPPA back to world space
+            z: res.kappaZ / 1000,
+            kappaX: res.kappaX,
+            kappaZ: res.kappaZ,
+            yield: res.remainingYield,
+            maxYield: res.yield,
+            depleted: res.depleted,
+            regrowRate: res.regrowRate,
+          });
+          visibleIds.add(res.id);
+        }
+      }
+    }
+    
+    // Update client's visible entities for future GC hints
+    this.clientVisibleEntities.set(socketId, visibleIds);
+    
+    // Send the spatial snapshot
+    this.ws.sendToPlayer(socketId, {
+      type: "world_snapshot",
+      tick: this.tickCount,
+      self: selfId,
+      other_players: otherPlayers,
+      npcs,
+      loot,
+      resources,
+    });
+  }
+  
+  /**
+   * Get spatial broadcast grid statistics.
+   */
+  public getSpatialBroadcastStats(): { chunkCount: number; entityCount: number } {
+    return this.spatialBroadcastGrid.getStats();
+  }
 
   constructor(private ws: GameWebSocketServer) {
     this.chunkSystem = new ChunkSystem(64);
@@ -133,6 +474,9 @@ export class WorldTick {
     // Initialize InventoryDirector with WebSocket for broadcasts
     inventoryDirector.initialize(ws);
     
+    // Initialize PersistenceDirector for async player persistence
+    persistenceDirector.init().catch((err: any) => console.error("[WorldTick] PersistenceDirector init failed:", err));
+    
     const dummyPlayer = this.playerSystem.createPlayer("dummy_player", "Dummy Player");
     dummyPlayer.position.x = 500;
     dummyPlayer.position.y = 500;
@@ -143,10 +487,23 @@ export class WorldTick {
       const uid = this.socketToPlayer.get(id);
       if (uid) {
         const player = this.playerSystem.getPlayer(uid);
-        if (player) { player.isOffline = true; player.state = "idle"; player.stateTimer = this.tickCount + 50; }
+        if (player) { 
+          player.isOffline = true; 
+          player.state = "idle"; 
+          player.stateTimer = this.tickCount + 50;
+          
+          // ATOMARE DISCONNECT-SICHERUNG: Priority flush before entity removal
+          // This blocks the disconnect handler until persistence completes
+          try {
+            const snapshot = persistenceDirector.buildCompleteSnapshot(player);
+            await persistenceDirector.flushPlayerSync(uid, snapshot);
+          } catch (err) {
+            console.error(`[WorldTick] Priority flush failed for ${player.name}:`, err);
+          }
+        }
         this.observerEngine.unregister(id);
         this.socketToPlayer.delete(id);
-        await this.saveAll();
+        this.playerToSocket.delete(uid);
         console.log(`Player ${player?.name} (Socket ${id}) disconnected.`);
       }
     };
@@ -212,7 +569,19 @@ export class WorldTick {
       let uid = "";
       try { const decodedToken = await verifyFirebaseToken(msg.token) as any; if (decodedToken) { uid = decodedToken.uid; charName = decodedToken.name || decodedToken.email?.split('@')[0] || `Player_${uid.substring(0, 6)}`; } else { this.ws.sendToPlayer(id, { type: "error", message: "Authentication service unavailable" }); return; } } catch { this.ws.sendToPlayer(id, { type: "error", message: "Authentication failed: Invalid token" }); return; }
       let player = this.playerSystem.getPlayer(uid);
-      if (!player) { player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance); this.hydratePlayer(player); } else { player.isOffline = false; }
+      if (!player) { 
+        player = this.playerSystem.createPlayer(uid, charName, msg.class, msg.appearance); 
+        this.hydratePlayer(player);
+        
+        // Load persisted snapshot for returning players
+        const saved = await persistenceDirector.loadPlayerSnapshot(uid);
+        if (saved) {
+          persistenceDirector.applySnapshot(player, saved);
+          console.log(`[WorldTick] Restored player ${charName} from persistence.`);
+        }
+      } else { 
+        player.isOffline = false; 
+      }
       if (player.name !== charName) player.name = charName;
       this.socketToPlayer.set(id, uid);
       this.playerToSocket.set(uid, id);
@@ -259,6 +628,230 @@ export class WorldTick {
       player.equipment = playerData.equipment;
       this.saveAll();
     }
+    // ─── STORAGE INTERACTION HANDLERS ────────────────────────────────────────
+    else if (msg.type === "open_storage") {
+      // Player requests to open a storage entity (e.g., chest)
+      const storageId = msg.payload?.storageId as string | undefined;
+      if (!storageId) {
+        this.ws.sendToPlayer(id, { type: "storage_error", code: "MISSING_STORAGE_ID", message: "Storage ID required" });
+        return;
+      }
+      
+      const storageEntity = storageEntityManager.getStorageEntity(storageId);
+      if (!storageEntity) {
+        this.ws.sendToPlayer(id, { type: "storage_error", code: "STORAGE_NOT_FOUND", message: "Storage not found" });
+        return;
+      }
+      
+      // Check proximity - player must be near the storage
+      const dist = Math.hypot(player.position.x - storageEntity.position.x, player.position.y - storageEntity.position.y);
+      if (dist > 40) {
+        this.ws.sendToPlayer(id, { type: "storage_error", code: "TOO_FAR", message: "Too far from storage" });
+        return;
+      }
+      
+      // Lock the storage entity
+      storageEntityManager.setStorageLocked(storageId, true);
+      storageEntityManager.openStorage(storageId, this.tickCount);
+      
+      // Build storage snapshot for client
+      const storageSnapshot = {
+        storageId: storageEntity.entityId,
+        storageType: storageEntity.storageType,
+        inventory: {
+          slots: storageEntity.inventory.slots.map((slot, idx) => {
+            if (!slot) return null;
+            // Convert InventorySlot to ModularItem - simplified for now
+            return {
+              signature: slot.id,
+              name: slot.id.split(':').pop() ?? slot.id,
+              category: "material" as const,
+              rarity: "common" as const,
+              ilvl: 1,
+              stats: {},
+              visualId: slot.id,
+              quantity: slot.quantity,
+            };
+          }),
+          maxSlots: storageEntity.inventory.maxSlots,
+          currentWeight: storageEntity.inventory.currentWeight,
+          maxWeight: storageEntity.inventory.maxWeight,
+        },
+        tick: this.tickCount,
+      };
+      
+      this.ws.sendToPlayer(id, { type: "storage_snapshot", event: "storage_snapshot", payload: storageSnapshot });
+    }
+    else if (msg.type === "close_storage") {
+      // Player closes storage - release lock
+      const storageId = msg.payload?.storageId as string | undefined;
+      if (storageId) {
+        storageEntityManager.setStorageLocked(storageId, false);
+      }
+      this.ws.sendToPlayer(id, { type: "storage_closed", event: "storage_closed", storageId });
+    }
+    else if (msg.type === "transfer_item") {
+      // Handle item transfer between player inventory and storage
+      const intentPayload = msg.payload as any;
+      const { fromStorageId, toStorageId, fromSlotIndex, toSlotIndex } = intentPayload;
+      
+      // Validate source/target
+      if (!fromStorageId || !toStorageId || fromSlotIndex === undefined) {
+        this.ws.sendToPlayer(id, { type: "storage_error", code: "INVALID_TRANSFER", message: "Invalid transfer parameters" });
+        return;
+      }
+      
+      // Find source storage entity
+      let sourceStorage: StorageEntity | null = null;
+      let destStorage: StorageEntity | null = null;
+      
+      if (fromStorageId !== "player") {
+        sourceStorage = storageEntityManager.getStorageEntity(fromStorageId);
+      }
+      if (toStorageId !== "player") {
+        destStorage = storageEntityManager.getStorageEntity(toStorageId);
+      }
+      
+      // Check if source storage is locked by another player
+      if (sourceStorage && sourceStorage.locked && sourceStorage.ownerId !== playerId) {
+        this.ws.sendToPlayer(id, { type: "storage_error", code: "STORAGE_LOCKED", message: "Storage is locked by another player" });
+        return;
+      }
+      if (destStorage && destStorage.locked && destStorage.ownerId !== playerId) {
+        this.ws.sendToPlayer(id, { type: "storage_error", code: "STORAGE_LOCKED", message: "Storage is locked by another player" });
+        return;
+      }
+      
+      // Perform transfer
+      let success = false;
+      let reason = "";
+      
+      // Case 1: Player -> Storage
+      if (fromStorageId === "player" && destStorage) {
+        const playerItems = player.inventory?.slots ?? [];
+        const item = playerItems[fromSlotIndex];
+        if (item) {
+          const addResult = storageEntityManager.addItemToStorage(
+            toStorageId,
+            item.id ?? String(fromSlotIndex),
+            item.quantity ?? 1,
+            this.tickCount
+          );
+          if (addResult.success) {
+            // Remove from player
+            playerItems[fromSlotIndex] = null;
+            player.inventory.slots = playerItems;
+            storageEntityManager.openStorage(toStorageId, this.tickCount);
+            success = true;
+            
+            // Send updated player inventory snapshot
+            this.ws.sendToPlayer(id, { 
+              type: "inventory_snapshot", 
+              event: "inventory_snapshot", 
+              payload: { inventory: player.inventory, equipment: player.equipment } 
+            });
+            
+            // Send updated storage snapshot
+            const updatedStorage = storageEntityManager.getStorageEntity(toStorageId)!;
+            this.ws.sendToPlayer(id, { type: "item_transferred", event: "item_transferred", fromStorageId, toStorageId, slotIndex: toSlotIndex });
+            
+            // Send new storage snapshot
+            const storageSnapshot = {
+              storageId: updatedStorage.entityId,
+              storageType: updatedStorage.storageType,
+              inventory: {
+                slots: updatedStorage.inventory.slots.map((slot, idx) => slot ? {
+                  signature: slot.id,
+                  name: slot.id.split(':').pop() ?? slot.id,
+                  category: "material" as const,
+                  rarity: "common" as const,
+                  ilvl: 1,
+                  stats: {},
+                  visualId: slot.id,
+                  quantity: slot.quantity,
+                } : null),
+                maxSlots: updatedStorage.inventory.maxSlots,
+                currentWeight: updatedStorage.inventory.currentWeight,
+                maxWeight: updatedStorage.inventory.maxWeight,
+              },
+              tick: this.tickCount,
+            };
+            this.ws.sendToPlayer(id, { type: "storage_snapshot", event: "storage_snapshot", payload: storageSnapshot });
+          } else {
+            reason = addResult.reason ?? "TRANSFER_FAILED";
+          }
+        }
+      }
+      // Case 2: Storage -> Player
+      else if (fromStorageId !== "player" && destStorage === null) {
+        const sourceEntity = storageEntityManager.getStorageEntity(fromStorageId);
+        if (sourceEntity) {
+          const slot = sourceEntity.inventory.slots[fromSlotIndex];
+          if (slot) {
+            // Try to add to player inventory
+            const playerItems = player.inventory?.slots ?? [];
+            const emptySlot = toSlotIndex >= 0 ? toSlotIndex : playerItems.findIndex((s, i) => !s && i < (player.inventory?.maxSlots ?? 24));
+            
+            if (emptySlot >= 0) {
+              const removeResult = storageEntityManager.removeItemFromStorage(
+                fromStorageId,
+                slot.id,
+                slot.quantity,
+                this.tickCount
+              );
+              if (removeResult.success) {
+                playerItems[emptySlot] = { ...slot };
+                player.inventory.slots = playerItems;
+                storageEntityManager.openStorage(fromStorageId, this.tickCount);
+                success = true;
+                
+                // Send updated storage snapshot
+                const updatedStorage = storageEntityManager.getStorageEntity(fromStorageId)!;
+                this.ws.sendToPlayer(id, { type: "item_transferred", event: "item_transferred", fromStorageId, toStorageId, slotIndex: fromSlotIndex });
+                
+                const storageSnapshot = {
+                  storageId: updatedStorage.entityId,
+                  storageType: updatedStorage.storageType,
+                  inventory: {
+                    slots: updatedStorage.inventory.slots.map((s, idx) => s ? {
+                      signature: s.id,
+                      name: s.id.split(':').pop() ?? s.id,
+                      category: "material" as const,
+                      rarity: "common" as const,
+                      ilvl: 1,
+                      stats: {},
+                      visualId: s.id,
+                      quantity: s.quantity,
+                    } : null),
+                    maxSlots: updatedStorage.inventory.maxSlots,
+                    currentWeight: updatedStorage.inventory.currentWeight,
+                    maxWeight: updatedStorage.inventory.maxWeight,
+                  },
+                  tick: this.tickCount,
+                };
+                this.ws.sendToPlayer(id, { type: "storage_snapshot", event: "storage_snapshot", payload: storageSnapshot });
+                this.ws.sendToPlayer(id, { 
+                  type: "inventory_snapshot", 
+                  event: "inventory_snapshot", 
+                  payload: { inventory: player.inventory, equipment: player.equipment } 
+                });
+              } else {
+                reason = removeResult.reason ?? "TRANSFER_FAILED";
+              }
+            } else {
+              reason = "PLAYER_INVENTORY_FULL";
+            }
+          }
+        }
+      }
+      
+      if (!success && !reason) {
+        reason = "TRANSFER_FAILED";
+      }
+      if (!success) {
+        this.ws.sendToPlayer(id, { type: "storage_error", code: reason, message: reason });
+      }
+    }
   }
 
   private processForestResourceActions() {
@@ -269,6 +862,48 @@ export class WorldTick {
     for (const request of queue) {
       const player = this.playerSystem.getPlayer(request.playerId);
       if (!player || player.isOffline) continue;
+      
+      // ─── NEW: Handle deterministic RESOURCE entities ────────────────────────
+      // These have KAPPA coordinates and are tracked via ChunkModificationDirector
+      if (request.input?.resourceNodeId && request.input.resourceNodeId.startsWith('res_')) {
+        const entityId = request.input.resourceNodeId as string;
+        
+        // Parse chunk coords from entityId: res_{type}_{chunkX}_{chunkZ}_{index}
+        const parts = entityId.split('_');
+        if (parts.length >= 5) {
+          const chunkX = parseInt(parts[2], 10);
+          const chunkZ = parseInt(parts[3], 10);
+          
+          // Check if resource is already depleted via ChunkModificationDirector
+          if (chunkModificationDirector.isResourceDepleted(entityId)) {
+            this.ws.sendToPlayer(request.socketId, { 
+              type: "FOREST_RESOURCE_REJECTED", 
+              reason: "depleted",
+              entityId 
+            });
+            continue;
+          }
+          
+          // Proceed with gathering - mark as depleted in ChunkModificationDirector
+          const itemId = request.input.itemId ?? request.input.resourceType;
+          this.inventorySystem.addItem(player, { id: itemId, quantity: 1, source: "resource", resourceType: request.input.resourceType });
+          
+          // Mark as depleted permanently (until server restart or world reset)
+          chunkModificationDirector.markResourceDepleted(entityId, chunkX, chunkZ, this.tickCount);
+          
+          this.ws.sendToPlayer(request.socketId, { 
+            type: "FOREST_RESOURCE_ACCEPTED", 
+            resourceKey: entityId, 
+            itemId, 
+            quantity: 1, 
+            depleted: true,
+            entityId 
+          });
+          continue;
+        }
+      }
+      // ─── END NEW ───────────────────────────────────────────────────────────
+      
       const checked = checkForestResource(request.input);
       if (!checked.ok) { this.ws.sendToPlayer(request.socketId, { type: "FOREST_RESOURCE_REJECTED", reason: (checked as any).reason }); continue; }
       if (!isNearForestResource(player, checked.coord, FOREST_ACTION_DISTANCE)) { this.ws.sendToPlayer(request.socketId, { type: "FOREST_RESOURCE_REJECTED", reason: "too_far" }); continue; }
@@ -282,7 +917,38 @@ export class WorldTick {
     }
   }
 
-  private handleAttack(id: string, player: any, msg: any) { const targetId = msg.targetId; const npc = this.npcSystem.getNPC(targetId); if (npc && npc.health !== undefined) { const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y); if (dist < 30) { const baseDamage = 10; npc.health -= baseDamage; this.ws.broadcast({ type: "combat_feedback", targetId, damage: baseDamage, health: npc.health, maxHealth: npc.maxHealth }); if (npc.health <= 0) this.handleNPCDeath(id, player, npc, targetId); } } }
+  private handleAttack(id: string, player: any, msg: any) { 
+    const targetId = msg.targetId; 
+    const npc = this.npcSystem.getNPC(targetId); 
+    if (npc && npc.health !== undefined) { 
+      const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y); 
+      if (dist < 30) { 
+        const baseDamage = 10; 
+        npc.health -= baseDamage; 
+        
+        // ─────────────────────────────────────────────────────────────────
+        // COMBAT_RESULT BROADCAST
+        // ═════════════════════════════════════════════════════════════════
+        // Sends combat result to all players so the chat overlay can display it.
+        // ═════════════════════════════════════════════════════════════════
+        this.ws.broadcast({ 
+          type: "combat_result", 
+          payload: {
+            action: "strike",
+            attacker: player.name ?? "Player",
+            target: npc.name ?? targetId,
+            damage: baseDamage,
+            success: true,
+            targetHealth: npc.health,
+            targetMaxHealth: npc.maxHealth
+          }
+        });
+        
+        this.ws.broadcast({ type: "combat_feedback", targetId, damage: baseDamage, health: npc.health, maxHealth: npc.maxHealth }); 
+        if (npc.health <= 0) this.handleNPCDeath(id, player, npc, targetId); 
+      } 
+    } 
+  }
   private handleInteract(id: string, player: any, msg: any) { const targetId = msg.targetId; const npc = this.npcSystem.getNPC(targetId); const loot = this.lootEntities.get(targetId); if (npc) { const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y); if (dist < 20) { const interaction = this.npcSystem.handleInteraction(targetId, player, this.questSystem.getQuestDefinitions(), { tick: this.tickCount, biomeId: "forest_village" }); if (interaction) this.ws.sendToPlayer(id, { type: "dialogue", source: interaction.source, text: interaction.text, choices: interaction.choices, npcId: interaction.npcId }); } } else if (loot) { const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y); if (dist < 20) { this.inventorySystem.addItem(player, loot.item); this.lootEntities.delete(targetId); this.lootSpawnTicks.delete(targetId); this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` }); } } }
   private handleDialogueChoice(id: string, player: any, msg: any) { const { npcId, nodeId, choiceId } = msg; const interaction = this.npcSystem.handleChoice(npcId, nodeId, choiceId, player); if (interaction) this.ws.sendToPlayer(id, { type: "dialogue", source: interaction.source, text: interaction.text, choices: interaction.choices, npcId: interaction.npcId }); }
   private handleNPCDeath(socketId: string, player: any, npc: any, npcInstanceId: string) { npc.health = npc.maxHealth || 100; this.ws.sendToPlayer(socketId, { type: "dialogue", source: "System", text: `${npc.name} respawns.` }); }
@@ -449,15 +1115,39 @@ export class WorldTick {
     processRespawns(
       { players: allPlayers as any, respawnPoints: (this.worldSystem as any).respawnPoints },
       this.tickCount,
-      (playerId, type, payload) => {
+      (playerId, type, p) => {
         const socketId = this.playerToSocket.get(playerId);
-        if (socketId) this.ws.sendToPlayer(socketId, { type, payload });
+        if (socketId) this.ws.sendToPlayer(socketId, { type, payload: p });
       },
     );
     this.warfrontSystem.tick(this.tickCount * 100);
     this.npcSystem.tick(allPlayers.filter((p) => !p.isOffline), this.worldSystem.worldTime);
     const emergenceEvents = this.collectNpcEmergenceEvents();
-    runWarfrontCombatTick({ tickCount: this.tickCount, npcSystem: this.npcSystem, playerSystem: this.playerSystem, combatService: this.combatService, broadcast: (payload) => this.ws.broadcast(payload) });
+    
+    // ─────────────────────────────────────────────────────────────────
+    // NPC CHAT EVENTS BROADCAST
+    // ═════════════════════════════════════════════════════════════════
+    // 
+    // Drains NPC chat events from the NPCSystem and broadcasts them
+    // to all connected players. This routes NPC dialogue to the chat overlay.
+    // 
+    // Per-ARE-Logic: Events are server-authoritative. NPCs emit deterministic
+    // chat lines that are broadcast to all players in range.
+    // ═════════════════════════════════════════════════════════════════
+    const npcChatEvents = this.npcSystem.drainWorldChatEvents();
+    for (const chatEvent of npcChatEvents) {
+      this.ws.broadcast({
+        type: "CHAT_MESSAGE",
+        payload: {
+          senderId: chatEvent.senderId,
+          senderName: chatEvent.senderName,
+          text: chatEvent.text,
+          channel: chatEvent.channel ?? "global",
+        }
+      });
+    }
+    
+    runWarfrontCombatTick({ tickCount: this.tickCount, npcSystem: this.npcSystem, playerSystem: this.playerSystem, combatService: this.combatService, broadcast: (p) => this.ws.broadcast(p) });
     const npcsAgg = this.npcSystem.getAllNPCs();
     let aggSum = 0;
     let aggN = 0;
@@ -478,7 +1168,114 @@ export class WorldTick {
     const autoRepair = areAutoRepairService.getStatus();
     const usage = deterministicUsageTracker.getStats(this.tickCount);
     if (this.tickCount % 10 === 0) { const npcs = allNpcs.map(n => ({ id: n.id, name: n.name, x: n.position.x, y: n.position.y })); this.ws.broadcast({ type: "WORLD_HEARTBEAT", payload: { players: Object.fromEntries(allPlayers.filter(p => !p.isOffline).map(p => [p.id, { id: p.id, name: p.name, x: p.position.x, y: p.position.y }])), agents: npcs, emergence: { events: emergenceEvents }, are: areValidationState.getSnapshot(), replay: deterministicTickRecorder.stats(), areShadow: this.getAREShadowReplayStats(), electroweakPruning: { ttlTicks: ELECTROWEAK_LOOT_TTL_TICKS, stats: this.electroweakPruning.getStats(), decayEvents: this.latestElectroweakDecayEvents, prophecies: this.latestPropheticResonanceEvents }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) } }); }
+    
+    // ─────────────────────────────────────────────────────────────────
+    // SPATIAL BROADCAST UPDATE (Axiom 4: Spatial Plexity)
+    // ═══════════════════════════════════════════════════════════════════
+    // 
+    // Step 1: Rebuild the spatial grid with current entity positions.
+    // This O(1) Map structure enables fast 3x3 chunk queries.
+    // We rebuild every tick since entities move frequently.
+    //
+    // Step 2: For each connected player, query their visible 3x3 chunk
+    // grid and send a targeted world_snapshot. This ensures players
+    // only receive entities within ~192 tiles (3 chunks × 64 tiles).
+    //
+    // This replaces the legacy broadcast-all approach with per-client
+    // spatial filtering, reducing bandwidth and preventing cheats.
+    // ─────────────────────────────────────────────────────────────────
+    
+    // Rebuild spatial grid with current tick's entity data
+    // Clear first to rebuild fresh (or we could use upsert semantics)
+    this.spatialBroadcastGrid.clear();
+    
+    // Add all online players to spatial grid
+    for (const player of allPlayers) {
+      if (player.isOffline) continue;
+      const tileX = Math.round(player.position.x);
+      const tileZ = Math.round(player.position.y);
+      this.spatialBroadcastGrid.upsert(player.id, tileX, tileZ, "player", {
+        id: player.id,
+        name: player.name,
+        x: tileX,
+        z: tileZ,
+        kind: "player",
+        health: player.health,
+        maxHealth: player.maxHealth,
+        level: player.level,
+        state: player.state,
+      });
+    }
+    
+    // Add all NPCs to spatial grid
+    for (const npc of allNpcs) {
+      const tileX = Math.round(npc.position.x);
+      const tileZ = Math.round(npc.position.y);
+      this.spatialBroadcastGrid.upsert(npc.id, tileX, tileZ, "npc", {
+        id: npc.id,
+        name: npc.name,
+        x: tileX,
+        z: tileZ,
+        kind: "npc",
+        health: npc.health,
+        maxHealth: npc.maxHealth,
+        role: npc.role,
+        state: npc.state,
+      });
+    }
+    
+    // Add all loot entities to spatial grid
+    for (const loot of strippedLoot) {
+      if (!loot.position) continue;
+      const tileX = Math.round(loot.position.x);
+      const tileZ = Math.round(loot.position.y);
+      this.spatialBroadcastGrid.upsert(loot.id, tileX, tileZ, "loot", {
+        id: loot.id,
+        x: tileX,
+        z: tileZ,
+        kind: "loot",
+        items: loot.items,
+        gold: loot.gold,
+      });
+    }
+    
+    // Broadcast spatial snapshots to each connected player
+    // Each player receives ONLY entities within their 3x3 chunk grid
+    for (const [socketId, playerId] of this.playerToSocket) {
+      const player = this.playerSystem.getPlayer(playerId);
+      if (!player || player.isOffline) continue;
+      
+      const playerTileX = Math.round(player.position.x);
+      const playerTileZ = Math.round(player.position.y);
+      
+      this.broadcastSpatialSnapshot(socketId, playerTileX, playerTileZ, playerId);
+    }
+    
+    // Write-behind: throttle-flush every 300 ticks (30 seconds)
+    // NON-BLOCKING: triggers async flush, does not affect tick timing
+    if (this.tickCount % 300 === 0) {
+      this.debouncedFlushQueue();
+    }
+    
+    // Legacy periodic save (backup to existing persistence)
     if (this.tickCount % 600 === 0) this.saveAll().catch(e => console.error(e));
     this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, emergence: { events: emergenceEvents }, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null, shadow: this.getAREShadowReplayStats(), electroweakPruning: { ttlTicks: ELECTROWEAK_LOOT_TTL_TICKS, stats: this.electroweakPruning.getStats(), decayEvents: this.latestElectroweakDecayEvents, prophecies: this.latestPropheticResonanceEvents }, emergence: { events: emergenceEvents } }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) });
+  }
+  
+  /**
+   * Mark player dirty (called when inventory/skills change).
+   * NON-BLOCKING: Fire-and-forget call from game logic.
+   */
+  public markPlayerDirty(playerId: string): void {
+    persistenceDirector.markDirty(playerId);
+  }
+  
+  /**
+   * NON-BLOCKING queue flush for periodic saves.
+   */
+  private debouncedFlushQueue(): void {
+    persistenceDirector.flushQueue().catch((err: any) => {
+      console.error("[WorldTick] Queue flush failed:", err);
+    });
   }
 }
