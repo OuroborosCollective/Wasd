@@ -1,0 +1,9 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies", "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+$ vite
+
+  VITE v6.4.2  ready in 466 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+6:18:06 AM [vite] (client) ✨ new dependencies optimized: react/jsx-dev-runtime
+6:18:06 AM [vite] (client) ✨ optimized dependencies changed. reloading

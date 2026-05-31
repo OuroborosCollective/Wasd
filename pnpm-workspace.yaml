@@ -19,3 +19,5 @@ allowBuilds:
   prisma: true
   protobufjs: true
   ssh2: true
+minimumReleaseAgeExclude:
+  - tinyglobby@0.2.17
