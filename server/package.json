@@ -24,7 +24,7 @@
     "@wasd/core-logic": "workspace:*",
     "@wasd/shared": "workspace:*",
     "axios": "^1.16.1",
-    "commander": "^14.0.3",
+    "commander": "^15.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
