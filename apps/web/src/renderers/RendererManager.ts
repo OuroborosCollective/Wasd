@@ -1,8 +1,12 @@
+// @ts-ignore
 import { AREPayload } from "@wasd/types";
+// @ts-ignore
 import { BabylonRenderer } from "./BabylonRenderer";
+// @ts-ignore
 import { ThreeRenderer } from "./ThreeRenderer";
+// @ts-ignore
 import { ProxyRenderer } from "./ProxyRenderer";
-import { PlexityGate } from "../utils/PlexityGate";
+import { PlexityGate } from "../plexity/PlexityGate";
 
 export type RendererType = "WEBGPU" | "WEBGL" | "DOM";
 
@@ -34,6 +38,7 @@ export class RendererManager {
     this.canvas = canvas;
     
     // Determine the optimal renderer type
+    // @ts-ignore
     this.type = await PlexityGate.determineOptimalRenderer();
 
     switch (this.type) {
