@@ -35,6 +35,7 @@ import { FOREST_ACTION_DISTANCE, FOREST_RESPAWN_TICKS } from "../modules/resourc
 import { AIOrchestrator } from "./AIOrchestrator.js";
 import { processRespawns } from "../modules/combat/deathRespawnSystem.js";
 import { persistenceDirector } from "../modules/persistence/PersistenceDirector.js";
+import { storageEntityManager, type StorageEntity } from "../modules/structure/StorageEntity.js";
 
 const ELECTROWEAK_LOOT_TTL_TICKS = 1200;
 
@@ -549,6 +550,230 @@ export class WorldTick {
       player.inventory = playerData.inventory;
       player.equipment = playerData.equipment;
       this.saveAll();
+    }
+    // ─── STORAGE INTERACTION HANDLERS ────────────────────────────────────────
+    else if (msg.type === "open_storage") {
+      // Player requests to open a storage entity (e.g., chest)
+      const storageId = msg.payload?.storageId as string | undefined;
+      if (!storageId) {
+        this.ws.sendToPlayer(id, { type: "storage_error", code: "MISSING_STORAGE_ID", message: "Storage ID required" });
+        return;
+      }
+      
+      const storageEntity = storageEntityManager.getStorageEntity(storageId);
+      if (!storageEntity) {
+        this.ws.sendToPlayer(id, { type: "storage_error", code: "STORAGE_NOT_FOUND", message: "Storage not found" });
+        return;
+      }
+      
+      // Check proximity - player must be near the storage
+      const dist = Math.hypot(player.position.x - storageEntity.position.x, player.position.y - storageEntity.position.y);
+      if (dist > 40) {
+        this.ws.sendToPlayer(id, { type: "storage_error", code: "TOO_FAR", message: "Too far from storage" });
+        return;
+      }
+      
+      // Lock the storage entity
+      storageEntityManager.setStorageLocked(storageId, true);
+      storageEntityManager.openStorage(storageId, this.tickCount);
+      
+      // Build storage snapshot for client
+      const storageSnapshot = {
+        storageId: storageEntity.entityId,
+        storageType: storageEntity.storageType,
+        inventory: {
+          slots: storageEntity.inventory.slots.map((slot, idx) => {
+            if (!slot) return null;
+            // Convert InventorySlot to ModularItem - simplified for now
+            return {
+              signature: slot.id,
+              name: slot.id.split(':').pop() ?? slot.id,
+              category: "material" as const,
+              rarity: "common" as const,
+              ilvl: 1,
+              stats: {},
+              visualId: slot.id,
+              quantity: slot.quantity,
+            };
+          }),
+          maxSlots: storageEntity.inventory.maxSlots,
+          currentWeight: storageEntity.inventory.currentWeight,
+          maxWeight: storageEntity.inventory.maxWeight,
+        },
+        tick: this.tickCount,
+      };
+      
+      this.ws.sendToPlayer(id, { type: "storage_snapshot", event: "storage_snapshot", payload: storageSnapshot });
+    }
+    else if (msg.type === "close_storage") {
+      // Player closes storage - release lock
+      const storageId = msg.payload?.storageId as string | undefined;
+      if (storageId) {
+        storageEntityManager.setStorageLocked(storageId, false);
+      }
+      this.ws.sendToPlayer(id, { type: "storage_closed", event: "storage_closed", storageId });
+    }
+    else if (msg.type === "transfer_item") {
+      // Handle item transfer between player inventory and storage
+      const intentPayload = msg.payload as any;
+      const { fromStorageId, toStorageId, fromSlotIndex, toSlotIndex } = intentPayload;
+      
+      // Validate source/target
+      if (!fromStorageId || !toStorageId || fromSlotIndex === undefined) {
+        this.ws.sendToPlayer(id, { type: "storage_error", code: "INVALID_TRANSFER", message: "Invalid transfer parameters" });
+        return;
+      }
+      
+      // Find source storage entity
+      let sourceStorage: StorageEntity | null = null;
+      let destStorage: StorageEntity | null = null;
+      
+      if (fromStorageId !== "player") {
+        sourceStorage = storageEntityManager.getStorageEntity(fromStorageId);
+      }
+      if (toStorageId !== "player") {
+        destStorage = storageEntityManager.getStorageEntity(toStorageId);
+      }
+      
+      // Check if source storage is locked by another player
+      if (sourceStorage && sourceStorage.locked && sourceStorage.ownerId !== playerId) {
+        this.ws.sendToPlayer(id, { type: "storage_error", code: "STORAGE_LOCKED", message: "Storage is locked by another player" });
+        return;
+      }
+      if (destStorage && destStorage.locked && destStorage.ownerId !== playerId) {
+        this.ws.sendToPlayer(id, { type: "storage_error", code: "STORAGE_LOCKED", message: "Storage is locked by another player" });
+        return;
+      }
+      
+      // Perform transfer
+      let success = false;
+      let reason = "";
+      
+      // Case 1: Player -> Storage
+      if (fromStorageId === "player" && destStorage) {
+        const playerItems = player.inventory?.slots ?? [];
+        const item = playerItems[fromSlotIndex];
+        if (item) {
+          const addResult = storageEntityManager.addItemToStorage(
+            toStorageId,
+            item.id ?? String(fromSlotIndex),
+            item.quantity ?? 1,
+            this.tickCount
+          );
+          if (addResult.success) {
+            // Remove from player
+            playerItems[fromSlotIndex] = null;
+            player.inventory.slots = playerItems;
+            storageEntityManager.openStorage(toStorageId, this.tickCount);
+            success = true;
+            
+            // Send updated player inventory snapshot
+            this.ws.sendToPlayer(id, { 
+              type: "inventory_snapshot", 
+              event: "inventory_snapshot", 
+              payload: { inventory: player.inventory, equipment: player.equipment } 
+            });
+            
+            // Send updated storage snapshot
+            const updatedStorage = storageEntityManager.getStorageEntity(toStorageId)!;
+            this.ws.sendToPlayer(id, { type: "item_transferred", event: "item_transferred", fromStorageId, toStorageId, slotIndex: toSlotIndex });
+            
+            // Send new storage snapshot
+            const storageSnapshot = {
+              storageId: updatedStorage.entityId,
+              storageType: updatedStorage.storageType,
+              inventory: {
+                slots: updatedStorage.inventory.slots.map((slot, idx) => slot ? {
+                  signature: slot.id,
+                  name: slot.id.split(':').pop() ?? slot.id,
+                  category: "material" as const,
+                  rarity: "common" as const,
+                  ilvl: 1,
+                  stats: {},
+                  visualId: slot.id,
+                  quantity: slot.quantity,
+                } : null),
+                maxSlots: updatedStorage.inventory.maxSlots,
+                currentWeight: updatedStorage.inventory.currentWeight,
+                maxWeight: updatedStorage.inventory.maxWeight,
+              },
+              tick: this.tickCount,
+            };
+            this.ws.sendToPlayer(id, { type: "storage_snapshot", event: "storage_snapshot", payload: storageSnapshot });
+          } else {
+            reason = addResult.reason ?? "TRANSFER_FAILED";
+          }
+        }
+      }
+      // Case 2: Storage -> Player
+      else if (fromStorageId !== "player" && destStorage === null) {
+        const sourceEntity = storageEntityManager.getStorageEntity(fromStorageId);
+        if (sourceEntity) {
+          const slot = sourceEntity.inventory.slots[fromSlotIndex];
+          if (slot) {
+            // Try to add to player inventory
+            const playerItems = player.inventory?.slots ?? [];
+            const emptySlot = toSlotIndex >= 0 ? toSlotIndex : playerItems.findIndex((s, i) => !s && i < (player.inventory?.maxSlots ?? 24));
+            
+            if (emptySlot >= 0) {
+              const removeResult = storageEntityManager.removeItemFromStorage(
+                fromStorageId,
+                slot.id,
+                slot.quantity,
+                this.tickCount
+              );
+              if (removeResult.success) {
+                playerItems[emptySlot] = { ...slot };
+                player.inventory.slots = playerItems;
+                storageEntityManager.openStorage(fromStorageId, this.tickCount);
+                success = true;
+                
+                // Send updated storage snapshot
+                const updatedStorage = storageEntityManager.getStorageEntity(fromStorageId)!;
+                this.ws.sendToPlayer(id, { type: "item_transferred", event: "item_transferred", fromStorageId, toStorageId, slotIndex: fromSlotIndex });
+                
+                const storageSnapshot = {
+                  storageId: updatedStorage.entityId,
+                  storageType: updatedStorage.storageType,
+                  inventory: {
+                    slots: updatedStorage.inventory.slots.map((s, idx) => s ? {
+                      signature: s.id,
+                      name: s.id.split(':').pop() ?? s.id,
+                      category: "material" as const,
+                      rarity: "common" as const,
+                      ilvl: 1,
+                      stats: {},
+                      visualId: s.id,
+                      quantity: s.quantity,
+                    } : null),
+                    maxSlots: updatedStorage.inventory.maxSlots,
+                    currentWeight: updatedStorage.inventory.currentWeight,
+                    maxWeight: updatedStorage.inventory.maxWeight,
+                  },
+                  tick: this.tickCount,
+                };
+                this.ws.sendToPlayer(id, { type: "storage_snapshot", event: "storage_snapshot", payload: storageSnapshot });
+                this.ws.sendToPlayer(id, { 
+                  type: "inventory_snapshot", 
+                  event: "inventory_snapshot", 
+                  payload: { inventory: player.inventory, equipment: player.equipment } 
+                });
+              } else {
+                reason = removeResult.reason ?? "TRANSFER_FAILED";
+              }
+            } else {
+              reason = "PLAYER_INVENTORY_FULL";
+            }
+          }
+        }
+      }
+      
+      if (!success && !reason) {
+        reason = "TRANSFER_FAILED";
+      }
+      if (!success) {
+        this.ws.sendToPlayer(id, { type: "storage_error", code: reason, message: reason });
+      }
     }
   }
 

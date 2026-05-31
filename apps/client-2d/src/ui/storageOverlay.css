@@ -1,0 +1,375 @@
+/**
+ * Ouroboros StorageOverlay CSS — Tank-Schrank Aesthetic
+ * 
+ * Design Philosophy:
+ * - Hard edges, no border-radius (tank armor aesthetic)
+ * - Dark metallic palette with sharp borders
+ * - Split-screen layout: Player (left) | Storage (right)
+ * - Pessimistic blocking states with visual urgency
+ * 
+ * Brutalist UI: No Tailwind, pure native CSS.
+ */
+
+/* ─── Overlay Container ───────────────────────────────────────────── */
+
+.storage-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
+}
+
+/* ─── Header ───────────────────────────────────────────────────────── */
+
+.storage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(900px, 96vw);
+  padding: 14px 18px;
+  background: linear-gradient(180deg, #0d1017 0%, #07090d 100%);
+  border: 1px solid rgba(0, 204, 255, 0.25);
+  border-bottom: none;
+}
+
+.storage-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #00ccff;
+}
+
+.storage-header .close-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 204, 255, 0.4);
+  background: rgba(0, 60, 80, 0.8);
+  color: #00ccff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.storage-header .close-btn:hover {
+  background: rgba(0, 120, 160, 0.9);
+}
+
+.storage-type {
+  font-size: 0.78rem;
+  color: #6a9aaa;
+  letter-spacing: 0.06em;
+}
+
+/* ─── Split Content Area ──────────────────────────────────────────── */
+
+.storage-content {
+  display: flex;
+  gap: 0;
+  width: min(900px, 96vw);
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(0, 204, 255, 0.25);
+}
+
+/* ─── Panel (Left/Right) ──────────────────────────────────────────── */
+
+.storage-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  position: relative;
+}
+
+.player-panel {
+  background: linear-gradient(180deg, #0a0d12 0%, #060810 100%);
+  border-right: 1px solid rgba(0, 204, 255, 0.15);
+}
+
+.container-panel {
+  background: linear-gradient(180deg, #0d0a12 0%, #090610 100%);
+  border-left: 1px solid rgba(0, 204, 255, 0.15);
+}
+
+.storage-panel h3 {
+  margin: 0 0 8px 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #6a7a8a;
+}
+
+.player-panel h3 {
+  color: #4a9aaa;
+}
+
+.container-panel h3 {
+  color: #7a4a9a;
+}
+
+.storage-weight {
+  font-size: 0.72rem;
+  color: #5a6a7a;
+  margin-bottom: 10px;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Storage Grid ────────────────────────────────────────────────── */
+
+.storage-grid {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+}
+
+/* ─── Storage Slot ─────────────────────────────────────────────────── */
+
+.storage-slot {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 20, 28, 0.95);
+  border: 1px solid rgba(80, 90, 110, 0.3);
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.storage-slot.empty {
+  cursor: default;
+}
+
+.storage-slot.has-item {
+  cursor: pointer;
+}
+
+.storage-slot.has-item:hover {
+  background: rgba(30, 40, 55, 0.95);
+  border-color: rgba(0, 204, 255, 0.4);
+}
+
+/* ─── Slot Icon ───────────────────────────────────────────────────── */
+
+.slot-icon {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #8a9aaa;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.storage-slot.has-item .slot-icon {
+  color: #d0d8e0;
+}
+
+/* ─── Slot Quantity ──────────────────────────────────────────────── */
+
+.slot-quantity {
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #6a7a8a;
+  font-family: ui-monospace, monospace;
+}
+
+/* ─── Rarity Borders ──────────────────────────────────────────────── */
+
+.storage-slot.rarity-common {
+  border-color: rgba(157, 157, 157, 0.35);
+}
+
+.storage-slot.rarity-uncommon {
+  border-color: rgba(30, 255, 0, 0.35);
+  box-shadow: inset 0 0 6px rgba(30, 255, 0, 0.08);
+}
+
+.storage-slot.rarity-rare {
+  border-color: rgba(0, 112, 221, 0.45);
+  box-shadow: inset 0 0 6px rgba(0, 112, 221, 0.1);
+}
+
+.storage-slot.rarity-epic {
+  border-color: rgba(163, 53, 238, 0.5);
+  box-shadow: inset 0 0 8px rgba(163, 53, 238, 0.12);
+}
+
+.storage-slot.rarity-legendary {
+  border-color: rgba(255, 128, 0, 0.6);
+  box-shadow: inset 0 0 10px rgba(255, 128, 0, 0.15);
+}
+
+.storage-slot.rarity-mystic {
+  border-color: rgba(0, 204, 255, 0.55);
+  box-shadow: inset 0 0 8px rgba(0, 204, 255, 0.12);
+}
+
+/* ─── Legendary Glow ─────────────────────────────────────────────────── */
+
+.slot-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(255, 128, 0, 0.15) 0%, transparent 70%);
+  animation: legendary-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes legendary-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.9; }
+}
+
+/* ─── Blocked State (Pessimistic UI) ──────────────────────────────── */
+
+.storage-slot.blocked {
+  opacity: 0.45;
+  cursor: wait;
+  pointer-events: none;
+}
+
+.storage-slot.blocked {
+  background: rgba(30, 60, 80, 0.6);
+  border-color: rgba(0, 204, 255, 0.4);
+}
+
+.slot-spinner {
+  font-size: 1.1rem;
+  color: #00ccff;
+  animation: slot-spin 1s linear infinite;
+}
+
+@keyframes slot-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Divider ────────────────────────────────────────────────────── */
+
+.storage-divider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  background: #050508;
+  border-left: 1px solid rgba(0, 204, 255, 0.1);
+  border-right: 1px solid rgba(0, 204, 255, 0.1);
+}
+
+.divider-line {
+  flex: 1;
+  width: 2px;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 204, 255, 0.3) 50%, transparent 100%);
+}
+
+.divider-icon {
+  padding: 12px 0;
+  font-size: 1.4rem;
+  color: rgba(0, 204, 255, 0.5);
+  font-weight: 700;
+}
+
+/* ─── Panel Hint ─────────────────────────────────────────────────── */
+
+.panel-hint {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(80, 90, 110, 0.2);
+  font-size: 0.68rem;
+  color: #4a5a6a;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+/* ─── Pending Intent Indicator ─────────────────────────────────── */
+
+.pending-indicator {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(0, 40, 60, 0.92);
+  border: 1px solid rgba(0, 204, 255, 0.5);
+  color: #00ccff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  animation: pending-pulse 1.5s ease-in-out infinite;
+}
+
+.pending-indicator span {
+  font-size: 1rem;
+  animation: slot-spin 1s linear infinite;
+}
+
+@keyframes pending-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* ─── Empty Slot Indicator ────────────────────────────────────── */
+
+.storage-slot.empty::after {
+  content: "";
+  width: 30%;
+  height: 30%;
+  background: rgba(60, 70, 85, 0.15);
+}
+
+/* ─── Mobile Responsive ─────────────────────────────────────────── */
+
+@media (max-width: 700px) {
+  .storage-overlay {
+    padding: 0;
+  }
+
+  .storage-content {
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+
+  .storage-divider {
+    flex-direction: row;
+    width: 100%;
+    height: 40px;
+    border: none;
+    border-top: 1px solid rgba(0, 204, 255, 0.15);
+    border-bottom: 1px solid rgba(0, 204, 255, 0.15);
+  }
+
+  .divider-line {
+    flex: 1;
+    height: 2px;
+    width: auto;
+    background: linear-gradient(90deg, transparent 0%, rgba(0, 204, 255, 0.3) 50%, transparent 100%);
+  }
+
+  .player-panel,
+  .container-panel {
+    flex: 1;
+    border: none;
+  }
+
+  .storage-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
