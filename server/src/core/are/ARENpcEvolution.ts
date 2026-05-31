@@ -323,7 +323,7 @@ export class ARENpcEvolution {
       energy: number;
       maxEnergy: number;
     },
-    inventorySlots: readonly { id?: string }[],
+    inventorySlots: readonly { id?: string; quantity?: number }[],
     closestEnemy: EnvironmentalEntity | undefined,
     ownedStorages: number
   ): DriveState {
@@ -523,7 +523,7 @@ export class ARENpcEvolution {
       maxEnergy: number;
       position: AREVector3;
     },
-    inventorySlots: readonly { id?: string }[],
+    inventorySlots: readonly { id?: string; quantity?: number }[],
     worldEntities: readonly Readonly<IAREPayload>[],
     ownedStorageCount: number,
     tick: number
