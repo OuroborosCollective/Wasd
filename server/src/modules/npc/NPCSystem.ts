@@ -81,6 +81,14 @@ export interface NPC {
     shopId?: string;
     stamina?: number;
     phaseShift?: number;
+    // ARE Systemic Emergence: NPC Inventory (Conservation Axiom - NPCs use same systems as players)
+    inventory?: any;
+    activeUtilityDecision?: {
+      action: string;
+      targetEntity?: string;
+      tick: number;
+      reason?: string;
+    };
 }
 
 type PlayerPerceptionContext = {
