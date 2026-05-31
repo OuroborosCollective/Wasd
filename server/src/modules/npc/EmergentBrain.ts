@@ -137,6 +137,7 @@ export class EmergentBrainKernel {
       OBSERVE: curiosity * 0.34 + input.playerDeltaDrift * 0.08 + input.energy * 0.08 - input.playerThreat * 0.06 - input.survivalBias * 0.08,
       HARVEST_RESOURCE: input.resourcePressure * 0.45 + energyDeficit * 0.22 + curiosity * 0.10 - input.playerThreat * 0.14 + input.survivalBias * 0.46,
       DEFEND_COLONY: input.colonyUtility * 0.36 + input.playerThreat * 0.30 + aggression * 0.30 + faith * 0.10 - input.survivalBias * 0.12,
+      WANDER: curiosity * 0.25 + input.colonyUtility * 0.15 + faith * 0.10 - input.playerThreat * 0.08 + energyDeficit * 0.05,
     };
   }
 
@@ -180,6 +181,7 @@ export class EmergentBrainKernel {
       case 'WARN_FACTION': return 6;
       case 'HARVEST_RESOURCE': return 10;
       case 'DEFEND_COLONY': return 14;
+      case 'WANDER': return 4;
       case 'OBSERVE':
       default: return 2;
     }
@@ -192,6 +194,7 @@ export class EmergentBrainKernel {
       case 'WARN_FACTION': return 'threat_detected_faction_signal_useful';
       case 'HARVEST_RESOURCE': return 'resource_pressure_or_energy_deficit_dominant';
       case 'DEFEND_COLONY': return 'colony_defense_utility_dominant';
+      case 'WANDER': return 'casual_exploration_curiosity_favorable';
       case 'OBSERVE':
       default: return 'insufficient_pressure_observe_and_update_history';
     }
