@@ -3,7 +3,7 @@
  * 
  * Deterministic resource entity generation for chunks.
  * 
- * Axiom 1 (Absolute Determinism): NO Math.random().
+ * Axiom 1 (Absolute Determinism): NO non-deterministic RNG.
  * All resource placement is derived from worldSeed + chunkX + chunkZ via AREHash.
  * 
  * Axiom 2 (KAPPA-Grid Alignment): All resources have precise KAPPA coordinates.
