@@ -12,15 +12,15 @@ packages:
 # pnpm v11 configuration
 # Moved from package.json as pnpm v11 ignores the pnpm field there
 allowBuilds:
-  - "@firebase/util"
-  - "@google/genai"
-  - "@nestjs/core"
-  - "@prisma/engines"
-  - "cpu-features"
-  - "esbuild"
-  - "prisma"
-  - "protobufjs"
-  - "ssh2"
+  "@firebase/util": true
+  "@google/genai": true
+  "@nestjs/core": true
+  "@prisma/engines": true
+  "cpu-features": true
+  "esbuild": true
+  "prisma": true
+  "protobufjs": true
+  "ssh2": true
 
 overrides:
   "@types/react": "^19.2.14"
