@@ -77,7 +77,7 @@ export interface ActionScore {
 
 export interface UtilityIntelligence {
   drives: DriveState;
-  environment: EnvironmentalEntity[];
+  environment: ScannedEnvironment;
   actionScores: ActionScore[];
   selectedAction: NPCAction;
   targetEntity?: string;
