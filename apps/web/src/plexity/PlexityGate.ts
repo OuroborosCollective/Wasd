@@ -29,6 +29,10 @@ export class PlexityGate {
 
   private constructor() {}
 
+  public static async determineOptimalRenderer(): Promise<"WEBGPU" | "WEBGL" | "DOM"> {
+    return "WEBGL";
+  }
+
   public static getInstance(): PlexityGate {
     if (!PlexityGate.instance) {
       PlexityGate.instance = new PlexityGate();

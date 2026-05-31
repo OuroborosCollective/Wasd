@@ -10,7 +10,13 @@ export type BaseId = string | number;
 /**
  * Device tier for client capabilities
  */
-export type DeviceTier = 'mobile' | 'desktop' | 'tablet' | 'console';
+export enum DeviceTier {
+  LOW = 'low',
+  MOBILE = 'mobile',
+  STANDARD = 'standard',
+  HIGH = 'high',
+  ULTRA = 'ultra'
+}
 
 /**
  * Network protocol configuration
@@ -25,4 +31,10 @@ export interface ProtocolConfig {
  */
 export function createProtocolConfig(tier: DeviceTier): ProtocolConfig {
   return { version: '1.0.0', deviceTier: tier };
+}
+
+export interface AREPayload {
+  timestamp: number;
+  entities: any[];
+  worldHash: string;
 }
