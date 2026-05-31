@@ -112,7 +112,7 @@ async function buildTruth(tick: WorldTick) {
   };
 }
 
-export function sovereignDeployRouter(tick: WorldTick): express.Router {
+export function sovereignDeployRouter(tick: WorldTick): Router {
   const router = express.Router();
   router.use(express.json({ limit: "16kb" }));
 

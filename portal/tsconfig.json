@@ -3,7 +3,15 @@
     "composite": true,
     "target": "ESNext",
     "useDefineForClassFields": true,
-    "lib": ["DOM", "DOM.Iterable", "ESNext"], "types": ["node", "vitest"],
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
+    "types": [
+      "node",
+      "vitest"
+    ],
     "allowJs": false,
     "skipLibCheck": true,
     "ignoreDeprecations": "6.0",
@@ -18,11 +26,39 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
+    "incremental": true,
     "paths": {
-      "@wasd/shared": ["../packages/shared/src/index.ts"],
-      "@wasd/shared/*": ["../packages/shared/src/*"]
+      "@wasd/shared": [
+        "../packages/shared/src/index.ts"
+      ],
+      "@wasd/shared/*": [
+        "../packages/shared/src/*"
+      ],
+      "@wasd/types": [
+        "../packages/types/src/index.ts"
+      ],
+      "@wasd/types/*": [
+        "../packages/types/src/*"
+      ]
     }
   },
-  "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": [
+    "src",
+    "../packages/shared/src/**/*",
+    "../server/src/modules/economy/ScarcityPredictor.ts",
+    "../server/src/events/WorldEventBus.ts",
+    "../server/src/modules/history/WorldHistory.ts",
+    "../server/src/theme/serverThemeHazard.ts"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    },
+    {
+      "path": "../packages/shared"
+    },
+    {
+      "path": "../packages/types"
+    }
+  ]
 }

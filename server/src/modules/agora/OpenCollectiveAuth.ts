@@ -1,6 +1,6 @@
 import express from "express";
 
-export function createOpenCollectiveAuthRouter(): express.Router {
+export function createOpenCollectiveAuthRouter(): Router {
   const router = express.Router();
 
   router.get("/login", (_req, res) => {

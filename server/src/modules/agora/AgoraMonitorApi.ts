@@ -30,7 +30,7 @@ function safeValue<T>(fn: () => T, fallback: T): T {
   }
 }
 
-export function createAgoraMonitorRouter(deps: AgoraMonitorDeps = {}): express.Router {
+export function createAgoraMonitorRouter(deps: AgoraMonitorDeps = {}): Router {
   const router = express.Router();
 
   router.get("/config", (_req, res) => {

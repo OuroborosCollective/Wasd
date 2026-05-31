@@ -6,10 +6,16 @@
     "composite": true,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "noEmit": true
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*"
+  ],
   "references": [
-    { "path": "../utils" }
+    {
+      "path": "../utils"
+    }
   ]
 }

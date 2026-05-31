@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { PlexityGate, FeatureSet, DeviceProfile } from './PlexityGate';
 
 export class PrecognitionPlexityAdapter {

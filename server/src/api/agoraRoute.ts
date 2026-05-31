@@ -9,7 +9,7 @@ type AgoraRouteDeps = {
   getPort?: () => number;
 };
 
-export function agoraRouter(deps: AgoraRouteDeps = {}): express.Router {
+export function agoraRouter(deps: AgoraRouteDeps = {}): Router {
   const router = express.Router();
 
   router.use("/auth/opencollective", createOpenCollectiveAuthRouter());

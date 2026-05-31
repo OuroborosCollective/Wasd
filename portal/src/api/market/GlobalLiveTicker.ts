@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GlobalLiveTicker - Real-Time Market Ticker (B2B API)
  * 

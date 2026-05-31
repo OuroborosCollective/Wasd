@@ -38,7 +38,7 @@ function resolvePlayerId(req: Request): string | null {
   return null;
 }
 
-export function questlineRouter(): any {
+export function questlineRouter(): Router {
   const r = Router();
 
   r.get("/factions", (_req: Request, res: Response) => {

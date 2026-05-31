@@ -131,7 +131,7 @@ function rememberGitHubWebhookEvent(req: Request, payload: any): AgoraGitHubWebh
   return lastGitHubWebhookEvent;
 }
 
-export function createGitHubWebhookRouter(): express.Router {
+export function createGitHubWebhookRouter(): Router {
   const router = express.Router();
 
   router.post(

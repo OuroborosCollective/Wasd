@@ -2,9 +2,9 @@
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-const repoRoot = resolve(process.cwd());
-const distRoot = existsSync(join(repoRoot, 'dist')) ? join(repoRoot, 'dist') : join(repoRoot, 'client/dist');
-const publicRoot = existsSync(join(repoRoot, 'public')) ? join(repoRoot, 'public') : join(repoRoot, 'client/public');
+const repoRoot = process.cwd();
+const distRoot = join(repoRoot, 'dist');
+const publicRoot = join(repoRoot, 'public');
 const portalRoot = join(distRoot, 'portal');
 const client3DRoot = join(distRoot, '3d');
 const appsRoot = join(distRoot, 'apps');
@@ -27,8 +27,7 @@ function shell({ brand, sub, nodes, ctaHref, cta, top, headline, text, cards, st
   return `<div class="shell"><aside class="rail"><div><div class="brand">${brand}</div><div class="sub">${sub}</div></div><nav class="nodes">${nodes.map((n) => `<span>${n}</span>`).join('')}</nav><a class="sync" href="${ctaHref}">${cta}</a></aside><main class="main"><div class="top"><b>${top}</b><span>2D · 3D · SCIENCE · TOOLS</span></div><section class="hero"><div><div class="sigil"><div class="ouro"></div></div><h1>${headline}</h1><p class="tag">${text}</p><div class="grid">${cards.join('')}</div><div class="status">${status}</div></div></section></main></div>`;
 }
 
-const built3DIndex = join(distRoot, 'index.html');
-if (existsSync(built3DIndex)) copyFileSync(built3DIndex, join(client3DRoot, 'index.html'));
+
 
 writeFileSync(join(distRoot, 'index.html'), page('Areloria · Landing', shell({
   brand: 'ARELORIA',
@@ -77,4 +76,7 @@ for (const file of ['are-console.html', 'sovereign-truth.html']) {
   if (existsSync(source)) copyFileSync(source, target);
 }
 
+
+// Copy the written index.html to 3d/index.html as a fallback/mirror
+copyFileSync(join(distRoot, 'index.html'), join(client3DRoot, 'index.html'));
 console.log(`[PublicRouteHub] wrote landing, science portal, 3d and sovereign tools hubs into ${distRoot}`);

@@ -6,10 +6,18 @@
     "moduleResolution": "bundler",
     "baseUrl": "./src",
     "paths": {
-      "@shared/*": ["shared/*"],
-      "@engine/*": ["engine/*"],
-      "@ai/*": ["ai/*"],
-      "@modules/*": ["modules/*"]
+      "@shared/*": [
+        "shared/*"
+      ],
+      "@engine/*": [
+        "engine/*"
+      ],
+      "@ai/*": [
+        "ai/*"
+      ],
+      "@modules/*": [
+        "modules/*"
+      ]
     },
     "outDir": "../dist",
     "rootDir": "./src",
@@ -27,15 +35,27 @@
     "incremental": true,
     "resolveJsonModule": true,
     "allowJs": true,
-    "lib": ["ESNext", "DOM"],
-    "types": ["node"]
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*"
+  ],
   "exclude": [
     "src/assets/**",
     "src/tests/**"
   ],
   "references": [
-    { "path": "../packages/shared" }
+    {
+      "path": "../packages/shared"
+    },
+    {
+      "path": "../packages/core-logic"
+    }
   ]
 }
