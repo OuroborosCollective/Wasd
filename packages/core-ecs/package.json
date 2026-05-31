@@ -28,7 +28,7 @@
     "@typescript-eslint/eslint-plugin": "^8.60.0",
     "@typescript-eslint/parser": "^8.60.0",
     "eslint": "^10.4.1",
-    "tinyglobby": "^0.2.17",
+    "tinyglobby": "0.2.16",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
