@@ -1,5 +1,6 @@
 import { normalizeInventoryStacks } from "../inventory/inventoryStacks.js";
 import type { PlayerSnapshotCore } from "./PersistenceDirector.js";
+import { deepClone } from "../../utils/deepClone.js";
 
 /**
  * Whitelist of player fields written to disk / persistence backends.
@@ -86,7 +87,7 @@ export function mergePersistedPlayerInto(player: any, saved: PlayerSnapshotCore 
     const v = (saved as any)[key as string];
     if (v === undefined) continue;
     try {
-      (player as any)[key] = JSON.parse(JSON.stringify(v));
+      (player as any)[key] = deepClone(v);
     } catch {
       /* skip corrupt */
     }
