@@ -253,11 +253,13 @@ export class GameplayFusionDirector {
     this.updateContractProgress(ctx.now);
   }
 
+  // @are-telemetry-side-channel
   getQuestEchoBeacons(now: number = Date.now()): QuestEchoBeacon[] {
     this.cleanupExpired(now);
-    return Array.from(this.questEchoBeacons.values()).sort((a, b) => a.id.localeCompare(b.id));
+    return Array.from(this.questEchoBeacons.values()).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
+  // @are-telemetry-side-channel
   resolveNpcGlbOverride(npc: any, now: number = Date.now()): string | undefined {
     const npcId = typeof npc?.id === "string" ? npc.id : "";
     if (!npcId) return undefined;
@@ -270,6 +272,7 @@ export class GameplayFusionDirector {
     return override.glbPath;
   }
 
+  // @are-telemetry-side-channel
   resolveWorldObjectGlbOverride(type: string | undefined, now: number = Date.now()): string | undefined {
     const key = normalizeToken(type);
     if (!key) return undefined;
@@ -282,18 +285,20 @@ export class GameplayFusionDirector {
     return override.glbPath;
   }
 
+  // @are-telemetry-side-channel
   getSnapshot(now: number = Date.now()): GameplayFusionSnapshot {
     this.cleanupExpired(now);
     return {
+      // @are-telemetry-side-channel
       generatedAtIso: new Date(now).toISOString(),
       beacons: this.getQuestEchoBeacons(now),
-      profiles: Array.from(this.adaptiveProfiles.values()).sort((a, b) => a.id.localeCompare(b.id)),
+      profiles: Array.from(this.adaptiveProfiles.values()).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
       contracts: this.getConstructionContracts(),
     };
   }
 
   getConstructionContracts(): ConstructionContract[] {
-    return Array.from(this.contracts.values()).sort((a, b) => a.id.localeCompare(b.id));
+    return Array.from(this.contracts.values()).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   assignContractToNpc(contractId: string, npcId: string): boolean {
@@ -303,6 +308,7 @@ export class GameplayFusionDirector {
     contract.status = "in_progress";
     contract.assignedNpcId = npcId;
     contract.progress01 = Math.max(contract.progress01, 0.2);
+    // @are-telemetry-side-channel
     contract.updatedAt = Date.now();
     return true;
   }
@@ -314,6 +320,7 @@ export class GameplayFusionDirector {
     const contract = this.contracts.get(contractId);
     if (!contract) return false;
 
+    // @are-telemetry-side-channel
     const now = Date.now();
     contract.status = "completed";
     contract.progress01 = 1;
