@@ -581,7 +581,7 @@ export class ARENpcEvolution {
     tick: number
   ): Readonly<{ npcId: string; type: 'npc_craft'; recipeId: string; tick: number; kappaHash: string }> {
     return AREGuard.executeProtected(() => {
-      const kappaHash = AREHash.generate({
+      const kappaHash = AREHash.hashObject({
         npcId,
         recipeId,
         tick,
@@ -609,7 +609,7 @@ export class ARENpcEvolution {
     tick: number
   ): Readonly<{ npcId: string; type: 'npc_gather'; resourceNodeId: string; resourceType: string; tick: number; kappaHash: string }> {
     return AREGuard.executeProtected(() => {
-      const kappaHash = AREHash.generate({
+      const kappaHash = AREHash.hashObject({
         npcId,
         resourceNodeId,
         resourceType,

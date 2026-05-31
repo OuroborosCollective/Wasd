@@ -265,7 +265,7 @@ export class CraftingDirector {
       normalizeInventoryStacks({ inventory: slots } as unknown as { inventory: (ModularItem | null)[] });
 
       // ── Generate deterministic kappa hash for audit trail ──
-      const kappaHash = AREHash.generate({
+      const kappaHash = AREHash.hashObject({
         npcId,
         recipeId,
         tick,
@@ -320,7 +320,7 @@ export class CraftingDirector {
     tick: number,
     reason: string
   ): NPCCraftResult {
-    const kappaHash = AREHash.generate({
+    const kappaHash = AREHash.hashObject({
       npcId,
       recipeId,
       tick,
