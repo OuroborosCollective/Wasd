@@ -1,7 +1,7 @@
 import { AREGuard } from './AREGuard';
 import { AREHash } from './AREHash';
 import type { AREVector3, IAREPayload } from './AREPayload';
-import { assertSafeInteger, kAdd, kSub, type KappaInt } from './Kappa';
+import { assertSafeInteger, kAdd, kSub, kMul, kDiv, type KappaInt, toKappa } from './Kappa';
 
 /**
  * OUROBOROS SYSTEMIC EMERGENCE: ARENpcEvolution Utility AI
@@ -94,13 +94,13 @@ export interface ScannedEnvironment {
 }
 
 const DEFAULT_CHUNK_SIZE = 64000;
-const DEFAULT_VISION_RANGE_KAPPA = 5000;  // 5 meters in kappa
-const SAFE_ENEMY_DISTANCE_KAPPA = 2000;   // 2 meters - too close = danger
+const DEFAULT_VISION_RANGE_KAPPA = toKappa(5);  // 5 meters in kappa
+const SAFE_ENEMY_DISTANCE_KAPPA = toKappa(2);   // 2 meters - too close = danger
 const RESOURCE_VALUES: Record<string, KappaInt> = {
-  tree: 100,
-  rock: 150,
-  iron: 300,
-  fiber: 50,
+  tree: toKappa(100),
+  rock: toKappa(150),
+  iron: toKappa(300),
+  fiber: toKappa(50),
 };
 
 function readInt(payload: Readonly<IAREPayload>, key: string): KappaInt {
@@ -135,19 +135,25 @@ function clampK(value: KappaInt, min: KappaInt, max: KappaInt): KappaInt {
   return Math.max(min, Math.min(max, value));
 }
 
+const DEFAULT_THREAT_SCALE = toKappa(0.2);  // Scale factor for threat calculation
+
 function calculateRiskScore(
   closestEnemy: EnvironmentalEntity | undefined,
   enemyThreshold: KappaInt
 ): KappaInt {
   if (!closestEnemy) return 0;
   
+  const threat = closestEnemy.threat ?? 0;
+  
   if (closestEnemy.distanceKappa <= enemyThreshold) {
     // High risk: enemy very close
     const severity = kDiv(enemyThreshold - closestEnemy.distanceKappa, enemyThreshold);
-    return kAdd(severity, (closestEnemy.threat ?? 0) * 500);
+    const threatValue = kMul(toKappa(threat), toKappa(0.5));
+    return kAdd(severity, threatValue);
   }
   
-  return (closestEnemy.threat ?? 0) * 200;
+  const threatValue = kMul(toKappa(threat), toKappa(DEFAULT_THREAT_SCALE / 1000));
+  return threatValue;
 }
 
 function calculateDriveFromInventory(
@@ -171,7 +177,7 @@ function calculateDriveFromInventory(
   const resourceNeed = Math.max(0, maxCapacity - totalItems) * 50; // Scale 0-1000
   
   return {
-    resourceNeed: clampK(resourceNeed, 0, 1000),
+    resourceNeed: clampK(toKappa(resourceNeed), 0, toKappa(1000)),
     hasWood: woodCount >= 5,
     hasStone: stoneCount >= 3,
     hasIron: ironCount >= 2,
@@ -328,18 +334,17 @@ export class ARENpcEvolution {
       // Safety need: enemy proximity
       const safetyNeed = clampK(
         calculateRiskScore(closestEnemy, SAFE_ENEMY_DISTANCE_KAPPA),
-        0,
-        1000
+        toKappa(0),
+        toKappa(1000)
       );
 
       // Wealth need: want more storage capacity
-      const storageCapacity = ownedStorages * 12; // Each storage = 12 slots
       const wealthNeed = ownedStorages === 0
-        ? 800  // High need if no storage
-        : 200; // Low need if has storage
+        ? toKappa(800)  // High need if no storage
+        : toKappa(200); // Low need if has storage
 
       // Social/territorial need (simplified)
-      const socialNeed = 100; // Placeholder
+      const socialNeed = toKappa(100); // Placeholder
 
       return AREGuard.protectPayload({
         resourceNeed: inventoryAnalysis.resourceNeed,
@@ -412,8 +417,8 @@ export class ARENpcEvolution {
       // ── CRAFT_WOODEN_CHEST ──
       if (inventoryHasIngredients.wood) {
         const craftRisk = calculateRiskScore(closestEnemy, SAFE_ENEMY_DISTANCE_KAPPA);
-        const craftCost = 100; // Fixed crafting cost
-        const craftReward = 500; // Value of storage
+        const craftCost = toKappa(100); // Fixed crafting cost
+        const craftReward = toKappa(500); // Value of storage
         const driveStrength = drives.wealthNeed;
 
         scores.push({
@@ -431,7 +436,7 @@ export class ARENpcEvolution {
       if (closestStorage) {
         const storeRisk = calculateRiskScore(closestEnemy, SAFE_ENEMY_DISTANCE_KAPPA);
         const storeCost = closestStorage.distanceKappa;
-        const storeReward = 200; // Value of organization
+        const storeReward = toKappa(200); // Value of organization
         const driveStrength = drives.wealthNeed;
 
         scores.push({
@@ -448,7 +453,7 @@ export class ARENpcEvolution {
 
       // ── FLEE ──
       if (closestEnemy && closestEnemy.distanceKappa <= SAFE_ENEMY_DISTANCE_KAPPA) {
-        const fleeCost = closestEnemy.distanceKappa + 500; // Escape cost
+        const fleeCost = kAdd(closestEnemy.distanceKappa, toKappa(500)); // Escape cost
         const fleeReward = drives.safetyNeed;
         const driveStrength = drives.safetyNeed;
 
@@ -457,7 +462,7 @@ export class ARENpcEvolution {
           score: kSub(kMul(driveStrength, fleeReward), fleeCost),
           driveStrength,
           reward: fleeReward,
-          risk: 0,
+          risk: toKappa(0),
           cost: fleeCost,
           reason: `FLEE: enemy at ${closestEnemy.distanceKappa}K, safety need ${drives.safetyNeed}`,
         });
@@ -466,11 +471,11 @@ export class ARENpcEvolution {
       // ── IDLE (default) ──
       scores.push({
         action: 'IDLE',
-        score: 0,
-        driveStrength: 0,
-        reward: 0,
-        risk: 0,
-        cost: 0,
+        score: toKappa(0),
+        driveStrength: toKappa(0),
+        reward: toKappa(0),
+        risk: toKappa(0),
+        cost: toKappa(0),
         reason: 'Idle: no compelling action',
       });
 
@@ -488,18 +493,18 @@ export class ARENpcEvolution {
       for (let i = 1; i < actionScores.length; i++) {
         const current = actionScores[i];
         // Select action with highest score
-        if (current.score > (best?.score ?? Number.MIN_SAFE_INTEGER)) {
+        if (current.score > (best?.score ?? toKappa(Number.MIN_SAFE_INTEGER))) {
           best = current;
         }
       }
 
       return AREGuard.protectPayload(best ?? {
         action: 'IDLE' as const,
-        score: 0,
-        driveStrength: 0,
-        reward: 0,
-        risk: 0,
-        cost: 0,
+        score: toKappa(0),
+        driveStrength: toKappa(0),
+        reward: toKappa(0),
+        risk: toKappa(0),
+        cost: toKappa(0),
         reason: 'No action available',
       });
     });
