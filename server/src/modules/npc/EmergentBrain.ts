@@ -4,7 +4,8 @@ export type AREBrainAction =
   | 'WARN_FACTION'
   | 'OBSERVE'
   | 'HARVEST_RESOURCE'
-  | 'DEFEND_COLONY';
+  | 'DEFEND_COLONY'
+  | 'WANDER';
 
 export type AREBrainTraits = {
   faith: number;
@@ -45,6 +46,7 @@ const ACTION_ORDER: readonly AREBrainAction[] = [
   'OBSERVE',
   'HARVEST_RESOURCE',
   'DEFEND_COLONY',
+  'WANDER',
 ];
 
 function finite(value: unknown, fallback = 0): number {
