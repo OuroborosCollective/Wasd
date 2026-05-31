@@ -36,6 +36,8 @@ import { AIOrchestrator } from "./AIOrchestrator.js";
 import { processRespawns } from "../modules/combat/deathRespawnSystem.js";
 import { persistenceDirector } from "../modules/persistence/PersistenceDirector.js";
 import { storageEntityManager, type StorageEntity } from "../modules/structure/StorageEntity.js";
+import { resourcePopulator, type GeneratedResourceEntity } from "../modules/world/ResourcePopulator.js";
+import { chunkModificationDirector } from "../modules/world/ChunkModificationDirector.js";
 
 const ELECTROWEAK_LOOT_TTL_TICKS = 1200;
 
@@ -323,6 +325,45 @@ export class WorldTick {
   private clientVisibleEntities = new Map<string, Set<string>>();
   
   /**
+   * Cache of generated resources per chunk.
+   * Key: "cx:cz", Value: GeneratedResourceEntity[]
+   */
+  private chunkResourceCache = new Map<string, GeneratedResourceEntity[]>();
+  
+  /**
+   * Get resources for a chunk, generating them if not cached.
+   */
+  private getChunkResources(chunkX: number, chunkZ: number): GeneratedResourceEntity[] {
+    const key = `${chunkX}:${chunkZ}`;
+    let resources = this.chunkResourceCache.get(key);
+    
+    if (!resources) {
+      // Generate resources deterministically
+      const biome = this.getChunkBiome(chunkX, chunkZ);
+      const result = resourcePopulator.generateChunkResources(chunkX, chunkZ, biome);
+      resources = result.entities;
+      this.chunkResourceCache.set(key, resources);
+      
+      // Log slow generation
+      if (result.generationMs > 10) {
+        console.warn(`[ResourcePopulator] Slow chunk generation: ${chunkX}:${chunkZ} took ${result.generationMs.toFixed(2)}ms`);
+      }
+    }
+    
+    return resources;
+  }
+  
+  /**
+   * Determine biome for a chunk (simplified).
+   */
+  private getChunkBiome(chunkX: number, chunkZ: number): string {
+    const seed = chunkX * 7 + chunkZ * 13;
+    const biomeIndex = Math.abs(seed) % 4;
+    const biomes = ['forest', 'forest', 'mountain', 'plains'];
+    return biomes[biomeIndex];
+  }
+  
+  /**
    * Broadcast spatial world_snapshot to a specific client.
    * Called every tick for each connected player.
    * 
@@ -338,6 +379,7 @@ export class WorldTick {
     const otherPlayers: Record<string, unknown>[] = [];
     const npcs: Record<string, unknown>[] = [];
     const loot: Record<string, unknown>[] = [];
+    const resources: Record<string, unknown>[] = [];
     const visibleIds = new Set<string>();
     
     for (const entity of visibleEntities) {
@@ -356,6 +398,40 @@ export class WorldTick {
       }
     }
     
+    // ─── RESOURCE ENTITIES IN WORLD SNAPSHOT ───────────────────────────────
+    // Include generated resource entities from the 3x3 chunk grid around player.
+    // Deterministic based on worldSeed + chunk coords. Depleted resources
+    // are included with depleted=true for client visual feedback.
+    // ──────────────────────────────────────────────────────────────────────
+    
+    const playerChunkX = Math.floor(playerTileX / 64);
+    const playerChunkZ = Math.floor(playerTileZ / 64);
+    
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        const cx = playerChunkX + dx;
+        const cz = playerChunkZ + dz;
+        const chunkResources = this.getChunkResources(cx, cz);
+        
+        for (const res of chunkResources) {
+          resources.push({
+            id: res.id,
+            type: 'RESOURCE',
+            resourceType: res.resourceType,
+            x: res.kappaX / 1000,  // Convert KAPPA back to world space
+            z: res.kappaZ / 1000,
+            kappaX: res.kappaX,
+            kappaZ: res.kappaZ,
+            yield: res.remainingYield,
+            maxYield: res.yield,
+            depleted: res.depleted,
+            regrowRate: res.regrowRate,
+          });
+          visibleIds.add(res.id);
+        }
+      }
+    }
+    
     // Update client's visible entities for future GC hints
     this.clientVisibleEntities.set(socketId, visibleIds);
     
@@ -367,6 +443,7 @@ export class WorldTick {
       other_players: otherPlayers,
       npcs,
       loot,
+      resources,
     });
   }
   
@@ -785,6 +862,48 @@ export class WorldTick {
     for (const request of queue) {
       const player = this.playerSystem.getPlayer(request.playerId);
       if (!player || player.isOffline) continue;
+      
+      // ─── NEW: Handle deterministic RESOURCE entities ────────────────────────
+      // These have KAPPA coordinates and are tracked via ChunkModificationDirector
+      if (request.input?.resourceNodeId && request.input.resourceNodeId.startsWith('res_')) {
+        const entityId = request.input.resourceNodeId as string;
+        
+        // Parse chunk coords from entityId: res_{type}_{chunkX}_{chunkZ}_{index}
+        const parts = entityId.split('_');
+        if (parts.length >= 5) {
+          const chunkX = parseInt(parts[2], 10);
+          const chunkZ = parseInt(parts[3], 10);
+          
+          // Check if resource is already depleted via ChunkModificationDirector
+          if (chunkModificationDirector.isResourceDepleted(entityId)) {
+            this.ws.sendToPlayer(request.socketId, { 
+              type: "FOREST_RESOURCE_REJECTED", 
+              reason: "depleted",
+              entityId 
+            });
+            continue;
+          }
+          
+          // Proceed with gathering - mark as depleted in ChunkModificationDirector
+          const itemId = request.input.itemId ?? request.input.resourceType;
+          this.inventorySystem.addItem(player, { id: itemId, quantity: 1, source: "resource", resourceType: request.input.resourceType });
+          
+          // Mark as depleted permanently (until server restart or world reset)
+          chunkModificationDirector.markResourceDepleted(entityId, chunkX, chunkZ, this.tickCount);
+          
+          this.ws.sendToPlayer(request.socketId, { 
+            type: "FOREST_RESOURCE_ACCEPTED", 
+            resourceKey: entityId, 
+            itemId, 
+            quantity: 1, 
+            depleted: true,
+            entityId 
+          });
+          continue;
+        }
+      }
+      // ─── END NEW ───────────────────────────────────────────────────────────
+      
       const checked = checkForestResource(request.input);
       if (!checked.ok) { this.ws.sendToPlayer(request.socketId, { type: "FOREST_RESOURCE_REJECTED", reason: (checked as any).reason }); continue; }
       if (!isNearForestResource(player, checked.coord, FOREST_ACTION_DISTANCE)) { this.ws.sendToPlayer(request.socketId, { type: "FOREST_RESOURCE_REJECTED", reason: "too_far" }); continue; }
