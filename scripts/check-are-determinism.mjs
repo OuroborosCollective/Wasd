@@ -17,6 +17,10 @@ const criticalRoots = [
   'server/src/modules/genealogy',
   'server/src/modules/monster',
   'server/src/modules/npc',
+  'server/src/modules/gameplay',
+  'server/src/modules/world',
+  'server/src/governance',
+  'server/src/are',
 ];
 
 const criticalFilePatterns = [
@@ -47,6 +51,7 @@ const blockedPatterns = [
   { name: 'Date.now', regex: /\bDate\.now\s*\(/g },
   { name: 'new Date', regex: /\bnew\s+Date\s*\(/g },
   { name: 'randomUUID', regex: /\brandomUUID\s*\(/g },
+  { name: 'localeCompare', regex: /\blocaleCompare\s*\(/g },
 ];
 
 const allowedMarker = '@are-determinism-allow';
@@ -110,7 +115,8 @@ function markerAllowed(content, lineNumber) {
   const previous = lines[lineNumber - 2] || '';
   const current = lines[lineNumber - 1] || '';
   return previous.includes(allowedMarker) || current.includes(allowedMarker)
-    || previous.includes(telemetryMarker) || current.includes(telemetryMarker);
+    || previous.includes(telemetryMarker) || current.includes(telemetryMarker)
+    || current.includes('@are-telemetry-side-channel');
 }
 
 const files = new Set();

@@ -73,7 +73,7 @@ export class ResourceSystem {
   }
 
   private updateCache() {
-    this.cachedNodes = Array.from(this.nodes.values()).sort((a, b) => a.id.localeCompare(b.id));
+    this.cachedNodes = Array.from(this.nodes.values()).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   gatherNode(id: string): { success: boolean, item?: any, reason?: string } {
