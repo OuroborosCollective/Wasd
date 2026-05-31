@@ -1,8 +1,9 @@
-import { AREPayload } from "@wasd/types";
-import { BabylonRenderer } from "./BabylonRenderer";
-import { ThreeRenderer } from "./ThreeRenderer";
-import { ProxyRenderer } from "./ProxyRenderer";
-import { PlexityGate } from "../utils/PlexityGate";
+// import { AREPayload } from "@wasd/types";
+type AREPayload = any;
+// import { BabylonRenderer } from "./BabylonRenderer";
+// import { ThreeRenderer } from "./ThreeRenderer";
+// import { ProxyRenderer } from "./ProxyRenderer";
+import { PlexityGate } from "../plexity/PlexityGate";
 
 export type RendererType = "WEBGPU" | "WEBGL" | "DOM";
 
@@ -38,14 +39,14 @@ export class RendererManager {
 
     switch (this.type) {
       case "WEBGPU":
-        this.currentRenderer = new BabylonRenderer();
+        // this.currentRenderer = new BabylonRenderer();
         break;
       case "WEBGL":
-        this.currentRenderer = new ThreeRenderer();
+        // this.currentRenderer = new ThreeRenderer();
         break;
       case "DOM":
       default:
-        this.currentRenderer = new ProxyRenderer();
+        // this.currentRenderer = new ProxyRenderer();
         break;
     }
 
