@@ -31,7 +31,7 @@ describe('ARENpcEvolution Utility AI', () => {
         position: { x: toKappa(0), y: toKappa(0), z: toKappa(0) },
       };
 
-      const inventorySlots: readonly (Readonly<{ id?: string } | null)[] = [];
+      const inventorySlots: readonly { id?: string }[] = [];
       const worldEntities: readonly IAREPayload[] = [];
 
       // When there are no resources and no enemies, should IDLE
@@ -59,7 +59,7 @@ describe('ARENpcEvolution Utility AI', () => {
       };
 
       // Inventory has enough wood (5x)
-      const inventorySlots: readonly (Readonly<{ id?: string } | null)[] = [
+      const inventorySlots: readonly { id?: string }[] = [
         { id: 'base:wood', quantity: 5 },
         { id: 'base:wood', quantity: 2 },
       ];
@@ -90,7 +90,7 @@ describe('ARENpcEvolution Utility AI', () => {
         position: { x: toKappa(0), y: toKappa(0), z: toKappa(0) },
       };
 
-      const inventorySlots: readonly (Readonly<{ id?: string } | null)[] = [];
+      const inventorySlots: readonly { id?: string }[] = [];
 
       // Enemy within unsafe distance (2000 kappa = 2 meters)
       const worldEntities: readonly IAREPayload[] = [
