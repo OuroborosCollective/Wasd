@@ -153,8 +153,8 @@ export class PlayerStatsDirector {
     
     skill.xp += amount;
     
-    // Level up while possible
-    while (skill.level < MAX_LEVEL && skill.xp >= xpForLevel(skill.level)) {
+    // Level up while possible (compare against cumulative total thresholds)
+    while (skill.level < MAX_LEVEL && skill.xp >= totalXpForLevel(skill.level + 1)) {
       skill.level++;
     }
     
@@ -246,12 +246,8 @@ export class PlayerStatsDirector {
   /**
    * Broadcast stats snapshot to a specific player.
    */
-  private broadcastSnapshot(playerId: string): void {
+  public broadcastSnapshot(playerId: string, playerState?: any): void {
     if (!this.broadcastToPlayer) return;
-    
-    // Get player state from PlayerSystem
-    const { playerSystem } = this;
-    const playerState = playerSystem?.getPlayer(playerId);
     
     const snapshot = this.getFullSnapshot(playerId, playerState);
     this.broadcastToPlayer(playerId, "player_stats_snapshot", snapshot);
@@ -276,17 +272,6 @@ export class PlayerStatsDirector {
    */
   public getSkillsForSave(playerId: string): Record<string, { xp: number; level: number }> | undefined {
     return this.playerSkills.get(playerId);
-  }
-  
-  // Lazy reference to PlayerSystem (set during wiring)
-  private get playerSystem() {
-    // Dynamic import to avoid circular dependency
-    try {
-      const { playerSystem } = require("./PlayerSystem.js");
-      return playerSystem;
-    } catch {
-      return null;
-    }
   }
 }
 

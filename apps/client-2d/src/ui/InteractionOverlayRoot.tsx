@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { interactionUI, useInteractionUI } from "./UIManager";
+import { interactionUI, useInteractionUI, useOverlayRenderer } from "./UIManager";
 import { TradeOverlay } from "./TradeOverlay";
 import "./interactionOverlay.css";
 
@@ -15,6 +15,7 @@ function eventNameOf(packet: unknown): string | null {
 
 export function InteractionOverlayRoot() {
   const overlay = useInteractionUI();
+  const { OverlayComponent } = useOverlayRenderer();
 
   useEffect(() => {
     const onNetworkPacket = (event: Event): void => {
@@ -70,6 +71,7 @@ export function InteractionOverlayRoot() {
         {overlay.type === "TRADE" && <TradeOverlay payload={overlay} />}
         {overlay.type === "CRAFT" && <p className="interaction-muted">Crafting ist serverseitig reserviert und wird als nächstes UI-Modul angeschlossen.</p>}
         {overlay.type === "DIALOGUE" && <p className="interaction-muted">Dialog-Seed: <code>{overlay.dialogueSeed}</code></p>}
+        {OverlayComponent && <OverlayComponent />}
       </section>
     </div>
   );
