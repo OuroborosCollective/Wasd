@@ -12,12 +12,12 @@
  */
 
 import { describe, expect, it, beforeEach } from 'vitest';
-import { ARENpcEvolution } from '../../core/are/ARENpcEvolution.js';
-import { craftingDirector } from '../crafting/CraftingDirector.js';
-import { npcInventoryManager } from './NPCInventoryManager.js';
-import { storageEntityManager } from '../structure/StorageEntity.js';
-import type { IAREPayload } from '../../core/are/AREPayload.js';
-import { toKappa } from '../../core/are/Kappa.js';
+import { ARENpcEvolution } from '../core/are/ARENpcEvolution.js';
+import { craftingDirector } from '../modules/crafting/CraftingDirector.js';
+import { npcInventoryManager } from '../modules/npc/NPCInventoryManager.js';
+import { storageEntityManager } from '../modules/structure/StorageEntity.js';
+import type { IAREPayload } from '../core/are/AREPayload.js';
+import { toKappa } from '../core/are/Kappa.js';
 
 describe('ARENpcEvolution Utility AI', () => {
   describe('computeUtilityIntelligence', () => {
