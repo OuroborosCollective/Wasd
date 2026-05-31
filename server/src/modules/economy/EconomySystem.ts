@@ -1,3 +1,5 @@
+import { WeatherEconomyBridge } from "./WeatherEconomyBridge.js";
+
 export class EconomySystem {
   private goldSupply: number = 0;
   private itemPrices: Map<string, number> = new Map();
@@ -6,6 +8,8 @@ export class EconomySystem {
   constructor() {
     this.defaultPrices.set("health_potion", 50);
     this.defaultPrices.set("iron_sword", 150);
+    this.defaultPrices.set("wood", 20);
+    this.defaultPrices.set("water", 5);
     this.resetPrices();
   }
 
@@ -23,12 +27,14 @@ export class EconomySystem {
     return false;
   }
 
-  getPrice(itemId: string): number {
-    return this.itemPrices.get(itemId) || 10;
+  getPrice(itemId: string, weather: string = "clear"): number {
+    const basePrice = this.itemPrices.get(itemId) || 10;
+    const multiplier = WeatherEconomyBridge.getPriceMultiplier(itemId, weather);
+    return Math.floor(basePrice * multiplier);
   }
 
   adjustPrice(itemId: string, demandFactor: number) {
-    const currentPrice = this.getPrice(itemId);
+    const currentPrice = this.itemPrices.get(itemId) || 10;
     const newPrice = Math.max(1, Math.floor(currentPrice * demandFactor));
     this.itemPrices.set(itemId, newPrice);
   }
@@ -42,11 +48,14 @@ export class EconomySystem {
     this.itemPrices = new Map(this.defaultPrices);
   }
 
-  getShop(_shopId: string) {
-    return Array.from(this.itemPrices.entries()).map(([itemId, buyPrice]) => ({
-      itemId,
-      buyPrice,
-      sellPrice: Math.max(1, Math.floor(buyPrice * 0.4)),
-    }));
+  getShop(_shopId: string, weather: string = "clear") {
+    return Array.from(this.itemPrices.keys()).map((itemId) => {
+      const buyPrice = this.getPrice(itemId, weather);
+      return {
+        itemId,
+        buyPrice,
+        sellPrice: Math.max(1, Math.floor(buyPrice * 0.4)),
+      };
+    });
   }
 }
