@@ -10,7 +10,22 @@ export type BaseId = string | number;
 /**
  * Device tier for client capabilities
  */
-export type DeviceTier = 'mobile' | 'desktop' | 'tablet' | 'console';
+export type DeviceTier = 'mobile' | 'desktop' | 'tablet' | 'console' | 'LOW' | 'MOBILE';
+
+export const DeviceTierValue = {
+  LOW: 'LOW' as const,
+  MOBILE: 'MOBILE' as const,
+  desktop: 'desktop' as const,
+  tablet: 'tablet' as const,
+  console: 'console' as const,
+};
+
+/**
+ * AREPayload - The fundamental unit of deterministic state exchange.
+ */
+export interface AREPayload {
+  [key: string]: any;
+}
 
 /**
  * Network protocol configuration

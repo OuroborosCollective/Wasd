@@ -255,7 +255,9 @@ export class GameplayFusionDirector {
 
   getQuestEchoBeacons(now: number = Date.now()): QuestEchoBeacon[] {
     this.cleanupExpired(now);
-    return Array.from(this.questEchoBeacons.values()).sort((a, b) => a.id.localeCompare(b.id));
+    return Array.from(this.questEchoBeacons.values()).sort((a, b) =>
+      a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+    );
   }
 
   resolveNpcGlbOverride(npc: any, now: number = Date.now()): string | undefined {
@@ -287,13 +289,17 @@ export class GameplayFusionDirector {
     return {
       generatedAtIso: new Date(now).toISOString(),
       beacons: this.getQuestEchoBeacons(now),
-      profiles: Array.from(this.adaptiveProfiles.values()).sort((a, b) => a.id.localeCompare(b.id)),
+      profiles: Array.from(this.adaptiveProfiles.values()).sort((a, b) =>
+        a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+      ),
       contracts: this.getConstructionContracts(),
     };
   }
 
   getConstructionContracts(): ConstructionContract[] {
-    return Array.from(this.contracts.values()).sort((a, b) => a.id.localeCompare(b.id));
+    return Array.from(this.contracts.values()).sort((a, b) =>
+      a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+    );
   }
 
   assignContractToNpc(contractId: string, npcId: string): boolean {

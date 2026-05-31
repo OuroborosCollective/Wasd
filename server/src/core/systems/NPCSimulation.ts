@@ -491,8 +491,10 @@ export class NPCSimulation {
    */
   public getAllNPCs(): NPCState[] {
     // Ensure deterministic order for Level-A simulation consistency
-    return Array.from(this.npcs.values()).sort((a, b) =>
-      a.identity.npcId.localeCompare(b.identity.npcId)
-    );
+    return Array.from(this.npcs.values()).sort((a, b) => {
+      const idA = a.identity.npcId;
+      const idB = b.identity.npcId;
+      return idA < idB ? -1 : idA > idB ? 1 : 0;
+    });
   }
 }
