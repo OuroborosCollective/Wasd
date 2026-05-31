@@ -31,13 +31,14 @@ describe("GameplayFusionDirector", () => {
     expect(contracts).toHaveLength(1);
     expect(contracts[0]?.status).toBe("available");
 
-    const assigned = director.assignContractToNpc(contracts[0]!.id, "npc_builder");
+    const assigned = director.assignContractToNpc(contracts[0]!.id, "npc_builder", now);
     expect(assigned).toBe(true);
     expect(director.getConstructionContracts()[0]?.status).toBe("in_progress");
 
     const added: any[] = [];
     await director.completeContract(contracts[0]!.id, {
       completedByNpcId: "npc_builder",
+      now,
       worldObjectSystem: {
         addObject: async (obj: any) => {
           added.push(obj);

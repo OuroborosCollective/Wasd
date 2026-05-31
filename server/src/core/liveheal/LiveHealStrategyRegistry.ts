@@ -58,7 +58,7 @@ export class LiveHealStrategyRegistry {
     const riskOrder = { low: 0, medium: 1, high: 2 };
     results.sort((a, b) => {
       const rd = riskOrder[a.riskLevel] - riskOrder[b.riskLevel];
-      return rd !== 0 ? rd : a.name.localeCompare(b.name);
+      return rd !== 0 ? rd : (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
     });
     return results;
   }

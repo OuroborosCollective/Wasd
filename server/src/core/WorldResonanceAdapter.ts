@@ -59,7 +59,8 @@ export class WorldResonanceAdapter {
     const npcDecomposition = Math.trunc(finiteNonNegative(input.npcDecomposition));
     const entropy = finiteNonNegative(
       input.entropy,
-      divergence * 1000 + npcCritical * 0.05 + npcDecomposition * 0.15,
+      // Corrected: Removed legacy 1000x multiplier from divergence to align with standard stability thresholds
+      divergence + npcCritical * 0.05 + npcDecomposition * 0.15,
     );
     const stability = clamp01(1 - entropy);
     const tick = Math.trunc(finiteNonNegative(input.tick, this.snapshot.tick));
