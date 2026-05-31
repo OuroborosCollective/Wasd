@@ -56,7 +56,7 @@ echo "NODE_OPTIONS=${NODE_OPTIONS}"
 
 if command -v corepack >/dev/null 2>&1; then
   corepack enable || true
-  corepack prepare pnpm@9.12.2 --activate || true
+  corepack prepare pnpm@11.5.0 --activate || true
 fi
 
 if command -v pnpm >/dev/null 2>&1; then
