@@ -6,8 +6,8 @@ import { useStore } from '../../store/useStore';
  * @wasd/types stellt die Netzwerk-Typen bereit.
  * @wasd/shared enthält die Engine-Konstanten wie KAPPA (1000).
  */
-import { DeviceTier } from '@wasd/types';
-import { KAPPA } from '@wasd/shared';
+import { DeviceTierValue } from '@wasd/types';
+import { KAPPA_STANDARD as KAPPA } from '@wasd/shared';
 
 /**
  * QuestStateNet Definition - Repräsentiert den Quest-Zustand im WorldStateRegistry.
@@ -49,7 +49,7 @@ export const NewHud: React.FC = () => {
     deviceTier: state.deviceTier
   }));
 
-  const isLowEnd = useMemo(() => deviceTier === DeviceTier.LOW || deviceTier === DeviceTier.MOBILE, [deviceTier]);
+  const isLowEnd = useMemo(() => deviceTier === DeviceTierValue.LOW || deviceTier === DeviceTierValue.MOBILE, [deviceTier]);
 
   /**
    * Deterministic UI Berechnung: 
