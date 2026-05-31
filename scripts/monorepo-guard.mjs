@@ -30,6 +30,15 @@ function extractLockRootSpecifier(lockText, dep) {
   return (m?.[1] ?? m?.[2] ?? null)?.replace(/^['"]|['"]$/g, '') ?? null;
 }
 
+function extractYamlValue(yamlText, key) {
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Handle both "key: value" and "'key': value"
+  const re = new RegExp(`(?:^|\\n)\\s*(?:'${escaped}'|${escaped})\\s*:\\s*([^\\n]+)`);
+  const m = yamlText.match(re);
+  if (!m) return null;
+  return m[1].trim().replace(/^['"]|['"]$/g, '');
+}
+
 function extractLockOverride(lockText, dep) {
   const escaped = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const marker = '\noverrides:\n';
@@ -47,12 +56,32 @@ function checkRootOverrideConsistency() {
   const pkg = readJson('package.json');
   const lock = readFileSync('pnpm-lock.yaml', 'utf8');
   const dockerSync = readFileSync('scripts/sync-pnpm-lockfile-for-docker.py', 'utf8');
+  const workspaceYaml = existsSync('pnpm-workspace.yaml') ? readFileSync('pnpm-workspace.yaml', 'utf8') : '';
 
   const rootDeps = new Set([
     ...Object.keys(pkg.devDependencies ?? {}),
     ...Object.keys(pkg.dependencies ?? {}),
   ]);
-  const overrides = pkg.pnpm?.overrides ?? {};
+
+  // pnpm v11: overrides can be in pnpm-workspace.yaml
+  const overrides = { ...(pkg.pnpm?.overrides ?? {}) };
+  if (workspaceYaml) {
+    // Basic extraction of all keys in the overrides: block
+    const overridesMatch = workspaceYaml.match(/\noverrides:\n([\s\S]+?)(?:\n\S|$)/);
+    if (overridesMatch) {
+      const overridesBlock = overridesMatch[1];
+      const lines = overridesBlock.split('\n');
+      for (const line of lines) {
+        const lineMatch = line.match(/^\s+(?:'([^']+)'|"([^"]+)"|([^:]+))\s*:\s*([^#\n]+)/);
+        if (lineMatch) {
+          const key = lineMatch[1] || lineMatch[2] || lineMatch[3].trim();
+          const val = lineMatch[4].trim().replace(/^['"]|['"]$/g, '');
+          overrides[key] = val;
+        }
+      }
+    }
+  }
+
   const resolutions = pkg.pnpm?.resolutions ?? {};
 
   for (const dep of rootDeps) {
