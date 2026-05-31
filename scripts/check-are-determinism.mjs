@@ -47,6 +47,7 @@ const blockedPatterns = [
   { name: 'Date.now', regex: /\bDate\.now\s*\(/g },
   { name: 'new Date', regex: /\bnew\s+Date\s*\(/g },
   { name: 'randomUUID', regex: /\brandomUUID\s*\(/g },
+  { name: 'localeCompare', regex: /\blocaleCompare\s*\(/g },
 ];
 
 const allowedMarker = '@are-determinism-allow';
