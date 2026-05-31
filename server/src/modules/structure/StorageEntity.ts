@@ -98,7 +98,7 @@ export class StorageEntityManager {
    * Generate a deterministic entity ID.
    */
   private generateEntityId(ownerId: string, storageType: StorageTier, tick: number): string {
-    const hash = AREHash.generate({ ownerId, storageType, tick });
+    const hash = AREHash.hashObject({ ownerId, storageType, tick });
     return `storage:${ownerId}:${hash.toString(16).substring(0, 8)}`;
   }
 
