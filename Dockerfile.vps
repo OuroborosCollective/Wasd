@@ -47,6 +47,7 @@ RUN --mount=type=cache,id=wasd-vps-pnpm-store,target=/pnpm/store \
       '  - apps/client-2d' \
       '  - packages/core-logic' \
       '  - packages/shared' \
+      'allowBuilds: true' \
       > pnpm-workspace.yaml && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py && \
     pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/portal... --filter @wasd/client-2d... --filter @wasd/core-logic... --filter @wasd/shared... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only && \
@@ -62,6 +63,7 @@ RUN rm -rf packages/sdk-examples || true && \
       '  - apps/client-2d' \
       '  - packages/core-logic' \
       '  - packages/shared' \
+      'allowBuilds: true' \
       > pnpm-workspace.yaml && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py && \
     pnpm config set verify-deps-before-run false
