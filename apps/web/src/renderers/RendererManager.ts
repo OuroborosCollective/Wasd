@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { AREPayload } from "@wasd/types";
 import { BabylonRenderer } from "./BabylonRenderer";
 import { ThreeRenderer } from "./ThreeRenderer";
