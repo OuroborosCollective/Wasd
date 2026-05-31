@@ -101,7 +101,7 @@ export const NewHud: React.FC = () => {
             aria-valuemin={0}
             aria-valuemax={Math.floor(maxMana / KAPPA)}
             aria-valuetext={`${Math.floor(mana / KAPPA)} out of ${Math.floor(maxMana / KAPPA)} mana`}
-            className={`h-3 bg-black/50 border border-white/10 rounded-sm overflow-hidden backdrop-blur-md ${manaPercent < 20 ? 'animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.5)]' : ''}`}
+            className={`h-3 bg-black/50 border border-white/10 rounded-sm overflow-hidden backdrop-blur-md ${manaPercent < 20 ? 'animate-pulse shadow-inner shadow-cyan-500/50' : ''}`}
           >
             <div 
               className="h-full bg-gradient-to-r from-cyan-700 to-blue-500 transition-all duration-100"
