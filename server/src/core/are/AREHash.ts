@@ -16,6 +16,22 @@ export class AREHash {
     return hash >>> 0;
   }
 
+  /**
+   * Generate hash from any serializable object.
+   * Used for NPC intents and other non-ARE payloads.
+   */
+  static hashObject(obj: unknown): number {
+    const stateString = JSON.stringify(obj);
+    let hash = AREHash.OFFSET_BASIS;
+
+    for (let index = 0; index < stateString.length; index += 1) {
+      hash ^= stateString.charCodeAt(index);
+      hash = Math.imul(hash, AREHash.FNV_PRIME);
+    }
+
+    return hash >>> 0;
+  }
+
   static mix(baseHash: number, hashes: readonly number[] = []): number {
     let hash = baseHash >>> 0;
 
