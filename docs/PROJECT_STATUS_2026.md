@@ -7,10 +7,11 @@ Use it before trusting older reconstruction or handover docs.
 
 | Item | Status |
 |------|--------|
-| Monorepo layout | `client/` (Vite + Babylon.js), `server/` (Express + WebSocket), `game-data/` (authoritative JSON content) |
+| Monorepo layout | `client/` (Vite + Babylon.js), `client-2d/` (PixiJS v7 + React), `server/` (Express + WebSocket), `game-data/` (authoritative JSON content) |
 | Main server loop | `server/src/core/WorldTick.ts` at ~100 ms sim tick |
 | Main client entry | `client/src/main.ts` |
-| Primary rendering | Babylon.js (`@babylonjs/core` + loaders + materials + addons) |
+| Primary rendering (3D) | Babylon.js (`@babylonjs/core` + loaders + materials + addons) |
+| Primary rendering (2D) | PixiJS v7 + React UI (`apps/client-2d/`) |
 | Networking | WebSocket (`ws`) via `server/src/networking/WebSocketServer.ts` |
 | Data content root | `game-data/` by default, optional published pack via `USE_PUBLISHED_CONTENT` / `CONTENT_PACK_DIR` |
 
@@ -31,6 +32,8 @@ Use it before trusting older reconstruction or handover docs.
 |--------|-------------|
 | Players/combat | Player movement, target selection, attack handling, skill usage, cooldown/mana flow, death/respawn are wired in `WorldTick` + combat/skill modules |
 | Inventory/equipment/loot | Inventory stacks, equip/unequip, loot drop + pickup and sync are active |
+| **Anti-Ninja Loot Lock** | Loot ownership with 60-second kill lock (600 ticks at 10Hz); `LootDirector` enforces causality guard via `ownerId` + `lockedUntilTick` |
+| **Player Stats Sync** | Server-authoritative XP/level tracking via `PlayerStatsDirector`; RuneScape XP formula (50 × level^1.4); `player_stats_snapshot` broadcast via WebSocket |
 | Quest system | Quest start/progression/sync and talk/collect/combat updates are active |
 | Questline system | Questline engine + bridge and unlock propagation are wired |
 | NPC runtime | `NPCSystem` + memory cache/persistence + relationships + proactive chat are wired |

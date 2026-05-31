@@ -5,7 +5,8 @@
 ### Project overview
 Arelorian/Ouroboros is a browser MMORPG monorepo:
 - `server/`: Express + WebSocket authoritative game server
-- `client/`: Vite + Babylon.js rendering client
+- `client/`: Vite + Babylon.js rendering client (3D)
+- `client-2d/`: PixiJS v7 + React UI (2D isometric)
 - `game-data/`: content source (quests, NPCs, dialogue, world objects/scenes)
 
 Primary source-of-truth docs:
@@ -13,6 +14,13 @@ Primary source-of-truth docs:
 - `docs/PROJECT_STATUS_2026.md`
 - `docs/ROADMAP_TO_RELEASE.md`
 - `docs/DOCUMENTATION_INDEX.md`
+
+### Client-2D specifics
+- Entry: `apps/client-2d/src/DeterministicWorldIsoApp.tsx`
+- UI system: `apps/client-2d/src/ui/UIManager.tsx` with `useSyncExternalStore`
+- Rendering: PixiJS v7 with interpolated sprite movement (60 FPS lerp from 10 Hz server updates)
+- WebSocket events: Listen on `wasd:network-packet` for UI updates
+- CSS: Native CSS files (no Tailwind in 2D client unless requested)
 
 ### Production .env (VPS)
 - Use `deploy/ENV_SETUP.md`.

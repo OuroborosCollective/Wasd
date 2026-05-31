@@ -15,6 +15,7 @@ This roadmap tracks the gap between what is already live in the repository and w
 | ID | Area | Gap | Current |
 |----|------|-----|---------|
 | A1 | Client performance | Reduce startup and runtime cost on mobile and low-end devices | Babylon chunk split + mobile budgets exist; further dynamic loading and GPU profiling needed |
+| A1b | **2D Client Interpolation** | Smooth movement from 10 Hz server to 60 FPS render | **DONE**: `InterpolatedSpriteManager` with teleport-snap, precision-lock, delta-time scaling |
 | A2 | Combat UX | Improve clarity, feedback, and edge-case handling | Core combat works; still needs richer combat log, clearer party/revive integration |
 | A3 | Quest UX | Better objective feedback and progression visibility | Quest engine works; UI guidance and advanced objective summaries still limited |
 | A4 | Persistence hardening | Production migration + backup policy consistency | `PERSISTENCE_DRIVER` works (`auto/postgres/file`); release needs strict migration and rollback SOP |
@@ -31,6 +32,7 @@ This roadmap tracks the gap between what is already live in the repository and w
 | NPC autonomy | NPC memory/relationships/chat + fusion hooks active | Expand deterministic behavior scenarios and balancing for large NPC counts |
 | Gameplay Fusion Director | Quest echo, adaptive profile overrides, construction contracts live | Add dedicated admin/debug visibility panel and tunable balancing config |
 | World systems | Chunk/terrain/weather/resource foundations active | Expand biome/content depth and optimize streaming boundaries |
+| **2D Client UI** | Inventory, Character overlay (press C), native CSS styling shipped | Expand with Quest tracker, Map, Settings panels |
 
 ---
 
