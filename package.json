@@ -42,15 +42,7 @@
     "vitest": "^4.1.7"
   },
   "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "sharp",
-      "pg",
-      "@prisma/engines",
-      "protobufjs",
-      "cpu-features",
-      "ssh2"
-    ],
+    "allowBuilds": true,
     "overrides": {
       "@types/react": "^19.2.14",
       "@types/react-dom": "^19.2.3",
@@ -64,10 +56,6 @@
       "react": "^19.2.6",
       "socket.io-client": "^4.8.3",
       "pg": "^8.20.0"
-    },
-    "resolutions": {
-      "typescript": "^6.0.3",
-      "@types/node": "^25.9.1"
     }
   }
 }

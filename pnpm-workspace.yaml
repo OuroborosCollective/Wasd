@@ -8,14 +8,7 @@ packages:
   - "portal"
   - "server"
   - "backend"
-allowBuilds:
-  '@firebase/util': true
-  '@google/genai': true
-  '@nestjs/core': true
-  '@prisma/engines': true
-  cpu-features: true
-  esbuild: true
-  pg: true
-  prisma: true
-  protobufjs: true
-  ssh2: true
+
+# pnpm v11: use boolean values (true/false) for allowBuilds, not strings
+# Setting allowBuilds to true allows all packages to be built during install
+allowBuilds: true

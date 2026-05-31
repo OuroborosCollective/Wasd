@@ -319,8 +319,9 @@ docker builder prune -f --filter 'until=24h' >/dev/null 2>&1 || true
 docker image prune -f >/dev/null 2>&1 || true
 
 echo "[2/4] Build images (monorepo context, sequential to avoid OOM)"
-compose_cmd build --progress=plain arelorian-engine
-compose_cmd build --progress=plain monitor-bridge
+# Use --progress plain (global flag must come before subcommand) for compatibility with Docker Compose v2
+compose_cmd --progress plain build arelorian-engine
+compose_cmd --progress plain build monitor-bridge
 
 echo "[3/4] Recreate containers"
 compose_cmd down --remove-orphans || true
