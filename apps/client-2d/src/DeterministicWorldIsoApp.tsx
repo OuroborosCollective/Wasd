@@ -15,6 +15,7 @@ import { CombatFXManager } from "./render/CombatFXManager";
 import { initCombatFXBridge } from "./render/CombatFXEventBridge";
 import { ChunkManager } from "./world/ChunkManager";
 import { InterpolatedSpriteManager } from "./math/InterpolatedSpriteManager";
+import { FacingDirection, inputToFacing, serverPosToKappa, getFacingEntity, type TargetableEntity } from "./input/Targeting";
 
 const EQUIPPED_WEAPON_KEY = "wasd:2d:equippedWeaponVisualId";
 const WORLD_SEED = "areloria:earth_1_1";
@@ -263,6 +264,107 @@ export function DeterministicWorldIsoApp() {
     clientRef.current?.sendPlayerAction("interact", { targetId });
     dispatchClientAction("INTERACT_ENTITY", { targetId });
     setMessages((items) => [...items.slice(-12), { from: "System", txt: `Interaction intent sent: ${targetId}` }]);
+  }
+
+  /**
+   * Get all targetable entities from the current entity map.
+   * Converts server tile positions to KAPPA-units for deterministic targeting.
+   */
+  function getTargetableEntities(): TargetableEntity[] {
+    const entities: TargetableEntity[] = [];
+    
+    entities.current.forEach((entity, id) => {
+      // Skip self
+      if (id === "self") return;
+      
+      // Convert tile position to KAPPA-units
+      const kappaX = Math.round(entity.tx * 1000);
+      const kappaZ = Math.round(entity.tz * 1000);
+      
+      // Determine entity kind based on naming conventions
+      let kind: TargetableEntity["kind"] = "npc";
+      if (entity.isPlayer) kind = "player";
+      
+      entities.push({
+        id,
+        name: entity.name,
+        kappaX,
+        kappaZ,
+        kind,
+      });
+    });
+    
+    return entities;
+  }
+
+  /**
+   * Get the current facing direction based on last movement input.
+   */
+  function getCurrentFacing(): FacingDirection | null {
+    const k = keys.current;
+    let dx = 0, dz = 0;
+    if (k.has("w") || k.has("arrowup")) dz += 1;
+    if (k.has("s") || k.has("arrowdown")) dz -= 1;
+    if (k.has("a") || k.has("arrowleft")) dx -= 1;
+    if (k.has("d") || k.has("arrowright")) dx += 1;
+    return inputToFacing(dx, dz);
+  }
+
+  /**
+   * Spatial Auto-Targeting for Strike/Talk actions.
+   * Determines the entity directly in front of the player based on
+   * KAPPA-grid mathematics and current facing direction.
+   * 
+   * Returns null if no valid target found - NO RANDOM FALLBACK.
+   */
+  function getSpatialTarget(): string | null {
+    const self = entities.current.get("self");
+    if (!self) return null;
+    
+    const facing = getCurrentFacing();
+    if (!facing) return null;
+    
+    const playerKappa = {
+      x: Math.round(self.tx * 1000),
+      z: Math.round(self.tz * 1000),
+    };
+    
+    const allEntities = getTargetableEntities();
+    const result = getFacingEntity(playerKappa, facing, allEntities, 1500);
+    
+    return result.targetId;
+  }
+
+  /**
+   * Handle skill/action with spatial auto-targeting.
+   * Uses KAPPA-grid math to determine the entity directly in front of the player.
+   */
+  function performTargetedAction(actionType: "strike" | "talk"): void {
+    const targetId = getSpatialTarget();
+    
+    if (!targetId) {
+      setMessages((items) => [...items.slice(-12), { from: "System", txt: `No target in facing direction.` }]);
+      return;
+    }
+    
+    const targetEntity = entities.current.get(targetId);
+    const targetName = targetEntity?.name ?? targetId;
+    
+    if (actionType === "strike") {
+      clientRef.current?.sendPlayerAction("strike", { targetId });
+      dispatchClientAction("STRIKE_ENTITY", { targetId });
+      setMessages((items) => [...items.slice(-12), { from: "Combat", txt: `Striking: ${targetName}` }]);
+      
+      // Visual feedback
+      const fx = fxLayerRef.current;
+      const self = entities.current.get("self");
+      if (fx && self) {
+        spawnFloatingStatus(fx, { x: self.root.x + 20, y: self.root.y - 28, text: "⚔ STRIKE" });
+      }
+    } else {
+      sendInteractIntent(targetId);
+      setMessages((items) => [...items.slice(-12), { from: "System", txt: `Talking to: ${targetName}` }]);
+    }
   }
 
   function setActor(id: string, x: number, z: number, name: string, player: boolean, characterVisualId: string | null, weaponVisualId: string | null) {
@@ -665,6 +767,115 @@ export function DeterministicWorldIsoApp() {
         { from: source, txt: text }
       ]);
     });
+    /**
+     * COMBAT_RESULT HANDLER
+     * ═══════════════════════════════════════════════════════════════════════════
+     * 
+     * Routes combat result events from the server to the chat overlay.
+     * 
+     * Event format:
+     * {
+     *   type: "combat_result",
+     *   payload: {
+     *     action: "strike" | "skill",
+     *     attacker: string,
+     *     target: string,
+     *     damage?: number,
+     *     success: boolean,
+     *     message?: string
+     *   }
+     * }
+     * 
+     * Per-Axiom 1 (Server Authority): Combat results come from the server
+     * and are displayed as system messages in the chat overlay.
+     * ═══════════════════════════════════════════════════════════════════════════
+     */
+    c.on("combat_result", (event: any) => {
+      const payload = event.payload ?? event;
+      const attacker = String(payload.attacker ?? "Unknown");
+      const target = String(payload.target ?? "Unknown");
+      const damage = Number(payload.damage ?? 0);
+      const success = Boolean(payload.success);
+      
+      let message = "";
+      if (payload.message) {
+        message = String(payload.message);
+      } else if (success && damage > 0) {
+        message = `${attacker} hits ${target} for ${damage} damage.`;
+      } else if (!success) {
+        message = `${attacker}'s attack on ${target} missed.`;
+      }
+      
+      if (!message) return;
+      
+      setMessages((items) => [
+        ...items.slice(-12),
+        { from: "Combat", txt: message }
+      ]);
+    });
+    /**
+     * NPC_CHAT_MESSAGE HANDLER
+     * ═══════════════════════════════════════════════════════════════════════════
+     * 
+     * Routes NPC chat messages to the chat overlay.
+     * NPCs emit periodic deterministic chat lines based on ARE-Logic.
+     * 
+     * Event format:
+     * {
+     *   type: "CHAT_MESSAGE",
+     *   payload: {
+     *     senderId: string,
+     *     senderName: string,
+     *     text: string,
+     *     channel: "global" | "local"
+     *   }
+     * }
+     * ═══════════════════════════════════════════════════════════════════════════
+     */
+    c.on("CHAT_MESSAGE", (event: any) => {
+      const payload = event.payload ?? event;
+      const senderName = String(payload.senderName ?? payload.sender ?? "Wanderer");
+      const text = String(payload.text ?? "");
+      
+      if (!text) return;
+      
+      setMessages((items) => [
+        ...items.slice(-12),
+        { from: senderName, txt: text }
+      ]);
+    });
+    /**
+     * WORLD_EMERGENCE_EVENT HANDLER
+     * ═══════════════════════════════════════════════════════════════════════════
+     * 
+     * Routes NPC decomposition events to the chat overlay.
+     * Shows when an NPC enters the decomposition phase (thermal collapse).
+     * 
+     * Event format:
+     * {
+     *   type: "WORLD_EMERGENCE_EVENT",
+     *   payload: {
+     *     npcId: string,
+     *     eventType: string,
+     *     reason: string
+     *   }
+     * }
+     * ═══════════════════════════════════════════════════════════════════════════
+     */
+    c.on("WORLD_EMERGENCE_EVENT", (event: any) => {
+      const payload = event.payload ?? event;
+      const npcId = String(payload.npcId ?? "Unknown");
+      const eventType = String(payload.eventType ?? "emergence");
+      const reason = String(payload.reason ?? "");
+      
+      let message = `[${eventType}]`;
+      if (reason) message += ` ${reason}`;
+      
+      setMessages((items) => [
+        ...items.slice(-12),
+        { from: "World", txt: message }
+      ]);
+    });
     c.connect();
   }
 
@@ -729,6 +940,12 @@ export function DeterministicWorldIsoApp() {
   }
 
   function sendSkill(skillId: string) {
+    // Special handling for atk (Strike) - uses spatial auto-targeting
+    if (skillId === "atk") {
+      performTargetedAction("strike");
+      return;
+    }
+    
     const fx = fxLayerRef.current;
     const self = entities.current.get("self");
     if (fx && self) {
@@ -744,7 +961,15 @@ export function DeterministicWorldIsoApp() {
   }
 
   function interact() {
-    sendInteractIntent("npc_elder_0");
+    // Use spatial auto-targeting instead of hardcoded target
+    performTargetedAction("talk");
+  }
+
+  /**
+   * Direct strike action - uses spatial targeting to find entity in front.
+   */
+  function strikeAction() {
+    performTargetedAction("strike");
   }
 
   return (
@@ -761,6 +986,7 @@ export function DeterministicWorldIsoApp() {
         onSkill={sendSkill}
         onChat={sendChat}
         onInteract={interact}
+        onStrike={strikeAction}
         onCycleWeapon={cycleEquippedWeapon}
         onToggleAutoMove={() => setMessages((items) => [...items.slice(-12), { from: "Navigator", txt: "WorldDirector routes are generated; auto-route execution follows server validation." }])}
       />

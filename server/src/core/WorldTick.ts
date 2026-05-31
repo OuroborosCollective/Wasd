@@ -573,7 +573,38 @@ export class WorldTick {
     }
   }
 
-  private handleAttack(id: string, player: any, msg: any) { const targetId = msg.targetId; const npc = this.npcSystem.getNPC(targetId); if (npc && npc.health !== undefined) { const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y); if (dist < 30) { const baseDamage = 10; npc.health -= baseDamage; this.ws.broadcast({ type: "combat_feedback", targetId, damage: baseDamage, health: npc.health, maxHealth: npc.maxHealth }); if (npc.health <= 0) this.handleNPCDeath(id, player, npc, targetId); } } }
+  private handleAttack(id: string, player: any, msg: any) { 
+    const targetId = msg.targetId; 
+    const npc = this.npcSystem.getNPC(targetId); 
+    if (npc && npc.health !== undefined) { 
+      const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y); 
+      if (dist < 30) { 
+        const baseDamage = 10; 
+        npc.health -= baseDamage; 
+        
+        // ─────────────────────────────────────────────────────────────────
+        // COMBAT_RESULT BROADCAST
+        // ═════════════════════════════════════════════════════════════════
+        // Sends combat result to all players so the chat overlay can display it.
+        // ═════════════════════════════════════════════════════════════════
+        this.ws.broadcast({ 
+          type: "combat_result", 
+          payload: {
+            action: "strike",
+            attacker: player.name ?? "Player",
+            target: npc.name ?? targetId,
+            damage: baseDamage,
+            success: true,
+            targetHealth: npc.health,
+            targetMaxHealth: npc.maxHealth
+          }
+        });
+        
+        this.ws.broadcast({ type: "combat_feedback", targetId, damage: baseDamage, health: npc.health, maxHealth: npc.maxHealth }); 
+        if (npc.health <= 0) this.handleNPCDeath(id, player, npc, targetId); 
+      } 
+    } 
+  }
   private handleInteract(id: string, player: any, msg: any) { const targetId = msg.targetId; const npc = this.npcSystem.getNPC(targetId); const loot = this.lootEntities.get(targetId); if (npc) { const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y); if (dist < 20) { const interaction = this.npcSystem.handleInteraction(targetId, player, this.questSystem.getQuestDefinitions(), { tick: this.tickCount, biomeId: "forest_village" }); if (interaction) this.ws.sendToPlayer(id, { type: "dialogue", source: interaction.source, text: interaction.text, choices: interaction.choices, npcId: interaction.npcId }); } } else if (loot) { const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y); if (dist < 20) { this.inventorySystem.addItem(player, loot.item); this.lootEntities.delete(targetId); this.lootSpawnTicks.delete(targetId); this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` }); } } }
   private handleDialogueChoice(id: string, player: any, msg: any) { const { npcId, nodeId, choiceId } = msg; const interaction = this.npcSystem.handleChoice(npcId, nodeId, choiceId, player); if (interaction) this.ws.sendToPlayer(id, { type: "dialogue", source: interaction.source, text: interaction.text, choices: interaction.choices, npcId: interaction.npcId }); }
   private handleNPCDeath(socketId: string, player: any, npc: any, npcInstanceId: string) { npc.health = npc.maxHealth || 100; this.ws.sendToPlayer(socketId, { type: "dialogue", source: "System", text: `${npc.name} respawns.` }); }
@@ -748,6 +779,30 @@ export class WorldTick {
     this.warfrontSystem.tick(this.tickCount * 100);
     this.npcSystem.tick(allPlayers.filter((p) => !p.isOffline), this.worldSystem.worldTime);
     const emergenceEvents = this.collectNpcEmergenceEvents();
+    
+    // ─────────────────────────────────────────────────────────────────
+    // NPC CHAT EVENTS BROADCAST
+    // ═════════════════════════════════════════════════════════════════
+    // 
+    // Drains NPC chat events from the NPCSystem and broadcasts them
+    // to all connected players. This routes NPC dialogue to the chat overlay.
+    // 
+    // Per-ARE-Logic: Events are server-authoritative. NPCs emit deterministic
+    // chat lines that are broadcast to all players in range.
+    // ═════════════════════════════════════════════════════════════════
+    const npcChatEvents = this.npcSystem.drainWorldChatEvents();
+    for (const chatEvent of npcChatEvents) {
+      this.ws.broadcast({
+        type: "CHAT_MESSAGE",
+        payload: {
+          senderId: chatEvent.senderId,
+          senderName: chatEvent.senderName,
+          text: chatEvent.text,
+          channel: chatEvent.channel ?? "global",
+        }
+      });
+    }
+    
     runWarfrontCombatTick({ tickCount: this.tickCount, npcSystem: this.npcSystem, playerSystem: this.playerSystem, combatService: this.combatService, broadcast: (p) => this.ws.broadcast(p) });
     const npcsAgg = this.npcSystem.getAllNPCs();
     let aggSum = 0;
