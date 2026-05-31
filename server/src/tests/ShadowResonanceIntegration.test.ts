@@ -1,10 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AREShadowGateAdapter } from '../core/are/AREShadowGateAdapter';
 import { ResonanceBrain } from '../modules/brain/ResonanceBrain';
 import { ShadowResonanceBridge } from '../../../packages/core-logic/src/are/ShadowResonanceBridge';
 import { areTopologyNetwork } from '../are/ARETopologyNetwork';
 
 describe('Shadow Resonance Feature Integration', () => {
+  beforeEach(() => {
+    areTopologyNetwork.clear();
+  });
+
   it('should detect, evaluate and record a resonance echo', async () => {
     // 1. Setup Topology Spike
     const tick = 100;

@@ -98,6 +98,13 @@ export class ARETopologyNetwork {
     return this.getEffectiveDistance(entityId, tick) >= this.pruneThreshold;
   }
 
+  /**
+   * Resets the network by clearing all nodes.
+   */
+  clear(): void {
+    this.nodes.clear();
+  }
+
   snapshot(tick: number, limit = 64): ARETopologySnapshot {
     const t = whole(tick);
     const ids = [...this.nodes.keys()].sort();

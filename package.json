@@ -63,7 +63,8 @@
       "@babylonjs/loaders": "9.8.0",
       "react": "^19.2.6",
       "socket.io-client": "^4.8.3",
-      "pg": "^8.20.0"
+      "pg": "^8.20.0",
+      "tinyglobby": "0.2.16"
     },
     "resolutions": {
       "typescript": "^6.0.3",
