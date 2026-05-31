@@ -49,9 +49,9 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/are/AREInvariantGuard.ts src/destiny/SovereignDestinyEngine.ts src/epoch/SovereignEpochs.ts src/identity/SovereignIdentity.ts src/loot/index.ts src/react/OuroborosPulseView.tsx --format cjs,esm --dts --clean --external react",
-    "build:runtime": "tsup src/index.ts src/are/AREInvariantGuard.ts src/destiny/SovereignDestinyEngine.ts src/epoch/SovereignEpochs.ts src/identity/SovereignIdentity.ts src/loot/index.ts src/react/OuroborosPulseView.tsx --format cjs,esm --clean --external react",
-    "dev": "tsup src/index.ts src/are/AREInvariantGuard.ts src/destiny/SovereignDestinyEngine.ts src/epoch/SovereignEpochs.ts src/identity/SovereignIdentity.ts src/loot/index.ts src/react/OuroborosPulseView.tsx --format cjs,esm --watch --dts --external react",
+    "build": "tsup src/index.ts src/are/AREInvariantGuard.ts src/are/ShadowResonanceBridge.ts src/destiny/SovereignDestinyEngine.ts src/epoch/SovereignEpochs.ts src/identity/SovereignIdentity.ts src/loot/index.ts src/react/OuroborosPulseView.tsx --format cjs,esm --dts --clean --external react",
+    "build:runtime": "tsup src/index.ts src/are/AREInvariantGuard.ts src/are/ShadowResonanceBridge.ts src/destiny/SovereignDestinyEngine.ts src/epoch/SovereignEpochs.ts src/identity/SovereignIdentity.ts src/loot/index.ts src/react/OuroborosPulseView.tsx --format cjs,esm --clean --external react",
+    "dev": "tsup src/index.ts src/are/AREInvariantGuard.ts src/are/ShadowResonanceBridge.ts src/destiny/SovereignDestinyEngine.ts src/epoch/SovereignEpochs.ts src/identity/SovereignIdentity.ts src/loot/index.ts src/react/OuroborosPulseView.tsx --format cjs,esm --watch --dts --external react",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"

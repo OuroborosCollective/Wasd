@@ -5,3 +5,4 @@ export * from './epoch/SovereignEpochs';
 export * from './identity/SovereignIdentity';
 export * from './loot';
 export * from './react/OuroborosPulseView';
+export * from './are/ShadowResonanceBridge';
