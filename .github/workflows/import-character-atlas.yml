@@ -105,5 +105,5 @@ jobs:
       - name: Commit imported atlas
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: assets(client-2d): import Areloria starter character atlas
-          file_pattern: apps/client-2d/public/2d-assets/characters/areloria-starter/**
+          commit_message: "assets(client-2d): import Areloria starter character atlas"
+          file_pattern: "apps/client-2d/public/2d-assets/characters/areloria-starter/**"
