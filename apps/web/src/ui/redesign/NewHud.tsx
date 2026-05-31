@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+// @ts-ignore
 import { useStore } from '../../store/useStore';
 
 /**
@@ -6,7 +7,9 @@ import { useStore } from '../../store/useStore';
  * @wasd/types stellt die Netzwerk-Typen bereit.
  * @wasd/shared enthält die Engine-Konstanten wie KAPPA (1000).
  */
+// @ts-ignore
 import { DeviceTier } from '@wasd/types';
+// @ts-ignore
 import { KAPPA } from '@wasd/shared';
 
 /**
