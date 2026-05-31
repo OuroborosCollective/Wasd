@@ -9,7 +9,7 @@ import { Router, Request, Response } from 'express';
 import { characterAssembly, CharacterAppearance } from '../modules/character/CharacterAssemblySystem.js';
 import { db } from '../core/Database.js';
 
-const router = Router();
+export const router: Router = Router();
 
 /** GET /api/character/manifest */
 router.get('/manifest', (_req: Request, res: Response) => {

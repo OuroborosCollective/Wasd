@@ -52,7 +52,7 @@ jobs:
       - name: Enable pnpm
         run: |
           corepack enable
-          corepack prepare pnpm@9.12.2 --activate
+          corepack prepare pnpm@11.5.0 --activate
 
       - name: Install monorepo dependencies
         run: pnpm install --no-frozen-lockfile --prefer-offline

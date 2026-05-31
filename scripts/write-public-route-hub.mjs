@@ -3,8 +3,8 @@ import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const repoRoot = resolve(process.cwd());
-const distRoot = join(repoRoot, 'client/dist');
-const publicRoot = join(repoRoot, 'client/public');
+const distRoot = existsSync(join(repoRoot, 'dist')) ? join(repoRoot, 'dist') : join(repoRoot, 'client/dist');
+const publicRoot = existsSync(join(repoRoot, 'public')) ? join(repoRoot, 'public') : join(repoRoot, 'client/public');
 const portalRoot = join(distRoot, 'portal');
 const client3DRoot = join(distRoot, '3d');
 const appsRoot = join(distRoot, 'apps');

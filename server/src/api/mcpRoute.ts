@@ -170,7 +170,7 @@ function createMcpServer() {
 
 // --- Express Route Setup ---
 
-export function mcpRoute() {
+export function mcpRoute(): express.Router {
   const router = Router();
   router.use(express.json()); // Need body parser for message POST
 

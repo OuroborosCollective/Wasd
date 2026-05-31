@@ -17,7 +17,7 @@ RUN apk add --no-cache \
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
-RUN corepack enable && corepack prepare pnpm@9.12.2 --activate
+RUN corepack enable && corepack prepare pnpm@11.5.0 --activate
 
 # Shared store for faster installs
 RUN pnpm config set store-dir /pnpm/store
