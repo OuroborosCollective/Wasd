@@ -1,76 +1,36 @@
-# Architectural & DevOps Audit Report - February 2028
+# Monorepo Audit Report - February 2028
 
 **Auditor:** Jules (Senior DevOps & Fullstack Architect)
 **Date:** February 2028
-**Scope:** Package Management, Dependency Graph, TypeScript Configuration, CI/CD Workflows, Deployment Infrastructure.
-
----
 
 ## Status Quo
+The repository is a complex monorepo using **pnpm v11** with the `isolated` node-linker. It follows a composite TypeScript project structure and centralizes dependency management through root-level `overrides` and `allowBuilds`. The deployment pipeline supports both Docker-based (VPS) and direct SSH-based deployments via PM2.
 
-The repository is a mature TypeScript monorepo managed by `pnpm`. It contains a variety of applications (`server`, `client`, `portal`, `engine`) and shared packages (`packages/*`, `projects/*`). Deployment is handled via GitHub Actions targeting a VPS, with multiple strategies available including PM2-managed processes and Docker containers.
-
-Current infrastructure strengths:
-- Clear workspace separation using `pnpm-workspace.yaml`.
-- Use of `corepack` for consistent `pnpm` versions.
-- Custom transpilation scripts for optimized server-side builds.
-- Integrated health checks in deployment scripts.
-
----
+*   **Package Management:** Uses `pnpm`. Root `package.json` specifies `pnpm@11.2.2`, but `devDependencies` lists `pnpm@11.5.0`.
+*   **TypeScript:** Root `tsconfig.json` uses Project References, but many sub-packages are not correctly configured as composite projects.
+*   **Deployment:** `Dockerfile.prod` and `deploy/update.sh` are currently pinned to `pnpm@9.12.2`, creating a version mismatch with the monorepo configuration.
 
 ## Kritische Fehler (Critical Errors)
-
-1.  **TypeScript Version Mismatch:**
-    - Root `package.json` specifies `typescript: ^5.3.3` in both `devDependencies` and `pnpm.resolutions`.
-    - Most packages (e.g., `@wasd/server`, `@wasd/client`, `@wasd/portal`) specify `typescript: ^6.0.3`.
-    - Some legacy packages (e.g., `@wasd/core`, `@wasd/core-network`) are still on `^5.3.3`.
-    - *Impact:* Potential for "Ghost Type Errors" where the IDE and CI use different versions, and incompatible type-only builds.
-
-2.  **Type Definition Inconsistency:**
-    - `@types/node` varies between `^22.19.18` and `^25.7.0` across the monorepo.
-    - *Impact:* Conflicts in global Node.js types (e.g., `Buffer`, `Process`) when multiple versions are hoisted or resolved.
-
-3.  **TSConfig Reference Fragmentation:**
-    - Root `tsconfig.json` contains references to both `backend` and `packages/backend`, as well as `portal` and `apps/portal-replit`.
-    - Many `tsconfig.json` files have redundant `paths` or `baseUrl` settings that should be handled by the monorepo's shared package resolution.
-
-4.  **Dockerfile Duality:**
-    - `Dockerfile` and `Dockerfile.prod` use fundamentally different approaches for dependency management. `Dockerfile` uses a Python preflight script to sync lockfiles, while `Dockerfile.prod` uses manual `COPY` commands.
-    - *Impact:* Divergent production environments depending on which build path is triggered.
-
----
+1.  **TypeScript Reference Breakdown:** `projects/health-tech` is referenced in the root `tsconfig.json` but lacks a `tsconfig.json` file, which will cause `tsc --build` to fail.
+2.  **Composite Configuration Mismatch:** Multiple packages (e.g., `server`, `packages/shared`, `apps/web`) are referenced in the root but lack `composite: true`. This breaks the TypeScript build graph and incremental compilation.
+3.  **pnpm Version Conflict:** The monorepo configuration (overrides, etc.) is tailored for pnpm v11, but deployment scripts still use pnpm v9. This can lead to lockfile resolution errors during deployment.
 
 ## Optimierungspotenzial (Optimization Potential)
-
-1.  **CI/CD Reproducibility:**
-    - `deploy/update.sh` (used by `vps-production-deploy.yml`) uses `--no-frozen-lockfile`. While intended to avoid OOM on VPS, it risks deploying code with different dependency versions than what was tested in CI.
-    - The Python preflight script `scripts/sync-pnpm-lockfile-for-docker.py` is a clever workaround for VPS OOM issues but adds maintenance overhead.
-
-2.  **Dependency Hoisting & Deduplication:**
-    - The `pnpm.overrides` in the root `package.json` are extensive but missing several high-frequency packages like `typescript` and `@types/node`.
-
-3.  **Build Performance:**
-    - `server/package.json` uses `esbuild` via a custom script, while `packages/shared` uses `tsc`. Standardizing on `esbuild` for all non-browser packages would significantly speed up CI builds.
-
----
+1.  **Version Standardization:** Unified pnpm version (11.5.0) across `package.json`, Dockerfiles, and CI/CD workflows.
+2.  **Deployment Stability:** Switch to `--frozen-lockfile` in `deploy/update.sh` to ensure the production environment exactly matches the development lockfile.
+3.  **Build Performance:** Fully enabling `composite` and `incremental` across all packages will significantly reduce CI/CD build times by allowing TypeScript to skip unchanged packages.
 
 ## Action Plan
-
-### Step 1: Dependency Standardization
-- [ ] Update root `package.json` and all sub-packages to use `typescript@6.0.3`.
-- [ ] Update root `package.json` and all sub-packages to use `@types/node@25.7.0`.
-- [ ] Align `react` and `@types/react` versions across all projects to `19.2.6` and `19.2.14` respectively.
-
-### Step 2: TypeScript Configuration Cleanup
-- [ ] Audit root `tsconfig.json` references to match the actual folder structure.
-- [ ] Ensure all `tsconfig.json` files correctly extend `tsconfig.base.json`.
-- [ ] Remove redundant `paths` in apps that are already covered by workspace links.
-
-### Step 3: Deployment & Docker Harmonization
-- [ ] Consolidate `Dockerfile` and `Dockerfile.prod` into a single, optimized multi-stage build.
-- [ ] Standardize on the `pnpm deploy` command for generating lean production artifacts.
-- [ ] Update `deploy/update.sh` to optionally use `pnpm install --frozen-lockfile` if memory allows, or improve the pre-check.
-
-### Step 4: CI/CD Hardening
-- [ ] Add `pnpm/action-setup` to all workflows that use `pnpm`.
-- [ ] Ensure `concurrency` groups are used in all deployment-related workflows to prevent race conditions on the VPS.
+1.  **Package Management Alignment:**
+    *   Update root `packageManager` to `pnpm@11.5.0`.
+    *   Align `Dockerfile.prod` and `deploy/update.sh` to `pnpm@11.5.0`.
+    *   Enforce `--frozen-lockfile` in production deployment scripts.
+2.  **TypeScript Hardening:**
+    *   Systematically enable `composite: true`, `declaration: true`, and `incremental: true` for all internal packages.
+    *   Create missing `tsconfig.json` for `projects/health-tech`.
+    *   Verify the entire graph with `pnpm exec tsc --build`.
+3.  **Dependency Synchronization:**
+    *   Align `@babylonjs/*` and `pg` versions in `apps/web` and `server` with the root `overrides` to prevent ghost dependency issues and ensure runtime stability.
+4.  **Verification:**
+    *   Run `pnpm guard:monorepo` to validate lockfile and override consistency.
+    *   Execute full test suite and build verification.

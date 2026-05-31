@@ -14,9 +14,9 @@
     "test:coverage": "vitest --passWithNoTests run --coverage"
   },
   "dependencies": {
-    "@babylonjs/core": "^9.10.1",
-    "@babylonjs/loaders": "^9.10.1",
-    "@babylonjs/materials": "^9.10.1",
+    "@babylonjs/core": "9.8.0",
+    "@babylonjs/loaders": "9.8.0",
+    "@babylonjs/materials": "9.8.0",
     "@wasd/database": "workspace:*",
     "framer-motion": "^12.40.0",
     "lucide-react": "^1.17.0",

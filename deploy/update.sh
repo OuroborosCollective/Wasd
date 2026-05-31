@@ -56,14 +56,14 @@ echo "NODE_OPTIONS=${NODE_OPTIONS}"
 
 if command -v corepack >/dev/null 2>&1; then
   corepack enable || true
-  corepack prepare pnpm@9.12.2 --activate || true
+  corepack prepare pnpm@11.5.0 --activate || true
 fi
 
 if command -v pnpm >/dev/null 2>&1; then
   echo "Using pnpm for installation and targeted build..."
   pnpm config set network-concurrency 2
   pnpm config set child-concurrency 1
-  pnpm install --no-frozen-lockfile --prefer-offline
+  pnpm install --frozen-lockfile --prefer-offline
 
   echo "Building core-logic runtime, shared package and game server..."
   NODE_OPTIONS="$BUILD_NODE_OPTIONS" pnpm --filter @wasd/core-logic --if-present run build:runtime
