@@ -34,14 +34,15 @@ export class NPCMemoryCache {
     /**
      * Speichert eine Aktion im Cache und in der Vektor-Datenbank.
      */
-    public async commitAction(npcId: string, action: any, content: string, embedding?: number[]): Promise<void> {
+    public async commitAction(npcId: string, action: any, content: string, embedding?: number[], metadata?: Record<string, any>): Promise<void> {
         const entry: MemoryEntry = {
             id: this.generateUUID(),
             npcId,
             action,
             content,
             timestamp: Date.now(),
-            embedding
+            embedding,
+            metadata
         };
 
         // Local Cache Update
@@ -67,6 +68,19 @@ export class NPCMemoryCache {
      */
     public async searchLongTermMemory(npcId: string, queryEmbedding: number[], limit: number = 5): Promise<MemoryEntry[]> {
         return await this.vectorDB.query(npcId, queryEmbedding, limit);
+    }
+
+    /**
+     * Speichert ein Resonanz-Echo in der NPC-Erinnerung.
+     */
+    public async recordResonanceEcho(npcId: string, gateId: string, intensity: number, insight: number): Promise<void> {
+        await this.commitAction(
+            npcId,
+            'resonance_echo',
+            `Sensed a dimensional resonance gate ${gateId} with intensity ${intensity.toFixed(2)}`,
+            undefined,
+            { gateId, intensity, insight, type: 'ARE_RESONANCE' }
+        );
     }
 
     /**
