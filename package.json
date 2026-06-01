@@ -42,7 +42,17 @@
     "vitest": "^4.1.7"
   },
   "pnpm": {
-    "allowBuilds": true,
+    "onlyBuiltDependencies": [
+      "@firebase/util",
+      "@google/genai",
+      "@nestjs/core",
+      "@prisma/engines",
+      "cpu-features",
+      "esbuild",
+      "prisma",
+      "protobufjs",
+      "ssh2"
+    ],
     "overrides": {
       "@types/react": "^19.2.14",
       "@types/react-dom": "^19.2.3",

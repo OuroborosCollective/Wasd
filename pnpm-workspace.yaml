@@ -9,15 +9,4 @@ packages:
   - "server"
   - "backend"
 
-# pnpm v11: use boolean values (true/false) for allowBuilds
-# Allow builds for all packages (enables postinstall scripts for native modules like esbuild, prisma)
-onlyBuiltDependencies:
-  - "@firebase/util"
-  - "@google/genai"
-  - "@nestjs/core"
-  - "@prisma/engines"
-  - "cpu-features"
-  - "esbuild"
-  - "prisma"
-  - "protobufjs"
-  - "ssh2"
+# Note: pnpm v11 settings are now in root package.json pnpm field
