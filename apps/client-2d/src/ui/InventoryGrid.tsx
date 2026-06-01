@@ -354,7 +354,7 @@ export function InventoryGrid({ isOpen = true, onClose }: InventoryGridProps) {
   const [tooltip, setTooltip] = useState<{ item: ModularItem; x: number; y: number } | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
 
-  // Handle WebSocket messages - useEffect ensures cleanup on unmount
+// Handle WebSocket messages - useEffect ensures cleanup on unmount
   useEffect(() => {
     const handleNetworkPacket = (event: Event) => {
       const detail = (event as CustomEvent).detail;
