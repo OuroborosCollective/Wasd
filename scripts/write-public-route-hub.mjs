@@ -27,10 +27,7 @@ function shell({ brand, sub, nodes, ctaHref, cta, top, headline, text, cards, st
   return `<div class="shell"><aside class="rail"><div><div class="brand">${brand}</div><div class="sub">${sub}</div></div><nav class="nodes">${nodes.map((n) => `<span>${n}</span>`).join('')}</nav><a class="sync" href="${ctaHref}">${cta}</a></aside><main class="main"><div class="top"><b>${top}</b><span>2D · 3D · SCIENCE · TOOLS</span></div><section class="hero"><div><div class="sigil"><div class="ouro"></div></div><h1>${headline}</h1><p class="tag">${text}</p><div class="grid">${cards.join('')}</div><div class="status">${status}</div></div></section></main></div>`;
 }
 
-const built3DIndex = join(distRoot, 'index.html');
-if (existsSync(built3DIndex)) copyFileSync(built3DIndex, join(client3DRoot, 'index.html'));
-
-writeFileSync(join(distRoot, 'index.html'), page('Areloria · Landing', shell({
+const landingHtml = page('Areloria · Landing', shell({
   brand: 'ARELORIA',
   sub: 'LIVE ENTRY HUB',
   nodes: ['Landing_Page', '2D_Stitch_Client', '3D_Client', 'Science_Portal', 'Sovereign_Tools'],
@@ -41,7 +38,14 @@ writeFileSync(join(distRoot, 'index.html'), page('Areloria · Landing', shell({
   text: 'Public landing page for the Areloria loop. Pick the 2D Stitch client, 3D world client, Science Portal, or the Sovereign Tools hub for education, industry and automation surfaces.',
   cards: [card('r2d','/2d/','▦','Game Client 2D','Stitch HUD · login gate · pixel MMORPG'), card('r3d','/3d/','⬡','Game Client 3D','Volumetric world render engine'), card('rp','/portal/','⌬','Science Portal','ARE console · oracle · governance · truth'), card('gov','/apps/','⚙','Sovereign Tools','School · university · science · factory · automation')],
   status: 'ROOT IS LANDING · ROUTES ARE EXPLICIT · 10HZ SAFE',
-})));
+}));
+
+writeFileSync(join(distRoot, 'index.html'), landingHtml);
+
+// Ensure 3D hub also has the landing page if not explicitly built
+if (!existsSync(join(client3DRoot, 'index.html'))) {
+  writeFileSync(join(client3DRoot, 'index.html'), landingHtml);
+}
 
 writeFileSync(join(portalRoot, 'index.html'), page('Areloria · Science Portal', shell({
   brand: 'SCIENCE<br/>PORTAL',
