@@ -15,11 +15,11 @@
     "validate:assets": "node ../../scripts/extract-biome-atlas-v2.mjs && node ../../scripts/extract-2d-weapon-pool.mjs && node ../../scripts/extract-forest-biome-pack.mjs && node ../../scripts/are-asset-forge.mjs && node ../../scripts/enrich-stitch-atlas-frames.mjs && node ../../scripts/validate-client-2d-assets.mjs"
   },
   "dependencies": {
-    "@pixi/particle-emitter": "^5.0.8",
+    "@pixi/particle-emitter": "^5.0.10",
     "@pixi/sound": "^6.0.1",
     "@pixi/tilemap": "^5.0.2",
     "@wasd/shared": "workspace:*",
-    "pixi-filters": "^6.1.4",
+    "pixi-filters": "^6.1.5",
     "pixi.js": "^8.18.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
@@ -28,8 +28,8 @@
   "devDependencies": {
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^4.7.0",
+    "@vitejs/plugin-react": "^6.0.2",
     "typescript": "^6.0.3",
-    "vite": "^6.4.2"
+    "vite": "^8.0.14"
   }
 }

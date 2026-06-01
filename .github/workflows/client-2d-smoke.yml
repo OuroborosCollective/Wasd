@@ -59,7 +59,9 @@ jobs:
       - name: Install dependencies
         run: |
           echo '=== client-2d smoke: install dependencies ==='
-          pnpm install --no-frozen-lockfile
+          # For pnpm v11, use --no-frozen-lockfile --ignore-scripts to avoid
+          # ERR_PNPM_IGNORED_BUILDS errors when native modules need builds
+          pnpm install --no-frozen-lockfile --ignore-scripts
 
       - name: Validate client-2d assets
         run: |

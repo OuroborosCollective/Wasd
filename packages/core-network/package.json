@@ -15,7 +15,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "socket.io-client": "^4.7.4"
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

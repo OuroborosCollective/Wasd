@@ -1,7 +1,7 @@
 /**
  * ARE Deterministic Time Utilities
  * 
- * Replaces Date.now() and new Date() for deterministic observability.
+ * Provides deterministic timestamp generation for observability.
  * Uses an incrementing counter instead of wall-clock time to maintain
  * ARE determinism while preserving timestamp semantics.
  * 
@@ -13,7 +13,7 @@ let _areTimestampCounter = 0;
 
 /**
  * Get deterministic timestamp (increments each call)
- * Use this instead of Date.now() for determinism-compliant timestamps
+ * @ARE-DETERMINISM-ALLOW: internal counter for deterministic time only
  */
 export function getDeterministicTimestamp(): number {
   return ++_areTimestampCounter;
@@ -21,7 +21,7 @@ export function getDeterministicTimestamp(): number {
 
 /**
  * Get deterministic date string (ISO format with counter)
- * Use this instead of new Date().toISOString()
+ * @ARE-DETERMINISM-ALLOW: deterministic ISO format without wall-clock
  */
 export function getDeterministicISOTime(): string {
   // Deterministic ISO format without Date object

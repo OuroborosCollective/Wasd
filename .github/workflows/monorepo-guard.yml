@@ -19,6 +19,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - run: pnpm install --ignore-scripts
       - run: pnpm guard:monorepo
       - run: pnpm guard:monorepo:frozen
 

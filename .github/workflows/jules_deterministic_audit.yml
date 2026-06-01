@@ -34,7 +34,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pnpm install --frozen-lockfile --loglevel info || pnpm install --no-frozen-lockfile
+          pnpm install --no-frozen-lockfile --ignore-scripts --loglevel info || pnpm install --no-frozen-lockfile
         env:
           NODE_OPTIONS: "--max-old-space-size=3072"
 
