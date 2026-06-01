@@ -113,3 +113,13 @@ For every non-trivial feature or architecture change:
 1. Update `docs/PROJECT_STATUS_2026.md`
 2. Update `docs/ROADMAP_TO_RELEASE.md` if release scope/gaps changed
 3. If a core workflow changed, also update `README.md` and relevant deploy/env docs
+### Manifest System (Server Authority)
+The manifest system provides deterministic, server-authoritative state management:
+- **Server**: `server/src/core/manifest/` - ManifestFactory, ManifestHasher, ManifestSigner, ManifestVerifier, ManifestReplayGuard
+- **Client**: `apps/client-2d/src/manifest/` - ClientManifestTracker for divergence detection
+- **API**: `server/src/api/manifestResyncRoute.ts` - `/api/manifest/*` endpoints
+- **Design**: "Manifest klein halten, Funktionen drumherum stark machen"
+- **Key types**: `ManifestKind`, `PayloadMode`, `DependencyKind`, `ICryptoDependencyHeader`
+- **Genesis**: `GENESIS_STATE_HASH = '0'.repeat(64)`, `GENESIS_PREVIOUS_HASH = 'GENESIS'`
+- **Env vars**: `MANIFEST_AUTHORITY_SECRET`, `WORLD_ID`
+See `docs/MANIFEST_SYSTEM.md` for full documentation.
