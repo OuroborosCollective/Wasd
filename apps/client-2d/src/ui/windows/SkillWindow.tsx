@@ -1,8 +1,7 @@
 /**
- * Ouroboros CharacterWindow — WoW-Style Character Sheet
+ * Ouroboros SkillWindow — Skills and Progression
  *
- * Shows player level, XP progress, core stats, vitals, resources, and equipment.
- * Includes Paper-Doll equipment display with touch-safe drag & drop.
+ * Shows player skill levels and progression.
  * Follows the Panzerschrank brutalist design aesthetic.
  *
  * SERVER-AUTHORITATIVE RULE:
@@ -267,7 +266,7 @@ interface CharacterWindowProps {
   readonly onClose?: () => void;
 }
 
-export function CharacterWindow({ isOpen = true, onClose }: CharacterWindowProps) {
+export function SkillWindow({ isOpen = true, onClose }: CharacterWindowProps) {
   const snapshot = useCharacterWindow();
   const [allocatingStat, setAllocatingStat] = useState<CoreStatKey | null>(null);
   const clearPendingTimerRef = useRef<number | null>(null);
@@ -345,9 +344,9 @@ export function CharacterWindow({ isOpen = true, onClose }: CharacterWindowProps
   const level = snapshot?.level ?? 1;
 
   return (
-    <div className="wow-inventory-overlay" role="dialog" aria-label="Character">
+    <div className="wow-inventory-overlay" role="dialog" aria-label="Skills">
       <div className="wow-inventory-header">
-        <h2>CHARACTER</h2>
+        <h2>SKILLS</h2>
 
         {onClose && (
           <button className="wow-close-btn" onClick={onClose} aria-label="Close">
@@ -445,19 +444,19 @@ export function CharacterWindow({ isOpen = true, onClose }: CharacterWindowProps
 
 // ─── Mount Function ──────────────────────────────────────────────────────────
 
-let mountedCharacterRoot: Root | null = null;
+let mountedSkillRoot: Root | null = null;
 
-export function mountCharacterWindow(containerId = "character-mount"): void {
+export function mountSkillWindow(containerId = "skill-mount"): void {
   const container = document.getElementById(containerId);
 
   if (!container) {
-    console.warn(`Character mount point #${containerId} not found`);
+    console.warn(`Skill mount point #${containerId} not found`);
     return;
   }
 
-  if (!mountedCharacterRoot) {
-    mountedCharacterRoot = createRoot(container);
+  if (!mountedSkillRoot) {
+    mountedSkillRoot = createRoot(container);
   }
 
-  mountedCharacterRoot.render(<CharacterWindow />);
-  }
+  mountedSkillRoot.render(<SkillWindow />);
+}

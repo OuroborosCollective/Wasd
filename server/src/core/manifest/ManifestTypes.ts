@@ -86,7 +86,7 @@ export interface ICryptoDependencyHeader {
   readonly worldSeedHash: string;
   readonly ruleSetHash: string;
 
-  readonly stateHash: string;
+  stateHash: string;
   readonly previousStateHash: string;
   readonly dependencyRootHash: string;
   readonly payloadHash: string;
@@ -96,6 +96,9 @@ export interface ICryptoDependencyHeader {
 
   /** Unique nonce for this manifest - prevents replay attacks */
   readonly integrityNonce: string;
+
+  /** @deprecated Use body.payloadMode */
+  readonly payloadMode?: PayloadMode;
 }
 
 // ─── Dependency Entry ──────────────────────────────────────────────────────────
