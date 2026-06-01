@@ -2,7 +2,11 @@ import { useSyncExternalStore } from "react";
 import { InventoryGrid } from "./InventoryGrid.js";
 import { CharacterOverlay } from "./CharacterOverlay.js";
 import { StorageOverlay, openStorageOverlay, closeStorageOverlay } from "./StorageOverlay.js";
+import { CharacterWindow } from "./windows/CharacterWindow.js";
+import { SkillWindow } from "./windows/SkillWindow.js";
+import { GuildWindow } from "./windows/GuildWindow.js";
 import type { StorageSnapshot } from "./StorageOverlay.js";
+import "./windows/windows.css";
 
 export type ActiveOverlay =
   | { readonly type: "NONE" }
@@ -11,6 +15,8 @@ export type ActiveOverlay =
   | { readonly type: "CRAFT"; readonly targetId: string; readonly stationManifest: string; readonly lockedAtTick: number }
   | { readonly type: "INVENTORY" }
   | { readonly type: "CHARACTER" }
+  | { readonly type: "SKILLS" }
+  | { readonly type: "GUILD" }
   | { readonly type: "STORAGE"; readonly storageSnapshot: StorageSnapshot };
 
 class InteractionUIManager {
@@ -76,6 +82,32 @@ class InteractionUIManager {
     }
   }
 
+  public openSkills(): void {
+    this.state = { type: "SKILLS" };
+    this.notify();
+  }
+
+  public openGuild(): void {
+    this.state = { type: "GUILD" };
+    this.notify();
+  }
+
+  public toggleSkills(): void {
+    if (this.state.type === "SKILLS") {
+      this.closeUI();
+    } else {
+      this.openSkills();
+    }
+  }
+
+  public toggleGuild(): void {
+    if (this.state.type === "GUILD") {
+      this.closeUI();
+    } else {
+      this.openGuild();
+    }
+  }
+
   public closeUI(): void {
     if (this.state.type === "NONE") return;
     // Close storage overlay if open
@@ -116,10 +148,20 @@ export function useOverlayRenderer(): {
       case "INVENTORY":
         return () => <InventoryGrid isOpen={true} onClose={() => interactionUI.closeUI()} />;
       case "CHARACTER":
-        return () => <CharacterOverlay isOpen={true} onClose={() => interactionUI.closeUI()} />;
+        return () => <CharacterWindow isOpen={true} onClose={() => interactionUI.closeUI()} />;
+      case "SKILLS":
+        return () => <SkillWindow isOpen={true} onClose={() => interactionUI.closeUI()} />;
+      case "GUILD":
+        return () => <GuildWindow isOpen={true} onClose={() => interactionUI.closeUI()} />;
       case "STORAGE":
         return () => <StorageOverlay isOpen={true} onClose={() => interactionUI.closeStorage()} />;
-      // Add other overlay types as they are implemented
+      // Legacy CharacterOverlay for compatibility
+      case "DIALOGUE":
+        return null;
+      case "CRAFT":
+        return null;
+      case "TRADE":
+        return null;
       default:
         return null;
     }
@@ -147,6 +189,24 @@ if (typeof window !== "undefined") {
           !document.activeElement?.hasAttribute("contenteditable")) {
         e.preventDefault();
         interactionUI.toggleCharacter();
+      }
+    }
+    if (e.key === "k" || e.key === "K") {
+      // Skills window toggle
+      if (document.activeElement?.tagName !== "INPUT" && 
+          document.activeElement?.tagName !== "TEXTAREA" &&
+          !document.activeElement?.hasAttribute("contenteditable")) {
+        e.preventDefault();
+        interactionUI.toggleSkills();
+      }
+    }
+    if (e.key === "g" || e.key === "G") {
+      // Guild window toggle
+      if (document.activeElement?.tagName !== "INPUT" && 
+          document.activeElement?.tagName !== "TEXTAREA" &&
+          !document.activeElement?.hasAttribute("contenteditable")) {
+        e.preventDefault();
+        interactionUI.toggleGuild();
       }
     }
     if (e.key === "Escape") {

@@ -8,15 +8,19 @@
  * it sends a deterministic CRAFT intent to the server. The NPC
  * needs real items in its inventory - no phantom crafting.
  * 
- * This director is the server-authoritative handler for NPC crafting
- * intents. It validates ingredients against NPC inventory, executes
- * crafting, and returns deterministic results.
+ * OVERCAP CRAFTING LOGIC:
+ * - Every 10 skill levels = +1% base success chance
+ * - When totalChance > 100%, excess becomes multi-yield chance
+ * - Formula: yield = floor(totalChance / 100), bonusChance = totalChance % 100
+ * - Example: 145% = 100% guaranteed + 45% chance for 2nd item
+ * - Example: 312% = 300% = 3 guaranteed + 12% chance for 4th item
  */
 
 import { AREGuard } from '../../core/are/AREGuard.js';
 import { AREHash } from '../../core/are/AREHash.js';
 import { ItemRegistry } from '../inventory/ItemRegistry.js';
 import { normalizeInventoryStacks } from '../inventory/inventoryStacks.js';
+import { deterministicRandom } from '../../core/determinism/AREDeterminism.js';
 
 export interface NPCInventory {
   slots: (ModularItem | null)[];
@@ -41,11 +45,181 @@ export interface CraftingRecipe {
   storageType?: 'none' | 'basic' | 'advanced';
 }
 
-export interface NPCCraftIntent {
-  npcId: string;
-  recipeId: string;
+// ─── Skill & Crafting Types ─────────────────────────────────────────
+
+export interface PlayerSkills {
+  carpentry: number;     // Woodworking & storage
+  smithing: number;      // Metalwork & weapons
+  alchemy: number;       // Potions & consumables
+  enchanting: number;   // Rune enchantments
+  tailoring: number;    // Cloth & leather
+  masonry: number;      // Stone construction
+  cooking: number;      // Food & buffs
+  herbalism: number;     // Gathering & plants
+}
+
+export interface CraftingContext {
+  playerId: string;
   tick: number;
-  kappaHash?: string;
+  skills: PlayerSkills;
+  playerLevel: number;
+}
+
+// ─── Crafting Result Types ─────────────────────────────────────────
+
+export interface CraftingYieldResult {
+  success: boolean;
+  baseAmount: number;      // floor(totalChance / 100)
+  bonusChance: number;     // (totalChance % 100) / 100
+  bonusRoll: boolean;       // Did we get an extra?
+  totalYield: number;       // baseAmount + (bonusRoll ? 1 : 0)
+  totalChance: number;      // Raw calculated chance
+  skillBonus: number;       // Skill level contribution
+  xpGained?: number;
+}
+
+// ─── Constants ─────────────────────────────────────────────────────
+
+const SKILL_BONUS_PER_10_LEVELS = 1;  // +1% per 10 skill levels
+const BASE_CRAFT_SUCCESS_CHANCE = 50;  // 50% base success chance
+
+// ─── Overcap Crafting Logic ────────────────────────────────────────
+
+/**
+ * Calculate crafting yield using overcap multi-yield system.
+ * 
+ * Formula:
+ *   totalChance = baseChance + floor(skillLevel / 10)
+ *   baseAmount = floor(totalChance / 100)  // Guaranteed items
+ *   bonusChance = (totalChance % 100) / 100  // Decimal portion as probability
+ *   bonusRoll = deterministicChance(seed, bonusChance)
+ *   totalYield = baseAmount + (bonusRoll ? 1 : 0)
+ * 
+ * Examples:
+ *   - 80% = 0 guaranteed, 80% chance for 1
+ *   - 145% = 1 guaranteed, 45% chance for 2nd
+ *   - 312% = 3 guaranteed, 12% chance for 4th
+ */
+export function calculateOvercapYield(
+  context: CraftingContext,
+  recipeId: string,
+  baseSuccessChance: number = BASE_CRAFT_SUCCESS_CHANCE
+): CraftingYieldResult {
+  const { playerId, tick, skills, playerLevel } = context;
+  const recipe = craftingDirector.getRecipe(recipeId);
+  
+  if (!recipe) {
+    return {
+      success: false,
+      baseAmount: 0,
+      bonusChance: 0,
+      bonusRoll: false,
+      totalYield: 0,
+      totalChance: 0,
+      skillBonus: 0,
+    };
+  }
+
+  // Determine skill based on recipe type
+  const skillName = recipe.skill || 'carpentry';
+  const skillLevel = (skills as Record<string, number>)[skillName] ?? 0;
+
+  // Calculate total chance with skill bonus
+  const skillBonus = Math.floor(skillLevel / SKILL_BONUS_PER_10_LEVELS);
+  const totalChance = baseSuccessChance + skillBonus;
+
+  // Overcap calculation
+  const baseAmount = Math.floor(totalChance / 100);
+  const bonusChance = (totalChance % 100) / 100;
+  
+  // Deterministic bonus roll
+  const seed = `${playerId}:${tick}:craft_extra:${recipeId}:${skillLevel}`;
+  const roll = deterministicRandom(seed);
+  const bonusRoll = roll < bonusChance;
+
+  const totalYield = baseAmount + (bonusRoll ? 1 : 0);
+  const success = totalYield > 0;
+
+  return {
+    success,
+    baseAmount,
+    bonusChance,
+    bonusRoll,
+    totalYield,
+    totalChance,
+    skillBonus,
+    xpGained: recipe.xpReward ? recipe.xpReward * totalYield : undefined,
+  };
+}
+
+/**
+ * Execute crafting with overcap multi-yield.
+ * Consumes ingredients once, yields based on overcap calculation.
+ */
+export function executeOvercapCraft(
+  context: CraftingContext,
+  recipeId: string,
+  npcInventory: NPCInventory
+): NPCCraftResult {
+  const { playerId, tick } = context;
+  
+  // Calculate yield first
+  const yieldResult = calculateOvercapYield(context, recipeId);
+  
+  if (!yieldResult.success) {
+    return craftingDirector.buildFailureResult(
+      playerId,
+      recipeId,
+      tick,
+      'CRAFT_FAILED_NO_YIELD'
+    );
+  }
+
+  // Execute base craft (consume ingredients, get base amount)
+  const baseResult = craftingDirector.craft(
+    playerId,
+    npcInventory,
+    recipeId,
+    tick
+  );
+
+  if (!baseResult.success) {
+    return baseResult;
+  }
+
+  // Handle bonus yield (if bonus roll succeeded)
+  if (yieldResult.bonusRoll && yieldResult.baseAmount === 0) {
+    // Only had 1 guaranteed, got bonus for 2nd item
+    // Add one more item to inventory
+    const recipe = craftingDirector.getRecipe(recipeId);
+    if (recipe && npcInventory.slots.length < npcInventory.maxSlots) {
+      const bonusItem: ModularItem = {
+        id: recipe.result.id,
+        quantity: 1,
+      };
+      npcInventory.slots.push(bonusItem);
+    }
+  } else if (yieldResult.totalYield > yieldResult.baseAmount) {
+    // Multiple bonus items
+    const recipe = craftingDirector.getRecipe(recipeId);
+    if (recipe) {
+      const bonusCount = yieldResult.totalYield - yieldResult.baseAmount;
+      const toAdd = Math.min(bonusCount, npcInventory.maxSlots - npcInventory.slots.filter(Boolean).length);
+      for (let i = 0; i < toAdd; i++) {
+        const bonusItem: ModularItem = {
+          id: recipe.result.id,
+          quantity: 1,
+        };
+        npcInventory.slots.push(bonusItem);
+      }
+    }
+  }
+
+  // Return enhanced result with yield info
+  return {
+    ...baseResult,
+    kappaHash: baseResult.kappaHash + `:yield:${yieldResult.totalYield}`,
+  };
 }
 
 export interface NPCCraftResult {
