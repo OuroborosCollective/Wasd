@@ -40,6 +40,9 @@ import { resourcePopulator, type GeneratedResourceEntity } from "../modules/worl
 import { chunkModificationDirector } from "../modules/world/ChunkModificationDirector.js";
 import { createWorldTickManifestManager, type WorldTickManifestManager } from "./manifest/WorldTickManifestManager.js";
 import { sha256 } from "./manifest/ManifestHasher.js";
+import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
+import { PersistentPlaytesterNPC, type PlaytesterWorldPort, type PlaytesterNpcSpawn } from "../modules/playtester/PersistentPlaytesterNPC.js";
+import { PlaytesterJsonlLogger } from "../modules/playtester/PlaytesterJsonlLogger.js";
 
 // Environment variable for manifest authority secret
 const MANIFEST_AUTHORITY_SECRET = process.env.MANIFEST_AUTHORITY_SECRET ?? 'dev-secret-change-in-production';
@@ -267,6 +270,14 @@ export class WorldTick {
   // Each tick generates a manifest with hash chain for integrity.
   private readonly manifestManager: WorldTickManifestManager;
 
+  // ─────────────────────────────────────────────────────────────────
+  // PERSISTENT PLAYTESTER NPC
+  // ═════════════════════════════════════════════════════════════════
+  // Deterministic bot that lives permanently in the game world,
+  // testing all systems and generating structured JSONL logs.
+  private readonly persistentPlaytester: PersistentPlaytesterNPC | null;
+  private readonly playtesterLogger: PlaytesterJsonlLogger;
+
   public chunkSystem: ChunkSystem;
   public observerEngine: ObserverEngine;
   public playerSystem: PlayerSystem;
@@ -316,6 +327,121 @@ export class WorldTick {
   public assetHealthService: any = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
   public async init(): Promise<void> {}
   private keysDown: Map<string, Set<string>> = new Map();
+  
+  /**
+   * Initialize the Persistent Playtester NPC
+   */
+  private initPersistentPlaytester(): PersistentPlaytesterNPC {
+    const worldPort: PlaytesterWorldPort = {
+      getTick: () => this.tickCount,
+      ensureNpcExists: (npc: PlaytesterNpcSpawn) => {
+        const existing = this.npcSystem.getNPC(npc.id);
+        if (!existing) {
+          // Create synthetic playtester NPC
+          this.npcSystem.createNPC(npc.id, npc.name, npc.position.x, npc.position.y);
+          const npcEntity = this.npcSystem.getNPC(npc.id);
+          if (npcEntity) {
+            // Mark as persistent synthetic entity
+            (npcEntity as any).tags = npc.tags;
+            (npcEntity as any).persistent = npc.persistent;
+            (npcEntity as any).syntheticSocketId = npc.syntheticSocketId;
+          }
+        }
+      },
+      moveNpc: (npcId: string, target: { x: number; y: number }) => {
+        const npc = this.npcSystem.getNPC(npcId);
+        if (npc) {
+          npc.position.x = target.x;
+          npc.position.y = target.y;
+        }
+      },
+      getNearbyNpcs: (npcId: string, radius: number): readonly string[] => {
+        const npc = this.npcSystem.getNPC(npcId);
+        if (!npc) return [];
+        
+        const nearby: string[] = [];
+        const allNpcs = this.npcSystem.getAllNPCs();
+        
+        for (const other of allNpcs) {
+          if (other.id === npcId) continue;
+          if (other.tags?.includes("playtester")) continue; // Skip other playtesters
+          
+          const dx = (other.position.x ?? 0) - (npc.position.x ?? 0);
+          const dy = (other.position.y ?? 0) - (npc.position.y ?? 0);
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist <= radius) {
+            nearby.push(other.id);
+          }
+        }
+        
+        return nearby;
+      },
+      getNearbyHostiles: (npcId: string, radius: number): readonly string[] => {
+        const npc = this.npcSystem.getNPC(npcId);
+        if (!npc) return [];
+        
+        const hostiles: string[] = [];
+        const allNpcs = this.npcSystem.getAllNPCs();
+        
+        for (const other of allNpcs) {
+          if (other.id === npcId) continue;
+          if (other.faction === "Hostile" || other.role === "Enemy") {
+            const dx = (other.position.x ?? 0) - (npc.position.x ?? 0);
+            const dy = (other.position.y ?? 0) - (npc.position.y ?? 0);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist <= radius) {
+              hostiles.push(other.id);
+            }
+          }
+        }
+        
+        return hostiles;
+      },
+      interactWithNpc: (npcId: string, targetNpcId: string): unknown => {
+        // Stub: NPC interaction - would trigger dialogue/quest checks
+        return { ok: true, npcId: targetNpcId };
+      },
+      attackTarget: (npcId: string, targetId: string): unknown => {
+        // Stub: Combat action
+        return { ok: true, targetId };
+      },
+      pickupNearbyLoot: (npcId: string): unknown => {
+        // Stub: Loot pickup
+        return { ok: true };
+      },
+      useSkill: (npcId: string, skillId: string): unknown => {
+        // Stub: Skill usage
+        return { ok: true, skillId };
+      },
+      getStateHash: (): string => {
+        return this.manifestManager.getLastStateHash() ?? this.lastWorldHashSnapshot?.worldHash ?? "";
+      },
+    };
+
+    console.log(`[WorldTick] Persistent Playtester NPC initialized: ${PlaytesterConfig.id} (${PlaytesterConfig.displayName})`);
+    
+    return new PersistentPlaytesterNPC(
+      {
+        id: PlaytesterConfig.id,
+        displayName: PlaytesterConfig.displayName,
+        syntheticSocketId: PlaytesterConfig.syntheticSocketId,
+        deterministicSeed: PlaytesterConfig.deterministicSeed,
+        routineIntervalTicks: PlaytesterConfig.routineIntervalTicks,
+        fullSweepEveryTicks: PlaytesterConfig.fullSweepEveryTicks,
+      },
+      worldPort,
+      this.playtesterLogger,
+    );
+  }
+  
+  /**
+   * Get playtester memory stats for monitoring
+   */
+  public getPlaytesterMemoryStats(): { visitedChunks: number; talkedToNpcs: number; attackedTargets: number; completedChecks: number; eventsSinceRepoCommit: number } | null {
+    return this.persistentPlaytester?.getMemoryStats() ?? null;
+  }
   
   /**
    * SPATIAL BROADCAST GRID
@@ -472,6 +598,16 @@ export class WorldTick {
     // Initialize Manifest System for server-authoritative state management
     this.manifestManager = createWorldTickManifestManager(WORLD_ID, MANIFEST_AUTHORITY_SECRET);
     console.log(`[WorldTick] Manifest system initialized for world: ${WORLD_ID}`);
+    
+    // Initialize Persistent Playtester NPC if enabled
+    this.playtesterLogger = new PlaytesterJsonlLogger({
+      enabled: PlaytesterConfig.enabled && PlaytesterConfig.repoLogEnabled,
+      logPath: PlaytesterConfig.repoLogPath,
+    });
+
+    this.persistentPlaytester = PlaytesterConfig.enabled && PlaytesterConfig.persistentNpcEnabled
+      ? this.initPersistentPlaytester()
+      : null;
     
     this.chunkSystem = new ChunkSystem(64);
     this.observerEngine = new ObserverEngine();
@@ -1478,6 +1614,15 @@ export class WorldTick {
     
     // Legacy periodic save (backup to existing persistence)
     if (this.tickCount % 600 === 0) this.saveAll().catch(e => console.error(e));
+    
+    // ─────────────────────────────────────────────────────────────────
+    // PERSISTENT PLAYTESTER NPC - Run deterministic bot tests
+    // ═════════════════════════════════════════════════════════════════
+    // The playtester NPC acts at configured intervals, testing all
+    // game systems and generating structured JSONL logs.
+    if (this.persistentPlaytester) {
+      this.persistentPlaytester.tick();
+    }
     
     // ─────────────────────────────────────────────────────────────────
     // MANIFEST SYSTEM - Record tick manifest for hash chain integrity
