@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { FixedAREClock } from "../core/determinism/AREDeterminism.js";
 import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { EconomyEngine } from "../modules/economy/EconomyEngine.js";
 import { MatrixEnergySystem } from "../modules/economy/MatrixEnergySystem.js";
@@ -276,8 +277,10 @@ describe("TradeRoutes", () => {
 // ---------------------------------------------------------------------------
 describe("TaxLedger", () => {
   let ledger: TaxLedger;
+  const mockNow = 1715760000000;
+  const clock = new FixedAREClock(mockNow);
 
-  beforeEach(() => { ledger = new TaxLedger(); });
+  beforeEach(() => { ledger = new TaxLedger(clock); });
 
   it("all() returns empty array initially", () => {
     expect(ledger.all()).toHaveLength(0);
@@ -295,12 +298,9 @@ describe("TaxLedger", () => {
     expect(entry.source).toBe("trade");
   });
 
-  it("record() attaches a createdAt timestamp", () => {
-    const before = Date.now();
+  it("record() attaches a deterministic createdAt timestamp from AREClock", () => {
     const entry = ledger.record("city1", 100, "market");
-    const after = Date.now();
-    expect(entry.createdAt).toBeGreaterThanOrEqual(before);
-    expect(entry.createdAt).toBeLessThanOrEqual(after);
+    expect(entry.createdAt).toBe(mockNow);
   });
 
   it("multiple records accumulate in order", () => {
