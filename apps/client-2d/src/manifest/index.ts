@@ -1,18 +1,11 @@
 /**
  * Client Manifest System
  * 
- * Exports for client-side manifest verification and divergence handling.
+ * Zero-Trust manifest verification with input lockdown.
+ * Provides divergence detection, auto-resync, and blocking UI.
  */
 
-// Re-export types for client use (subset of server types)
-export type {
-  ManifestKind,
-  PayloadMode,
-  DependencyKind,
-  IDivergenceReport,
-  GlobalStateManifest,
-} from '../../server/src/core/manifest/ManifestTypes.js';
-
+// Core Tracker
 export {
   ClientManifestTracker,
   clientManifestTracker,
@@ -22,3 +15,17 @@ export {
   type ManifestVerificationResult,
   type DivergenceConfig,
 } from './ClientManifestTracker.js';
+
+// Zero-Trust Manifest System with Input Lockdown
+export {
+  useZeroTrustManifest,
+  useInputLocked,
+  withInputLock,
+  InputLockProvider,
+  type UseManifestResult,
+  type UseManifestOptions,
+} from './useZeroTrustManifest.js';
+
+// Divergence Alert UI (Panzerschrank Design)
+export { DivergenceAlert } from './ui/DivergenceAlert.js';
+export type { DivergenceAlertProps } from './ui/DivergenceAlert.js';
