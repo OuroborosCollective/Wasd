@@ -8,6 +8,17 @@ For exhaustive per-file discovery use `server/src/modules/**` directly.
 - `server/src/core/WorldTick.ts` — main simulation orchestrator (100ms tick)
 - `server/src/core/ServerBootstrap.ts` — HTTP/WS bootstrap, route registration, static serving
 - `server/src/networking/WebSocketServer.ts` — authoritative socket layer
+- `server/src/core/manifest/` — deterministic manifest system for server authority:
+  - `ManifestTypes.ts` — type definitions (ManifestKind, PayloadMode, Dependency types)
+  - `ManifestCanonicalizer.ts` — deterministic string conversion
+  - `ManifestHasher.ts` — SHA256 hashing utilities
+  - `ManifestSigner.ts` — HMAC signing
+  - `ManifestVerifier.ts` — validation logic
+  - `ManifestReplayGuard.ts` — replay attack prevention
+  - `ManifestFactory.ts` — manifest creation with auto-hashing/signing
+  - `ManifestUsage.ts` — integration examples and patterns
+  - `WorldTickManifestManager.ts` — WorldTick integration manager
+- `server/src/api/manifestResyncRoute.ts` — client resync API (`/api/manifest/*`)
 
 ## Gameplay systems
 
@@ -63,6 +74,12 @@ For exhaustive per-file discovery use `server/src/modules/**` directly.
 - `server/src/api/leaderboardRoute.ts`
 - `server/src/api/loreRoute.ts`
 - `server/src/api/mcpRoute.ts`
+- `server/src/api/manifestResyncRoute.ts` — manifest resync (`/api/manifest/*`)
+
+## Client Manifest System
+
+- `apps/client-2d/src/manifest/ClientManifestTracker.ts` — divergence detection
+- `apps/client-2d/src/manifest/useManifest.ts` — React hooks for integration
 
 ## Historical / not canonical
 

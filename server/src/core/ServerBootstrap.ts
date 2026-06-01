@@ -23,6 +23,7 @@ import { healthRoutes } from "../api/healthRoutes.js";
 import { agoraRouter } from "../api/agoraRoute.js";
 import { client2dAssetUploadRouter } from "../api/client2dAssetUploadRoute.js";
 import { areShadowLogRouter } from "../api/areShadowLogRoute.js";
+import { createManifestResyncRouter } from "../api/manifestResyncRoute.js";
 import { getContentDataSourceLabel, resolveContentDir } from "../modules/content/contentDataRoot.js";
 import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
@@ -182,6 +183,7 @@ export class ServerBootstrap {
     app.use("/api/v1/warfront", warfrontRouter(tick));
     app.use("/api/are/validation", areValidationRouter(tick));
     app.use("/api/are/replay", areReplayRouter(tick));
+    app.use("/api/manifest", createManifestResyncRouter(tick));
     app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());
     app.use("/api/are-shadow", areShadowLogRouter());
     app.use("/api/sovereign/deploy", sovereignDeployRouter(tick));
