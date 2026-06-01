@@ -246,7 +246,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           source: /tmp/${{ env.EXPORT_NAME }}.tar.gz
-          target: .
+          target: ./tmp
 
       - name: Extract and display ARE Shadow log summary
         run: |
