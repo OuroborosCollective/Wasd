@@ -1,0 +1,327 @@
+name: ARE Shadow Adapter Log Exporter
+
+on:
+  workflow_dispatch:
+    inputs:
+      log_lines:
+        description: "Number of log lines to collect from are-shadow.jsonl"
+        required: false
+        default: "500"
+        type: string
+      include_telemetry:
+        description: "Include ecosystem telemetry snapshot"
+        required: false
+        default: "true"
+        type: boolean
+      include_state:
+        description: "Include AREShadowState dump"
+        required: false
+        default: "true"
+        type: boolean
+      include_topology:
+        description: "Include topology network snapshot"
+        required: false
+        default: "true"
+        type: boolean
+  schedule:
+    - cron: "0 */4 * * *"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  collect-are-shadow-logs:
+    name: Collect ARE Shadow Adapter Logs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      EXPORT_NAME: are-shadow-adapter-export-${{ github.run_id }}
+      VPS_PATH: /opt/areloria
+
+    steps:
+      - name: Validate SSH secrets
+        run: |
+          set -euo pipefail
+          test -n "${{ secrets.SSH_HOST }}" || { echo "Missing SSH_HOST secret"; exit 1; }
+          test -n "${{ secrets.SSH_USER }}" || { echo "Missing SSH_USER secret"; exit 1; }
+          test -n "${{ secrets.SSH_PASSWORD }}" || { echo "Missing SSH_PASSWORD secret"; exit 1; }
+
+      - name: Validate log line input
+        run: |
+          LINES="${{ github.event.inputs.log_lines || '500' }}"
+          case "$LINES" in
+            ''|*[!0-9]*) echo "Invalid LINES: $LINES, using 500"; LINES=500 ;;
+          esac
+          if [ "$LINES" -lt 50 ]; then LINES=50; fi
+          if [ "$LINES" -gt 10000 ]; then LINES=10000; fi
+          echo "LINES=$LINES" >> $GITHUB_ENV
+
+      - name: Collect ARE Shadow Adapter logs on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          INCLUDE_TELEMETRY: ${{ github.event.inputs.include_telemetry || 'true' }}
+          INCLUDE_STATE: ${{ github.event.inputs.include_state || 'true' }}
+          INCLUDE_TOPOLOGY: ${{ github.event.inputs.include_topology || 'true' }}
+          EXPORT_NAME: ${{ env.EXPORT_NAME }}
+          VPS_PATH: ${{ env.VPS_PATH }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          envs: INCLUDE_TELEMETRY,INCLUDE_STATE,INCLUDE_TOPOLOGY,EXPORT_NAME,VPS_PATH
+          script: |
+            set -euo pipefail
+
+            OUT="/tmp/${EXPORT_NAME}"
+            ARCHIVE="/tmp/${EXPORT_NAME}.tar.gz"
+            rm -rf "$OUT" "$ARCHIVE"
+            mkdir -p "$OUT"
+
+            redact_file() {
+              local file="$1"
+              [ -f "$file" ] || return 0
+              sed -E -i \
+                -e 's/(token|secret|password|passwd|authorization|cookie|api[_-]?key|firebase[_-]?key|private[_-]?key)([=: ]+)[^[:space:]"'"'"'<>]+/\1\2[REDACTED]/Ig' \
+                -e 's/(Bearer )[A-Za-z0-9._~+\/-]+/\1[REDACTED]/g' \
+                -e 's/(ghp_|github_pat_)[A-Za-z0-9_]+/[GITHUB_TOKEN_REDACTED]/g' \
+                "$file" || true
+            }
+
+            write_section() {
+              local file="$1"
+              local title="$2"
+              shift 2
+              {
+                echo "### $title ###"
+                "$@"
+              } > "$OUT/$file" 2>&1 || true
+              redact_file "$OUT/$file"
+            }
+
+            # === Header ===
+            {
+              echo "=== ARE Shadow Adapter Log Export ==="
+              echo "exported_at=$(date -Iseconds)"
+              echo "host=$(hostname)"
+              echo "vps_path=$VPS_PATH"
+              echo "workflow_run=${GITHUB_RUN_ID:-unknown}"
+              echo "github_event=$GITHUB_EVENT_NAME"
+              echo
+            } > "$OUT/00-header.txt"
+            redact_file "$OUT/00-header.txt"
+
+            # === System Resources ===
+            write_section "01-system.txt" "System Resources" \
+              uptime echo "---" free -h echo "---" df -h
+
+            # === PM2 Process Status ===
+            write_section "02-pm2-status.txt" "PM2 Status" \
+              sh -lc 'pm2 jlist 2>/dev/null | head -200 || echo "PM2 not available"'
+            write_section "03-pm2-logs.txt" "PM2 Logs (Recent)" \
+              sh -lc "pm2 logs --nostream --lines 100 2>&1 | tail -100 || echo 'No PM2 logs'"
+
+            cd "$VPS_PATH" 2>/dev/null || { echo "VPS_PATH not accessible"; exit 0; }
+
+            # === ARE Shadow JSONL Logs ===
+            if [ -f "logs/are-shadow.jsonl" ]; then
+              echo "Found logs/are-shadow.jsonl ($(wc -l < logs/are-shadow.jsonl) total lines)"
+              tail -n "$LINES" logs/are-shadow.jsonl > "$OUT/10-are-shadow-tail.jsonl"
+              redact_file "$OUT/10-are-shadow-tail.jsonl"
+              
+              # Statistics
+              {
+                echo "=== ARE Shadow Log Statistics ==="
+                echo "total_lines=$(wc -l < logs/are-shadow.jsonl)"
+                echo "sampled_lines=$LINES"
+                echo
+                echo "--- Tick Range ---"
+                tail -n "$LINES" logs/are-shadow.jsonl | jq -r '.tick' 2>/dev/null | sort -n | head -5 | xargs -I{} echo "min_tick={}"
+                tail -n "$LINES" logs/are-shadow.jsonl | jq -r '.tick' 2>/dev/null | sort -n | tail -5 | xargs -I{} echo "max_tick={}"
+                echo
+                echo "--- Capacity Distribution ---"
+                tail -n "$LINES" logs/are-shadow.jsonl | jq -r '.capacity' 2>/dev/null | sort | uniq -c | tail -20
+                echo
+                echo "--- Event Count ---"
+                tail -n "$LINES" logs/are-shadow.jsonl | jq -s 'length' 2>/dev/null || echo "0 entries"
+              } > "$OUT/11-shadow-stats.txt"
+              redact_file "$OUT/11-shadow-stats.txt"
+            else
+              echo "logs/are-shadow.jsonl not found" > "$OUT/10-are-shadow-tail.jsonl"
+            fi
+
+            # === All Log Files in logs/ directory ===
+            if [ -d "logs" ]; then
+              echo "=== Log Directory Contents ===" > "$OUT/12-log-directory.txt"
+              find logs -maxdepth 2 -type f \( -name "*.log" -o -name "*.jsonl" -o -name "*.txt" \) 2>/dev/null | sort >> "$OUT/12-log-directory.txt"
+              
+              # Collect last lines from each log file
+              find logs -maxdepth 2 -type f \( -name "*.log" -o -name "*.jsonl" \) 2>/dev/null | while read -r log_file; do
+                safe_name="$(echo "$log_file" | sed 's#^logs/##; s#[^A-Za-z0-9._-]#_#g')"
+                tail -n 100 "$log_file" > "$OUT/log-$(basename "$safe_name").tail.txt" 2>&1 || true
+                redact_file "$OUT/log-$(basename "$safe_name").tail.txt"
+              done
+            fi
+
+            # === ARE Configuration ===
+            if [ -f ".env" ]; then
+              {
+                echo "=== ARE Configuration ==="
+                grep -E '^ARE_|^SHADOW_' .env 2>/dev/null | sed 's/=[^=]*$/=[REDACTED]/' || true
+              } > "$OUT/20-are-config.txt"
+            else
+              echo "No .env file found" > "$OUT/20-are-config.txt"
+            fi
+
+            # === Ecosystem Telemetry ===
+            if [ "${INCLUDE_TELEMETRY:-true}" = "true" ]; then
+              {
+                echo "=== ARE Shadow Ecosystem Telemetry ==="
+                echo "Note: Telemetry requires in-process access"
+                echo "Timestamp: $(date -Iseconds)"
+                echo
+                echo "To get telemetry, call AREShadowAdapter.getEcosystemTelemetry()"
+                echo "from the server process."
+              } > "$OUT/30-telemetry-info.txt"
+            fi
+
+            # === Server Health Endpoint ===
+            write_section "40-health-endpoint.txt" "Server Health Endpoint" \
+              sh -lc 'curl -k --max-time 10 https://arelorian.de/health 2>&1 || echo "Health check failed"'
+
+            # === ARE Shadow API Endpoints ===
+            write_section "41-are-shadow-log.txt" "ARE Shadow API: /api/are-shadow/log" \
+              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/log?lines=50" 2>&1 | jq . 2>/dev/null || echo "Endpoint unavailable"'
+
+            write_section "42-are-shadow-stats.txt" "ARE Shadow API: /api/are-shadow/stats" \
+              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/stats" 2>&1 | jq . 2>/dev/null || echo "Endpoint unavailable"'
+
+            write_section "43-are-shadow-directory.txt" "ARE Shadow API: /api/are-shadow/directory" \
+              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/directory" 2>&1 | jq . 2>/dev/null || echo "Endpoint unavailable"'
+
+            write_section "44-are-shadow-telemetry.txt" "ARE Shadow API: /api/are-shadow/telemetry" \
+              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/telemetry" 2>&1 | jq . 2>/dev/null || echo "Endpoint unavailable"'
+
+            # === Recent Server Logs ===
+            if [ -d "logs" ]; then
+              for logfile in logs/server*.log logs/*.log; do
+                if [ -f "$logfile" ]; then
+                  safe_name="$(basename "$logfile")"
+                  tail -n 200 "$logfile" > "$OUT/server-$(echo "$safe_name" | tr '.' '_').tail.txt" 2>&1 || true
+                  redact_file "$OUT/server-$(echo "$safe_name" | tr '.' '_').tail.txt"
+                fi
+              done
+            fi
+
+            # === Archive ===
+            tar -czf "$ARCHIVE" -C "$OUT" .
+            ls -lh "$ARCHIVE"
+
+      - name: Download export archive
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: /tmp/${{ env.EXPORT_NAME }}.tar.gz
+          target: .
+
+      - name: Extract and display ARE Shadow log summary
+        run: |
+          set -euo pipefail
+          
+          tar -xzf ./tmp/${{ env.EXPORT_NAME }}.tar.gz
+          
+          echo "=== ARE Shadow Adapter Export Summary ==="
+          echo ""
+          echo "Files collected:"
+          find . -type f -name "*.txt" -o -name "*.jsonl" -o -name "*.tail.*" 2>/dev/null | sort
+          echo ""
+          
+          if [ -f "./10-are-shadow-tail.jsonl" ]; then
+            echo "=== ARE Shadow Log Sample (last 10 entries) ==="
+            tail -n 10 ./10-are-shadow-tail.jsonl | jq -s '.' 2>/dev/null || tail -n 10 ./10-are-shadow-tail.jsonl
+            echo ""
+          fi
+
+      - name: Upload export artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.EXPORT_NAME }}
+          path: ./tmp/${{ env.EXPORT_NAME }}.tar.gz
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload individual log files as artifact
+        uses: actions/upload-artifact/v4
+        with:
+          name: ${{ env.EXPORT_NAME }}-logs
+          path: |
+            ./10-are-shadow-tail.jsonl
+            ./11-shadow-stats.txt
+            ./12-log-directory.txt
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Cleanup remote artifacts
+        if: always()
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          EXPORT_NAME: ${{ env.EXPORT_NAME }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          envs: EXPORT_NAME
+          script: |
+            rm -rf "/tmp/${EXPORT_NAME}" "/tmp/${EXPORT_NAME}.tar.gz" || true
+
+  generate-report:
+    name: Generate ARE Shadow Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: collect-are-shadow-logs
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.EXPORT_NAME }}-logs
+          path: ./logs
+        continue-on-error: true
+
+      - name: Create ARE Shadow Status Report
+        run: |
+          set -euo pipefail
+          
+          echo "=== ARE Shadow Adapter Status Report ==="
+          echo "Generated: $(date -Iseconds)"
+          echo "Workflow: ${{ github.workflow }}"
+          echo "Run ID: ${{ github.run_id }}"
+          echo ""
+          
+          if [ -d "./logs" ] && [ -f "./logs/11-shadow-stats.txt" ]; then
+            echo "--- Log Statistics ---"
+            cat ./logs/11-shadow-stats.txt
+            echo ""
+          fi
+          
+          echo "--- Artifact Available ---"
+          echo "Full export available as artifact: ${{ env.EXPORT_NAME }}"
+          echo "Location: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Comment on workflow run
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.actions.createWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'are-shadow-adapter-log-exporter.yml',
+              reference: 'main'
+            });
