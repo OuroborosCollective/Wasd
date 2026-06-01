@@ -17,6 +17,9 @@ import { ChunkManager } from "./world/ChunkManager";
 import { InterpolatedSpriteManager } from "./math/InterpolatedSpriteManager";
 import { FacingDirection, inputToFacing, serverPosToKappa, getFacingEntity, type TargetableEntity } from "./input/Targeting";
 
+// Zero-Trust Manifest System with Input Lockdown
+import { useZeroTrustManifest, DivergenceAlert, isInputLocked } from "./manifest";
+
 const EQUIPPED_WEAPON_KEY = "wasd:2d:equippedWeaponVisualId";
 const WORLD_SEED = "areloria:earth_1_1";
 const NPC_INTERACT_COOLDOWN_MS = 1000;
@@ -260,6 +263,43 @@ export function DeterministicWorldIsoApp() {
   const [equippedWeaponId, setEquippedWeaponId] = useState<string | null>(() => localStorage.getItem(EQUIPPED_WEAPON_KEY));
   const [messages, setMessages] = useState<Msg[]>([{ from: "WorldDirector", txt: "Deterministic Millbrook plan initializing." }]);
 
+  // ─────────────────────────────────────────────────────────────────
+  // ZERO-TRUST MANIFEST SYSTEM - Input Lockdown
+  // ═════════════════════════════════════════════════════════════════
+  // When diverged === true, ALL player inputs are blocked until
+  // the cryptographic link is re-established via resync.
+  const {
+    currentTick,
+    diverged,
+    isResyncing,
+    resyncError,
+    resyncAttempts,
+    inputLocked,
+    lastStateHash,
+  } = useZeroTrustManifest({
+    playerId: playerName, // In production, use actual player ID
+    maxRetries: 3,
+    retryDelayMs: 2000,
+    onDivergence: (result) => {
+      setMessages((items) => [...items.slice(-12), {
+        from: "SYSTEM",
+        txt: `⚠ CRITICAL: Desync detected. Tick ${result.tick}. Re-establishing cryptographic link...`
+      }]);
+    },
+    onResyncSuccess: () => {
+      setMessages((items) => [...items.slice(-12), {
+        from: "SYSTEM",
+        txt: "✓ Cryptographic link re-established. ARE-Kausalität restored."
+      }]);
+    },
+    onResyncFailed: (error) => {
+      setMessages((items) => [...items.slice(-12), {
+        from: "SYSTEM",
+        txt: `✗ FATAL: Resync failed: ${error}`
+      }]);
+    },
+  });
+
   function sendInteractIntent(targetId: string): void {
     clientRef.current?.sendPlayerAction("interact", { targetId });
     dispatchClientAction("INTERACT_ENTITY", { targetId });
@@ -444,6 +484,10 @@ export function DeterministicWorldIsoApp() {
   }
 
   function sendMove(vector: MoveVector) {
+    // Zero-Trust Input Lockdown: Block all movement during divergence
+    if (inputLocked) {
+      return;
+    }
     const now = performance.now();
     if (!clientRef.current?.connected || now - lastMoveAt.current <= 140) return;
     lastMoveAt.current = now;
@@ -940,6 +984,10 @@ export function DeterministicWorldIsoApp() {
   }
 
   function sendSkill(skillId: string) {
+    // Zero-Trust Input Lockdown: Block all skills during divergence
+    if (inputLocked) {
+      return;
+    }
     // Special handling for atk (Strike) - uses spatial auto-targeting
     if (skillId === "atk") {
       performTargetedAction("strike");
@@ -956,11 +1004,18 @@ export function DeterministicWorldIsoApp() {
   }
 
   function sendChat(text: string) {
+    // Zero-Trust Input Lockdown: Block chat during divergence (optional - can allow)
+    // Comment out if chat should be allowed during divergence
+    // if (inputLocked) return;
     clientRef.current?.sendPlayerAction("chat", { text, channel: "local" });
     setMessages((items) => [...items.slice(-12), { from: playerName, txt: text }]);
   }
 
   function interact() {
+    // Zero-Trust Input Lockdown: Block all interactions during divergence
+    if (inputLocked) {
+      return;
+    }
     // Use spatial auto-targeting instead of hardcoded target
     performTargetedAction("talk");
   }
@@ -974,6 +1029,18 @@ export function DeterministicWorldIsoApp() {
 
   return (
     <div className="az-shell">
+      {/* Zero-Trust Divergence Alert - Military Panzerschrank Design */}
+      {diverged && (
+        <DivergenceAlert
+          currentTick={currentTick}
+          lastStateHash={lastStateHash}
+          isResyncing={isResyncing}
+          errorMessage={resyncError ?? undefined}
+          retryCount={resyncAttempts}
+          maxRetries={3}
+        />
+      )}
+      
       <div className="az-world-glow" />
       <div ref={host} className="az-pixi" />
       <ArelorianStitchHud
