@@ -224,68 +224,49 @@ jobs:
               done
             fi
 
-            # === Archive ===
-            # Ensure at least one file exists before archiving
-            FILE_COUNT=$(find "$OUT" -type f 2>/dev/null | wc -l)
-            echo "DEBUG: Archive preparation - OUT=$OUT, FILE_COUNT=$FILE_COUNT"
-            if [ "$FILE_COUNT" -eq 0 ]; then
-              echo "No files to archive, creating placeholder"
-              echo "Export completed but no data files generated at $(date -Iseconds)" > "$OUT/00-placeholder.txt"
-              FILE_COUNT=$(find "$OUT" -type f 2>/dev/null | wc -l)
-              echo "DEBUG: After placeholder - FILE_COUNT=$FILE_COUNT"
-            fi
-            tar -czf "$ARCHIVE" -C "$OUT" . || { echo "Archive failed"; exit 1; }
-            ARCHIVE_SIZE=$(stat -c%s "$ARCHIVE" 2>/dev/null || echo "0")
-            echo "Archive size: $ARCHIVE_SIZE bytes, files: $(find "$OUT" -type f | wc -l)"
-            ls -lh "$ARCHIVE"
-            
-            # Copy to web-accessible location for download via curl
-            mkdir -p /opt/areloria/.workflow-exports
-            cp "$ARCHIVE" "/opt/areloria/.workflow-exports/$EXPORT_NAME.tar.gz"
-            echo "Copied archive to web-accessible location"
+            # === Copy files directly (no tar) ===
+            echo "Listing files to transfer:"
+            find "$OUT" -type f -exec ls -la {} \;
 
-      - name: Download export archive
-        run: |
-          set -euo pipefail
-          echo "Downloading archive from VPS..."
-          # Use curl to download the archive
-          curl -k --max-time 120 -o "./tmp/${{ env.EXPORT_NAME }}.tar.gz" \
-            "https://arelorian.de/.workflow-exports/${{ env.EXPORT_NAME }}.tar.gz" \
-            2>&1 || { echo "Download failed"; ls -la ./tmp/ 2>/dev/null; exit 1; }
-          echo "Download complete"
-          ls -lh "./tmp/${{ env.EXPORT_NAME }}.tar.gz"
+      - name: Download export data
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: /tmp/${{ env.EXPORT_NAME }}/
+          target: ./export
+          strip_components: 1
 
       - name: Extract and display ARE Shadow log summary
         run: |
           set -euo pipefail
           
-          ARCHIVE_PATH="./${{ env.EXPORT_NAME }}.tar.gz"
-          if [ ! -f "$ARCHIVE_PATH" ]; then
-            ARCHIVE_PATH="./tmp/${{ env.EXPORT_NAME }}.tar.gz"
-          fi
-          
-          echo "Looking for archive at: $ARCHIVE_PATH"
-          ls -la "$ARCHIVE_PATH" 2>/dev/null || ls -la ./tmp/ 2>/dev/null || echo "No archive found"
-          
-          tar -xzf "$ARCHIVE_PATH" || { echo "Extraction failed"; exit 1; }
-          
           echo "=== ARE Shadow Adapter Export Summary ==="
           echo ""
-          echo "Files collected:"
-          find . -type f -name "*.txt" -o -name "*.jsonl" -o -name "*.tail.*" 2>/dev/null | sort
-          echo ""
           
-          if [ -f "./10-are-shadow-tail.jsonl" ]; then
-            echo "=== ARE Shadow Log Sample (last 10 entries) ==="
-            tail -n 10 ./10-are-shadow-tail.jsonl | head -50
+          if [ -f "./export/10-are-shadow-tail.jsonl" ]; then
+            echo "Found redacted are-shadow-tail.jsonl"
+            echo "Files in ./export:"
+            ls -la ./export/
             echo ""
+            echo "=== Last 20 lines of ARE Shadow Log (redacted) ==="
+            tail -20 ./export/10-are-shadow-tail.jsonl
+          elif [ -f "./export/are-shadow-tail.jsonl" ]; then
+            echo "Found are-shadow tail"
+            ls -la ./export/
+            tail -20 ./export/are-shadow-tail.jsonl
+          else
+            echo "❌ are-shadow log not found"
+            ls -la ./
+            find ./export -type f 2>/dev/null || echo "export dir not present"
           fi
 
       - name: Upload export artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.EXPORT_NAME }}
-          path: ./tmp/${{ env.EXPORT_NAME }}.tar.gz
+          path: ./export
           retention-days: 14
           if-no-files-found: error
 
@@ -294,16 +275,23 @@ jobs:
         with:
           name: ${{ env.EXPORT_NAME }}-logs
           path: |
-            ./10-are-shadow-tail.jsonl
-            ./11-shadow-stats.txt
-            ./12-log-directory.txt
+            ./export/10-are-shadow-tail.jsonl
+            ./export/11-shadow-stats.txt
           retention-days: 14
           if-no-files-found: ignore
 
       - name: Cleanup remote artifacts
         if: always()
-        run: |
-          echo "Cleanup note: .workflow-exports directory will be cleaned up on next run"
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          EXPORT_NAME: ${{ env.EXPORT_NAME }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          envs: EXPORT_NAME
+          script: |
+            rm -rf "/tmp/${EXPORT_NAME}" "/tmp/${EXPORT_NAME}.tar.gz" || true
 
   generate-report:
     name: Generate ARE Shadow Report
@@ -315,8 +303,8 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ env.EXPORT_NAME }}-logs
-          path: ./logs
+          name: ${{ env.EXPORT_NAME }}
+          path: ./export
         continue-on-error: true
 
       - name: Create ARE Shadow Status Report
@@ -329,9 +317,9 @@ jobs:
           echo "Run ID: ${{ github.run_id }}"
           echo ""
           
-          if [ -d "./logs" ] && [ -f "./logs/11-shadow-stats.txt" ]; then
+          if [ -d "./export" ] && [ -f "./export/11-shadow-stats.txt" ]; then
             echo "--- Log Statistics ---"
-            cat ./logs/11-shadow-stats.txt
+            cat ./export/11-shadow-stats.txt
             echo ""
           fi
           
