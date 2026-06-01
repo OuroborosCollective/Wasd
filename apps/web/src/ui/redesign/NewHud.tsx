@@ -127,7 +127,15 @@ export const NewHud: React.FC = () => {
                   </span>
                 </div>
                 <span className="text-white/50 text-[10px] italic mb-1">{quest.target}</span>
-                <div className="w-full h-[2px] bg-white/5">
+                <div
+                  role="progressbar"
+                  aria-label={`${quest.name} progress`}
+                  aria-valuenow={quest.progress}
+                  aria-valuemin={0}
+                  aria-valuemax={quest.maxProgress || KAPPA}
+                  aria-valuetext={`${Math.floor((quest.progress / (quest.maxProgress || KAPPA)) * 100)}%`}
+                  className="w-full h-[2px] bg-white/5"
+                >
                   <div 
                     className="h-full bg-yellow-500/80 transition-all duration-500" 
                     style={{ width: `${(quest.progress / (quest.maxProgress || KAPPA)) * 100}%` }}
