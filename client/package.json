@@ -45,13 +45,13 @@
     "@types/react-dom": "^19.2.3",
     "@types/socket.io-client": "^3.0.0",
     "@types/three": "0.184.1",
-    "@vitejs/plugin-react": "4.7.0",
+    "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.5.0",
     "eslint": "^10.4.1",
     "postcss": "^8.5.15",
     "tailwindcss": "4",
     "typescript": "^6.0.3",
-    "vite": "6.4.2",
+    "vite": "^8.0.14",
     "vitest": "^4.1.7"
   }
 }
