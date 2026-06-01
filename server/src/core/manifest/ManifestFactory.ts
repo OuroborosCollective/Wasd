@@ -117,7 +117,8 @@ export class ManifestFactory {
       tickSequence,
       tickRateHz: this.options.tickRateHz,
       simulationTimeMs,
-      serverTimestamp: Date.now(), // Wall-clock for ops, not simulation
+      // are-determinism-allow: Level C - wall-clock for ops only, not simulation
+      serverTimestamp: Date.now(), // ops/debug timestamp, not used in game logic
       worldId: this.options.worldId,
       worldSeedHash: this.options.worldSeedHash,
       ruleSetHash: this.options.ruleSetHash,
