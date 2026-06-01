@@ -39,6 +39,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile --ignore-scripts
 
+      - name: Build workspace packages
+        run: pnpm --filter @wasd/shared build
+
       - name: Build 2D Stitch client
         run: pnpm --filter @wasd/client-2d build
 
