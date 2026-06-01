@@ -4,7 +4,7 @@ export class SiegeEngine {
       type: "siege_started",
       attacker: attacker.id,
       target: target.id,
-      startedAt: Date.now()
+      startedAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }

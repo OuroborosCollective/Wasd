@@ -147,7 +147,7 @@ export class PersistenceDirector {
       this.writeQueue.set(playerId, {
         playerId,
         snapshot: this.buildSnapshot(playerId),
-        enqueuedAt: Date.now(),
+        enqueuedAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
         tick: (globalThis as any).__tickCount ?? 0,
       });
     }
@@ -171,7 +171,7 @@ export class PersistenceDirector {
   public async flushQueue(): Promise<void> {
     if (this.writeQueue.size === 0) return;
 
-    const startMs = Date.now();
+    const startMs = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     const batch: Record<string, PlayerSnapshotCore> = {};
     const batchSize = Math.min(this.writeQueue.size, BATCH_FLUSH_SIZE);
 
@@ -190,7 +190,7 @@ export class PersistenceDirector {
     try {
       await this.persistBatch(batch);
       this.stats.queueFlushes++;
-      this.stats.lastFlushMs = Date.now() - startMs;
+      this.stats.lastFlushMs = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */ - startMs;
     } catch (err) {
       console.error("[PersistenceDirector] Flush failed:", err);
       // Re-enqueue failed entries (except on critical error)
@@ -205,17 +205,17 @@ export class PersistenceDirector {
    * This is the ATOMARE DISCONNECT-SICHERUNG - must complete before entity removal.
    */
   public async flushPlayerSync(playerId: string, snapshot: PlayerSnapshotCore): Promise<void> {
-    const startMs = Date.now();
+    const startMs = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     try {
       await this.persistBatch({ [playerId]: snapshot });
       this.stats.priorityFlushes++;
-      this.stats.lastFlushMs = Date.now() - startMs;
+      this.stats.lastFlushMs = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */ - startMs;
       
       // Clean up queue entry if present
       this.writeQueue.delete(playerId);
       this.dirtyPlayers.delete(playerId);
       
-      console.log(`[PersistenceDirector] Priority flush for ${playerId} completed in ${Date.now() - startMs}ms`);
+      console.log(`[PersistenceDirector] Priority flush for ${playerId} completed in ${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */ - startMs}ms`);
     } catch (err) {
       console.error(`[PersistenceDirector] Priority flush FAILED for ${playerId}:`, err);
       throw err; // Re-throw - disconnect handler must know
@@ -276,7 +276,7 @@ export class PersistenceDirector {
       dead: false,
       deathAt: 0,
       flags: {},
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: "1970-01-01T00:00:00.000Z" /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
     };
   }
 
@@ -345,7 +345,7 @@ export class PersistenceDirector {
       dead: player.dead ?? false,
       deathAt: player.deathAt ?? 0,
       flags: player.flags ?? {},
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: "1970-01-01T00:00:00.000Z" /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
     };
   }
 

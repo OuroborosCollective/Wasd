@@ -24,7 +24,7 @@ export function createParty(leaderId: string): Party {
     id,
     leaderId,
     members: new Set([leaderId]),
-    createdAt: Date.now(),
+    createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
   };
   parties.set(id, party);
   playerToParty.set(leaderId, id);

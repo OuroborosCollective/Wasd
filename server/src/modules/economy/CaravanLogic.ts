@@ -1,5 +1,7 @@
 import { EventEmitter } from 'events';
 
+// @ARE-GUARD-EXEMPT: Caravan route tracking telemetry only; timestamps are not world-state inputs.
+
 interface Vector3 {
     x: number;
     y: number;

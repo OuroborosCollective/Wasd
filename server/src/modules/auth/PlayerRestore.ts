@@ -2,7 +2,7 @@ export class PlayerRestore {
   restore(saved: any) {
     return {
       ...saved,
-      restoredAt: Date.now()
+      restoredAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }

@@ -7,7 +7,7 @@ export class AuctionHouse {
     if (isItemBoundOrNonTransferable(item)) {
       return null;
     }
-    const listing = { item, sellerId, price, createdAt: Date.now() };
+    const listing = { item, sellerId, price, createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */ };
     this.listings.push(listing);
     return listing;
   }

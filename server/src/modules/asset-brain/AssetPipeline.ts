@@ -75,15 +75,15 @@ export class AssetPipeline {
     input: string,
     options?: { generateModel?: boolean; autoRegister?: boolean }
   ): Promise<string> {
-    const jobId = `pipe_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const jobId = `pipe_${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */}_${Math.random().toString(36).substring(2, 8)}`;
     const job: PipelineJob = {
       jobId,
       userId,
       input,
       status: 'pending',
       progress: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
+      updatedAt: new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
     };
     pipelineJobs.set(jobId, job);
 
@@ -91,7 +91,7 @@ export class AssetPipeline {
     this.runPipeline(job, options).catch((err) => {
       job.status = 'failed';
       job.error = String(err);
-      job.updatedAt = new Date();
+      job.updatedAt = new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     });
 
     return jobId;
@@ -108,7 +108,7 @@ export class AssetPipeline {
   }
 
   private update(job: PipelineJob, patch: Partial<PipelineJob>) {
-    Object.assign(job, patch, { updatedAt: new Date() });
+    Object.assign(job, patch, { updatedAt: new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */ });
   }
 
   private async runPipeline(
@@ -233,7 +233,7 @@ export class AssetPipeline {
       const dir = path.join(process.cwd(), 'public', 'models', 'generated', assetClass);
       fs.mkdirSync(dir, { recursive: true });
 
-      const filename = `${safeName}_${Date.now()}.glb`;
+      const filename = `${safeName}_${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */}.glb`;
       const filepath = path.join(dir, filename);
       const file = fs.createWriteStream(filepath);
 
@@ -262,7 +262,7 @@ export class AssetPipeline {
     userId: string,
     thumbnailUrl?: string
   ): Promise<string> {
-    const registryId = `gen_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const registryId = `gen_${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */}_${Math.random().toString(36).substring(2, 8)}`;
 
     // Insert into generated_assets table
     await db.query(

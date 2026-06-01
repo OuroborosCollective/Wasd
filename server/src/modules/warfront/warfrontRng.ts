@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Deterministic PRNG for 10 Hz warfront combat (no Math.random).
 /** Deterministic PRNG for 10 Hz warfront combat (no Math.random). */
 export function mulberry32(seed: number): () => number {
   let s = seed >>> 0;

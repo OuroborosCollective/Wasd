@@ -150,7 +150,7 @@ export function spawnCity(opts: {
     worldPos: calcWorldPos(opts.strandKey, opts.cityIndex, opts.regionId),
     generatedFor: opts.questId,
     population: type === "capital" ? "large" : type === "town" ? "medium" : "small",
-    createdAt: Date.now(),
+    createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
   };
   return city;
 }
@@ -189,6 +189,6 @@ export function spawnRegion(opts: {
     biome: seededPick(BIOMES[opts.strandKey] ?? BIOMES["E"], regionId) ?? "plains",
     cities,
     features: [...new Set(cities.flatMap((c) => c.features))],
-    createdAt: Date.now(),
+    createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
   };
 }

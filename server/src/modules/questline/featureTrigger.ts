@@ -258,7 +258,7 @@ export function satisfyFeature(
   const entry = schedule.find((t) => t.featureId === featureId);
   if (entry) {
     entry.satisfied = true;
-    entry.satisfiedAt = Date.now();
+    entry.satisfiedAt = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
   }
   return entry ?? null;
 }

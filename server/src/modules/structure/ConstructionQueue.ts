@@ -2,7 +2,7 @@ export class ConstructionQueue {
   private jobs: any[] = [];
 
   enqueue(job: any) {
-    this.jobs.push({ ...job, createdAt: Date.now(), progress: 0 });
+    this.jobs.push({ ...job, createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */, progress: 0 });
   }
 
   tick() {

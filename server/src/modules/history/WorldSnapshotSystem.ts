@@ -5,7 +5,7 @@ export class WorldSnapshotSystem {
 
   save(worldState: any) {
     this.snapshots.push({
-      timestamp: Date.now(),
+      timestamp: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
       state: deepClone(worldState)
     });
   }

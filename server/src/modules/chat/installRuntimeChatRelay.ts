@@ -26,7 +26,7 @@ export function installRuntimeChatRelay(): void {
 
         const channel = String(event?.channel ?? "global");
         const senderName = String(event?.senderName ?? event?.senderId ?? "Unknown");
-        const ts = Number.isFinite(Number(event?.ts)) ? Number(event.ts) : Date.now();
+        const ts = Number.isFinite(Number(event?.ts)) ? Number(event.ts) : 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
 
         this.ws?.broadcast?.({
           type: "chat_message",

@@ -97,6 +97,7 @@ export class AREShadowLogSink {
 
     const entry: AREShadowLogEntry = {
       tick,
+      // @ARE-GUARD-EXEMPT: Audit log timestamp only; not a world-state input.
       at: new Date().toISOString(),
       capacity: Number.isFinite(Number(stats?.capacity)) ? Number(stats.capacity) : null,
       size: Number.isFinite(Number(stats?.size)) ? Number(stats.size) : null,

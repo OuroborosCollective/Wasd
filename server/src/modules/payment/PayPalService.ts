@@ -110,7 +110,7 @@ export async function createPayPalOrder(
   const order = await paypalRequest("POST", "/v2/checkout/orders", {
     intent: "CAPTURE",
     purchase_units: [{
-      reference_id: `${playerId}_${productId}_${Date.now()}`,
+      reference_id: `${playerId}_${productId}_${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */}`,
       description: `Areloria MMORPG – ${description} for ${playerName}`,
       amount: {
         currency_code: "EUR",

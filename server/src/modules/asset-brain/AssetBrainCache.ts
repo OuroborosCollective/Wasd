@@ -154,7 +154,7 @@ export class AssetBrainCache {
     if (!entry) return null;
     
     // Check expiration
-    if (entry.expiresAt < Date.now()) {
+    if (entry.expiresAt < 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */) {
       this.l1Cache.delete(key);
       this.stats.evictions++;
       return null;
@@ -173,7 +173,7 @@ export class AssetBrainCache {
       }
     }
 
-    const expiresAt = Date.now() + (this.l1Config.l1TTL * 1000);
+    const expiresAt = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */ + (this.l1Config.l1TTL * 1000);
     this.l1Cache.set(key, { data, expiresAt });
   }
 

@@ -5,7 +5,7 @@ export class MigrationEngine {
       groupId,
       from,
       to,
-      startedAt: Date.now()
+      startedAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }

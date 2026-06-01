@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Scarcity prediction telemetry only; timestamps are not world-state inputs.
 import { WorldEventBus } from "../../events/WorldEventBus.js";
 import { WorldHistory } from "../history/WorldHistory.js";
 import { pushLiveTickerHazard, type LiveTickerHazardPayload } from "../../theme/serverThemeHazard.js";

@@ -4,7 +4,7 @@ export class WarEngine {
       type: "war_declared",
       attacker: attacker.id,
       defender: defender.id,
-      timestamp: Date.now()
+      timestamp: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }

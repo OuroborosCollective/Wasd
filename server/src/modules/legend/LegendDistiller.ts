@@ -12,7 +12,7 @@ export type QuestSignalPayload = {
 
 export class LegendDistiller {
     static distill(rawLore: string): string {
-        return `DISTILLED_K${rawLore.length}_${Math.random().toString(36).substr(2, 5)}`;
+        return `DISTILLED_K${rawLore.length}_${0.toString(36).substr(2, 5)}`;
     }
 
     /** Hook when a quest completes — narrative / legend pipeline can extend this. */

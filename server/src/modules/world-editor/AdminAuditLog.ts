@@ -6,7 +6,7 @@ export class AdminAuditLog {
       actorId,
       action,
       payload,
-      timestamp: Date.now()
+      timestamp: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     });
   }
 

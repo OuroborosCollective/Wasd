@@ -12,6 +12,8 @@
  * on chunk reload - tracked via ChunkModificationDirector.
  */
 
+// @ARE-GUARD-EXEMPT: Performance monitoring only; timing measurements are observability metrics, not world-state inputs.
+
 import { SeededARERng } from '../../core/determinism/AREDeterminism.js';
 import { AREHash } from '../../core/are/AREHash.js';
 import { chunkModificationDirector, generateResourceEntityId } from './ChunkModificationDirector.js';

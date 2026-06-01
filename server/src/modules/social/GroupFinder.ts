@@ -3,7 +3,7 @@ export class GroupFinder {
     return {
       ownerId,
       activity,
-      createdAt: Date.now()
+      createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }

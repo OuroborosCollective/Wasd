@@ -4,7 +4,12 @@ import type { OracleReport, Prophecy } from "./OuroborosOracle.js";
 import { cityLayoutCompiler } from "./CityLayoutCompiler.js";
 import { canonicalize } from "./WorldHashSnapshot.js";
 
-export type AutoRepairCause = "determinism_violation" | "critical_oracle_prophecy";
+export type AutoRepairCause = 
+  | "determinism_violation"
+  | "critical_oracle_prophecy"
+  | "kappa_invariant_broken"
+  | "invalid_tick_sequence"
+  | "forbidden_nondeterminism_found";
 export type AutoRepairPhase = "idle" | "detecting" | "rollback" | "patching" | "healed" | "failed";
 
 export interface AutoRepairPlan {
@@ -38,6 +43,25 @@ export interface AutoRepairContext {
   npcs: any[];
   loot: any[];
   restoreWorldState: (record: DeterministicTickRecord, sector: number) => void;
+}
+
+function detectCauseFromGuard(guard: AREInvariantGuardStatus | null): AutoRepairCause | null {
+  if (!guard || guard.ok) return null;
+
+  const firstViolation = guard.violations[0];
+  if (!firstViolation) return "determinism_violation";
+
+  switch (firstViolation.code) {
+    case "KAPPA_INVARIANT":
+    case "INVALID_KAPPA_TYPE":
+      return "kappa_invariant_broken";
+    case "INVALID_TICK_SEQUENCE":
+      return "invalid_tick_sequence";
+    case "FORBIDDEN_NONDETERMINISM":
+      return "forbidden_nondeterminism_found";
+    default:
+      return "determinism_violation";
+  }
 }
 
 function sectorFromViolationOrProphecy(guard: AREInvariantGuardStatus | null, prophecy: Prophecy | null): number {
@@ -86,7 +110,9 @@ export class AREAutoRepairService {
     this.status.active = true;
     this.status.healed = false;
 
-    const cause: AutoRepairCause = guardBroken ? "determinism_violation" : "critical_oracle_prophecy";
+    const cause: AutoRepairCause = guardBroken 
+      ? (detectCauseFromGuard(context.guard) ?? "determinism_violation")
+      : "critical_oracle_prophecy";
     const sector = sectorFromViolationOrProphecy(context.guard, criticalProphecy);
     const clean = latestCleanRecord(context.records, context.tick);
     const layout = cityLayoutCompiler.compileSector([...context.players, ...context.npcs, ...context.loot], sector);

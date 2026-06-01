@@ -49,7 +49,7 @@ export class MarketingAutomationService {
                 description: `System performance improved by ${(evolution.metrics.performanceGain * 100).toFixed(1)}%`,
                 impactScore: 9,
                 category: 'performance',
-                timestamp: new Date()
+                timestamp: new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */
             });
         }
 
@@ -61,7 +61,7 @@ export class MarketingAutomationService {
                 description: `Added features: ${evolution.diff.newFeatures.join(', ')}`,
                 impactScore: 8,
                 category: 'feature',
-                timestamp: new Date()
+                timestamp: new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */
             });
         }
 

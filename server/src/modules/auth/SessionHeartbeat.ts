@@ -2,7 +2,7 @@ export class SessionHeartbeat {
   ping(sessionId:string){
     return {
       sessionId,
-      heartbeatAt: Date.now()
+      heartbeatAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }

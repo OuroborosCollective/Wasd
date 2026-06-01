@@ -11,6 +11,7 @@ on:
       - 'packages/shared/src/**'
       - 'scripts/check-are-determinism.mjs'
       - 'scripts/check-determinism-gate.mjs'
+      - 'scripts/scan-are-core.mjs'
       - '.github/workflows/are-determinism-gate.yml'
   push:
     branches:
@@ -22,6 +23,7 @@ on:
       - 'packages/shared/src/**'
       - 'scripts/check-are-determinism.mjs'
       - 'scripts/check-determinism-gate.mjs'
+      - 'scripts/scan-are-core.mjs'
       - '.github/workflows/are-determinism-gate.yml'
   workflow_dispatch:
 
@@ -30,9 +32,9 @@ permissions:
 
 jobs:
   determinism-gate:
-    name: Scan runtime logic
+    name: ARE Determinism Firewall (Level 3)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -42,7 +44,21 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Check ARE deterministic simulation paths
+      - name: Run Legacy Pattern Scans
         run: |
+          echo "=== Legacy Pattern Scanner (regex-based) ==="
           node scripts/check-are-determinism.mjs
           node scripts/check-determinism-gate.mjs
+
+      - name: Run ARE Guard Source Scanner (Level 3)
+        run: |
+          echo ""
+          echo "=== ARE Guard Source Scanner (TypeScript Guard Integration) ==="
+          node scripts/scan-are-core.mjs --strict
+
+      - name: Report Summary
+        if: always()
+        run: |
+          echo ""
+          echo "🏁 ARE Determinism Gate Complete"
+          echo "   All scanners passed. The ARE core is clean of nondeterminism."

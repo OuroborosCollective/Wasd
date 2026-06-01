@@ -3,7 +3,7 @@ export class SettlementSystem {
     return {
       type,
       ownerId,
-      createdAt: Date.now()
+      createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }

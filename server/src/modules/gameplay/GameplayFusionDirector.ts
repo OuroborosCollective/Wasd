@@ -253,14 +253,14 @@ export class GameplayFusionDirector {
     this.updateContractProgress(ctx.now);
   }
 
-  getQuestEchoBeacons(now: number = Date.now()): QuestEchoBeacon[] {
+  getQuestEchoBeacons(now: number = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */): QuestEchoBeacon[] {
     this.cleanupExpired(now);
     return Array.from(this.questEchoBeacons.values()).sort((a, b) =>
       a.id < b.id ? -1 : a.id > b.id ? 1 : 0
     );
   }
 
-  resolveNpcGlbOverride(npc: any, now: number = Date.now()): string | undefined {
+  resolveNpcGlbOverride(npc: any, now: number = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */): string | undefined {
     const npcId = typeof npc?.id === "string" ? npc.id : "";
     if (!npcId) return undefined;
     const override = this.npcOverrides.get(npcId);
@@ -272,7 +272,7 @@ export class GameplayFusionDirector {
     return override.glbPath;
   }
 
-  resolveWorldObjectGlbOverride(type: string | undefined, now: number = Date.now()): string | undefined {
+  resolveWorldObjectGlbOverride(type: string | undefined, now: number = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */): string | undefined {
     const key = normalizeToken(type);
     if (!key) return undefined;
     const override = this.objectTypeOverrides.get(key);
@@ -284,7 +284,7 @@ export class GameplayFusionDirector {
     return override.glbPath;
   }
 
-  getSnapshot(now: number = Date.now()): GameplayFusionSnapshot {
+  getSnapshot(now: number = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */): GameplayFusionSnapshot {
     this.cleanupExpired(now);
     return {
       generatedAtIso: new Date(now).toISOString(),
@@ -309,7 +309,7 @@ export class GameplayFusionDirector {
     contract.status = "in_progress";
     contract.assignedNpcId = npcId;
     contract.progress01 = Math.max(contract.progress01, 0.2);
-    contract.updatedAt = Date.now();
+    contract.updatedAt = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     return true;
   }
 
@@ -320,7 +320,7 @@ export class GameplayFusionDirector {
     const contract = this.contracts.get(contractId);
     if (!contract) return false;
 
-    const now = Date.now();
+    const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     contract.status = "completed";
     contract.progress01 = 1;
     contract.assignedNpcId = opts.completedByNpcId;

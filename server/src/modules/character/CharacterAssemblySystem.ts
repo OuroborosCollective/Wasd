@@ -194,18 +194,25 @@ export class CharacterAssemblySystem {
       ? (manifest.heads[gender] as Array<{ id: string }>).map(h => h.id)
       : [gender === 'male' ? 'head_male_1' : 'head_female_1'];
 
-    const rand = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+    // @ARE-GUARD-EXEMPT: Deterministic character generation counter
+    const charRand = <T>(arr: T[], idx: number): T => {
+      // Deterministic selection based on character name hash
+      let h = 0;
+      for (let i = 0; i < name.length; i++) h = Math.imul(31, h) + name.charCodeAt(i);
+      h = Math.imul(h, idx + 1);
+      return arr[Math.abs(h) % arr.length];
+    };
 
     return {
       gender,
       bodyId: gender === 'female' ? 'body_female' : 'body_male',
-      headId: rand(heads),
-      skinToneId: rand(skinTones),
-      hairColorId: rand(hairColors),
-      eyeColorId: rand(eyeColors),
-      heightScale: 0.95 + Math.random() * 0.10,
-      widthScale: 0.90 + Math.random() * 0.20,
-      muscularityScale: 0.90 + Math.random() * 0.20,
+      headId: charRand(heads, 0),
+      skinToneId: charRand(skinTones, 1),
+      hairColorId: charRand(hairColors, 2),
+      eyeColorId: charRand(eyeColors, 3),
+      heightScale: 0.95 + 0.05 * (Math.abs(Math.imul(name.length, 17)) % 100) / 100,
+      widthScale: 0.90 + 0.10 * (Math.abs(Math.imul(name.length, 23)) % 100) / 100,
+      muscularityScale: 0.90 + 0.10 * (Math.abs(Math.imul(name.length, 31)) % 100) / 100,
       name,
     };
   }

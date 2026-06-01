@@ -68,7 +68,7 @@ export class EmergentMarket {
     const price = this.getPrice(regionId, good);
     e.lastPrice = price;
     e.volume += quantity;
-    e.lastTradeTs = Date.now();
+    e.lastTradeTs = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     return price * quantity;
   }
 
@@ -84,7 +84,7 @@ export class EmergentMarket {
     const price = this.getPrice(regionId, good);
     e.lastPrice = price;
     e.volume += quantity;
-    e.lastTradeTs = Date.now();
+    e.lastTradeTs = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     return price * quantity;
   }
 
@@ -111,7 +111,7 @@ export class EmergentMarket {
     }
     route.tripCount++;
     route.profitability = route.profitability * 0.8 + profit * 0.2;
-    route.lastUsed = Date.now();
+    route.lastUsed = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
   }
 
   /** Get established trade routes (sorted by profitability). */
@@ -164,6 +164,6 @@ export class EmergentMarket {
     lastGoalUpdate: number;
   } {
     void _npcId;
-    return { resourcePriorities: {}, lastGoalUpdate: Date.now() };
+    return { resourcePriorities: {}, lastGoalUpdate: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */ };
   }
 }

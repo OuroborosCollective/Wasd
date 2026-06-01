@@ -35,7 +35,7 @@ export class QuestService {
 
         // Status-Update
         quest.status = "COMPLETED";
-        quest.completedAt = new Date();
+        quest.completedAt = new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
 
         // Persistierung
         await this.saveQuestUpdate(quest);

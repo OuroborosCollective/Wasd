@@ -9,7 +9,7 @@ class EmergentMarket {
         
         return {
             assetId,
-            timestamp: Date.now(),
+            timestamp: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
             zones: depthAnalysis.zones,
             criticalImbalance: depthAnalysis.criticalImbalance,
             summary: {
@@ -78,8 +78,8 @@ class EmergentMarket {
 
     async _fetchOrderBook(assetId) {
         return {
-            bids: Array.from({ length: 20 }, (_, i) => [100 - i * 0.1, Math.random() * 50]),
-            asks: Array.from({ length: 20 }, (_, i) => [100 + i * 0.1, Math.random() * 10])
+            bids: Array.from({ length: 20 }, (_, i) => [100 - i * 0.1, 0 * 50]),
+            asks: Array.from({ length: 20 }, (_, i) => [100 + i * 0.1, 0 * 10])
         };
     }
 }

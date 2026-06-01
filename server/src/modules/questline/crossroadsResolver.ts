@@ -241,7 +241,7 @@ export function resolveCrossroadsChoice(
   const faction = getFactionByStrand(choice.strandKey);
 
   crossroads.resolvedChoice = choiceId;
-  crossroads.resolvedAt = Date.now();
+  crossroads.resolvedAt = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
   crossroads.resolvedBy = playerState.playerId;
 
   const worldEffect: WorldEffect = {

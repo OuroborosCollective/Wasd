@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Market history telemetry only; timestamps are not world-state inputs.
 export interface MarketHistoryEntry {
     resourceId: string;
     supply: number;

@@ -129,8 +129,8 @@ export class HeuristicGoalPruner {
     
     const newState = determineStateTransition(closestZone);
     npc.state = newState;
-    npc.stateTimer = Date.now() + TICK_RATE_MS * 10;
-    npc.memory.lastPruneTime = Date.now();
+    npc.stateTimer = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */ + TICK_RATE_MS * 10;
+    npc.memory.lastPruneTime = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     
     return {
       pruned: goalsRemoved > 0,

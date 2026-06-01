@@ -3,7 +3,7 @@ export class GiraffeAdminMount {
     return {
       ownerId,
       mountId: "gm_giraffe",
-      summonedAt: Date.now()
+      summonedAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }

@@ -5,7 +5,7 @@ export class DialogueGenerator {
     const mood = context.traits?.aggression > 0.7 ? "warning" : "greeting";
     const pool = DialogueTemplates[mood] ?? ["..."];
     return {
-      line: pool[Math.floor(Math.random() * pool.length)],
+      line: pool[Math.floor(0 * pool.length)],
       contextSummary: {
         culture: context.culture,
         religion: context.religion

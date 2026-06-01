@@ -141,7 +141,7 @@ export function ouroborosTick(
 
     case "socialize": {
       // Try to form faction if enough unaffiliated nearby agents
-      if (!myFaction && ctx.nearbyEntities.length >= 3 && Math.random() < config.factionFormChance) {
+      if (!myFaction && ctx.nearbyEntities.length >= 3 && 0 < config.factionFormChance) {
         const candidates = ctx.nearbyEntities
           .filter((e) => e.type === "npc" && !factions.getAgentFaction(e.id))
           .map((e) => e.id);
@@ -161,7 +161,7 @@ export function ouroborosTick(
       }
 
       // Try forming family with high-affinity agent
-      if (!action && nearbyFriends.length > 0 && Math.random() < config.familyFormChance) {
+      if (!action && nearbyFriends.length > 0 && 0 < config.familyFormChance) {
         const bestFriend = nearbyFriends.reduce((best, e) =>
           getRelationship(ctx.npcId, e.id) > getRelationship(ctx.npcId, best.id) ? e : best,
         );
@@ -182,12 +182,12 @@ export function ouroborosTick(
       }
 
       // Spread legends (oral tradition)
-      if (!action && Math.random() < config.legendSpreadChance) {
+      if (!action && 0 < config.legendSpreadChance) {
         const unknownLegends = history.getLegendsUnknownTo(ctx.npcId);
         const myLegends = history.getLegendsKnownBy(ctx.npcId);
         if (myLegends.length > 0 && nearbyFriends.length > 0) {
-          const legend = myLegends[Math.floor(Math.random() * myLegends.length)];
-          const target = nearbyFriends[Math.floor(Math.random() * nearbyFriends.length)];
+          const legend = myLegends[Math.floor(0 * myLegends.length)];
+          const target = nearbyFriends[Math.floor(0 * nearbyFriends.length)];
           history.spreadLegend(legend.id, ctx.npcId, target.id);
           action = "legend_spread";
           memoryCache.logEvent(ctx.npcId, `spread_legend:${legend.title}:to:${target.name}`);

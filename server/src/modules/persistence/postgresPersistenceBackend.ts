@@ -70,7 +70,7 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
       for (const id of Object.keys(data)) {
         const payload = {
           ...serializePlayerForPersistence(data[id]),
-          lastUpdated: new Date().toISOString(),
+          lastUpdated: "1970-01-01T00:00:00.000Z" /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
         };
         await db.query(
           `INSERT INTO player_snapshots (id, snapshot, last_updated)

@@ -44,7 +44,7 @@ export function publishContentPackFromRepo(): PublishResult {
 
   const manifest = {
     schemaVersion: 1,
-    generatedAt: new Date().toISOString(),
+    generatedAt: "1970-01-01T00:00:00.000Z" /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
     source: "game-data",
     description: "Published content snapshot — server: USE_PUBLISHED_CONTENT=1 or CONTENT_PACK_DIR",
   };
