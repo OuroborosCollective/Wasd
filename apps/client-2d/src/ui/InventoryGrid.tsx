@@ -10,8 +10,7 @@
  * - Brutalist MMORPG aesthetic: Dark metallic palette, hard edges
  */
 
-import { useState, useCallback, useMemo } from "react";
-import { useSyncExternalStore } from "react";
+import { useState, useCallback, useMemo, useEffect, useSyncExternalStore } from "react";
 import {
   type ModularItem,
   type EquipSlot,
@@ -131,8 +130,8 @@ export const inventoryGridStore = new InventoryGridStore();
 
 export function useInventoryGrid(): PlayerInventorySnapshot | null {
   return useSyncExternalStore(
-    store => store.subscribe,
-    () => store.getSnapshot(),
+    (listener) => inventoryGridStore.subscribe(listener),
+    () => inventoryGridStore.getSnapshot(),
     () => null
   );
 }
@@ -355,8 +354,8 @@ export function InventoryGrid({ isOpen = true, onClose }: InventoryGridProps) {
   const [tooltip, setTooltip] = useState<{ item: ModularItem; x: number; y: number } | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
 
-  // Handle WebSocket messages
-  useState(() => {
+  // Handle WebSocket messages - useEffect ensures cleanup on unmount
+  useEffect(() => {
     const handleNetworkPacket = (event: Event) => {
       const detail = (event as CustomEvent).detail;
       if (detail?.event === "inventory_snapshot") {
@@ -372,7 +371,7 @@ export function InventoryGrid({ isOpen = true, onClose }: InventoryGridProps) {
 
     window.addEventListener("wasd:network-packet", handleNetworkPacket);
     return () => window.removeEventListener("wasd:network-packet", handleNetworkPacket);
-  });
+  }, []);
 
   const handleEquip = useCallback((inventorySlotIndex: number) => {
     if (!snapshot?.inventory) return;
