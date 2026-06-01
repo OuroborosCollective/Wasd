@@ -364,7 +364,7 @@ export class WorldTick {
         
         for (const other of allNpcs) {
           if (other.id === npcId) continue;
-          if (other.tags?.includes("playtester")) continue; // Skip other playtesters
+          if ( (other as any).tags?.includes("playtester")) continue; // Skip other playtesters
           
           const dx = (other.position.x ?? 0) - (npc.position.x ?? 0);
           const dy = (other.position.y ?? 0) - (npc.position.y ?? 0);
