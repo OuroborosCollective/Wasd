@@ -1,37 +1,35 @@
 /**
  * Ouroboros CharacterWindow — WoW-Style Character Sheet
  *
- * Shows player level, skill progress, core stats, resources, and equipment panel.
+ * Shows player level, total level, core stats, vitals, gold, and equipment panel.
  * Includes Paper-Doll equipment display with touch-safe drag & drop.
  * Follows the Panzerschrank brutalist design aesthetic.
  *
- * Server-authoritative rule:
- * - Client displays snapshots only.
- * - Client sends stat allocation intent only.
- * - Client does NOT calculate real XP/level progression.
+ * Determinism rule:
+ * - Client does NOT stamp Date.now() into gameplay intents.
+ * - Server owns tick, validation, stat mutation, and snapshot broadcast.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { DnDProvider } from "../dnd/DnDContext";
+import { useSyncExternalStore } from "react";
 import { EquipmentPanel } from "./EquipmentPanel";
 import "../inventoryGrid.css";
 import "./equipmentPanel.css";
 
 export type CoreStatKey = "strength" | "agility" | "intelligence";
 
+export interface CoreStats {
+  strength: number;
+  agility: number;
+  intelligence: number;
+}
+
 export interface SkillSnapshot {
   xp: number;
   level: number;
   nextLevelXP: number;
   progressPercent: number;
-}
-
-export interface CoreStats {
-  strength: number;
-  agility: number;
-  intelligence: number;
 }
 
 export interface PlayerStatsSnapshot {
@@ -50,20 +48,13 @@ export interface PlayerStatsSnapshot {
 
   gold: number;
   level: number;
-
-  /**
-   * Optional server tick fields.
-   * Prefer server-provided tick over client time.
-   */
-  tick?: number;
-  serverTick?: number;
 }
 
 // ─── State Store ─────────────────────────────────────────────────────────────
 
 class CharacterWindowStore {
   private snapshot: PlayerStatsSnapshot | null = null;
-  private listeners = new Set<() => void>();
+  private readonly listeners = new Set<() => void>();
 
   getSnapshot(): PlayerStatsSnapshot | null {
     return this.snapshot;
@@ -77,14 +68,17 @@ class CharacterWindowStore {
   }
 
   receiveSnapshot(snap: PlayerStatsSnapshot): void {
-    this.snapshot = snap;
+    this.snapshot = sanitizeSnapshot(snap);
+    this.notify();
+  }
+
+  clear(): void {
+    this.snapshot = null;
     this.notify();
   }
 
   private notify(): void {
-    for (const listener of this.listeners) {
-      listener();
-    }
+    this.listeners.forEach((listener) => listener());
   }
 }
 
@@ -100,11 +94,17 @@ export function useCharacterWindow(): PlayerStatsSnapshot | null {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const CORE_STATS: readonly CoreStatKey[] = [
+const DEFAULT_CORE_STATS: CoreStats = {
+  strength: 10,
+  agility: 10,
+  intelligence: 10,
+};
+
+const CORE_STAT_KEYS: readonly CoreStatKey[] = [
   "strength",
   "agility",
   "intelligence",
-] as const;
+];
 
 const STAT_LABELS: Record<CoreStatKey, string> = {
   strength: "STR",
@@ -120,60 +120,62 @@ const STAT_NAMES: Record<CoreStatKey, string> = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+function clampNumber(value: unknown, fallback: number, min = 0): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.max(min, value);
 }
 
-function isPlayerStatsSnapshot(value: unknown): value is PlayerStatsSnapshot {
-  if (!isRecord(value)) return false;
-  if (typeof value.playerId !== "string") return false;
-  if (!isRecord(value.coreStats)) return false;
+function sanitizeCoreStats(stats: unknown): CoreStats {
+  const raw = stats as Partial<CoreStats> | null | undefined;
 
-  return (
-    typeof value.coreStats.strength === "number" &&
-    typeof value.coreStats.agility === "number" &&
-    typeof value.coreStats.intelligence === "number" &&
-    typeof value.unspentStatPoints === "number" &&
-    typeof value.totalLevel === "number" &&
-    typeof value.hp === "number" &&
-    typeof value.maxHp === "number" &&
-    typeof value.mana === "number" &&
-    typeof value.maxMana === "number" &&
-    typeof value.stamina === "number" &&
-    typeof value.maxStamina === "number" &&
-    typeof value.gold === "number" &&
-    typeof value.level === "number"
-  );
+  return {
+    strength: clampNumber(raw?.strength, DEFAULT_CORE_STATS.strength),
+    agility: clampNumber(raw?.agility, DEFAULT_CORE_STATS.agility),
+    intelligence: clampNumber(raw?.intelligence, DEFAULT_CORE_STATS.intelligence),
+  };
 }
 
-function clampPercent(current: number, max: number): number {
-  if (!Number.isFinite(current) || !Number.isFinite(max) || max <= 0) {
-    return 0;
-  }
+function sanitizeSnapshot(snap: PlayerStatsSnapshot): PlayerStatsSnapshot {
+  const hp = clampNumber(snap.hp, 0);
+  const maxHp = Math.max(1, clampNumber(snap.maxHp, 1));
 
-  return Math.max(0, Math.min(100, (current / max) * 100));
+  const mana = clampNumber(snap.mana, 0);
+  const maxMana = Math.max(1, clampNumber(snap.maxMana, 1));
+
+  const stamina = clampNumber(snap.stamina, 0);
+  const maxStamina = Math.max(1, clampNumber(snap.maxStamina, 1));
+
+  return {
+    ...snap,
+    playerId: String(snap.playerId ?? ""),
+    skills: snap.skills ?? {},
+    coreStats: sanitizeCoreStats(snap.coreStats),
+    unspentStatPoints: clampNumber(snap.unspentStatPoints, 0),
+    totalLevel: clampNumber(snap.totalLevel, 1),
+    level: clampNumber(snap.level, 1),
+
+    hp: Math.min(hp, maxHp),
+    maxHp,
+    mana: Math.min(mana, maxMana),
+    maxMana,
+    stamina: Math.min(stamina, maxStamina),
+    maxStamina,
+
+    gold: clampNumber(snap.gold, 0),
+  };
 }
 
-function safeNumber(value: number, fallback = 0): number {
-  return Number.isFinite(value) ? value : fallback;
-}
+function getOverallProgress(snapshot: PlayerStatsSnapshot | null): number {
+  if (!snapshot) return 0;
 
-function getSnapshotTick(snapshot: PlayerStatsSnapshot): number {
-  return safeNumber(snapshot.serverTick ?? snapshot.tick ?? 0, 0);
-}
+  const skillValues = Object.values(snapshot.skills);
+  if (skillValues.length === 0) return 0;
 
-function getAverageSkillProgress(snapshot: PlayerStatsSnapshot): number {
-  const skills = Object.values(snapshot.skills ?? {});
-
-  if (skills.length === 0) {
-    return 0;
-  }
-
-  const total = skills.reduce((sum, skill) => {
-    return sum + safeNumber(skill.progressPercent, 0);
+  const sum = skillValues.reduce((acc, skill) => {
+    return acc + clampNumber(skill.progressPercent, 0);
   }, 0);
 
-  return Math.round(total / skills.length);
+  return Math.min(100, Math.max(0, sum / skillValues.length));
 }
 
 // ─── Components ──────────────────────────────────────────────────────────────
@@ -222,20 +224,27 @@ interface StatBarProps {
 }
 
 function StatBar({ label, current, max, color = "#c8b878" }: StatBarProps) {
-  const safeCurrent = Math.max(0, Math.floor(safeNumber(current, 0)));
-  const safeMax = Math.max(0, Math.floor(safeNumber(max, 0)));
-  const percent = clampPercent(safeCurrent, safeMax);
+  const safeMax = Math.max(1, clampNumber(max, 1));
+  const safeCurrent = Math.min(safeMax, clampNumber(current, 0));
+  const percent = Math.min(100, Math.max(0, (safeCurrent / safeMax) * 100));
 
   return (
     <div className="char-bar-container">
       <div className="char-bar-label">
         <span>{label}</span>
         <span>
-          {safeCurrent}/{safeMax}
+          {Math.floor(safeCurrent)}/{Math.floor(safeMax)}
         </span>
       </div>
 
-      <div className="char-bar-track">
+      <div
+        className="char-bar-track"
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={Math.floor(safeMax)}
+        aria-valuenow={Math.floor(safeCurrent)}
+      >
         <div
           className="char-bar-fill"
           style={{
@@ -248,23 +257,30 @@ function StatBar({ label, current, max, color = "#c8b878" }: StatBarProps) {
   );
 }
 
-interface PercentBarProps {
+interface ProgressBarProps {
   label: string;
   percent: number;
   color?: string;
 }
 
-function PercentBar({ label, percent, color = "#9ac0ff" }: PercentBarProps) {
-  const safePercent = Math.max(0, Math.min(100, Math.round(safeNumber(percent, 0))));
+function ProgressBar({ label, percent, color = "#9ac0ff" }: ProgressBarProps) {
+  const safePercent = Math.min(100, Math.max(0, clampNumber(percent, 0)));
 
   return (
     <div className="char-bar-container">
       <div className="char-bar-label">
         <span>{label}</span>
-        <span>{safePercent}%</span>
+        <span>{safePercent.toFixed(0)}%</span>
       </div>
 
-      <div className="char-bar-track">
+      <div
+        className="char-bar-track"
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.floor(safePercent)}
+      >
         <div
           className="char-bar-fill"
           style={{
@@ -289,94 +305,68 @@ export function CharacterWindow({
   onClose,
 }: CharacterWindowProps) {
   const snapshot = useCharacterWindow();
-  const [allocatingStat, setAllocatingStat] = useState<CoreStatKey | null>(null);
+  const [allocating, setAllocating] = useState(false);
 
   useEffect(() => {
-    const handleNetworkPacket = (event: Event): void => {
-      const detail = (event as CustomEvent<unknown>).detail;
+    const handleNetworkPacket = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
 
-      if (!isRecord(detail)) return;
-      if (detail.event !== "player_stats_snapshot") return;
+      if (detail?.event !== "player_stats_snapshot") return;
+      if (!detail.payload) return;
 
-      const payload = detail.payload;
-
-      if (!isPlayerStatsSnapshot(payload)) {
-        console.warn("Invalid player_stats_snapshot payload ignored", payload);
-        return;
-      }
-
-      characterWindowStore.receiveSnapshot(payload);
+      characterWindowStore.receiveSnapshot(detail.payload as PlayerStatsSnapshot);
     };
 
     window.addEventListener("wasd:network-packet", handleNetworkPacket);
+
     return () => {
       window.removeEventListener("wasd:network-packet", handleNetworkPacket);
     };
   }, []);
 
-  /**
-   * Clear optimistic pending state once the server sends a fresh snapshot.
-   * No gameplay authority is granted to the client.
-   */
   useEffect(() => {
-    if (snapshot) {
-      setAllocatingStat(null);
-    }
-  }, [snapshot]);
+    if (!allocating) return;
+
+    const timeout = window.setTimeout(() => {
+      setAllocating(false);
+    }, 500);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [allocating]);
 
   const handleAllocate = useCallback(
-    (stat: CoreStatKey): void => {
+    (stat: CoreStatKey) => {
       if (!snapshot) return;
       if (snapshot.unspentStatPoints <= 0) return;
-      if (allocatingStat !== null) return;
-
-      const intent = {
-        intent: "stat_alloc" as const,
-        playerId: snapshot.playerId,
-        stat,
-        tick: getSnapshotTick(snapshot),
-      };
+      if (allocating) return;
 
       window.dispatchEvent(
         new CustomEvent("wasd:client-action", {
           detail: {
             action: "stat_allocation",
-            payload: intent,
+            payload: {
+              intent: "stat_alloc",
+              playerId: snapshot.playerId,
+              stat,
+            },
           },
         })
       );
 
-      setAllocatingStat(stat);
+      setAllocating(true);
     },
-    [snapshot, allocatingStat]
+    [snapshot, allocating]
   );
 
-  const derived = useMemo(() => {
-    const fallbackStats: CoreStats = {
-      strength: 10,
-      agility: 10,
-      intelligence: 10,
-    };
+  if (!isOpen) return null;
 
-    const stats = snapshot?.coreStats ?? fallbackStats;
-    const unspentPoints = Math.max(0, snapshot?.unspentStatPoints ?? 0);
-    const level = Math.max(1, snapshot?.level ?? 1);
-    const totalLevel = Math.max(1, snapshot?.totalLevel ?? level);
-    const averageSkillProgress = snapshot ? getAverageSkillProgress(snapshot) : 0;
-
-    return {
-      stats,
-      unspentPoints,
-      level,
-      totalLevel,
-      averageSkillProgress,
-      canAllocate: Boolean(snapshot && unspentPoints > 0),
-    };
-  }, [snapshot]);
-
-  if (!isOpen) {
-    return null;
-  }
+  const stats = snapshot?.coreStats ?? DEFAULT_CORE_STATS;
+  const unspentPoints = snapshot?.unspentStatPoints ?? 0;
+  const level = snapshot?.level ?? 1;
+  const totalLevel = snapshot?.totalLevel ?? level;
+  const averageSkillProgress = getOverallProgress(snapshot);
 
   return (
     <div className="wow-inventory-overlay" role="dialog" aria-label="Character">
@@ -388,46 +378,40 @@ export function CharacterWindow({
             type="button"
             className="wow-close-btn"
             onClick={onClose}
-            aria-label="Close character window"
+            aria-label="Close"
           >
             ✕
           </button>
         )}
 
-        {derived.unspentPoints > 0 && (
-          <div className="char-unspent-badge">
-            {derived.unspentPoints} Point{derived.unspentPoints === 1 ? "" : "s"}
-          </div>
+        {unspentPoints > 0 && (
+          <div className="char-unspent-badge">{unspentPoints} Points</div>
         )}
       </div>
 
       <div className="char-content">
         <section className="char-section" aria-label="Equipment">
-          <DnDProvider>
-            <EquipmentPanel />
-          </DnDProvider>
+          <EquipmentPanel />
         </section>
 
         <section className="char-section" aria-label="Level">
           <div className="char-level-display">
             <span className="char-level-label">Level</span>
-            <span className="char-level-value">{derived.level}</span>
+            <span className="char-level-value">{level}</span>
           </div>
 
           <div className="char-resource-row">
-            <span className="char-resource-icon">✦</span>
+            <span className="char-resource-icon">⚔️</span>
             <span className="char-resource-value">
-              Total Skill Level {derived.totalLevel}
+              Total Level {totalLevel}
             </span>
           </div>
 
-          {snapshot && (
-            <PercentBar
-              label="Average Skill Progress"
-              percent={derived.averageSkillProgress}
-              color="#9ac0ff"
-            />
-          )}
+          <ProgressBar
+            label="Average Skill Progress"
+            percent={averageSkillProgress}
+            color="#9ac0ff"
+          />
         </section>
 
         <section className="char-section" aria-label="Vitals">
@@ -457,7 +441,7 @@ export function CharacterWindow({
           ) : (
             <div className="char-resource-row">
               <span className="char-resource-icon">⟳</span>
-              <span className="char-resource-value">Waiting for server snapshot</span>
+              <span className="char-resource-value">Waiting for stats...</span>
             </div>
           )}
         </section>
@@ -466,13 +450,13 @@ export function CharacterWindow({
           <h3>Attributes</h3>
 
           <div className="char-stats-grid">
-            {CORE_STATS.map((stat) => (
+            {CORE_STAT_KEYS.map((stat) => (
               <StatDisplay
                 key={stat}
                 stat={stat}
-                value={derived.stats[stat]}
-                canAllocate={derived.canAllocate}
-                disabled={allocatingStat !== null}
+                value={stats[stat]}
+                canAllocate={unspentPoints > 0}
+                disabled={allocating}
                 onAllocate={handleAllocate}
               />
             ))}
@@ -484,14 +468,16 @@ export function CharacterWindow({
 
           <div className="char-resource-row">
             <span className="char-resource-icon">💰</span>
-            <span className="char-resource-value">{snapshot?.gold ?? 0} Gold</span>
+            <span className="char-resource-value">
+              {snapshot?.gold ?? 0} Gold
+            </span>
           </div>
         </section>
       </div>
 
-      {allocatingStat && (
-        <div className="wow-pending-indicator" role="status" aria-live="polite">
-          <span>⟳</span> Allocating {STAT_LABELS[allocatingStat]}...
+      {allocating && (
+        <div className="wow-pending-indicator" aria-live="polite">
+          <span>⟳</span> Allocating...
         </div>
       )}
     </div>
@@ -500,7 +486,7 @@ export function CharacterWindow({
 
 // ─── Mount Function ──────────────────────────────────────────────────────────
 
-const mountedRoots = new Map<Element, Root>();
+let mountedRoot: Root | null = null;
 
 export function mountCharacterWindow(containerId = "character-mount"): void {
   const container = document.getElementById(containerId);
@@ -510,14 +496,16 @@ export function mountCharacterWindow(containerId = "character-mount"): void {
     return;
   }
 
-  const existingRoot = mountedRoots.get(container);
-
-  if (existingRoot) {
-    existingRoot.render(<CharacterWindow />);
-    return;
+  if (!mountedRoot) {
+    mountedRoot = createRoot(container);
   }
 
-  const root = createRoot(container);
-  mountedRoots.set(container, root);
-  root.render(<CharacterWindow />);
-              }
+  mountedRoot.render(<CharacterWindow />);
+}
+
+export function unmountCharacterWindow(): void {
+  if (!mountedRoot) return;
+
+  mountedRoot.unmount();
+  mountedRoot = null;
+                                          }
