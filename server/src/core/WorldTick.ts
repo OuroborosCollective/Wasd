@@ -578,7 +578,7 @@ export class WorldTick {
       resourceCount: 0, // Would come from resource system
       questActiveCount: 0, // Would come from quest system
       chunkHashes: new Map(), // Would come from chunk system
-      economyChecksum: this.economyAdapter.snapshotARE().totalGold.toString(),
+      economyChecksum: this.economyAdapter.snapshotARE().l.toString(),
     });
   }
 
@@ -638,20 +638,21 @@ export class WorldTick {
     
     // Determine health state
     let healState: 'healthy' | 'degraded' | 'healed' | 'quarantined' = 'healthy';
-    if (!autoRepair.ok) healState = 'degraded';
-    if (autoRepair.repaired) healState = 'healed';
+    const lastPlan = autoRepair.lastPlan;
+    if (lastPlan && lastPlan.phase !== 'idle' && lastPlan.phase !== 'healed') healState = 'degraded';
+    if (lastPlan && lastPlan.phase === 'healed') healState = 'healed';
     
     // Calculate anomaly score (0-1)
     const anomalyScore = Math.min(1, (
-      (usage.violationCount > 0 ? 0.3 : 0) +
-      (autoRepair.repairCount > 0 ? 0.2 : 0) +
+      (usage.hashesInWindow > 0 ? 0.3 : 0) +
+      (lastPlan && lastPlan.phase === 'healed' ? 0.2 : 0) +
       (this.lastAREGuardStatus && !this.lastAREGuardStatus.ok ? 0.5 : 0)
     ));
     
     return {
       healState,
       anomalyScore,
-      patchedSubsystems: autoRepair.repaired ? ['determinism', 'guard'] : [],
+      patchedSubsystems: lastPlan && lastPlan.phase === 'healed' ? ['determinism', 'guard'] : [],
     };
   }
 
@@ -690,7 +691,7 @@ export class WorldTick {
     
     // Check divergence guard
     const divSummary = this.areDivergenceGuard.summarize();
-    if (divSummary.totalDivergences > 0) {
+    if (divSummary.status !== 'ok' || divSummary.warn > 0 || divSummary.critical > 0) {
       diverged.push('entity_group');
     }
     

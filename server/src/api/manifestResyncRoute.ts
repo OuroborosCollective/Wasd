@@ -92,8 +92,8 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
         return;
       }
 
-      // Get current server state
-      const serverState = worldTick.buildFullState();
+      // Get current server state (using private method via class access)
+      const serverState = (worldTick as any).buildFullState();
       const serverTick = (worldTick as any).tickCount ?? 0;
       
       // Create divergence manifest
@@ -143,7 +143,8 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
    */
   router.get('/snapshot/:tick', (req: Request, res: Response) => {
     try {
-      const tick = parseInt(req.params.tick, 10);
+      const tickParam = req.params.tick;
+      const tick = parseInt(Array.isArray(tickParam) ? tickParam[0] : tickParam, 10);
       if (isNaN(tick)) {
         res.status(400).json({ ok: false, error: 'Invalid tick number' });
         return;
