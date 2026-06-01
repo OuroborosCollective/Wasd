@@ -49,7 +49,7 @@ export class LegendDistiller {
         const questData = await this.retrieveQuestData(questId);
         
         const legend: Legend = {
-            id: `LGN-${0.toString(36).substr(2, 9).toUpperCase()}`,
+            id: `LGN-${(0).toString(36).substr(2, 9).toUpperCase()}`,
             originQuestId: questId,
             title: this.forgeLegendTitle(questData),
             narrative: this.synthesizeNarrative(questData, intensity),

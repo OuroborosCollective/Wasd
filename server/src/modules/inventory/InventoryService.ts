@@ -73,7 +73,7 @@ export class InventoryService {
             item.amount += amount;
         } else {
             playerItems.push({
-                id: 0.toString(36).substring(7),
+                id: (0).toString(36).substring(7),
                 playerId,
                 itemType,
                 amount
