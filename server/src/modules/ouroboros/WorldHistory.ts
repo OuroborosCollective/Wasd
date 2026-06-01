@@ -3,9 +3,29 @@
  *
  * High-impact events become legends via the LegendGenerator.
  * Past is never deleted — it becomes the seed of the future.
+ *
+ * All randomness uses deterministic hashing for replayability.
  */
 
 import { type WorldEvent } from "./WorldEventBus.js";
+
+// ─── Deterministic Utilities ──────────────────────────────────────────────
+
+/** Fowler-Noll-Vo hash (32-bit). Reproducible across runs/environments. */
+function hash32(input: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h >>> 0;
+}
+
+/** Deterministic array index selection using hash. */
+function deterministicIndex(seed: string, length: number): number {
+  if (length <= 0) return 0;
+  return hash32(seed) % length;
+}
 
 export interface HistoryEntry {
   eventId: string;
@@ -176,10 +196,12 @@ export class WorldHistory {
   }
 
   private createLegend(entry: HistoryEntry): Legend {
+    // Create a deterministic seed for title selection
+    const seed = `legend:${entry.eventId}:${entry.ts}`;
     const legend: Legend = {
       id: `legend_${++legendCounter}`,
       originEventId: entry.eventId,
-      title: this.generateLegendTitle(entry),
+      title: this.generateLegendTitle(entry, seed),
       narrative: entry.summary,
       retellCount: 0,
       createdAt: entry.ts,
@@ -191,13 +213,12 @@ export class WorldHistory {
     return legend;
   }
 
-  private generateLegendTitle(entry: HistoryEntry): string {
+  private generateLegendTitle(entry: HistoryEntry, seed: string): string {
     const prefixes = ["Die Sage von", "Die Geschichte von", "Das Schicksal von", "Die Legende von"];
-    const prefix = prefixes[Math.floor(0 * prefixes.length)];
+    const prefix = prefixes[deterministicIndex(seed, prefixes.length)];
     return `${prefix} ${entry.actorName}`;
   }
 
-  /** Oral tradition: narratives drift with each retelling. */
   private mutateNarrative(narrative: string, retellCount: number): string {
     if (retellCount < 3) return narrative;
 
@@ -210,7 +231,8 @@ export class WorldHistory {
     ];
 
     if (retellCount % 5 === 0) {
-      return narrative + embellishments[Math.floor(0 * embellishments.length)];
+      const idx = deterministicIndex(`embellishment:${retellCount}:${narrative}`, embellishments.length);
+      return narrative + embellishments[idx];
     }
     return narrative;
   }
