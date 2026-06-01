@@ -1,0 +1,133 @@
+/**
+ * Ouroboros EquipmentPanel CSS — Paper-Doll Layout
+ * Panzerschrank brutalist design with silhouette placeholders.
+ */
+
+.equipment-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(180deg, #0a0d12 0%, #060810 100%);
+  border: 2px solid rgba(180, 160, 100, 0.3);
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #6a7080;
+  text-align: center;
+}
+
+.paper-doll {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(80, 90, 110, 0.2);
+}
+
+.slot-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.slot-spacer { width: 48px; height: 48px; flex-shrink: 0; }
+.head-row { margin-bottom: 8px; }
+.chest-row { margin-bottom: 4px; }
+.weapons-row { margin-bottom: 4px; }
+.rings-row { margin-bottom: 4px; }
+.boots-row { margin-bottom: 8px; }
+
+.equip-slot {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 20, 28, 0.95);
+  border: 2px solid rgba(80, 90, 110, 0.3);
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, box-shadow 0.1s;
+  touch-action: none;
+  user-select: none;
+}
+
+.equip-slot.empty { background: rgba(10, 15, 20, 0.6); }
+.equip-slot.empty .equip-slot-silhouette { opacity: 0.25; font-size: 1.4rem; }
+.equip-slot-silhouette { position: absolute; font-size: 1.2rem; color: #4a5a6a; pointer-events: none; }
+.equip-slot.has-item:hover { background: rgba(30, 40, 55, 0.95); border-color: rgba(120, 135, 160, 0.5); }
+.equip-slot.has-item:active { transform: scale(0.95); }
+
+/* Rarity Borders */
+.equip-slot.rarity-common { border-color: rgba(157, 157, 157, 0.5); }
+.equip-slot.rarity-uncommon { border-color: rgba(30, 255, 0, 0.5); box-shadow: inset 0 0 8px rgba(30, 255, 0, 0.1); }
+.equip-slot.rarity-rare { border-color: rgba(0, 112, 221, 0.6); box-shadow: inset 0 0 10px rgba(0, 112, 221, 0.15); }
+.equip-slot.rarity-epic { border-color: rgba(163, 53, 238, 0.65); box-shadow: inset 0 0 12px rgba(163, 53, 238, 0.18); }
+.equip-slot.rarity-legendary { border-color: rgba(255, 128, 0, 0.7); box-shadow: inset 0 0 14px rgba(255, 128, 0, 0.2); }
+.equip-slot.rarity-mystic { border-color: rgba(0, 204, 255, 0.7); box-shadow: inset 0 0 12px rgba(0, 204, 255, 0.18); }
+
+/* Drop Target States */
+.equip-slot.drop-target { border-color: rgba(0, 200, 255, 0.8); box-shadow: 0 0 16px rgba(0, 200, 255, 0.5), inset 0 0 12px rgba(0, 200, 255, 0.2); animation: drop-pulse 0.8s ease-in-out infinite; }
+.equip-slot.can-drop { border-color: rgba(30, 255, 0, 0.8); box-shadow: 0 0 16px rgba(30, 255, 0, 0.5), inset 0 0 12px rgba(30, 255, 0, 0.2); }
+.equip-slot:not(.can-drop).drop-target { border-color: rgba(255, 60, 60, 0.8); box-shadow: 0 0 16px rgba(255, 60, 60, 0.5); }
+
+@keyframes drop-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 16px rgba(0, 200, 255, 0.5); }
+  50% { transform: scale(1.02); box-shadow: 0 0 24px rgba(0, 200, 255, 0.7); }
+}
+
+.drop-indicator { position: absolute; inset: 0; border: 3px dashed rgba(0, 200, 255, 0.8); pointer-events: none; animation: drop-indicator-blink 0.5s ease-in-out infinite; }
+@keyframes drop-indicator-blink { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+/* Blocked State */
+.equip-slot.blocked { opacity: 0.45; cursor: wait; pointer-events: none; background: rgba(60, 30, 10, 0.6); border-color: rgba(200, 100, 40, 0.4); }
+.slot-blocked-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 1rem; color: #d08040; animation: spin 1s linear infinite; }
+
+/* Item Display */
+.equip-slot-icon { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.slot-icon-text { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.04em; color: #c8d0dc; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+/* Glow Effect */
+.equip-slot.has-glow { animation: glow-pulse 2.5s ease-in-out infinite; }
+.slot-glow-effect { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at center, rgba(255, 128, 0, 0.2) 0%, transparent 70%); animation: glow-inner 2.5s ease-in-out infinite; }
+.equip-slot.rarity-mystic .slot-glow-effect { background: radial-gradient(circle at center, rgba(0, 204, 255, 0.2) 0%, transparent 70%); }
+
+@keyframes glow-pulse { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
+@keyframes glow-inner { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* Drag Ghost */
+.dnd-ghost {
+  position: fixed;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 15, 25, 0.95);
+  border: 3px solid;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.9;
+  transform: translate(-50%, -50%) rotate(-5deg);
+}
+
+.dnd-ghost-text { font-size: 0.7rem; font-weight: 800; color: #c8d0dc; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+/* Mobile Responsive */
+@media (max-width: 400px) {
+  .equip-slot { width: 44px; height: 44px; }
+  .slot-spacer { width: 44px; height: 44px; }
+  .equip-slot-silhouette { font-size: 1.1rem; }
+  .slot-icon-text { font-size: 0.65rem; }
+}
