@@ -220,7 +220,7 @@ export class EvolutionSystem {
         // Check if this was a destination - might need to disperse
         // We sort heat values by key to maintain deterministic directive order
         const sortedHeatValues = Array.from(this.travelHeat.entries())
-          .sort(([a], [b]) => a.localeCompare(b))
+          .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
           .map(([, v]) => v);
 
         for (const corridor of sortedHeatValues) {
