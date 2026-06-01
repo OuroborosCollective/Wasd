@@ -9,14 +9,4 @@ packages:
   - "server"
   - "backend"
 
-# pnpm v11: allow build scripts for native modules
-onlyBuiltDependencies:
-  - "@firebase/util"
-  - "@google/genai"
-  - "@nestjs/core"
-  - "@prisma/engines"
-  - "cpu-features"
-  - "esbuild"
-  - "prisma"
-  - "protobufjs"
-  - "ssh2"
+# Note: onlyBuiltDependencies is now set in .npmrc
