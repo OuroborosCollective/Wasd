@@ -238,15 +238,22 @@ jobs:
             ARCHIVE_SIZE=$(stat -c%s "$ARCHIVE" 2>/dev/null || echo "0")
             echo "Archive size: $ARCHIVE_SIZE bytes, files: $(find "$OUT" -type f | wc -l)"
             ls -lh "$ARCHIVE"
+            
+            # Copy to web-accessible location for download via curl
+            mkdir -p /opt/areloria/.workflow-exports
+            cp "$ARCHIVE" "/opt/areloria/.workflow-exports/$EXPORT_NAME.tar.gz"
+            echo "Copied archive to web-accessible location"
 
       - name: Download export archive
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: /tmp/${{ env.EXPORT_NAME }}.tar.gz
-          target: ./tmp
+        run: |
+          set -euo pipefail
+          echo "Downloading archive from VPS..."
+          # Use curl to download the archive
+          curl -k --max-time 120 -o "./tmp/${{ env.EXPORT_NAME }}.tar.gz" \
+            "https://arelorian.de/.workflow-exports/${{ env.EXPORT_NAME }}.tar.gz" \
+            2>&1 || { echo "Download failed"; ls -la ./tmp/ 2>/dev/null; exit 1; }
+          echo "Download complete"
+          ls -lh "./tmp/${{ env.EXPORT_NAME }}.tar.gz"
 
       - name: Extract and display ARE Shadow log summary
         run: |
@@ -295,16 +302,8 @@ jobs:
 
       - name: Cleanup remote artifacts
         if: always()
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          EXPORT_NAME: ${{ env.EXPORT_NAME }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          envs: EXPORT_NAME
-          script: |
-            rm -rf "/tmp/${EXPORT_NAME}" "/tmp/${EXPORT_NAME}.tar.gz" || true
+        run: |
+          echo "Cleanup note: .workflow-exports directory will be cleaned up on next run"
 
   generate-report:
     name: Generate ARE Shadow Report
