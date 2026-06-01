@@ -8,6 +8,7 @@ import { TradeRoutes } from "../modules/economy/TradeRoutes.js";
 import { TaxLedger } from "../modules/economy/TaxLedger.js";
 import { MarketOrders } from "../modules/economy/MarketOrders.js";
 import { MarketLedger } from "../modules/economy/MarketLedger.js";
+import { FixedAREClock } from "../core/determinism/AREDeterminism.js";
 import { NPCTradeAI } from "../modules/economy/NPCTradeAI.js";
 
 // ---------------------------------------------------------------------------
@@ -276,8 +277,10 @@ describe("TradeRoutes", () => {
 // ---------------------------------------------------------------------------
 describe("TaxLedger", () => {
   let ledger: TaxLedger;
+  const mockNow = 1715000000;
+  const clock = new FixedAREClock(mockNow);
 
-  beforeEach(() => { ledger = new TaxLedger(); });
+  beforeEach(() => { ledger = new TaxLedger(clock); });
 
   it("all() returns empty array initially", () => {
     expect(ledger.all()).toHaveLength(0);
@@ -295,12 +298,9 @@ describe("TaxLedger", () => {
     expect(entry.source).toBe("trade");
   });
 
-  it("record() attaches a createdAt timestamp", () => {
-    const before = Date.now();
+  it("record() attaches a createdAt timestamp from AREClock", () => {
     const entry = ledger.record("city1", 100, "market");
-    const after = Date.now();
-    expect(entry.createdAt).toBeGreaterThanOrEqual(before);
-    expect(entry.createdAt).toBeLessThanOrEqual(after);
+    expect(entry.createdAt).toBe(mockNow);
   });
 
   it("multiple records accumulate in order", () => {
@@ -318,8 +318,10 @@ describe("TaxLedger", () => {
 // ---------------------------------------------------------------------------
 describe("MarketOrders", () => {
   let orders: MarketOrders;
+  const mockNow = 1715000000;
+  const clock = new FixedAREClock(mockNow);
 
-  beforeEach(() => { orders = new MarketOrders(); });
+  beforeEach(() => { orders = new MarketOrders(clock); });
 
   it("list() returns empty array initially", () => {
     expect(orders.list()).toHaveLength(0);
@@ -336,13 +338,10 @@ describe("MarketOrders", () => {
     expect(orders.list()).toHaveLength(1);
   });
 
-  it("list() entries include a createdAt timestamp", () => {
-    const before = Date.now();
+  it("list() entries include a createdAt timestamp from AREClock", () => {
     orders.place({ item: "gold" });
-    const after = Date.now();
     const entry = orders.list()[0];
-    expect(entry.createdAt).toBeGreaterThanOrEqual(before);
-    expect(entry.createdAt).toBeLessThanOrEqual(after);
+    expect(entry.createdAt).toBe(mockNow);
   });
 
   it("multiple orders accumulate", () => {
@@ -358,8 +357,10 @@ describe("MarketOrders", () => {
 // ---------------------------------------------------------------------------
 describe("MarketLedger", () => {
   let ledger: MarketLedger;
+  const mockNow = 1715000000;
+  const clock = new FixedAREClock(mockNow);
 
-  beforeEach(() => { ledger = new MarketLedger(); });
+  beforeEach(() => { ledger = new MarketLedger(clock); });
 
   it("all() returns empty array initially", () => {
     expect(ledger.all()).toHaveLength(0);
@@ -376,13 +377,10 @@ describe("MarketLedger", () => {
     expect(ledger.all()[0].price).toBe(10);
   });
 
-  it("record() attaches a timestamp field", () => {
-    const before = Date.now();
+  it("record() attaches a timestamp field from AREClock", () => {
     ledger.record({ item: "stone" });
-    const after = Date.now();
     const entry = ledger.all()[0];
-    expect(entry.timestamp).toBeGreaterThanOrEqual(before);
-    expect(entry.timestamp).toBeLessThanOrEqual(after);
+    expect(entry.timestamp).toBe(mockNow);
   });
 
   it("multiple records accumulate", () => {

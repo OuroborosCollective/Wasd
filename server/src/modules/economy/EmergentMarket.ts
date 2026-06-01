@@ -1,4 +1,5 @@
-// @ARE-GUARD-EXEMPT: Market history telemetry only; timestamps are not world-state inputs.
+import { type AREClock, SystemAREClock } from "../../core/determinism/AREDeterminism.js";
+
 export interface MarketHistoryEntry {
     resourceId: string;
     supply: number;
@@ -24,7 +25,8 @@ export class EmergentMarket {
         public readonly id: string,
         private currentSupply: Map<string, number> = new Map(),
         private currentDemand: Map<string, number> = new Map(),
-        private currentPrices: Map<string, number> = new Map()
+        private currentPrices: Map<string, number> = new Map(),
+        private readonly clock: AREClock = new SystemAREClock()
     ) {}
 
     public on(event: string, callback: Function) {
@@ -55,7 +57,7 @@ export class EmergentMarket {
             supply: this.currentSupply.get(resourceId) || 0,
             demand: this.currentDemand.get(resourceId) || 0,
             price: this.currentPrices.get(resourceId) || 0,
-            timestamp: Date.now()
+            timestamp: this.clock.now()
         };
 
         this.history.push(entry);
