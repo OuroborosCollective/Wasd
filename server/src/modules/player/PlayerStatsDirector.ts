@@ -7,15 +7,42 @@
  * - Broadcasts player_stats_snapshot to individual clients via WebSocket
  * - Client NEVER calculates XP or levels locally
  * 
- * RUNEscape XP System:
- * - XP formula: 50 * level^1.4 (server-side only)
- * - Levels 1-99
- * - Skills tracked: sword_mastery, blunt_force, archery, heavy_armor, evasion, etc.
+ * UNLIMITED SCALING SYSTEM:
+ * - No level cap - players can level infinitely
+ * - Every level grants +5 unspent stat points
+ * - Overcap crafting: when crafting chance > 100%, excess becomes multi-yield chance
+ * - Formula: yield = floor(totalChance / 100), bonusChance = totalChance % 100
+ * 
+ * CORE STATS:
+ * - STR (Strength): Physical damage, carry weight
+ * - AGI (Agility): Attack speed, dodge chance
+ * - INT (Intelligence): Mana pool, craft quality bonus
+ * 
+ * Stat Allocation Intent Flow:
+ * 1. Client sends stat_allocation intent with target stat
+ * 2. Server validates unspentStatPoints > 0
+ * 3. Server deterministically applies stat increase
+ * 4. Broadcast updated snapshot to client
  */
 
-import { combatDirector, type XPGainEvent } from "../combat/CombatDirector.js";
+import { type XPGainEvent } from "../combat/CombatDirector.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+export type CoreStatKey = 'strength' | 'agility' | 'intelligence';
+
+export interface CoreStats {
+  strength: number;
+  agility: number;
+  intelligence: number;
+}
+
+export interface StatAllocationIntent {
+  intent: 'stat_alloc';
+  playerId: string;
+  stat: CoreStatKey;
+  tick: number;
+}
 
 export interface SkillSnapshot {
   xp: number;
@@ -27,6 +54,8 @@ export interface SkillSnapshot {
 export interface PlayerStatsSnapshot {
   playerId: string;
   skills: Record<string, SkillSnapshot>;
+  coreStats: CoreStats;
+  unspentStatPoints: number;
   totalLevel: number;
   hp: number;
   maxHp: number;
@@ -40,10 +69,11 @@ export interface PlayerStatsSnapshot {
 
 // ─── XP Constants ─────────────────────────────────────────────────────────────
 
-const MAX_LEVEL = 99;
+const UNLIMITED_MAX_LEVEL = 999999; // No cap
+const STAT_POINTS_PER_LEVEL = 5;   // +5 stat points per level
 
 /**
- * RuneScape-style XP curve.
+ * RuneScape-style XP curve (for skill levels).
  * XP needed for level L+1 = floor(50 * (L+1)^1.4)
  */
 export function xpForLevel(level: number): number {
@@ -63,12 +93,12 @@ export function totalXpForLevel(level: number): number {
 }
 
 /**
- * Calculate level from total XP.
+ * Calculate level from total XP (unlimited).
  */
 export function levelFromXp(totalXp: number): number {
   let level = 1;
   let xpRemaining = totalXp;
-  while (level < MAX_LEVEL && xpRemaining >= xpForLevel(level)) {
+  while (xpRemaining >= xpForLevel(level)) {
     xpRemaining -= xpForLevel(level);
     level++;
   }
@@ -78,8 +108,12 @@ export function levelFromXp(totalXp: number): number {
 // ─── PlayerStatsDirector ──────────────────────────────────────────────────────
 
 export class PlayerStatsDirector {
+
   // Per-player skill state: playerId → skills map
   private playerSkills: Map<string, Record<string, { xp: number; level: number }>> = new Map();
+  
+  // Per-player core stats: playerId → core stats + unspent points
+  private playerCoreStats: Map<string, { stats: CoreStats; unspentPoints: number }> = new Map();
   
   // WebSocket broadcast function (set by integration)
   private broadcastToPlayer: ((playerId: string, event: string, payload: PlayerStatsSnapshot) => void) | null = null;
@@ -153,8 +187,8 @@ export class PlayerStatsDirector {
     
     skill.xp += amount;
     
-    // Level up while possible (compare against cumulative total thresholds)
-    while (skill.level < MAX_LEVEL && skill.xp >= totalXpForLevel(skill.level + 1)) {
+    // Level up while possible (unlimited cap)
+    while (skill.xp >= totalXpForLevel(skill.level + 1)) {
       skill.level++;
     }
     
@@ -162,6 +196,68 @@ export class PlayerStatsDirector {
       leveledUp: skill.level > oldLevel,
       newLevel: skill.level,
     };
+  }
+  
+  /**
+   * Get or create core stats for a player.
+   */
+  public getOrCreateCoreStats(playerId: string): { stats: CoreStats; unspentPoints: number } {
+    if (!this.playerCoreStats.has(playerId)) {
+      this.playerCoreStats.set(playerId, {
+        stats: { strength: 10, agility: 10, intelligence: 10 },
+        unspentPoints: 0,
+      });
+    }
+    return this.playerCoreStats.get(playerId)!;
+  }
+  
+  /**
+   * Handle stat allocation intent from client.
+   * Deterministic: Same inputs always produce same outputs.
+   */
+  public handleStatAllocation(intent: StatAllocationIntent): { success: boolean; reason?: string } {
+    const { playerId, stat, tick } = intent;
+    
+    // Validate stat key
+    if (!['strength', 'agility', 'intelligence'].includes(stat)) {
+      return { success: false, reason: 'INVALID_STAT' };
+    }
+    
+    // Get or create player core stats
+    const playerStats = this.getOrCreateCoreStats(playerId);
+    
+    // Check for unspent points
+    if (playerStats.unspentPoints <= 0) {
+      return { success: false, reason: 'NO_UNSPENT_POINTS' };
+    }
+    
+    // Deterministically apply stat increase
+    playerStats.stats[stat as CoreStatKey] += 1;
+    playerStats.unspentPoints -= 1;
+    
+    return { success: true };
+  }
+  
+  /**
+   * Add unspent stat points (called on level up).
+   */
+  public awardStatPoints(playerId: string, amount: number = STAT_POINTS_PER_LEVEL): void {
+    const playerStats = this.getOrCreateCoreStats(playerId);
+    playerStats.unspentPoints += amount;
+  }
+  
+  /**
+   * Get core stats for a player.
+   */
+  public getCoreStats(playerId: string): CoreStats {
+    return this.getOrCreateCoreStats(playerId).stats;
+  }
+  
+  /**
+   * Get unspent stat points for a player.
+   */
+  public getUnspentPoints(playerId: string): number {
+    return this.getOrCreateCoreStats(playerId).unspentPoints;
   }
   
   /**
@@ -210,6 +306,7 @@ export class PlayerStatsDirector {
    */
   public getFullSnapshot(playerId: string, playerState: any): PlayerStatsSnapshot {
     const skills = this.getOrCreateSkills(playerId);
+    const coreStatsData = this.getOrCreateCoreStats(playerId);
     const skillSnapshots: Record<string, SkillSnapshot> = {};
     
     let totalLevel = 0;
@@ -231,6 +328,8 @@ export class PlayerStatsDirector {
     return {
       playerId,
       skills: skillSnapshots,
+      coreStats: coreStatsData.stats,
+      unspentStatPoints: coreStatsData.unspentPoints,
       totalLevel,
       hp: playerState?.health ?? 0,
       maxHp: playerState?.maxHealth ?? 100,

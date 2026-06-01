@@ -1,0 +1,518 @@
+/**
+ * Ouroboros Windows CSS — WoW-Style Brutalist Design
+ * 
+ * Panzerschrank aesthetic: Dark, eckig, no border-radius
+ * Absolute Informationsdichte
+ */
+
+/* ─── Character Window Styles ─────────────────────────────────────────────── */
+
+.char-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.char-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.char-section h3 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #6a7080;
+}
+
+.char-unspent-badge {
+  padding: 4px 10px;
+  background: rgba(255, 204, 0, 0.2);
+  border: 1px solid rgba(255, 204, 0, 0.5);
+  color: #ffcc00;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.char-level-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(20, 25, 35, 0.9);
+  border: 2px solid rgba(180, 160, 100, 0.4);
+}
+
+.char-level-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #6a7080;
+}
+
+.char-level-value {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #e8dcc4;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.char-bar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.char-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: #8a9ab0;
+  letter-spacing: 0.05em;
+}
+
+.char-bar-track {
+  height: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(80, 90, 110, 0.4);
+}
+
+.char-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.char-stats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.char-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(20, 25, 35, 0.9);
+  border: 1px solid rgba(80, 90, 110, 0.3);
+}
+
+.char-stat-label {
+  flex: 0 0 40px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #6a7080;
+  letter-spacing: 0.1em;
+}
+
+.char-stat-value {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #c8d0dc;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.char-stat-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 255, 0, 0.15);
+  border: 2px solid rgba(30, 255, 0, 0.5);
+  color: #1eff00;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.char-stat-btn:hover {
+  background: rgba(30, 255, 0, 0.3);
+  box-shadow: 0 0 8px rgba(30, 255, 0, 0.4);
+}
+
+.char-stat-btn:active {
+  transform: scale(0.95);
+}
+
+.char-resource-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(20, 25, 35, 0.9);
+  border: 1px solid rgba(80, 90, 110, 0.3);
+}
+
+.char-resource-icon {
+  font-size: 1.2rem;
+}
+
+.char-resource-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffcc00;
+  letter-spacing: 0.05em;
+}
+
+/* ─── Skill Window Styles ─────────────────────────────────────────────────── */
+
+.skill-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.skill-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skill-section h3 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #6a7080;
+}
+
+.skill-total-level {
+  padding: 4px 10px;
+  background: rgba(0, 112, 221, 0.2);
+  border: 1px solid rgba(0, 112, 221, 0.5);
+  color: #0070dd;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.skill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skill-row {
+  display: grid;
+  grid-template-columns: 36px 1fr auto 80px 60px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(20, 25, 35, 0.9);
+  border: 1px solid rgba(80, 90, 110, 0.3);
+}
+
+.skill-icon {
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+.skill-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.skill-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #c8d0dc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.skill-bonus {
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.skill-level-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.skill-level {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #e8dcc4;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.skill-overcap-badge {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #ff8000;
+  background: rgba(255, 128, 0, 0.2);
+  padding: 1px 4px;
+}
+
+.skill-progress-track {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(60, 70, 85, 0.3);
+}
+
+.skill-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0070dd 0%, #00a0ff 100%);
+  transition: width 0.3s ease;
+}
+
+.skill-xp {
+  font-size: 0.68rem;
+  color: #6a7a8a;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  text-align: right;
+}
+
+.skill-info-section {
+  padding: 12px;
+  background: rgba(10, 15, 20, 0.8);
+  border: 1px solid rgba(0, 112, 221, 0.3);
+}
+
+.skill-overcap-explanation {
+  font-size: 0.75rem;
+  color: #8a9ab0;
+  line-height: 1.5;
+}
+
+.skill-overcap-explanation p {
+  margin: 0 0 8px 0;
+  color: #a0b0c0;
+}
+
+.skill-overcap-explanation ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.skill-overcap-explanation li {
+  margin-bottom: 4px;
+}
+
+/* ─── Guild Window Styles ─────────────────────────────────────────────────── */
+
+.guild-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  width: 100%;
+  max-width: 440px;
+}
+
+.guild-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.guild-section h3 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #6a7080;
+}
+
+.guild-header-section {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(20, 25, 35, 0.95) 0%, rgba(15, 20, 28, 0.95) 100%);
+  border: 2px solid rgba(180, 160, 100, 0.4);
+}
+
+.guild-emblem {
+  font-size: 2.5rem;
+}
+
+.guild-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.guild-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #e8dcc4;
+  letter-spacing: 0.05em;
+}
+
+.guild-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: #6a7080;
+}
+
+.guild-separator {
+  color: #4a5a6a;
+}
+
+.guild-total-contribution {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.guild-contrib-label {
+  font-size: 0.65rem;
+  color: #6a7080;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.guild-contrib-value {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #ffcc00;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.guild-member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.guild-member-row {
+  display: grid;
+  grid-template-columns: 12px 1fr 50px 80px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(20, 25, 35, 0.9);
+  border: 1px solid rgba(80, 90, 110, 0.3);
+}
+
+.guild-member-status {
+  width: 10px;
+  height: 10px;
+}
+
+.guild-member-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.guild-member-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.guild-member-rank {
+  font-size: 0.65rem;
+  color: #6a7080;
+}
+
+.guild-member-level {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #8a9ab0;
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.guild-member-contribution {
+  font-size: 0.72rem;
+  color: #9d9d9d;
+  text-align: right;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.guild-empty-state {
+  padding: 20px;
+  text-align: center;
+  font-size: 0.82rem;
+  color: #6a7080;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.guild-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.guild-action-btn {
+  padding: 10px 12px;
+  background: rgba(40, 50, 65, 0.8);
+  border: 1px solid rgba(100, 110, 130, 0.4);
+  color: #8a9ab0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.05em;
+}
+
+.guild-action-btn:hover:not(:disabled) {
+  background: rgba(60, 75, 95, 0.9);
+  border-color: rgba(140, 150, 170, 0.5);
+  color: #c8d0dc;
+}
+
+.guild-action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Mobile Responsive ────────────────────────────────────────────────────── */
+
+@media (max-width: 500px) {
+  .skill-row {
+    grid-template-columns: 32px 1fr 40px 60px 50px;
+    gap: 6px;
+    padding: 8px;
+  }
+  
+  .guild-header-section {
+    flex-wrap: wrap;
+  }
+  
+  .guild-total-contribution {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(80, 90, 110, 0.2);
+  }
+}
