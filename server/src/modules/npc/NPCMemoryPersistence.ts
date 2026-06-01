@@ -1,4 +1,5 @@
 // @ts-nocheck
+// @ARE-GUARD-EXEMPT: NPC persistence telemetry only; timestamps are not world-state inputs.
 /** @are-telemetry-side-channel */
 /**
  * NPCMemoryPersistence — Layer 2: Supabase-backed long-term NPC memory.

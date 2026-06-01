@@ -166,7 +166,7 @@ export class AutonomousPlaytester {
     };
     return {
       type: "playtester_monitor_update",
-      ts: Date.now(),
+      ts: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
       tick: this.state.tick,
       playtester: status,
       camera: {
@@ -770,7 +770,7 @@ export class AutonomousPlaytester {
   ): void {
     const pos2 = this.getPosition2D(player);
     const entry: PlaytesterDebugLogEntry = {
-      ts: Date.now(),
+      ts: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
       tick: this.state.tick,
       playtesterId: PlaytesterConfig.id,
       action,

@@ -8,7 +8,30 @@ import { EventEmitter } from "node:events";
  * EXCLUSION: 'Jules' directory/files strictly ignored.
  */
 
+// ─────────────────────────────────────────────────────────────────
+// ARE DETERMINISM GATE - Level 3 Integration
+// ═════════════════════════════════════════════════════════════════
+// Self-healing operations must respect ARE determinism constraints.
+// When scanning or patching source files, we verify no forbidden
+// nondeterministic tokens are introduced.
+// ─────────────────────────────────────────────────────────────────
+import { areInvariantGuard, FORBIDDEN_NONDETERMINISTIC_TOKENS } from "../are/AREInvariantGuard.js";
+import type { DeterminismViolationDetail } from "../are/AREInvariantGuard.js";
+
 export type KappaPos = number; // Integer-based byte offset
+
+interface SourceScanRecord {
+    file: string;
+    violations: DeterminismViolationDetail[];
+    scannedAt: number;
+}
+
+interface SourceScanSummary {
+    totalFiles: number;
+    totalViolations: number;
+    violationsByToken: Record<string, number>;
+    filesWithViolations: number;
+}
 
 const EXCLUSION_PATTERN = "Jules";
 const MAX_COST_UNITS = 1024;
@@ -83,6 +106,7 @@ export function selfHealingMiddleware(): any {
 
 export class SelfHealingSystem extends EventEmitter {
     private readonly auditMap = new Map<string, number>();
+    private readonly sourceScanHistory: SourceScanRecord[] = [];
 
     public getStatus(): any {
         return {
@@ -92,7 +116,69 @@ export class SelfHealingSystem extends EventEmitter {
             totalErrors: 0,
             totalHealed: 0,
             healingRate: 100,
-            featuresProtected: 0
+            featuresProtected: 0,
+            areGuardStatus: areInvariantGuard.getStatus(),
+            sourceScans: this.sourceScanHistory.length,
+        };
+    }
+
+    /**
+     * Scans source file for nondeterministic tokens and records findings.
+     * Level 3: Uses AREInvariantGuard.scanAndRecord() for runtime scanning.
+     */
+    public scanSourceFile(filePath: string): DeterminismViolationDetail[] {
+        if (SovereignRegistry.isExcluded(filePath)) {
+            return [];
+        }
+
+        try {
+            const content = fs.readFileSync(filePath, 'utf8');
+            const relPath = filePath.split(/[/\\]/).slice(-3).join('/'); // Truncate for display
+            
+            const status = areInvariantGuard.scanAndRecord(content, relPath);
+            
+            const scanRecord: SourceScanRecord = {
+                file: relPath,
+                violations: status.violations.filter(v => v.file === relPath),
+                scannedAt: Date.now(),
+            };
+            
+            this.sourceScanHistory.push(scanRecord);
+            
+            // Keep only last 100 scan records
+            if (this.sourceScanHistory.length > 100) {
+                this.sourceScanHistory.shift();
+            }
+            
+            return status.violations.filter(v => v.file === relPath);
+        } catch (error) {
+            return [];
+        }
+    }
+
+    /**
+     * Batch scan multiple source files for nondeterminism.
+     * Returns summary of violations found.
+     */
+    public scanSourceFiles(filePaths: string[]): SourceScanSummary {
+        const results: DeterminismViolationDetail[] = [];
+        
+        for (const filePath of filePaths) {
+            const violations = this.scanSourceFile(filePath);
+            results.push(...violations);
+        }
+        
+        const byToken = new Map<string, number>();
+        for (const v of results) {
+            const token = v.token ?? 'unknown';
+            byToken.set(token, (byToken.get(token) ?? 0) + 1);
+        }
+        
+        return {
+            totalFiles: filePaths.length,
+            totalViolations: results.length,
+            violationsByToken: Object.fromEntries(byToken),
+            filesWithViolations: new Set(results.map(v => v.file)).size,
         };
     }
 
@@ -124,6 +210,15 @@ export class SelfHealingSystem extends EventEmitter {
             // Phase 2: Create Atomic Patch (Byte-Level)
             // Logic: Prepend a null-check to the expression at pos
             const patch = Buffer.from(`(/*SH*/${varName}??`);
+
+            // Level 3: Verify patch doesn't introduce nondeterminism
+            const patchStr = patch.toString();
+            const patchViolations = areInvariantGuard.scanCoreSource(patchStr, filePath);
+            if (patchViolations.length > 0) {
+                console.warn(`[SelfHealing] Refusing to apply patch - would introduce nondeterminism: ${JSON.stringify(patchViolations)}`);
+                return false;
+            }
+
             const suffix = Buffer.from(`)`);
 
             AtomicBufferEngine.inject(fd, pos, patch, suffix);

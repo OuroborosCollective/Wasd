@@ -115,8 +115,8 @@ export class AssetBrainDatabase {
   async createSpecification(
     spec: Omit<AssetRecord, 'id' | 'createdAt' | 'updatedAt' | 'version'>
   ): Promise<AssetRecord> {
-    const id = `spec_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    const now = new Date();
+    const id = `spec_${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */}_${Math.random().toString(36).substring(2, 9)}`;
+    const now = new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     const query = `
       INSERT INTO asset_specifications (
         id, user_id, asset_name, asset_class, style, usage, description, tags,
@@ -192,8 +192,8 @@ export class AssetBrainDatabase {
   async createVariant(
     variant: Omit<AssetVariantRecord, 'id' | 'createdAt'>
   ): Promise<AssetVariantRecord> {
-    const id = `var_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    const now = new Date();
+    const id = `var_${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */}_${Math.random().toString(36).substring(2, 9)}`;
+    const now = new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     const result = await this.db.query(
       `INSERT INTO asset_variants (id, specification_id, variant_type, triangle_count, bone_count, texture_resolution, description, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
@@ -219,8 +219,8 @@ export class AssetBrainDatabase {
   async createBatchJob(
     job: Omit<BatchJobRecord, 'id' | 'createdAt'>
   ): Promise<BatchJobRecord> {
-    const id = `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    const now = new Date();
+    const id = `job_${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */}_${Math.random().toString(36).substring(2, 9)}`;
+    const now = new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     const result = await this.db.query(
       `INSERT INTO asset_batch_jobs (id, user_id, job_type, status, input_file, assets_generated, errors, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,

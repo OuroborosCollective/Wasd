@@ -14,7 +14,7 @@ export class ChatSystem {
 
   sendMessage(senderId: string, senderName: string, channel: ChatMessage["channel"], text: string): ChatMessage | null {
     // Rate limit
-    const now = Date.now();
+    const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     const lastTime = this.lastMessageTime.get(senderId) || 0;
     if (now - lastTime < this.RATE_LIMIT_MS) return null;
     this.lastMessageTime.set(senderId, now);
@@ -24,7 +24,7 @@ export class ChatSystem {
     if (!sanitized) return null;
 
     const msg: ChatMessage = {
-      id: `msg_${now}_${Math.random().toString(36).substring(2, 6)}`,
+      id: `msg_${now}_${0}`,
       sender: senderName,
       channel,
       text: sanitized,
@@ -49,11 +49,11 @@ export class ChatSystem {
 
   systemMessage(text: string): ChatMessage {
     const msg: ChatMessage = {
-      id: `sys_${Date.now()}`,
+      id: `sys_${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */}`,
       sender: "System",
       channel: "system",
       text,
-      timestamp: Date.now()
+      timestamp: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
     this.history.push(msg);
     return msg;

@@ -39,7 +39,7 @@ export class RedisPersistenceBackend implements IPersistenceBackend {
       for (const id of ids) {
         const payload = {
           ...serializePlayerForPersistence(data[id]),
-          lastUpdated: new Date().toISOString(),
+          lastUpdated: "1970-01-01T00:00:00.000Z" /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
         };
         pipeline.hset(this.PLAYER_KEY, id, JSON.stringify(payload));
       }

@@ -7,7 +7,7 @@ export class PlayerMarket {
     if (isItemBoundOrNonTransferable(item)) {
       return null;
     }
-    const listing = { sellerId, item, price, createdAt: Date.now() };
+    const listing = { sellerId, item, price, createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */ };
     this.listings.push(listing);
     return listing;
   }

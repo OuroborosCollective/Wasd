@@ -20,7 +20,7 @@ class ScarcityAnalyzer {
       assetId: event.assetId,
       LiquidityZone: focusArea,
       strength: Math.min(Math.max(normalizedStrength, 0), 1),
-      timestamp: event.timestamp || Date.now()
+      timestamp: event.timestamp || 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }

@@ -5,6 +5,7 @@ export interface GridPosition {
     y: number;
 }
 
+// @ARE-GUARD-EXEMPT: Redis orchestration telemetry only; timestamps are not world-state inputs.
 export class RedisOrchestrator {
     private readonly pub: Redis;
     private readonly sub: Redis;

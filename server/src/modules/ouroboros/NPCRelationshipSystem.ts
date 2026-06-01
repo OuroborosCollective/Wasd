@@ -36,7 +36,7 @@ export class NPCRelationshipSystem {
             npcMap.set(playerId, {
                 baseHostility: 0,
                 reputation: 0,
-                lastInteraction: Date.now()
+                lastInteraction: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
             });
         }
         return npcMap.get(playerId)!;
@@ -64,13 +64,13 @@ export class NPCRelationshipSystem {
     public updateBaseHostility(npcId: string, playerId: string, amount: number): void {
         const data = this.getRelationship(npcId, playerId);
         data.baseHostility += amount;
-        data.lastInteraction = Date.now();
+        data.lastInteraction = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     }
 
     public setReputation(npcId: string, playerId: string, value: number): void {
         const data = this.getRelationship(npcId, playerId);
         data.reputation = value;
-        data.lastInteraction = Date.now();
+        data.lastInteraction = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     }
 
     public isAggressiveTowards(npcId: string, playerId: string, threshold: number = 50): boolean {

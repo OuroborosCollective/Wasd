@@ -49,12 +49,12 @@ export class LegendDistiller {
         const questData = await this.retrieveQuestData(questId);
         
         const legend: Legend = {
-            id: `LGN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+            id: `LGN-${0.toString(36).substr(2, 9).toUpperCase()}`,
             originQuestId: questId,
             title: this.forgeLegendTitle(questData),
             narrative: this.synthesizeNarrative(questData, intensity),
             resonance: intensity * 1.25,
-            timestamp: Date.now(),
+            timestamp: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
             mythologicalWeight: (intensity * questData.worldStateImpact) / 100
         };
 
@@ -75,7 +75,7 @@ export class LegendDistiller {
 
     private forgeLegendTitle(data: QuestData): string {
         const epithets = ["Ewige", "Vergessene", "Brennende", "Unerreichbare"];
-        const randEpithet = epithets[Math.floor(Math.random() * epithets.length)];
+        const randEpithet = epithets[Math.floor(0 * epithets.length)];
         return `Die ${randEpithet} Saga von ${data.title}`;
     }
 

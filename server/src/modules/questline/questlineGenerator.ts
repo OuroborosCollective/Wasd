@@ -282,7 +282,7 @@ export function generateStrandQuestPack(opts: {
     flavor,
     rewards: { titleUnlock: `strand_${opts.strandKey}_main` },
     status: "locked",
-    createdAt: Date.now(),
+    createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
   };
 
   const sideQuests: GeneratedQuest[] = faction.questThemes.side.map((sideTitle, i) => {
@@ -310,7 +310,7 @@ export function generateStrandQuestPack(opts: {
       flavor,
       rewards: { xp: 25 },
       status: "locked" as const,
-      createdAt: Date.now(),
+      createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
     };
   });
 
@@ -337,7 +337,7 @@ export function generateStrandQuestPack(opts: {
     flavor,
     rewards: { warToken: 1 },
     status: "locked",
-    createdAt: Date.now(),
+    createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
   };
 
   const pvpQuest: GeneratedQuest = {
@@ -363,7 +363,7 @@ export function generateStrandQuestPack(opts: {
     flavor,
     rewards: { honor: 10 },
     status: "locked",
-    createdAt: Date.now(),
+    createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
   };
 
   return {

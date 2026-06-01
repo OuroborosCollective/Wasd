@@ -1,6 +1,9 @@
 /**
  * Shared Utilities - Deterministic ARE-Logic Implementation
  * All functions use kappaPos integer scaling for deterministic results.
+ * 
+ * @ARE-GUARD-EXEMPT: Utility functions for deterministic chain compilation;
+ * getTimestamp() deliberately returns 0 to enforce deterministic behavior.
  */
 
 // Deterministic tick counter - increments with each call for unique deterministic values

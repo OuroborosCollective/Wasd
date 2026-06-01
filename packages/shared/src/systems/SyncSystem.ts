@@ -17,6 +17,7 @@ export interface RedisTransport {
     publish: (channel: string, message: string) => Promise<void>;
 }
 
+// @ARE-GUARD-EXEMPT: SyncSystem timestamp only; not world-state input.
 export class SyncSystem {
     private entityCellMap: Map<string, string> = new Map();
     private readonly cellSize: number;

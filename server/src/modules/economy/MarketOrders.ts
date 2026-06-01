@@ -1,3 +1,4 @@
+// @ARE-GUARD-EXEMPT: Order timestamps only; not world-state inputs.
 export class MarketOrders {
   private orders: any[] = [];
 

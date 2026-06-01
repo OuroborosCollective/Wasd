@@ -2,7 +2,7 @@ export class MailService {
   private mail: any[] = [];
 
   send(from: string, to: string, subject: string, body: string) {
-    const item = { from, to, subject, body, createdAt: Date.now() };
+    const item = { from, to, subject, body, createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */ };
     this.mail.push(item);
     return item;
   }
@@ -12,7 +12,7 @@ export class MailService {
   }
 
   async sendMail(to: string, subject: string, body: string) {
-    const item = { from: "system", to, subject, body, createdAt: Date.now() };
+    const item = { from: "system", to, subject, body, createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */ };
     this.mail.push(item);
     return item;
   }

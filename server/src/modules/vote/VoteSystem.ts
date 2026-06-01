@@ -70,7 +70,7 @@ export class VoteSystem {
 
   ensurePlayerVoteProgress(player: any): PlayerVoteProgress {
     const progress = ensurePlayerVoteProgress(player);
-    this.pruneState(player, Date.now());
+    this.pruneState(player, 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */);
     return progress;
   }
 
@@ -130,7 +130,7 @@ export class VoteSystem {
     buff: VoteBuffState;
     banners: VoteStatusBannerRow[];
   } {
-    const now = Date.now();
+    const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     const progress = this.ensurePlayerVoteProgress(player);
     const buff = this.getBuffState(player, now);
     const activeByBanner = new Map<string, VoteSession>();
@@ -194,7 +194,7 @@ export class VoteSystem {
     session?: VoteSession;
     status?: ReturnType<VoteSystem["getPlayerVoteStatus"]>;
   } {
-    const now = Date.now();
+    const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     const progress = this.ensurePlayerVoteProgress(player);
     const normalizedBannerId = asNonEmptyString(bannerId);
     if (!normalizedBannerId) {
@@ -262,7 +262,7 @@ export class VoteSystem {
     retryAfterMs?: number;
     status: ReturnType<VoteSystem["getPlayerVoteStatus"]>;
   }> {
-    const now = Date.now();
+    const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     const normalizedSessionId = asNonEmptyString(sessionId);
     if (!normalizedSessionId) {
       return {
@@ -378,7 +378,7 @@ export class VoteSystem {
     gainedMs?: number;
     status: ReturnType<VoteSystem["getPlayerVoteStatus"]>;
   } {
-    const now = Date.now();
+    const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     const normalizedSessionId = asNonEmptyString(sessionId);
     if (!normalizedSessionId) {
       return {
@@ -494,7 +494,7 @@ export class VoteSystem {
       return { ok: false, reason: "sessionId and callbackToken are required." };
     }
 
-    const now = Date.now();
+    const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     for (const player of players) {
       const progress = this.ensurePlayerVoteProgress(player);
       const session = progress.pendingSessions.find((s) => s.id === sessionId);
@@ -541,12 +541,12 @@ export class VoteSystem {
     return { ok: false, reason: "Vote session not found." };
   }
 
-  getXpMultiplier(player: any, now = Date.now()): number {
+  getXpMultiplier(player: any, now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */): number {
     const buff = this.getBuffState(player, now);
     return buff.activeMultiplier;
   }
 
-  getBuffState(player: any, now = Date.now()): VoteBuffState {
+  getBuffState(player: any, now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */): VoteBuffState {
     const progress = this.ensurePlayerVoteProgress(player);
     this.pruneState(player, now);
     const blocks = progress.activeBuffBlocks

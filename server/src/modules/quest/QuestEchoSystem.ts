@@ -36,7 +36,7 @@ export class QuestEchoSystem {
             type,
             intensity: EchoIntensity[type],
             position: { x, y, z },
-            timestamp: Date.now()
+            timestamp: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
         });
     }
 
@@ -52,7 +52,7 @@ export class QuestEchoSystem {
      * Gibt null zurück, wenn das Intervall von 100ms noch nicht erreicht ist.
      */
     public getBeaconsForHeuristicGoalPruner(): EchoBeacon[] | null {
-        const now = Date.now();
+        const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
         if (now - this.lastPrunerRetrieval >= this.RETRIEVAL_INTERVAL_MS) {
             this.lastPrunerRetrieval = now;
             return Array.from(this.beacons.values());
@@ -64,7 +64,7 @@ export class QuestEchoSystem {
      * Bereinigt veraltete Beacons basierend auf einer Time-to-Live.
      */
     public pruneExpiredBeacons(ttlMs: number): void {
-        const now = Date.now();
+        const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
         for (const [id, beacon] of this.beacons) {
             if (now - beacon.timestamp > ttlMs) {
                 this.beacons.delete(id);

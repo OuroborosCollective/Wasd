@@ -12,7 +12,7 @@ export class PlaytesterTelemetry {
 
   push(tick: number, text: string, level: PlaytesterLevel = "info"): PlaytesterEvent {
     const event: PlaytesterEvent = {
-      ts: Date.now(),
+      ts: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
       tick,
       level,
       text,

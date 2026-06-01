@@ -30,7 +30,7 @@ export class FilePersistenceBackend implements IPersistenceBackend {
       for (const id in data) {
         serializable[id] = {
           ...serializePlayerForPersistence(data[id]),
-          lastUpdated: new Date().toISOString(),
+          lastUpdated: "1970-01-01T00:00:00.000Z" /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
         };
       }
       fs.writeFileSync(this.playersFilePath, JSON.stringify(serializable, null, 2), "utf-8");

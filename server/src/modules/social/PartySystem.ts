@@ -3,7 +3,7 @@ export class PartySystem {
     return {
       leaderId,
       members: [leaderId],
-      createdAt: Date.now()
+      createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }

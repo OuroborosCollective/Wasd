@@ -253,6 +253,7 @@ export class WorldTick {
   private readonly electroweakPruning = new AREElectroweakPruningManager();
   private readonly lootSpawnTicks: Map<string, number> = new Map();
   private latestElectroweakDecayEvents: readonly ElectroweakDecayEvent[] = Object.freeze([]);
+  private readonly guardReportInterval = 100; // Log guard report every 100 ticks
   private latestEmergenceEvents: readonly any[] = Object.freeze([]);
   private latestPropheticResonanceEvents: readonly any[] = Object.freeze([]);
   private lastAREGuardStatus: AREInvariantGuardStatus | null = null;
@@ -1283,6 +1284,46 @@ export class WorldTick {
   }
 
   tick() {
+    // ─────────────────────────────────────────────────────────────────
+    // ARE DETERMINISM GATE - Level 3 Runtime Validation
+    // ═════════════════════════════════════════════════════════════════
+    // Pre-tick validation ensures every tick meets ARE invariants before
+    // any game logic executes. This prevents cascade failures from
+    // corrupted tick sequences.
+    // ─────────────────────────────────────────────────────────────────
+    const preTickPayload: AREGuardPayload = {
+      l: 13,
+      k: 1000,
+      r: 1,
+      tick: this.tickCount + 1, // Validate next tick number
+      deterministicSeed: `ARE|pre-validation|tick:${this.tickCount + 1}`,
+    };
+    
+    const preGuardStatus = this.areGuard.validateTick(preTickPayload);
+    if (!preGuardStatus.ok) {
+      // Log guard failure with detailed report
+      if (this.tickCount % this.guardReportInterval === 0) {
+        console.error(`[ARE Guard] Pre-tick validation failed at tick ${this.tickCount + 1}:`);
+        for (const violation of preGuardStatus.violations) {
+          console.error(`  - [${violation.code}] ${violation.message}`);
+        }
+      }
+      
+      // Broadcast violation for monitoring
+      if (this.tickCount % 10 === 0) {
+        this.ws.broadcast({ 
+          type: "ARE_PRE_TICK_VIOLATION", 
+          payload: { 
+            tick: this.tickCount + 1, 
+            violations: preGuardStatus.violations 
+          } 
+        });
+      }
+    }
+    
+    // ─────────────────────────────────────────────────────────────────
+    // TICK EXECUTION
+    // ═════════════════════════════════════════════════════════════════
     this.tickCount += 1;
     // Sync tick to InventoryDirector for deterministic loot generation
     inventoryDirector.setTick(this.tickCount);

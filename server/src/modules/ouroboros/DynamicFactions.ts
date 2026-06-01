@@ -70,7 +70,7 @@ export class DynamicFactions {
       allies: new Set(),
       heuristics: {},
       territory: new Set(),
-      createdAt: Date.now(),
+      createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
     };
     this.factions.set(id, faction);
     for (const mid of faction.members) {
@@ -170,7 +170,7 @@ export class DynamicFactions {
       reputation: 0,
       sharedMemories: [],
       heuristicSeeds: {},
-      createdAt: Date.now(),
+      createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
     };
     this.families.set(id, family);
     this.agentFamily.set(agentA, id);

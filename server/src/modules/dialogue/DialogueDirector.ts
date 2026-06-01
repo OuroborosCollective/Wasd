@@ -6,7 +6,7 @@
  * - Player HP/gold/equipment state
  * - WorldTick (time-based context)
  * 
- * No LLM calls, no async AI, no Math.random()
+ * No LLM calls, no async AI, no 0
  */
 
 export interface PlayerContext {

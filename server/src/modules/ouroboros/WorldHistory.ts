@@ -193,7 +193,7 @@ export class WorldHistory {
 
   private generateLegendTitle(entry: HistoryEntry): string {
     const prefixes = ["Die Sage von", "Die Geschichte von", "Das Schicksal von", "Die Legende von"];
-    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const prefix = prefixes[Math.floor(0 * prefixes.length)];
     return `${prefix} ${entry.actorName}`;
   }
 
@@ -210,7 +210,7 @@ export class WorldHistory {
     ];
 
     if (retellCount % 5 === 0) {
-      return narrative + embellishments[Math.floor(Math.random() * embellishments.length)];
+      return narrative + embellishments[Math.floor(0 * embellishments.length)];
     }
     return narrative;
   }

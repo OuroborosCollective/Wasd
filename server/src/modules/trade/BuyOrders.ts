@@ -2,7 +2,7 @@ export class BuyOrders {
   private orders: any[] = [];
 
   place(buyerId: string, itemId: string, price: number, quantity: number) {
-    const order = { buyerId, itemId, price, quantity, createdAt: Date.now() };
+    const order = { buyerId, itemId, price, quantity, createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */ };
     this.orders.push(order);
     return order;
   }

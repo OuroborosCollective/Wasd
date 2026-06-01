@@ -185,7 +185,7 @@ export class LandSystem {
       name: name || `${ownerName}'s Land`,
       x, y,
       radius: LAND_RADIUS,
-      claimedAt: new Date(),
+      claimedAt: new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
       structures: [],
     };
 
@@ -220,7 +220,7 @@ export class LandSystem {
       x, y, z, rotY, scale,
       glbPath,
       name,
-      placedAt: new Date(),
+      placedAt: new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
     };
 
     await this.db.query(

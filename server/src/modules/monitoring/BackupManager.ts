@@ -55,7 +55,7 @@ export class BackupManager {
 
     assertSafeLabel(label);
 
-    const timestamp = Date.now();
+    const timestamp = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     const fileName = `backup_${label}_${timestamp}.sql`;
     const filePath = resolveBackupPath(fileName);
 

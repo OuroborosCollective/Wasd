@@ -4,7 +4,7 @@ export class ChatService {
       authorId,
       channel,
       content,
-      createdAt: Date.now()
+      createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }

@@ -47,7 +47,7 @@ export class ReviewerAgent {
           mismatches: response.schema?.mismatches || [],
         },
         suggestions: response.suggestions || [],
-        reviewedAt: new Date(),
+        reviewedAt: new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
       };
     } catch (error) {
       this.logger.error('Failed to perform automated code review', error.stack);

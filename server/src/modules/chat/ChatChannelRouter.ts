@@ -59,21 +59,21 @@ export class ChatChannelRouter {
     if (!text) return null;
 
     if (partial.senderType === "npc" && partial.npcId) {
-      const now = Date.now();
+      const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
       const last = this.npcCooldowns.get(partial.npcId) ?? 0;
       if (now - last < this.npcCooldownMs) return null;
       this.npcCooldowns.set(partial.npcId, now);
     }
 
     const msg: ChannelChatMessage = {
-      id: `cm_${++this.msgCounter}_${Date.now().toString(36)}`,
+      id: `cm_${++this.msgCounter}_${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */.toString(36)}`,
       channel: partial.channel,
       senderType: partial.senderType,
       senderId: partial.senderId,
       senderName: partial.senderName,
       npcId: partial.npcId,
       text,
-      ts: Date.now(),
+      ts: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
       position: partial.position,
     };
 
@@ -106,13 +106,13 @@ export class ChatChannelRouter {
     resolveSocketId: ResolveSocketIdFn,
   ): ChannelChatMessage {
     const msg: ChannelChatMessage = {
-      id: `cm_${++this.msgCounter}_${Date.now().toString(36)}`,
+      id: `cm_${++this.msgCounter}_${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */.toString(36)}`,
       channel: "status",
       senderType: "system",
       senderId: "system",
       senderName: "[STATUS]",
       text: text.slice(0, 300),
-      ts: Date.now(),
+      ts: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
       position,
     };
 

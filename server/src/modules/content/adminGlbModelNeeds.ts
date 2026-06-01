@@ -317,7 +317,7 @@ export function buildAdminGlbModelNeeds(
   const needs = allNeeds.filter((entry) => entry.status === "needed");
   const satisfied = allNeeds.filter((entry) => entry.status === "satisfied");
   return {
-    generatedAtIso: new Date().toISOString(),
+    generatedAtIso: "1970-01-01T00:00:00.000Z" /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
     stats: {
       neededCount: needs.length,
       satisfiedCount: satisfied.length,

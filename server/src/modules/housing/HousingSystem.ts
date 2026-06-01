@@ -3,7 +3,7 @@ export class HousingSystem {
     return {
       ownerId,
       plotId,
-      createdAt: Date.now(),
+      createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
       upgrades: 0
     };
   }

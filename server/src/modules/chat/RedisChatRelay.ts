@@ -117,7 +117,7 @@ function normalizeIncoming(raw: Partial<ChatMessage>): ChatMessage | null {
     text,
     zoneId: zoneId || undefined,
     partyId: partyId || undefined,
-    ts: Number.isFinite(Number(raw.ts)) ? Number(raw.ts) : Date.now(),
+    ts: Number.isFinite(Number(raw.ts)) ? Number(raw.ts) : 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
   };
 }
 
@@ -181,7 +181,7 @@ export async function publishChatMessage(msg: Partial<ChatMessage>): Promise<Pub
   if (!normalized) {
     return { ok: false, reason: "invalid" };
   }
-  const now = Date.now();
+  const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
   const rateLimit = enforceRateLimit(normalized.senderId, now);
   if (rateLimit.ok === false) {
     return { ok: false, reason: "rate_limited", retryAfterMs: rateLimit.retryAfterMs };

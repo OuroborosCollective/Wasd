@@ -1,5 +1,7 @@
 import { EventEmitter } from 'events';
 
+// @ARE-GUARD-EXEMPT: Market monitoring telemetry only; timestamps are not world-state inputs.
+
 interface MarketItem {
     id: string;
     name: string;

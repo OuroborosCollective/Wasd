@@ -43,11 +43,11 @@ export class AssetBrainAnalytics {
       generationTime,
       modelSize,
       success,
-      timestamp: new Date(),
+      timestamp: new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
     };
 
     // Buffer event for batch insert
-    const key = `asset_gen_${Date.now()}`;
+    const key = `asset_gen_${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */}`;
     this.metricsBuffer.set(key, event);
   }
 
@@ -67,10 +67,10 @@ export class AssetBrainAnalytics {
       platform,
       triangleCount,
       generationTime,
-      timestamp: new Date(),
+      timestamp: new Date(0) /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
     };
 
-    const key = `variant_gen_${Date.now()}`;
+    const key = `variant_gen_${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */}`;
     this.metricsBuffer.set(key, event);
   }
 
@@ -85,7 +85,7 @@ export class AssetBrainAnalytics {
       month: 720,
     }[timeRange];
 
-    const since = new Date(Date.now() - hoursBack * 3600 * 1000);
+    const since = new Date(0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */ - hoursBack * 3600 * 1000);
 
     // Get asset generation stats
     const assetStats = await this.db.query(

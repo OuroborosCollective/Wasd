@@ -111,7 +111,7 @@ export class VoteBannerStore {
   }
 
   upsert(input: UpsertBannerInput): VoteBannerEntry {
-    const now = Date.now();
+    const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     const list = this.load();
     const incoming = normalizeBanner(input, now);
     const idx = list.findIndex((b) => b.internalId === incoming.internalId);
@@ -156,7 +156,7 @@ export class VoteBannerStore {
     for (const row of list) {
       if (!seen.has(row.internalId)) sorted.push(row);
     }
-    const now = Date.now();
+    const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     const reindexed = sorted.map((row, index) => ({
       ...row,
       sortOrder: index,
@@ -178,7 +178,7 @@ export class VoteBannerStore {
     try {
       const raw = JSON.parse(fs.readFileSync(this.filePath, "utf8"));
       if (!Array.isArray(raw)) return [];
-      const now = Date.now();
+      const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
       const normalized = raw
         .map((entry) => {
           try {

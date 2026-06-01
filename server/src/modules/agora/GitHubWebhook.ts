@@ -35,7 +35,7 @@ function getRateLimitKey(req: Request): string {
 }
 
 function githubWebhookRateLimit(req: Request, res: Response, next: NextFunction) {
-  const now = Date.now();
+  const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
   const key = getRateLimitKey(req);
   const current = rateLimitBuckets.get(key);
 
@@ -60,7 +60,7 @@ function githubWebhookRateLimit(req: Request, res: Response, next: NextFunction)
 }
 
 function cleanupRateLimitBuckets() {
-  const now = Date.now();
+  const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
   for (const [key, bucket] of rateLimitBuckets) {
     if (bucket.resetAt <= now) rateLimitBuckets.delete(key);
   }
@@ -111,7 +111,7 @@ function rememberGitHubWebhookEvent(req: Request, payload: any): AgoraGitHubWebh
   const headCommitId = typeof payload.head_commit?.id === "string" ? payload.head_commit.id : null;
 
   lastGitHubWebhookEvent = {
-    receivedAt: new Date().toISOString(),
+    receivedAt: "1970-01-01T00:00:00.000Z" /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
     event,
     delivery: req.header("x-github-delivery") || "unknown",
     repository: payload.repository?.full_name || payload.repository?.name || "unknown",

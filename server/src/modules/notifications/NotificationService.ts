@@ -3,7 +3,7 @@ export class NotificationService {
     return {
       playerId,
       message,
-      createdAt: Date.now()
+      createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }

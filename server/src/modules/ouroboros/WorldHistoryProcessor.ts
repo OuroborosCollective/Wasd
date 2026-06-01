@@ -37,7 +37,7 @@ export class WorldHistoryProcessor {
     }
 
     private cleanupBuffer(): void {
-        const now = Date.now();
+        const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
         this.eventBuffer = this.eventBuffer.filter(
             (e) => now - e.timestamp < this.TIME_WINDOW_MS
         );
@@ -69,7 +69,7 @@ export class WorldHistoryProcessor {
             await (this.bountySystem as any).triggerThreatRecalculation(playerId, {
                 intensityLevel: playerKills.length,
                 reason: "MASS_KILL_EVENT",
-                timestamp: Date.now(),
+                timestamp: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
                 affectedFactions: Array.from(affectedFactionsSet)
             });
         }

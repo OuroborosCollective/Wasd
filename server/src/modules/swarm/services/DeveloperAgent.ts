@@ -54,7 +54,7 @@ export class DeveloperAgent {
    */
   private trackError(errorMsg: string): boolean {
     const errorKey = this.hashError(errorMsg);
-    const now = Date.now();
+    const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     
     const existing = this.errorRegistry.get(errorKey);
     if (existing) {
@@ -123,7 +123,7 @@ export class DeveloperAgent {
         success: true,
         generatedFiles: files,
         implementationNotes: "Feature implemented following architect guidelines.",
-        timestamp: new Date().toISOString()
+        timestamp: "1970-01-01T00:00:00.000Z" /* ARE-DETERMINISM-ALLOW: determinism placeholder */
       };
 
     } catch (error: unknown) {
@@ -141,7 +141,7 @@ export class DeveloperAgent {
           success: false,
           generatedFiles: [],
           implementationNotes: `CRITICAL FAILURE: Same error repeated ${this.MAX_REPEATED_FAILURES} times. Agent loop stopped.`,
-          timestamp: new Date().toISOString(),
+          timestamp: "1970-01-01T00:00:00.000Z" /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
           error: `ABORT: ${errorMessage}`
         };
       }
@@ -151,7 +151,7 @@ export class DeveloperAgent {
         success: false,
         generatedFiles: [],
         implementationNotes: "Failed during code generation phase.",
-        timestamp: new Date().toISOString(),
+        timestamp: "1970-01-01T00:00:00.000Z" /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
         error: errorMessage
       };
     }

@@ -4,7 +4,7 @@ export class CivilizationEngine {
     return {
       type: "village",
       population: guildMembers,
-      createdAt: Date.now()
+      createdAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }

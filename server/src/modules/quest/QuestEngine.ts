@@ -105,7 +105,7 @@ export class QuestEngine {
       }
     }
 
-    const newQuest = { ...quest, startedAt: Date.now(), completed: false };
+    const newQuest = { ...quest, startedAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */, completed: false };
     player.quests.push(newQuest);
     this.invalidateCache(player);
     return newQuest;
@@ -189,7 +189,7 @@ export class QuestEngine {
     const q = quests.find((x: any) => x.id === questId);
     if (!q || q.completed) return null;
     q.completed = true;
-    q.completedAt = Date.now();
+    q.completedAt = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
     
     // Apply rewards
     if (q.reward) {

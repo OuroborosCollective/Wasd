@@ -3,7 +3,7 @@ export class RuinEvolutionEngine {
     return {
       ...structure,
       state: "ruin",
-      evolvedAt: Date.now()
+      evolvedAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }

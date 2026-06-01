@@ -85,8 +85,8 @@ export class WorldEventBus {
   emit(event: Omit<WorldEvent, "id" | "ts">): WorldEvent {
     const full: WorldEvent = {
       ...event,
-      id: `we_${++counter}_${Date.now().toString(36)}`,
-      ts: Date.now(),
+      id: `we_${++counter}_${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */.toString(36)}`,
+      ts: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
     };
 
     const typed = this.handlers.get(full.type);

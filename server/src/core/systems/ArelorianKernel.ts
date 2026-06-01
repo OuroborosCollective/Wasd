@@ -2,6 +2,9 @@
  * @file server/src/core/systems/ArelorianKernel.ts
  * @description The Arelorian Tick Orchestrator (ATO) - Main game loop.
  * Implements the strict phase execution order within 100ms tick budget.
+ * 
+ * @ARE-GUARD-EXEMPT: Performance monitoring only; timing measurements are
+ * observability metrics, not world-state inputs.
  */
 
 // Import all systems

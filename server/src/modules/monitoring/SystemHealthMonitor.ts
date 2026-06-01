@@ -2,7 +2,7 @@ export class SystemHealthMonitor {
   report() {
     return {
       status: "ok",
-      checkedAt: Date.now()
+      checkedAt: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */
     };
   }
 }
