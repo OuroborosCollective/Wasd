@@ -14,6 +14,7 @@ Use it before trusting older reconstruction or handover docs.
 | Primary rendering (3D) | Babylon.js (`@babylonjs/core` + loaders + materials + addons) |
 | Primary rendering (2D) | PixiJS v7 + React UI (`apps/client-2d/`) |
 | Networking | WebSocket (`ws`) via `server/src/networking/WebSocketServer.ts` |
+| **Manifest System** | Deterministic server-authoritative state via hash chain in `server/src/core/manifest/`; client divergence detection in `apps/client-2d/src/manifest/`; resync API at `/api/manifest/*` |
 | Data content root | `game-data/` by default, optional published pack via `USE_PUBLISHED_CONTENT` / `CONTENT_PACK_DIR` |
 
 ## Authentication and persistence

@@ -38,6 +38,12 @@ import { persistenceDirector } from "../modules/persistence/PersistenceDirector.
 import { storageEntityManager, type StorageEntity } from "../modules/structure/StorageEntity.js";
 import { resourcePopulator, type GeneratedResourceEntity } from "../modules/world/ResourcePopulator.js";
 import { chunkModificationDirector } from "../modules/world/ChunkModificationDirector.js";
+import { createWorldTickManifestManager, type WorldTickManifestManager } from "./manifest/WorldTickManifestManager.js";
+import { sha256 } from "./manifest/ManifestHasher.js";
+
+// Environment variable for manifest authority secret
+const MANIFEST_AUTHORITY_SECRET = process.env.MANIFEST_AUTHORITY_SECRET ?? 'dev-secret-change-in-production';
+const WORLD_ID = process.env.WORLD_ID ?? 'areloria-main';
 
 const ELECTROWEAK_LOOT_TTL_TICKS = 1200;
 
@@ -252,6 +258,13 @@ export class WorldTick {
   private lastAREGuardStatus: AREInvariantGuardStatus | null = null;
   private lastWorldHashSnapshot: WorldHashSnapshot | null = null;
   private lastOracleReport: OracleReport | null = null;
+  
+  // ─────────────────────────────────────────────────────────────────
+  // MANIFEST SYSTEM INTEGRATION
+  // ═════════════════════════════════════════════════════════════════
+  // Server-authoritative manifest for deterministic state management.
+  // Each tick generates a manifest with hash chain for integrity.
+  private readonly manifestManager: WorldTickManifestManager;
 
   public chunkSystem: ChunkSystem;
   public observerEngine: ObserverEngine;
@@ -455,6 +468,10 @@ export class WorldTick {
   }
 
   constructor(private ws: GameWebSocketServer) {
+    // Initialize Manifest System for server-authoritative state management
+    this.manifestManager = createWorldTickManifestManager(WORLD_ID, MANIFEST_AUTHORITY_SECRET);
+    console.log(`[WorldTick] Manifest system initialized for world: ${WORLD_ID}`);
+    
     this.chunkSystem = new ChunkSystem(64);
     this.observerEngine = new ObserverEngine();
     this.playerSystem = new PlayerSystem();
@@ -532,6 +549,166 @@ export class WorldTick {
       electroweakPruning: this.electroweakPruning.getStats(),
       electroweak: { pruning: this.electroweakPruning.getStats(), prophecies: this.latestPropheticResonanceEvents },
       emergence: { events: this.latestEmergenceEvents },
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // MANIFEST SYSTEM PUBLIC API
+  // ═════════════════════════════════════════════════════════════════
+  
+  /**
+   * Get the manifest manager for external access.
+   */
+  public getManifestManager(): WorldTickManifestManager {
+    return this.manifestManager;
+  }
+
+  /**
+   * Build dependencies from current game state.
+   */
+  public buildManifestDependencies(): import("./manifest/ManifestTypes.js").IManifestDependency[] {
+    const allPlayers = this.playerSystem.getAllPlayers();
+    const allNpcs = this.npcSystem.getAllNPCs();
+    
+    return this.manifestManager.buildDependencies({
+      playerCount: allPlayers.length,
+      npcCount: allNpcs.length,
+      lootCount: this.lootEntities.size,
+      resourceCount: 0, // Would come from resource system
+      questActiveCount: 0, // Would come from quest system
+      chunkHashes: new Map(), // Would come from chunk system
+      economyChecksum: this.economyAdapter.snapshotARE().totalGold.toString(),
+    });
+  }
+
+  /**
+   * Create and record a manifest for the current tick.
+   * Called at end of tick() to maintain hash chain.
+   */
+  private recordTickManifest(): void {
+    const allPlayers = this.playerSystem.getAllPlayers();
+    const allNpcs = this.npcSystem.getAllNPCs();
+    
+    // Build delta payload
+    const delta = {
+      players: allPlayers.map(p => ({
+        id: p.id,
+        health: p.health,
+        state: p.state,
+      })),
+      npcs: allNpcs.map(n => ({
+        id: n.id,
+        health: n.health,
+        state: n.state,
+      })),
+      tickCount: this.tickCount,
+    };
+    
+    // Build dependencies
+    const deps = this.buildManifestDependencies();
+    
+    // Check if we need a snapshot
+    if (this.manifestManager.shouldSnapshot(this.tickCount)) {
+      // Create snapshot manifest
+      const snapshot = this.manifestManager.createSnapshot(
+        this.tickCount,
+        {
+          players: allPlayers,
+          npcs: allNpcs,
+          world: { tickCount: this.tickCount },
+          economy: this.economyAdapter.snapshotARE(),
+        },
+        deps,
+        this.getSelfHealMeta()
+      );
+      console.log(`[WorldTick] Snapshot manifest created at tick ${this.tickCount}`);
+    } else {
+      // Create delta tick manifest
+      this.manifestManager.createDeltaTick(this.tickCount, delta, deps);
+    }
+  }
+
+  /**
+   * Get SelfHeal metadata from current system state.
+   */
+  private getSelfHealMeta(): { healState: 'healthy' | 'degraded' | 'healed' | 'quarantined'; anomalyScore: number; patchedSubsystems: string[] } {
+    const autoRepair = areAutoRepairService.getStatus();
+    const usage = deterministicUsageTracker.getStats(this.tickCount);
+    
+    // Determine health state
+    let healState: 'healthy' | 'degraded' | 'healed' | 'quarantined' = 'healthy';
+    if (!autoRepair.ok) healState = 'degraded';
+    if (autoRepair.repaired) healState = 'healed';
+    
+    // Calculate anomaly score (0-1)
+    const anomalyScore = Math.min(1, (
+      (usage.violationCount > 0 ? 0.3 : 0) +
+      (autoRepair.repairCount > 0 ? 0.2 : 0) +
+      (this.lastAREGuardStatus && !this.lastAREGuardStatus.ok ? 0.5 : 0)
+    ));
+    
+    return {
+      healState,
+      anomalyScore,
+      patchedSubsystems: autoRepair.repaired ? ['determinism', 'guard'] : [],
+    };
+  }
+
+  /**
+   * Handle client divergence - create resync manifest.
+   */
+  public handleClientDivergence(
+    clientTick: number,
+    clientHash: string
+  ): import("./manifest/ManifestTypes.js").GlobalStateManifest | null {
+    const serverHash = this.manifestManager.getLastStateHash();
+    
+    if (clientHash === serverHash) {
+      return null; // No divergence
+    }
+    
+    // Create resync manifest
+    return this.manifestManager.createResync(this.tickCount, this.buildFullState(), {
+      expectedHash: serverHash,
+      actualHash: clientHash,
+      divergenceTick: clientTick,
+      divergedComponents: this.detectDivergedComponents(),
+    });
+  }
+
+  /**
+   * Detect which components have diverged.
+   */
+  private detectDivergedComponents(): string[] {
+    const diverged: string[] = [];
+    
+    // Check ARE guard status
+    if (this.lastAREGuardStatus && !this.lastAREGuardStatus.ok) {
+      diverged.push('are_guard');
+    }
+    
+    // Check divergence guard
+    const divSummary = this.areDivergenceGuard.summarize();
+    if (divSummary.totalDivergences > 0) {
+      diverged.push('entity_group');
+    }
+    
+    return diverged;
+  }
+
+  /**
+   * Build full state for resync.
+   */
+  private buildFullState(): unknown {
+    const allPlayers = this.playerSystem.getAllPlayers();
+    const allNpcs = this.npcSystem.getAllNPCs();
+    
+    return {
+      tickCount: this.tickCount,
+      players: allPlayers,
+      npcs: allNpcs,
+      loot: Array.from(this.lootEntities.values()),
+      stateHash: this.manifestManager.getLastStateHash(),
     };
   }
 
@@ -1259,7 +1436,16 @@ export class WorldTick {
     
     // Legacy periodic save (backup to existing persistence)
     if (this.tickCount % 600 === 0) this.saveAll().catch(e => console.error(e));
-    this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, emergence: { events: emergenceEvents }, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null, shadow: this.getAREShadowReplayStats(), electroweakPruning: { ttlTicks: ELECTROWEAK_LOOT_TTL_TICKS, stats: this.electroweakPruning.getStats(), decayEvents: this.latestElectroweakDecayEvents, prophecies: this.latestPropheticResonanceEvents }, emergence: { events: emergenceEvents } }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100) });
+    
+    // ─────────────────────────────────────────────────────────────────
+    // MANIFEST SYSTEM - Record tick manifest for hash chain integrity
+    // ═════════════════════════════════════════════════════════════════
+    // This maintains the server-authoritative hash chain.
+    // Replay guard is checked before broadcast to prevent stale updates.
+    this.recordTickManifest();
+    
+    // Broadcast world state with manifest integrity info
+    this.ws.broadcast({ type: "world_tick", tick: this.tickCount, players: strippedPlayers, npcs: strippedNpcs, loot: strippedLoot, emergence: { events: emergenceEvents }, are: { guard: this.lastAREGuardStatus, worldHash: this.lastWorldHashSnapshot?.worldHash ?? null, shadow: this.getAREShadowReplayStats(), electroweakPruning: { ttlTicks: ELECTROWEAK_LOOT_TTL_TICKS, stats: this.electroweakPruning.getStats(), decayEvents: this.latestElectroweakDecayEvents, prophecies: this.latestPropheticResonanceEvents }, emergence: { events: emergenceEvents } }, replay: { latestTick: this.tickCount }, oracle: this.lastOracleReport, autoRepair, usage, warfront: this.warfrontSystem.getCycleSnapshot(this.tickCount * 100), manifest: { stateHash: this.manifestManager.getLastStateHash(), snapshotTick: this.manifestManager.getLastSnapshotTick() } });
   }
   
   /**
