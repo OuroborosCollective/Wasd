@@ -132,7 +132,7 @@ function commitSlots(target: NPCInventory, nextSlots: (ModularItem | null)[]): v
 }
 
 function getSkillLevel(skills: PlayerSkills, skillName: string): number {
-  const value = (skills as unknown as Record<string, number>)[skillName];
+  const value = (skills as Record<string, number>)[skillName];
   return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
 }
 

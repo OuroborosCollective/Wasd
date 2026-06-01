@@ -60,7 +60,7 @@ describe('Manifest System', () => {
       const snapshot = factory.createSnapshot(500, { world: 'state' }, []);
       
       expect(snapshot.header.kind).toBe('snapshot');
-      expect(snapshot.body.payloadMode).toBe('full_snapshot');
+      expect(snapshot.header.payloadMode).toBe('full_snapshot');
     });
 
     it('maintains chain state', () => {
@@ -136,7 +136,7 @@ describe('Manifest System', () => {
 
     it('rejects tampered manifest', () => {
       const tick = factory.createDeltaTick(1, { data: 'test' }, []);
-      (tick.header as any).stateHash = 'invalid' + '0'.repeat(48);
+      tick.header.stateHash = 'invalid' + '0'.repeat(48);
       
       const result = verifyManifest(tick, AUTHORITY_SECRET);
       expect(result.valid).toBe(false);

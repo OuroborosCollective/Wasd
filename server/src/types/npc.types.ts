@@ -8,5 +8,4 @@ export interface NPC {
     state: string;
     stateTimer: number;
     memory: NPCMemory;
-    tags?: string[];
 }

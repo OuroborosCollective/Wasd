@@ -8,7 +8,6 @@ export class NPC implements INPC {
     public id: string;
     public name: string;
     public beliefs: string[];
-    public tags?: string[];
 
     constructor(id: string, name: string, beliefs: string[] = []) {
         this.id = id;

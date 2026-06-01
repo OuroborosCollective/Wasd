@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { FixedAREClock } from "../core/determinism/AREDeterminism.js";
 import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { EconomyEngine } from "../modules/economy/EconomyEngine.js";
 import { MatrixEnergySystem } from "../modules/economy/MatrixEnergySystem.js";
@@ -10,6 +9,7 @@ import { TaxLedger } from "../modules/economy/TaxLedger.js";
 import { MarketOrders } from "../modules/economy/MarketOrders.js";
 import { MarketLedger } from "../modules/economy/MarketLedger.js";
 import { NPCTradeAI } from "../modules/economy/NPCTradeAI.js";
+import { FixedAREClock } from "../core/determinism/AREDeterminism.js";
 
 // ---------------------------------------------------------------------------
 // EconomySystem
@@ -277,10 +277,9 @@ describe("TradeRoutes", () => {
 // ---------------------------------------------------------------------------
 describe("TaxLedger", () => {
   let ledger: TaxLedger;
-  const mockNow = 1715760000000;
-  const clock = new FixedAREClock(mockNow);
+  const fixedTime = 999888777;
 
-  beforeEach(() => { ledger = new TaxLedger(clock); });
+  beforeEach(() => { ledger = new TaxLedger(new FixedAREClock(fixedTime)); });
 
   it("all() returns empty array initially", () => {
     expect(ledger.all()).toHaveLength(0);
@@ -298,9 +297,9 @@ describe("TaxLedger", () => {
     expect(entry.source).toBe("trade");
   });
 
-  it("record() attaches a deterministic createdAt timestamp from AREClock", () => {
+  it("record() attaches a deterministic createdAt timestamp", () => {
     const entry = ledger.record("city1", 100, "market");
-    expect(entry.createdAt).toBe(mockNow);
+    expect(entry.createdAt).toBe(fixedTime);
   });
 
   it("multiple records accumulate in order", () => {
