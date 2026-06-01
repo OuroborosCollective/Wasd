@@ -1,13 +1,17 @@
 /**
  * Ouroboros CharacterWindow — WoW-Style Character Sheet
  * 
- * Shows player level, XP progress, and core stats with allocation buttons.
+ * Shows player level, XP progress, core stats, and equipment panel.
+ * Includes Paper-Doll equipment display with touch-safe drag & drop.
  * Follows the Panzerschrank brutalist design aesthetic.
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSyncExternalStore } from "react";
+import { DnDProvider } from "../dnd/DnDContext";
+import { EquipmentPanel } from "./EquipmentPanel";
 import "../inventoryGrid.css";
+import "./equipmentPanel.css";
 
 export type CoreStatKey = "strength" | "agility" | "intelligence";
 
@@ -195,6 +199,11 @@ export function CharacterWindow({ isOpen = true, onClose }: CharacterWindowProps
       </div>
 
       <div className="char-content">
+        {/* Equipment Panel - Paper Doll */}
+        <section className="char-section">
+          <EquipmentPanel />
+        </section>
+
         {/* Level Section */}
         <section className="char-section">
           <div className="char-level-display">
