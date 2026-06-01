@@ -9,4 +9,4 @@ packages:
   - "server"
   - "backend"
 
-# Note: onlyBuiltDependencies is now set in .npmrc
+# Note: allowBuilds is now set in .npmrc
