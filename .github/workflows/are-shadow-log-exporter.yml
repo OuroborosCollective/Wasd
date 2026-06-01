@@ -144,14 +144,17 @@ jobs:
                 echo "sampled_lines=$LINES"
                 echo
                 echo "--- Tick Range ---"
-                tail -n "$LINES" logs/are-shadow.jsonl | jq -r '.tick' 2>/dev/null | sort -n | head -5 | xargs -I{} echo "min_tick={}"
-                tail -n "$LINES" logs/are-shadow.jsonl | jq -r '.tick' 2>/dev/null | sort -n | tail -5 | xargs -I{} echo "max_tick={}"
-                echo
-                echo "--- Capacity Distribution ---"
-                tail -n "$LINES" logs/are-shadow.jsonl | jq -r '.capacity' 2>/dev/null | sort | uniq -c | tail -20
+                TICKS=$(tail -n "$LINES" logs/are-shadow.jsonl | grep -o '"tick":[0-9]*' | cut -d: -f2 | sort -n)
+                if [ -n "$TICKS" ]; then
+                  echo "min_tick=$(echo "$TICKS" | head -1)"
+                  echo "max_tick=$(echo "$TICKS" | tail -1)"
+                else
+                  echo "No tick data found"
+                fi
                 echo
                 echo "--- Event Count ---"
-                tail -n "$LINES" logs/are-shadow.jsonl | jq -s 'length' 2>/dev/null || echo "0 entries"
+                ENTRY_COUNT=$(wc -l < "$OUT/10-are-shadow-tail.jsonl" 2>/dev/null || echo "0")
+                echo "entries_in_sample=$ENTRY_COUNT"
               } > "$OUT/11-shadow-stats.txt"
               redact_file "$OUT/11-shadow-stats.txt"
             else
@@ -199,16 +202,16 @@ jobs:
 
             # === ARE Shadow API Endpoints ===
             write_section "41-are-shadow-log.txt" "ARE Shadow API: /api/are-shadow/log" \
-              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/log?lines=50" 2>&1 | jq . 2>/dev/null || echo "Endpoint unavailable"'
+              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/log?lines=50" 2>&1 || echo "Endpoint unavailable"'
 
             write_section "42-are-shadow-stats.txt" "ARE Shadow API: /api/are-shadow/stats" \
-              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/stats" 2>&1 | jq . 2>/dev/null || echo "Endpoint unavailable"'
+              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/stats" 2>&1 || echo "Endpoint unavailable"'
 
             write_section "43-are-shadow-directory.txt" "ARE Shadow API: /api/are-shadow/directory" \
-              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/directory" 2>&1 | jq . 2>/dev/null || echo "Endpoint unavailable"'
+              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/directory" 2>&1 || echo "Endpoint unavailable"'
 
             write_section "44-are-shadow-telemetry.txt" "ARE Shadow API: /api/are-shadow/telemetry" \
-              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/telemetry" 2>&1 | jq . 2>/dev/null || echo "Endpoint unavailable"'
+              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/telemetry" 2>&1 || echo "Endpoint unavailable"'
 
             # === Recent Server Logs ===
             if [ -d "logs" ]; then
@@ -248,7 +251,7 @@ jobs:
           
           if [ -f "./10-are-shadow-tail.jsonl" ]; then
             echo "=== ARE Shadow Log Sample (last 10 entries) ==="
-            tail -n 10 ./10-are-shadow-tail.jsonl | jq -s '.' 2>/dev/null || tail -n 10 ./10-are-shadow-tail.jsonl
+            tail -n 10 ./10-are-shadow-tail.jsonl | head -50
             echo ""
           fi
 
