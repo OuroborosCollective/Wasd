@@ -9,6 +9,7 @@ import { TaxLedger } from "../modules/economy/TaxLedger.js";
 import { MarketOrders } from "../modules/economy/MarketOrders.js";
 import { MarketLedger } from "../modules/economy/MarketLedger.js";
 import { NPCTradeAI } from "../modules/economy/NPCTradeAI.js";
+import { FixedAREClock } from "../core/determinism/AREDeterminism.js";
 
 // ---------------------------------------------------------------------------
 // EconomySystem
@@ -276,8 +277,9 @@ describe("TradeRoutes", () => {
 // ---------------------------------------------------------------------------
 describe("TaxLedger", () => {
   let ledger: TaxLedger;
+  const fixedTime = 123456789;
 
-  beforeEach(() => { ledger = new TaxLedger(); });
+  beforeEach(() => { ledger = new TaxLedger(new FixedAREClock(fixedTime)); });
 
   it("all() returns empty array initially", () => {
     expect(ledger.all()).toHaveLength(0);
@@ -295,12 +297,9 @@ describe("TaxLedger", () => {
     expect(entry.source).toBe("trade");
   });
 
-  it("record() attaches a createdAt timestamp", () => {
-    const before = Date.now();
+  it("record() attaches a deterministic createdAt timestamp", () => {
     const entry = ledger.record("city1", 100, "market");
-    const after = Date.now();
-    expect(entry.createdAt).toBeGreaterThanOrEqual(before);
-    expect(entry.createdAt).toBeLessThanOrEqual(after);
+    expect(entry.createdAt).toBe(fixedTime);
   });
 
   it("multiple records accumulate in order", () => {
@@ -318,8 +317,9 @@ describe("TaxLedger", () => {
 // ---------------------------------------------------------------------------
 describe("MarketOrders", () => {
   let orders: MarketOrders;
+  const fixedTime = 987654321;
 
-  beforeEach(() => { orders = new MarketOrders(); });
+  beforeEach(() => { orders = new MarketOrders(new FixedAREClock(fixedTime)); });
 
   it("list() returns empty array initially", () => {
     expect(orders.list()).toHaveLength(0);
@@ -336,13 +336,10 @@ describe("MarketOrders", () => {
     expect(orders.list()).toHaveLength(1);
   });
 
-  it("list() entries include a createdAt timestamp", () => {
-    const before = Date.now();
+  it("list() entries include a deterministic createdAt timestamp", () => {
     orders.place({ item: "gold" });
-    const after = Date.now();
     const entry = orders.list()[0];
-    expect(entry.createdAt).toBeGreaterThanOrEqual(before);
-    expect(entry.createdAt).toBeLessThanOrEqual(after);
+    expect(entry.createdAt).toBe(fixedTime);
   });
 
   it("multiple orders accumulate", () => {
@@ -358,8 +355,9 @@ describe("MarketOrders", () => {
 // ---------------------------------------------------------------------------
 describe("MarketLedger", () => {
   let ledger: MarketLedger;
+  const fixedTime = 555555555;
 
-  beforeEach(() => { ledger = new MarketLedger(); });
+  beforeEach(() => { ledger = new MarketLedger(new FixedAREClock(fixedTime)); });
 
   it("all() returns empty array initially", () => {
     expect(ledger.all()).toHaveLength(0);
@@ -376,13 +374,10 @@ describe("MarketLedger", () => {
     expect(ledger.all()[0].price).toBe(10);
   });
 
-  it("record() attaches a timestamp field", () => {
-    const before = Date.now();
+  it("record() attaches a deterministic timestamp field", () => {
     ledger.record({ item: "stone" });
-    const after = Date.now();
     const entry = ledger.all()[0];
-    expect(entry.timestamp).toBeGreaterThanOrEqual(before);
-    expect(entry.timestamp).toBeLessThanOrEqual(after);
+    expect(entry.timestamp).toBe(fixedTime);
   });
 
   it("multiple records accumulate", () => {
