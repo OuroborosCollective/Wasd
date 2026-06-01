@@ -225,7 +225,18 @@ jobs:
             fi
 
             # === Archive ===
-            tar -czf "$ARCHIVE" -C "$OUT" .
+            # Ensure at least one file exists before archiving
+            FILE_COUNT=$(find "$OUT" -type f 2>/dev/null | wc -l)
+            echo "DEBUG: Archive preparation - OUT=$OUT, FILE_COUNT=$FILE_COUNT"
+            if [ "$FILE_COUNT" -eq 0 ]; then
+              echo "No files to archive, creating placeholder"
+              echo "Export completed but no data files generated at $(date -Iseconds)" > "$OUT/00-placeholder.txt"
+              FILE_COUNT=$(find "$OUT" -type f 2>/dev/null | wc -l)
+              echo "DEBUG: After placeholder - FILE_COUNT=$FILE_COUNT"
+            fi
+            tar -czf "$ARCHIVE" -C "$OUT" . || { echo "Archive failed"; exit 1; }
+            ARCHIVE_SIZE=$(stat -c%s "$ARCHIVE" 2>/dev/null || echo "0")
+            echo "Archive size: $ARCHIVE_SIZE bytes, files: $(find "$OUT" -type f | wc -l)"
             ls -lh "$ARCHIVE"
 
       - name: Download export archive
