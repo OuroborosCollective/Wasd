@@ -64,6 +64,7 @@ jobs:
       - name: Collect ARE Shadow Adapter logs on VPS
         uses: appleboy/ssh-action@v1.2.0
         env:
+          LINES: ${{ env.LINES || '500' }}
           INCLUDE_TELEMETRY: ${{ github.event.inputs.include_telemetry || 'true' }}
           INCLUDE_STATE: ${{ github.event.inputs.include_state || 'true' }}
           INCLUDE_TOPOLOGY: ${{ github.event.inputs.include_topology || 'true' }}
@@ -73,9 +74,12 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
-          envs: INCLUDE_TELEMETRY,INCLUDE_STATE,INCLUDE_TOPOLOGY,EXPORT_NAME,VPS_PATH
+          envs: LINES,INCLUDE_TELEMETRY,INCLUDE_STATE,INCLUDE_TOPOLOGY,EXPORT_NAME,VPS_PATH
           script: |
             set -euo pipefail
+
+            # Ensure LINES has a default value
+            LINES="${LINES:-500}"
 
             OUT="/tmp/${EXPORT_NAME}"
             ARCHIVE="/tmp/${EXPORT_NAME}.tar.gz"
