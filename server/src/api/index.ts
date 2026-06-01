@@ -8,6 +8,7 @@ import { oracleRoute } from "./oracleRoute.js";
 import { authRoute } from "./authRoute.js";
 import { mailRoute } from "./mailRoute.js";
 import { auctionRoute } from "./auctionRoute.js";
+import { areShadowLogRouter } from "./areShadowLogRoute.js";
 
 import { mcpRoute } from "./mcpRoute.js";
 
@@ -22,5 +23,6 @@ export const ApiRoutes = [
   oracleRoute(),
   authRoute(),
   mailRoute(),
-  auctionRoute()
+  auctionRoute(),
+  areShadowLogRouter(),
 ];
