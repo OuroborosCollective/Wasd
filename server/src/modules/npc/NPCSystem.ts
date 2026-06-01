@@ -214,7 +214,7 @@ export class NPCSystem {
         }, {
           tick: Number(worldContext?.tick ?? 0),
           biomeId: worldContext?.biomeId ?? "forest_village",
-        });
+        }, npc.memory ?? undefined);
     }
 
     public handleChoice(npcId: string, nodeId: string, choiceId: string, player: any): any {
