@@ -257,7 +257,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload individual log files as artifact
-        uses: actions/upload-artifact/v4
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.EXPORT_NAME }}-logs
           path: |
