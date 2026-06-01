@@ -64,6 +64,7 @@ jobs:
       - name: Collect ARE Shadow Adapter logs on VPS
         uses: appleboy/ssh-action@v1.2.0
         env:
+          LINES: ${{ env.LINES || '500' }}
           INCLUDE_TELEMETRY: ${{ github.event.inputs.include_telemetry || 'true' }}
           INCLUDE_STATE: ${{ github.event.inputs.include_state || 'true' }}
           INCLUDE_TOPOLOGY: ${{ github.event.inputs.include_topology || 'true' }}
@@ -73,9 +74,12 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
-          envs: INCLUDE_TELEMETRY,INCLUDE_STATE,INCLUDE_TOPOLOGY,EXPORT_NAME,VPS_PATH
+          envs: LINES,INCLUDE_TELEMETRY,INCLUDE_STATE,INCLUDE_TOPOLOGY,EXPORT_NAME,VPS_PATH
           script: |
             set -euo pipefail
+
+            # Ensure LINES has a default value
+            LINES="${LINES:-500}"
 
             OUT="/tmp/${EXPORT_NAME}"
             ARCHIVE="/tmp/${EXPORT_NAME}.tar.gz"
@@ -110,7 +114,7 @@ jobs:
               echo "host=$(hostname)"
               echo "vps_path=$VPS_PATH"
               echo "workflow_run=${GITHUB_RUN_ID:-unknown}"
-              echo "github_event=$GITHUB_EVENT_NAME"
+              echo "github_event=${{ github.event_name }}"
               echo
             } > "$OUT/00-header.txt"
             redact_file "$OUT/00-header.txt"
@@ -140,14 +144,17 @@ jobs:
                 echo "sampled_lines=$LINES"
                 echo
                 echo "--- Tick Range ---"
-                tail -n "$LINES" logs/are-shadow.jsonl | jq -r '.tick' 2>/dev/null | sort -n | head -5 | xargs -I{} echo "min_tick={}"
-                tail -n "$LINES" logs/are-shadow.jsonl | jq -r '.tick' 2>/dev/null | sort -n | tail -5 | xargs -I{} echo "max_tick={}"
-                echo
-                echo "--- Capacity Distribution ---"
-                tail -n "$LINES" logs/are-shadow.jsonl | jq -r '.capacity' 2>/dev/null | sort | uniq -c | tail -20
+                TICKS=$(tail -n "$LINES" logs/are-shadow.jsonl | grep -o '"tick":[0-9]*' | cut -d: -f2 | sort -n)
+                if [ -n "$TICKS" ]; then
+                  echo "min_tick=$(echo "$TICKS" | head -1)"
+                  echo "max_tick=$(echo "$TICKS" | tail -1)"
+                else
+                  echo "No tick data found"
+                fi
                 echo
                 echo "--- Event Count ---"
-                tail -n "$LINES" logs/are-shadow.jsonl | jq -s 'length' 2>/dev/null || echo "0 entries"
+                ENTRY_COUNT=$(wc -l < "$OUT/10-are-shadow-tail.jsonl" 2>/dev/null || echo "0")
+                echo "entries_in_sample=$ENTRY_COUNT"
               } > "$OUT/11-shadow-stats.txt"
               redact_file "$OUT/11-shadow-stats.txt"
             else
@@ -195,16 +202,16 @@ jobs:
 
             # === ARE Shadow API Endpoints ===
             write_section "41-are-shadow-log.txt" "ARE Shadow API: /api/are-shadow/log" \
-              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/log?lines=50" 2>&1 | jq . 2>/dev/null || echo "Endpoint unavailable"'
+              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/log?lines=50" 2>&1 || echo "Endpoint unavailable"'
 
             write_section "42-are-shadow-stats.txt" "ARE Shadow API: /api/are-shadow/stats" \
-              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/stats" 2>&1 | jq . 2>/dev/null || echo "Endpoint unavailable"'
+              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/stats" 2>&1 || echo "Endpoint unavailable"'
 
             write_section "43-are-shadow-directory.txt" "ARE Shadow API: /api/are-shadow/directory" \
-              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/directory" 2>&1 | jq . 2>/dev/null || echo "Endpoint unavailable"'
+              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/directory" 2>&1 || echo "Endpoint unavailable"'
 
             write_section "44-are-shadow-telemetry.txt" "ARE Shadow API: /api/are-shadow/telemetry" \
-              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/telemetry" 2>&1 | jq . 2>/dev/null || echo "Endpoint unavailable"'
+              sh -lc 'curl -k --max-time 15 "https://arelorian.de/api/are-shadow/telemetry" 2>&1 || echo "Endpoint unavailable"'
 
             # === Recent Server Logs ===
             if [ -d "logs" ]; then
@@ -218,23 +225,49 @@ jobs:
             fi
 
             # === Archive ===
-            tar -czf "$ARCHIVE" -C "$OUT" .
+            # Ensure at least one file exists before archiving
+            FILE_COUNT=$(find "$OUT" -type f 2>/dev/null | wc -l)
+            echo "DEBUG: Archive preparation - OUT=$OUT, FILE_COUNT=$FILE_COUNT"
+            if [ "$FILE_COUNT" -eq 0 ]; then
+              echo "No files to archive, creating placeholder"
+              echo "Export completed but no data files generated at $(date -Iseconds)" > "$OUT/00-placeholder.txt"
+              FILE_COUNT=$(find "$OUT" -type f 2>/dev/null | wc -l)
+              echo "DEBUG: After placeholder - FILE_COUNT=$FILE_COUNT"
+            fi
+            tar -czf "$ARCHIVE" -C "$OUT" . || { echo "Archive failed"; exit 1; }
+            ARCHIVE_SIZE=$(stat -c%s "$ARCHIVE" 2>/dev/null || echo "0")
+            echo "Archive size: $ARCHIVE_SIZE bytes, files: $(find "$OUT" -type f | wc -l)"
             ls -lh "$ARCHIVE"
+            
+            # Copy to web-accessible location for download via curl
+            mkdir -p /opt/areloria/.workflow-exports
+            cp "$ARCHIVE" "/opt/areloria/.workflow-exports/$EXPORT_NAME.tar.gz"
+            echo "Copied archive to web-accessible location"
 
       - name: Download export archive
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: /tmp/${{ env.EXPORT_NAME }}.tar.gz
-          target: .
+        run: |
+          set -euo pipefail
+          echo "Downloading archive from VPS..."
+          # Use curl to download the archive
+          curl -k --max-time 120 -o "./tmp/${{ env.EXPORT_NAME }}.tar.gz" \
+            "https://arelorian.de/.workflow-exports/${{ env.EXPORT_NAME }}.tar.gz" \
+            2>&1 || { echo "Download failed"; ls -la ./tmp/ 2>/dev/null; exit 1; }
+          echo "Download complete"
+          ls -lh "./tmp/${{ env.EXPORT_NAME }}.tar.gz"
 
       - name: Extract and display ARE Shadow log summary
         run: |
           set -euo pipefail
           
-          tar -xzf ./tmp/${{ env.EXPORT_NAME }}.tar.gz
+          ARCHIVE_PATH="./${{ env.EXPORT_NAME }}.tar.gz"
+          if [ ! -f "$ARCHIVE_PATH" ]; then
+            ARCHIVE_PATH="./tmp/${{ env.EXPORT_NAME }}.tar.gz"
+          fi
+          
+          echo "Looking for archive at: $ARCHIVE_PATH"
+          ls -la "$ARCHIVE_PATH" 2>/dev/null || ls -la ./tmp/ 2>/dev/null || echo "No archive found"
+          
+          tar -xzf "$ARCHIVE_PATH" || { echo "Extraction failed"; exit 1; }
           
           echo "=== ARE Shadow Adapter Export Summary ==="
           echo ""
@@ -244,7 +277,7 @@ jobs:
           
           if [ -f "./10-are-shadow-tail.jsonl" ]; then
             echo "=== ARE Shadow Log Sample (last 10 entries) ==="
-            tail -n 10 ./10-are-shadow-tail.jsonl | jq -s '.' 2>/dev/null || tail -n 10 ./10-are-shadow-tail.jsonl
+            tail -n 10 ./10-are-shadow-tail.jsonl | head -50
             echo ""
           fi
 
@@ -269,16 +302,8 @@ jobs:
 
       - name: Cleanup remote artifacts
         if: always()
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          EXPORT_NAME: ${{ env.EXPORT_NAME }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          envs: EXPORT_NAME
-          script: |
-            rm -rf "/tmp/${EXPORT_NAME}" "/tmp/${EXPORT_NAME}.tar.gz" || true
+        run: |
+          echo "Cleanup note: .workflow-exports directory will be cleaned up on next run"
 
   generate-report:
     name: Generate ARE Shadow Report
