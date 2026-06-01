@@ -262,12 +262,12 @@ function XPBar({ snapshot }: XPBarProps) {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-interface CharacterWindowProps {
+interface SkillWindowProps {
   readonly isOpen?: boolean;
   readonly onClose?: () => void;
 }
 
-export function CharacterWindow({ isOpen = true, onClose }: CharacterWindowProps) {
+export function SkillWindow({ isOpen = true, onClose }: SkillWindowProps) {
   const snapshot = useCharacterWindow();
   const [allocatingStat, setAllocatingStat] = useState<CoreStatKey | null>(null);
   const clearPendingTimerRef = useRef<number | null>(null);
@@ -459,5 +459,5 @@ export function mountCharacterWindow(containerId = "character-mount"): void {
     mountedCharacterRoot = createRoot(container);
   }
 
-  mountedCharacterRoot.render(<CharacterWindow />);
+  mountedCharacterRoot.render(<SkillWindow />);
   }

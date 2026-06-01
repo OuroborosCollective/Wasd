@@ -83,6 +83,9 @@ export interface NPC {
     phaseShift?: number;
     // ARE Systemic Emergence: NPC Inventory (Conservation Axiom - NPCs use same systems as players)
     inventory?: any;
+    tags?: string[];
+    persistent?: boolean;
+    syntheticSocketId?: string;
     activeUtilityDecision?: {
       action: string;
       targetEntity?: string;
