@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { InventoryOverlay } from "./InventoryOverlay.js";
+import { InventoryGrid } from "./InventoryGrid.js";
 import { CharacterOverlay } from "./CharacterOverlay.js";
 import { StorageOverlay, openStorageOverlay, closeStorageOverlay } from "./StorageOverlay.js";
 import type { StorageSnapshot } from "./StorageOverlay.js";
@@ -114,7 +114,7 @@ export function useOverlayRenderer(): {
   const OverlayComponent: React.FC | null = (() => {
     switch (overlay.type) {
       case "INVENTORY":
-        return () => <InventoryOverlay isOpen={true} onClose={() => interactionUI.closeUI()} />;
+        return () => <InventoryGrid isOpen={true} onClose={() => interactionUI.closeUI()} />;
       case "CHARACTER":
         return () => <CharacterOverlay isOpen={true} onClose={() => interactionUI.closeUI()} />;
       case "STORAGE":
