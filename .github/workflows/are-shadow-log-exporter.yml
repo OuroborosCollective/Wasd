@@ -252,7 +252,15 @@ jobs:
         run: |
           set -euo pipefail
           
-          tar -xzf ./tmp/${{ env.EXPORT_NAME }}.tar.gz
+          ARCHIVE_PATH="./${{ env.EXPORT_NAME }}.tar.gz"
+          if [ ! -f "$ARCHIVE_PATH" ]; then
+            ARCHIVE_PATH="./tmp/${{ env.EXPORT_NAME }}.tar.gz"
+          fi
+          
+          echo "Looking for archive at: $ARCHIVE_PATH"
+          ls -la "$ARCHIVE_PATH" 2>/dev/null || ls -la ./tmp/ 2>/dev/null || echo "No archive found"
+          
+          tar -xzf "$ARCHIVE_PATH" || { echo "Extraction failed"; exit 1; }
           
           echo "=== ARE Shadow Adapter Export Summary ==="
           echo ""
