@@ -13,6 +13,7 @@ import { spawnFloatingStatus, spawnTouchRipple } from "./fxLogic";
 import { moveVisualTowards } from "./visualMotion";
 import { CombatFXManager } from "./render/CombatFXManager";
 import { initCombatFXBridge } from "./render/CombatFXEventBridge";
+import { AnimatedSpriteManager } from "./render/AnimatedSpriteManager";
 import { ChunkManager } from "./world/ChunkManager";
 import { InterpolatedSpriteManager } from "./math/InterpolatedSpriteManager";
 import { FacingDirection, inputToFacing, serverPosToKappa, getFacingEntity, type TargetableEntity } from "./input/Targeting";
@@ -407,7 +408,7 @@ export function DeterministicWorldIsoApp() {
     }
   }
 
-  function setActor(id: string, x: number, z: number, name: string, player: boolean, characterVisualId: string | null, weaponVisualId: string | null) {
+  function setActor(id: string, x: number, z: number, name: string, player: boolean, characterVisualId: string | null, weaponVisualId: string | null, entityClass: string = player ? 'player' : 'npc') {
     const app = appRef.current;
     const layer = actorLayerRef.current;
     if (!app || !layer) return;
@@ -439,6 +440,17 @@ export function DeterministicWorldIsoApp() {
       
       // Register target position for interpolation (NOT instant move)
       interp.setTarget(id, screenPos.x, screenPos.y);
+      
+      // ─────────────────────────────────────────────────────────────────
+      // DELTA-DRIVEN ANIMATION: Update AnimatedSpriteManager target
+      //
+      // The AnimatedSpriteManager reads from InterpolatedSpriteManager's
+      // target positions to calculate delta-driven animation states.
+      // This enables: idle (delta < 0.5px) → walk (delta >= 0.5px)
+      // with direction calculated from movement vector.
+      // ─────────────────────────────────────────────────────────────────
+      const animMgr = AnimatedSpriteManager.getInstance();
+      animMgr.setTarget(id, screenPos.x, screenPos.y);
       return;
     }
     
@@ -461,6 +473,34 @@ export function DeterministicWorldIsoApp() {
     // Initial position is the spawn position; subsequent updates will lerp
     const screenPos = iso(x, z, app.screen.width, app.screen.height);
     interp.register(id, root, screenPos.x, screenPos.y);
+    
+    // ─────────────────────────────────────────────────────────────────
+    // DELTA-DRIVEN ANIMATION: Register with AnimatedSpriteManager
+    //
+    // The AnimatedSpriteManager requires:
+    // 1. Entity metadata (type, class) for sprite-sheet mapping
+    // 2. Initial screen position for delta calculation
+    // 3. Container reference for sprite attachment
+    //
+    // It will then:
+    // - Load directional walk cycles from AssetMapper
+    // - Subscribe to InterpolatedSpriteManager for target updates
+    // - Run delta-driven animation in 60 FPS ticker
+    // ─────────────────────────────────────────────────────────────────
+    const animMgr = AnimatedSpriteManager.getInstance();
+    animMgr.setPositionManager(interp);
+    animMgr.registerEntity(
+      id,
+      {
+        entityId: id,
+        entityType: player ? 'PLAYER' : 'NPC',
+        entityClass,
+        visualId: characterVisualId ?? undefined,
+      },
+      root,
+      screenPos.x,
+      screenPos.y,
+    ).catch((err) => console.warn('[DeterministicWorldIsoApp] AnimatedSpriteManager registration failed:', err));
   }
 
   function rebuildActor(id: string, weaponVisualId: string | null) {
@@ -577,11 +617,19 @@ export function DeterministicWorldIsoApp() {
         viewRadius: 1,
         throttleMs: 500,
       });
-      chunkManager.init({
+      // Extract entity class from NPC role (e.g., "npc_blacksmith" → "blacksmith")
+function extractEntityClass(role: string | undefined): string {
+  if (!role) return 'npc';
+  // Strip "npc_" prefix if present
+  const stripped = role.replace(/^npc_/i, '');
+  return stripped || 'npc';
+}
+
+chunkManager.init({
         worldContainer: terrain,  // Use terrain layer for chunks
         binder,
         textureFor: (src) => textureFor(assets, src),
-        addNpcActor: ({ id, tileX, tileZ, name, role, characterVisualId }) => setActor(id, tileX, tileZ, roleDisplayName(role) || name, false, characterVisualId, null),
+        addNpcActor: ({ id, tileX, tileZ, name, role, characterVisualId }) => setActor(id, tileX, tileZ, roleDisplayName(role) || name, false, characterVisualId, null, extractEntityClass(role)),
         width: app.screen.width,
         height: app.screen.height,
       });
@@ -595,7 +643,7 @@ export function DeterministicWorldIsoApp() {
         props,
         actors,
         textureFor: (entry) => textureFor(assets, entry?.src),
-        addNpcActor: ({ id, tileX, tileZ, name, role, characterVisualId }) => setActor(id, tileX, tileZ, roleDisplayName(role) || name, false, characterVisualId, null),
+        addNpcActor: ({ id, tileX, tileZ, name, role, characterVisualId }) => setActor(id, tileX, tileZ, roleDisplayName(role) || name, false, characterVisualId, null, extractEntityClass(role)),
       });
 
       const [centerX, centerZ] = plan.settlement.centerCell.split(":").map((value) => Number(value));
@@ -654,7 +702,9 @@ export function DeterministicWorldIsoApp() {
       }
       
       payloadEntries(event.payload?.agents ?? event.payload?.npcs, "agent").forEach(([id, npc]: any) => {
-        setActor(id, payloadCoord(npc, "x"), payloadCoord(npc, "z"), npc.name || npc.displayName || npc.role || "NPC", false, npc.characterVisualId ?? npc.visualId ?? null, null);
+        // Extract entity class from NPC role for AnimatedSpriteManager
+        const entityClass = npc.role ? extractEntityClass(npc.role) : (npc.entityClass ?? 'npc');
+        setActor(id, payloadCoord(npc, "x"), payloadCoord(npc, "z"), npc.name || npc.displayName || npc.role || "NPC", false, npc.characterVisualId ?? npc.visualId ?? null, null, entityClass);
       });
     });
     
@@ -780,6 +830,14 @@ export function DeterministicWorldIsoApp() {
             
             // Unregister from interpolation manager
             interp.remove(goneId);
+            
+            // ─────────────────────────────────────────────────────────────────
+            // DELTA-DRIVEN ANIMATION: Cleanup AnimatedSpriteManager
+            //
+            // Prevents memory leaks on mobile devices by cleaning up
+            // the PIXI.AnimatedSprite instance and its textures.
+            // ─────────────────────────────────────────────────────────────────
+            AnimatedSpriteManager.getInstance().removeEntity(goneId);
             
             // Optional: spawn leave notification
             // const goneName = entity.name;
