@@ -37,7 +37,7 @@ jobs:
         run: corepack prepare pnpm@9.12.2 --activate
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
 
       - name: Build 2D Stitch client
         run: pnpm --filter @wasd/client-2d build

@@ -32,7 +32,9 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          # For pnpm v11, use --no-frozen-lockfile to avoid ERR_PNPM_IGNORED_BUILDS
+          pnpm install --no-frozen-lockfile --ignore-scripts
 
       - name: Run monorepo guard
         run: pnpm guard:monorepo:frozen

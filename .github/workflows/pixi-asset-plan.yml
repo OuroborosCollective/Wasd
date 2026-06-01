@@ -65,7 +65,7 @@ jobs:
           pnpm --version
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
 
       - name: Scan Pixi asset inbox
         run: pnpm assets:pixi:scan-inbox

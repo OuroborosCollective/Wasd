@@ -33,7 +33,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile=false
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
 
       - name: Build itch 2D client
         run: pnpm --filter @wasd/client-2d build:itch
