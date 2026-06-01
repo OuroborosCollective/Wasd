@@ -234,8 +234,9 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
-          source: /opt/areloria/logs/are-shadow.jsonl
-          target: ./logs
+          source: /tmp/${{ env.EXPORT_NAME }}/
+          target: ./export
+          strip_components: 1
 
       - name: Extract and display ARE Shadow log summary
         run: |
@@ -244,23 +245,28 @@ jobs:
           echo "=== ARE Shadow Adapter Export Summary ==="
           echo ""
           
-          if [ -f "./logs/are-shadow.jsonl" ]; then
-            echo "Found are-shadow.jsonl"
-            echo "Files in ./logs:"
-            ls -la ./logs/
+          if [ -f "./export/10-are-shadow-tail.jsonl" ]; then
+            echo "Found redacted are-shadow-tail.jsonl"
+            echo "Files in ./export:"
+            ls -la ./export/
             echo ""
-            echo "=== Last 20 lines of ARE Shadow Log ==="
-            tail -20 ./logs/are-shadow.jsonl
+            echo "=== Last 20 lines of ARE Shadow Log (redacted) ==="
+            tail -20 ./export/10-are-shadow-tail.jsonl
+          elif [ -f "./export/are-shadow-tail.jsonl" ]; then
+            echo "Found are-shadow tail"
+            ls -la ./export/
+            tail -20 ./export/are-shadow-tail.jsonl
           else
-            echo "❌ are-shadow.jsonl not found"
+            echo "❌ are-shadow log not found"
             ls -la ./
+            find ./export -type f 2>/dev/null || echo "export dir not present"
           fi
 
       - name: Upload export artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.EXPORT_NAME }}
-          path: ./logs
+          path: ./export
           retention-days: 14
           if-no-files-found: error
 
@@ -269,7 +275,8 @@ jobs:
         with:
           name: ${{ env.EXPORT_NAME }}-logs
           path: |
-            ./logs/are-shadow.jsonl
+            ./export/10-are-shadow-tail.jsonl
+            ./export/11-shadow-stats.txt
           retention-days: 14
           if-no-files-found: ignore
 
@@ -296,8 +303,8 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ env.EXPORT_NAME }}-logs
-          path: ./logs
+          name: ${{ env.EXPORT_NAME }}
+          path: ./export
         continue-on-error: true
 
       - name: Create ARE Shadow Status Report
@@ -310,9 +317,9 @@ jobs:
           echo "Run ID: ${{ github.run_id }}"
           echo ""
           
-          if [ -d "./logs" ] && [ -f "./logs/11-shadow-stats.txt" ]; then
+          if [ -d "./export" ] && [ -f "./export/11-shadow-stats.txt" ]; then
             echo "--- Log Statistics ---"
-            cat ./logs/11-shadow-stats.txt
+            cat ./export/11-shadow-stats.txt
             echo ""
           fi
           
