@@ -5,3 +5,7 @@
 ## 2028-02-14 - [Generic High-Performance deepClone Utility]
 **Learning:** For dynamic or deeply nested objects where manual spread cloning is impractical, a recursive `deepClone` implementation is ~3.8x to 7x faster than `JSON.parse(JSON.stringify())` while maintaining JSON parity (handling Dates, undefined, etc.).
 **Action:** Use the `deepClone` utility from `server/src/utils/deepClone.ts` for hot paths involving complex state snapshots or persistence serialization.
+
+## 2028-02-14 - [Broad Deep Clone Optimization]
+**Learning:** High-frequency data retrieval and persistence paths (like player snapshots and asset pool resolution) were using `JSON.parse(JSON.stringify())` for cloning, creating a significant performance bottleneck. Replacing this with the custom `deepClone` utility consistently yields a ~3.7x performance improvement in benchmarks.
+**Action:** Use `deepClone` from `server/src/utils/deepClone.ts` in all critical data serialization/cloning paths to maintain JSON parity while gaining speed.

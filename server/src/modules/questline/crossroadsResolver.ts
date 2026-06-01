@@ -3,6 +3,7 @@
  */
 
 import { getFactionByStrand, type Faction } from "./factionRegistry.js";
+import { deepClone } from "../../utils/deepClone.js";
 
 export type CrossroadsChoice = {
   id: string;
@@ -216,13 +217,14 @@ export type ResolveCrossroadsResult = {
 export function getCrossroads(crossroadsId: string): Crossroads | null {
   const template = CROSSROADS_TEMPLATES[crossroadsId];
   if (!template) return null;
-  return JSON.parse(JSON.stringify(template)) as Crossroads;
+  // Bolt: Optimization - deepClone is significantly faster than JSON.parse(JSON.stringify)
+  return deepClone(template);
 }
 
 export function getCrossroadsByTrigger(questId: string): Crossroads[] {
   return Object.values(CROSSROADS_TEMPLATES)
     .filter((c) => c.triggerQuestId === questId)
-    .map((c) => JSON.parse(JSON.stringify(c)) as Crossroads);
+    .map((c) => deepClone(c));
 }
 
 export function resolveCrossroadsChoice(

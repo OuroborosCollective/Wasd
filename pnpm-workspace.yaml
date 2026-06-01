@@ -8,5 +8,15 @@ packages:
   - "portal"
   - "server"
   - "backend"
+allowBuilds:
+  '@firebase/util': true
+  '@google/genai': true
+  '@nestjs/core': true
+  '@prisma/engines': true
+  cpu-features: true
+  esbuild: true
+  prisma: true
+  protobufjs: true
+  ssh2: true
 
 # Note: allowBuilds is now set in .npmrc
