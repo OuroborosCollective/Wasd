@@ -6,8 +6,8 @@ import { useStore } from '../../store/useStore';
  * @wasd/types stellt die Netzwerk-Typen bereit.
  * @wasd/shared enthält die Engine-Konstanten wie KAPPA (1000).
  */
-import { DeviceTier } from '@wasd/types';
-import { KAPPA } from '@wasd/shared';
+import { DeviceTierValue } from '@wasd/types';
+import { KAPPA_STANDARD as KAPPA } from '@wasd/shared';
 
 /**
  * QuestStateNet Definition - Repräsentiert den Quest-Zustand im WorldStateRegistry.
@@ -49,7 +49,7 @@ export const NewHud: React.FC = () => {
     deviceTier: state.deviceTier
   }));
 
-  const isLowEnd = useMemo(() => deviceTier === DeviceTier.LOW || deviceTier === DeviceTier.MOBILE, [deviceTier]);
+  const isLowEnd = useMemo(() => deviceTier === DeviceTierValue.LOW || deviceTier === DeviceTierValue.MOBILE, [deviceTier]);
 
   /**
    * Deterministic UI Berechnung: 
@@ -81,7 +81,8 @@ export const NewHud: React.FC = () => {
             aria-valuenow={Math.floor(health / KAPPA)}
             aria-valuemin={0}
             aria-valuemax={Math.floor(maxHealth / KAPPA)}
-            className={`h-6 bg-black/50 border border-white/10 rounded-sm overflow-hidden backdrop-blur-md ${healthPercent < 20 ? 'animate-pulse' : ''}`}
+            aria-valuetext={`${Math.floor(health / KAPPA)} out of ${Math.floor(maxHealth / KAPPA)} health`}
+            className={`h-6 bg-black/50 border border-white/10 rounded-sm overflow-hidden backdrop-blur-md relative ${healthPercent < 20 ? 'animate-pulse' : ''}`}
           >
             <div 
               className="h-full bg-gradient-to-r from-red-700 to-red-500 transition-all duration-100"
@@ -99,7 +100,8 @@ export const NewHud: React.FC = () => {
             aria-valuenow={Math.floor(mana / KAPPA)}
             aria-valuemin={0}
             aria-valuemax={Math.floor(maxMana / KAPPA)}
-            className="h-3 bg-black/50 border border-white/10 rounded-sm overflow-hidden backdrop-blur-md"
+            aria-valuetext={`${Math.floor(mana / KAPPA)} out of ${Math.floor(maxMana / KAPPA)} mana`}
+            className={`h-3 bg-black/50 border border-white/10 rounded-sm overflow-hidden backdrop-blur-md ${manaPercent < 20 ? 'animate-pulse shadow-[inset_0_0_8px_rgba(6,182,212,0.4)]' : ''}`}
           >
             <div 
               className="h-full bg-gradient-to-r from-cyan-700 to-blue-500 transition-all duration-100"
@@ -109,7 +111,11 @@ export const NewHud: React.FC = () => {
         </div>
 
         {/* Quest Tracker: Deterministic Progress Mapping */}
-        <div className="w-72 bg-black/40 p-4 border-l-2 border-yellow-500/50 backdrop-blur-md">
+        <div
+          role="region"
+          aria-label="Quest Tracker"
+          className="w-72 bg-black/40 p-4 border-l-2 border-yellow-500/50 backdrop-blur-md"
+        >
           <h3 className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4">Current Objectives</h3>
           <div className="flex flex-col gap-5">
             {activeQuests.map((quest: any) => (
@@ -121,7 +127,15 @@ export const NewHud: React.FC = () => {
                   </span>
                 </div>
                 <span className="text-white/50 text-[10px] italic mb-1">{quest.target}</span>
-                <div className="w-full h-[2px] bg-white/5">
+                <div
+                  role="progressbar"
+                  aria-label={`${quest.name} progress`}
+                  aria-valuenow={quest.progress}
+                  aria-valuemin={0}
+                  aria-valuemax={quest.maxProgress || KAPPA}
+                  aria-valuetext={`${Math.floor((quest.progress / (quest.maxProgress || KAPPA)) * 100)}%`}
+                  className="w-full h-[2px] bg-white/5"
+                >
                   <div 
                     className="h-full bg-yellow-500/80 transition-all duration-500" 
                     style={{ width: `${(quest.progress / (quest.maxProgress || KAPPA)) * 100}%` }}
@@ -137,7 +151,11 @@ export const NewHud: React.FC = () => {
       {/* Interaction Layer: Nearby Items */}
       <div className="flex justify-center mb-24">
         {!inventoryOpen && nearbyLoot.length > 0 && (
-          <div className="bg-white px-3 py-1 flex items-center gap-3 shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+          <div
+            role="status"
+            aria-live="polite"
+            className="bg-white px-3 py-1 flex items-center gap-3 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+          >
             <kbd className="bg-black text-white px-1.5 py-0.5 rounded text-[10px] font-bold">E</kbd>
             <span className="text-black text-[10px] font-bold uppercase tracking-tight">
               Collect {nearbyLoot.length} Object{nearbyLoot.length > 1 ? 's' : ''}
