@@ -113,6 +113,17 @@ For every non-trivial feature or architecture change:
 1. Update `docs/PROJECT_STATUS_2026.md`
 2. Update `docs/ROADMAP_TO_RELEASE.md` if release scope/gaps changed
 3. If a core workflow changed, also update `README.md` and relevant deploy/env docs
+
+### AI Skills & Knowledge Base
+When working on specific topics, check the skills in `docs/ai-skills/`:
+- `wasd-typescript-troubleshooting.md` - Common TypeScript errors and fixes
+- `wasd-are-system.md` - ARE engine types and integrations
+- `wasd-monorepo-patterns.md` - Build commands and workspace patterns
+- `wasd-manifest-system.md` - Manifest system usage
+- `wasd-github-actions-repair.md` - CI/CD debugging patterns
+- `wasd-game-architecture.md` - Core architecture decisions
+- `server-anti-ninja-loot.md` - Security patterns for loot
+
 ### Manifest System (Server Authority)
 The manifest system provides deterministic, server-authoritative state management:
 - **Server**: `server/src/core/manifest/` - ManifestFactory, ManifestHasher, ManifestSigner, ManifestVerifier, ManifestReplayGuard

@@ -111,7 +111,7 @@ export class AREShadowAdapter {
     };
     
     console.log(`[AREShadowAdapter] 📡 Write shadow log: tick=${input.tick}, entity=${input.entityId}, stateHash=${stateHash}`);
-    this.logSink.write(input.tick, stats);
+    this.logSink.write(input.tick, stats as any);
   }
 
   static executeShadowTick(input: AREShadowTickInput): AREShadowTickResult {

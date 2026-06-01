@@ -4,6 +4,8 @@
  * Basic tests to verify manifest system functionality.
  */
 
+/// <reference types="vitest/globals" />
+
 import {
   ManifestFactory,
   ManifestReplayGuard,
