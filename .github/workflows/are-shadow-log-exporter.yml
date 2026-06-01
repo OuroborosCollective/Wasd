@@ -110,7 +110,7 @@ jobs:
               echo "host=$(hostname)"
               echo "vps_path=$VPS_PATH"
               echo "workflow_run=${GITHUB_RUN_ID:-unknown}"
-              echo "github_event=$GITHUB_EVENT_NAME"
+              echo "github_event=${{ github.event_name }}"
               echo
             } > "$OUT/00-header.txt"
             redact_file "$OUT/00-header.txt"
