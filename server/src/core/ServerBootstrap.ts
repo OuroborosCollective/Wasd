@@ -227,11 +227,26 @@ export class ServerBootstrap {
     try { const worldDir = resolveContentDir("world"); if (existsSync(worldDir)) app.use("/world", express.static(worldDir, { maxAge: process.env.NODE_ENV === "production" ? "1h" : 0, fallthrough: true })); } catch {}
     const port = Number(process.env.PORT || 3000);
     httpServer.listen(port, () => {
-      console.log(`Arelorian server listening on ${port}`);
-      tick.start();
-      const shutdownHandler = async () => { console.log("[Shutdown] Flushing data..."); playtesterSignaling.stop(); monitorStream.stop(); tick.liveHeal.flush(); tick.assetHealthService.flush(); try { await shutdownPostHog(); } catch (e) { console.warn("[Shutdown] PostHog shutdown failed", e); } process.exit(0); };
-      process.on("SIGTERM", shutdownHandler);
-      process.on("SIGINT", shutdownHandler);
+        console.log(`Arelorian server listening on ${port}`);
+        tick.start();
+        const shutdownHandler = async () => { 
+          console.log("[Shutdown] Flushing data..."); 
+          playtesterSignaling.stop(); 
+          monitorStream.stop(); 
+          tick.liveHeal.flush(); 
+          tick.assetHealthService.flush();
+          
+          // SHADOW-LOG FLUSH: Synchronous guarantee for I/O-Kausalität
+          const { AREShadowAdapter } = await import('./are/AREShadowAdapter.js');
+          const logSink = AREShadowAdapter.getLogSink();
+          await logSink.flush();
+          console.log("[Shutdown] ARE Shadow Log Sink geflushed");
+          
+          try { await shutdownPostHog(); } catch (e) { console.warn("[Shutdown] PostHog shutdown failed", e); } 
+          process.exit(0); 
+        };
+        process.on("SIGTERM", shutdownHandler);
+        process.on("SIGINT", shutdownHandler);
     });
   }
 }

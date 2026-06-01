@@ -53,8 +53,13 @@ export class AREShadowAdapter {
   private static readonly defaultEcosystemState = new AREShadowState();
   private static readonly logSink = new AREShadowLogSink();
   private static lastLoggedTick: number | null = null;
+  private static initializationTick: number | null = null;
   private static topologyTick: number | null = null;
   private static topologyCells = new Map<string, string[]>();
+
+  static getLogSink(): AREShadowLogSink {
+    return this.logSink;
+  }
 
   static getEcosystemTelemetry(): AREShadowEcosystemStats & { topology: unknown } {
     return {
@@ -79,6 +84,7 @@ export class AREShadowAdapter {
     if (this.topologyTick === null) {
       areTopologyNetwork.seedCore('core:singularity', 0);
       this.topologyTick = t;
+      console.log(`[AREShadowAdapter] 🧠 Topology initialisiert bei tick=${t}`);
     }
     if (t !== this.topologyTick) {
       this.flushTopologyCells(this.topologyTick);
@@ -94,19 +100,29 @@ export class AREShadowAdapter {
   private static writeShadowLog(input: AREShadowTickInput, stateHash: number | undefined): void {
     if (this.lastLoggedTick === input.tick) return;
     this.lastLoggedTick = input.tick;
-    this.logSink.write(input.tick, {
+    
+    const stats = {
       capacity: input.buffer.capacity,
       size: input.buffer.size,
       latestTick: input.tick,
       latestEntityId: input.entityId,
       latestStateHash: stateHash ?? null,
       ecosystem: this.getEcosystemTelemetry(),
-    });
+    };
+    
+    console.log(`[AREShadowAdapter] 📡 Write shadow log: tick=${input.tick}, entity=${input.entityId}, stateHash=${stateHash}`);
+    this.logSink.write(input.tick, stats);
   }
 
   static executeShadowTick(input: AREShadowTickInput): AREShadowTickResult {
     if (!ARE_CONFIG.ENABLE_SHADOW_TICK) {
       return { skipped: true, recorded: false };
+    }
+
+    // Initialization guard - MUSS vor dem ersten Tick erfolgen
+    if (this.initializationTick === null) {
+      this.initializationTick = input.tick;
+      console.log(`[AREShadowAdapter] ✅ Adapter initialisiert bei tick=${input.tick}, BufferCap=${input.buffer.capacity}`);
     }
 
     try {
@@ -151,6 +167,7 @@ export class AREShadowAdapter {
       AREShadowAdapter.writeShadowLog(input, entry.stateHash);
       return { skipped: false, recorded: true, stateHash: entry.stateHash };
     } catch (error) {
+      console.error(`[AREShadowAdapter] ❌ Fehler bei tick=${input.tick}, entity=${input.entityId}:`, error);
       return { skipped: false, recorded: false, error };
     }
   }
