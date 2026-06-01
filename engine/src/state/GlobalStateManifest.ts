@@ -1,115 +1,115 @@
+export type ManifestPayload = Record<string, unknown>;
+
 export interface ICryptoDependencyHeader {
-    /**
-     * Eindeutiger Index des Ticks im 10-Hz Takt (alle 100ms)
-     */
-    readonly tickSequence: number;
-
-    /**
-     * Hochpräziser Server-Zeitstempel zur Validierung der Latenz
-     */
-    readonly serverTimestamp: number;
-
-    /**
-     * SHA-256 Hash des aktuellen Gesamtzustands
-     */
-    readonly stateHash: string;
-
-    /**
-     * Kryptographische Signatur (HMAC/RSA), die die Server-Autorität beglaubigt
-     */
-    readonly authoritySignature: string;
-
-    /**
-     * Verkettung zum vorherigen State-Hash (Blockchain-Prinzip)
-     */
-    readonly previousStateHash: string;
-
-    /**
-     * Nonce zur Vermeidung von Replay-Attacks innerhalb desselben Ticks
-     */
-    readonly integrityNonce: number;
+  readonly tickSequence: number;
+  readonly serverTimestamp: number;
+  readonly stateHash: string;
+  readonly authoritySignature: string;
+  readonly previousStateHash: string;
+  readonly integrityNonce: string;
 }
 
 export interface IManifestDependency {
-    /**
-     * ID des Sub-Systems oder der Entity-Gruppe
-     */
-    readonly componentId: string;
+  readonly componentId: string;
+  readonly checksum: string;
+  readonly schemaVersion: number;
+}
 
-    /**
-     * Lokaler Hash-Wert des Sub-Systems zur Integritätsprüfung
-     */
-    readonly checksum: string;
+export interface GlobalStateManifestInput {
+  readonly tickSequence: number;
+  readonly serverTimestamp: number;
+  readonly stateHash: string;
+  readonly authoritySignature: string;
+  readonly previousStateHash: string;
+  readonly integrityNonce: string;
+  readonly dependencies?: readonly IManifestDependency[];
+  readonly payload?: ManifestPayload;
+}
 
-    /**
-     * Versions-Flag für Schema-Kompatibilität
-     */
-    readonly schemaVersion: number;
+export class GlobalStateManifest {
+  public static readonly TICK_RATE_HZ = 10;
+  public static readonly TICK_INTERVAL_MS =
+    1000 / GlobalStateManifest.TICK_RATE_HZ;
+
+  public readonly header: ICryptoDependencyHeader;
+  public readonly dependencies: readonly IManifestDependency[];
+  public readonly payload: ManifestPayload;
+
+  public constructor(input: GlobalStateManifestInput) {
+    this.header = Object.freeze({
+      tickSequence: input.tickSequence,
+      serverTimestamp: input.serverTimestamp,
+      stateHash: input.stateHash,
+      authoritySignature: input.authoritySignature,
+      previousStateHash: input.previousStateHash,
+      integrityNonce: input.integrityNonce,
+    });
+
+    this.dependencies = Object.freeze([...(input.dependencies ?? [])]);
+    this.payload = Object.freeze({ ...(input.payload ?? {}) });
+  }
+
+  public serialize(): Uint8Array {
+    const jsonString = stableStringify({
+      h: this.header,
+      d: this.dependencies,
+      p: this.payload,
+    });
+
+    return new TextEncoder().encode(jsonString);
+  }
+
+  public toCanonicalString(): string {
+    return stableStringify({
+      h: this.header,
+      d: this.dependencies,
+      p: this.payload,
+    });
+  }
+
+  public validateSequence(previousManifest: GlobalStateManifest): boolean {
+    return (
+      this.header.tickSequence === previousManifest.header.tickSequence + 1 &&
+      this.header.previousStateHash === previousManifest.header.stateHash
+    );
+  }
+
+  public isWithinTimingWindow(
+    currentServerTime: number,
+    toleranceMs: number = 50,
+  ): boolean {
+    const drift = Math.abs(currentServerTime - this.header.serverTimestamp);
+
+    return drift <= GlobalStateManifest.TICK_INTERVAL_MS + toleranceMs;
+  }
+
+  public hasValidDependencySchema(minSchemaVersion = 1): boolean {
+    return this.dependencies.every(
+      (dependency) =>
+        dependency.componentId.length > 0 &&
+        dependency.checksum.length > 0 &&
+        dependency.schemaVersion >= minSchemaVersion,
+    );
+  }
 }
 
 /**
- * GlobalStateManifest stellt die absolute Wahrheit des Server-Zustands dar.
- * Die Struktur erzwingt eine strikte zeitliche Abfolge durch kryptographische Verkettung.
+ * Deterministische JSON-Serialisierung.
+ * Wichtig für reproduzierbare Hashes im 10-Hz-State-Chain-System.
  */
-export class GlobalStateManifest {
-    public static readonly TICK_RATE_HZ = 10;
-    public static readonly TICK_INTERVAL_MS = 1000 / GlobalStateManifest.TICK_RATE_HZ;
+export function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
 
-    public readonly header: ICryptoDependencyHeader;
-    public readonly dependencies: IManifestDependency[];
-    public readonly payload: Record<string, any>;
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
 
-    constructor(
-        tickSequence: number,
-        stateHash: string,
-        authoritySignature: string,
-        previousStateHash: string,
-        integrityNonce: number,
-        dependencies: IManifestDependency[] = [],
-        payload: Record<string, any> = {}
-    ) {
-        this.header = {
-            tickSequence,
-            serverTimestamp: Date.now(),
-            stateHash,
-            authoritySignature,
-            previousStateHash,
-            integrityNonce
-        };
-        this.dependencies = dependencies;
-        this.payload = payload;
-    }
+  const objectValue = value as Record<string, unknown>;
+  const keys = Object.keys(objectValue).sort();
 
-    /**
-     * Erzeugt einen binären Snapshot des Manifests für die Netzwerkübertragung
-     */
-    public serialize(): Uint8Array {
-        const jsonString = JSON.stringify({
-            h: this.header,
-            d: this.dependencies,
-            p: this.payload
-        });
-        return new TextEncoder().encode(jsonString);
-    }
-
-    /**
-     * Validiert die Sequenzielle Integrität gegenüber einem vorherigen Manifest
-     */
-    public validateSequence(previousManifest: GlobalStateManifest): boolean {
-        if (this.header.tickSequence !== previousManifest.header.tickSequence + 1) {
-            return false;
-        }
-        if (this.header.previousStateHash !== previousManifest.header.stateHash) {
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * Prüft, ob der Zeitstempel innerhalb des 100ms Fensters liegt (Toleranz eingerechnet)
-     */
-    public isWithinTimingWindow(currentServerTime: number, toleranceMs: number = 50): boolean {
-        const drift = Math.abs(currentServerTime - this.header.serverTimestamp);
-        return drift <= GlobalStateManifest.TICK_INTERVAL_MS + toleranceMs;
-    }
+  return `{${keys
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(objectValue[key])}`)
+    .join(",")}}`;
 }
