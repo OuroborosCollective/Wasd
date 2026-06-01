@@ -100,12 +100,12 @@ class CharacterWindowStore {
   }
 }
 
-export const skillWindowStore = new CharacterWindowStore();
+export const characterWindowStore = new CharacterWindowStore();
 
-export function useSkillWindow(): PlayerStatsSnapshot | null {
+export function useCharacterWindow(): PlayerStatsSnapshot | null {
   return useSyncExternalStore(
-    (listener) => skillWindowStore.subscribe(listener),
-    () => skillWindowStore.getSnapshot(),
+    (listener) => characterWindowStore.subscribe(listener),
+    () => characterWindowStore.getSnapshot(),
     () => null
   );
 }
@@ -267,8 +267,8 @@ interface CharacterWindowProps {
   readonly onClose?: () => void;
 }
 
-export function SkillWindow({ isOpen = true, onClose }: CharacterWindowProps) {
-  const snapshot = useSkillWindow();
+export function CharacterWindow({ isOpen = true, onClose }: CharacterWindowProps) {
+  const snapshot = useCharacterWindow();
   const [allocatingStat, setAllocatingStat] = useState<CoreStatKey | null>(null);
   const clearPendingTimerRef = useRef<number | null>(null);
 
@@ -279,7 +279,7 @@ export function SkillWindow({ isOpen = true, onClose }: CharacterWindowProps) {
       if (detail?.event !== "player_stats_snapshot") return;
       if (!detail.payload || typeof detail.payload !== "object") return;
 
-      skillWindowStore.receiveSnapshot(detail.payload as PlayerStatsSnapshot);
+      characterWindowStore.receiveSnapshot(detail.payload as PlayerStatsSnapshot);
       setAllocatingStat(null);
     };
 
@@ -445,9 +445,9 @@ export function SkillWindow({ isOpen = true, onClose }: CharacterWindowProps) {
 
 // ─── Mount Function ──────────────────────────────────────────────────────────
 
-let mountedSkillRoot: Root | null = null;
+let mountedCharacterRoot: Root | null = null;
 
-export function mountSkillWindow(containerId = "character-mount"): void {
+export function mountCharacterWindow(containerId = "character-mount"): void {
   const container = document.getElementById(containerId);
 
   if (!container) {
@@ -455,9 +455,13 @@ export function mountSkillWindow(containerId = "character-mount"): void {
     return;
   }
 
-  if (!mountedSkillRoot) {
-    mountedSkillRoot = createRoot(container);
+  if (!mountedCharacterRoot) {
+    mountedCharacterRoot = createRoot(container);
   }
 
-  mountedSkillRoot.render(<CharacterWindow />);
+  mountedCharacterRoot.render(<CharacterWindow />);
   }
+
+export function SkillWindow({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+  return <CharacterWindow isOpen={isOpen} onClose={onClose} />;
+}
