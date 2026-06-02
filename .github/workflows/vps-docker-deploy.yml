@@ -76,26 +76,9 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== Cozy Spring preflight diagnostics ==="
-          git lfs version || true
-          git lfs pull || true
-          INBOX=".asset-inbox/cozy-spring"
-          if [ -d "$INBOX" ]; then
-            echo "Inbox exists on runner: $INBOX"
-            du -sh "$INBOX" || true
-            find "$INBOX" -maxdepth 4 -type f -print -exec file {} \; | head -160 || true
-          else
-            echo "No Cozy inbox on runner; build will use committed fallback or VPS import."
-          fi
 
-      - name: Cozy Spring preflight — LFS and inbox diagnostics
-        run: |
-          set -euo pipefail
-          echo "=== Cozy Spring preflight diagnostics ==="
-
-          # --- LFS pull for large asset binaries ---
           if command -v git-lfs >/dev/null 2>&1; then
             echo "git-lfs version: $(git-lfs version 2>/dev/null || true)"
-            # Only attempt pull if LFS is actually configured (has .gitattributes filter entries)
             if [ -f .gitattributes ] && grep -q "filter=" .gitattributes 2>/dev/null; then
               echo "LFS filter configured — pulling large files..."
               git lfs pull || echo "LFS pull completed (or LFS not active for these files)"
@@ -106,7 +89,6 @@ jobs:
             echo "git-lfs not installed — skipping LFS pull"
           fi
 
-          # --- Inbox presence and file listing ---
           INBOX=".asset-inbox/cozy-spring"
           if [ -d "$INBOX" ]; then
             echo "Inbox exists: $INBOX"
@@ -129,7 +111,6 @@ jobs:
           if [ -d "$INBOX" ]; then
             echo "=== Import Cozy Spring from $INBOX ==="
 
-            # List what we found before importing
             echo "Files in inbox before import:"
             find "$INBOX" -maxdepth 3 -type f | sort
             echo "Total inbox size: $(du -sh "$INBOX" 2>/dev/null | cut -f1 || echo 'unknown')"
@@ -148,50 +129,59 @@ jobs:
             echo "Tilesets dir entries: $(find apps/client-2d/public/assets/cozy-spring/tilesets -name '*.png' 2>/dev/null | wc -l)"
 
             echo "=== Validating manifest ==="
-            python3 << 'PYEOF'
-            import json, sys
-            path = "apps/client-2d/public/assets/cozy-spring/manifest.json"
-            with open(path) as f:
-                m = json.load(f)
-            policy = m.get("importPolicy", "")
-            if policy != "tilesets-as-tiles-props-as-extracted-objects":
-                print(f"ERROR: wrong importPolicy: {policy}")
-                sys.exit(1)
-            props = m.get("props", {})
-            bad_props = [eid for eid, e in props.items() if not e.get("meta", {}).get("usableAsProp")]
-            if bad_props:
-                print(f"ERROR: {len(bad_props)} props missing usableAsProp=true")
-                print(bad_props[:5])
-                sys.exit(1)
-            oversize = [(eid, e["width"], e["height"]) for eid, e in props.items()
-                        if e.get("width", 0) > 800 or e.get("height", 0) > 800]
-            if oversize:
-                print(f"WARN: {len(oversize)} oversized props: {oversize[:3]}")
-            print(f"Validated {len(props)} props — all usableAsProp=true")
-            print(f"ImportPolicy: {policy}")
-            print(f"Tilesets: {len(m.get('tilesets', {}))}")
-            PYEOF
+            python3 <<'PYEOF'
+import json
+import sys
+
+path = "apps/client-2d/public/assets/cozy-spring/manifest.json"
+with open(path) as f:
+    m = json.load(f)
+
+policy = m.get("importPolicy", "")
+if policy != "tilesets-as-tiles-props-as-extracted-objects":
+    print(f"ERROR: wrong importPolicy: {policy}")
+    sys.exit(1)
+
+props = m.get("props", {})
+bad_props = [eid for eid, e in props.items() if not e.get("meta", {}).get("usableAsProp")]
+if bad_props:
+    print(f"ERROR: {len(bad_props)} props missing usableAsProp=true")
+    print(bad_props[:5])
+    sys.exit(1)
+
+oversize = [
+    (eid, e["width"], e["height"])
+    for eid, e in props.items()
+    if e.get("width", 0) > 800 or e.get("height", 0) > 800
+]
+if oversize:
+    print(f"WARN: {len(oversize)} oversized props: {oversize[:3]}")
+
+print(f"Validated {len(props)} props — all usableAsProp=true")
+print(f"ImportPolicy: {policy}")
+print(f"Tilesets: {len(m.get('tilesets', {}))}")
+PYEOF
 
             echo "Manifest validation PASSED"
           else
             echo "=== No .asset-inbox/cozy-spring — checking committed fallback ==="
             if [ -f apps/client-2d/public/assets/cozy-spring/manifest.json ]; then
               echo "Using committed fallback manifest:"
-              python3 -c "
+              python3 <<'PYEOF'
 import json
+
 with open('apps/client-2d/public/assets/cozy-spring/manifest.json') as f:
     m = json.load(f)
-print(f'  version={m.get(\"version\")}')
-print(f'  importPolicy={m.get(\"importPolicy\")}')
-print(f'  props={len(m.get(\"props\",{}))}')
-print(f'  tilesets={len(m.get(\"tilesets\",{}))}')
-"
+
+print(f'  version={m.get("version")}')
+print(f'  importPolicy={m.get("importPolicy")}')
+print(f'  props={len(m.get("props", {}))}')
+print(f'  tilesets={len(m.get("tilesets", {}))}')
+PYEOF
             else
               echo "ERROR: no .asset-inbox/cozy-spring and no committed fallback — cannot proceed"
               exit 1
             fi
-          else
-            echo "No .asset-inbox/cozy-spring on runner."
           fi
 
           if [ -f apps/client-2d/public/assets/cozy-spring/manifest.json ]; then
@@ -206,17 +196,17 @@ print(f'  tilesets={len(m.get(\"tilesets\",{}))}')
           test -f apps/client-2d/dist/index.html
           grep -q "${CLIENT_2D_MARKER}" apps/client-2d/dist/index.html
           node - <<'NODE'
-          const fs = require('node:fs');
-          const sha = process.env.CLIENT_2D_BUILD_SHA;
-          if (!sha) throw new Error('CLIENT_2D_BUILD_SHA missing');
-          fs.writeFileSync('apps/client-2d/dist/build-stamp.json', JSON.stringify({
-            ok: true,
-            app: 'client-2d',
-            commit: sha,
-            marker: process.env.CLIENT_2D_MARKER || 'REAL_PIXI_CLIENT',
-            generatedBy: 'vps-docker-deploy.yml'
-          }, null, 2));
-          NODE
+const fs = require('node:fs');
+const sha = process.env.CLIENT_2D_BUILD_SHA;
+if (!sha) throw new Error('CLIENT_2D_BUILD_SHA missing');
+fs.writeFileSync('apps/client-2d/dist/build-stamp.json', JSON.stringify({
+  ok: true,
+  app: 'client-2d',
+  commit: sha,
+  marker: process.env.CLIENT_2D_MARKER || 'REAL_PIXI_CLIENT',
+  generatedBy: 'vps-docker-deploy.yml'
+}, null, 2));
+NODE
           grep -q "${CLIENT_2D_BUILD_SHA}" apps/client-2d/dist/build-stamp.json
           tar -C apps/client-2d -czf "${CLIENT_2D_ARCHIVE}" dist
           ls -lh "${CLIENT_2D_ARCHIVE}"
@@ -254,7 +244,7 @@ print(f'  tilesets={len(m.get(\"tilesets\",{}))}')
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=10 \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_BRANCH='${DEPLOY_BRANCH}' ARELORIAN_PORT='${ARELORIAN_PORT}' ARELORIAN_DOCKER_NETWORK='${ARELORIAN_DOCKER_NETWORK}' CLIENT_2D_ARCHIVE='${CLIENT_2D_ARCHIVE}' CLIENT_2D_MARKER='${CLIENT_2D_MARKER}' CLIENT_2D_BUILD_SHA='${CLIENT_2D_BUILD_SHA}' bash -s" << 'EOF'
+            "DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_BRANCH='${DEPLOY_BRANCH}' ARELORIAN_PORT='${ARELORIAN_PORT}' ARELORIAN_DOCKER_NETWORK='${ARELORIAN_DOCKER_NETWORK}' CLIENT_2D_ARCHIVE='${CLIENT_2D_ARCHIVE}' CLIENT_2D_MARKER='${CLIENT_2D_MARKER}' CLIENT_2D_BUILD_SHA='${CLIENT_2D_BUILD_SHA}' bash -s" <<'EOF'
           set -Eeuo pipefail
           APP_DIR="${DEPLOY_PATH:-/opt/areloria}"
           BRANCH="${DEPLOY_BRANCH:-main}"
@@ -282,7 +272,9 @@ print(f'  tilesets={len(m.get(\"tilesets\",{}))}')
             test -f apps/client-2d/dist/index.html
             grep -q "$CLIENT_2D_MARKER" apps/client-2d/dist/index.html
             test -f apps/client-2d/dist/build-stamp.json
-            if [ -n "$CLIENT_2D_BUILD_SHA" ]; then grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json; fi
+            if [ -n "$CLIENT_2D_BUILD_SHA" ]; then
+              grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json
+            fi
           else
             echo "WARN: No prebuilt client-2d artifact found; Dockerfile must build client-2d."
           fi
@@ -296,7 +288,7 @@ print(f'  tilesets={len(m.get(\"tilesets\",{}))}')
           CLIENT_2D_BUILD_SHA="$CLIENT_2D_BUILD_SHA" \
           DEPLOY_BRANCH="$BRANCH" \
           bash scripts/deploy-vps-docker.sh
-          EOF
+EOF
 
       - name: Public health check
         run: |
