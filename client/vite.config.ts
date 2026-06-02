@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => {
       alias: {
         "@": path.resolve(__dirname, "./src"),
         "@shared": path.resolve(__dirname, "../packages/shared/src"),
-        "@wasd/shared": path.resolve(__dirname, "../packages/shared/dist"),
+        "@wasd/shared": path.resolve(__dirname, "../packages/shared/src"),
         "@assets": path.resolve(__dirname, "./src/assets"),
       },
     },
