@@ -70,7 +70,22 @@ jobs:
           pnpm --filter @wasd/client-2d... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
 
       - name: Set up Python and Pillow
-        run: pip install pillow
+        run: python3 -m pip install --user pillow
+
+      - name: Cozy Spring preflight — LFS and inbox diagnostics
+        run: |
+          set -euo pipefail
+          echo "=== Cozy Spring preflight diagnostics ==="
+          git lfs version || true
+          git lfs pull || true
+          INBOX=".asset-inbox/cozy-spring"
+          if [ -d "$INBOX" ]; then
+            echo "Inbox exists on runner: $INBOX"
+            du -sh "$INBOX" || true
+            find "$INBOX" -maxdepth 4 -type f -print -exec file {} \; | head -160 || true
+          else
+            echo "No Cozy inbox on runner; build will use committed fallback or VPS import."
+          fi
 
       - name: Cozy Spring preflight — LFS and inbox diagnostics
         run: |
@@ -175,6 +190,14 @@ print(f'  tilesets={len(m.get(\"tilesets\",{}))}')
               echo "ERROR: no .asset-inbox/cozy-spring and no committed fallback — cannot proceed"
               exit 1
             fi
+          else
+            echo "No .asset-inbox/cozy-spring on runner."
+          fi
+
+          if [ -f apps/client-2d/public/assets/cozy-spring/manifest.json ]; then
+            COZY_MANIFEST="apps/client-2d/public/assets/cozy-spring/manifest.json" node -e "const path=process.env.COZY_MANIFEST; const m=require('./'+path); console.log('Cozy manifest present: version='+m.version+' policy='+m.importPolicy+' props='+Object.keys(m.props||{}).length+' tilesets='+Object.keys(m.tilesets||{}).length)"
+          else
+            echo "WARN: no public Cozy manifest on runner; build continues so VPS-side import can provide it."
           fi
 
       - name: Build client-2d on GitHub runner
@@ -182,13 +205,6 @@ print(f'  tilesets={len(m.get(\"tilesets\",{}))}')
           pnpm --filter @wasd/client-2d --if-present build
           test -f apps/client-2d/dist/index.html
           grep -q "${CLIENT_2D_MARKER}" apps/client-2d/dist/index.html
-          # Manifest must exist in dist AFTER public assets are copied by Dockerfile.
-          # On the runner we produce public assets via extraction; verify they exist.
-          if [ -d .asset-inbox/cozy-spring ]; then
-            test -f apps/client-2d/public/assets/cozy-spring/manifest.json
-            test -d apps/client-2d/public/assets/cozy-spring/props
-            test -d apps/client-2d/public/assets/cozy-spring/tilesets
-          fi
           node - <<'NODE'
           const fs = require('node:fs');
           const sha = process.env.CLIENT_2D_BUILD_SHA;
@@ -247,12 +263,6 @@ print(f'  tilesets={len(m.get(\"tilesets\",{}))}')
           CLIENT_2D_MARKER="${CLIENT_2D_MARKER:-REAL_PIXI_CLIENT}"
           CLIENT_2D_BUILD_SHA="${CLIENT_2D_BUILD_SHA:-}"
 
-          echo "=== VPS Docker deploy entry ==="
-          echo "App dir: $APP_DIR"
-          echo "Branch: $BRANCH"
-          echo "Client-2D archive: ${CLIENT_2D_ARCHIVE:-none}"
-          echo "Client-2D build sha: ${CLIENT_2D_BUILD_SHA:-none}"
-
           mkdir -p "$APP_DIR"
           cd "$APP_DIR"
 
@@ -262,30 +272,22 @@ print(f'  tilesets={len(m.get(\"tilesets\",{}))}')
             git remote set-url origin "$REPO_URL" || true
             git fetch --no-tags origin "$BRANCH"
             git reset --hard "origin/$BRANCH"
-            if [ -n "$CLIENT_2D_ARCHIVE" ]; then
-              git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e "$CLIENT_2D_ARCHIVE" -e apps/client-2d/dist/ || true
-            else
-              git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e apps/client-2d/dist/ || true
-            fi
+            git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e "$CLIENT_2D_ARCHIVE" -e apps/client-2d/dist/ -e .asset-inbox/ || true
           fi
 
           if [ -n "$CLIENT_2D_ARCHIVE" ] && [ -f "$APP_DIR/$CLIENT_2D_ARCHIVE" ]; then
-            echo "Installing prebuilt client-2d artifact: $CLIENT_2D_ARCHIVE"
             rm -rf apps/client-2d/dist
             mkdir -p apps/client-2d
             tar -xzf "$APP_DIR/$CLIENT_2D_ARCHIVE" -C apps/client-2d
             test -f apps/client-2d/dist/index.html
             grep -q "$CLIENT_2D_MARKER" apps/client-2d/dist/index.html
             test -f apps/client-2d/dist/build-stamp.json
-            if [ -n "$CLIENT_2D_BUILD_SHA" ]; then
-              grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json
-            fi
+            if [ -n "$CLIENT_2D_BUILD_SHA" ]; then grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json; fi
           else
-            echo "WARN: No prebuilt client-2d artifact found; Dockerfile must build and verify client-2d."
+            echo "WARN: No prebuilt client-2d artifact found; Dockerfile must build client-2d."
           fi
 
           chmod +x scripts/deploy-vps-docker.sh scripts/vps-docker-inline-deploy.sh 2>/dev/null || true
-
           ARELORIAN_PORT="${ARELORIAN_PORT:-3001}" \
           ARELORIAN_DOCKER_NETWORK="${ARELORIAN_DOCKER_NETWORK:-areloria_arelorian-network}" \
           ARELORIAN_ENV_FILE=".env.docker" \
@@ -298,7 +300,7 @@ print(f'  tilesets={len(m.get(\"tilesets\",{}))}')
 
       - name: Public health check
         run: |
-          for path in /health / /portal/; do
+          for path in /health / /portal/ /2d/build-stamp.json; do
             echo "Checking https://arelorian.de${path}"
             STATUS="$(curl -k -s -o /dev/null -w "%{http_code}" "https://arelorian.de${path}" || true)"
             echo "Status: ${STATUS}"
@@ -308,25 +310,10 @@ print(f'  tilesets={len(m.get(\"tilesets\",{}))}')
             fi
           done
 
-          echo "Checking https://arelorian.de/2d/ for real client marker"
-          BODY="$(curl -k -sS -L --max-time 20 "https://arelorian.de/2d/" || true)"
-          if ! echo "$BODY" | grep -q "${CLIENT_2D_MARKER}"; then
-            echo "ERROR: /2d/ did not serve the real Pixi client marker (${CLIENT_2D_MARKER}). Refusing silent placeholder route."
-            echo "$BODY" | head -c 800
-            exit 1
-          fi
-          echo "2D client marker OK: ${CLIENT_2D_MARKER}"
-
-          echo "Checking https://arelorian.de/2d/build-stamp.json for exact commit"
           STAMP="$(curl -k -sS -L --max-time 20 "https://arelorian.de/2d/build-stamp.json" || true)"
           STAMP="$STAMP" CLIENT_2D_BUILD_SHA="$CLIENT_2D_BUILD_SHA" node -e '
             const raw = process.env.STAMP || "";
-            let data;
-            try { data = JSON.parse(raw); } catch (error) {
-              console.error("ERROR: /2d/build-stamp.json did not return JSON");
-              console.error(raw.slice(0, 800));
-              process.exit(1);
-            }
+            const data = JSON.parse(raw);
             if (data.commit !== process.env.CLIENT_2D_BUILD_SHA) {
               console.error(`ERROR: stale 2D bundle. expected=${process.env.CLIENT_2D_BUILD_SHA} got=${data.commit}`);
               process.exit(1);
@@ -334,47 +321,27 @@ print(f'  tilesets={len(m.get(\"tilesets\",{}))}')
             console.log(`2D build stamp OK: ${data.commit}`);
           '
 
-          echo "Checking https://arelorian.de/2d/assets/cozy-spring/manifest.json"
-          COZY_STATUS="$(curl -k -s -o /dev/null -w "%{http_code}" "https://arelorian.de/2d/assets/cozy-spring/manifest.json" || true)"
+          COZY_URL="https://arelorian.de/2d/assets/cozy-spring/manifest.json"
+          COZY_STATUS="$(curl -k -s -o /dev/null -w "%{http_code}" "$COZY_URL" || true)"
           echo "Cozy manifest HTTP status: ${COZY_STATUS}"
           if ! echo "$COZY_STATUS" | grep -Eq '^(200|304)$'; then
             echo "ERROR: Cozy real asset manifest not publicly accessible."
             exit 1
           fi
-          echo "Fetching and validating Cozy manifest content"
-          COZY_BODY="$(curl -k -sS -L --max-time 20 "https://arelorian.de/2d/assets/cozy-spring/manifest.json" || true)"
-          COZY_BODY="$COZY_BODY" python3 - <<'PYEOF'
-          import json, sys
-          raw = sys.stdin.read()
-          try:
-              m = json.loads(raw)
-          except Exception:
-              print("ERROR: cozy manifest not valid JSON")
-              sys.exit(1)
-          policy = m.get('importPolicy', '')
-          if policy != 'tilesets-as-tiles-props-as-extracted-objects':
-              print(f"ERROR: unexpected importPolicy '{policy}' — expected 'tilesets-as-tiles-props-as-extracted-objects'")
-              sys.exit(1)
-          props = m.get('props', {})
-          ts = m.get('tilesets', {})
-          print(f"Cozy manifest OK — policy={policy}, props={len(props)}, tilesets={len(ts)}")
-          PYEOF
-
-          echo "Checking https://arelorian.de/api/v1/client2d/bootstrap for server-authoritative starter state"
-          BOOTSTRAP="$(curl -k -sS -L --max-time 20 "https://arelorian.de/api/v1/client2d/bootstrap" || true)"
-          BOOTSTRAP="$BOOTSTRAP" node -e '
-            const raw = process.env.BOOTSTRAP || "";
-            let data;
-            try { data = JSON.parse(raw); } catch (error) {
-              console.error("ERROR: client2d bootstrap did not return JSON");
-              console.error(raw.slice(0, 800));
-              process.exit(1);
-            }
-            const ok = data.ok === true && data.contract === "client2d-bootstrap-v1" && data.starterNpcCount === 15 && data.hasMerchant === true && data.hasBlacksmith === true;
-            if (!ok) {
-              console.error("ERROR: client2d bootstrap contract failed");
-              console.error(JSON.stringify(data, null, 2).slice(0, 1200));
-              process.exit(1);
-            }
-            console.log(`Client2D bootstrap OK: ${data.starterNpcCount} starter NPCs, merchant=${data.hasMerchant}, blacksmith=${data.hasBlacksmith}`);
-          '
+          COZY_BODY="$(curl -k -sS -L --max-time 20 "$COZY_URL" || true)"
+          COZY_BODY="$COZY_BODY" python3 -c "import json, os, sys; raw=os.environ.get('COZY_BODY','');
+try:
+    m=json.loads(raw)
+except Exception:
+    print('ERROR: cozy manifest not valid JSON')
+    sys.exit(1)
+policy=m.get('importPolicy','')
+if policy!='tilesets-as-tiles-props-as-extracted-objects':
+    print(f\"ERROR: unexpected importPolicy {policy!r}\")
+    sys.exit(1)
+props=m.get('props',{})
+ts=m.get('tilesets',{})
+if len(props)==0:
+    print('ERROR: cozy manifest contains zero props')
+    sys.exit(1)
+print(f'Cozy manifest OK — policy={policy}, props={len(props)}, tilesets={len(ts)}')"

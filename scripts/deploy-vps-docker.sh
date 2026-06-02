@@ -84,7 +84,7 @@ validate_required_runtime_env() {
 validate_client_2d_dockerfile_gate() {
   echo "=== Client-2D Dockerfile gate preflight ==="
   echo "Deploy HEAD: $(git rev-parse --short HEAD)"
-  git status --short Dockerfile.vps docker-compose.yml apps/client-2d/index.html apps/client-2d/dist/build-stamp.json || true
+  git status --short Dockerfile.vps docker-compose.yml apps/client-2d/index.html apps/client-2d/dist/build-stamp.json apps/client-2d/public/assets/cozy-spring/manifest.json || true
 
   if [ ! -f Dockerfile.vps ]; then
     echo "ERROR: Dockerfile.vps is missing; VPS compose cannot prove the real 2D client build gate."
@@ -150,7 +150,6 @@ connect_known_service_containers() {
 
 neutralize_legacy_node_runtime() {
   echo "=== Neutralize legacy non-Docker runtime ==="
-
   if command -v pm2 >/dev/null 2>&1; then
     pm2 stop areloria >/dev/null 2>&1 || true
     pm2 delete areloria >/dev/null 2>&1 || true
@@ -160,12 +159,10 @@ neutralize_legacy_node_runtime() {
     pm2 delete wasd >/dev/null 2>&1 || true
     pm2 save --force >/dev/null 2>&1 || true
   fi
-
   for svc in areloria arelorian wasd wasd-server node-app pm2-root pm2-ubuntu; do
     sudo systemctl stop "${svc}.service" >/dev/null 2>&1 || true
     sudo systemctl disable "${svc}.service" >/dev/null 2>&1 || true
   done
-
   sudo pkill -f 'tsx.*server/src/index.ts' >/dev/null 2>&1 || true
   sudo pkill -f 'node.*server/src/index.ts' >/dev/null 2>&1 || true
   sudo pkill -f 'server/src/index.ts' >/dev/null 2>&1 || true
@@ -211,33 +208,18 @@ free_host_port_safely() {
 assert_host_port_free_stable() {
   local port="$1"
   local rounds="${2:-5}"
-
   echo "=== Assert host port ${port} stays free ==="
-
   for i in $(seq 1 "$rounds"); do
     if ss -ltnp "sport = :${port}" | grep -q LISTEN; then
       echo "ERROR: Port ${port} is occupied on check ${i}/${rounds}."
       ss -ltnp "sport = :${port}" || true
-
       if command -v lsof >/dev/null 2>&1; then
         sudo lsof -iTCP:"${port}" -sTCP:LISTEN -P -n || true
-        local pid=""
-        pid="$(sudo lsof -tiTCP:"${port}" -sTCP:LISTEN | head -n1 || true)"
-        if [ -n "${pid:-}" ]; then
-          echo "=== Process tree for port owner ==="
-          ps -fp "$pid" || true
-          if command -v pstree >/dev/null 2>&1; then
-            pstree -asp "$pid" || true
-          fi
-        fi
       fi
-
       exit 1
     fi
-
     sleep 1
   done
-
   echo "Port ${port} stayed free."
 }
 
@@ -245,7 +227,7 @@ fetch_and_reset() {
   local temp_ref="refs/wasd-deploy/${DEPLOY_BRANCH}"
   echo "[1/4] git fetch + hard reset via temporary deploy ref"
   git reset --hard >/dev/null 2>&1 || true
-  git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e apps/client-2d/dist/ >/dev/null 2>&1 || true
+  git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e apps/client-2d/dist/ -e .asset-inbox/ >/dev/null 2>&1 || true
   git update-ref -d "$temp_ref" >/dev/null 2>&1 || true
   if ! git -c remote.origin.fetch= fetch --no-tags origin "+refs/heads/${DEPLOY_BRANCH}:${temp_ref}"; then
     echo "WARN: fetch failed; healing stale origin ref and retrying once."
@@ -255,6 +237,44 @@ fetch_and_reset() {
   fi
   git reset --hard "$temp_ref"
   git update-ref -d "$temp_ref" >/dev/null 2>&1 || true
+}
+
+import_cozy_assets_after_reset() {
+  echo "=== Cozy Spring authoritative VPS import ==="
+  local inbox=".asset-inbox/cozy-spring"
+  local manifest="apps/client-2d/public/assets/cozy-spring/manifest.json"
+
+  if [ -d "$inbox" ]; then
+    echo "Using persistent VPS inbox: $inbox"
+    du -sh "$inbox" 2>/dev/null || true
+    find "$inbox" -maxdepth 4 -type f -print -exec file {} \; | head -160 || true
+    python3 -m pip install --user pillow || true
+    python3 scripts/extract-cozy-spring-objects.py \
+      --inbox "$inbox" \
+      --output apps/client-2d/public/assets/cozy-spring \
+      --tmp .tmp/cozy-spring-extract \
+      --verbose
+  else
+    echo "WARN: $inbox absent on VPS; using repository public Cozy assets if present."
+  fi
+
+  test -f "$manifest" || { echo "ERROR: Cozy manifest missing after VPS import/reset: $manifest"; exit 1; }
+  python3 - <<'PYEOF'
+import json, sys
+path = "apps/client-2d/public/assets/cozy-spring/manifest.json"
+with open(path) as f:
+    m = json.load(f)
+policy = m.get("importPolicy", "")
+if policy != "tilesets-as-tiles-props-as-extracted-objects":
+    print(f"ERROR: unexpected Cozy importPolicy {policy!r}")
+    sys.exit(1)
+props = m.get("props", {})
+tilesets = m.get("tilesets", {})
+if not props:
+    print("ERROR: Cozy manifest contains zero props")
+    sys.exit(1)
+print(f"Cozy manifest OK before Docker build: props={len(props)} tilesets={len(tilesets)}")
+PYEOF
 }
 
 container_http_ready() {
@@ -319,6 +339,7 @@ if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
 fi
 
 fetch_and_reset
+import_cozy_assets_after_reset
 validate_client_2d_dockerfile_gate
 validate_required_runtime_env
 
@@ -389,7 +410,7 @@ if [[ "$ok" != "1" ]]; then
   if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
     docker inspect arelorian-ingress-router --format 'Ingress={{.State.Status}} Health={{if .State.Health}}{{else}}n/a{{end}} ExitCode={{.State.ExitCode}} Ports={{json .NetworkSettings.Ports}}' || true
   fi
-  docker exec arelorian-engine sh -lc "node -v; printenv PORT GAME_PORT HOST NODE_ENV NODE_OPTIONS CLIENT_2D_MARKER CLIENT_2D_BUILD_SHA; ps aux | head -20; ls -lah /app/server/client/dist/2d; cat /app/server/client/dist/2d/build-stamp.json 2>/dev/null || true" || true
+  docker exec arelorian-engine sh -lc "node -v; printenv PORT GAME_PORT HOST NODE_ENV NODE_OPTIONS CLIENT_2D_MARKER CLIENT_2D_BUILD_SHA; ps aux | head -20; ls -lah /app/server/client/dist/2d; cat /app/server/client/dist/2d/build-stamp.json 2>/dev/null || true; test -f /app/server/client/dist/2d/assets/cozy-spring/manifest.json && echo COZY_IN_CONTAINER || echo COZY_MISSING_IN_CONTAINER" || true
   docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/2d/').then(async r=>{console.log('2d status',r.status); console.log((await r.text()).slice(0,800));}).catch(e=>{console.error(e); process.exit(1)})" || true
   ss -ltnp "sport = :${ARELORIAN_PORT}" || true
   compose_cmd logs --tail=160 arelorian-engine || true
