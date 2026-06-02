@@ -25,6 +25,8 @@ export type AssetEntry = {
   license?: string;
   kind?: string;
   group?: string;
+  category?: string;
+  biome?: string;
   tileWidth?: number;
   tileHeight?: number;
   frameWidth?: number;
@@ -42,17 +44,20 @@ export type AssetEntry = {
   rarity?: string;
   visualRarity?: string;
   tags?: string[];
-  // Extended semantic metadata for deterministic binding
   biomeTags?: string[];
   cultureTags?: string[];
   factionTags?: string[];
-  quality?: number; // 0-100 quality score
+  quality?: number;
   lod?: "low" | "medium" | "high";
   deprecated?: boolean;
   corrupt?: boolean;
-  performanceCost?: number; // Estimated GPU cost
+  performanceCost?: number;
+  bytes?: number;
+  sha256?: string;
+  deterministic?: boolean;
   animations?: Record<string, SpriteAnimation | number[] | unknown>;
   rules?: Record<string, unknown>;
+  meta?: Record<string, unknown>;
 };
 
 export type AssetManifest = {
@@ -69,6 +74,7 @@ export type AssetManifest = {
   ui?: Record<string, AssetEntry>;
   weapons?: Record<string, AssetEntry>;
   fallbacks?: Record<string, string | null>;
+  totalEntries?: number;
 };
 
 type WeaponManifestPayload = {
@@ -103,7 +109,7 @@ function normalizeEntrySrc(entry: AssetEntry): AssetEntry {
 function normalizeEntries(entries: Record<string, AssetEntry> | undefined): Record<string, AssetEntry> {
   const out: Record<string, AssetEntry> = {};
   Object.entries(entries ?? {}).forEach(([id, entry]) => {
-    out[id] = normalizeEntrySrc(entry);
+    out[id] = { ...normalizeEntrySrc(entry), id: entry.id ?? id };
   });
   return out;
 }
@@ -128,7 +134,6 @@ function withEntryIds(entries: Record<string, AssetEntry> | undefined): Record<s
   return out;
 }
 
-// Cozy Spring debug state (exported for debug overlay)
 export const cozySpringDebug = {
   indexLoaded: false,
   totalEntries: 0,
@@ -141,7 +146,18 @@ export const cozySpringDebug = {
   loadedSheets: [] as string[],
 };
 
-// Cozy Spring logger
+function resetCozyDebug(): void {
+  cozySpringDebug.indexLoaded = false;
+  cozySpringDebug.totalEntries = 0;
+  cozySpringDebug.totalSheets = 0;
+  cozySpringDebug.tilesetsCount = 0;
+  cozySpringDebug.propsCount = 0;
+  cozySpringDebug.firstFiveIds = [];
+  cozySpringDebug.firstFiveSrcs = [];
+  cozySpringDebug.failedFetches = [];
+  cozySpringDebug.loadedSheets = [];
+}
+
 const cozyLogger = {
   log: (...args: unknown[]) => console.log('[CozySpring]', ...args),
   warn: (...args: unknown[]) => console.warn('[CozySpring]', ...args),
@@ -149,84 +165,36 @@ const cozyLogger = {
 };
 
 export async function loadAssetManifest(): Promise<AssetManifest | null> {
+  resetCozyDebug();
+
   const root = await loadJson<AssetManifest>(routeAsset('/2d-assets/manifest.json'));
   const weaponManifest = await loadJson<WeaponManifestPayload>(routeAsset('/2d-assets/weapons/weapon-manifest.json'));
   const modularWeaponManifest = await loadJson<WeaponManifestPayload>(routeAsset('/2d-assets/weapons/modular/weapon-manifest.json'));
   const pipoyaCharacters = await loadJson<CharacterAtlasPayload>(routeAsset('/2d-assets/characters/pipoya/pipoya-character-atlas.json'));
   const forestBiome = await loadJson<AssetManifest>(routeAsset('/assets/biomes/forest/assetpack01/manifest.json'));
   const graphicRiverIso = await loadJson<AssetManifest>('/client2d-assets/graphicriver-iso/manifest.json');
-  const cozySpringIndex = await loadJson<{id: string; totalEntries: number; sheets: {group: string; file: string; entries: number; category: string}[]} | null>('/2d/assets/cozy-spring/manifest.index.json');
-  
-  // Debug: log fetch status
-  cozyLogger.log('manifest index fetch attempted');
-  
-  // Lazy-load cozy spring entries from split sheet files
-  const cozyTilesets: Record<string, AssetEntry> = {};
-  const cozyProps: Record<string, AssetEntry> = {};
-  
-  if (cozySpringIndex) {
+  const cozySpring = await loadJson<AssetManifest>(routeAsset('/assets/cozy-spring/manifest.json'));
+
+  const cozyTilesets = normalizeEntries(cozySpring?.tilesets);
+  const cozyProps = normalizeEntries(cozySpring?.props);
+
+  if (cozySpring) {
     cozySpringDebug.indexLoaded = true;
-    cozySpringDebug.totalEntries = cozySpringIndex.totalEntries ?? 0;
-    cozySpringDebug.totalSheets = cozySpringIndex.totalSheets ?? cozySpringIndex.sheets?.length ?? 0;
-    cozyLogger.log(`index loaded totalEntries=${cozySpringDebug.totalEntries} totalSheets=${cozySpringDebug.totalSheets}`);
-  } else {
-    cozyLogger.error('manifest.index.json failed to load - check URL/path');
-    cozySpringDebug.failedFetches.push('/2d/assets/cozy-spring/manifest.index.json');
-  }
-  
-  if (cozySpringIndex?.sheets) {
-    for (const sheetInfo of cozySpringIndex.sheets) {
-      const sheetData = await loadJson<{
-        sheet: string;
-        tileSize: number;
-        group: string;
-        category: string;
-        frames: [string, number, number, string, string[]][];
-      } | null>(`/2d/assets/cozy-spring/sheets/${sheetInfo.file}`);
-      
-      if (sheetData?.frames) {
-        cozyLogger.log(`loaded sheet ${sheetInfo.file} entries=${sheetData.frames.length}`);
-        cozySpringDebug.loadedSheets.push(sheetInfo.file);
-        
-        for (const frame of sheetData.frames) {
-          const [id, x, y, kind, tags] = frame;
-          const entry: AssetEntry = {
-            id,
-            src: sheetData.sheet,
-            category: sheetInfo.category,
-            kind,
-            group: sheetInfo.group,
-            sheetFrame: { x, y, w: sheetData.tileSize, h: sheetData.tileSize },
-            frame: { x, y, w: sheetData.tileSize, h: sheetData.tileSize },
-            frameSize: { w: sheetData.tileSize, h: sheetData.tileSize },
-            tileWidth: sheetData.tileSize,
-            tileHeight: sheetData.tileSize,
-            tags: tags,
-            biomeTags: ['plains', 'spring', 'village', 'cozy'],
-            deterministic: true,
-          };
-          
-          if (sheetInfo.category === 'tilesets') {
-            cozyTilesets[id] = normalizeEntrySrc(entry);
-          } else {
-            cozyProps[id] = normalizeEntrySrc(entry);
-          }
-        }
-      } else {
-        cozyLogger.warn(`sheet ${sheetInfo.file} failed to load or has no frames`);
-        cozySpringDebug.failedFetches.push(`/2d/assets/cozy-spring/sheets/${sheetInfo.file}`);
-      }
-    }
-    
-    // Update debug state with final counts and samples
+    cozySpringDebug.totalEntries = cozySpring.totalEntries ?? (Object.keys(cozyTilesets).length + Object.keys(cozyProps).length);
+    cozySpringDebug.totalSheets = 0;
     cozySpringDebug.tilesetsCount = Object.keys(cozyTilesets).length;
     cozySpringDebug.propsCount = Object.keys(cozyProps).length;
-    cozySpringDebug.firstFiveIds = [...Object.keys(cozyTilesets), ...Object.keys(cozyProps)].slice(0, 5);
+    cozySpringDebug.loadedSheets = ['real-pack-manifest.json'];
     const allEntries = { ...cozyTilesets, ...cozyProps };
+    cozySpringDebug.firstFiveIds = Object.keys(allEntries).slice(0, 5);
     cozySpringDebug.firstFiveSrcs = Object.values(allEntries).slice(0, 5).map(e => e.src);
+    cozyLogger.log(`real pack loaded totalEntries=${cozySpringDebug.totalEntries} tilesets=${cozySpringDebug.tilesetsCount} props=${cozySpringDebug.propsCount}`);
+  } else {
+    cozyLogger.warn('real pack manifest failed to load: /2d/assets/cozy-spring/manifest.json');
+    cozySpringDebug.failedFetches.push('/2d/assets/cozy-spring/manifest.json');
   }
 
-  if (!root && !weaponManifest && !modularWeaponManifest && !pipoyaCharacters && !forestBiome && !graphicRiverIso && !cozySpringIndex) return null;
+  if (!root && !weaponManifest && !modularWeaponManifest && !pipoyaCharacters && !forestBiome && !graphicRiverIso && !cozySpring) return null;
 
   return {
     ...(root ?? { version: 1, basePath: routeAsset('/2d-assets') }),
@@ -238,7 +206,7 @@ export async function loadAssetManifest(): Promise<AssetManifest | null> {
       ...(pipoyaCharacters ? [{ id: pipoyaCharacters.id ?? 'pipoya-character-atlas', source: pipoyaCharacters.source ?? 'Pipoya', groups: pipoyaCharacters.groups ?? {} }] : []),
       ...(forestBiome ? [{ id: 'assetpack01_forest_sample', source: 'AssetPack01_Forest_Sample.zip', biome: 'forest', pngCount: forestBiome.pngCount, deterministic: true }] : []),
       ...(graphicRiverIso?.sources ?? []),
-      ...(cozySpringIndex ? [{ id: cozySpringIndex.id ?? 'cozy_spring_master', source: 'SakPix_Cozy_Spring_Asset_Pack', biome: 'plains', totalEntries: cozySpringIndex.totalEntries, deterministic: true, totalSheets: cozySpringIndex.totalSheets }] : []),
+      ...(cozySpring ? [{ id: cozySpring.id ?? 'cozy_spring_master', source: 'SakPix_Cozy_Spring_Asset_Pack', biome: 'plains', totalEntries: cozySpringDebug.totalEntries, deterministic: true, importPolicy: 'real-assets-not-32x32-prop-fragments' }] : []),
     ],
     tilesets: {
       ...normalizeEntries(root?.tilesets),
@@ -332,49 +300,33 @@ function isPreferredGraphicRiverCharacterFrame(id: string, entry: AssetEntry): b
   return ['peasant', 'child', 'walking', 'front'].some((term) => key.includes(term));
 }
 
-/**
- * Filters out bad runtime sheet/preview/atlas entries that should not be used as standalone sprites.
- * These typically represent full sprite sheets, preview images, or atlas grids.
- */
 function isBadRuntimeSheetEntry(id: string, entry: AssetEntry): boolean {
   const key = entryKey(id, entry);
   const srcLower = entry.src.toLowerCase();
   const tagsLower = (entry.tags ?? []).map((tag) => String(tag).toLowerCase());
-
-  // Explicitly bad naming patterns
   const badTerms = [
-    'sheet', 'preview', 'atlas', 'sample', 'tileset', 'wall sheet',
+    'sheet', 'preview', 'atlas', 'sample', 'wall sheet',
     'background', 'fullsheet', 'spritesheet', 'sprite-sheet', 'sprite_sheet',
     'grid', 'collection', 'overview', 'all', 'composite', 'combined',
-    'multi', 'pack', 'bundle', 'set', 'sequence', 'animation sheet',
+    'multi', 'bundle', 'sequence', 'animation sheet',
     'flip', 'horizontal', 'vertical', 'strip', 'row', 'column'
   ];
-
-  // Only filter if entry lacks proper frame/crop data (meaning it's a raw sheet)
   const hasFrameData = Boolean(entry.frame || (entry.sheetFrame && entry.frameSize) || entry.spriteLayers?.length);
-  if (hasFrameData) return false; // Entry has crop data, trust it
-
-  // For entries without frame data, check if it's a bad sheet/preview
+  if (hasFrameData) return false;
+  if (entry.meta?.fragmentOnly === false || entry.meta?.usableAsProp === true || entry.meta?.usableAsTile === true) return false;
   if (badTerms.some(term => key.includes(term))) return true;
-
-  // Check src for common sheet/preview patterns
   const badSrcPatterns = ['_preview', '_sample', '_sheet', '_atlas', '-preview', '-sample', '-sheet', '-atlas',
-    'spritesheet', 'sprite_sheet', 'tileset', 'wallpaper', 'background', 'composite'];
+    'spritesheet', 'sprite_sheet', 'wallpaper', 'background', 'composite'];
   if (badSrcPatterns.some(p => srcLower.includes(p))) return true;
-
-  // Large images without frame data are likely sheets (heuristic: > 512 width is suspicious for single asset)
   if (!hasFrameData && entry.width && entry.width > 512) {
-    // But allow if tags or source indicate it's a designed tile
     const goodTerms = ['tile', 'ground', 'grass', 'road', 'dirt', 'stone', 'floor'];
     if (!goodTerms.some(t => tagsLower.some(tag => tag.includes(t)))) return true;
   }
-
   return false;
 }
 
 function isRenderableEntry(entry: AssetEntry | null | undefined): boolean {
   if (!entry?.src) return false;
-  // Reject bad sheet entries
   if (entry.id && entry.src && isBadRuntimeSheetEntry(entry.id, entry)) return false;
   if (entry.frame) return true;
   if (entry.sheetFrame && entry.frameSize) return true;
@@ -395,9 +347,7 @@ export function pickWeaponVisual(
 ): { id: string; entry: AssetEntry } | null {
   const weapons = manifest?.weapons;
   if (!weapons) return null;
-
   if (input.visualId && weapons[input.visualId] && isRenderableEntry(weapons[input.visualId])) return { id: input.visualId, entry: weapons[input.visualId] };
-
   const weaponClass = String(input.weaponClass || '').toLowerCase();
   const rarity = String(input.rarity || '').toLowerCase();
   const matches = Object.entries(weapons).filter(([, entry]) => {
@@ -406,11 +356,9 @@ export function pickWeaponVisual(
     const rarityOk = !rarity || entry.rarity === rarity || entry.tags?.includes(rarity);
     return classOk && rarityOk;
   });
-
   const renderablePool = Object.entries(weapons).filter(([, entry]) => isRenderableEntry(entry));
   const pool = matches.length > 0 ? matches : renderablePool;
   if (pool.length === 0) return null;
-
   const seed = String(input.seed ?? `${weaponClass}:${rarity}`);
   const [id, entry] = pool[deterministicIndex(seed, pool.length)];
   return { id, entry };
@@ -422,9 +370,7 @@ export function pickCharacterVisual(
 ): { id: string; entry: AssetEntry } | null {
   const characters = manifest?.characters;
   if (!characters) return null;
-
   if (input.visualId && characters[input.visualId] && isRenderableEntry(characters[input.visualId])) return { id: input.visualId, entry: characters[input.visualId] };
-
   const wantedTags = (input.tags ?? []).map((tag) => tag.toLowerCase());
   const wantedGroup = String(input.group || '').toLowerCase();
   const wantedKind = String(input.kind || '').toLowerCase();
@@ -440,7 +386,6 @@ export function pickCharacterVisual(
     if (isGraphicRiverEntry(id, entry) && isBadNormalActorFrame(id, entry)) return false;
     return true;
   });
-
   const safeGraphicRiver = renderablePool.filter(([id, entry]) => isGraphicRiverEntry(id, entry) && !isBadNormalActorFrame(id, entry));
   const preferredGraphicRiver = safeGraphicRiver.filter(([id, entry]) => isPreferredGraphicRiverCharacterFrame(id, entry));
   const pool = matches.length > 0
@@ -451,7 +396,6 @@ export function pickCharacterVisual(
         ? safeGraphicRiver
         : renderablePool;
   if (pool.length === 0) return null;
-
   const seed = String(input.seed ?? `${wantedTags.join(',')}:${wantedGroup}:${wantedKind}`);
   const [id, entry] = pool[deterministicIndex(seed, pool.length)];
   return { id, entry };
