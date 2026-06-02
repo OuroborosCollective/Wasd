@@ -60,7 +60,8 @@ function normalizeName(filename) {
   return filename
     .toLowerCase()
     .replace(/\.zip$/i, '')
-    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')  // Replace separators with space
+    .replace(/\s+/g, ' ')          // Normalize multiple spaces
     .trim();
 }
 
@@ -104,8 +105,11 @@ function idFor(relPath) {
     .toLowerCase();
 }
 
-function sha256(file) {
-  return createHash('sha256').update(readFileSync(file)).digest('hex');
+function sha256(contentOrPath) {
+  if (Buffer.isBuffer(contentOrPath)) {
+    return createHash('sha256').update(contentOrPath).digest('hex');
+  }
+  return createHash('sha256').update(readFileSync(contentOrPath)).digest('hex');
 }
 
 function processZip(zipPath, config) {
