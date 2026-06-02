@@ -190,8 +190,6 @@ print(f'  tilesets={len(m.get(\"tilesets\",{}))}')
               echo "ERROR: no .asset-inbox/cozy-spring and no committed fallback — cannot proceed"
               exit 1
             fi
-          else
-            echo "No .asset-inbox/cozy-spring on runner."
           fi
 
           if [ -f apps/client-2d/public/assets/cozy-spring/manifest.json ]; then
