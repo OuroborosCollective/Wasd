@@ -103,20 +103,14 @@ jobs:
             set -e
             if [ "$IMPORT_STATUS" -ne 0 ]; then
               echo "WARN: runner-side Cozy import failed with status $IMPORT_STATUS."
-              echo "WARN: continuing build with committed assets. VPS will run Cozy import from /opt/areloria/.asset-inbox/cozy-spring before final Docker build if available."
+              echo "WARN: continuing build with committed assets. deploy-vps-docker.sh performs the authoritative VPS import after its own git reset."
             fi
           else
             echo "No .asset-inbox/cozy-spring on runner."
           fi
 
           if [ -f apps/client-2d/public/assets/cozy-spring/manifest.json ]; then
-            python3 - << 'PYEOF'
-          import json
-          path = "apps/client-2d/public/assets/cozy-spring/manifest.json"
-          with open(path) as f:
-              m = json.load(f)
-          print(f"Cozy manifest present: version={m.get('version')} policy={m.get('importPolicy')} props={len(m.get('props',{}))} tilesets={len(m.get('tilesets',{}))}")
-          PYEOF
+            COZY_MANIFEST="apps/client-2d/public/assets/cozy-spring/manifest.json" python3 -c "import json, os; m=json.load(open(os.environ['COZY_MANIFEST'])); print(f'Cozy manifest present: version={m.get("version")} policy={m.get("importPolicy")} props={len(m.get("props",{}))} tilesets={len(m.get("tilesets",{}))}')"
           else
             echo "WARN: no public Cozy manifest on runner; build continues so VPS-side import can provide it."
           fi
@@ -196,19 +190,6 @@ jobs:
             git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e "$CLIENT_2D_ARCHIVE" -e apps/client-2d/dist/ -e .asset-inbox/ || true
           fi
 
-          if [ -d ".asset-inbox/cozy-spring" ]; then
-            echo "=== VPS-side Cozy import from persistent asset inbox ==="
-            python3 -m pip install --user pillow || true
-            python3 scripts/extract-cozy-spring-objects.py \
-              --inbox .asset-inbox/cozy-spring \
-              --output apps/client-2d/public/assets/cozy-spring \
-              --tmp .tmp/cozy-spring-extract \
-              --verbose
-            test -f apps/client-2d/public/assets/cozy-spring/manifest.json
-          else
-            echo "WARN: .asset-inbox/cozy-spring absent on VPS; using repository public assets."
-          fi
-
           if [ -n "$CLIENT_2D_ARCHIVE" ] && [ -f "$APP_DIR/$CLIENT_2D_ARCHIVE" ]; then
             rm -rf apps/client-2d/dist
             mkdir -p apps/client-2d
@@ -255,5 +236,27 @@ jobs:
             console.log(`2D build stamp OK: ${data.commit}`);
           '
 
-          COZY_STATUS="$(curl -k -s -o /dev/null -w "%{http_code}" "https://arelorian.de/2d/assets/cozy-spring/manifest.json" || true)"
-          echo "Cozy manifest status: ${COZY_STATUS}"
+          COZY_URL="https://arelorian.de/2d/assets/cozy-spring/manifest.json"
+          COZY_STATUS="$(curl -k -s -o /dev/null -w "%{http_code}" "$COZY_URL" || true)"
+          echo "Cozy manifest HTTP status: ${COZY_STATUS}"
+          if ! echo "$COZY_STATUS" | grep -Eq '^(200|304)$'; then
+            echo "ERROR: Cozy real asset manifest not publicly accessible."
+            exit 1
+          fi
+          COZY_BODY="$(curl -k -sS -L --max-time 20 "$COZY_URL" || true)"
+          COZY_BODY="$COZY_BODY" python3 -c "import json, os, sys; raw=os.environ.get('COZY_BODY','');
+try:
+    m=json.loads(raw)
+except Exception:
+    print('ERROR: cozy manifest not valid JSON')
+    sys.exit(1)
+policy=m.get('importPolicy','')
+if policy!='tilesets-as-tiles-props-as-extracted-objects':
+    print(f\"ERROR: unexpected importPolicy {policy!r}\")
+    sys.exit(1)
+props=m.get('props',{})
+ts=m.get('tilesets',{})
+if len(props)==0:
+    print('ERROR: cozy manifest contains zero props')
+    sys.exit(1)
+print(f'Cozy manifest OK — policy={policy}, props={len(props)}, tilesets={len(ts)}')"
