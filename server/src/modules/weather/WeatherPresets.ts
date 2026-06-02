@@ -4,5 +4,6 @@ export const WeatherPresets = {
   storm: { visibility: 0.7, movePenalty: 0.2 },
   fog: { visibility: 0.6, movePenalty: 0.05 },
   snow: { visibility: 0.8, movePenalty: 0.1 },
+  heatwave: { visibility: 1.0, movePenalty: 0.1 },
   heatwave: { visibility: 1.0, movePenalty: 0.1 }
 };
