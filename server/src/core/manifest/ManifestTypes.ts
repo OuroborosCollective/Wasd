@@ -86,7 +86,7 @@ export interface ICryptoDependencyHeader {
   readonly worldSeedHash: string;
   readonly ruleSetHash: string;
 
-  readonly stateHash: string;
+  stateHash: string;
   readonly previousStateHash: string;
   readonly dependencyRootHash: string;
   readonly payloadHash: string;

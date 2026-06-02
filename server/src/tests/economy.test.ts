@@ -1,3 +1,4 @@
+import { FixedAREClock } from "../core/determinism/AREDeterminism.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import { EconomySystem } from "../modules/economy/EconomySystem.js";
 import { EconomyEngine } from "../modules/economy/EconomyEngine.js";
@@ -9,7 +10,6 @@ import { TaxLedger } from "../modules/economy/TaxLedger.js";
 import { MarketOrders } from "../modules/economy/MarketOrders.js";
 import { MarketLedger } from "../modules/economy/MarketLedger.js";
 import { NPCTradeAI } from "../modules/economy/NPCTradeAI.js";
-import { FixedAREClock } from "../core/determinism/AREDeterminism.js";
 
 // ---------------------------------------------------------------------------
 // EconomySystem
@@ -277,8 +277,8 @@ describe("TradeRoutes", () => {
 // ---------------------------------------------------------------------------
 describe("TaxLedger", () => {
   let ledger: TaxLedger;
-  const fixedTime = 999888777;
 
+  const fixedTime = 999888777;
   beforeEach(() => { ledger = new TaxLedger(new FixedAREClock(fixedTime)); });
 
   it("all() returns empty array initially", () => {

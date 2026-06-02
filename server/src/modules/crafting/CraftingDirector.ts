@@ -63,6 +63,7 @@ export interface NPCCraftIntent {
 // ─── Skill & Crafting Types ─────────────────────────────────────────────────
 
 export interface PlayerSkills {
+  [key: string]: number;
   carpentry: number;
   smithing: number;
   alchemy: number;
@@ -132,7 +133,7 @@ function commitSlots(target: NPCInventory, nextSlots: (ModularItem | null)[]): v
 }
 
 function getSkillLevel(skills: PlayerSkills, skillName: string): number {
-  const value = (skills as unknown as Record<string, number>)[skillName];
+  const value = skills[skillName];
   return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
 }
 
@@ -159,7 +160,7 @@ export function calculateOvercapYield(
   }
 
   const skillName = recipe.skill ?? "carpentry";
-  const skillLevel = getSkillLevel(skills, skillName);
+  const skillLevel = getSkillLevel(skills, skillName as string);
 
   // Correct logic: +1% per 10 skill levels.
   const skillBonus = Math.floor(skillLevel / SKILL_LEVELS_PER_BONUS_PERCENT);
