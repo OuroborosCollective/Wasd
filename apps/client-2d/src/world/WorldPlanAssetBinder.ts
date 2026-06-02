@@ -11,29 +11,14 @@
  * - Debug info for binding decisions
  */
 
-import type { AssetManifest, AssetEntry } from "../assetManifest";
-import { fallbackEntry, pickCharacterVisual } from "../assetManifest";
+import type { AssetManifest } from "../assetManifest";
+import { pickCharacterVisual } from "../assetManifest";
 import { pickGraphicRiverBuilding, pickGraphicRiverCharacter, pickGraphicRiverProp, pickGraphicRiverTile } from "../graphicRiverIsoPicker";
 import type { BuildingType, NpcRole, PropType, RoadType } from "@wasd/shared/world";
 import type { BoundAsset, WorldPlanAssetBinder } from "./WorldPlanRenderTypes";
 import type { BindingOptions, AssetBindingContext } from "./AssetBindingContext";
 import { createAssetBindingDirector, type BindingResult } from "./AssetBindingDirector";
 import { combineSeed } from "./DeterministicAssetRng";
-
-function isCozyContext(context?: BindingOptions | AssetBindingContext | null): boolean {
-  const biome = String(context?.biome ?? "").toLowerCase();
-  const hint = String(context?.variantHint ?? "").toLowerCase();
-  return biome === "plains" || biome.includes("village") || hint.includes("cozy") || hint.includes("spring");
-}
-
-function isCozyEntry(entry: AssetEntry | null | undefined): boolean {
-  if (!entry) return false;
-  const src = String(entry.src ?? "").toLowerCase();
-  const id = String(entry.id ?? "").toLowerCase();
-  const tags = (entry.tags ?? []).map((tag) => String(tag).toLowerCase());
-  const biomeTags = (entry.biomeTags ?? []).map((tag) => String(tag).toLowerCase());
-  return src.includes("cozy-spring") || id.includes("cozy_spring") || tags.includes("cozy-spring") || biomeTags.includes("cozy") || biomeTags.includes("spring");
-}
 
 function simpleSeed(seed: string | number): string {
   return String(seed);
@@ -60,11 +45,6 @@ function toBoundAsset(
   };
 }
 
-function withCozyLog(kind: "road" | "prop", semanticType: string, bound: BoundAsset): BoundAsset {
-  if (isCozyEntry(bound.entry)) console.log(`[CozySpring] visible ${kind} ${semanticType} -> ${bound.entry?.id ?? "unknown"}`);
-  return bound;
-}
-
 export function createWorldPlanAssetBinder(
   manifest: AssetManifest | null,
   textureFor: (src: string | null | undefined) => BoundAsset["texture"],
@@ -84,7 +64,7 @@ export function createWorldPlanAssetBinder(
     variantHint: options.variantHint,
   });
 
-  const simpleBindEntry = (semanticType: string, entry: AssetEntry | null): BoundAsset => ({
+  const simpleBindEntry = (semanticType: string, entry: BoundAsset["entry"]): BoundAsset => ({
     semanticType: semanticType as BoundAsset["semanticType"],
     entry,
     texture: entry ? textureFor(entry.src) : null,
@@ -93,12 +73,10 @@ export function createWorldPlanAssetBinder(
   return {
     bindRoad: (roadType: RoadType, seed?: string) => {
       const roadSeed = seed ?? roadType;
-      const result = director.bindRoad(roadType, { seed: roadSeed, biome: "plains", variantHint: "cozy-spring" });
-      const cozyBound = toBoundAsset(roadType, result, textureFor);
-      if (isCozyEntry(cozyBound.entry)) return withCozyLog("road", roadType, cozyBound);
       const grResult = pickGraphicRiverTile(manifest, `road:${roadType}:${roadSeed}`, roadKind(roadType));
       if (grResult?.entry) return simpleBindEntry(roadType, grResult.entry);
-      return cozyBound;
+      const result = director.bindRoad(roadType, { seed: roadSeed, biome: "plains", variantHint: "cozy-spring" });
+      return toBoundAsset(roadType, result, textureFor);
     },
 
     bindBuilding: (buildingType: BuildingType, seed: string) => {
@@ -109,12 +87,10 @@ export function createWorldPlanAssetBinder(
     },
 
     bindProp: (propType: PropType, seed: string) => {
-      const result = director.bindProp(propType, { seed, biome: "plains", variantHint: "cozy-spring" });
-      const cozyBound = toBoundAsset(propType, result, textureFor);
-      if (isCozyEntry(cozyBound.entry)) return withCozyLog("prop", propType, cozyBound);
       const grResult = pickGraphicRiverProp(manifest, `prop:${propType}:${seed}`, propKind(propType));
       if (grResult?.entry) return simpleBindEntry(propType, grResult.entry);
-      return cozyBound;
+      const result = director.bindProp(propType, { seed });
+      return toBoundAsset(propType, result, textureFor);
     },
 
     bindNpc: (role: NpcRole, seed: string) => {
@@ -129,11 +105,6 @@ export function createWorldPlanAssetBinder(
 
     bindRoadWithContext: (roadType: RoadType, context: BindingOptions) => {
       const seed = combineSeed('road', String(roadType), String(context.seed));
-      if (isCozyContext(context)) {
-        const result = director.bindRoad(roadType, toContext({ ...context, seed, biome: context.biome ?? "plains", variantHint: context.variantHint ?? "cozy-spring" }));
-        const bound = toBoundAsset(roadType, result, textureFor);
-        if (isCozyEntry(bound.entry)) return withCozyLog("road", roadType, bound);
-      }
       const grKind = roadKind(roadType);
       const grResult = pickGraphicRiverTile(manifest, `road:${roadType}:${seed}`, grKind);
       if (grResult?.entry) return simpleBindEntry(roadType, grResult.entry);
@@ -152,11 +123,6 @@ export function createWorldPlanAssetBinder(
 
     bindPropWithContext: (propType: PropType, context: BindingOptions) => {
       const seed = combineSeed('prop', String(propType), String(context.seed));
-      if (isCozyContext(context)) {
-        const result = director.bindProp(propType, toContext({ ...context, seed, biome: context.biome ?? "plains", variantHint: context.variantHint ?? "cozy-spring" }));
-        const bound = toBoundAsset(propType, result, textureFor);
-        if (isCozyEntry(bound.entry)) return withCozyLog("prop", propType, bound);
-      }
       const grKind = propKind(propType);
       const grResult = pickGraphicRiverProp(manifest, `prop:${propType}:${seed}`, grKind);
       if (grResult?.entry) return simpleBindEntry(propType, grResult.entry);
