@@ -138,6 +138,15 @@ When working on specific topics, check the skills in `docs/ai-skills/`:
 - `server-anti-ninja-loot.md` - Security patterns for loot
 - `wasd-asset-tagging.md` - Asset tagging workflow and patterns
 - `wasd-docs-best-practices.md` - Documentation standards
+### VPS & Deployment Skills
+- `vps-ssh-paramiko-patterns.md` - SSH access to VPS via Paramiko
+- `vite-public-assets-docker-fix.md` - Vite public/ directory in Docker builds
+- `vps-deployment-workflow-best-practices.md` - Complete VPS deployment workflow
+- `github-pr-draft-workaround.md` - GitHub PR draft state and merge fixes
+
+### Tools (in `tools/`)
+- `tools/vps/vps-verify.py` - VPS deployment verification script
+- `tools/github/pr-manager.py` - GitHub PR management (status, merge, checks)
 
 ### Manifest System (Server Authority)
 The manifest system provides deterministic, server-authoritative state management:
