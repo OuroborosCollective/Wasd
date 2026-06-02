@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_petals_and_ground_details",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/petals and ground details",
+  "entries": {
+    "petals_and_ground_details_1": {
+      "id": "petals_and_ground_details_1",
+      "src": "/2d-assets/cozy-spring/props/petals and ground details/files/10._Petals_and_ground_details.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "10. Petals and ground details.png",
+      "sourceName": "10. Petals and ground details.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "tile",
+      "group": "petals and ground details",
+      "biome": "plains",
+      "category": "props",
+      "biomeTags": [
+        "plains",
+        "petal",
+        "ground",
+        "detail",
+        "decoration"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "petal",
+        "ground",
+        "detail",
+        "decoration",
+        "tile"
+      ],
+      "bytes": 1249984,
+      "sha256": "58c80286421339822392d15eac11a659232478810eb57971988c14dcf959da17",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "petals_and_ground_details_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

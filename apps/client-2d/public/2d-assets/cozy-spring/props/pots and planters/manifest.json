@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_pots_and_planters",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/pots and planters",
+  "entries": {
+    "pots_and_planters_1": {
+      "id": "pots_and_planters_1",
+      "src": "/2d-assets/cozy-spring/props/pots and planters/files/18._Pots_and_planters.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "18. Pots and planters.png",
+      "sourceName": "18. Pots and planters.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "pots and planters",
+      "biome": "plains",
+      "category": "props",
+      "biomeTags": [
+        "plains",
+        "pot",
+        "planter",
+        "flower",
+        "container"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "pot",
+        "planter",
+        "flower",
+        "container",
+        "prop"
+      ],
+      "bytes": 1787214,
+      "sha256": "e07af58bdae674d90080a40ee1ce192db3e061a9a4780d75431a367bda454993",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "pots_and_planters_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

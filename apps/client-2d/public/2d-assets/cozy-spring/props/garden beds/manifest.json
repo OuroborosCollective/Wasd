@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_garden_beds",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/garden beds",
+  "entries": {
+    "garden_beds_1": {
+      "id": "garden_beds_1",
+      "src": "/2d-assets/cozy-spring/props/garden beds/files/13._Garden_beds.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "13. Garden beds.png",
+      "sourceName": "13. Garden beds.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "garden beds",
+      "biome": "plains",
+      "category": "props",
+      "biomeTags": [
+        "plains",
+        "garden",
+        "bed",
+        "planting",
+        "vegetable"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "garden",
+        "bed",
+        "planting",
+        "vegetable",
+        "prop"
+      ],
+      "bytes": 2118742,
+      "sha256": "ed0b051b40a42e3413468537ad19e9fe10a03c773c874347e7df8aea3894cfd7",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "garden_beds_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

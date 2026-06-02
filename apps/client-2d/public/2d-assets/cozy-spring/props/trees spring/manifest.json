@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "id": "cozy_spring_trees_spring",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/trees spring",
+  "entries": {
+    "trees_spring_1": {
+      "id": "trees_spring_1",
+      "src": "/2d-assets/cozy-spring/props/trees spring/files/8._Trees_(spring).png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "8. Trees (spring).png",
+      "sourceName": "8. Trees (spring).png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "trees spring",
+      "biome": "plains",
+      "category": "props",
+      "biomeTags": [
+        "plains",
+        "cozy",
+        "spring",
+        "decoration"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "cozy",
+        "spring",
+        "decoration",
+        "prop"
+      ],
+      "bytes": 2232647,
+      "sha256": "080a4299096f4e784797791b69f06344c3adfb0884b405af7fd0f20377c3381b",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "trees_spring_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

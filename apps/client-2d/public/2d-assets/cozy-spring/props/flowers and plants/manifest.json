@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_flowers_and_plants",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "forest",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/flowers and plants",
+  "entries": {
+    "flowers_and_plants_1": {
+      "id": "flowers_and_plants_1",
+      "src": "/2d-assets/cozy-spring/props/flowers and plants/files/9._Flowers_and_plants.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "9. Flowers and plants.png",
+      "sourceName": "9. Flowers and plants.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "flowers and plants",
+      "biome": "forest",
+      "category": "props",
+      "biomeTags": [
+        "forest",
+        "flower",
+        "plant",
+        "garden",
+        "nature"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "flower",
+        "plant",
+        "garden",
+        "nature",
+        "prop"
+      ],
+      "bytes": 1764754,
+      "sha256": "468126d712cf9d42b44fb5a39b63d83615f6147fb2bce0461460df607d4bed80",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "flowers_and_plants_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}
