@@ -1,10 +1,9 @@
 import { Container, Graphics, Sprite } from "pixi.js";
-import type { ChunkScenePlan, KappaInt } from "@wasd/shared";
+import type { ChunkScenePlan, KappaInt, PropType } from "@wasd/shared";
 import { fromKappaInt } from "@wasd/shared";
 import { make2dProp } from "../stackedProps";
 import { iso3 } from "../isometricProjection";
 import type { WorldPlanAssetBinder, WorldPlanRenderContext } from "./WorldPlanRenderTypes";
-import type { BindingOptions } from "./AssetBindingContext";
 import { buildAllChunkContexts, type ChunkBindingContexts } from "./AssetBindingContextFactory";
 
 const TILE_W = 96;
@@ -55,17 +54,6 @@ function roadDiamond(): Graphics {
   return g;
 }
 
-function spriteFromBound(bound: ReturnType<WorldPlanAssetBinder["bindRoad"]>, fallback: () => Container, width: number, height: number): Container {
-  if (!bound.entry || !bound.texture) return fallback();
-  const root = new Container();
-  const sprite = new Sprite(bound.texture);
-  sprite.anchor.set(0.5, 1);
-  sprite.width = width;
-  sprite.height = height;
-  root.addChild(sprite);
-  return root;
-}
-
 function fallbackProp(): Container {
   const c = new Container();
   c.addChild(new Graphics().circle(0, -18, 16).fill(0x2f8d4d));
@@ -88,47 +76,71 @@ function fallbackBuilding(): Container {
   return c;
 }
 
-/**
- * World state context for deterministic binding.
- */
 interface WorldStateContext {
   worldTick: number;
   worldSeed: string;
 }
 
-/**
- * Options for rendering with context-aware binding.
- */
 interface RenderOptions {
   worldState: WorldStateContext;
   biomeId: string;
   lod?: "low" | "medium" | "high";
 }
 
-/**
- * Context-aware chunk scene renderer.
- * Builds AssetBindingContext once per chunk, then uses *WithContext methods.
- */
+function defaultRenderOptions(plan: ChunkScenePlan): RenderOptions {
+  return {
+    biomeId: "plains",
+    worldState: {
+      worldSeed: plan.input.worldSeed,
+      worldTick: Number(plan.input.tick ?? 0),
+    },
+    lod: "medium",
+  };
+}
+
+function buildContexts(plan: ChunkScenePlan, options: RenderOptions): ChunkBindingContexts {
+  return buildAllChunkContexts(
+    { chunkX: plan.input.chunkX, chunkZ: plan.input.chunkZ, biomeId: options.biomeId },
+    { worldTick: options.worldState.worldTick, worldSeed: options.worldState.worldSeed },
+    plan,
+    { settlementTier: plan.settlement.settlementType === "village" ? "village" : "camp", culture: "generic", wealthLevel: "poor", dangerLevel: "safe" },
+    { forceLod: options.lod },
+  );
+}
+
+function renderCozySmokeProof(plan: ChunkScenePlan, binder: WorldPlanAssetBinder, ctx: WorldPlanRenderContext): void {
+  const [centerX, centerZ] = plan.settlement.centerCell.split(":").map((value) => Number(value));
+  const smoke: { type: PropType; dx: number; dz: number; w: number; h: number }[] = [
+    { type: "fence", dx: -2, dz: -2, w: 64, h: 64 },
+    { type: "flower", dx: -1, dz: -2, w: 46, h: 46 },
+    { type: "bush", dx: 0, dz: -2, w: 58, h: 58 },
+    { type: "tree", dx: 1, dz: -2, w: 86, h: 116 },
+    { type: "well", dx: 2, dz: -2, w: 70, h: 70 },
+  ];
+
+  let visible = 0;
+  smoke.forEach((item, index) => {
+    const bound = binder.bindProp(item.type, `cozy-smoke:${index}:${item.type}`);
+    const node = make2dProp(bound.entry, bound.texture, fallbackProp, item.w, item.h);
+    place(node, ((centerX + item.dx) * 1000 + 500) as KappaInt, ((centerZ + item.dz) * 1000 + 500) as KappaInt, ctx.width, ctx.height);
+    ctx.props.addChild(node);
+    if (bound.entry?.src?.includes("cozy-spring")) visible += 1;
+  });
+  console.log(`[CozySpring] smoke proof visible=${visible}/5`);
+}
+
 export function renderChunkScenePlan(
   plan: ChunkScenePlan,
   binder: WorldPlanAssetBinder,
   ctx: WorldPlanRenderContext,
-  options?: RenderOptions
+  options?: RenderOptions,
 ): void {
   ctx.terrain.removeChildren();
   ctx.props.removeChildren();
   ctx.actors.removeChildren();
 
-  // Build binding contexts once if options provided (PERFORMANCE: not per entity)
-  const bindingContexts = options
-    ? buildAllChunkContexts(
-        { chunkX: 0, chunkZ: 0, biomeId: options.biomeId },
-        { worldTick: options.worldState.worldTick, worldSeed: options.worldState.worldSeed },
-        plan,
-        undefined,
-        { forceLod: options.lod },
-      )
-    : null;
+  const renderOptions = options ?? defaultRenderOptions(plan);
+  const bindingContexts = buildContexts(plan, renderOptions);
 
   for (const cell of plan.terrain) {
     const tile = terrainDiamond(cell.terrainType);
@@ -146,11 +158,7 @@ export function renderChunkScenePlan(
   }
 
   for (const lot of plan.settlement.lots) {
-    // Use context-aware binding if contexts built, fallback to simple binding
-    const bound = bindingContexts
-      ? binder.bindBuildingWithContext(lot.buildingType, bindingContexts.buildingContexts.get(lot.id)!)
-      : binder.bindBuilding(lot.buildingType, lot.id);
-    
+    const bound = binder.bindBuildingWithContext(lot.buildingType, bindingContexts.buildingContexts.get(lot.id)!);
     const width = lot.widthTiles >= 3 ? 220 : 176;
     const height = lot.depthTiles >= 3 ? 220 : 180;
     const building = make2dProp(bound.entry, bound.texture, fallbackBuilding, width, height);
@@ -159,25 +167,18 @@ export function renderChunkScenePlan(
   }
 
   for (const prop of [...plan.settlement.props, ...plan.props]) {
-    // Use context-aware binding if contexts built, fallback to simple binding
-    const bound = bindingContexts
-      ? binder.bindPropWithContext(prop.propType, bindingContexts.propContexts.get(prop.id)!)
-      : binder.bindProp(prop.propType, prop.id);
-    
+    const bound = binder.bindPropWithContext(prop.propType, bindingContexts.propContexts.get(prop.id)!);
     const size = prop.propType === "tree" ? { w: 94, h: 128 } : prop.propType === "market_stall" ? { w: 112, h: 82 } : prop.propType === "well" ? { w: 86, h: 86 } : { w: 54, h: 54 };
     const node = make2dProp(bound.entry, bound.texture, fallbackProp, size.w, size.h);
     place(node, prop.kappaPos.x, prop.kappaPos.z, ctx.width, ctx.height);
     ctx.props.addChild(node);
   }
 
+  renderCozySmokeProof(plan, binder, ctx);
   ctx.props.sortChildren();
 
   for (const npc of plan.npcs) {
-    // Use context-aware binding if contexts built, fallback to simple binding
-    const bound = bindingContexts
-      ? binder.bindNpcWithContext(npc.role, bindingContexts.npcContexts.get(npc.id)!)
-      : binder.bindNpc(npc.role, npc.displayNameSeed);
-    
+    const bound = binder.bindNpcWithContext(npc.role, bindingContexts.npcContexts.get(npc.id)!);
     ctx.addNpcActor({
       id: npc.id,
       tileX: npc.tileX,
