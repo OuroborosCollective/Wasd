@@ -2,7 +2,8 @@
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-const repoRoot = resolve(process.cwd());
+const cwd = process.cwd();
+const repoRoot = cwd.endsWith('client') ? resolve(cwd, '..') : resolve(cwd);
 const distRoot = join(repoRoot, 'client/dist');
 const publicRoot = join(repoRoot, 'client/public');
 const portalRoot = join(distRoot, 'portal');
