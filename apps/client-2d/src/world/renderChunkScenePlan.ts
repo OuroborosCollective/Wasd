@@ -1,5 +1,5 @@
-import { Container, Graphics, Sprite } from "pixi.js";
-import type { ChunkScenePlan, KappaInt, PropType } from "@wasd/shared";
+import { Container, Graphics } from "pixi.js";
+import type { ChunkScenePlan, KappaInt } from "@wasd/shared";
 import { fromKappaInt } from "@wasd/shared";
 import { make2dProp } from "../stackedProps";
 import { iso3 } from "../isometricProjection";
@@ -89,7 +89,7 @@ interface RenderOptions {
 
 function defaultRenderOptions(plan: ChunkScenePlan): RenderOptions {
   return {
-    biomeId: "plains",
+    biomeId: "forest",
     worldState: {
       worldSeed: plan.input.worldSeed,
       worldTick: Number(plan.input.tick ?? 0),
@@ -106,27 +106,6 @@ function buildContexts(plan: ChunkScenePlan, options: RenderOptions): ChunkBindi
     { settlementTier: plan.settlement.settlementType === "village" ? "village" : "camp", culture: "generic", wealthLevel: "poor", dangerLevel: "safe" },
     { forceLod: options.lod },
   );
-}
-
-function renderCozySmokeProof(plan: ChunkScenePlan, binder: WorldPlanAssetBinder, ctx: WorldPlanRenderContext): void {
-  const [centerX, centerZ] = plan.settlement.centerCell.split(":").map((value) => Number(value));
-  const smoke: { type: PropType; dx: number; dz: number; w: number; h: number }[] = [
-    { type: "fence", dx: -2, dz: -2, w: 64, h: 64 },
-    { type: "flower", dx: -1, dz: -2, w: 46, h: 46 },
-    { type: "bush", dx: 0, dz: -2, w: 58, h: 58 },
-    { type: "tree", dx: 1, dz: -2, w: 86, h: 116 },
-    { type: "well", dx: 2, dz: -2, w: 70, h: 70 },
-  ];
-
-  let visible = 0;
-  smoke.forEach((item, index) => {
-    const bound = binder.bindProp(item.type, `cozy-smoke:${index}:${item.type}`);
-    const node = make2dProp(bound.entry, bound.texture, fallbackProp, item.w, item.h);
-    place(node, ((centerX + item.dx) * 1000 + 500) as KappaInt, ((centerZ + item.dz) * 1000 + 500) as KappaInt, ctx.width, ctx.height);
-    ctx.props.addChild(node);
-    if (bound.entry?.src?.includes("cozy-spring")) visible += 1;
-  });
-  console.log(`[CozySpring] smoke proof visible=${visible}/5`);
 }
 
 export function renderChunkScenePlan(
@@ -174,7 +153,6 @@ export function renderChunkScenePlan(
     ctx.props.addChild(node);
   }
 
-  renderCozySmokeProof(plan, binder, ctx);
   ctx.props.sortChildren();
 
   for (const npc of plan.npcs) {
