@@ -65,6 +65,7 @@ export interface BindingDebug {
 
 /**
  * Score weights for semantic matching.
+ * Extended with GraphicRiver-specific weights for pattern matching.
  */
 const SCORE_WEIGHTS = {
   exactKind: 100,
@@ -83,6 +84,15 @@ const SCORE_WEIGHTS = {
   deprecated: -100,
   corrupt: -100,
   missing: -100,
+  
+  // GraphicRiver-specific weights (for pattern-based matching)
+  patternMatch: 25,      // Asset ID contains requested keyword
+  sourceMatch: 20,       // Recognized source (GraphicRiver, Kenney, etc.)
+  isoMatch: 15,          // Isometric style match
+  subcategoryMatch: 12,   // Subcategory within pack matches
+  
+  // Fallback chain bonus (when using extended GraphicRiver fallbacks)
+  fallbackChain: 5,
 };
 
 /**
@@ -197,6 +207,33 @@ export class AssetBindingDirector {
     if (query.variantHint && entryTags.some(t => t.includes(query.variantHint!.toLowerCase()))) {
       score += SCORE_WEIGHTS.variantMatch;
       reasons.push(`variant:${query.variantHint}`);
+    }
+
+    // Pattern matching (for GraphicRiver-style IDs)
+    const entryId = entry.id?.toLowerCase() ?? '';
+    for (const tag of query.tags) {
+      if (entryId.includes(tag.toLowerCase())) {
+        score += SCORE_WEIGHTS.patternMatch;
+        reasons.push(`pattern:${tag}`);
+        break; // Only count once
+      }
+    }
+
+    // Source matching
+    const entrySource = (entry as any).source?.toLowerCase() ?? '';
+    const recognizedSources = ['graphicriver', 'kenney', 'pipoya', 'assetpack01'];
+    for (const source of recognizedSources) {
+      if (entrySource.includes(source)) {
+        score += SCORE_WEIGHTS.sourceMatch;
+        reasons.push(`source:${source}`);
+        break;
+      }
+    }
+
+    // Isometric style matching
+    if (entryId.includes('iso') || entryId.includes('isometric')) {
+      score += SCORE_WEIGHTS.isoMatch;
+      reasons.push('iso');
     }
 
     // Quality bonus
