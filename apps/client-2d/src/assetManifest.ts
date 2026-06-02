@@ -135,23 +135,52 @@ export async function loadAssetManifest(): Promise<AssetManifest | null> {
   const pipoyaCharacters = await loadJson<CharacterAtlasPayload>(routeAsset('/2d-assets/characters/pipoya/pipoya-character-atlas.json'));
   const forestBiome = await loadJson<AssetManifest>(routeAsset('/assets/biomes/forest/assetpack01/manifest.json'));
   const graphicRiverIso = await loadJson<AssetManifest>('/client2d-assets/graphicriver-iso/manifest.json');
-  const cozySpring = await loadJson<AssetManifest>(routeAsset('/2d-assets/cozy-spring/manifest.json'));
-
-  // Extract cozy spring tilesets and props from entries
+  const cozySpringIndex = await loadJson<{id: string; totalEntries: number; sheets: {group: string; file: string; entries: number; category: string}[]} | null>('/2d/assets/cozy-spring/manifest.index.json');
+  
+  // Lazy-load cozy spring entries from split sheet files
   const cozyTilesets: Record<string, AssetEntry> = {};
   const cozyProps: Record<string, AssetEntry> = {};
   
-  if (cozySpring?.entries) {
-    for (const [id, entry] of Object.entries(cozySpring.entries)) {
-      if (entry.category === 'tilesets') {
-        cozyTilesets[id] = normalizeEntrySrc(entry);
-      } else if (entry.category === 'props') {
-        cozyProps[id] = normalizeEntrySrc(entry);
+  if (cozySpringIndex?.sheets) {
+    for (const sheetInfo of cozySpringIndex.sheets) {
+      const sheetData = await loadJson<{
+        sheet: string;
+        tileSize: number;
+        group: string;
+        category: string;
+        frames: [string, number, number, string, string[]][];
+      } | null>(`/2d/assets/cozy-spring/sheets/${sheetInfo.file}`);
+      
+      if (sheetData?.frames) {
+        for (const frame of sheetData.frames) {
+          const [id, x, y, kind, tags] = frame;
+          const entry: AssetEntry = {
+            id,
+            src: sheetData.sheet,
+            category: sheetInfo.category,
+            kind,
+            group: sheetInfo.group,
+            sheetFrame: { x, y, w: sheetData.tileSize, h: sheetData.tileSize },
+            frame: { x, y, w: sheetData.tileSize, h: sheetData.tileSize },
+            frameSize: { w: sheetData.tileSize, h: sheetData.tileSize },
+            tileWidth: sheetData.tileSize,
+            tileHeight: sheetData.tileSize,
+            tags: tags,
+            biomeTags: ['plains', 'spring', 'village', 'cozy'],
+            deterministic: true,
+          };
+          
+          if (sheetInfo.category === 'tilesets') {
+            cozyTilesets[id] = normalizeEntrySrc(entry);
+          } else {
+            cozyProps[id] = normalizeEntrySrc(entry);
+          }
+        }
       }
     }
   }
 
-  if (!root && !weaponManifest && !modularWeaponManifest && !pipoyaCharacters && !forestBiome && !graphicRiverIso && !cozySpring) return null;
+  if (!root && !weaponManifest && !modularWeaponManifest && !pipoyaCharacters && !forestBiome && !graphicRiverIso && !cozySpringIndex) return null;
 
   return {
     ...(root ?? { version: 1, basePath: routeAsset('/2d-assets') }),
@@ -163,7 +192,7 @@ export async function loadAssetManifest(): Promise<AssetManifest | null> {
       ...(pipoyaCharacters ? [{ id: pipoyaCharacters.id ?? 'pipoya-character-atlas', source: pipoyaCharacters.source ?? 'Pipoya', groups: pipoyaCharacters.groups ?? {} }] : []),
       ...(forestBiome ? [{ id: 'assetpack01_forest_sample', source: 'AssetPack01_Forest_Sample.zip', biome: 'forest', pngCount: forestBiome.pngCount, deterministic: true }] : []),
       ...(graphicRiverIso?.sources ?? []),
-      ...(cozySpring ? [{ id: cozySpring.id ?? 'cozy_spring_master', source: 'SakPix_Cozy_Spring_Asset_Pack', biome: 'plains', totalEntries: cozySpring.totalEntries, deterministic: true }] : []),
+      ...(cozySpringIndex ? [{ id: cozySpringIndex.id ?? 'cozy_spring_master', source: 'SakPix_Cozy_Spring_Asset_Pack', biome: 'plains', totalEntries: cozySpringIndex.totalEntries, deterministic: true, totalSheets: cozySpringIndex.totalSheets }] : []),
     ],
     tilesets: {
       ...normalizeEntries(root?.tilesets),

@@ -7,9 +7,9 @@ Each non-transparent tile gets its own manifest entry with frame data pointing
 to the specific cell in the source sheet.
 
 Usage:
-    python3 scripts/slice-spritesheet-to-manifest.mjs --dry-run <png_path>
-    python3 scripts/slice-spritesheet-to-manifest.mjs <png_path> [--out=manifest.json]
-    python3 scripts/slice-spritesheet-to-manifest.mjs --dir <directory_with_pngs> [--dry-run]
+    python3 scripts/slice-spritesheet-to-manifest.py --dry-run <png_path>
+    python3 scripts/slice-spritesheet-to-manifest.py <png_path> [--out=manifest.json]
+    python3 scripts/slice-spritesheet-to-manifest.py --dir <directory_with_pngs> [--dry-run]
 
 Requirements:
     pip install Pillow
@@ -397,19 +397,19 @@ def main():
         epilog='''
 Examples:
   # Dry run on single file
-  python3 scripts/slice-spritesheet-to-manifest.mjs --dry-run path/to/sheet.png
+  python3 scripts/slice-spritesheet-to-manifest.py --dry-run path/to/sheet.png
   
   # Process single file
-  python3 scripts/slice-spritesheet-to-manifest.mjs path/to/sheet.png
+  python3 scripts/slice-spritesheet-to-manifest.py path/to/sheet.png
   
   # Process directory
-  python3 scripts/slice-spritesheet-to-manifest.mjs --dir path/to/assets/
+  python3 scripts/slice-spritesheet-to-manifest.py --dir path/to/assets/
   
   # Dry run on directory
-  python3 scripts/slice-spritesheet-to-manifest.mjs --dry-run --dir path/to/assets/
+  python3 scripts/slice-spritesheet-to-manifest.py --dry-run --dir path/to/assets/
   
   # Skip existing (don't overwrite)
-  python3 scripts/slice-spritesheet-to-manifest.mjs --skip-existing path/to/sheet.png
+  python3 scripts/slice-spritesheet-to-manifest.py --skip-existing path/to/sheet.png
         '''
     )
     DEFAULT_TILE_SIZE = 32
