@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => {
             alias: {
                 "@": path.resolve(__dirname, "./src"),
                 "@shared": path.resolve(__dirname, "../packages/shared/src"),
+                "@wasd/shared": path.resolve(__dirname, "../packages/shared/dist"),
                 "@assets": path.resolve(__dirname, "./src/assets"),
             },
         },
@@ -67,6 +68,7 @@ export default defineConfig(({ mode }) => {
         build: {
             outDir: isItchBuild ? "dist-itch" : "dist",
             emptyOutDir: true,
+            target: "esnext",
             // Production minification
             minify: minify,
             cssCodeSplit: true,

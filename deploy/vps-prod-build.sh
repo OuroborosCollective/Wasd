@@ -14,7 +14,7 @@ echo "→ vps-prod-build: repo root=${ROOT}"
 if ! command -v pnpm >/dev/null 2>&1; then
   echo "pnpm not found; enabling corepack…"
   corepack enable || true
-  corepack prepare pnpm@9.12.2 --activate || true
+  corepack prepare pnpm@11.5.0 --activate || true
 fi
 
 echo "→ pnpm install"
