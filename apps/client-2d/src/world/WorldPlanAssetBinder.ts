@@ -19,16 +19,26 @@ import type { BoundAsset, WorldPlanAssetBinder } from "./WorldPlanRenderTypes";
 import type { BindingOptions, AssetBindingContext } from "./AssetBindingContext";
 import { createAssetBindingDirector, type BindingResult } from "./AssetBindingDirector";
 import { combineSeed } from "./DeterministicAssetRng";
-import { combineContextTags, getBiomeRoadTags, getBiomeTreeTags } from "./AssetFallbackChains";
 
-// Simple deterministic hash for basic backward compatibility
+function isCozyContext(context?: BindingOptions | AssetBindingContext | null): boolean {
+  const biome = String(context?.biome ?? "").toLowerCase();
+  const hint = String(context?.variantHint ?? "").toLowerCase();
+  return biome === "plains" || biome.includes("village") || hint.includes("cozy") || hint.includes("spring");
+}
+
+function isCozyEntry(entry: AssetEntry | null | undefined): boolean {
+  if (!entry) return false;
+  const src = String(entry.src ?? "").toLowerCase();
+  const id = String(entry.id ?? "").toLowerCase();
+  const tags = (entry.tags ?? []).map((tag) => String(tag).toLowerCase());
+  const biomeTags = (entry.biomeTags ?? []).map((tag) => String(tag).toLowerCase());
+  return src.includes("cozy-spring") || id.includes("cozy_spring") || tags.includes("cozy-spring") || biomeTags.includes("cozy") || biomeTags.includes("spring");
+}
+
 function simpleSeed(seed: string | number): string {
   return String(seed);
 }
 
-/**
- * Converts a BindingResult to a BoundAsset with texture.
- */
 function toBoundAsset(
   semanticType: string,
   result: BindingResult,
@@ -50,18 +60,18 @@ function toBoundAsset(
   };
 }
 
-/**
- * Creates the world plan asset binder with full deterministic binding system.
- */
+function withCozyLog(kind: "road" | "prop", semanticType: string, bound: BoundAsset): BoundAsset {
+  if (isCozyEntry(bound.entry)) console.log(`[CozySpring] visible ${kind} ${semanticType} -> ${bound.entry?.id ?? "unknown"}`);
+  return bound;
+}
+
 export function createWorldPlanAssetBinder(
   manifest: AssetManifest | null,
   textureFor: (src: string | null | undefined) => BoundAsset["texture"],
   options?: { debug?: boolean },
 ): WorldPlanAssetBinder {
-  // Create the deterministic binding director
   const director = createAssetBindingDirector(manifest, options?.debug ?? false);
 
-  // Helper to convert binding options to asset binding context
   const toContext = (options: BindingOptions): AssetBindingContext => ({
     seed: options.seed,
     biome: options.biome,
@@ -74,7 +84,6 @@ export function createWorldPlanAssetBinder(
     variantHint: options.variantHint,
   });
 
-  // Helper for simple bind without context (backwards compatible)
   const simpleBindEntry = (semanticType: string, entry: AssetEntry | null): BoundAsset => ({
     semanticType: semanticType as BoundAsset["semanticType"],
     entry,
@@ -82,141 +91,91 @@ export function createWorldPlanAssetBinder(
   });
 
   return {
-    // === BACKWARDS COMPATIBLE BASIC BINDING ===
-    
     bindRoad: (roadType: RoadType, seed?: string) => {
       const roadSeed = seed ?? roadType;
-      // Try Graphic River first for quality
+      const result = director.bindRoad(roadType, { seed: roadSeed, biome: "plains", variantHint: "cozy-spring" });
+      const cozyBound = toBoundAsset(roadType, result, textureFor);
+      if (isCozyEntry(cozyBound.entry)) return withCozyLog("road", roadType, cozyBound);
       const grResult = pickGraphicRiverTile(manifest, `road:${roadType}:${roadSeed}`, roadKind(roadType));
-      if (grResult?.entry) {
-        return simpleBindEntry(roadType, grResult.entry);
-      }
-      // Fall back to director with basic context
-      const result = director.bindRoad(roadType, { seed: roadSeed });
-      return toBoundAsset(roadType, result, textureFor);
+      if (grResult?.entry) return simpleBindEntry(roadType, grResult.entry);
+      return cozyBound;
     },
 
     bindBuilding: (buildingType: BuildingType, seed: string) => {
-      // Try Graphic River first for quality
       const grResult = pickGraphicRiverBuilding(manifest, `building:${buildingType}:${seed}`, buildingKind(buildingType));
-      if (grResult?.entry) {
-        return simpleBindEntry(buildingType, grResult.entry);
-      }
-      // Fall back to director
+      if (grResult?.entry) return simpleBindEntry(buildingType, grResult.entry);
       const result = director.bindBuilding(buildingType, { seed });
       return toBoundAsset(buildingType, result, textureFor);
     },
 
     bindProp: (propType: PropType, seed: string) => {
-      // Try Graphic River first for quality
+      const result = director.bindProp(propType, { seed, biome: "plains", variantHint: "cozy-spring" });
+      const cozyBound = toBoundAsset(propType, result, textureFor);
+      if (isCozyEntry(cozyBound.entry)) return withCozyLog("prop", propType, cozyBound);
       const grResult = pickGraphicRiverProp(manifest, `prop:${propType}:${seed}`, propKind(propType));
-      if (grResult?.entry) {
-        return simpleBindEntry(propType, grResult.entry);
-      }
-      // Fall back to director
-      const result = director.bindProp(propType, { seed });
-      return toBoundAsset(propType, result, textureFor);
+      if (grResult?.entry) return simpleBindEntry(propType, grResult.entry);
+      return cozyBound;
     },
 
     bindNpc: (role: NpcRole, seed: string) => {
-      // Try Graphic River first for quality
       const grResult = pickGraphicRiverCharacter(manifest, `npc:${role}:${seed}`, role);
-      if (grResult?.entry) {
-        return simpleBindEntry(role, grResult.entry);
-      }
-      // Try standard character visual
+      if (grResult?.entry) return simpleBindEntry(role, grResult.entry);
       const query = roleToCharacterQuery(role);
-      const picked = pickCharacterVisual(manifest, { 
-        tags: [...query.tags], 
-        group: query.group, 
-        kind: query.kind, 
-        seed: `npc:${role}:${seed}` 
-      });
-      if (picked?.entry) {
-        return simpleBindEntry(role, picked.entry);
-      }
-      // Fall back to director
+      const picked = pickCharacterVisual(manifest, { tags: [...query.tags], group: query.group, kind: query.kind, seed: `npc:${role}:${seed}` });
+      if (picked?.entry) return simpleBindEntry(role, picked.entry);
       const result = director.bindNpc(role, { seed });
       return toBoundAsset(role, result, textureFor);
     },
 
-    // === CONTEXT-AWARE DETERMINISTIC BINDING ===
-
     bindRoadWithContext: (roadType: RoadType, context: BindingOptions) => {
       const seed = combineSeed('road', String(roadType), String(context.seed));
-      
-      // Try Graphic River with biome adaptation
-      const biomeTags = getBiomeRoadTags(context.biome);
+      if (isCozyContext(context)) {
+        const result = director.bindRoad(roadType, toContext({ ...context, seed, biome: context.biome ?? "plains", variantHint: context.variantHint ?? "cozy-spring" }));
+        const bound = toBoundAsset(roadType, result, textureFor);
+        if (isCozyEntry(bound.entry)) return withCozyLog("road", roadType, bound);
+      }
       const grKind = roadKind(roadType);
       const grResult = pickGraphicRiverTile(manifest, `road:${roadType}:${seed}`, grKind);
-      if (grResult?.entry) {
-        return simpleBindEntry(roadType, grResult.entry);
-      }
-      
-      // Use director with full context
+      if (grResult?.entry) return simpleBindEntry(roadType, grResult.entry);
       const result = director.bindRoad(roadType, toContext({ ...context, seed }));
       return toBoundAsset(roadType, result, textureFor);
     },
 
     bindBuildingWithContext: (buildingType: BuildingType, context: BindingOptions) => {
       const seed = combineSeed('building', String(buildingType), String(context.seed));
-      
-      // Try Graphic River with culture/wealth adaptation
       const grKind = buildingKind(buildingType);
       const grResult = pickGraphicRiverBuilding(manifest, `building:${buildingType}:${seed}`, grKind);
-      if (grResult?.entry) {
-        return simpleBindEntry(buildingType, grResult.entry);
-      }
-      
-      // Use director with full context
+      if (grResult?.entry) return simpleBindEntry(buildingType, grResult.entry);
       const result = director.bindBuilding(buildingType, toContext({ ...context, seed }));
       return toBoundAsset(buildingType, result, textureFor);
     },
 
     bindPropWithContext: (propType: PropType, context: BindingOptions) => {
       const seed = combineSeed('prop', String(propType), String(context.seed));
-      
-      // Try Graphic River with biome adaptation
+      if (isCozyContext(context)) {
+        const result = director.bindProp(propType, toContext({ ...context, seed, biome: context.biome ?? "plains", variantHint: context.variantHint ?? "cozy-spring" }));
+        const bound = toBoundAsset(propType, result, textureFor);
+        if (isCozyEntry(bound.entry)) return withCozyLog("prop", propType, bound);
+      }
       const grKind = propKind(propType);
       const grResult = pickGraphicRiverProp(manifest, `prop:${propType}:${seed}`, grKind);
-      if (grResult?.entry) {
-        return simpleBindEntry(propType, grResult.entry);
-      }
-      
-      // Use director with full context
+      if (grResult?.entry) return simpleBindEntry(propType, grResult.entry);
       const result = director.bindProp(propType, toContext({ ...context, seed }));
       return toBoundAsset(propType, result, textureFor);
     },
 
     bindNpcWithContext: (role: NpcRole, context: BindingOptions) => {
       const seed = combineSeed('npc', role, String(context.seed));
-      
-      // Try Graphic River with culture adaptation
       const grResult = pickGraphicRiverCharacter(manifest, `npc:${role}:${seed}`, role);
-      if (grResult?.entry) {
-        return simpleBindEntry(role, grResult.entry);
-      }
-      
-      // Try standard character visual with context
+      if (grResult?.entry) return simpleBindEntry(role, grResult.entry);
       const query = roleToCharacterQuery(role);
-      const picked = pickCharacterVisual(manifest, { 
-        tags: [...query.tags], 
-        group: query.group, 
-        kind: query.kind, 
-        seed 
-      });
-      if (picked?.entry) {
-        return simpleBindEntry(role, picked.entry);
-      }
-      
-      // Use director with full context
+      const picked = pickCharacterVisual(manifest, { tags: [...query.tags], group: query.group, kind: query.kind, seed });
+      if (picked?.entry) return simpleBindEntry(role, picked.entry);
       const result = director.bindNpc(role, toContext({ ...context, seed }));
       return toBoundAsset(role, result, textureFor);
     },
   };
 }
-
-// === HELPER FUNCTIONS ===
 
 function roleToCharacterQuery(role: NpcRole): { readonly group?: string; readonly kind?: string; readonly tags: readonly string[] } {
   if (role === "guard" || role === "guard_captain" || role === "blacksmith") return { group: "Soldier", kind: "soldier", tags: ["soldier"] };
