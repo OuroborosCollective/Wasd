@@ -1,6 +1,6 @@
-// @ARE-GUARD-EXEMPT: Scarcity prediction telemetry only; timestamps are not world-state inputs.
 import { WorldEventBus } from "../../events/WorldEventBus.js";
 import { WorldHistory } from "../history/WorldHistory.js";
+import { type AREClock, SystemAREClock } from "../../core/determinism/AREDeterminism.js";
 import { pushLiveTickerHazard, type LiveTickerHazardPayload } from "../../theme/serverThemeHazard.js";
 
 /**
@@ -157,7 +157,8 @@ export class ScarcityPredictor {
 
   constructor(
     private eventBus: WorldEventBus,
-    private market: EmergentMarket
+    private market: EmergentMarket,
+    private readonly clock: AREClock = new SystemAREClock()
   ) {
     this.setupSubscriptions();
     if (!ScarcityPredictor.themeBridgeBuses.has(this.eventBus)) {
@@ -268,7 +269,7 @@ export class ScarcityPredictor {
 
     // Estimate onset (deterministic based on current rate)
     const rateMagnitude = Math.abs(priceChangeRate) + Math.abs(stockChangeRate);
-    const estimatedOnset = Date.now() + Math.round(
+    const estimatedOnset = this.clock.now() + Math.round(
       ScarcityPredictor.PREDICTION_HORIZON_MS / rateMagnitude
     );
 
@@ -394,14 +395,14 @@ export class ScarcityPredictor {
           resourcePriorities: {
             [prediction.resourceId]: prediction.probability
           },
-          lastGoalUpdate: Date.now()
+          lastGoalUpdate: this.clock.now()
         };
       } else if (prediction.recommendedAction === 'HOARD') {
         adjustments[npcId] = {
           resourcePriorities: {
             [prediction.resourceId]: prediction.severity / 10
           },
-          lastGoalUpdate: Date.now()
+          lastGoalUpdate: this.clock.now()
         };
       }
     }

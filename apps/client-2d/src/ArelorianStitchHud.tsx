@@ -20,6 +20,12 @@ export interface ArelorianStitchHudProps {
   onEquipWeapon?: (item: InventoryItem) => void;
   onCycleWeapon?: () => void;
   onToggleAutoMove?: () => void;
+  // DEBUG: Player position & chunk visibility tracking
+  debugPlayerPos?: { x: number; z: number };
+  debugChunkCoords?: { chunkX: number; chunkZ: number };
+  debugVisibleChunks?: number;
+  debugHeartbeatReceived?: boolean;
+  debugInitialized?: boolean;
 }
 
 const skills = [
@@ -73,6 +79,12 @@ export function ArelorianStitchHud({
   onEquipWeapon,
   onCycleWeapon,
   onToggleAutoMove,
+  // DEBUG props
+  debugPlayerPos,
+  debugChunkCoords,
+  debugVisibleChunks,
+  debugHeartbeatReceived,
+  debugInitialized,
 }: ArelorianStitchHudProps) {
   const [activePanel, setActivePanel] = useState<HudPanel>(null);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
@@ -215,6 +227,31 @@ export function ArelorianStitchHud({
         <Gauge label="MP" value={mana} tone="aether" />
         <Gauge label="STA" value={stamina} tone="emerald" />
         <Gauge label="XP" value={xp} tone="gold" />
+      </aside>
+
+      {/* DEBUG HUD: Player Position & Chunk Visibility */}
+      <aside className="stitch-debug" aria-label="Debug: Player Position & Chunk Tracking">
+        <div className="stitch-debug-title">POSITION DEBUG</div>
+        <div className="stitch-debug-row">
+          <span>Heartbeat:</span>
+          <span className={debugHeartbeatReceived ? "ok" : "warn"}>{debugHeartbeatReceived ? "✓" : "✗"}</span>
+        </div>
+        <div className="stitch-debug-row">
+          <span>Initialized:</span>
+          <span className={debugInitialized ? "ok" : "warn"}>{debugInitialized ? "✓" : "✗"}</span>
+        </div>
+        <div className="stitch-debug-row">
+          <span>Player Pos:</span>
+          <span>{debugPlayerPos ? `${debugPlayerPos.x.toFixed(0)}, ${debugPlayerPos.z.toFixed(0)}` : "---"}</span>
+        </div>
+        <div className="stitch-debug-row">
+          <span>Chunk Coords:</span>
+          <span>{debugChunkCoords ? `${debugChunkCoords.chunkX}, ${debugChunkCoords.chunkZ}` : "---"}</span>
+        </div>
+        <div className="stitch-debug-row">
+          <span>Visible Chunks:</span>
+          <span>{debugVisibleChunks ?? "---"}</span>
+        </div>
       </aside>
 
       <aside className="stitch-side-menu" aria-label="Game Menus">

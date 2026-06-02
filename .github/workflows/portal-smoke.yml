@@ -63,7 +63,7 @@ jobs:
           grep -q 'Sovereign Tools' client/dist/index.html
           grep -q 'SCIENCE PORTAL' client/dist/portal/index.html
           grep -q 'SOVEREIGN TOOLS' client/dist/apps/index.html
-          grep -q 'ARE Console' client/dist/are-console.html
+          grep -q 'ARE Runtime Console' client/dist/are-console.html
           grep -q '"/2d/"' client/dist/runtime-build-info.json
           grep -q '"/3d/"' client/dist/runtime-build-info.json
           grep -q '"/apps/"' client/dist/runtime-build-info.json

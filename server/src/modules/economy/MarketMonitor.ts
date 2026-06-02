@@ -1,6 +1,9 @@
 import { EventEmitter } from 'events';
+import { type AREClock, SystemAREClock } from "../../core/determinism/AREDeterminism.js";
 
-// @ARE-GUARD-EXEMPT: Market monitoring telemetry only; timestamps are not world-state inputs.
+/**
+ * MarketMonitor - Deterministic market observation.
+ */
 
 interface MarketItem {
     id: string;
@@ -19,7 +22,11 @@ export class MarketMonitor extends EventEmitter {
     private checkInterval: NodeJS.Timeout | null = null;
     private lastPrices: Map<string, number> = new Map();
 
-    constructor(market: EmergentMarket, threshold: number = 0.15) {
+    constructor(
+        market: EmergentMarket,
+        threshold: number = 0.15,
+        private readonly clock: AREClock = new SystemAREClock()
+    ) {
         super();
         this.market = market;
         this.threshold = threshold;
@@ -60,7 +67,7 @@ export class MarketMonitor extends EventEmitter {
                         oldPrice: previousPrice,
                         newPrice: item.currentPrice,
                         shiftPercentage: priceShift,
-                        timestamp: Date.now()
+                        timestamp: this.clock.now()
                     });
                 }
             }
