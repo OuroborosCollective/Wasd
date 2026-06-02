@@ -159,3 +159,51 @@
     transform-origin: right bottom;
   }
 }
+
+/* DEBUG HUD: Position & Chunk Tracking */
+.stitch-debug {
+  position: fixed;
+  bottom: 120px;
+  right: 20px;
+  background: rgba(0, 8, 20, 0.92);
+  border: 1px solid #0af;
+  padding: 12px 16px;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  color: #0ef;
+  min-width: 180px;
+  z-index: 9999;
+  box-shadow: 0 0 12px rgba(0, 170, 255, 0.3);
+}
+
+.stitch-debug-title {
+  font-weight: bold;
+  color: #0ff;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #0af;
+  padding-bottom: 4px;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+.stitch-debug-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 0;
+}
+
+.stitch-debug-row span:first-child {
+  color: #7af;
+}
+
+.stitch-debug-row span:last-child {
+  color: #0ff;
+}
+
+.stitch-debug-row .ok {
+  color: #0f0;
+}
+
+.stitch-debug-row .warn {
+  color: #f80;
+}
