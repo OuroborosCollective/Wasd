@@ -68,6 +68,16 @@ jobs:
           pnpm --filter @wasd/client-2d... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
           pnpm --filter @wasd/client-2d... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
 
+      - name: Import Cozy Spring real assets when inbox exists
+        run: |
+          if [ -d .asset-inbox/cozy-spring ]; then
+            echo "Importing Cozy Spring from .asset-inbox/cozy-spring"
+            node scripts/batch-import-cozy-spring.mjs .asset-inbox/cozy-spring
+            test -f apps/client-2d/public/assets/cozy-spring/manifest.json
+          else
+            echo "No .asset-inbox/cozy-spring directory present on runner; using committed public assets if any."
+          fi
+
       - name: Build client-2d on GitHub runner
         run: |
           pnpm --filter @wasd/client-2d --if-present build
@@ -217,6 +227,13 @@ jobs:
             }
             console.log(`2D build stamp OK: ${data.commit}`);
           '
+
+          echo "Checking https://arelorian.de/2d/assets/cozy-spring/manifest.json"
+          COZY_STATUS="$(curl -k -s -o /dev/null -w "%{http_code}" "https://arelorian.de/2d/assets/cozy-spring/manifest.json" || true)"
+          echo "Cozy manifest status: ${COZY_STATUS}"
+          if ! echo "$COZY_STATUS" | grep -Eq '^(200|304)$'; then
+            echo "WARN: Cozy real asset manifest not public. This is OK only if .asset-inbox/cozy-spring is intentionally absent."
+          fi
 
           echo "Checking https://arelorian.de/api/v1/client2d/bootstrap for server-authoritative starter state"
           BOOTSTRAP="$(curl -k -sS -L --max-time 20 "https://arelorian.de/api/v1/client2d/bootstrap" || true)"
