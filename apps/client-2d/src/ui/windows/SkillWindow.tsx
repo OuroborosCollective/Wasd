@@ -461,3 +461,8 @@ export function mountCharacterWindow(containerId = "character-mount"): void {
 
   mountedCharacterRoot.render(<CharacterWindow />);
   }
+// ─── Re-export Alias ────────────────────────────────────────────────────────
+// SkillWindow is used in UIManager.tsx for the SKILLS overlay.
+// This file contains CharacterWindow but is named SkillWindow.tsx in the windows/
+// directory. We re-export CharacterWindow as SkillWindow for backwards compatibility.
+export const SkillWindow = CharacterWindow;
