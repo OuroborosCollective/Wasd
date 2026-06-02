@@ -358,27 +358,91 @@ def sha256(img: Image.Image) -> str:
 
 # ─── Unzip helpers ────────────────────────────────────────────────────────────
 
+def log(tag: str, *args) -> None:
+    print(f"[CozyImport:{tag}] {' '.join(str(a) for a in args)}", flush=True)
+
+
+def die(msg: str) -> None:
+    print(f"[CozyImport:FATAL] {msg}", file=sys.stderr, flush=True)
+    sys.exit(1)
+
+
+def is_zipfile_fast(path: Path) -> bool:
+    """Lightweight ZIP magic-byte check without raising exceptions."""
+    try:
+        with open(path, "rb") as fh:
+            return fh.read(4) == b"PK\x03\x04"
+    except Exception:
+        return False
+
+
+LFS_POINTER_PREFIX = b"version https://git-lfs.github.com"
+
+
+def check_file_header(path: Path, max_bytes: int = 120) -> bytes:
+    """Return first max_bytes of a file without raising on binary."""
+    try:
+        with open(path, "rb") as fh:
+            return fh.read(max_bytes)
+    except Exception as exc:
+        return f"<read error: {exc}>".encode()
+
+
 def unzip_all(source_dir: Path, tmp_dir: Path) -> None:
-    """Recursively unzip nested ZIPs from source_dir into tmp_dir."""
+    """Recursively unzip nested ZIPs from source_dir into tmp_dir.
+
+    Validates every *.zip file with zipfile.is_zipfile before attempting to
+    extract.  LFS-text-pointer stubs and other non-zip files are reported
+    with a clear error — they are NOT deleted.
+    """
     tmp_dir.mkdir(parents=True, exist_ok=True)
     round_idx = 0
     while round_idx < 5:
         all_files = list(source_dir.rglob("*"))
+        # Only pick files ending in .zip (not directories that happen to be named *.zip)
         zips = [f for f in all_files if f.is_file() and f.suffix.lower() == ".zip"]
         if not zips:
             break
         for zf in zips:
+            if not is_zipfile_fast(zf):
+                header = check_file_header(zf, 120)
+                is_lfs = header.startswith(LFS_POINTER_PREFIX)
+                log(
+                    "ERROR",
+                    f"FILE IS NOT A VALID ZIP: {zf.relative_to(source_dir.parent)}",
+                    f"first bytes: {header[:60]!r}",
+                    "" if is_lfs else "(not an LFS pointer — raw content below)",
+                )
+                if is_lfs:
+                    log(
+                        "ERROR",
+                        "Git LFS pointer detected.  Ensure checkout uses",
+                        "  uses: actions/checkout@v4",
+                        "    with:",
+                        "      lfs: true",
+                        "and run 'git lfs pull' before this step.",
+                    )
+                die("Invalid ZIP or Git LFS pointer found — cannot extract.")
             dest = tmp_dir / zf.stem
-            with zipfile.ZipFile(zf, "r") as z:
-                z.extractall(dest)
+            try:
+                with zipfile.ZipFile(zf, "r") as z:
+                    z.extractall(dest)
+            except zipfile.BadZipFile as exc:
+                die(f"zipfile.BadZipFile for {zf}: {exc}")
+            except Exception as exc:
+                die(f"Unexpected error extracting {zf}: {exc}")
+            # Only delete after we've successfully extracted it
             zf.unlink()
+            log("UNZIP", f"{zf.relative_to(source_dir.parent)} -> {dest.name}/")
         round_idx += 1
 
 
 # ─── Main ────────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract Cozy Spring prop objects via connected components.")
+    parser = argparse.ArgumentParser(
+        description="Extract Cozy Spring prop objects via connected components."
+    )
     parser.add_argument("--inbox", type=Path, default=DEFAULT_INBOX,
                         help=f".asset-inbox/cozy-spring directory (default: {DEFAULT_INBOX})")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT,
@@ -386,38 +450,80 @@ def main():
     parser.add_argument("--tmp", type=Path, default=DEFAULT_TMP,
                         help=f"Temp extraction directory (default: {DEFAULT_TMP})")
     parser.add_argument("--force", action="store_true",
-                        help="Overwrite existing output")
+                        help="Overwrite existing output without prompting")
+    parser.add_argument("--verbose", action="store_true",
+                        help="Print per-sheet processing details")
     args = parser.parse_args()
 
-    if not args.inbox.is_dir():
-        print(f"[CozyImport] Inbox directory not found: {args.inbox}")
-        sys.exit(1)
+    verbose = args.verbose
 
-    # ── 1. Extract nested ZIPs ────────────────────────────────────────────────
+    if not args.inbox.is_dir():
+        die(f"Inbox directory not found: {args.inbox}")
+
+    log("START", f"inbox={args.inbox}")
+    log("START", f"output={args.output}")
+    log("START", f"tmp={args.tmp}")
+
+    # ── 1. Validate top-level files in inbox ─────────────────────────────────
+    raw_files = list(args.inbox.iterdir())
+    log("SCAN", f"Inbox top-level entries ({len(raw_files)}):")
+    for f in sorted(raw_files):
+        log("SCAN", f"  {f.name}  ({'dir' if f.is_dir() else 'file'})")
+
+    top_zips = [f for f in raw_files if f.is_file() and f.suffix.lower() == ".zip"]
+    log("SCAN", f"Found {len(top_zips)} top-level *.zip files")
+    if not top_zips:
+        die(f"No .zip files found in inbox {args.inbox} — cannot proceed.")
+
+    for zf in top_zips:
+        if not is_zipfile_fast(zf):
+            header = check_file_header(zf, 120)
+            is_lfs = header.startswith(LFS_POINTER_PREFIX)
+            log("ERROR", f"NOT A VALID ZIP: {zf.name}")
+            log("ERROR", f"First bytes: {header[:60]!r}")
+            if is_lfs:
+                log("ERROR",
+                    "Git LFS pointer detected.",
+                    "  Fix: actions/checkout@v4 must use with: lfs: true",
+                    "  Fix: run git lfs pull before this step")
+            die("Invalid ZIP or LFS pointer found in inbox — import aborted.")
+
+    # ── 2. Extract top-level and nested ZIPs ────────────────────────────────
     tmp = args.tmp
     if tmp.exists():
         shutil.rmtree(tmp)
     tmp.mkdir(parents=True, exist_ok=True)
 
-    all_zips = list(args.inbox.glob("*.zip"))
-    nested_zip_count = len(all_zips)
+    nested_zip_count = len(top_zips)
 
-    for zf_path in all_zips:
+    for zf_path in top_zips:
         dest = tmp / zf_path.stem
-        with zipfile.ZipFile(zf_path, "r") as z:
-            z.extractall(dest)
+        try:
+            with zipfile.ZipFile(zf_path, "r") as z:
+                z.extractall(dest)
+            log("UNZIP", f"{zf_path.name} -> {dest.name}/")
+        except zipfile.BadZipFile as exc:
+            die(f"BadZipFile extracting top-level {zf_path.name}: {exc}")
+        except Exception as exc:
+            die(f"Error extracting top-level {zf_path.name}: {exc}")
 
     unzip_all(tmp, tmp)
 
-    # Count PNGs discovered
+    # ── 3. Discover PNGs and report diagnostics ────────────────────────────
     all_pngs = list(tmp.rglob("*.png"))
-    top_pngs = [p for p in all_pngs if p.parent.is_dir()]
-    input_png_count = len(top_pngs)
+    for idx, p in enumerate(sorted(all_pngs)):
+        size_kb = p.stat().st_size // 1024
+        log("PNGDISCOVERY", f"  [{idx+1}/{len(all_pngs)}] {p.relative_to(tmp)}  ({size_kb} KB)")
 
-    print("[CozyImport] nested zips:", nested_zip_count)
-    print("[CozyImport] input pngs:", input_png_count)
+    if not all_pngs:
+        die(f"No PNG files found after extracting all ZIPs in {args.inbox} — cannot proceed.")
+    log("SCAN", f"Total PNGs discovered: {len(all_pngs)}")
 
-    # ── 2. Process each PNG ──────────────────────────────────────────────────
+    input_png_count = len(all_pngs)
+    log("STATS", f"nested zips: {nested_zip_count}")
+    log("STATS", f"input pngs: {input_png_count}")
+
+    # ── 4. Process each PNG ──────────────────────────────────────────────────
     stats = {
         'tileset_sources': 0,
         'prop_sheets_processed': 0,
@@ -435,7 +541,7 @@ def main():
     groups_dirs: Dict[str, Path] = {}
     group_entries: Dict[str, Dict] = {}
 
-    for png_path in sorted(top_pngs):
+    for png_path in sorted(all_pngs):
         rel_from_tmp = png_path.relative_to(tmp).as_posix()
         # Category from zip folder name
         category_raw = png_path.parent.name or png_path.parent.parent.name or png_path.stem
