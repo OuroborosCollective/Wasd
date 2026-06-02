@@ -18,6 +18,9 @@ const criticalRoots = [
   'server/src/modules/monster',
   'server/src/modules/npc',
   'server/src/modules/economy',
+  'server/src/modules/economy',
+  'server/src/modules/economy',
+  'server/src/modules/economy',
 ];
 
 const criticalFilePatterns = [

@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const repoRoot = resolve(process.cwd());
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const repoRoot = resolve(__dirname, '..');
+
 const distRoot = join(repoRoot, 'client/dist');
 const publicRoot = join(repoRoot, 'client/public');
 const portalRoot = join(distRoot, 'portal');
@@ -33,7 +37,7 @@ if (existsSync(built3DIndex)) copyFileSync(built3DIndex, join(client3DRoot, 'ind
 writeFileSync(join(distRoot, 'index.html'), page('Areloria · Landing', shell({
   brand: 'ARELORIA',
   sub: 'LIVE ENTRY HUB',
-  nodes: ['Landing_Page', '2D_Stitch_Client', '3D_Client', 'Science_Portal', 'Sovereign_Tools'],
+  nodes: ['Landing Page', '2D Stitch Client', '3D Client', 'Science Portal', 'Sovereign Tools'],
   ctaHref: '/2d/',
   cta: 'ENTER_2D_STITCH',
   top: 'OUROBOROS // LANDING',
@@ -44,9 +48,9 @@ writeFileSync(join(distRoot, 'index.html'), page('Areloria · Landing', shell({
 })));
 
 writeFileSync(join(portalRoot, 'index.html'), page('Areloria · Science Portal', shell({
-  brand: 'SCIENCE<br/>PORTAL',
+  brand: 'SCIENCE PORTAL',
   sub: 'ARE CONTROL ROOM',
-  nodes: ['ARE_Console', 'Sovereign_Truth', 'Oracle_Core', 'Replay_Ring', 'Warfront_Cycle'],
+  nodes: ['ARE Console', 'Sovereign Truth', 'Oracle Core', 'Replay Ring', 'Warfront Cycle'],
   ctaHref: '/',
   cta: 'RETURN_LANDING',
   top: 'OUROBOROS // SCIENCE PORTAL',
@@ -57,9 +61,9 @@ writeFileSync(join(portalRoot, 'index.html'), page('Areloria · Science Portal',
 })));
 
 writeFileSync(join(appsRoot, 'index.html'), page('Areloria · Sovereign Tools', shell({
-  brand: 'SOVEREIGN<br/>TOOLS',
+  brand: 'SOVEREIGN TOOLS',
   sub: 'OUTER LOOP APPS',
-  nodes: ['Automation_RobotArm', 'Science_Tool', 'School_Tool', 'University_Tool', 'Factory_Tool', 'Economy_Control'],
+  nodes: ['Automation RobotArm', 'Science Tool', 'School Tool', 'University Tool', 'Factory Tool', 'Economy Control'],
   ctaHref: '/',
   cta: 'RETURN_LANDING',
   top: 'OUROBOROS // SOVEREIGN TOOLS',

@@ -17,8 +17,6 @@ export interface MarketShiftPayload {
 export class EmergentMarket {
     private history: MarketHistoryEntry[] = [];
     private readonly MAX_HISTORY_LENGTH: number = 100;
-
-    // Simple event emitter
     private listeners: { [event: string]: Function[] } = {};
 
     constructor(
@@ -40,17 +38,10 @@ export class EmergentMarket {
         }
     }
 
-    /**
-     * Gibt eine schreibgeschützte Kopie der Markt-Historie zurück.
-     * Ermöglicht dem ScarcityPredictor die Analyse vergangener Zyklen.
-     */
     public getSupplyDemandHistory(): readonly MarketHistoryEntry[] {
         return Object.freeze([...this.history]);
     }
 
-    /**
-     * Erfasst den aktuellen Zustand eines Ressourcen-Zyklus in der Historie.
-     */
     public recordMarketCycle(resourceId: string): void {
         const entry: MarketHistoryEntry = {
             resourceId,
