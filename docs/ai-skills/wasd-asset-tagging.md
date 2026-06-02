@@ -152,6 +152,20 @@ isGraphicRiverAsset("gr_iso_2_towers_cannon_tower_png") // true
 extractGraphicRiverVariant("gr_iso_2_towers_cannon_tower_png") // "tower"
 ```
 
+## SakPix Cozy Spring Asset Pack
+
+Special handling for SakPix top-down pixel art tiles:
+- Source: `SakPix_Cozy_Spring`
+- Style tags: `cozy`, `spring`, `top-down`, `pixel-art`, `32x32`
+- Category mapping automatic in `scripts/batch-import-cozy-spring.mjs`
+
+Import command:
+```bash
+# Place ZIPs in .asset-inbox/cozy-spring/
+# Then run:
+node scripts/batch-import-cozy-spring.mjs
+```
+
 ## Quality Checklist
 
 Before committing tagged assets:
