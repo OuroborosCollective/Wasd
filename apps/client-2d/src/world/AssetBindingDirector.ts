@@ -221,7 +221,7 @@ export class AssetBindingDirector {
 
     // Source matching
     const entrySource = (entry as any).source?.toLowerCase() ?? '';
-    const recognizedSources = ['graphicriver', 'kenney', 'pipoya', 'assetpack01'];
+    const recognizedSources = ['graphicriver', 'kenney', 'pipoya', 'assetpack01', 'sakpix', 'cozy-spring'];
     for (const source of recognizedSources) {
       if (entrySource.includes(source)) {
         score += SCORE_WEIGHTS.sourceMatch;
@@ -230,10 +230,10 @@ export class AssetBindingDirector {
       }
     }
 
-    // Isometric style matching
-    if (entryId.includes('iso') || entryId.includes('isometric')) {
+    // Cozy Spring style matching
+    if (entryId.includes('cozy') || entryId.includes('spring')) {
       score += SCORE_WEIGHTS.isoMatch;
-      reasons.push('iso');
+      reasons.push('cozy-spring');
     }
 
     // Quality bonus

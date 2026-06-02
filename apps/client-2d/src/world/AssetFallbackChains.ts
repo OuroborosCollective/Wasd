@@ -399,3 +399,51 @@ export function extractGraphicRiverVariant(assetId: string): string | null {
 export function isGraphicRiverAsset(assetId: string): boolean {
   return /^gr_iso_\d+_/.test(assetId.toLowerCase());
 }
+
+/**
+ * Cozy Spring Asset Pack specific fallbacks and tags.
+ * SakPix top-down pixel art tileset with spring/cozy theme.
+ */
+export const COZY_SPRING_TAGS = {
+  // Biome
+  biome: 'plains',
+  
+  // Style
+  style: ['cozy', 'spring', 'top-down', 'pixel-art', '32x32'],
+  
+  // Categories
+  tiles: ['grass', 'soil', 'stone', 'path', 'water', 'tile', 'ground'],
+  nature: ['tree', 'bush', 'flower', 'cherry', 'blossom', 'petal'],
+  structures: ['fence', 'gate', 'bridge', 'boardwalk'],
+  decor: ['furniture', 'bench', 'lamp', 'pot', 'planter', 'mailbox', 'birdhouse', 'detail'],
+};
+
+/**
+ * Gets the appropriate fallback chain for Cozy Spring assets.
+ */
+export function getCozySpringFallback(kind: string): readonly string[] {
+  const normalized = kind.toLowerCase();
+  
+  // Nature
+  if (normalized.includes('tree')) return ['tree', 'nature', 'prop'];
+  if (normalized.includes('bush')) return ['bush', 'shrub', 'plant', 'prop'];
+  if (normalized.includes('flower')) return ['flower', 'plant', 'prop'];
+  
+  // Structures
+  if (normalized.includes('fence')) return ['fence', 'barrier', 'prop'];
+  if (normalized.includes('bridge')) return ['bridge', 'structure', 'prop'];
+  
+  // Decor
+  if (normalized.includes('bench')) return ['bench', 'furniture', 'prop'];
+  if (normalized.includes('lamp')) return ['lamp', 'light', 'decor', 'prop'];
+  if (normalized.includes('pot')) return ['pot', 'planter', 'decor', 'prop'];
+  
+  // Tiles
+  if (normalized.includes('grass')) return ['grass', 'tile', 'ground'];
+  if (normalized.includes('stone')) return ['stone', 'tile', 'path'];
+  if (normalized.includes('path')) return ['path', 'road', 'tile'];
+  if (normalized.includes('water')) return ['water', 'pond', 'liquid', 'tile'];
+  
+  // Default
+  return ['prop', 'cozy-spring'];
+}
