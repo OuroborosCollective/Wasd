@@ -110,7 +110,7 @@ jobs:
           fi
 
           if [ -f apps/client-2d/public/assets/cozy-spring/manifest.json ]; then
-            COZY_MANIFEST="apps/client-2d/public/assets/cozy-spring/manifest.json" python3 -c "import json, os; m=json.load(open(os.environ['COZY_MANIFEST'])); print(f'Cozy manifest present: version={m.get("version")} policy={m.get("importPolicy")} props={len(m.get("props",{}))} tilesets={len(m.get("tilesets",{}))}')"
+            COZY_MANIFEST="apps/client-2d/public/assets/cozy-spring/manifest.json" node -e "const path=process.env.COZY_MANIFEST; const m=require('./'+path); console.log('Cozy manifest present: version='+m.version+' policy='+m.importPolicy+' props='+Object.keys(m.props||{}).length+' tilesets='+Object.keys(m.tilesets||{}).length)"
           else
             echo "WARN: no public Cozy manifest on runner; build continues so VPS-side import can provide it."
           fi
