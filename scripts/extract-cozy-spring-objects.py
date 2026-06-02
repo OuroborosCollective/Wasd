@@ -86,6 +86,22 @@ GROUP_KIND_MAP = {
 
 CATEGORY_TILESET_PATTERNS = ['tile', 'path', 'water', 'soil', 'grass', 'stone', 'pond']
 
+# Categories that should NOT be exported as visible world props.
+# These sheets may contain text labels, UI elements, or decorative fragments
+# that would render incorrectly as world objects.
+SKIP_RUNTIME_PROP_EXPORT = {
+    'petal', 'petals', 'ground detail', 'ground-details', 'ground detail',
+    'extra cozy details', 'decor and homey items', 'deco', 'homey',
+}
+
+def should_skip_prop_export(category: str) -> bool:
+    """Return True if this category should NOT be exported as runtime props."""
+    cat_lower = category.lower()
+    for skip in SKIP_RUNTIME_PROP_EXPORT:
+        if skip in cat_lower:
+            return True
+    return False
+
 def slug(value: str) -> str:
     """Convert string to stable slug."""
     return "".join(c if c.isalnum() or c in ("-", "_") else "-" for c in value.lower()).strip("-")
@@ -342,7 +358,36 @@ def extract_object_sprites(
     mask = build_alpha_mask(img)
     boxes, small_rej, giant_rej = extract_components(mask, img.size[0], img.size[1])
     results = []
+    
+    # Size constraints for valid props
+    MIN_DIM = 16   # minimum width or height
+    MAX_DIM = 256  # maximum width or height for non-trees
+    MAX_TREE_DIM = 384  # maximum for trees
+    MAX_ASPECT_RATIO = 5.0  # reject extreme aspect ratios
+    
     for x0, y0, x1, y1 in boxes:
+        # Compute crop dimensions BEFORE padding
+        crop_w = x1 - x0 + 1
+        crop_h = y1 - y0 + 1
+        crop_area = crop_w * crop_h
+        
+        # Reject crops that are too small (likely artifacts)
+        if crop_w < MIN_DIM or crop_h < MIN_DIM or crop_area < 96:
+            small_rej += 1
+            continue
+        
+        # Reject extreme aspect ratios (likely sheet artifacts or text)
+        aspect_ratio = max(crop_w / crop_h if crop_h > 0 else 0, crop_h / crop_w if crop_w > 0 else 0)
+        if aspect_ratio > MAX_ASPECT_RATIO:
+            small_rej += 1
+            continue
+        
+        # Check max dimensions
+        # For now, don't enforce max dim on non-trees since some sheets might be larger
+        # but still valid
+        if crop_w > MAX_TREE_DIM or crop_h > MAX_TREE_DIM:
+            continue
+        
         pad_x0 = max(0, x0 - CROP_PAD_X)
         pad_y0 = max(0, y0 - CROP_PAD_Y)
         pad_x1 = min(img.size[0] - 1, x1 + CROP_PAD_X)
@@ -595,6 +640,11 @@ def main():
             continue
 
         # Prop sheet → extract individual objects
+        # SKIP deco/petal/ground-details sheets - these contain artifacts, not real props
+        if should_skip_prop_export(category_raw):
+            print(f"  [SKIP] Category '{category_raw}': skipping runtime prop export (artifact category)")
+            continue
+
         stats['prop_sheets_processed'] += 1
         img = Image.open(png_path).convert('RGBA')
         extracted, small_rej, giant_rej = extract_object_sprites(img, png_path.stem, category_raw)

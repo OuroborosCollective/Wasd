@@ -4,6 +4,18 @@
  * Core scoring and deterministic selection engine for asset binding.
  * Uses weighted scoring, candidate ranking, and deterministic random.
  * NEVER uses Date.now(), Math.random(), or any time-based seeds.
+ * 
+ * Asset Type Policy:
+ * - props: usableAsProp=true, usableAsTile=false, category=props
+ * - tilesets: usableAsTile=true, usableAsProp=false, category=tilesets
+ * - Buildings: category=buildings, NOT props
+ * 
+ * Cozy Spring exclusion rules:
+ * - Exclude props with kind="deco" (decor and homey items, extra cozy details)
+ * - Exclude props with sourceName/group containing: petals, petal, ground-details, 
+ *   ground_detail, label, text, ui, font, sheet, preview, NC
+ * - Exclude tilesets from prop binding
+ * - Exclude props from road/building binding
  */
 
 import type { AssetEntry, AssetManifest } from "../assetManifest";
@@ -30,6 +42,126 @@ import {
   findFallbackEntry,
 } from "./AssetFallbackChains";
 import type { BuildingType, NpcRole, PropType, RoadType } from "@wasd/shared/world";
+
+/**
+ * Hard runtime filter: is this entry a valid prop for world rendering?
+ * Returns false for tilesets, sheet fragments, text artifacts, deco crops.
+ */
+function isValidPropCandidate(id: string, entry: AssetEntry | null | undefined): boolean {
+  if (!entry) return false;
+  
+  // Must have source
+  if (!entry.src) return false;
+  
+  // Tilesets are NOT props
+  if (entry.category === 'tilesets') return false;
+  
+  // Cannot be marked as tile
+  if ((entry.meta as any)?.usableAsTile === true) return false;
+  
+  // Must be explicitly usable as prop (or not explicitly forbidden)
+  if ((entry.meta as any)?.usableAsProp === false) return false;
+  
+  const idLower = id.toLowerCase();
+  const srcLower = (entry.src || '').toLowerCase();
+  const groupLower = (entry.group || '').toLowerCase();
+  const sourceNameLower = (entry.sourceName || '').toLowerCase();
+  const kindLower = (entry.kind || '').toLowerCase();
+  
+  // Reject artifact patterns in ID/src/group/sourceName
+  // Use exact patterns that won't accidentally match real prop names
+  const artifactPatterns = [
+    'petals', 'petal', 'ground-details', 'ground_detail', 'ground detail',
+    'label', 'text', 'ui', 'font', 'sheet', 'preview',
+    'petals_and',
+    'decor-and-homey', 'extra-cozy-details', 'homey'
+  ];
+  
+  for (const pattern of artifactPatterns) {
+    if (idLower.includes(pattern) || srcLower.includes(pattern) || 
+        groupLower.includes(pattern) || sourceNameLower.includes(pattern)) {
+      return false;
+    }
+  }
+  
+  // Reject NC_ prefix patterns specifically (label artifacts like "NC_01.png")
+  // Only match at start of sourceName or as exact filename, not as substring in middle
+  const sourceName = entry.sourceName || '';
+  const srcFilename = entry.src?.split('/').pop() || '';
+  const combinedName = (entry.id || '') + ' ' + sourceName + ' ' + srcFilename;
+  const combinedLower = combinedName.toLowerCase();
+  
+  // Check for NC_ prefix pattern (artifact filenames like "NC_01", "NC_plant")
+  if (/\bnc_\d/.test(combinedLower) || /\bnc_[a-z]/.test(combinedLower) || 
+      (sourceName.toLowerCase().startsWith('nc_')) || (srcFilename.toLowerCase().startsWith('nc_'))) {
+    return false;
+  }
+  
+  // Reject kind="deco" (decor and homey items, extra cozy details are not proper props)
+  if (kindLower === 'deco' || kindLower === 'petal') {
+    return false;
+  }
+  
+  // Size validation: props should not be absurdly large
+  // Standard props: max 256x256
+  // Trees: max 384x384
+  const width = entry.width ?? 0;
+  const height = entry.height ?? 0;
+  const isTree = kindLower === 'tree';
+  
+  if (isTree) {
+    if (width > 384 || height > 384) return false;
+  } else {
+    if (width > 256 || height > 256) return false;
+    // Also reject very small crops (likely sheet fragments)
+    if (width < 16 || height < 16) return false;
+  }
+  
+  return true;
+}
+
+/**
+ * Hard runtime filter: is this entry a valid tileset for terrain/road rendering?
+ */
+function isValidTilesetCandidate(entry: AssetEntry | null | undefined): boolean {
+  if (!entry) return false;
+  
+  // Must have source
+  if (!entry.src) return false;
+  
+  // Must be tileset category
+  if (entry.category !== 'tilesets') return false;
+  
+  // Cannot be usable as prop (exclusive tileset)
+  if ((entry.meta as any)?.usableAsProp === true) return false;
+  
+  return true;
+}
+
+/**
+ * Hard runtime filter: is this entry suitable for building rendering?
+ * Buildings should come from buildings category or GraphicRiver fallbacks,
+ * NOT from props or tilesets.
+ */
+function isValidBuildingCandidate(entry: AssetEntry | null | undefined): boolean {
+  if (!entry) return false;
+  
+  // Must have source
+  if (!entry.src) return false;
+  
+  // Buildings should come from buildings category
+  if (entry.category === 'buildings') return true;
+  
+  // Reject props and tilesets for building binding
+  if (entry.category === 'props' || entry.category === 'tilesets') return false;
+  
+  // Reject if it looks like a prop
+  const srcLower = (entry.src || '').toLowerCase();
+  if (srcLower.includes('cozy-spring')) return false;
+  if (srcLower.includes('/props/')) return false;
+  
+  return true;
+}
 
 /**
  * Asset scoring result with debug info.
@@ -335,13 +467,18 @@ export class AssetBindingDirector {
 
   /**
    * Binds a building deterministically.
+   * Only uses entries from buildings category (NOT props or tilesets).
+   * Falls back to GraphicRiver if no buildings category available.
    */
   bindBuilding(
     buildingType: BuildingType,
     context: AssetBindingContext,
   ): BindingResult {
     const seed = combineSeed('building', String(buildingType), String(context.seed));
-    const candidates = this.collectCandidates('buildings');
+    const rawCandidates = this.collectCandidates('buildings');
+    
+    // CRITICAL: Filter out any cozy-spring props or tilesets that leaked into manifest
+    const candidates = rawCandidates.filter(([, entry]) => isValidBuildingCandidate(entry));
     
     if (candidates.length === 0) {
       return this.createEmptyResult(seed, buildingType, true, 'no buildings in manifest');
@@ -511,19 +648,23 @@ export class AssetBindingDirector {
 
   /**
    * Binds a prop deterministically.
+   * Only binds entries from props category that pass isValidPropCandidate filter.
+   * Tilesets are never used as props (they're for terrain/roads only).
    */
   bindProp(
     propType: PropType,
     context: AssetBindingContext,
   ): BindingResult {
     const seed = combineSeed('prop', String(propType), String(context.seed));
-    const candidates = [
-      ...this.collectCandidates('props'),
-      ...this.collectCandidates('tilesets'),
-    ];
+    
+    // CRITICAL: Only use props category, not tilesets
+    const rawCandidates = this.collectCandidates('props');
+    
+    // Apply hard filter to reject tilesets, artifacts, deco, small fragments
+    const candidates = rawCandidates.filter(([id, entry]) => isValidPropCandidate(id, entry));
     
     if (candidates.length === 0) {
-      return this.createEmptyResult(seed, propType, true, 'no props in manifest');
+      return this.createEmptyResult(seed, propType, true, 'no valid props in manifest after filtering');
     }
 
     // Create semantic query with biome-specific tree tags
@@ -574,6 +715,7 @@ export class AssetBindingDirector {
 
   /**
    * Handles prop binding fallback.
+   * Only searches props category (not tilesets).
    */
   private bindPropFallback(
     seed: string,
@@ -582,24 +724,23 @@ export class AssetBindingDirector {
   ): BindingResult {
     const chain = getPropFallbackChain(propType);
     
-    for (const category of ['props', 'tilesets']) {
-      for (const key of chain) {
-        const entry = findFallbackEntry(this.manifest, category, [key], seed);
-        if (entry) {
-          return {
-            id: entry.id ?? key,
-            entry,
-            debug: {
-              seed,
-              semanticType: propType,
-              candidates: 0,
-              scores: [],
-              fallbackUsed: true,
-              fallbackReason: `used chain key: ${key} in ${category}`,
-              finalScore: 0,
-            },
-          };
-        }
+    // CRITICAL: Only search props category for fallbacks, not tilesets
+    for (const key of chain) {
+      const entry = findFallbackEntry(this.manifest, 'props', [key], seed);
+      if (entry && isValidPropCandidate(entry.id ?? key, entry)) {
+        return {
+          id: entry.id ?? key,
+          entry,
+          debug: {
+            seed,
+            semanticType: propType,
+            candidates: 0,
+            scores: [],
+            fallbackUsed: true,
+            fallbackReason: `used chain key: ${key} in props`,
+            finalScore: 0,
+          },
+        };
       }
     }
 
@@ -608,16 +749,22 @@ export class AssetBindingDirector {
 
   /**
    * Binds a road deterministically.
+   * Only uses tilesets that pass isValidTilesetCandidate filter.
    */
   bindRoad(
     roadType: RoadType,
     context: AssetBindingContext,
   ): BindingResult {
     const seed = combineSeed('road', String(roadType), String(context.seed));
-    const candidates = this.collectCandidates('tilesets');
+    
+    // CRITICAL: Only use tilesets category for road binding
+    const rawCandidates = this.collectCandidates('tilesets');
+    
+    // Apply hard filter to ensure only valid tilesets
+    const candidates = rawCandidates.filter(([, entry]) => isValidTilesetCandidate(entry));
     
     if (candidates.length === 0) {
-      return this.createEmptyResult(seed, roadType, true, 'no tilesets in manifest');
+      return this.createEmptyResult(seed, roadType, true, 'no valid tilesets in manifest');
     }
 
     // Create semantic query with biome-specific road tags
