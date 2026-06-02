@@ -97,8 +97,8 @@ export interface ICryptoDependencyHeader {
   /** Unique nonce for this manifest - prevents replay attacks */
   readonly integrityNonce: string;
 
-  /** @deprecated Use body.payloadMode */
-  readonly payloadMode?: PayloadMode;
+  /** Payload mode indicating the type of payload content */
+  readonly payloadMode?: 'full_snapshot' | 'delta' | 'minimal';
 }
 
 // ─── Dependency Entry ──────────────────────────────────────────────────────────

@@ -63,6 +63,8 @@ export interface NPC {
     isProcessingAI: boolean;
     role?: string;
     faction?: string;
+    // Tags for categorization (e.g., "playtester", "merchant", "guard")
+    tags?: readonly string[];
     traits?: { faith: number; aggression: number; curiosity: number };
     energyState?: EnergyState;
     health?: number;

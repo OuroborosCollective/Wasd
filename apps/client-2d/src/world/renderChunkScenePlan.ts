@@ -4,6 +4,8 @@ import { fromKappaInt } from "@wasd/shared";
 import { make2dProp } from "../stackedProps";
 import { iso3 } from "../isometricProjection";
 import type { WorldPlanAssetBinder, WorldPlanRenderContext } from "./WorldPlanRenderTypes";
+import type { BindingOptions } from "./AssetBindingContext";
+import { buildAllChunkContexts, type ChunkBindingContexts } from "./AssetBindingContextFactory";
 
 const TILE_W = 96;
 const TILE_H = 48;
@@ -86,10 +88,47 @@ function fallbackBuilding(): Container {
   return c;
 }
 
-export function renderChunkScenePlan(plan: ChunkScenePlan, binder: WorldPlanAssetBinder, ctx: WorldPlanRenderContext): void {
+/**
+ * World state context for deterministic binding.
+ */
+interface WorldStateContext {
+  worldTick: number;
+  worldSeed: string;
+}
+
+/**
+ * Options for rendering with context-aware binding.
+ */
+interface RenderOptions {
+  worldState: WorldStateContext;
+  biomeId: string;
+  lod?: "low" | "medium" | "high";
+}
+
+/**
+ * Context-aware chunk scene renderer.
+ * Builds AssetBindingContext once per chunk, then uses *WithContext methods.
+ */
+export function renderChunkScenePlan(
+  plan: ChunkScenePlan,
+  binder: WorldPlanAssetBinder,
+  ctx: WorldPlanRenderContext,
+  options?: RenderOptions
+): void {
   ctx.terrain.removeChildren();
   ctx.props.removeChildren();
   ctx.actors.removeChildren();
+
+  // Build binding contexts once if options provided (PERFORMANCE: not per entity)
+  const bindingContexts = options
+    ? buildAllChunkContexts(
+        { chunkX: 0, chunkZ: 0, biomeId: options.biomeId },
+        { worldTick: options.worldState.worldTick, worldSeed: options.worldState.worldSeed },
+        plan,
+        undefined,
+        { forceLod: options.lod },
+      )
+    : null;
 
   for (const cell of plan.terrain) {
     const tile = terrainDiamond(cell.terrainType);
@@ -107,7 +146,11 @@ export function renderChunkScenePlan(plan: ChunkScenePlan, binder: WorldPlanAsse
   }
 
   for (const lot of plan.settlement.lots) {
-    const bound = binder.bindBuilding(lot.buildingType, lot.id);
+    // Use context-aware binding if contexts built, fallback to simple binding
+    const bound = bindingContexts
+      ? binder.bindBuildingWithContext(lot.buildingType, bindingContexts.buildingContexts.get(lot.id)!)
+      : binder.bindBuilding(lot.buildingType, lot.id);
+    
     const width = lot.widthTiles >= 3 ? 220 : 176;
     const height = lot.depthTiles >= 3 ? 220 : 180;
     const building = make2dProp(bound.entry, bound.texture, fallbackBuilding, width, height);
@@ -116,7 +159,11 @@ export function renderChunkScenePlan(plan: ChunkScenePlan, binder: WorldPlanAsse
   }
 
   for (const prop of [...plan.settlement.props, ...plan.props]) {
-    const bound = binder.bindProp(prop.propType, prop.id);
+    // Use context-aware binding if contexts built, fallback to simple binding
+    const bound = bindingContexts
+      ? binder.bindPropWithContext(prop.propType, bindingContexts.propContexts.get(prop.id)!)
+      : binder.bindProp(prop.propType, prop.id);
+    
     const size = prop.propType === "tree" ? { w: 94, h: 128 } : prop.propType === "market_stall" ? { w: 112, h: 82 } : prop.propType === "well" ? { w: 86, h: 86 } : { w: 54, h: 54 };
     const node = make2dProp(bound.entry, bound.texture, fallbackProp, size.w, size.h);
     place(node, prop.kappaPos.x, prop.kappaPos.z, ctx.width, ctx.height);
@@ -126,7 +173,11 @@ export function renderChunkScenePlan(plan: ChunkScenePlan, binder: WorldPlanAsse
   ctx.props.sortChildren();
 
   for (const npc of plan.npcs) {
-    const bound = binder.bindNpc(npc.role, npc.displayNameSeed);
+    // Use context-aware binding if contexts built, fallback to simple binding
+    const bound = bindingContexts
+      ? binder.bindNpcWithContext(npc.role, bindingContexts.npcContexts.get(npc.id)!)
+      : binder.bindNpc(npc.role, npc.displayNameSeed);
+    
     ctx.addNpcActor({
       id: npc.id,
       tileX: npc.tileX,

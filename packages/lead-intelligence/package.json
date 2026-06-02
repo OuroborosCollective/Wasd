@@ -13,11 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {},
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.5.0",
-    "vitest": "^2.0.0"
-  },
+  "devDependencies": {},
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

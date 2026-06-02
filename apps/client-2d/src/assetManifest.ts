@@ -13,6 +13,9 @@ export type SpriteLayerFrame = {
   z?: number;
 };
 
+/**
+ * Extended asset entry with semantic metadata for deterministic binding.
+ */
 export type AssetEntry = {
   id?: string;
   src: string;
@@ -39,6 +42,15 @@ export type AssetEntry = {
   rarity?: string;
   visualRarity?: string;
   tags?: string[];
+  // Extended semantic metadata for deterministic binding
+  biomeTags?: string[];
+  cultureTags?: string[];
+  factionTags?: string[];
+  quality?: number; // 0-100 quality score
+  lod?: "low" | "medium" | "high";
+  deprecated?: boolean;
+  corrupt?: boolean;
+  performanceCost?: number; // Estimated GPU cost
   animations?: Record<string, SpriteAnimation | number[] | unknown>;
   rules?: Record<string, unknown>;
 };
@@ -116,6 +128,26 @@ function withEntryIds(entries: Record<string, AssetEntry> | undefined): Record<s
   return out;
 }
 
+// Cozy Spring debug state (exported for debug overlay)
+export const cozySpringDebug = {
+  indexLoaded: false,
+  totalEntries: 0,
+  totalSheets: 0,
+  tilesetsCount: 0,
+  propsCount: 0,
+  firstFiveIds: [] as string[],
+  firstFiveSrcs: [] as string[],
+  failedFetches: [] as string[],
+  loadedSheets: [] as string[],
+};
+
+// Cozy Spring logger
+const cozyLogger = {
+  log: (...args: unknown[]) => console.log('[CozySpring]', ...args),
+  warn: (...args: unknown[]) => console.warn('[CozySpring]', ...args),
+  error: (...args: unknown[]) => console.error('[CozySpring]', ...args),
+};
+
 export async function loadAssetManifest(): Promise<AssetManifest | null> {
   const root = await loadJson<AssetManifest>(routeAsset('/2d-assets/manifest.json'));
   const weaponManifest = await loadJson<WeaponManifestPayload>(routeAsset('/2d-assets/weapons/weapon-manifest.json'));
@@ -123,8 +155,78 @@ export async function loadAssetManifest(): Promise<AssetManifest | null> {
   const pipoyaCharacters = await loadJson<CharacterAtlasPayload>(routeAsset('/2d-assets/characters/pipoya/pipoya-character-atlas.json'));
   const forestBiome = await loadJson<AssetManifest>(routeAsset('/assets/biomes/forest/assetpack01/manifest.json'));
   const graphicRiverIso = await loadJson<AssetManifest>('/client2d-assets/graphicriver-iso/manifest.json');
+  const cozySpringIndex = await loadJson<{id: string; totalEntries: number; sheets: {group: string; file: string; entries: number; category: string}[]} | null>('/2d/assets/cozy-spring/manifest.index.json');
+  
+  // Debug: log fetch status
+  cozyLogger.log('manifest index fetch attempted');
+  
+  // Lazy-load cozy spring entries from split sheet files
+  const cozyTilesets: Record<string, AssetEntry> = {};
+  const cozyProps: Record<string, AssetEntry> = {};
+  
+  if (cozySpringIndex) {
+    cozySpringDebug.indexLoaded = true;
+    cozySpringDebug.totalEntries = cozySpringIndex.totalEntries ?? 0;
+    cozySpringDebug.totalSheets = cozySpringIndex.totalSheets ?? cozySpringIndex.sheets?.length ?? 0;
+    cozyLogger.log(`index loaded totalEntries=${cozySpringDebug.totalEntries} totalSheets=${cozySpringDebug.totalSheets}`);
+  } else {
+    cozyLogger.error('manifest.index.json failed to load - check URL/path');
+    cozySpringDebug.failedFetches.push('/2d/assets/cozy-spring/manifest.index.json');
+  }
+  
+  if (cozySpringIndex?.sheets) {
+    for (const sheetInfo of cozySpringIndex.sheets) {
+      const sheetData = await loadJson<{
+        sheet: string;
+        tileSize: number;
+        group: string;
+        category: string;
+        frames: [string, number, number, string, string[]][];
+      } | null>(`/2d/assets/cozy-spring/sheets/${sheetInfo.file}`);
+      
+      if (sheetData?.frames) {
+        cozyLogger.log(`loaded sheet ${sheetInfo.file} entries=${sheetData.frames.length}`);
+        cozySpringDebug.loadedSheets.push(sheetInfo.file);
+        
+        for (const frame of sheetData.frames) {
+          const [id, x, y, kind, tags] = frame;
+          const entry: AssetEntry = {
+            id,
+            src: sheetData.sheet,
+            category: sheetInfo.category,
+            kind,
+            group: sheetInfo.group,
+            sheetFrame: { x, y, w: sheetData.tileSize, h: sheetData.tileSize },
+            frame: { x, y, w: sheetData.tileSize, h: sheetData.tileSize },
+            frameSize: { w: sheetData.tileSize, h: sheetData.tileSize },
+            tileWidth: sheetData.tileSize,
+            tileHeight: sheetData.tileSize,
+            tags: tags,
+            biomeTags: ['plains', 'spring', 'village', 'cozy'],
+            deterministic: true,
+          };
+          
+          if (sheetInfo.category === 'tilesets') {
+            cozyTilesets[id] = normalizeEntrySrc(entry);
+          } else {
+            cozyProps[id] = normalizeEntrySrc(entry);
+          }
+        }
+      } else {
+        cozyLogger.warn(`sheet ${sheetInfo.file} failed to load or has no frames`);
+        cozySpringDebug.failedFetches.push(`/2d/assets/cozy-spring/sheets/${sheetInfo.file}`);
+      }
+    }
+    
+    // Update debug state with final counts and samples
+    cozySpringDebug.tilesetsCount = Object.keys(cozyTilesets).length;
+    cozySpringDebug.propsCount = Object.keys(cozyProps).length;
+    cozySpringDebug.firstFiveIds = [...Object.keys(cozyTilesets), ...Object.keys(cozyProps)].slice(0, 5);
+    const allEntries = { ...cozyTilesets, ...cozyProps };
+    cozySpringDebug.firstFiveSrcs = Object.values(allEntries).slice(0, 5).map(e => e.src);
+  }
 
-  if (!root && !weaponManifest && !modularWeaponManifest && !pipoyaCharacters && !forestBiome && !graphicRiverIso) return null;
+  if (!root && !weaponManifest && !modularWeaponManifest && !pipoyaCharacters && !forestBiome && !graphicRiverIso && !cozySpringIndex) return null;
 
   return {
     ...(root ?? { version: 1, basePath: routeAsset('/2d-assets') }),
@@ -136,16 +238,19 @@ export async function loadAssetManifest(): Promise<AssetManifest | null> {
       ...(pipoyaCharacters ? [{ id: pipoyaCharacters.id ?? 'pipoya-character-atlas', source: pipoyaCharacters.source ?? 'Pipoya', groups: pipoyaCharacters.groups ?? {} }] : []),
       ...(forestBiome ? [{ id: 'assetpack01_forest_sample', source: 'AssetPack01_Forest_Sample.zip', biome: 'forest', pngCount: forestBiome.pngCount, deterministic: true }] : []),
       ...(graphicRiverIso?.sources ?? []),
+      ...(cozySpringIndex ? [{ id: cozySpringIndex.id ?? 'cozy_spring_master', source: 'SakPix_Cozy_Spring_Asset_Pack', biome: 'plains', totalEntries: cozySpringIndex.totalEntries, deterministic: true, totalSheets: cozySpringIndex.totalSheets }] : []),
     ],
     tilesets: {
       ...normalizeEntries(root?.tilesets),
       ...normalizeEntries(forestBiome?.tilesets),
       ...normalizeEntries(graphicRiverIso?.tilesets),
+      ...cozyTilesets,
     },
     props: {
       ...normalizeEntries(root?.props),
       ...normalizeEntries(forestBiome?.props),
       ...normalizeEntries(graphicRiverIso?.props),
+      ...cozyProps,
     },
     ui: {
       ...normalizeEntries(root?.ui),

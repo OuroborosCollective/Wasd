@@ -6,6 +6,7 @@
  * - Spatial O(1) Lookup: activeChunks Map with key format "chunkX_chunkZ"
  * - Aggressive GC: Mobile-safety via destroy({ children: true }) on chunk exit
  * - Async Cascade: Chunk rendering non-blocking, no 60fps ticker blocks
+ * - Context-Aware Binding: Uses AssetBindingContextFactory for semantic asset binding
  * 
  * PILLAR: Client-side autarky. No server queries for static environment data.
  */
@@ -15,6 +16,8 @@ import { generateChunkScenePlan, type ChunkScenePlan } from "@wasd/shared";
 import { createWorldPlanAssetBinder } from "./WorldPlanAssetBinder";
 import { iso3, TILE_W, TILE_H } from "../isometricProjection";
 import type { WorldPlanRenderContext, WorldPlanAssetBinder } from "./WorldPlanRenderTypes";
+import type { BindingOptions, LodLevel } from "./AssetBindingContext";
+import { buildAllChunkContexts, type ChunkBindingContexts } from "./AssetBindingContextFactory";
 
 /** Chunk coordinate key format: "chunkX_chunkZ" */
 type ChunkKey = string;
@@ -25,6 +28,8 @@ interface ChunkEntry {
   chunkX: number;
   chunkZ: number;
   isDirty: boolean;
+  /** Pre-built binding contexts for this chunk (built once, reused) */
+  bindingContexts: ChunkBindingContexts;
 }
 
 /** Player kappa position input */
@@ -50,6 +55,8 @@ interface ChunkManagerConfig {
   chunkTiles: number;
   viewRadius: number;  // 1 = 3x3 grid, 2 = 5x5, etc.
   throttleMs: number;  // Visibility update throttling
+  worldTick: number;   // Current world tick (from server manifest, NOT Date.now())
+  lod?: LodLevel;      // Level of Detail (default: "medium" for mobile)
 }
 
 /** Default configuration */
@@ -59,6 +66,8 @@ const DEFAULT_CONFIG: ChunkManagerConfig = {
   chunkTiles: 16,
   viewRadius: 1,  // 3x3 grid
   throttleMs: 500,  // Prevent CPU spikes
+  worldTick: 0,  // Will be updated from server manifest
+  lod: "medium",  // Mobile-friendly default
 };
 
 /**
@@ -229,6 +238,7 @@ export class ChunkManager {
   /**
    * Generate a deterministic chunk plan and render it.
    * ASYNC: Non-blocking chunk generation.
+   * Uses context-aware asset binding for semantic, biome-adaptive visuals.
    */
   private async generateChunk(chunkX: number, chunkZ: number): Promise<ChunkEntry | null> {
     if (!this.ctx) return null;
@@ -242,6 +252,25 @@ export class ChunkManager {
       kappa: 1000,
       chunkTiles: this.config.chunkTiles,
     });
+
+    // BUILD CONTEXT ONCE PER CHUNK (not per frame!)
+    // This is the key performance optimization for semantic asset binding.
+    const chunkMetadata = {
+      chunkX,
+      chunkZ,
+      biomeId: this.config.biomeId,
+    };
+    const worldState = {
+      worldTick: this.config.worldTick,
+      worldSeed: this.config.worldSeed,
+    };
+    const bindingContexts = buildAllChunkContexts(
+      chunkMetadata,
+      worldState,
+      plan,
+      undefined, // settlement context - can be extended later
+      { forceLod: this.config.lod },
+    );
 
     // Create chunk container
     const chunkContainer = new Container();
@@ -279,7 +308,7 @@ export class ChunkManager {
     chunkContainer.x = originScreen.x;
     chunkContainer.y = originScreen.y;
 
-    // Render terrain
+    // Render terrain (no binding needed for simple tiles)
     for (const cell of plan.terrain) {
       const tileGraphic = this.createTerrainTile(cell.terrainType);
       const screenPos = iso3({
@@ -297,9 +326,15 @@ export class ChunkManager {
       terrain.addChild(tileGraphic);
     }
 
-    // Render roads
+    // Render roads with context-aware binding
     for (const [roadCell] of Object.entries(plan.roads.roadCells)) {
       const [xRaw, zRaw] = roadCell.split(":");
+      const roadKey = `${xRaw}:${zRaw}`;
+      
+      // Get pre-built road context (deterministic, pre-computed)
+      const roadContext = bindingContexts.roadContexts.get(roadKey);
+      
+      // Use context-aware binding for biome-adaptive roads
       const tileGraphic = this.createRoadTile();
       const screenPos = iso3({
         gridX: Number(xRaw),
@@ -316,9 +351,16 @@ export class ChunkManager {
       roads.addChild(tileGraphic);
     }
 
-    // Render settlement buildings
+    // Render settlement buildings with context-aware binding
     for (const lot of plan.settlement.lots) {
-      const bound = this.ctx.binder.bindBuilding(lot.buildingType, lot.id);
+      // Get pre-built building context (deterministic, pre-computed)
+      const buildingContext = bindingContexts.buildingContexts.get(lot.id);
+      
+      // Use context-aware binding for biome/culture-adaptive buildings
+      const bound = buildingContext
+        ? this.ctx.binder.bindBuildingWithContext(lot.buildingType, buildingContext)
+        : this.ctx.binder.bindBuilding(lot.buildingType, lot.id);
+      
       const buildingNode = this.createBuildingNode(bound);
       const screenPos = iso3({
         gridX: lot.tileX + lot.widthTiles / 2,
@@ -335,9 +377,16 @@ export class ChunkManager {
       buildings.addChild(buildingNode);
     }
 
-    // Render props (trees, bushes, etc.)
+    // Render props with context-aware binding
     for (const prop of [...plan.settlement.props, ...plan.props]) {
-      const bound = this.ctx.binder.bindProp(prop.propType, prop.id);
+      // Get pre-built prop context (deterministic, pre-computed)
+      const propContext = bindingContexts.propContexts.get(prop.id);
+      
+      // Use context-aware binding for biome-adaptive props (trees, bushes)
+      const bound = propContext
+        ? this.ctx.binder.bindPropWithContext(prop.propType, propContext)
+        : this.ctx.binder.bindProp(prop.propType, prop.id);
+      
       const propNode = this.createPropNode(bound);
       const screenPos = iso3({
         gridX: prop.tileX,
@@ -366,6 +415,7 @@ export class ChunkManager {
       chunkX,
       chunkZ,
       isDirty: false,
+      bindingContexts,  // Store contexts for potential re-render
     };
   }
 

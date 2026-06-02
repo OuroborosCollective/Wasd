@@ -1,0 +1,131 @@
+{
+  "id": "cozy_spring_master",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "version": 1,
+  "deterministic": true,
+  "totalEntries": 21940,
+  "totalSheets": 20,
+  "tileSize": 32,
+  "sheets": [
+    {
+      "group": "extra cozy details",
+      "file": "extra-cozy-details.frames.json",
+      "entries": 1234,
+      "category": "props"
+    },
+    {
+      "group": "soil and dirt tiles",
+      "file": "soil-and-dirt-tiles.frames.json",
+      "entries": 1208,
+      "category": "tilesets"
+    },
+    {
+      "group": "fences and gates",
+      "file": "fences-and-gates.frames.json",
+      "entries": 1204,
+      "category": "props"
+    },
+    {
+      "group": "garden beds",
+      "file": "garden-beds.frames.json",
+      "entries": 1173,
+      "category": "props"
+    },
+    {
+      "group": "water and ponds",
+      "file": "water-and-ponds.frames.json",
+      "entries": 1169,
+      "category": "tilesets"
+    },
+    {
+      "group": "pots and planters",
+      "file": "pots-and-planters.frames.json",
+      "entries": 1156,
+      "category": "props"
+    },
+    {
+      "group": "decor and homey items",
+      "file": "decor-and-homey-items.frames.json",
+      "entries": 1137,
+      "category": "props"
+    },
+    {
+      "group": "trees spring",
+      "file": "trees-spring.frames.json",
+      "entries": 1120,
+      "category": "props"
+    },
+    {
+      "group": "bushes and shrubs",
+      "file": "bushes-and-shrubs.frames.json",
+      "entries": 1114,
+      "category": "props"
+    },
+    {
+      "group": "stone paths",
+      "file": "stone-paths.frames.json",
+      "entries": 1111,
+      "category": "tilesets"
+    },
+    {
+      "group": "cherry blossom trees",
+      "file": "cherry-blossom-trees.frames.json",
+      "entries": 1093,
+      "category": "props"
+    },
+    {
+      "group": "petals and ground details",
+      "file": "petals-and-ground-details.frames.json",
+      "entries": 1085,
+      "category": "props"
+    },
+    {
+      "group": "bridges and boardwalks",
+      "file": "bridges-and-boardwalks.frames.json",
+      "entries": 1083,
+      "category": "props"
+    },
+    {
+      "group": "flower paths",
+      "file": "flower-paths.frames.json",
+      "entries": 1074,
+      "category": "tilesets"
+    },
+    {
+      "group": "flowers and plants",
+      "file": "flowers-and-plants.frames.json",
+      "entries": 1066,
+      "category": "props"
+    },
+    {
+      "group": "grass tiles",
+      "file": "grass-tiles.frames.json",
+      "entries": 1055,
+      "category": "tilesets"
+    },
+    {
+      "group": "benches and seating",
+      "file": "benches-and-seating.frames.json",
+      "entries": 1021,
+      "category": "props"
+    },
+    {
+      "group": "garden furniture",
+      "file": "garden-furniture.frames.json",
+      "entries": 1000,
+      "category": "props"
+    },
+    {
+      "group": "mailboxes and birdhouses",
+      "file": "mailboxes-and-birdhouses.frames.json",
+      "entries": 953,
+      "category": "props"
+    },
+    {
+      "group": "lamps and lights",
+      "file": "lamps-and-lights.frames.json",
+      "entries": 884,
+      "category": "props"
+    }
+  ]
+}
