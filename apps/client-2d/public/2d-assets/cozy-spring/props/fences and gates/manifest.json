@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_fences_and_gates",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/fences and gates",
+  "entries": {
+    "fences_and_gates_1": {
+      "id": "fences_and_gates_1",
+      "src": "/2d-assets/cozy-spring/props/fences and gates/files/11._Fences_and_gates.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "11. Fences and gates.png",
+      "sourceName": "11. Fences and gates.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "fences and gates",
+      "biome": "plains",
+      "category": "props",
+      "biomeTags": [
+        "plains",
+        "fence",
+        "gate",
+        "barrier",
+        "wooden"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "fence",
+        "gate",
+        "barrier",
+        "wooden",
+        "prop"
+      ],
+      "bytes": 1970533,
+      "sha256": "dac5afb90ed180a5198490d5937cfcadbfdb1a3be6768838a9aadbb742049ce7",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "fences_and_gates_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

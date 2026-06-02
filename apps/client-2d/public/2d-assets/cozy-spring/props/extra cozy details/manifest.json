@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_extra_cozy_details",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/extra cozy details",
+  "entries": {
+    "extra_cozy_details_1": {
+      "id": "extra_cozy_details_1",
+      "src": "/2d-assets/cozy-spring/props/extra cozy details/files/20._Extra_cozy_details.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "20. Extra cozy details.png",
+      "sourceName": "20. Extra cozy details.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "extra cozy details",
+      "biome": "plains",
+      "category": "props",
+      "biomeTags": [
+        "plains",
+        "detail",
+        "decoration",
+        "cozy",
+        "spring"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "detail",
+        "decoration",
+        "cozy",
+        "spring",
+        "prop"
+      ],
+      "bytes": 1850854,
+      "sha256": "fc2793f6a5d3f68b92d90504b3a00a7681e4703a6e0d3c6cdeba43dfa482314e",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "extra_cozy_details_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

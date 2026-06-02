@@ -135,8 +135,23 @@ export async function loadAssetManifest(): Promise<AssetManifest | null> {
   const pipoyaCharacters = await loadJson<CharacterAtlasPayload>(routeAsset('/2d-assets/characters/pipoya/pipoya-character-atlas.json'));
   const forestBiome = await loadJson<AssetManifest>(routeAsset('/assets/biomes/forest/assetpack01/manifest.json'));
   const graphicRiverIso = await loadJson<AssetManifest>('/client2d-assets/graphicriver-iso/manifest.json');
+  const cozySpring = await loadJson<AssetManifest>(routeAsset('/2d-assets/cozy-spring/manifest.json'));
 
-  if (!root && !weaponManifest && !modularWeaponManifest && !pipoyaCharacters && !forestBiome && !graphicRiverIso) return null;
+  // Extract cozy spring tilesets and props from entries
+  const cozyTilesets: Record<string, AssetEntry> = {};
+  const cozyProps: Record<string, AssetEntry> = {};
+  
+  if (cozySpring?.entries) {
+    for (const [id, entry] of Object.entries(cozySpring.entries)) {
+      if (entry.category === 'tilesets') {
+        cozyTilesets[id] = normalizeEntrySrc(entry);
+      } else if (entry.category === 'props') {
+        cozyProps[id] = normalizeEntrySrc(entry);
+      }
+    }
+  }
+
+  if (!root && !weaponManifest && !modularWeaponManifest && !pipoyaCharacters && !forestBiome && !graphicRiverIso && !cozySpring) return null;
 
   return {
     ...(root ?? { version: 1, basePath: routeAsset('/2d-assets') }),
@@ -148,16 +163,19 @@ export async function loadAssetManifest(): Promise<AssetManifest | null> {
       ...(pipoyaCharacters ? [{ id: pipoyaCharacters.id ?? 'pipoya-character-atlas', source: pipoyaCharacters.source ?? 'Pipoya', groups: pipoyaCharacters.groups ?? {} }] : []),
       ...(forestBiome ? [{ id: 'assetpack01_forest_sample', source: 'AssetPack01_Forest_Sample.zip', biome: 'forest', pngCount: forestBiome.pngCount, deterministic: true }] : []),
       ...(graphicRiverIso?.sources ?? []),
+      ...(cozySpring ? [{ id: cozySpring.id ?? 'cozy_spring_master', source: 'SakPix_Cozy_Spring_Asset_Pack', biome: 'plains', totalEntries: cozySpring.totalEntries, deterministic: true }] : []),
     ],
     tilesets: {
       ...normalizeEntries(root?.tilesets),
       ...normalizeEntries(forestBiome?.tilesets),
       ...normalizeEntries(graphicRiverIso?.tilesets),
+      ...cozyTilesets,
     },
     props: {
       ...normalizeEntries(root?.props),
       ...normalizeEntries(forestBiome?.props),
       ...normalizeEntries(graphicRiverIso?.props),
+      ...cozyProps,
     },
     ui: {
       ...normalizeEntries(root?.ui),

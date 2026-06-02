@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_garden_furniture",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/garden furniture",
+  "entries": {
+    "garden_furniture_1": {
+      "id": "garden_furniture_1",
+      "src": "/2d-assets/cozy-spring/props/garden furniture/files/14._Garden_furniture.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "14. Garden furniture.png",
+      "sourceName": "14. Garden furniture.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "garden furniture",
+      "biome": "plains",
+      "category": "props",
+      "biomeTags": [
+        "plains",
+        "furniture",
+        "garden",
+        "bench",
+        "table"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "furniture",
+        "garden",
+        "bench",
+        "table",
+        "prop"
+      ],
+      "bytes": 1596391,
+      "sha256": "008d83049405d6faef9f1e7fb44c4939ad8347f5157c9af33483f2ea88e66014",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "garden_furniture_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}
