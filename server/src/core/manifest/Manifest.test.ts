@@ -136,9 +136,16 @@ describe('Manifest System', () => {
 
     it('rejects tampered manifest', () => {
       const tick = factory.createDeltaTick(1, { data: 'test' }, []);
-      tick.header.stateHash = 'invalid' + '0'.repeat(48);
+      // Create a new manifest with tampered stateHash (avoid mutating frozen object)
+      const tamperedTick = {
+        ...tick,
+        header: {
+          ...tick.header,
+          stateHash: 'invalid' + '0'.repeat(48),
+        },
+      };
       
-      const result = verifyManifest(tick, AUTHORITY_SECRET);
+      const result = verifyManifest(tamperedTick, AUTHORITY_SECRET);
       expect(result.valid).toBe(false);
     });
 

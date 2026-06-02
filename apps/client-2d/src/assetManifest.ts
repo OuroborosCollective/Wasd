@@ -13,6 +13,9 @@ export type SpriteLayerFrame = {
   z?: number;
 };
 
+/**
+ * Extended asset entry with semantic metadata for deterministic binding.
+ */
 export type AssetEntry = {
   id?: string;
   src: string;
@@ -39,6 +42,15 @@ export type AssetEntry = {
   rarity?: string;
   visualRarity?: string;
   tags?: string[];
+  // Extended semantic metadata for deterministic binding
+  biomeTags?: string[];
+  cultureTags?: string[];
+  factionTags?: string[];
+  quality?: number; // 0-100 quality score
+  lod?: "low" | "medium" | "high";
+  deprecated?: boolean;
+  corrupt?: boolean;
+  performanceCost?: number; // Estimated GPU cost
   animations?: Record<string, SpriteAnimation | number[] | unknown>;
   rules?: Record<string, unknown>;
 };
