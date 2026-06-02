@@ -1,6 +1,9 @@
 import { EventEmitter } from 'events';
+import { type AREClock, SystemAREClock } from "../../core/determinism/AREDeterminism.js";
 
-// @ARE-GUARD-EXEMPT: Caravan route tracking telemetry only; timestamps are not world-state inputs.
+/**
+ * CaravanLogic - Deterministic trader mission assignment.
+ */
 
 interface Vector3 {
     x: number;
@@ -35,7 +38,12 @@ export class CaravanLogic {
     private readonly npcManager: INPCManager;
     private readonly priceThreshold: number;
 
-    constructor(market: IEmergentMarket, npcManager: INPCManager, threshold: number = 0.15) {
+    constructor(
+        market: IEmergentMarket,
+        npcManager: INPCManager,
+        threshold: number = 0.15,
+        private readonly clock: AREClock = new SystemAREClock()
+    ) {
         this.market = market;
         this.npcManager = npcManager;
         this.priceThreshold = threshold;
@@ -72,7 +80,7 @@ export class CaravanLogic {
         
         npc.metadata = {
             ...npc.metadata,
-            lastMarketUpdate: Date.now(),
+            lastMarketUpdate: this.clock.now(),
             activeTradeRegion: regionId,
             objectiveType: 'scarcity_response'
         };
