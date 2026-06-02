@@ -9,3 +9,7 @@
 ## 2028-02-24 - [Extending deepClone to persistence and registry paths]
 **Learning:** The `deepClone` utility consistently outperforms `JSON.parse(JSON.stringify())` by 3.5x to 5.1x across various data structures (flat records like VoteBanner, nested templates like Crossroads, and complex documents like AssetPool). The performance gap is wider for larger, more deeply nested objects.
 **Action:** Systematically replace the JSON serialization hack in all non-Level-A paths where JSON parity is required but structuredClone is not yet preferred due to environment constraints or minor speed differences.
+
+## 2028-02-24 - [Fixing Duplicate Tags in NPCSystem]
+**Learning:** Monorepo environments can occasionally suffer from merge artifacts or accidental duplicate property declarations in core interfaces (like NPC). This specifically caused TS2300 "Duplicate identifier 'tags'".
+**Action:** Always verify the entire module's type health even when performing scoped optimizations, as unrelated pre-existing or emergent issues can block the CI gate.
