@@ -241,6 +241,8 @@ export function DeterministicWorldIsoApp() {
   const keys = useRef(new Set<string>());
   const lastMoveAt = useRef(0);
   const lastPlayerKappa = useRef({ x: 0, z: 0 });
+  // FIX: Force initial chunk visibility update on first heartbeat
+  const hasInitializedVisibility = useRef(false);
   const playerName = localStorage.getItem("wasd:2d:name") || "Architect";
   
   /**
@@ -263,6 +265,12 @@ export function DeterministicWorldIsoApp() {
   const [weaponCount, setWeaponCount] = useState(0);
   const [equippedWeaponId, setEquippedWeaponId] = useState<string | null>(() => localStorage.getItem(EQUIPPED_WEAPON_KEY));
   const [messages, setMessages] = useState<Msg[]>([{ from: "WorldDirector", txt: "Deterministic Millbrook plan initializing." }]);
+  
+  // DEBUG: Player position & chunk visibility state
+  const [debugHeartbeatReceived, setDebugHeartbeatReceived] = useState(false);
+  const [debugPlayerPos, setDebugPlayerPos] = useState<{ x: number; z: number } | null>(null);
+  const [debugChunkCoords, setDebugChunkCoords] = useState<{ chunkX: number; chunkZ: number } | null>(null);
+  const [debugVisibleChunks, setDebugVisibleChunks] = useState<number | null>(null);
 
   // ─────────────────────────────────────────────────────────────────
   // ZERO-TRUST MANIFEST SYSTEM - Input Lockdown
@@ -685,6 +693,8 @@ chunkManager.init({
       }
       
       // Update chunk visibility based on player kappa position
+      // FIX: Force initial visibility update - without this, if player starts near (0,0),
+      // the dx/dz >= 500 check prevents updateVisibility from ever being called
       if (event.payload?.self) {
         const self = event.payload.self;
         const playerKappa = {
@@ -692,13 +702,37 @@ chunkManager.init({
           z: payloadCoord(self, "z") * 1000,
         };
         
-        // Only update if player moved significantly (reduce CPU)
         const dx = Math.abs(playerKappa.x - lastPlayerKappa.current.x);
         const dz = Math.abs(playerKappa.z - lastPlayerKappa.current.z);
-        if (dx >= 500 || dz >= 500) {
+        // FIX: Also update on first heartbeat to ensure initial chunk loading
+        if (!hasInitializedVisibility.current || dx >= 500 || dz >= 500) {
+          hasInitializedVisibility.current = true;
           lastPlayerKappa.current = playerKappa;
           chunkManagerRef.current?.updateVisibility(playerKappa);
         }
+        
+        // DEBUG: Update debug state for HUD display
+        setDebugHeartbeatReceived(true);
+        setDebugPlayerPos({ x: playerKappa.x, z: playerKappa.z });
+        // Calculate chunk coords (kappa / (chunkTiles * 1000))
+        const chunkX = Math.floor(playerKappa.x / (16 * 1000));
+        const chunkZ = Math.floor(playerKappa.z / (16 * 1000));
+        setDebugChunkCoords({ chunkX, chunkZ });
+        // Get active chunk count from ChunkManager
+        if (chunkManagerRef.current) {
+          setDebugVisibleChunks(chunkManagerRef.current.getActiveChunkCount());
+        }
+        
+        // Console debug log for deep debugging
+        console.log("[PlayerPosDebug]", {
+          heartbeatSelf: event.payload?.self,
+          selfX: payloadCoord(event.payload?.self, "x"),
+          selfZ: payloadCoord(event.payload?.self, "z"),
+          playerKappa,
+          lastPlayerKappa: lastPlayerKappa.current,
+          chunkX,
+          chunkZ,
+        });
       }
       
       payloadEntries(event.payload?.agents ?? event.payload?.npcs, "agent").forEach(([id, npc]: any) => {
@@ -1114,6 +1148,12 @@ chunkManager.init({
         onStrike={strikeAction}
         onCycleWeapon={cycleEquippedWeapon}
         onToggleAutoMove={() => setMessages((items) => [...items.slice(-12), { from: "Navigator", txt: "WorldDirector routes are generated; auto-route execution follows server validation." }])}
+        // DEBUG: Player position & chunk tracking
+        debugPlayerPos={debugPlayerPos ?? undefined}
+        debugChunkCoords={debugChunkCoords ?? undefined}
+        debugVisibleChunks={debugVisibleChunks ?? undefined}
+        debugHeartbeatReceived={debugHeartbeatReceived}
+        debugInitialized={hasInitializedVisibility.current}
       />
     </div>
   );
