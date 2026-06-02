@@ -93,6 +93,10 @@ const SCORE_WEIGHTS = {
   
   // Fallback chain bonus (when using extended GraphicRiver fallbacks)
   fallbackChain: 5,
+  
+  // Cozy Spring priority (for plains/cozy-spring context)
+  cozySpringMatch: 80,     // Entry has cozy-spring biomeTags or context is plains/cozy
+  cozySpringTag: 40,       // Entry ID/src contains cozy-spring identifiers
 };
 
 /**
@@ -234,6 +238,26 @@ export class AssetBindingDirector {
     if (entryId.includes('cozy') || entryId.includes('spring')) {
       score += SCORE_WEIGHTS.isoMatch;
       reasons.push('cozy-spring');
+    }
+    
+    // Cozy Spring priority: if context biome is plains OR variantHint is cozy-spring
+    const isPlainsBiome = context.biome === 'plains';
+    const isCozyVariant = context.variantHint?.toLowerCase().includes('cozy') || 
+                          context.variantHint?.toLowerCase().includes('spring');
+    
+    if (isPlainsBiome || isCozyVariant) {
+      // Check if entry has cozy-spring biome tags
+      const hasCozyBiome = entryBiomeTags.some(t => t.includes('cozy') || t.includes('spring') || t.includes('plains'));
+      if (hasCozyBiome) {
+        score += SCORE_WEIGHTS.cozySpringMatch;
+        reasons.push('cozy-spring:plains-priority');
+      }
+      
+      // Check if entry ID/src contains cozy identifiers
+      if (entryId.includes('cozy_spring') || entry.src?.includes('cozy-spring')) {
+        score += SCORE_WEIGHTS.cozySpringTag;
+        reasons.push('cozy-spring:tag-match');
+      }
     }
 
     // Quality bonus
@@ -526,6 +550,10 @@ export class AssetBindingDirector {
     const best = this.selectBestCandidate(seed, scored, 10);
 
     if (best) {
+      // Log Cozy Spring bindings
+      if (best.entry?.src?.includes('cozy-spring')) {
+        console.log(`[CozySpring] bound prop ${propType} -> ${best.id}`);
+      }
       return {
         id: best.id,
         entry: best.entry,
@@ -616,6 +644,10 @@ export class AssetBindingDirector {
     const best = this.selectBestCandidate(seed, scored, 10);
 
     if (best) {
+      // Log Cozy Spring bindings
+      if (best.entry?.src?.includes('cozy-spring')) {
+        console.log(`[CozySpring] bound road ${roadType} -> ${best.id}`);
+      }
       return {
         id: best.id,
         entry: best.entry,
