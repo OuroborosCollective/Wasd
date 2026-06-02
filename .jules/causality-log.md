@@ -9,3 +9,9 @@ Action: Always enforce `Array.sort()` on entity collections (Players, NPCs, Loot
 Learning: The economy module was heavily reliant on wall-clock `Date.now()` for transaction and record timestamps, protected only by `@ARE-GUARD-EXEMPT` markers. This created a significant causality leak where simulation history (Level-A) was non-deterministic across replays.
 
 Action: Systematically hardened the economy module by injecting `AREClock` into all ledger and order systems. Enabled the CI Determinism Gate for `server/src/modules/economy` to prevent future regressions.
+
+## 2026-06-02 - Binary Sorting Standard for WorldHash Stability
+
+Learning: JavaScript `localeCompare` is non-deterministic across different operating systems and environment locales (e.g., development vs. production VPS). Using it in simulation paths (Level-A) or manifest generation creates inconsistent WorldHashes and triggers false-positive divergence alerts.
+
+Action: Replaced all `localeCompare` usage in core simulation (`WorldHashSnapshot`) and manifest paths (`ManifestFactory`, `ManifestHasher`) with explicit binary comparison: `(a < b ? -1 : a > b ? 1 : 0)`. Additionally, enforced sorting on return values of collections in `EvolutionSystem` and `ChronoSwarmBrain` to prevent downstream iteration-order leaks.

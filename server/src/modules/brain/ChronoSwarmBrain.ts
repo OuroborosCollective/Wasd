@@ -57,6 +57,11 @@ export class ChronoSwarmBrain {
         }
     }
 
-    return Array.from(this.activeSwarms.values());
+    // Return sorted values for absolute cross-environment determinism in simulation paths.
+    return Array.from(this.activeSwarms.values()).sort((a, b) => {
+      const idA = a.swarmId;
+      const idB = b.swarmId;
+      return idA < idB ? -1 : idA > idB ? 1 : 0;
+    });
   }
 }

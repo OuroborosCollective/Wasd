@@ -511,7 +511,10 @@ export class EvolutionSystem {
    * Get travel heat for all corridors
    */
   public getTravelHeat(): TravelCorridor[] {
-    return [...this.travelHeat.values()];
+    // Return sorted values for absolute cross-environment determinism in simulation paths.
+    return Array.from(this.travelHeat.entries())
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([, v]) => v);
   }
 
   /**
