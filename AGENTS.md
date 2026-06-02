@@ -122,7 +122,14 @@ When working on specific topics, check the skills in `docs/ai-skills/`:
 - `wasd-manifest-system.md` - Manifest system usage
 - `wasd-github-actions-repair.md` - CI/CD debugging patterns
 - `wasd-game-architecture.md` - Core architecture decisions
+- `wasd-server-player-stats-sync.md` - Player stats synchronization
+- `wasd-storage-ui-implementation.md` - Storage UI implementation
+- `wasd-resource-entity-generation.md` - Resource/entity generation
+- `wasd-modular-inventory-system.md` - Inventory system design
+- `wasd-client-2d-rendering.md` - 2D rendering patterns
 - `server-anti-ninja-loot.md` - Security patterns for loot
+- `wasd-asset-tagging.md` - Asset tagging workflow and patterns
+- `wasd-docs-best-practices.md` - Documentation standards
 
 ### Manifest System (Server Authority)
 The manifest system provides deterministic, server-authoritative state management:
