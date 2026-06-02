@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "id": "cozy_spring_cherry_blossom_trees",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "forest",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/cherry blossom trees",
+  "entries": {
+    "cherry_blossom_trees_1": {
+      "id": "cherry_blossom_trees_1",
+      "src": "/2d-assets/cozy-spring/props/cherry blossom trees/files/6._Cherry_blossom_trees.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "6. Cherry blossom trees.png",
+      "sourceName": "6. Cherry blossom trees.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "cherry blossom trees",
+      "biome": "forest",
+      "category": "props",
+      "biomeTags": [
+        "forest",
+        "tree",
+        "cherry",
+        "blossom",
+        "pink",
+        "spring"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "tree",
+        "cherry",
+        "blossom",
+        "pink",
+        "spring",
+        "prop"
+      ],
+      "bytes": 2132045,
+      "sha256": "d7e4b6ed42f7374887a148573a7ec0c50b34e2344c1bcd5418f56b79b7982532",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "cherry_blossom_trees_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

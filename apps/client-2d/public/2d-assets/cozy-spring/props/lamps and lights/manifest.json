@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_lamps_and_lights",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/lamps and lights",
+  "entries": {
+    "lamps_and_lights_1": {
+      "id": "lamps_and_lights_1",
+      "src": "/2d-assets/cozy-spring/props/lamps and lights/files/16._Lamps_and_lights.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "16. Lamps and lights.png",
+      "sourceName": "16. Lamps and lights.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "lamps and lights",
+      "biome": "plains",
+      "category": "props",
+      "biomeTags": [
+        "plains",
+        "lamp",
+        "light",
+        "glow",
+        "decoration"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "lamp",
+        "light",
+        "glow",
+        "decoration",
+        "prop"
+      ],
+      "bytes": 1037585,
+      "sha256": "3435e12c757e8b9dd3d171ab44b21bba4415b2150f75238f038eaa1c6abf65d5",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "lamps_and_lights_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

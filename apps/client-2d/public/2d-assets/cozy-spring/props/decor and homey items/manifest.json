@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_decor_and_homey_items",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/decor and homey items",
+  "entries": {
+    "decor_and_homey_items_1": {
+      "id": "decor_and_homey_items_1",
+      "src": "/2d-assets/cozy-spring/props/decor and homey items/files/19._Decor_and_homey_items.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "19. Decor and homey items.png",
+      "sourceName": "19. Decor and homey items.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "decor and homey items",
+      "biome": "plains",
+      "category": "props",
+      "biomeTags": [
+        "plains",
+        "decor",
+        "home",
+        "decoration",
+        "cozy"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "decor",
+        "home",
+        "decoration",
+        "cozy",
+        "prop"
+      ],
+      "bytes": 1646199,
+      "sha256": "702417454006cccbc40b7a24ba010c94674cbbbda7c05731afb899ec1b215bbc",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "decor_and_homey_items_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

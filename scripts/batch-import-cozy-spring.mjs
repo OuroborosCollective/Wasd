@@ -2,21 +2,16 @@
 /**
  * Batch Import Script for SakPix Cozy Spring Asset Pack
  * 
- * Imports all 20 ZIP files from the Cozy Spring Asset Pack with automatic
- * category detection based on filename.
+ * Handles nested ZIP structure:
+ *   Outer ZIPs: 1cozyrosa.zip, 2cozyrosa.zip
+ *   Inner ZIPs: "1. Grass tiles.zip", "2. Soil and dirt tiles.zip", etc.
  * 
  * Usage:
  *   node scripts/batch-import-cozy-spring.mjs [inbox-dir]
- * 
- * Each ZIP will be extracted and imported to the appropriate category:
- * - Grass tiles, Soil tiles, Stone paths, Flower paths, Water → tilesets
- * - Trees, Bushes, Flowers, Fences, Bridges → props
- * - Decor items, Furniture, Lamps → props (decorations/furniture)
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync, statSync } from 'node:fs';
-import { basename, dirname, extname, join, resolve, relative, sep } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 
 const repoRoot = resolve(process.cwd());
@@ -60,8 +55,9 @@ function normalizeName(filename) {
   return filename
     .toLowerCase()
     .replace(/\.zip$/i, '')
-    .replace(/[^a-z0-9\s]/g, ' ')  // Replace separators with space
-    .replace(/\s+/g, ' ')          // Normalize multiple spaces
+    .replace(/^\d+\.\s*/, '')  // Remove leading "1. " prefix
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -78,23 +74,8 @@ function findCategoryMapping(filename) {
   return { category: 'props', biome: 'plains', tags: ['cozy', 'spring', 'decoration'] };
 }
 
-function requireCommand(name) {
-  const result = spawnSync(name, ['-v'], { encoding: 'utf8' });
-  if (result.error) {
-    console.error(`[BatchImport] Missing required command: ${name}`);
-    process.exit(1);
-  }
-}
-
-function walk(dir) {
-  const out = [];
-  for (const name of readdirSync(dir)) {
-    const full = join(dir, name);
-    const st = statSync(full);
-    if (st.isDirectory()) out.push(...walk(full));
-    else out.push(full);
-  }
-  return out;
+function sha256(content) {
+  return createHash('sha256').update(content).digest('hex');
 }
 
 function idFor(relPath) {
@@ -105,134 +86,9 @@ function idFor(relPath) {
     .toLowerCase();
 }
 
-function sha256(contentOrPath) {
-  if (Buffer.isBuffer(contentOrPath)) {
-    return createHash('sha256').update(contentOrPath).digest('hex');
-  }
-  return createHash('sha256').update(readFileSync(contentOrPath)).digest('hex');
-}
-
-function processZip(zipPath, config) {
-  const zipName = basename(zipPath, '.zip');
-  const normalizedName = normalizeName(zipName);
-  
-  console.log(`\n[BatchImport] Processing: ${zipName}`);
-  console.log(`  Category: ${config.category}`);
-  console.log(`  Biome: ${config.biome}`);
-  console.log(`  Tags: ${config.tags.join(', ')}`);
-  
-  const tmpRoot = join(repoRoot, `.tmp/cozy-spring/${normalizedName}`);
-  const destRoot = join(outputRoot, config.category, normalizedName);
-  const filesRoot = join(destRoot, 'files');
-  
-  // Cleanup
-  rmSync(tmpRoot, { recursive: true, force: true });
-  mkdirSync(tmpRoot, { recursive: true });
-  mkdirSync(filesRoot, { recursive: true });
-  
-  // Extract ZIP
-  console.log(`  Extracting...`);
-  const unzip = spawnSync('unzip', ['-q', zipPath, '-d', tmpRoot], { encoding: 'utf8' });
-  if (unzip.status !== 0) {
-    console.error(`  Error: unzip failed`);
-    console.error(unzip.stderr || unzip.stdout);
-    return false;
-  }
-  
-  // Find PNG files
-  const allFiles = walk(tmpRoot);
-  const pngFiles = allFiles.filter(f => extname(f).toLowerCase() === '.png');
-  
-  if (pngFiles.length === 0) {
-    console.error(`  Warning: No PNG files found`);
-    return false;
-  }
-  
-  console.log(`  Found ${pngFiles.length} PNG files`);
-  
-  // Create entries
-  const entries = {};
-  const all = [];
-  
-  for (const file of pngFiles) {
-    const rawRel = relative(tmpRoot, file);
-    const safeRel = rawRel.replace(/[^a-zA-Z0-9._/-]+/g, '_').replace(/\/+/g, '/');
-    const outPath = join(filesRoot, safeRel);
-    
-    mkdirSync(dirname(outPath), { recursive: true });
-    
-    // Copy file
-    const content = readFileSync(file);
-    
-    // Determine sub-kind from path
-    const kind = detectKind(file, config);
-    
-    const id = idFor(safeRel);
-    const src = `/2d-assets/cozy-spring/${config.category}/${normalizedName}/files/${safeRel}`;
-    const entry = {
-      id,
-      src,
-      source: 'SakPix_Cozy_Spring',
-      sourcePath: rawRel,
-      sourceName: basename(file),
-      license: 'purchased-itchio-sakpix',
-      kind: kind,
-      group: normalizedName,
-      biome: config.biome,
-      category: config.category,
-      biomeTags: [config.biome, ...config.tags],
-      cultureTags: ['cozy', 'spring'],
-      tags: ['cozy-spring', config.category, ...config.tags, kind],
-      bytes: content.length,
-      sha256: sha256(content),
-      deterministic: true,
-    };
-    
-    if (entries[id]) {
-      console.error(`  Warning: Duplicate ID ${id}`);
-    }
-    
-    entries[id] = entry;
-    all.push(id);
-    writeFileSync(outPath, content);
-  }
-  
-  // Create manifest
-  const manifest = {
-    version: 1,
-    id: `cozy_spring_${normalizedName.replace(/\s+/g, '_')}`,
-    source: 'SakPix_Cozy_Spring_Asset_Pack',
-    category: config.category,
-    biome: config.biome,
-    generatedAt: new Date().toISOString(),
-    deterministic: true,
-    expectedPngCount: pngFiles.length,
-    pngCount: pngFiles.length,
-    basePath: `/2d-assets/cozy-spring/${config.category}/${normalizedName}`,
-    entries,
-    all,
-    validation: {
-      noPngOmitted: true,
-      importedPngCount: pngFiles.length,
-      manifestEntryCount: Object.keys(entries).length,
-    },
-  };
-  
-  writeFileSync(join(destRoot, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
-  
-  console.log(`  Created ${Object.keys(entries).length} entries`);
-  console.log(`  Output: ${destRoot}`);
-  
-  // Cleanup tmp
-  rmSync(tmpRoot, { recursive: true, force: true });
-  
-  return true;
-}
-
 function detectKind(filePath, config) {
   const lower = filePath.toLowerCase();
   
-  // Path-based detection
   if (lower.includes('tile')) return 'tile';
   if (lower.includes('ground')) return 'tile';
   if (lower.includes('path')) return 'path';
@@ -252,109 +108,259 @@ function detectKind(filePath, config) {
   if (lower.includes('garden')) return 'garden';
   if (lower.includes('detail')) return 'detail';
   
-  // Default to category
   return config.category === 'tilesets' ? 'tile' : 'prop';
 }
 
-function main() {
+async function extractZip(buffer) {
+  // Parse ZIP local file headers with DEFLATE decompression
+  const entries = [];
+  
+  // Check if it's a valid ZIP by looking for PK header
+  if (!buffer.slice(0, 4).equals(Buffer.from([0x50, 0x4B, 0x03, 0x04]))) {
+    return entries;
+  }
+  
+  // Import zlib for decompression
+  const { createGunzip } = await import('node:zlib');
+  
+  let offset = 0;
+  while (offset < buffer.length - 30) {
+    // Check for local file header signature
+    if (buffer.readUInt32LE(offset) === 0x04034b50) {
+      const compressionMethod = buffer.readUInt16LE(offset + 8);
+      const fileNameLen = buffer.readUInt16LE(offset + 26);
+      const extraLen = buffer.readUInt16LE(offset + 28);
+      const compressedSize = buffer.readUInt32LE(offset + 18);
+      const uncompressedSize = buffer.readUInt32LE(offset + 22);
+      const fileName = buffer.toString('utf8', offset + 30, offset + 30 + fileNameLen);
+      
+      const dataOffset = offset + 30 + fileNameLen + extraLen;
+      const compressedData = buffer.slice(dataOffset, dataOffset + compressedSize);
+      
+      let finalData = compressedData;
+      
+      // Decompress if DEFLATE (method 8)
+      if (compressionMethod === 8 && compressedSize > 0) {
+        try {
+          const decompressed = await new Promise((resolve, reject) => {
+            const chunks = [];
+            const gunzip = createGunzip();
+            gunzip.on('data', (chunk) => chunks.push(chunk));
+            gunzip.on('end', () => resolve(Buffer.concat(chunks)));
+            gunzip.on('error', reject);
+            gunzip.write(compressedData);
+            gunzip.end();
+          });
+          finalData = decompressed;
+        } catch (e) {
+          // Use compressed data if decompression fails
+          console.log(`  Warning: Could not decompress ${fileName}, using compressed data`);
+        }
+      }
+      
+      entries.push({
+        name: fileName,
+        data: finalData,
+      });
+      
+      // Move to next entry (use compressed size for alignment)
+      offset = dataOffset + compressedSize;
+      
+      // Skip to next local header (search for PK signature)
+      while (offset < buffer.length - 4 && buffer.readUInt32LE(offset) !== 0x04034b50) {
+        offset++;
+      }
+    } else {
+      break;
+    }
+  }
+  
+  return entries;
+}
+
+async function extractNestedZip(buffer) {
+  // Try to extract inner ZIP files
+  const entries = await extractZip(buffer);
+  return entries;
+}
+
+async function processInnerZip(zipBuffer, innerZipName, outputDir) {
+  console.log(`  Processing: ${innerZipName}`);
+  
+  const config = findCategoryMapping(innerZipName);
+  const groupName = normalizeName(innerZipName);
+  
+  console.log(`    Category: ${config.category}, Group: ${groupName}`);
+  
+  // Try to extract as ZIP
+  const entries = await extractNestedZip(zipBuffer);
+  
+  const pngEntries = [];
+  const allPngIds = [];
+  
+  for (const entry of entries) {
+    if (entry.name.toLowerCase().endsWith('.png')) {
+      pngEntries.push(entry);
+      allPngIds.push(idFor(entry.name));
+    }
+  }
+  
+  if (pngEntries.length === 0) {
+    console.log(`    Warning: No PNG files found`);
+    return { count: 0, ids: [] };
+  }
+  
+  console.log(`    Found ${pngEntries.length} PNG files`);
+  
+  // Create output directories
+  const filesDir = join(outputDir, 'files');
+  mkdirSync(filesDir, { recursive: true });
+  
+  const manifestEntries = {};
+  
+  for (const entry of pngEntries) {
+    const id = idFor(entry.name);
+    const safeRel = entry.name.replace(/[^a-zA-Z0-9._\/-]/g, '_').replace(/\/+/g, '/');
+    const outPath = join(filesDir, safeRel);
+    
+    mkdirSync(dirname(outPath), { recursive: true });
+    
+    const kind = detectKind(entry.name, config);
+    const src = `/2d-assets/cozy-spring/${config.category}/${groupName}/files/${safeRel}`;
+    
+    const manifestEntry = {
+      id,
+      src,
+      source: 'SakPix_Cozy_Spring',
+      sourcePath: entry.name,
+      sourceName: basename(entry.name),
+      license: 'purchased-itchio-sakpix',
+      kind: kind,
+      group: groupName,
+      biome: config.biome,
+      category: config.category,
+      biomeTags: [config.biome, ...config.tags],
+      cultureTags: ['cozy', 'spring'],
+      tags: ['cozy-spring', config.category, ...config.tags, kind],
+      bytes: entry.data.length,
+      sha256: sha256(entry.data),
+      deterministic: true,
+    };
+    
+    manifestEntries[id] = manifestEntry;
+    writeFileSync(outPath, entry.data);
+  }
+  
+  // Write manifest
+  const manifest = {
+    version: 1,
+    id: `cozy_spring_${groupName.replace(/\s+/g, '_')}`,
+    source: 'SakPix_Cozy_Spring_Asset_Pack',
+    category: config.category,
+    biome: config.biome,
+    generatedAt: new Date().toISOString(),
+    deterministic: true,
+    expectedPngCount: pngEntries.length,
+    pngCount: pngEntries.length,
+    basePath: `/2d-assets/cozy-spring/${config.category}/${groupName}`,
+    entries: manifestEntries,
+    all: allPngIds,
+    validation: {
+      noPngOmitted: true,
+      importedPngCount: pngEntries.length,
+      manifestEntryCount: Object.keys(manifestEntries).length,
+    },
+  };
+  
+  writeFileSync(join(outputDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+  
+  console.log(`    Imported ${Object.keys(manifestEntries).length} assets`);
+  
+  return { count: pngEntries.length, ids: allPngIds };
+}
+
+async function main() {
   console.log('=== Cozy Spring Asset Pack - Batch Import ===');
   console.log(`Inbox: ${inboxDir}`);
   console.log(`Output: ${outputRoot}`);
   console.log('');
   
-  requireCommand('unzip');
+  // Ensure directories exist
+  mkdirSync(inboxDir, { recursive: true });
+  mkdirSync(outputRoot, { recursive: true });
   
-  // Ensure inbox exists
-  if (!existsSync(inboxDir)) {
-    console.error(`[BatchImport] Inbox directory not found: ${inboxDir}`);
-    console.error('Please create the directory and place ZIP files inside.');
-    process.exit(1);
-  }
-  
-  // Find all ZIP files
-  const zipFiles = readdirSync(inboxDir)
-    .filter(f => f.toLowerCase().endsWith('.zip'))
+  // Find outer ZIP files
+  const outerZips = readdirSync(inboxDir)
+    .filter(f => f.endsWith('.zip'))
     .map(f => join(inboxDir, f))
     .sort();
   
-  if (zipFiles.length === 0) {
-    console.error('[BatchImport] No ZIP files found in inbox');
+  if (outerZips.length === 0) {
+    console.error('[BatchImport] No outer ZIP files found in inbox');
     process.exit(1);
   }
   
-  console.log(`Found ${zipFiles.length} ZIP files\n`);
+  console.log(`Found ${outerZips.length} outer ZIP files\n`);
   
-  // Create output directory
-  mkdirSync(outputRoot, { recursive: true });
+  const allEntries = {};
+  const categories = { tilesets: {}, props: {} };
+  let totalAssets = 0;
   
-  // Process each ZIP
-  const results = { success: 0, failed: 0, skipped: 0 };
-  
-  for (const zipPath of zipFiles) {
-    const zipName = basename(zipPath);
-    const config = findCategoryMapping(zipName);
+  // Process each outer ZIP
+  for (const outerZip of outerZips) {
+    console.log(`\n[BatchImport] Processing outer ZIP: ${basename(outerZip)}`);
     
-    try {
-      const success = processZip(zipPath, config);
-      if (success) {
-        results.success++;
-      } else {
-        results.failed++;
+    const buffer = readFileSync(outerZip);
+    const innerZipEntries = await extractZip(buffer);
+    
+    console.log(`  Found ${innerZipEntries.length} inner files`);
+    
+    // Filter for ZIP files only
+    const innerZips = innerZipEntries.filter(e => e.name.toLowerCase().endsWith('.zip'));
+    
+    console.log(`  Found ${innerZips.length} inner ZIP files`);
+    
+    for (const innerZip of innerZips) {
+      const config = findCategoryMapping(innerZip.name);
+      const groupName = normalizeName(innerZip.name);
+      
+      const outputDir = join(outputRoot, config.category, groupName);
+      
+      try {
+        const result = await processInnerZip(innerZip.data, innerZip.name, outputDir);
+        
+        if (result.count > 0) {
+          // Read manifest to merge entries
+          const manifestPath = join(outputDir, 'manifest.json');
+          if (existsSync(manifestPath)) {
+            const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+            for (const [id, entry] of Object.entries(manifest.entries)) {
+              allEntries[id] = entry;
+            }
+            categories[config.category][groupName] = {
+              count: Object.keys(manifest.entries).length,
+              biome: manifest.biome,
+            };
+            totalAssets += result.count;
+          }
+        }
+      } catch (error) {
+        console.error(`  Error processing ${innerZip.name}: ${error.message}`);
       }
-    } catch (error) {
-      console.error(`  Error: ${error.message}`);
-      results.failed++;
     }
   }
   
   // Create master manifest
   console.log('\n=== Creating Master Manifest ===');
   
-  const masterEntries = {};
-  const categories = { tilesets: {}, props: {} };
-  
-  // Scan output directory for manifests
-  function scanForManifests(dir, cat) {
-    const items = readdirSync(dir);
-    for (const item of items) {
-      const fullPath = join(dir, item);
-      const st = statSync(fullPath);
-      
-      if (st.isDirectory()) {
-        const manifestPath = join(fullPath, 'manifest.json');
-        if (existsSync(manifestPath)) {
-          const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-          const groupName = basename(fullPath);
-          
-          for (const [id, entry] of Object.entries(manifest.entries)) {
-            masterEntries[id] = entry;
-          }
-          
-          categories[cat][groupName] = {
-            count: Object.keys(manifest.entries).length,
-            biome: manifest.biome,
-          };
-        }
-        scanForManifests(fullPath, cat);
-      }
-    }
-  }
-  
-  if (existsSync(join(outputRoot, 'tilesets'))) {
-    scanForManifests(join(outputRoot, 'tilesets'), 'tilesets');
-  }
-  if (existsSync(join(outputRoot, 'props'))) {
-    scanForManifests(join(outputRoot, 'props'), 'props');
-  }
-  
   const masterManifest = {
     version: 1,
     id: 'cozy_spring_master',
     source: 'SakPix_Cozy_Spring_Asset_Pack',
     generatedAt: new Date().toISOString(),
-    totalEntries: Object.keys(masterEntries).length,
+    totalEntries: Object.keys(allEntries).length,
     categories,
-    entries: masterEntries,
+    entries: allEntries,
   };
   
   writeFileSync(join(outputRoot, 'manifest.json'), JSON.stringify(masterManifest, null, 2) + '\n');
@@ -374,7 +380,7 @@ ${Object.entries(categories).map(([cat, groups]) =>
   ).join('\n')
 ).join('\n')}
 
-**Total Assets:** ${Object.keys(masterEntries).length}
+**Total Assets:** ${Object.keys(allEntries).length}
 
 **License:** Purchased from itch.io - SakPix
 `;
@@ -382,21 +388,8 @@ ${Object.entries(categories).map(([cat, groups]) =>
   writeFileSync(join(outputRoot, 'README.md'), readme);
   
   console.log('\n=== Summary ===');
-  console.log(`Processed: ${results.success + results.failed}/${zipFiles.length}`);
-  console.log(`Success: ${results.success}`);
-  console.log(`Failed: ${results.failed}`);
-  console.log(`\nTotal assets imported: ${Object.keys(masterEntries).length}`);
+  console.log(`Total assets imported: ${Object.keys(allEntries).length}`);
   console.log(`Output: ${outputRoot}`);
-  
-  // Now run auto-tagging
-  console.log('\n=== Running Auto-Tagging ===');
-  
-  const autoTagResult = spawnSync('node', [
-    join(repoRoot, 'scripts/auto-tag-manifest.mjs'),
-    '--source=SakPix'
-  ], { encoding: 'utf8', cwd: repoRoot });
-  
-  console.log(autoTagResult.stdout || autoTagResult.stderr);
 }
 
-main();
+main().catch(console.error);

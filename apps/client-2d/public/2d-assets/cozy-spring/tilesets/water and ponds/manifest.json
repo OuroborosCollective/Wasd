@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_water_and_ponds",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "tilesets",
+  "biome": "coastal",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/tilesets/water and ponds",
+  "entries": {
+    "water_and_ponds_1": {
+      "id": "water_and_ponds_1",
+      "src": "/2d-assets/cozy-spring/tilesets/water and ponds/files/5._Water_and_ponds.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "5. Water and ponds.png",
+      "sourceName": "5. Water and ponds.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "tile",
+      "group": "water and ponds",
+      "biome": "coastal",
+      "category": "tilesets",
+      "biomeTags": [
+        "coastal",
+        "water",
+        "pond",
+        "lake",
+        "liquid"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "tilesets",
+        "water",
+        "pond",
+        "lake",
+        "liquid",
+        "tile"
+      ],
+      "bytes": 2237329,
+      "sha256": "5cfde92a024cf95d29b2115e1f18bdacb1640ab43ce3ecc7692e0dbfac25ef48",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "water_and_ponds_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

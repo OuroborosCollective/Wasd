@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "id": "cozy_spring_grass_tiles",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "tilesets",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/tilesets/grass tiles",
+  "entries": {
+    "grass_tiles_1": {
+      "id": "grass_tiles_1",
+      "src": "/2d-assets/cozy-spring/tilesets/grass tiles/files/1._Grass_tiles.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "1. Grass tiles.png",
+      "sourceName": "1. Grass tiles.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "tile",
+      "group": "grass tiles",
+      "biome": "plains",
+      "category": "tilesets",
+      "biomeTags": [
+        "plains",
+        "grass",
+        "tile",
+        "ground",
+        "spring",
+        "green"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "tilesets",
+        "grass",
+        "tile",
+        "ground",
+        "spring",
+        "green",
+        "tile"
+      ],
+      "bytes": 2171720,
+      "sha256": "840e7d50f5873416fb5ff51bb967bbbc3dc31c843205fcc5795fabfc9bbe3b3c",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "grass_tiles_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

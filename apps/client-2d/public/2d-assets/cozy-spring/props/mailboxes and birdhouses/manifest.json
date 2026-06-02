@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_mailboxes_and_birdhouses",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/mailboxes and birdhouses",
+  "entries": {
+    "mailboxes_and_birdhouses_1": {
+      "id": "mailboxes_and_birdhouses_1",
+      "src": "/2d-assets/cozy-spring/props/mailboxes and birdhouses/files/17._Mailboxes_and_birdhouses.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "17. Mailboxes and birdhouses.png",
+      "sourceName": "17. Mailboxes and birdhouses.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "mailboxes and birdhouses",
+      "biome": "plains",
+      "category": "props",
+      "biomeTags": [
+        "plains",
+        "mailbox",
+        "birdhouse",
+        "house",
+        "bird"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "mailbox",
+        "birdhouse",
+        "house",
+        "bird",
+        "prop"
+      ],
+      "bytes": 1381929,
+      "sha256": "dae3e7ac226262fc74b73a741b09eabfb653af595f91d9439c7dbf7d3839b8ca",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "mailboxes_and_birdhouses_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

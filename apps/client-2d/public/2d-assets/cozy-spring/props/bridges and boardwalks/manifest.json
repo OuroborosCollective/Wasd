@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_bridges_and_boardwalks",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "forest",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/bridges and boardwalks",
+  "entries": {
+    "bridges_and_boardwalks_1": {
+      "id": "bridges_and_boardwalks_1",
+      "src": "/2d-assets/cozy-spring/props/bridges and boardwalks/files/12._Bridges_and_boardwalks.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "12. Bridges and boardwalks.png",
+      "sourceName": "12. Bridges and boardwalks.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "bridges and boardwalks",
+      "biome": "forest",
+      "category": "props",
+      "biomeTags": [
+        "forest",
+        "bridge",
+        "boardwalk",
+        "wood",
+        "structure"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "bridge",
+        "boardwalk",
+        "wood",
+        "structure",
+        "prop"
+      ],
+      "bytes": 2040298,
+      "sha256": "994fb5e196f2489583581f8c0887314f817d37fbe46dedc16138d09151017559",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "bridges_and_boardwalks_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

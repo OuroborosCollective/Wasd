@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_bushes_and_shrubs",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "forest",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/bushes and shrubs",
+  "entries": {
+    "bushes_and_shrubs_1": {
+      "id": "bushes_and_shrubs_1",
+      "src": "/2d-assets/cozy-spring/props/bushes and shrubs/files/7._Bushes_and_shrubs.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "7. Bushes and shrubs.png",
+      "sourceName": "7. Bushes and shrubs.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "bushes and shrubs",
+      "biome": "forest",
+      "category": "props",
+      "biomeTags": [
+        "forest",
+        "bush",
+        "shrub",
+        "plant",
+        "green"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "bush",
+        "shrub",
+        "plant",
+        "green",
+        "prop"
+      ],
+      "bytes": 2126465,
+      "sha256": "630c2b796f99d20f1061452c95f44528f61ff37d3eb32ee2b9329b0d8eb4bbd8",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "bushes_and_shrubs_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

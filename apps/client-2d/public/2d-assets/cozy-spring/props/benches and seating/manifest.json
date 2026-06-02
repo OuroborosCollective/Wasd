@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_benches_and_seating",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "props",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/props/benches and seating",
+  "entries": {
+    "benches_and_seating_1": {
+      "id": "benches_and_seating_1",
+      "src": "/2d-assets/cozy-spring/props/benches and seating/files/15._Benches_and_seating.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "15. Benches and seating.png",
+      "sourceName": "15. Benches and seating.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "benches and seating",
+      "biome": "plains",
+      "category": "props",
+      "biomeTags": [
+        "plains",
+        "bench",
+        "seat",
+        "furniture",
+        "rest"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "props",
+        "bench",
+        "seat",
+        "furniture",
+        "rest",
+        "prop"
+      ],
+      "bytes": 1593787,
+      "sha256": "c61660a869f574a53523183e6f896a519352247ebc4a9ff4e5cbd1bb36840346",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "benches_and_seating_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

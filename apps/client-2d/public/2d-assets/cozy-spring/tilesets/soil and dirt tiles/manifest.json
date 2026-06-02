@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "id": "cozy_spring_soil_and_dirt_tiles",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "tilesets",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/tilesets/soil and dirt tiles",
+  "entries": {
+    "soil_and_dirt_tiles_1": {
+      "id": "soil_and_dirt_tiles_1",
+      "src": "/2d-assets/cozy-spring/tilesets/soil and dirt tiles/files/2._Soil_and_dirt_tiles.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "2. Soil and dirt tiles.png",
+      "sourceName": "2. Soil and dirt tiles.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "tile",
+      "group": "soil and dirt tiles",
+      "biome": "plains",
+      "category": "tilesets",
+      "biomeTags": [
+        "plains",
+        "soil",
+        "dirt",
+        "tile",
+        "ground",
+        "brown"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "tilesets",
+        "soil",
+        "dirt",
+        "tile",
+        "ground",
+        "brown",
+        "tile"
+      ],
+      "bytes": 2226592,
+      "sha256": "f699ec6cd778512af36fd95c5eaad98c5df05010c6e1d1a02cdb3e12f6c8bc21",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "soil_and_dirt_tiles_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

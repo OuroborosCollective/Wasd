@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_flower_paths",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "tilesets",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/tilesets/flower paths",
+  "entries": {
+    "flower_paths_1": {
+      "id": "flower_paths_1",
+      "src": "/2d-assets/cozy-spring/tilesets/flower paths/files/4._Flower_paths.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "4. Flower paths.png",
+      "sourceName": "4. Flower paths.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "prop",
+      "group": "flower paths",
+      "biome": "plains",
+      "category": "tilesets",
+      "biomeTags": [
+        "plains",
+        "flower",
+        "path",
+        "road",
+        "garden"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "tilesets",
+        "flower",
+        "path",
+        "road",
+        "garden",
+        "prop"
+      ],
+      "bytes": 2296322,
+      "sha256": "c5c0031e6edf72d62e54108bce379602ea806ffa8dadc6ab162f3861267cac30",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "flower_paths_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "cozy_spring_stone_paths",
+  "source": "SakPix_Cozy_Spring_Asset_Pack",
+  "category": "tilesets",
+  "biome": "plains",
+  "generatedAt": "2026-06-02T00:00:00.000Z",
+  "deterministic": true,
+  "expectedPngCount": 1,
+  "pngCount": 1,
+  "basePath": "/2d-assets/cozy-spring/tilesets/stone paths",
+  "entries": {
+    "stone_paths_1": {
+      "id": "stone_paths_1",
+      "src": "/2d-assets/cozy-spring/tilesets/stone paths/files/3._Stone_paths.png",
+      "source": "SakPix_Cozy_Spring",
+      "sourcePath": "3. Stone paths.png",
+      "sourceName": "3. Stone paths.png",
+      "license": "purchased-itchio-sakpix",
+      "kind": "tile",
+      "group": "stone paths",
+      "biome": "plains",
+      "category": "tilesets",
+      "biomeTags": [
+        "plains",
+        "stone",
+        "path",
+        "road",
+        "walkway"
+      ],
+      "cultureTags": [
+        "cozy",
+        "spring"
+      ],
+      "tags": [
+        "cozy-spring",
+        "tilesets",
+        "stone",
+        "path",
+        "road",
+        "walkway",
+        "tile"
+      ],
+      "bytes": 2450257,
+      "sha256": "47ff32bf49a3a57027b0844ccf139155e80b64ac225a1662dc5c47851eaa08c5",
+      "deterministic": true
+    }
+  },
+  "all": [
+    "stone_paths_1"
+  ],
+  "validation": {
+    "noPngOmitted": true,
+    "importedPngCount": 1,
+    "manifestEntryCount": 1
+  }
+}
