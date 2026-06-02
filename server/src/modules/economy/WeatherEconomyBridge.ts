@@ -1,7 +1,6 @@
 export class WeatherEconomyBridge {
   public getPriceMultiplier(itemId: string, weather: string): number {
     let multiplier = 1.0;
-
     switch (itemId.toLowerCase()) {
       case "wood":
       case "timber":
@@ -9,7 +8,7 @@ export class WeatherEconomyBridge {
         break;
       case "mushrooms":
       case "herbs":
-        if (weather === "rain") multiplier = 0.8; // More supply during rain
+        if (weather === "rain") multiplier = 0.8;
         break;
       case "water":
       case "ice":
@@ -20,7 +19,6 @@ export class WeatherEconomyBridge {
         if (weather === "snow") multiplier = 1.4;
         break;
     }
-
     return multiplier;
   }
 }

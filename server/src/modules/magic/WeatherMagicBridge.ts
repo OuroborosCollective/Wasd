@@ -1,7 +1,6 @@
 export class WeatherMagicBridge {
   public calculatePotency(spellType: string, weather: string): number {
     let multiplier = 1.0;
-
     switch (spellType.toLowerCase()) {
       case "fire":
         if (weather === "heatwave") multiplier = 1.5;
@@ -19,7 +18,6 @@ export class WeatherMagicBridge {
         else if (weather === "heatwave") multiplier = 0.5;
         break;
     }
-
     return multiplier;
   }
 }
