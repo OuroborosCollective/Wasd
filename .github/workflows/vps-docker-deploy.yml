@@ -44,6 +44,7 @@ jobs:
       SSH_PORT: ${{ inputs.ssh_port || secrets.SSH_PORT || '22' }}
       CLIENT_2D_ARCHIVE: wasd-client-2d-dist-${{ github.sha }}.tgz
       CLIENT_2D_MARKER: REAL_PIXI_CLIENT
+      CLIENT_2D_BUILD_SHA: ${{ github.sha }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -72,6 +73,19 @@ jobs:
           pnpm --filter @wasd/client-2d --if-present build
           test -f apps/client-2d/dist/index.html
           grep -q "${CLIENT_2D_MARKER}" apps/client-2d/dist/index.html
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const sha = process.env.CLIENT_2D_BUILD_SHA;
+          if (!sha) throw new Error('CLIENT_2D_BUILD_SHA missing');
+          fs.writeFileSync('apps/client-2d/dist/build-stamp.json', JSON.stringify({
+            ok: true,
+            app: 'client-2d',
+            commit: sha,
+            marker: process.env.CLIENT_2D_MARKER || 'REAL_PIXI_CLIENT',
+            generatedBy: 'vps-docker-deploy.yml'
+          }, null, 2));
+          NODE
+          grep -q "${CLIENT_2D_BUILD_SHA}" apps/client-2d/dist/build-stamp.json
           tar -C apps/client-2d -czf "${CLIENT_2D_ARCHIVE}" dist
           ls -lh "${CLIENT_2D_ARCHIVE}"
 
@@ -108,18 +122,20 @@ jobs:
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=10 \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_BRANCH='${DEPLOY_BRANCH}' ARELORIAN_PORT='${ARELORIAN_PORT}' ARELORIAN_DOCKER_NETWORK='${ARELORIAN_DOCKER_NETWORK}' CLIENT_2D_ARCHIVE='${CLIENT_2D_ARCHIVE}' CLIENT_2D_MARKER='${CLIENT_2D_MARKER}' bash -s" << 'EOF'
+            "DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_BRANCH='${DEPLOY_BRANCH}' ARELORIAN_PORT='${ARELORIAN_PORT}' ARELORIAN_DOCKER_NETWORK='${ARELORIAN_DOCKER_NETWORK}' CLIENT_2D_ARCHIVE='${CLIENT_2D_ARCHIVE}' CLIENT_2D_MARKER='${CLIENT_2D_MARKER}' CLIENT_2D_BUILD_SHA='${CLIENT_2D_BUILD_SHA}' bash -s" << 'EOF'
           set -Eeuo pipefail
           APP_DIR="${DEPLOY_PATH:-/opt/areloria}"
           BRANCH="${DEPLOY_BRANCH:-main}"
           REPO_URL="https://github.com/${{ github.repository }}.git"
           CLIENT_2D_ARCHIVE="${CLIENT_2D_ARCHIVE:-}"
           CLIENT_2D_MARKER="${CLIENT_2D_MARKER:-REAL_PIXI_CLIENT}"
+          CLIENT_2D_BUILD_SHA="${CLIENT_2D_BUILD_SHA:-}"
 
           echo "=== VPS Docker deploy entry ==="
           echo "App dir: $APP_DIR"
           echo "Branch: $BRANCH"
           echo "Client-2D archive: ${CLIENT_2D_ARCHIVE:-none}"
+          echo "Client-2D build sha: ${CLIENT_2D_BUILD_SHA:-none}"
 
           mkdir -p "$APP_DIR"
           cd "$APP_DIR"
@@ -144,6 +160,10 @@ jobs:
             tar -xzf "$APP_DIR/$CLIENT_2D_ARCHIVE" -C apps/client-2d
             test -f apps/client-2d/dist/index.html
             grep -q "$CLIENT_2D_MARKER" apps/client-2d/dist/index.html
+            test -f apps/client-2d/dist/build-stamp.json
+            if [ -n "$CLIENT_2D_BUILD_SHA" ]; then
+              grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json
+            fi
           else
             echo "WARN: No prebuilt client-2d artifact found; Dockerfile must build and verify client-2d."
           fi
@@ -155,6 +175,7 @@ jobs:
           ARELORIAN_ENV_FILE=".env.docker" \
           CLIENT_2D_ARCHIVE="$CLIENT_2D_ARCHIVE" \
           CLIENT_2D_MARKER="$CLIENT_2D_MARKER" \
+          CLIENT_2D_BUILD_SHA="$CLIENT_2D_BUILD_SHA" \
           DEPLOY_BRANCH="$BRANCH" \
           bash scripts/deploy-vps-docker.sh
           EOF
@@ -179,6 +200,23 @@ jobs:
             exit 1
           fi
           echo "2D client marker OK: ${CLIENT_2D_MARKER}"
+
+          echo "Checking https://arelorian.de/2d/build-stamp.json for exact commit"
+          STAMP="$(curl -k -sS -L --max-time 20 "https://arelorian.de/2d/build-stamp.json" || true)"
+          STAMP="$STAMP" CLIENT_2D_BUILD_SHA="$CLIENT_2D_BUILD_SHA" node -e '
+            const raw = process.env.STAMP || "";
+            let data;
+            try { data = JSON.parse(raw); } catch (error) {
+              console.error("ERROR: /2d/build-stamp.json did not return JSON");
+              console.error(raw.slice(0, 800));
+              process.exit(1);
+            }
+            if (data.commit !== process.env.CLIENT_2D_BUILD_SHA) {
+              console.error(`ERROR: stale 2D bundle. expected=${process.env.CLIENT_2D_BUILD_SHA} got=${data.commit}`);
+              process.exit(1);
+            }
+            console.log(`2D build stamp OK: ${data.commit}`);
+          '
 
           echo "Checking https://arelorian.de/api/v1/client2d/bootstrap for server-authoritative starter state"
           BOOTSTRAP="$(curl -k -sS -L --max-time 20 "https://arelorian.de/api/v1/client2d/bootstrap" || true)"
