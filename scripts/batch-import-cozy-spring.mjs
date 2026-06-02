@@ -1,93 +1,89 @@
 #!/usr/bin/env node
 /**
- * Batch Import Script for SakPix Cozy Spring Asset Pack
- * 
- * Imports all 20 ZIP files from the Cozy Spring Asset Pack with automatic
- * category detection based on filename.
- * 
+ * Deterministic importer for SakPix Cozy Spring.
+ *
+ * The purchased pack is distributed as container ZIPs that contain the 20 real
+ * category ZIPs. This importer recursively unpacks nested ZIPs from
+ * .asset-inbox/cozy-spring and copies the real PNG assets into the 2D public
+ * asset tree. It does NOT slice prop sheets into random 32x32 fragments.
+ *
+ * Runtime policy:
+ * - tilesets may be used as tile sheets / terrain sources
+ * - props are full PNG assets from the pack and may be used as world props
+ * - sliced 32x32 frame manifests are not generated here
+ *
  * Usage:
- *   node scripts/batch-import-cozy-spring.mjs [inbox-dir]
- * 
- * Each ZIP will be extracted and imported to the appropriate category:
- * - Grass tiles, Soil tiles, Stone paths, Flower paths, Water → tilesets
- * - Trees, Bushes, Flowers, Fences, Bridges → props
- * - Decor items, Furniture, Lamps → props (decorations/furniture)
+ *   node scripts/batch-import-cozy-spring.mjs [.asset-inbox/cozy-spring]
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync, statSync } from 'node:fs';
-import { basename, dirname, extname, join, resolve, relative, sep } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync, statSync, copyFileSync } from 'node:fs';
+import { basename, dirname, extname, join, resolve, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
 const repoRoot = resolve(process.cwd());
 const inboxDir = resolve(process.argv[2] ?? join(repoRoot, '.asset-inbox/cozy-spring'));
-const outputRoot = join(repoRoot, 'apps/client-2d/public/2d-assets/cozy-spring');
+const outputRoot = join(repoRoot, 'apps/client-2d/public/assets/cozy-spring');
+const tmpRoot = join(repoRoot, '.tmp/cozy-spring-real-import');
 
-// Category mapping based on filename patterns
 const CATEGORY_MAP = {
-  // Tilesets
-  'grass tiles': { category: 'tilesets', biome: 'plains', tags: ['grass', 'tile', 'ground', 'spring', 'green'] },
-  'soil and dirt tiles': { category: 'tilesets', biome: 'plains', tags: ['soil', 'dirt', 'tile', 'ground', 'brown'] },
-  'stone paths': { category: 'tilesets', biome: 'plains', tags: ['stone', 'path', 'road', 'walkway'] },
-  'flower paths': { category: 'tilesets', biome: 'plains', tags: ['flower', 'path', 'road', 'garden'] },
-  'water and ponds': { category: 'tilesets', biome: 'coastal', tags: ['water', 'pond', 'lake', 'liquid'] },
-  
-  // Nature props
-  'cherry blossom trees': { category: 'props', biome: 'forest', tags: ['tree', 'cherry', 'blossom', 'pink', 'spring'] },
-  'trees (spring)': { category: 'props', biome: 'forest', tags: ['tree', 'spring', 'green', 'nature'] },
-  'bushes and shrubs': { category: 'props', biome: 'forest', tags: ['bush', 'shrub', 'plant', 'green'] },
-  'flowers and plants': { category: 'props', biome: 'forest', tags: ['flower', 'plant', 'garden', 'nature'] },
-  'petals and ground details': { category: 'props', biome: 'plains', tags: ['petal', 'ground', 'detail', 'decoration'] },
-  
-  // Structures
-  'fences and gates': { category: 'props', biome: 'plains', tags: ['fence', 'gate', 'barrier', 'wooden'] },
-  'bridges and boardwalks': { category: 'props', biome: 'forest', tags: ['bridge', 'boardwalk', 'wood', 'structure'] },
-  
-  // Garden props
-  'garden beds': { category: 'props', biome: 'plains', tags: ['garden', 'bed', 'planting', 'vegetable'] },
-  'garden furniture': { category: 'props', biome: 'plains', tags: ['furniture', 'garden', 'bench', 'table'] },
-  'benches and seating': { category: 'props', biome: 'plains', tags: ['bench', 'seat', 'furniture', 'rest'] },
-  
-  // Home/Decor props
-  'lamps and lights': { category: 'props', biome: 'plains', tags: ['lamp', 'light', 'glow', 'decoration'] },
-  'mailboxes and birdhouses': { category: 'props', biome: 'plains', tags: ['mailbox', 'birdhouse', 'house', 'bird'] },
-  'pots and planters': { category: 'props', biome: 'plains', tags: ['pot', 'planter', 'flower', 'container'] },
-  'decor and homey items': { category: 'props', biome: 'plains', tags: ['decor', 'home', 'decoration', 'cozy'] },
-  'extra cozy details': { category: 'props', biome: 'plains', tags: ['detail', 'decoration', 'cozy', 'spring'] },
+  'grass tiles': { category: 'tilesets', biome: 'plains', kind: 'grass', tags: ['grass', 'tile', 'ground', 'spring', 'green'] },
+  'soil and dirt tiles': { category: 'tilesets', biome: 'plains', kind: 'dirt', tags: ['soil', 'dirt', 'tile', 'ground', 'brown'] },
+  'stone paths': { category: 'tilesets', biome: 'plains', kind: 'road', tags: ['stone', 'path', 'road', 'walkway'] },
+  'flower paths': { category: 'tilesets', biome: 'plains', kind: 'road', tags: ['flower', 'path', 'road', 'garden'] },
+  'water and ponds': { category: 'tilesets', biome: 'plains', kind: 'water', tags: ['water', 'pond', 'lake', 'liquid'] },
+
+  'cherry blossom trees': { category: 'props', biome: 'plains', kind: 'tree', tags: ['tree', 'cherry', 'blossom', 'pink', 'spring'] },
+  'trees spring': { category: 'props', biome: 'plains', kind: 'tree', tags: ['tree', 'spring', 'green', 'nature'] },
+  'trees (spring)': { category: 'props', biome: 'plains', kind: 'tree', tags: ['tree', 'spring', 'green', 'nature'] },
+  'bushes and shrubs': { category: 'props', biome: 'plains', kind: 'bush', tags: ['bush', 'shrub', 'plant', 'green'] },
+  'flowers and plants': { category: 'props', biome: 'plains', kind: 'flower', tags: ['flower', 'plant', 'garden', 'nature'] },
+  'petals and ground details': { category: 'props', biome: 'plains', kind: 'flower', tags: ['petal', 'ground', 'detail', 'decoration'] },
+
+  'fences and gates': { category: 'props', biome: 'plains', kind: 'fence', tags: ['fence', 'gate', 'barrier', 'wooden'] },
+  'bridges and boardwalks': { category: 'props', biome: 'plains', kind: 'bridge', tags: ['bridge', 'boardwalk', 'wood', 'structure'] },
+  'garden beds': { category: 'props', biome: 'plains', kind: 'garden', tags: ['garden', 'bed', 'planting', 'vegetable'] },
+  'garden furniture': { category: 'props', biome: 'plains', kind: 'furniture', tags: ['furniture', 'garden', 'bench', 'table'] },
+  'benches and seating': { category: 'props', biome: 'plains', kind: 'bench', tags: ['bench', 'seat', 'furniture', 'rest'] },
+  'lamps and lights': { category: 'props', biome: 'plains', kind: 'lamp', tags: ['lamp', 'light', 'glow', 'decoration'] },
+  'mailboxes and birdhouses': { category: 'props', biome: 'plains', kind: 'mailbox', tags: ['mailbox', 'birdhouse', 'house', 'bird'] },
+  'pots and planters': { category: 'props', biome: 'plains', kind: 'pot', tags: ['pot', 'planter', 'flower', 'container'] },
+  'decor and homey items': { category: 'props', biome: 'plains', kind: 'deco', tags: ['decor', 'home', 'decoration', 'cozy'] },
+  'extra cozy details': { category: 'props', biome: 'plains', kind: 'deco', tags: ['detail', 'decoration', 'cozy', 'spring'] },
 };
+
+function requireCommand(name) {
+  const result = spawnSync(name, ['-v'], { encoding: 'utf8' });
+  if (result.error) {
+    console.error(`[CozyImport] Missing required command: ${name}`);
+    process.exit(1);
+  }
+}
 
 function normalizeName(filename) {
   return filename
     .toLowerCase()
     .replace(/\.zip$/i, '')
-    .replace(/[^a-z0-9\s]/g, ' ')  // Replace separators with space
-    .replace(/\s+/g, ' ')          // Normalize multiple spaces
+    .replace(/\([^)]*\)/g, ' $& ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
-function findCategoryMapping(filename) {
-  const normalized = normalizeName(filename);
-  
-  for (const [pattern, config] of Object.entries(CATEGORY_MAP)) {
-    if (normalized.includes(pattern) || pattern.includes(normalized)) {
-      return config;
-    }
-  }
-  
-  // Default fallback
-  return { category: 'props', biome: 'plains', tags: ['cozy', 'spring', 'decoration'] };
+function slug(value) {
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'asset';
 }
 
-function requireCommand(name) {
-  const result = spawnSync(name, ['-v'], { encoding: 'utf8' });
-  if (result.error) {
-    console.error(`[BatchImport] Missing required command: ${name}`);
-    process.exit(1);
-  }
+function sha256File(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
 function walk(dir) {
   const out = [];
+  if (!existsSync(dir)) return out;
   for (const name of readdirSync(dir)) {
     const full = join(dir, name);
     const st = statSync(full);
@@ -97,306 +93,201 @@ function walk(dir) {
   return out;
 }
 
-function idFor(relPath) {
-  return relPath
-    .replace(/\.[^.]+$/, '')
-    .replace(/[^a-zA-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .toLowerCase();
+function unzip(zipPath, destDir) {
+  mkdirSync(destDir, { recursive: true });
+  const result = spawnSync('unzip', ['-q', '-o', zipPath, '-d', destDir], { encoding: 'utf8' });
+  if (result.status !== 0) {
+    throw new Error(`unzip failed for ${zipPath}: ${result.stderr || result.stdout}`);
+  }
 }
 
-function sha256(contentOrPath) {
-  if (Buffer.isBuffer(contentOrPath)) {
-    return createHash('sha256').update(contentOrPath).digest('hex');
-  }
-  return createHash('sha256').update(readFileSync(contentOrPath)).digest('hex');
-}
-
-function processZip(zipPath, config) {
-  const zipName = basename(zipPath, '.zip');
-  const normalizedName = normalizeName(zipName);
-  
-  console.log(`\n[BatchImport] Processing: ${zipName}`);
-  console.log(`  Category: ${config.category}`);
-  console.log(`  Biome: ${config.biome}`);
-  console.log(`  Tags: ${config.tags.join(', ')}`);
-  
-  const tmpRoot = join(repoRoot, `.tmp/cozy-spring/${normalizedName}`);
-  const destRoot = join(outputRoot, config.category, normalizedName);
-  const filesRoot = join(destRoot, 'files');
-  
-  // Cleanup
-  rmSync(tmpRoot, { recursive: true, force: true });
-  mkdirSync(tmpRoot, { recursive: true });
-  mkdirSync(filesRoot, { recursive: true });
-  
-  // Extract ZIP
-  console.log(`  Extracting...`);
-  const unzip = spawnSync('unzip', ['-q', zipPath, '-d', tmpRoot], { encoding: 'utf8' });
-  if (unzip.status !== 0) {
-    console.error(`  Error: unzip failed`);
-    console.error(unzip.stderr || unzip.stdout);
-    return false;
-  }
-  
-  // Find PNG files
-  const allFiles = walk(tmpRoot);
-  const pngFiles = allFiles.filter(f => extname(f).toLowerCase() === '.png');
-  
-  if (pngFiles.length === 0) {
-    console.error(`  Warning: No PNG files found`);
-    return false;
-  }
-  
-  console.log(`  Found ${pngFiles.length} PNG files`);
-  
-  // Create entries
-  const entries = {};
-  const all = [];
-  
-  for (const file of pngFiles) {
-    const rawRel = relative(tmpRoot, file);
-    const safeRel = rawRel.replace(/[^a-zA-Z0-9._/-]+/g, '_').replace(/\/+/g, '/');
-    const outPath = join(filesRoot, safeRel);
-    
-    mkdirSync(dirname(outPath), { recursive: true });
-    
-    // Copy file
-    const content = readFileSync(file);
-    
-    // Determine sub-kind from path
-    const kind = detectKind(file, config);
-    
-    const id = idFor(safeRel);
-    const src = `/2d-assets/cozy-spring/${config.category}/${normalizedName}/files/${safeRel}`;
-    const entry = {
-      id,
-      src,
-      source: 'SakPix_Cozy_Spring',
-      sourcePath: rawRel,
-      sourceName: basename(file),
-      license: 'purchased-itchio-sakpix',
-      kind: kind,
-      group: normalizedName,
-      biome: config.biome,
-      category: config.category,
-      biomeTags: [config.biome, ...config.tags],
-      cultureTags: ['cozy', 'spring'],
-      tags: ['cozy-spring', config.category, ...config.tags, kind],
-      bytes: content.length,
-      sha256: sha256(content),
-      deterministic: true,
-    };
-    
-    if (entries[id]) {
-      console.error(`  Warning: Duplicate ID ${id}`);
+function explodeNestedZips(sourceDir) {
+  let round = 0;
+  while (round < 5) {
+    const zips = walk(sourceDir).filter((file) => extname(file).toLowerCase() === '.zip');
+    if (zips.length === 0) break;
+    for (const zipPath of zips) {
+      const dest = join(dirname(zipPath), slug(basename(zipPath, '.zip')));
+      unzip(zipPath, dest);
+      rmSync(zipPath, { force: true });
     }
-    
-    entries[id] = entry;
-    all.push(id);
-    writeFileSync(outPath, content);
+    round += 1;
   }
-  
-  // Create manifest
-  const manifest = {
-    version: 1,
-    id: `cozy_spring_${normalizedName.replace(/\s+/g, '_')}`,
-    source: 'SakPix_Cozy_Spring_Asset_Pack',
-    category: config.category,
-    biome: config.biome,
-    generatedAt: new Date().toISOString(),
-    deterministic: true,
-    expectedPngCount: pngFiles.length,
-    pngCount: pngFiles.length,
-    basePath: `/2d-assets/cozy-spring/${config.category}/${normalizedName}`,
-    entries,
-    all,
-    validation: {
-      noPngOmitted: true,
-      importedPngCount: pngFiles.length,
-      manifestEntryCount: Object.keys(entries).length,
-    },
-  };
-  
-  writeFileSync(join(destRoot, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
-  
-  console.log(`  Created ${Object.keys(entries).length} entries`);
-  console.log(`  Output: ${destRoot}`);
-  
-  // Cleanup tmp
-  rmSync(tmpRoot, { recursive: true, force: true });
-  
-  return true;
+}
+
+function mappingFor(path) {
+  const normalized = normalizeName(path);
+  for (const [pattern, config] of Object.entries(CATEGORY_MAP)) {
+    const p = normalizeName(pattern);
+    if (normalized.includes(p)) return { group: pattern.replace(/[()]/g, '').replace(/\s+/g, ' ').trim(), ...config };
+  }
+  return { group: 'extra cozy details', category: 'props', biome: 'plains', kind: 'deco', tags: ['detail', 'decoration', 'cozy', 'spring'] };
 }
 
 function detectKind(filePath, config) {
   const lower = filePath.toLowerCase();
-  
-  // Path-based detection
-  if (lower.includes('tile')) return 'tile';
-  if (lower.includes('ground')) return 'tile';
-  if (lower.includes('path')) return 'path';
+  if (lower.includes('tile') || lower.includes('ground')) return config.category === 'tilesets' ? config.kind : 'deco';
+  if (lower.includes('water') || lower.includes('pond')) return 'water';
+  if (lower.includes('path') || lower.includes('road')) return 'road';
   if (lower.includes('tree')) return 'tree';
-  if (lower.includes('bush')) return 'bush';
-  if (lower.includes('flower')) return 'flower';
-  if (lower.includes('fence')) return 'fence';
+  if (lower.includes('bush') || lower.includes('shrub')) return 'bush';
+  if (lower.includes('flower') || lower.includes('plant')) return 'flower';
+  if (lower.includes('fence') || lower.includes('gate')) return 'fence';
   if (lower.includes('bridge')) return 'bridge';
-  if (lower.includes('bench')) return 'bench';
-  if (lower.includes('lamp')) return 'lamp';
-  if (lower.includes('pot')) return 'pot';
-  if (lower.includes('water')) return 'water';
-  if (lower.includes('pond')) return 'water';
+  if (lower.includes('bench') || lower.includes('seat')) return 'bench';
+  if (lower.includes('lamp') || lower.includes('light')) return 'lamp';
+  if (lower.includes('pot') || lower.includes('planter')) return 'pot';
   if (lower.includes('mailbox')) return 'mailbox';
   if (lower.includes('birdhouse')) return 'birdhouse';
-  if (lower.includes('furniture')) return 'furniture';
   if (lower.includes('garden')) return 'garden';
-  if (lower.includes('detail')) return 'detail';
-  
-  // Default to category
-  return config.category === 'tilesets' ? 'tile' : 'prop';
+  return config.kind;
+}
+
+function makeId(groupSlug, relPath, hash) {
+  return `cozy_spring_${groupSlug}_${slug(relPath).replace(/-/g, '_')}_${hash.slice(0, 8)}`;
+}
+
+function isLikelyRuntimePng(path) {
+  const lower = path.toLowerCase();
+  if (!lower.endsWith('.png')) return false;
+  if (lower.includes('__macosx/')) return false;
+  if (lower.includes('/preview') || lower.includes('preview')) return false;
+  if (lower.includes('/license') || lower.includes('license')) return false;
+  return true;
+}
+
+function importFiles(extractedRoot) {
+  rmSync(outputRoot, { recursive: true, force: true });
+  mkdirSync(outputRoot, { recursive: true });
+
+  const allPngs = walk(extractedRoot).filter(isLikelyRuntimePng).sort();
+  const categories = { tilesets: {}, props: {} };
+  const masterEntries = {};
+  const groupEntries = new Map();
+
+  for (const pngPath of allPngs) {
+    const relFromExtract = relative(extractedRoot, pngPath).replace(/\\/g, '/');
+    const config = mappingFor(relFromExtract);
+    const groupSlug = slug(config.group);
+    const kind = detectKind(relFromExtract, config);
+    const hash = sha256File(pngPath);
+    const safeName = `${slug(relFromExtract.replace(/\.png$/i, ''))}-${hash.slice(0, 8)}.png`;
+    const destRel = `${config.category}/${groupSlug}/files/${safeName}`;
+    const destPath = join(outputRoot, destRel);
+    mkdirSync(dirname(destPath), { recursive: true });
+    copyFileSync(pngPath, destPath);
+
+    const id = makeId(groupSlug, relFromExtract, hash);
+    const entry = {
+      id,
+      src: `/assets/cozy-spring/${destRel}`,
+      source: 'SakPix_Cozy_Spring_Asset_Pack',
+      sourcePath: relFromExtract,
+      sourceName: basename(pngPath),
+      license: 'purchased-itchio-sakpix',
+      category: config.category,
+      kind,
+      group: config.group,
+      biome: config.biome,
+      tags: [...new Set(['cozy-spring', config.category, kind, groupSlug, ...config.tags])],
+      biomeTags: [...new Set([config.biome, 'plains', 'spring', 'village', 'cozy'])],
+      cultureTags: ['cozy', 'spring'],
+      sha256: hash,
+      bytes: statSync(pngPath).size,
+      deterministic: true,
+      meta: {
+        runtimeRole: config.category === 'tilesets' ? 'tileSource' : 'propObject',
+        usableAsProp: config.category === 'props',
+        usableAsTile: config.category === 'tilesets',
+        fragmentOnly: false,
+        ySortAnchor: config.category === 'props' ? 'bottom' : 'center',
+        blocksMovement: ['tree', 'fence', 'bridge', 'bench', 'lamp', 'mailbox', 'pot', 'garden'].includes(kind),
+        blocksVision: ['tree', 'fence'].includes(kind),
+      },
+    };
+
+    masterEntries[id] = entry;
+    if (!groupEntries.has(config.category)) groupEntries.set(config.category, new Map());
+    const catMap = groupEntries.get(config.category);
+    if (!catMap.has(groupSlug)) catMap.set(groupSlug, { config, entries: {} });
+    catMap.get(groupSlug).entries[id] = entry;
+  }
+
+  for (const [category, groups] of groupEntries.entries()) {
+    for (const [groupSlug, { config, entries }] of groups.entries()) {
+      const manifest = {
+        version: 2,
+        id: `cozy_spring_${groupSlug}`,
+        source: 'SakPix_Cozy_Spring_Asset_Pack',
+        category,
+        biome: config.biome,
+        deterministic: true,
+        expectedPngCount: Object.keys(entries).length,
+        pngCount: Object.keys(entries).length,
+        basePath: `/assets/cozy-spring/${category}/${groupSlug}`,
+        entries,
+        all: Object.keys(entries).sort(),
+        validation: {
+          noPngOmitted: true,
+          importedPngCount: Object.keys(entries).length,
+          manifestEntryCount: Object.keys(entries).length,
+          importer: 'batch-import-cozy-spring.mjs',
+        },
+      };
+      const groupDir = join(outputRoot, category, groupSlug);
+      writeFileSync(join(groupDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+      categories[category][groupSlug] = { count: Object.keys(entries).length, biome: config.biome, kind: config.kind, group: config.group };
+    }
+  }
+
+  const masterManifest = {
+    version: 2,
+    id: 'cozy_spring_master',
+    source: 'SakPix_Cozy_Spring_Asset_Pack',
+    deterministic: true,
+    totalEntries: Object.keys(masterEntries).length,
+    categories,
+    tilesets: Object.fromEntries(Object.entries(masterEntries).filter(([, entry]) => entry.category === 'tilesets')),
+    props: Object.fromEntries(Object.entries(masterEntries).filter(([, entry]) => entry.category === 'props')),
+    entries: masterEntries,
+  };
+
+  writeFileSync(join(outputRoot, 'manifest.json'), JSON.stringify(masterManifest, null, 2) + '\n');
+  writeFileSync(join(outputRoot, 'README.md'), `# Cozy Spring Asset Pack\n\nImported from .asset-inbox/cozy-spring by scripts/batch-import-cozy-spring.mjs.\n\nSource: https://sakpix.itch.io/cozy-spring-asset-pack-top-down-pixel-art-tileset-300-assets\n\nTotal imported PNG assets: ${Object.keys(masterEntries).length}\n\nLicense: purchased from itch.io / SakPix. Do not redistribute as an asset pack.\n`);
+
+  return { total: Object.keys(masterEntries).length, categories };
 }
 
 function main() {
-  console.log('=== Cozy Spring Asset Pack - Batch Import ===');
+  console.log('=== Cozy Spring real-pack import ===');
   console.log(`Inbox: ${inboxDir}`);
   console.log(`Output: ${outputRoot}`);
-  console.log('');
-  
   requireCommand('unzip');
-  
-  // Ensure inbox exists
+
   if (!existsSync(inboxDir)) {
-    console.error(`[BatchImport] Inbox directory not found: ${inboxDir}`);
-    console.error('Please create the directory and place ZIP files inside.');
+    console.error(`[CozyImport] Inbox directory not found: ${inboxDir}`);
     process.exit(1);
   }
-  
-  // Find all ZIP files
-  const zipFiles = readdirSync(inboxDir)
-    .filter(f => f.toLowerCase().endsWith('.zip'))
-    .map(f => join(inboxDir, f))
-    .sort();
-  
-  if (zipFiles.length === 0) {
-    console.error('[BatchImport] No ZIP files found in inbox');
+
+  rmSync(tmpRoot, { recursive: true, force: true });
+  mkdirSync(tmpRoot, { recursive: true });
+
+  const topZips = walk(inboxDir).filter((file) => extname(file).toLowerCase() === '.zip').sort();
+  if (topZips.length === 0) {
+    console.error('[CozyImport] No ZIP files found in inbox.');
     process.exit(1);
   }
-  
-  console.log(`Found ${zipFiles.length} ZIP files\n`);
-  
-  // Create output directory
-  mkdirSync(outputRoot, { recursive: true });
-  
-  // Process each ZIP
-  const results = { success: 0, failed: 0, skipped: 0 };
-  
-  for (const zipPath of zipFiles) {
-    const zipName = basename(zipPath);
-    const config = findCategoryMapping(zipName);
-    
-    try {
-      const success = processZip(zipPath, config);
-      if (success) {
-        results.success++;
-      } else {
-        results.failed++;
-      }
-    } catch (error) {
-      console.error(`  Error: ${error.message}`);
-      results.failed++;
-    }
+
+  for (const zipPath of topZips) {
+    unzip(zipPath, join(tmpRoot, slug(basename(zipPath, '.zip'))));
   }
-  
-  // Create master manifest
-  console.log('\n=== Creating Master Manifest ===');
-  
-  const masterEntries = {};
-  const categories = { tilesets: {}, props: {} };
-  
-  // Scan output directory for manifests
-  function scanForManifests(dir, cat) {
-    const items = readdirSync(dir);
-    for (const item of items) {
-      const fullPath = join(dir, item);
-      const st = statSync(fullPath);
-      
-      if (st.isDirectory()) {
-        const manifestPath = join(fullPath, 'manifest.json');
-        if (existsSync(manifestPath)) {
-          const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-          const groupName = basename(fullPath);
-          
-          for (const [id, entry] of Object.entries(manifest.entries)) {
-            masterEntries[id] = entry;
-          }
-          
-          categories[cat][groupName] = {
-            count: Object.keys(manifest.entries).length,
-            biome: manifest.biome,
-          };
-        }
-        scanForManifests(fullPath, cat);
-      }
-    }
-  }
-  
-  if (existsSync(join(outputRoot, 'tilesets'))) {
-    scanForManifests(join(outputRoot, 'tilesets'), 'tilesets');
-  }
-  if (existsSync(join(outputRoot, 'props'))) {
-    scanForManifests(join(outputRoot, 'props'), 'props');
-  }
-  
-  const masterManifest = {
-    version: 1,
-    id: 'cozy_spring_master',
-    source: 'SakPix_Cozy_Spring_Asset_Pack',
-    generatedAt: new Date().toISOString(),
-    totalEntries: Object.keys(masterEntries).length,
-    categories,
-    entries: masterEntries,
-  };
-  
-  writeFileSync(join(outputRoot, 'manifest.json'), JSON.stringify(masterManifest, null, 2) + '\n');
-  
-  // Create README
-  const readme = `# Cozy Spring Asset Pack
+  explodeNestedZips(tmpRoot);
 
-Imported by \`scripts/batch-import-cozy-spring.mjs\`.
+  const result = importFiles(tmpRoot);
+  rmSync(tmpRoot, { recursive: true, force: true });
 
-**Source:** [SakPix on itch.io](https://sakpix.itch.io/cozy-spring-asset-pack-top-down-pixel-art-tileset-300-assets)
-
-**Contents:**
-${Object.entries(categories).map(([cat, groups]) => 
-  `\n### ${cat}\n` + 
-  Object.entries(groups).map(([name, info]) => 
-    `- ${name}: ${info.count} assets (${info.biome})`
-  ).join('\n')
-).join('\n')}
-
-**Total Assets:** ${Object.keys(masterEntries).length}
-
-**License:** Purchased from itch.io - SakPix
-`;
-  
-  writeFileSync(join(outputRoot, 'README.md'), readme);
-  
-  console.log('\n=== Summary ===');
-  console.log(`Processed: ${results.success + results.failed}/${zipFiles.length}`);
-  console.log(`Success: ${results.success}`);
-  console.log(`Failed: ${results.failed}`);
-  console.log(`\nTotal assets imported: ${Object.keys(masterEntries).length}`);
-  console.log(`Output: ${outputRoot}`);
-  
-  // Now run auto-tagging
-  console.log('\n=== Running Auto-Tagging ===');
-  
-  const autoTagResult = spawnSync('node', [
-    join(repoRoot, 'scripts/auto-tag-manifest.mjs'),
-    '--source=SakPix'
-  ], { encoding: 'utf8', cwd: repoRoot });
-  
-  console.log(autoTagResult.stdout || autoTagResult.stderr);
+  console.log(`Imported ${result.total} real Cozy Spring PNG assets.`);
+  console.log(JSON.stringify(result.categories, null, 2));
 }
 
 main();
