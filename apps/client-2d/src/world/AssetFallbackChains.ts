@@ -12,7 +12,8 @@ import type { BiomeType, CultureType } from "./AssetBindingContext";
 import { deterministicIndex } from "./DeterministicAssetRng";
 
 /**
- * Fallback category and key chains for buildings.
+ * Fallback chains for buildings.
+ * Extended with GraphicRiver-specific mappings for isometric assets.
  */
 export const BUILDING_FALLBACK_CHAINS: Record<BuildingType, readonly string[]> = {
   house: ["house", "hut", "small_building", "building", "generic_building"],
@@ -30,6 +31,44 @@ export const BUILDING_FALLBACK_CHAINS: Record<BuildingType, readonly string[]> =
 };
 
 /**
+ * Extended fallback chains for GraphicRiver isometric assets.
+ * Maps GraphicRiver naming patterns to standard building types.
+ */
+export const GRAPHICRIVER_BUILDING_FALLBACKS: Record<string, readonly string[]> = {
+  // Tower variants
+  tower: ["tower", "military_tower", "defensive", "building"],
+  cannon_tower: ["cannon_tower", "tower", "military_tower", "defensive", "building"],
+  attack_tower: ["attack_tower", "tower", "military_tower", "defensive", "building"],
+  
+  // House variants
+  small_house: ["small_house", "house", "hut", "building"],
+  large_house: ["large_house", "house", "residential", "building"],
+  
+  // Military buildings
+  guard_tower: ["guard_tower", "tower", "military", "defensive", "building"],
+  military_tower: ["military_tower", "tower", "military", "defensive", "building"],
+  watch_tower: ["watch_tower", "tower", "military", "defensive", "building"],
+  
+  // Workshop variants
+  forge: ["forge", "blacksmith", "workshop", "building"],
+  workshop: ["workshop", "craft", "building"],
+  
+  // Social buildings
+  tavern: ["tavern", "inn", "pub", "building"],
+  bar: ["bar", "tavern", "inn", "building"],
+  restaurant: ["restaurant", "tavern", "inn", "building"],
+  
+  // Commercial buildings
+  shop: ["shop", "trader_shop", "store", "building"],
+  store: ["store", "shop", "trader_shop", "building"],
+  market: ["market", "trader_shop", "shop", "building"],
+  
+  // Resource buildings
+  storage: ["storage", "warehouse", "building"],
+  warehouse: ["warehouse", "storage", "building"],
+};
+
+/**
  * Fallback chains for NPCs.
  */
 export const NPC_FALLBACK_CHAINS: Record<NpcRole, readonly string[]> = {
@@ -43,6 +82,58 @@ export const NPC_FALLBACK_CHAINS: Record<NpcRole, readonly string[]> = {
   noble: ["noble", "lord", "civilian", "npc"],
   farmer: ["farmer", "worker", "civilian", "npc"],
   animal: ["animal", "creature", "npc"],
+};
+
+/**
+ * Extended fallback chains for GraphicRiver isometric NPC assets.
+ * Maps GraphicRiver naming patterns to standard NPC roles.
+ */
+export const GRAPHICRIVER_NPC_FALLBACKS: Record<string, readonly string[]> = {
+  // Guard variants
+  guard: ["guard", "soldier", "military", "npc"],
+  soldier: ["soldier", "guard", "military", "npc"],
+  warrior: ["warrior", "soldier", "guard", "npc"],
+  knight: ["knight", "soldier", "guard", "npc"],
+  
+  // Merchant variants
+  merchant: ["merchant", "trader", "shopkeeper", "npc"],
+  trader: ["trader", "merchant", "shopkeeper", "npc"],
+  shopkeeper: ["shopkeeper", "merchant", "trader", "npc"],
+  vendor: ["vendor", "trader", "merchant", "npc"],
+  
+  // Crafting NPCs
+  blacksmith: ["blacksmith", "craftsman", "worker", "npc"],
+  craftsman: ["craftsman", "worker", "civilian", "npc"],
+  artisan: ["artisan", "craftsman", "worker", "npc"],
+  
+  // Healer/Support NPCs
+  healer: ["healer", "priest", "cleric", "npc"],
+  priest: ["priest", "healer", "cleric", "npc"],
+  cleric: ["cleric", "priest", "healer", "npc"],
+  doctor: ["doctor", "healer", "priest", "npc"],
+  
+  // Noble/Royal NPCs
+  noble: ["noble", "lord", "nobleman", "npc"],
+  lord: ["lord", "noble", "nobleman", "npc"],
+  king: ["king", "noble", "lord", "npc"],
+  queen: ["queen", "noble", "lady", "npc"],
+  
+  // Commoner NPCs
+  peasant: ["peasant", "worker", "civilian", "npc"],
+  farmer: ["farmer", "worker", "peasant", "npc"],
+  villager: ["villager", "civilian", "peasant", "npc"],
+  commoner: ["commoner", "civilian", "peasant", "npc"],
+  
+  // Child NPCs
+  child: ["child", "kid", "young", "npc"],
+  kid: ["kid", "child", "young", "npc"],
+  youth: ["youth", "young", "child", "npc"],
+  
+  // Combat NPCs
+  archer: ["archer", "ranger", "soldier", "npc"],
+  mage: ["mage", "wizard", "magic", "npc"],
+  wizard: ["wizard", "mage", "magic", "npc"],
+  ranger: ["ranger", "archer", "soldier", "npc"],
 };
 
 /**
@@ -275,4 +366,36 @@ export function combineContextTags(
   if (lod) tags.push(...(LOD_TAGS[lod as keyof typeof LOD_TAGS] ?? []));
   
   return tags;
+}
+
+/**
+ * Gets GraphicRiver fallback chain for a building variant.
+ */
+export function getGraphicRiverBuildingFallback(variant: string): readonly string[] {
+  const normalized = variant.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  return GRAPHICRIVER_BUILDING_FALLBACKS[normalized] ?? ["building", "house"];
+}
+
+/**
+ * Gets GraphicRiver fallback chain for an NPC variant.
+ */
+export function getGraphicRiverNpcFallback(variant: string): readonly string[] {
+  const normalized = variant.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  return GRAPHICRIVER_NPC_FALLBACKS[normalized] ?? ["npc", "civilian", "human"];
+}
+
+/**
+ * Extracts the variant name from a GraphicRiver-style asset ID.
+ * Example: "gr_iso_2_towers_cannon_tower_png" -> "cannon_tower"
+ */
+export function extractGraphicRiverVariant(assetId: string): string | null {
+  const match = assetId.match(/gr_iso_\d+_(?:[\w]+_)*([\w]+)(?:_\w+)*/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Checks if an asset ID follows GraphicRiver naming pattern.
+ */
+export function isGraphicRiverAsset(assetId: string): boolean {
+  return /^gr_iso_\d+_/.test(assetId.toLowerCase());
 }
