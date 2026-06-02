@@ -72,7 +72,7 @@ function cloneJsonSafe(value: unknown): unknown {
   if (value === null || value === undefined) return value;
   if (typeof value !== "object") return value;
   try {
-    return JSON.parse(JSON.stringify(value));
+    return deepClone(value);
   } catch {
     return undefined;
   }

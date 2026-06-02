@@ -1,4 +1,5 @@
 import type { PlayerWarfrontProgress } from "./warfrontTypes.js";
+import { deepClone } from "../../utils/deepClone.js";
 
 const DEFAULT_PROGRESS: PlayerWarfrontProgress = {
   seasonId: "",
@@ -10,7 +11,7 @@ const DEFAULT_PROGRESS: PlayerWarfrontProgress = {
 };
 
 function cloneDefault(): PlayerWarfrontProgress {
-  return JSON.parse(JSON.stringify(DEFAULT_PROGRESS)) as PlayerWarfrontProgress;
+  return deepClone(DEFAULT_PROGRESS) as PlayerWarfrontProgress;
 }
 
 export function ensurePlayerWarfrontProgress(player: any): PlayerWarfrontProgress {
