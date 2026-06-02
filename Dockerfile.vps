@@ -89,7 +89,10 @@ RUN if [ -f apps/client-2d/dist/index.html ]; then \
       pnpm --filter @wasd/client-2d --if-present build; \
     fi && \
     test -f apps/client-2d/dist/index.html && \
-    grep -q 'REAL_PIXI_CLIENT' apps/client-2d/dist/index.html
+    grep -q 'REAL_PIXI_CLIENT' apps/client-2d/dist/index.html && \
+    echo "Copying public assets for client-2d" && \
+    mkdir -p apps/client-2d/dist/assets && \
+    cp -a apps/client-2d/public/assets/. apps/client-2d/dist/assets/
 
 RUN VITE_BASE_PATH=/portal/ pnpm --filter @wasd/portal --if-present build || \
     (mkdir -p portal/dist && printf '%s\n' '<!doctype html><html><body><main id="application-canvas">Areloria portal unavailable</main></body></html>' > portal/dist/index.html)
