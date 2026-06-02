@@ -126,7 +126,9 @@ When working on specific topics, check the skills in `docs/ai-skills/`:
 - `wasd-storage-ui-implementation.md` - Storage UI implementation
 - `wasd-resource-entity-generation.md` - Resource/entity generation
 - `wasd-modular-inventory-system.md` - Inventory system design
-- `wasd-client-2d-rendering.md` - 2D rendering patterns
+- `wasd-client-2d-rendering.md` - 2D rendering patterns (legacy, see below)
+- `wasd-client-2d-chunk-visibility.md` - Chunk loading troubleshooting & debug HUD
+- `wasd-client-2d-best-practices.md` - Client-2D best practices & patterns
 - `server-anti-ninja-loot.md` - Security patterns for loot
 - `wasd-asset-tagging.md` - Asset tagging workflow and patterns
 - `wasd-docs-best-practices.md` - Documentation standards
