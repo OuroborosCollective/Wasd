@@ -11,8 +11,9 @@ ARELORIAN_ENABLE_DOCKER_INGRESS="${ARELORIAN_ENABLE_DOCKER_INGRESS:-false}"
 ARELORIAN_INGRESS_HTTP_BIND="${ARELORIAN_INGRESS_HTTP_BIND:-0.0.0.0}"
 ARELORIAN_INGRESS_HTTP_PORT="${ARELORIAN_INGRESS_HTTP_PORT:-80}"
 CLIENT_2D_MARKER="${CLIENT_2D_MARKER:-REAL_PIXI_CLIENT}"
+CLIENT_2D_BUILD_SHA="${CLIENT_2D_BUILD_SHA:-}"
 NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}"
-export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK ARELORIAN_ENABLE_DOCKER_INGRESS ARELORIAN_INGRESS_HTTP_BIND ARELORIAN_INGRESS_HTTP_PORT CLIENT_2D_MARKER NODE_OPTIONS
+export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK ARELORIAN_ENABLE_DOCKER_INGRESS ARELORIAN_INGRESS_HTTP_BIND ARELORIAN_INGRESS_HTTP_PORT CLIENT_2D_MARKER CLIENT_2D_BUILD_SHA NODE_OPTIONS
 cd "$REPO_ROOT"
 
 LOCK_PATH="${DEPLOY_LOCK_PATH:-/tmp/wasd-vps-docker-deploy.lock}"
@@ -83,7 +84,7 @@ validate_required_runtime_env() {
 validate_client_2d_dockerfile_gate() {
   echo "=== Client-2D Dockerfile gate preflight ==="
   echo "Deploy HEAD: $(git rev-parse --short HEAD)"
-  git status --short Dockerfile.vps docker-compose.yml apps/client-2d/index.html || true
+  git status --short Dockerfile.vps docker-compose.yml apps/client-2d/index.html apps/client-2d/dist/build-stamp.json || true
 
   if [ ! -f Dockerfile.vps ]; then
     echo "ERROR: Dockerfile.vps is missing; VPS compose cannot prove the real 2D client build gate."
@@ -107,6 +108,14 @@ validate_client_2d_dockerfile_gate() {
   if ! grep -q "$CLIENT_2D_MARKER" apps/client-2d/index.html; then
     echo "ERROR: apps/client-2d/index.html is missing ${CLIENT_2D_MARKER}."
     exit 1
+  fi
+
+  if [ -n "$CLIENT_2D_BUILD_SHA" ]; then
+    test -f apps/client-2d/dist/build-stamp.json || { echo "ERROR: prebuilt client-2d build-stamp.json missing before Docker build."; exit 1; }
+    grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json || { echo "ERROR: prebuilt client-2d build stamp does not match ${CLIENT_2D_BUILD_SHA}."; cat apps/client-2d/dist/build-stamp.json || true; exit 1; }
+    echo "Client-2D build stamp preflight OK: ${CLIENT_2D_BUILD_SHA}"
+  else
+    echo "WARN: CLIENT_2D_BUILD_SHA is empty; deploy can only prove marker, not exact client bundle freshness."
   fi
 
   echo "Client-2D Dockerfile gate OK: ${CLIENT_2D_MARKER} enforced."
@@ -236,7 +245,7 @@ fetch_and_reset() {
   local temp_ref="refs/wasd-deploy/${DEPLOY_BRANCH}"
   echo "[1/4] git fetch + hard reset via temporary deploy ref"
   git reset --hard >/dev/null 2>&1 || true
-  git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ >/dev/null 2>&1 || true
+  git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e apps/client-2d/dist/ >/dev/null 2>&1 || true
   git update-ref -d "$temp_ref" >/dev/null 2>&1 || true
   if ! git -c remote.origin.fetch= fetch --no-tags origin "+refs/heads/${DEPLOY_BRANCH}:${temp_ref}"; then
     echo "WARN: fetch failed; healing stale origin ref and retrying once."
@@ -260,6 +269,12 @@ client_shell_ready() {
 
 client_2d_shell_ready() {
   docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/2d/').then(async r=>{const body=await r.text();process.exit(r.ok&&body.includes(process.env.CLIENT_2D_MARKER||'REAL_PIXI_CLIENT')?0:1)}).catch(()=>process.exit(1))" >/dev/null 2>&1
+}
+
+client_2d_build_stamp_ready() {
+  [ -n "$CLIENT_2D_BUILD_SHA" ] || return 0
+  docker exec arelorian-engine sh -lc "test -f /app/server/client/dist/2d/build-stamp.json && grep -q '$CLIENT_2D_BUILD_SHA' /app/server/client/dist/2d/build-stamp.json" >/dev/null 2>&1 && return 0
+  docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/2d/build-stamp.json').then(async r=>{const data=await r.json();process.exit(r.ok&&data.commit===process.env.CLIENT_2D_BUILD_SHA?0:1)}).catch(()=>process.exit(1))" >/dev/null 2>&1
 }
 
 portal_shell_ready() {
@@ -298,6 +313,7 @@ echo "Runtime env file: $ARELORIAN_ENV_FILE"
 echo "Docker ingress enabled: $ARELORIAN_ENABLE_DOCKER_INGRESS"
 echo "NODE_OPTIONS: $NODE_OPTIONS"
 echo "Client-2D marker: $CLIENT_2D_MARKER"
+echo "Client-2D build sha: ${CLIENT_2D_BUILD_SHA:-none}"
 if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
   echo "Ingress bind: ${ARELORIAN_INGRESS_HTTP_BIND}:${ARELORIAN_INGRESS_HTTP_PORT}"
 fi
@@ -319,7 +335,6 @@ docker builder prune -f --filter 'until=24h' >/dev/null 2>&1 || true
 docker image prune -f >/dev/null 2>&1 || true
 
 echo "[2/4] Build images (monorepo context, sequential to avoid OOM)"
-# Use --progress plain (global flag must come before subcommand) for compatibility with Docker Compose v2
 compose_cmd --progress plain build arelorian-engine
 compose_cmd --progress plain build monitor-bridge
 
@@ -338,28 +353,30 @@ ok=0
 for i in $(seq 1 36); do
   if container_http_ready; then
     echo "  container HTTP ready ($i/36)"
-    if client_shell_ready && client_2d_shell_ready && portal_shell_ready; then
+    if client_shell_ready && client_2d_shell_ready && client_2d_build_stamp_ready && portal_shell_ready; then
       echo "  client shell ready"
       echo "  client-2d shell ready (${CLIENT_2D_MARKER})"
+      echo "  client-2d build stamp ready (${CLIENT_2D_BUILD_SHA:-not-required})"
       echo "  portal shell ready"
       if host_http_ready; then echo "  host HTTP mapping ready"; else echo "  WARN: host mapping not responding yet"; fi
       if ingress_http_ready; then echo "  ingress HTTP ready"; else echo "  WARN: ingress HTTP not responding yet"; fi
       ok=1
       break
     fi
-    echo "  waiting for client/2d/portal shell... ($i/36)"
+    echo "  waiting for client/2d/portal shell/build stamp... ($i/36)"
   fi
   if [ "$i" -ge 12 ] && runtime_activity_ready; then
     echo "  runtime activity ready ($i/36): node process and world events detected"
-    if client_shell_ready && client_2d_shell_ready && portal_shell_ready; then
+    if client_shell_ready && client_2d_shell_ready && client_2d_build_stamp_ready && portal_shell_ready; then
       echo "  client shell ready"
       echo "  client-2d shell ready (${CLIENT_2D_MARKER})"
+      echo "  client-2d build stamp ready (${CLIENT_2D_BUILD_SHA:-not-required})"
       echo "  portal shell ready"
       if ingress_http_ready; then echo "  ingress HTTP ready"; else echo "  WARN: ingress HTTP not responding yet"; fi
       ok=1
       break
     fi
-    echo "  waiting for client/2d/portal shell... ($i/36)"
+    echo "  waiting for client/2d/portal shell/build stamp... ($i/36)"
   fi
   echo "  waiting... ($i/36)"
   sleep 5
@@ -372,7 +389,7 @@ if [[ "$ok" != "1" ]]; then
   if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
     docker inspect arelorian-ingress-router --format 'Ingress={{.State.Status}} Health={{if .State.Health}}{{else}}n/a{{end}} ExitCode={{.State.ExitCode}} Ports={{json .NetworkSettings.Ports}}' || true
   fi
-  docker exec arelorian-engine sh -lc "node -v; printenv PORT GAME_PORT HOST NODE_ENV NODE_OPTIONS CLIENT_2D_MARKER; ps aux | head -20" || true
+  docker exec arelorian-engine sh -lc "node -v; printenv PORT GAME_PORT HOST NODE_ENV NODE_OPTIONS CLIENT_2D_MARKER CLIENT_2D_BUILD_SHA; ps aux | head -20; ls -lah /app/server/client/dist/2d; cat /app/server/client/dist/2d/build-stamp.json 2>/dev/null || true" || true
   docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/2d/').then(async r=>{console.log('2d status',r.status); console.log((await r.text()).slice(0,800));}).catch(e=>{console.error(e); process.exit(1)})" || true
   ss -ltnp "sport = :${ARELORIAN_PORT}" || true
   compose_cmd logs --tail=160 arelorian-engine || true
