@@ -50,6 +50,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          lfs: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -71,44 +72,107 @@ jobs:
       - name: Set up Python and Pillow
         run: pip install pillow
 
+      - name: Cozy Spring preflight — LFS and inbox diagnostics
+        run: |
+          set -euo pipefail
+          echo "=== Cozy Spring preflight diagnostics ==="
+
+          # --- LFS pull for large asset binaries ---
+          if command -v git-lfs >/dev/null 2>&1; then
+            echo "git-lfs version: $(git-lfs version 2>/dev/null || true)"
+            # Only attempt pull if LFS is actually configured (has .gitattributes filter entries)
+            if [ -f .gitattributes ] && grep -q "filter=" .gitattributes 2>/dev/null; then
+              echo "LFS filter configured — pulling large files..."
+              git lfs pull || echo "LFS pull completed (or LFS not active for these files)"
+            else
+              echo "No LFS filter in .gitattributes — skipping git lfs pull"
+            fi
+          else
+            echo "git-lfs not installed — skipping LFS pull"
+          fi
+
+          # --- Inbox presence and file listing ---
+          INBOX=".asset-inbox/cozy-spring"
+          if [ -d "$INBOX" ]; then
+            echo "Inbox exists: $INBOX"
+            echo "Finding all files (max 3 levels deep):"
+            find "$INBOX" -maxdepth 3 -type f | head -60
+            echo "Inbox size:"
+            du -sh "$INBOX" 2>/dev/null || true
+            echo "File types:"
+            find "$INBOX" -maxdepth 3 -type f -exec file {} \; | head -40
+          else
+            echo "WARN: $INBOX directory not present on runner"
+          fi
+
+          echo "=== Preflight done ==="
+
       - name: Import Cozy Spring assets with object extraction when inbox exists
         run: |
-          if [ -d .asset-inbox/cozy-spring ]; then
-            echo "Running Cozy Spring object extraction from .asset-inbox/cozy-spring"
+          set -euo pipefail
+          INBOX=".asset-inbox/cozy-spring"
+          if [ -d "$INBOX" ]; then
+            echo "=== Import Cozy Spring from $INBOX ==="
+
+            # List what we found before importing
+            echo "Files in inbox before import:"
+            find "$INBOX" -maxdepth 3 -type f | sort
+            echo "Total inbox size: $(du -sh "$INBOX" 2>/dev/null | cut -f1 || echo 'unknown')"
+
+            echo "Running object extraction..."
             python3 scripts/extract-cozy-spring-objects.py \
-              --inbox .asset-inbox/cozy-spring \
+              --inbox "$INBOX" \
               --output apps/client-2d/public/assets/cozy-spring \
-              --tmp .tmp/cozy-spring-extract
-            echo "Verifying manifest.json was written"
+              --tmp .tmp/cozy-spring-extract \
+              --verbose
+
+            echo "=== Post-extraction checks ==="
             test -f apps/client-2d/public/assets/cozy-spring/manifest.json
-            echo "Verifying manifest import policy field"
-            grep -q 'tilesets-as-tiles-props-as-extracted-objects' apps/client-2d/public/assets/cozy-spring/manifest.json
-            # Ensure no whole sheets slipped through
-            python3 - <<'PYEOF'
-            import json
-            with open('apps/client-2d/public/assets/cozy-spring/manifest.json') as f:
+            echo "manifest.json size: $(wc -c < apps/client-2d/public/assets/cozy-spring/manifest.json) bytes"
+            echo "Props dir entries: $(find apps/client-2d/public/assets/cozy-spring/props -name '*.png' 2>/dev/null | wc -l)"
+            echo "Tilesets dir entries: $(find apps/client-2d/public/assets/cozy-spring/tilesets -name '*.png' 2>/dev/null | wc -l)"
+
+            echo "=== Validating manifest ==="
+            python3 << 'PYEOF'
+            import json, sys
+            path = "apps/client-2d/public/assets/cozy-spring/manifest.json"
+            with open(path) as f:
                 m = json.load(f)
-            bad_props = [eid for eid, e in m.get('props', {}).items()
-                         if e.get('meta', {}).get('usableAsProp') is not True]
+            policy = m.get("importPolicy", "")
+            if policy != "tilesets-as-tiles-props-as-extracted-objects":
+                print(f"ERROR: wrong importPolicy: {policy}")
+                sys.exit(1)
+            props = m.get("props", {})
+            bad_props = [eid for eid, e in props.items() if not e.get("meta", {}).get("usableAsProp")]
             if bad_props:
                 print(f"ERROR: {len(bad_props)} props missing usableAsProp=true")
                 print(bad_props[:5])
-                raise SystemExit(1)
-            for eid, e in m.get('props', {}).items():
-                w = e.get('width', 0)
-                h = e.get('height', 0)
-                if w > 800 or h > 800:
-                    print(f"WARN: oversized prop {eid}: {w}x{h}")
-            print(f"Validated {len(m.get('props', {}))} prop entries — all usableAsProp=true")
+                sys.exit(1)
+            oversize = [(eid, e["width"], e["height"]) for eid, e in props.items()
+                        if e.get("width", 0) > 800 or e.get("height", 0) > 800]
+            if oversize:
+                print(f"WARN: {len(oversize)} oversized props: {oversize[:3]}")
+            print(f"Validated {len(props)} props — all usableAsProp=true")
+            print(f"ImportPolicy: {policy}")
             print(f"Tilesets: {len(m.get('tilesets', {}))}")
-            print(f"ImportPolicy: {m.get('importPolicy')}")
             PYEOF
+
+            echo "Manifest validation PASSED"
           else
-            echo "No .asset-inbox/cozy-spring directory present on runner; using committed public assets if any."
+            echo "=== No .asset-inbox/cozy-spring — checking committed fallback ==="
             if [ -f apps/client-2d/public/assets/cozy-spring/manifest.json ]; then
-              echo "Using existing committed manifest"
+              echo "Using committed fallback manifest:"
+              python3 -c "
+import json
+with open('apps/client-2d/public/assets/cozy-spring/manifest.json') as f:
+    m = json.load(f)
+print(f'  version={m.get(\"version\")}')
+print(f'  importPolicy={m.get(\"importPolicy\")}')
+print(f'  props={len(m.get(\"props\",{}))}')
+print(f'  tilesets={len(m.get(\"tilesets\",{}))}')
+"
             else
-              echo "ERROR: expected apps/client-2d/public/assets/cozy-spring/manifest.json but none found"
+              echo "ERROR: no .asset-inbox/cozy-spring and no committed fallback — cannot proceed"
               exit 1
             fi
           fi
