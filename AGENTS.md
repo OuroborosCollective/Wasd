@@ -107,6 +107,12 @@ Performance/safety:
 - **Tailwind CSS v4**: The client uses `tailwindcss@4` which requires `@tailwindcss/postcss` plugin (not the legacy `tailwindcss` PostCSS plugin) and `@import "tailwindcss"` syntax instead of the old `@tailwind` directives.
 - **Vite version**: `@vitejs/plugin-react@6.x` requires Vite 8+. The client's `vite` dependency must be `^8.x`, not `^6.x`.
 - **`@wasd/shared` export**: The shared package's `src/utils/import-fixer.ts` is a Node.js build script (uses `fs`/`path`); it must NOT be re-exported from the shared package index when consumed by browser clients.
+- **Vite `public/` dir not copied to `dist/`**: When building with `pnpm --filter @wasd/client-2d build`, Vite does NOT automatically copy the `public/` directory to `dist/`. You must explicitly copy it in the Dockerfile:
+  ```dockerfile
+  RUN mkdir -p apps/client-2d/dist/assets && \
+      cp -a apps/client-2d/public/assets/. apps/client-2d/dist/assets/
+  ```
+  This caused PR #1586 (Dockerfile.vps: copy public assets for client-2d). Assets in `apps/client-2d/public/assets/` must be copied to `apps/client-2d/dist/assets/` so they end up in `/app/server/client/dist/2d/assets/` in the Docker container.
 
 ### Documentation maintenance rule
 For every non-trivial feature or architecture change:
