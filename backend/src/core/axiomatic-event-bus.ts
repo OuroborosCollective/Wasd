@@ -1,4 +1,12 @@
-import { WATCHDOG_TICK_HZ, WATCHDOG_TICK_MS, normalizePositiveInteger, sanitizeText } from './watchdog-determinism';
+import {
+    WATCHDOG_TICK_HZ,
+    WATCHDOG_TICK_MS,
+    deterministicPayloadHash,
+    fnv1a32,
+    normalizePositiveInteger,
+    sanitizeText,
+    stableStringify,
+} from './watchdog-determinism';
 
 export const AXIOMATIC_EVENT_SCHEMA_VERSION = 2 as const;
 export const AXIOMATIC_TICK_HZ = WATCHDOG_TICK_HZ;
@@ -77,10 +85,7 @@ export interface AxiomaticLedgerStats {
     deterministic: true;
 }
 
-/**
- * Deterministic helpers used by the bus and replay/debug systems.
- * The implementation intentionally avoids Math.random(), Date.now(), locale sorting and object insertion-order hashes.
- */
+/** Deterministic ARE helpers shared by replay/debug systems. */
 export class AREStateCompiler {
     private static readonly RESONANCE_PRIME = 16807;
     private static readonly RESONANCE_MAX = 2147483647;
@@ -105,26 +110,18 @@ export class AREStateCompiler {
     }
 
     public static calculateEventResonance(event: Pick<IAxiomaticEvent, 'sequenceId' | 'tick' | 'tickSequence' | 'type' | 'payload'>): number {
-        const canonicalPayload = stableStringify(event.payload);
-        const dataString = `${event.tick}:${event.tickSequence}:${event.sequenceId}:${event.type}:${canonicalPayload}`;
+        const dataString = `${event.tick}:${event.tickSequence}:${event.sequenceId}:${event.type}:${stableStringify(event.payload)}`;
         return this.computeResonance(fnv1a32(dataString));
     }
 
     public static payloadHash(payload: unknown): string {
-        return fnv1a32Hex(stableStringify(payload));
+        return deterministicPayloadHash(payload);
     }
 }
 
 /**
  * AxiomaticEventBus
- *
- * Strict deterministic event hub for the 10Hz world server:
- * - assigns global sequence ids in publish order
- * - assigns per-tick sequence ids
- * - derives timestamp from tick * 100ms, never from wall-clock time
- * - emits listeners in priority/id order
- * - stores a ring-buffer ledger for replay and watchdog inspection
- * - rejects backwards tick drift by default
+ * Strict deterministic event hub for the 10Hz world server and watchdog stack.
  */
 export class AxiomaticEventBus {
     private static instance: AxiomaticEventBus | null = null;
@@ -172,29 +169,19 @@ export class AxiomaticEventBus {
         return this.getLedgerStats();
     }
 
-    public subscribe<TPayload = AxiomaticPayload>(
-        type: string,
-        listener: AxiomaticListener<TPayload>,
-        priority = 0,
-    ): () => void {
+    public subscribe<TPayload = AxiomaticPayload>(type: string, listener: AxiomaticListener<TPayload>, priority = 0): () => void {
         return this.addListener(type, listener as AxiomaticListener, false, priority);
     }
 
-    public once<TPayload = AxiomaticPayload>(
-        type: string,
-        listener: AxiomaticListener<TPayload>,
-        priority = 0,
-    ): () => void {
+    public once<TPayload = AxiomaticPayload>(type: string, listener: AxiomaticListener<TPayload>, priority = 0): () => void {
         return this.addListener(type, listener as AxiomaticListener, true, priority);
     }
 
-    /** EventEmitter-compatible alias. */
     public on<TPayload = AxiomaticPayload>(type: string, listener: AxiomaticListener<TPayload>): this {
         this.subscribe(type, listener);
         return this;
     }
 
-    /** EventEmitter-compatible alias. */
     public off<TPayload = AxiomaticPayload>(type: string, listener: AxiomaticListener<TPayload>): this {
         const list = this.listeners.get(type) ?? [];
         const next = list.filter((entry) => entry.listener !== listener);
@@ -210,12 +197,8 @@ export class AxiomaticEventBus {
         payloadOrOptions?: TPayload | AxiomaticPublishOptions,
         maybeOptions: AxiomaticPublishOptions = {},
     ): IAxiomaticEvent<TPayload> {
-        const draft = typeof input === 'string'
-            ? { type: input, payload: payloadOrOptions as TPayload }
-            : input;
-        const options = typeof input === 'string'
-            ? maybeOptions
-            : ((payloadOrOptions as AxiomaticPublishOptions | undefined) ?? {});
+        const draft = typeof input === 'string' ? { type: input, payload: payloadOrOptions as TPayload } : input;
+        const options = typeof input === 'string' ? maybeOptions : ((payloadOrOptions as AxiomaticPublishOptions | undefined) ?? {});
 
         const type = sanitizeText(draft.type, 'axiomatic.event');
         const requestedTick = options.tick ?? draft.tick ?? readNumericField(draft.payload, 'tick') ?? this.currentTick;
@@ -427,35 +410,6 @@ function readStringField(value: unknown, key: string): string | undefined {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
     const raw = (value as Record<string, unknown>)[key];
     return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : undefined;
-}
-
-function stableStringify(value: unknown): string {
-    if (value === null) return 'null';
-    if (value === undefined) return 'undefined';
-    if (typeof value === 'bigint') return `"${value.toString()}n"`;
-    if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '0';
-    if (typeof value === 'boolean') return value ? 'true' : 'false';
-    if (typeof value === 'string') return JSON.stringify(value);
-    if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-    if (typeof value === 'object') {
-        const record = value as Record<string, unknown>;
-        const keys = Object.keys(record).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-        return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`).join(',')}}`;
-    }
-    return JSON.stringify(String(value));
-}
-
-function fnv1a32(input: string): number {
-    let hash = 0x811c9dc5;
-    for (let i = 0; i < input.length; i += 1) {
-        hash ^= input.charCodeAt(i);
-        hash = Math.imul(hash, 0x01000193) >>> 0;
-    }
-    return hash >>> 0;
-}
-
-function fnv1a32Hex(input: string): string {
-    return fnv1a32(input).toString(16).padStart(8, '0');
 }
 
 export const eventBus = AxiomaticEventBus.getInstance();
