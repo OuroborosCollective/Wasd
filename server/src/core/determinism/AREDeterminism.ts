@@ -1,3 +1,17 @@
+import {
+  ARE_SIMULATION_TICK_HZ,
+  ARE_SIMULATION_TICK_MS,
+  areTicksToMs,
+  msToARETicks,
+} from '@wasd/shared';
+
+export {
+  ARE_SIMULATION_TICK_HZ,
+  ARE_SIMULATION_TICK_MS,
+  areTicksToMs,
+  msToARETicks,
+};
+
 export interface AREClock {
   now(): number;
 }

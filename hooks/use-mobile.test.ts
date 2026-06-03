@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ARE_SIMULATION_TICK_HZ,
+  ARE_SIMULATION_TICK_MS,
+} from "@wasd/shared";
+
+import {
   classifyViewportMode,
   classifyViewportOrientation,
   DESKTOP_BREAKPOINT,
@@ -36,7 +41,9 @@ describe("deterministic viewport classification", () => {
     expect(classifyViewportOrientation(Number.NaN, 0)).toBe("square");
   });
 
-  it("documents the world-server layout coalescing cadence", () => {
+  it("binds layout coalescing to the canonical ARE cadence", () => {
+    expect(WORLD_SERVER_TICK_HZ).toBe(ARE_SIMULATION_TICK_HZ);
+    expect(WORLD_SERVER_TICK_MS).toBe(ARE_SIMULATION_TICK_MS);
     expect(WORLD_SERVER_TICK_HZ).toBe(10);
     expect(WORLD_SERVER_TICK_MS).toBe(100);
   });
