@@ -1194,37 +1194,57 @@ export class WorldTick {
     // ═══════════════════════════════════════════════════════════════════════
     
     // ─── client_hello ────────────────────────────────────────────────────
-    // Client initiates connection with protocol version and client info
+    // Client initiates connection with protocol version and client info.
+    // This handler runs BEFORE the socketToPlayer lookup (line 927) since
+    // new v5 clients don't go through legacy login that populates that map.
     else if (msg.type === "client_hello") {
       const requestId = getRequestId(msg);
-      const payload = msg as any;
+      const payload = (msg as any).payload;
       
       // Validate protocol version compatibility
-      if (typeof payload.protocolVersion !== "number" || payload.protocolVersion < 5) {
+      if (typeof payload?.protocolVersion !== "number" || payload.protocolVersion < 5) {
         this.ws.sendToPlayer(id, serverError("invalid_payload", "Protocol version 5 required", requestId));
         return;
       }
       
+      // Create a new guest player for this v5 connection
+      const session = createGameplaySession(null); // null = guest (unauthenticated)
+      const newPlayerId = session.playerId;
+      
+      // Register in socket mappings for subsequent messages
+      this.socketToPlayer.set(id, newPlayerId);
+      this.playerToSocket.set(newPlayerId, id);
+      
       this.ws.sendToPlayer(id, {
         type: "welcome",
         protocolVersion: SERVER_PROTOCOL_VERSION,
-        t: Date.now(),
+        t: Date.now(), // ARE-DETERMINISM-ALLOW: server response timestamp
         payload: {
-          playerId: playerId,
+          playerId: newPlayerId,
           sceneId: "main",
           serverTick: this.tickCount,
           message: "Willkommen in Areloria"
         }
       });
+      return;
     }
     
     // ─── guest_login ────────────────────────────────────────────────────
-    // Guest login without authentication (for local testing)
+    // Guest login without authentication (for local testing).
+    // Handled after client_hello since v5 clients need to complete hello first.
     else if (msg.type === "guest_login") {
       const requestId = getRequestId(msg);
-      const displayName = (msg as any).displayName || "Guest";
+      const payload = (msg as any).payload;
+      const displayName = payload?.displayName || "Guest";
       
-      // Create a gameplay session for this connection
+      // PlayerId should exist from client_hello registration
+      const playerId = this.socketToPlayer.get(id);
+      if (!playerId) {
+        this.ws.sendToPlayer(id, serverError("not_authenticated", "Send client_hello first", requestId));
+        return;
+      }
+      
+      // Update session with display name
       const session = createGameplaySession(playerId);
       session.entities.get(playerId)!.name = displayName;
       
@@ -1234,15 +1254,28 @@ export class WorldTick {
     }
     
     // ─── input_frame ────────────────────────────────────────────────────
-    // Deterministic input frame with sequenceId for reconciliation
+    // Deterministic input frame with sequenceId for reconciliation.
+    // Fields are nested under payload per Protocol v5 ClientEnvelope format:
+    // { type, payload: { sequenceId, tickId, moveX, moveY, ... }, t, protocolVersion }
     else if (msg.type === "input_frame") {
       const requestId = getRequestId(msg);
-      const payload = msg as any;
+      const envelope = msg as any;
+      const payload = envelope.payload;
       
-      if (typeof payload.sequenceId !== "number" || typeof payload.tickId !== "number") {
-        this.ws.sendToPlayer(id, serverError("invalid_payload", "input_frame requires sequenceId and tickId", requestId));
+      // PlayerId should exist from client_hello registration
+      const playerId = this.socketToPlayer.get(id);
+      if (!playerId) {
+        this.ws.sendToPlayer(id, serverError("not_authenticated", "Send client_hello first", requestId));
         return;
       }
+      
+      if (typeof payload?.sequenceId !== "number" || typeof payload?.tickId !== "number") {
+        this.ws.sendToPlayer(id, serverError("invalid_payload", "input_frame requires sequenceId and tickId in payload", requestId));
+        return;
+      }
+      
+      const player = this.playerSystem.getPlayer(playerId);
+      if (!player) return;
       
       // Update player position from input
       // Using KappaPosGrid for deterministic movement
@@ -1281,13 +1314,13 @@ export class WorldTick {
       this.ws.sendToPlayer(id, {
         type: "world_snapshot",
         protocolVersion: SERVER_PROTOCOL_VERSION,
-        t: Date.now(),
+        t: Date.now(), // ARE-DETERMINISM-ALLOW: server response timestamp
         payload: {
           protocolVersion: SERVER_PROTOCOL_VERSION,
           serverTick: this.tickCount,
           acknowledgedInputSeq: payload.sequenceId,
           localPlayerId: playerId,
-          receivedAtMs: Date.now(),
+          receivedAtMs: Date.now(), // ARE-DETERMINISM-ALLOW: client timing info
           entities
         }
       });
@@ -1297,39 +1330,35 @@ export class WorldTick {
     // Player attempts to pick up loot entity
     else if (msg.type === "loot_pickup_request") {
       const requestId = getRequestId(msg);
-      const payload = msg as any;
+      const envelope = msg as any;
+      const payload = envelope.payload;
       const entityId = payload?.entityId as string;
       
+      // PlayerId should exist from client_hello registration  
+      const playerId = this.socketToPlayer.get(id);
+      if (!playerId) {
+        this.ws.sendToPlayer(id, serverError("not_authenticated", "Send client_hello first", requestId));
+        return;
+      }
+      
+      const player = this.playerSystem.getPlayer(playerId);
+      if (!player) return;
+      
       if (!entityId) {
-        this.ws.sendToPlayer(id, {
-          type: "loot_pickup_result",
-          protocolVersion: SERVER_PROTOCOL_VERSION,
-          t: Date.now(),
-          payload: { requestId, ok: false, code: "invalid_payload", reason: "entityId required" }
-        });
+        this.ws.sendToPlayer(id, serverError("invalid_payload", "entityId required", requestId));
         return;
       }
       
       const lootEntity = this.lootEntities.get(entityId);
       if (!lootEntity) {
-        this.ws.sendToPlayer(id, {
-          type: "loot_pickup_result",
-          protocolVersion: SERVER_PROTOCOL_VERSION,
-          t: Date.now(),
-          payload: { requestId, ok: false, code: "not_found", reason: "Loot not found", entityId }
-        });
+        this.ws.sendToPlayer(id, serverError("not_found", "Loot not found", requestId));
         return;
       }
       
       // Check proximity - player must be within 20 tiles
       const dist = Math.hypot(player.position.x - lootEntity.position.x, player.position.y - lootEntity.position.y);
       if (dist > 20) {
-        this.ws.sendToPlayer(id, {
-          type: "loot_pickup_result",
-          protocolVersion: SERVER_PROTOCOL_VERSION,
-          t: Date.now(),
-          payload: { requestId, ok: false, code: "too_far", reason: "Loot is too far away", entityId }
-        });
+        this.ws.sendToPlayer(id, serverError("too_far", "Loot is too far away", requestId));
         return;
       }
       
@@ -1344,7 +1373,7 @@ export class WorldTick {
       this.ws.sendToPlayer(id, {
         type: "loot_pickup_result",
         protocolVersion: SERVER_PROTOCOL_VERSION,
-        t: Date.now(),
+        t: Date.now(), // ARE-DETERMINISM-ALLOW: server response timestamp
         payload: {
           requestId,
           ok: true,
@@ -1359,7 +1388,7 @@ export class WorldTick {
       this.ws.sendToPlayer(id, {
         type: "inventory_snapshot",
         protocolVersion: SERVER_PROTOCOL_VERSION,
-        t: Date.now(),
+        t: Date.now(), // ARE-DETERMINISM-ALLOW: server response timestamp
         payload: { slots: player.inventory?.slots ?? [] }
       });
     }
@@ -1368,8 +1397,19 @@ export class WorldTick {
     // Player interacts with NPC
     else if (msg.type === "npc_interact_request") {
       const requestId = getRequestId(msg);
-      const payload = msg as any;
+      const envelope = msg as any;
+      const payload = envelope.payload;
       const npcId = payload?.npcId as string;
+      
+      // PlayerId should exist from client_hello registration
+      const playerId = this.socketToPlayer.get(id);
+      if (!playerId) {
+        this.ws.sendToPlayer(id, serverError("not_authenticated", "Send client_hello first", requestId));
+        return;
+      }
+      
+      const player = this.playerSystem.getPlayer(playerId);
+      if (!player) return;
       
       if (!npcId) {
         this.ws.sendToPlayer(id, serverError("invalid_payload", "npcId required", requestId));
@@ -1399,7 +1439,7 @@ export class WorldTick {
         this.ws.sendToPlayer(id, {
           type: "npc_dialogue",
           protocolVersion: SERVER_PROTOCOL_VERSION,
-          t: Date.now(),
+          t: Date.now(), // ARE-DETERMINISM-ALLOW: server response timestamp
           payload: {
             requestId,
             npcId,
@@ -1415,8 +1455,16 @@ export class WorldTick {
     // Player observes chunks for terrain data
     else if (msg.type === "chunk_observe") {
       const requestId = getRequestId(msg);
-      const payload = msg as any;
+      const envelope = msg as any;
+      const payload = envelope.payload;
       const centerChunkId = payload?.centerChunkId as string;
+      
+      // PlayerId should exist from client_hello registration
+      const playerId = this.socketToPlayer.get(id);
+      if (!playerId) {
+        this.ws.sendToPlayer(id, serverError("not_authenticated", "Send client_hello first", requestId));
+        return;
+      }
       
       // Generate chunk tiles for the observed area
       const tiles = [];
@@ -1438,7 +1486,7 @@ export class WorldTick {
       this.ws.sendToPlayer(id, {
         type: "chunk_snapshot",
         protocolVersion: SERVER_PROTOCOL_VERSION,
-        t: Date.now(),
+        t: Date.now(), // ARE-DETERMINISM-ALLOW: server response timestamp
         payload: {
           requestId,
           chunkId: centerChunkId || "0:0",
@@ -1452,8 +1500,20 @@ export class WorldTick {
     // Player casts a skill
     else if (msg.type === "skill_cast") {
       const requestId = getRequestId(msg);
-      const payload = msg as any;
+      const envelope = msg as any;
+      const payload = envelope.payload;
       const skillId = payload?.skillId as string;
+      
+      // PlayerId should exist from client_hello registration
+      const playerId = this.socketToPlayer.get(id);
+      if (!playerId) {
+        this.ws.sendToPlayer(id, serverError("not_authenticated", "Send client_hello first", requestId));
+        return;
+      }
+      
+      const player = this.playerSystem.getPlayer(playerId);
+      if (!player) return;
+      const charName = player.name;
       const targetX = payload?.x ?? player.position.x;
       const targetY = payload?.y ?? player.position.y;
       
@@ -1471,7 +1531,7 @@ export class WorldTick {
         this.ws.sendToPlayer(id, {
           type: "skill_result",
           protocolVersion: SERVER_PROTOCOL_VERSION,
-          t: Date.now(),
+          t: Date.now(), // ARE-DETERMINISM-ALLOW: server response timestamp
           payload: {
             requestId,
             ok: false,
@@ -1511,7 +1571,7 @@ export class WorldTick {
           this.ws.broadcast({
             type: "combat_result",
             payload: {
-              id: `combat_${this.tickCount}_${Date.now()}`,
+              id: `combat_${this.tickCount}_${Date.now()}`, // ARE-DETERMINISM-ALLOW: unique combat event ID
               atTick: this.tickCount,
               sourceId: playerId,
               targetId: hitTarget.id,
@@ -1526,14 +1586,14 @@ export class WorldTick {
           this.ws.sendToPlayer(id, {
             type: "skill_result",
             protocolVersion: SERVER_PROTOCOL_VERSION,
-            t: Date.now(),
+            t: Date.now(), // ARE-DETERMINISM-ALLOW: server response timestamp
             payload: { requestId, ok: true, skillId }
           });
         } else {
           this.ws.sendToPlayer(id, {
             type: "skill_result",
             protocolVersion: SERVER_PROTOCOL_VERSION,
-            t: Date.now(),
+            t: Date.now(), // ARE-DETERMINISM-ALLOW: server response timestamp
             payload: { requestId, ok: true, skillId, reason: "No target in range" }
           });
         }
