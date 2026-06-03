@@ -10,7 +10,8 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "start": "node dist/index.js",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "guard:worldtick": "tsx src/core/WorldTickPolicy.guard.ts"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.28.0",
