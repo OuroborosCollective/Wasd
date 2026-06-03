@@ -4,7 +4,7 @@ import type { EquipmentSlotId } from "../game/equipment";
 import type { QuestState } from "../game/quests";
 import type { SkillId } from "../game/skills";
 
-export const ARELORIA_PROTOCOL_VERSION = 4 as const;
+export const ARELORIA_PROTOCOL_VERSION = 5 as const;
 
 export type ClientMessageType =
   | "client_hello"
@@ -164,11 +164,18 @@ export interface NpcDialoguePayload {
   text: string;
 }
 
+export interface ServerErrorPayload {
+  requestId?: string;
+  code: string;
+  message: string;
+}
+
 export interface SkillResultPayload {
+  requestId?: string;
+  ok: boolean;
   skillId: SkillId;
-  success: boolean;
-  tickId?: number;
   reason?: string;
+  cooldownRemainingTicks?: number;
 }
 
 export interface ChunkObservePayload {
@@ -177,10 +184,14 @@ export interface ChunkObservePayload {
 }
 
 export interface ChunkSnapshotPayload {
-  chunks: Array<{
-    id: string;
-    entities?: EntityState[];
+  chunkId: string;
+  serverTick: number;
+  tiles: Array<{
+    x: number;
+    y: number;
+    terrain: "grass" | "forest" | "water" | "mountain" | "road" | "town";
   }>;
+  entities?: EntityState[];
 }
 
 export interface GameplayEventPayload {
@@ -307,8 +318,25 @@ export function isChunkObservePayload(value: unknown): value is ChunkObservePayl
 export function isSkillResultPayload(value: unknown): value is SkillResultPayload {
   return (
     isRecord(value) &&
-    typeof value.skillId === "string" &&
-    typeof value.success === "boolean"
+    typeof value.ok === "boolean" &&
+    typeof value.skillId === "string"
+  );
+}
+
+export function isServerErrorPayload(value: unknown): value is ServerErrorPayload {
+  return (
+    isRecord(value) &&
+    typeof value.code === "string" &&
+    typeof value.message === "string"
+  );
+}
+
+export function isChunkSnapshotPayload(value: unknown): value is ChunkSnapshotPayload {
+  return (
+    isRecord(value) &&
+    typeof value.chunkId === "string" &&
+    typeof value.serverTick === "number" &&
+    Array.isArray(value.tiles)
   );
 }
 

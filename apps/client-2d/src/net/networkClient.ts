@@ -13,12 +13,14 @@ import type {
   LootPickupResultPayload,
   NpcDialoguePayload,
   ChunkObservePayload,
+  ChunkSnapshotPayload,
   SkillResultPayload,
   ServerEnvelope,
   SkillCastPayload,
   ToastPayload,
   WelcomePayload,
-  WorldSnapshot
+  WorldSnapshot,
+  ServerErrorPayload
 } from "./protocol";
 import {
   ARELORIA_PROTOCOL_VERSION,
@@ -32,12 +34,15 @@ import {
   isNpcDialoguePayload,
   isChunkObservePayload,
   isSkillResultPayload,
+  isServerErrorPayload,
+  isChunkSnapshotPayload,
   isRecord,
   isServerHeartbeatPayload,
   isToastPayload,
   isWelcomePayload,
   isWorldSnapshot
 } from "./protocol";
+import { createRequestId } from "../game/serverContract";
 
 export type NetworkStatus = "idle" | "connecting" | "connected" | "disconnected";
 
@@ -57,6 +62,9 @@ export interface NetworkEvents {
   onNpcDialogue?: (payload: NpcDialoguePayload) => void;
   onChunkObserve?: (payload: ChunkObservePayload) => void;
   onSkillResult?: (payload: SkillResultPayload) => void;
+  // Phase 5 Events
+  onServerError?: (payload: ServerErrorPayload) => void;
+  onChunkSnapshot?: (payload: ChunkSnapshotPayload) => void;
 }
 
 export interface NetworkClient {
@@ -215,8 +223,13 @@ export function createNetworkClient(
       return;
     }
 
-    if (envelope.type === "chunk_snapshot" && isRecord(envelope.payload)) {
-      // chunk_snapshot is optional, just pass through
+    if (envelope.type === "chunk_snapshot" && isChunkSnapshotPayload(envelope.payload)) {
+      events.onChunkSnapshot?.(envelope.payload);
+      return;
+    }
+
+    if (envelope.type === "server_error" && isServerErrorPayload(envelope.payload)) {
+      events.onServerError?.(envelope.payload);
       return;
     }
 
@@ -321,32 +334,53 @@ export function createNetworkClient(
     },
 
     // Phase 4 Send Methods
-    sendLootPickupRequest(payload) {
-      send("loot_pickup_request", payload);
+    sendLootPickupRequest(payload: { tickId: number; sequenceId: number; entityId: string }) {
+      send("loot_pickup_request", {
+        requestId: createRequestId("loot"),
+        ...payload
+      });
     },
 
-    sendNpcInteractRequest(payload) {
-      send("npc_interact_request", payload);
+    sendNpcInteractRequest(payload: { tickId: number; sequenceId: number; npcId: string }) {
+      send("npc_interact_request", {
+        requestId: createRequestId("npc"),
+        ...payload
+      });
     },
 
-    sendChunkObserve(payload) {
-      send("chunk_observe", payload);
+    sendChunkObserve(payload: ChunkObservePayload) {
+      send("chunk_observe", {
+        requestId: createRequestId("chunk"),
+        ...payload
+      });
     },
 
-    sendQuestTrack(questId) {
-      send("quest_track", { questId });
+    sendQuestTrack(questId: string) {
+      send("quest_track", {
+        requestId: createRequestId("quest"),
+        questId
+      });
     },
 
-    sendQuestAccept(questId) {
-      send("quest_accept", { questId });
+    sendQuestAccept(questId: string) {
+      send("quest_accept", {
+        requestId: createRequestId("quest"),
+        questId
+      });
     },
 
-    sendInventoryAction(payload) {
-      send("inventory_action", payload);
+    sendInventoryAction(payload: { action: string; itemId?: string; slot?: number }) {
+      send("inventory_action", {
+        requestId: createRequestId("inv"),
+        ...payload
+      });
     },
 
-    sendEquipmentAction(payload) {
-      send("equipment_action", payload);
+    sendEquipmentAction(payload: { action: string; slot?: string; itemId?: string }) {
+      send("equipment_action", {
+        requestId: createRequestId("equip"),
+        ...payload
+      });
     },
 
     getStatus() {
