@@ -169,3 +169,95 @@ test -f /app/client/dist/2d/service-worker.js
 - `apps/client-2d/src/engine/pixiClient.ts` - PIXI Renderer
 - `apps/client-2d/public/manifest.webmanifest` - PWA Manifest
 - `apps/client-2d/public/service-worker.js` - Offline Cache
+---
+
+## Phase 2: Playable Client (Current Implementation)
+
+### Architecture
+
+```
+GameBoot.tsx
+    |
+    +-- InputBuffer (WASD + Touch)
+    +-- ClientWorld (Entity State)
+    +-- SnapshotBuffer (Server Updates)
+    +-- NetworkClient (WebSocket)
+    +-- PixiClient (Renderer)
+    +-- LogicClock (10Hz)
+
+UI Overlays: MobileHud + DebugHud + VersionOverlay
+```
+
+### New Files (Phase 2)
+
+| File | Purpose |
+|------|---------|
+| `net/protocol.ts` | Network message types |
+| `net/networkClient.ts` | WebSocket with auto-reconnect |
+| `net/snapshotBuffer.ts` | Server snapshot queue |
+| `logic/inputBuffer.ts` | Deterministic input collector |
+| `logic/playerController.ts` | Movement calculation |
+| `logic/clientWorld.ts` | Entity state management |
+| `world/entities.ts` | Entity types |
+| `world/chunks.ts` | Chunk coordinate utilities |
+| `ui/MobileHud.tsx` | Touch joystick + SKILL button |
+| `ui/DebugHud.tsx` | Debug info overlay |
+| `ui/VersionOverlay.tsx` | Version display |
+| `system/clientVersion.ts` | Client version constants |
+
+### Deterministic Rules
+
+1. Logic remains fixed at 10Hz via `createLogicClock`
+2. Input consumed per tick: `inputBuffer.consumeForTick(tickId)`
+3. Renderer only renders `WorldViewState`
+4. Network snapshots buffered before world application
+5. Client renders without server (offline/degraded mode)
+6. WebSocket failure is non-fatal (auto-reconnect)
+7. All time uses tickId/fixedDtSec
+8. Mobile controls use pointer events
+9. Debug HUD configurable via `config.design.showDebugHud`
+
+### Key Types
+
+```typescript
+interface EntityState {
+  id: string;
+  kind: "player" | "npc" | "loot" | "marker";
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  hp?: number;
+  maxHp?: number;
+  name?: string;
+}
+
+interface WorldViewState {
+  tickId: number;
+  localPlayerId: string;
+  entities: EntityState[];
+}
+
+interface InputFrame {
+  tickId: number;
+  moveX: number;
+  moveY: number;
+  primary: boolean;
+  skill1: boolean;
+}
+
+interface WorldSnapshot {
+  serverTick: number;
+  receivedAtMs: number;
+  entities: EntityState[];
+}
+```
+
+### Test Commands
+
+```bash
+pnpm --filter client-2d build
+pnpm --filter client-2d typecheck  # if exists
+npx tsc --noEmit --project apps/client-2d/tsconfig.json
+npx eslint apps/client-2d/src/net apps/client-2d/src/logic apps/client-2d/src/ui/MobileHud.tsx apps/client-2d/src/ui/DebugHud.tsx apps/client-2d/src/engine/pixiClient.ts apps/client-2d/src/ui/GameBoot.tsx
+```
