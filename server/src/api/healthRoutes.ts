@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import type { WorldTick } from '../core/WorldTick.js';
+import { getDeterministicWatchdogStatus } from '../core/installDeterministicWatchdog.js';
 
 export type HealthRouteOptions = {
   getTick: () => WorldTick | undefined;
@@ -31,12 +32,14 @@ export function healthRoutes(options: HealthRouteOptions): Router {
     noStore(res);
     const initializing = options.isInitializing();
     const tick = options.getTick();
+    const watchdog = safe(() => (tick as any)?.getWatchdogLedgerStatus?.() ?? getDeterministicWatchdogStatus(), getDeterministicWatchdogStatus());
     res.status(initializing ? 503 : 200).json({
       ok: !initializing,
       status: initializing ? 'initializing' : 'ready',
       tickReady: Boolean(tick),
       uptimeSeconds: Math.round(process.uptime()),
       port: options.getPort(),
+      watchdog,
     });
   });
 
@@ -45,8 +48,17 @@ export function healthRoutes(options: HealthRouteOptions): Router {
     const tick = options.getTick();
     const guard = safe(() => tick?.getAREGuardStatus?.() ?? null, null);
     const replay = safe(() => tick?.getReplayRecorderStats?.() ?? null, null);
+    const watchdog = safe(() => (tick as any)?.getWatchdogLedgerStatus?.() ?? getDeterministicWatchdogStatus(), getDeterministicWatchdogStatus());
     const ok = Boolean(tick) && !options.isInitializing();
-    res.status(ok ? 200 : 503).json({ ok, status: ok ? 'deterministic' : 'unready', guard, replay });
+    res.status(ok ? 200 : 503).json({ ok, status: ok ? 'deterministic' : 'unready', guard, replay, watchdog });
+  });
+
+  router.get('/watchdog', (_req: Request, res: Response) => {
+    noStore(res);
+    const tick = options.getTick();
+    const watchdog = safe(() => (tick as any)?.getWatchdogLedgerStatus?.() ?? getDeterministicWatchdogStatus(), getDeterministicWatchdogStatus());
+    const ok = Boolean(watchdog?.installed);
+    res.status(ok ? 200 : 503).json({ ok, status: ok ? 'watchdog' : 'unavailable', watchdog });
   });
 
   router.get('/worldhash', (_req: Request, res: Response) => {
