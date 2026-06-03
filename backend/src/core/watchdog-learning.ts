@@ -1,3 +1,5 @@
+import { createBackendAuditStamp, getBackendWatchdogTick, publishBackendLedgerEvent } from './watchdog-runtime';
+
 export interface ViolationPattern {
     pattern: string;
     frequency: number;
@@ -9,14 +11,17 @@ export class WatchdogLearning {
     private patterns: Map<string, ViolationPattern> = new Map();
 
     /**
-     * Speichert eine Verletzung und analysiert sie auf wiederkehrende Muster.
+     * Speichert eine Verletzung deterministisch und analysiert sie auf wiederkehrende Muster.
      */
     public record(violation: any): void {
-        this.violations.push({
+        const enriched = {
             ...violation,
-            timestamp: Date.now()
-        });
+            tick: getBackendWatchdogTick(),
+            auditStamp: createBackendAuditStamp(),
+        };
 
+        this.violations.push(enriched);
+        publishBackendLedgerEvent('watchdog.learning.recorded', enriched, 'watchdog-learning');
         this.analyze(violation);
     }
 
@@ -36,6 +41,7 @@ export class WatchdogLearning {
             const existing = this.patterns.get(patternKey) || { pattern: patternKey, frequency: 0, suggestion };
             existing.frequency++;
             this.patterns.set(patternKey, existing);
+            publishBackendLedgerEvent('watchdog.learning.pattern', { pattern: patternKey, frequency: existing.frequency, suggestion }, 'watchdog-learning');
         }
     }
 
