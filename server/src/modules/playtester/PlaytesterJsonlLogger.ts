@@ -23,14 +23,17 @@ export class PlaytesterJsonlLogger {
 
   /**
    * Write a log event to the JSONL file.
-   * @param event - The event object to log (will be merged with timestamp)
+   * The event tick is the canonical deterministic time source.
    */
   write(event: unknown): void {
     if (!this.options.enabled) return;
 
+    const record = event as Record<string, unknown>;
+    const tick = typeof record.tick === "number" && Number.isFinite(record.tick) ? Math.trunc(record.tick) : 0;
     const line = JSON.stringify({
-      loggedAt: new Date().toISOString(),
-      ...(event as Record<string, unknown>),
+      loggedTick: tick,
+      simulationMs: tick * 100,
+      ...record,
     });
 
     appendFileSync(this.options.logPath, `${line}\n`, "utf8");
