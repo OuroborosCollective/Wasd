@@ -47,15 +47,17 @@ RUN --mount=type=cache,id=wasd-vps-pnpm-store,target=/pnpm/store \
       'packages:' \
       '  - server' \
       '  - client' \
+      '  - engine' \
       '  - portal' \
+      '  - backend' \
       '  - apps/client-2d' \
       '  - packages/core-logic' \
       '  - packages/shared' \
       'allowBuilds: true' \
       > pnpm-workspace.yaml && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py && \
-    pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/portal... --filter @wasd/client-2d... --filter @wasd/core-logic... --filter @wasd/shared... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only && \
-    pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/portal... --filter @wasd/client-2d... --filter @wasd/core-logic... --filter @wasd/shared... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
+    pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/engine... --filter @wasd/portal... --filter @wasd/client-2d... --filter @wasd/core-logic... --filter @wasd/shared... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only && \
+    pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/engine... --filter @wasd/portal... --filter @wasd/client-2d... --filter @wasd/core-logic... --filter @wasd/shared... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
 
 COPY . .
 RUN rm -rf packages/sdk-examples || true && \
@@ -63,7 +65,9 @@ RUN rm -rf packages/sdk-examples || true && \
       'packages:' \
       '  - server' \
       '  - client' \
+      '  - engine' \
       '  - portal' \
+      '  - backend' \
       '  - apps/client-2d' \
       '  - packages/core-logic' \
       '  - packages/shared' \
@@ -76,16 +80,23 @@ ENV NODE_ENV=production
 ENV NODE_OPTIONS=--max-old-space-size=8192
 ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
 
-RUN test -f backend/src/core/ast-interface-sync.ts && \
-    test -f backend/src/core/integrity-checker.ts && \
-    grep -q 'syncBatchWithinTickBudget' backend/src/core/ast-interface-sync.ts && \
-    grep -q 'deterministicHash' backend/src/core/ast-interface-sync.ts && \
-    grep -q 'WATCHDOG_AST_SYNC_BUDGET_MS' backend/src/core/integrity-checker.ts && \
-    grep -q 'AST_INTERFACE_SYNC_SUMMARY' backend/src/core/integrity-checker.ts
+RUN node scripts/verify-vps-build-logic.mjs
 
 RUN pnpm --filter @wasd/core-logic --if-present run build:runtime && \
     pnpm --filter @wasd/shared --if-present build && \
+    pnpm --filter @wasd/engine --if-present build && \
     pnpm --filter @wasd/server --if-present build
+
+RUN test -f dist/engine/index.js && \
+    test -f dist/engine/determinism/tickPolicy.js && \
+    grep -q 'WORLD_TICK_HZ' dist/engine/determinism/tickPolicy.js && \
+    grep -q 'WORLD_TICK_MS' dist/engine/determinism/tickPolicy.js && \
+    grep -q 'WORLD_TICK_KAPPA' dist/engine/determinism/tickPolicy.js && \
+    test -f server/dist/core/WorldTickPolicy.js && \
+    grep -q 'AUTHORITATIVE_WORLD_TICK_MS' server/dist/core/WorldTickPolicy.js && \
+    grep -q 'AUTHORITATIVE_WORLD_TICK_KAPPA' server/dist/core/WorldTickPolicy.js
+
+RUN pnpm --filter @wasd/server guard:worldtick
 
 RUN test -f server/dist/core/watchdog-determinism.js && \
     test -f server/dist/core/axiomatic-event-bus.js && \
@@ -164,10 +175,18 @@ ENV WATCHDOG_AST_SYNC_FAIL_ON_OVERRUN=false
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/server ./server
+COPY --from=builder /app/engine ./engine
+COPY --from=builder /app/dist/engine ./dist/engine
 COPY --from=builder /app/packages/core-logic ./packages/core-logic
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/client/dist ./client/dist
 COPY --from=builder /app/client/dist ./server/client/dist
+
+RUN test -f /app/dist/engine/index.js && \
+    test -f /app/dist/engine/determinism/tickPolicy.js && \
+    grep -q 'WORLD_TICK_MS' /app/dist/engine/determinism/tickPolicy.js && \
+    test -f /app/server/dist/core/WorldTickPolicy.js && \
+    grep -q 'AUTHORITATIVE_WORLD_TICK_MS' /app/server/dist/core/WorldTickPolicy.js
 
 RUN test -f /app/server/dist/core/watchdog-determinism.js && \
     test -f /app/server/dist/core/axiomatic-event-bus.js && \
