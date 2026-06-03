@@ -8,6 +8,8 @@
  * by the GameplayPersistence facade for the Protocol v5 gameplay contract.
  */
 
+export type ServerEntityKind = "player" | "npc" | "loot" | "marker";
+
 export interface PersistedPlayer {
   id: string;
   displayName: string;

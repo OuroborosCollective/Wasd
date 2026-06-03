@@ -182,7 +182,9 @@ let singleton: GameplayPersistence | null = null;
 /**
  * Get singleton gameplay persistence instance.
  */
-export {
-  createGameplayPersistence,
-  getGameplayPersistence
-};
+export function getGameplayPersistence(): GameplayPersistence {
+  if (!singleton) {
+    singleton = createGameplayPersistence();
+  }
+  return singleton;
+}
