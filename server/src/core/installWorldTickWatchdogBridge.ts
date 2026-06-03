@@ -1,7 +1,7 @@
 import { WorldTick } from './WorldTick.js';
 import { eventBus } from './axiomatic-event-bus';
 import { serverWatchdogEmitter } from './watchdog-emitter';
-import { getDeterministicWatchdogStatus } from './installDeterministicWatchdog';
+import { WATCHDOG_TICK_HZ, WATCHDOG_TICK_MS } from './watchdog-determinism';
 
 let installed = false;
 
@@ -84,8 +84,12 @@ export function installWorldTickWatchdogBridge(): void {
   };
 
   proto.getWatchdogLedgerStatus = function getWatchdogLedgerStatus() {
+    const ledger = eventBus.getLedgerStats();
     return {
-      ...getDeterministicWatchdogStatus(),
+      installed: true,
+      tickHz: WATCHDOG_TICK_HZ,
+      tickMs: WATCHDOG_TICK_MS,
+      ledger,
       worldTick: Number(this.tickCount ?? 0),
       worldHash: this.lastWorldHashSnapshot?.worldHash ?? null,
       guard: this.lastAREGuardStatus ?? null,
