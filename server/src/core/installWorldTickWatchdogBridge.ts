@@ -2,6 +2,7 @@ import { WorldTick } from './WorldTick.js';
 import { eventBus } from './axiomatic-event-bus';
 import { serverWatchdogEmitter } from './watchdog-emitter';
 import { WATCHDOG_TICK_HZ, WATCHDOG_TICK_MS } from './watchdog-determinism';
+import { liveWatchdogSensors } from './watchdog-live-sensors.js';
 
 let installed = false;
 
@@ -38,9 +39,7 @@ export function installWorldTickWatchdogBridge(): void {
     try {
       const result = originalTick.apply(this, args);
       const committedTick = Number(this.tickCount ?? nextTick);
-
-      eventBus.beginTick(committedTick);
-      eventBus.publish('world.tick.end', {
+      const frame = {
         tick: committedTick,
         phase: 'end',
         players: safeCount(() => this.playerSystem?.getAllPlayers?.()),
@@ -48,6 +47,16 @@ export function installWorldTickWatchdogBridge(): void {
         loot: safeSize(this.lootEntities),
         guardOk: Boolean(this.lastAREGuardStatus?.ok ?? true),
         worldHash: this.lastWorldHashSnapshot?.worldHash ?? null,
+      };
+      const sensorResult = liveWatchdogSensors.evaluate(frame);
+
+      eventBus.beginTick(committedTick);
+      eventBus.publish('world.tick.end', {
+        ...frame,
+        sensors: {
+          alerts: sensorResult.alerts,
+          state: sensorResult.state,
+        },
       }, {
         tick: committedTick,
         source: 'worldtick',
@@ -58,9 +67,12 @@ export function installWorldTickWatchdogBridge(): void {
       if (committedTick % 10 === 0) {
         serverWatchdogEmitter.emit('world.tick.heartbeat', {
           tick: committedTick,
-          players: safeCount(() => this.playerSystem?.getAllPlayers?.()),
-          npcs: safeCount(() => this.npcSystem?.getAllNPCs?.()),
-          loot: safeSize(this.lootEntities),
+          players: frame.players,
+          npcs: frame.npcs,
+          loot: frame.loot,
+          guardOk: frame.guardOk,
+          worldHash: frame.worldHash,
+          sensors: sensorResult,
           ledger: eventBus.getLedgerStats(),
         }, 'LOW', 'worldtick', committedTick);
       }
@@ -93,6 +105,7 @@ export function installWorldTickWatchdogBridge(): void {
       worldTick: Number(this.tickCount ?? 0),
       worldHash: this.lastWorldHashSnapshot?.worldHash ?? null,
       guard: this.lastAREGuardStatus ?? null,
+      sensors: liveWatchdogSensors.getState(),
     };
   };
 

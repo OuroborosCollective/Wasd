@@ -81,9 +81,12 @@ RUN test -f server/dist/core/watchdog-determinism.js && \
     test -f server/dist/core/watchdog-emitter.js && \
     test -f server/dist/core/installDeterministicWatchdog.js && \
     test -f server/dist/core/installWorldTickWatchdogBridge.js && \
+    test -f server/dist/core/watchdog-live-sensors.js && \
     grep -q 'installDeterministicWatchdogRuntime' server/dist/index.js && \
     grep -q 'installWorldTickWatchdogBridge' server/dist/core/installDeterministicWatchdog.js && \
     grep -q 'world.tick.heartbeat' server/dist/core/installWorldTickWatchdogBridge.js && \
+    grep -q 'liveWatchdogSensors' server/dist/core/installWorldTickWatchdogBridge.js && \
+    grep -q 'world.sensor.frame' server/dist/core/watchdog-live-sensors.js && \
     grep -q 'WATCHDOG_TICK_HZ' server/dist/core/watchdog-determinism.js
 
 RUN node scripts/sync-world-assets.mjs || true
@@ -156,8 +159,10 @@ RUN test -f /app/server/dist/core/watchdog-determinism.js && \
     test -f /app/server/dist/core/watchdog-emitter.js && \
     test -f /app/server/dist/core/installDeterministicWatchdog.js && \
     test -f /app/server/dist/core/installWorldTickWatchdogBridge.js && \
+    test -f /app/server/dist/core/watchdog-live-sensors.js && \
     grep -q 'installDeterministicWatchdogRuntime' /app/server/dist/index.js && \
-    grep -q 'world.tick.heartbeat' /app/server/dist/core/installWorldTickWatchdogBridge.js
+    grep -q 'world.tick.heartbeat' /app/server/dist/core/installWorldTickWatchdogBridge.js && \
+    grep -q 'world.sensor.frame' /app/server/dist/core/watchdog-live-sensors.js
 
 RUN test -f /app/client/dist/2d/index.html && \
     test -f /app/server/client/dist/2d/index.html && \
