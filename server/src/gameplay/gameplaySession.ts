@@ -1,5 +1,5 @@
 import { envelope } from "./protocol.js";
-import { getGameplayPersistence, createGameplayPersistence } from "./persistence/gameplayPersistence.js";
+import { getGameplayPersistence } from "./persistence/gameplayPersistence.js";
 import { createDefaultPlayer } from "./persistence/playerRepository.js";
 import type { ServerEntityKind } from "./persistence/types.js";
 
