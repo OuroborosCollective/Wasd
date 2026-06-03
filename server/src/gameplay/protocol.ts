@@ -1,8 +1,14 @@
-export const SERVER_PROTOCOL_VERSION = 5 as const;
+// Protocol v7: Identity, Auth Binding & Stable Player Ownership
+export const SERVER_PROTOCOL_VERSION = 7 as const;
 
 export type ClientMessageType =
   | "client_hello"
   | "guest_login"
+  | "identity_resume"
+  | "character_list_request"
+  | "character_select"
+  | "character_create"
+  | "account_bind_request"
   | "input_frame"
   | "skill_cast"
   | "loot_pickup_request"
@@ -17,6 +23,12 @@ export type ClientMessageType =
 
 export type ServerMessageType =
   | "welcome"
+  | "identity_challenge"
+  | "identity_resume_result"
+  | "character_list"
+  | "character_select_result"
+  | "character_create_result"
+  | "ownership_error"
   | "world_snapshot"
   | "inventory_snapshot"
   | "equipment_snapshot"

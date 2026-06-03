@@ -42,6 +42,13 @@ import { createChunkSnapshotStore, type ChunkSnapshotStore } from "../world/chun
 import { NpcDialoguePanel } from "./NpcDialoguePanel";
 import { LootFeed } from "./LootFeed";
 import { CombatLog } from "./CombatLog";
+// Phase 7 Identity Modules
+import { getOrCreateClientIdentity, resetClientIdentityForDebug } from "../identity/clientIdentity";
+import { getClientSessionToken, setClientSessionToken } from "../identity/sessionToken";
+import { getSelectedCharacterId, setSelectedCharacterId, type ClientCharacterSummary } from "../identity/characterSelection";
+// Phase 7 UI Components
+import { IdentityDebugPanel } from "./IdentityDebugPanel";
+import { CharacterSelectPanel } from "./CharacterSelectPanel";
 
 type BootPhaseState =
   | "BOOTING"
@@ -118,6 +125,19 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
   const toastsRef = useRef<ClientToast[]>([]);
   const chatMessagesRef = useRef<ChatMessagePayload[]>([]);
   const gameplayEventQueueSizeRef = useRef<number>(0);
+
+  // Phase 7: Identity State
+  const identityRef = useRef(getOrCreateClientIdentity());
+  const [stableGuestId] = useState(identityRef.current.stableGuestId);
+  const [sessionToken, setSessionTokenState] = useState<string | null>(
+    getClientSessionToken().token
+  );
+  const [identityStatus, setIdentityStatus] = useState<string>("initializing");
+  const [characterId, setCharacterId] = useState<string>("");
+  const [characterName, setCharacterName] = useState<string>("");
+  const [characters, setCharacters] = useState<ClientCharacterSummary[]>([]);
+  const [characterSelectOpen, setCharacterSelectOpen] = useState(false);
+  const [identityDebugOpen, setIdentityDebugOpen] = useState(false);
 
   // Force re-render for UI overlays
   const [, forceUpdate] = useState(0);
@@ -278,7 +298,14 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
         });
         clientWorldRef.current = clientWorld;
 
-        // Connect network with Phase 3 events
+        // Phase 7: Identity fields for network
+        const identity = {
+          stableGuestId: identityRef.current.stableGuestId,
+          sessionToken: getClientSessionToken().token ?? undefined,
+          selectedCharacterId: getSelectedCharacterId()
+        };
+
+        // Connect network with Phase 7 events
         const network = createNetworkClient(config, {
           onStatusChange(status) {
             networkStatusRef.current = status;
@@ -287,7 +314,26 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
           onWelcome(payload) {
             clientWorld.setLocalPlayerId(payload.playerId);
             serverClock.observe(payload.serverTick);
-            addToast("Willkommen in Areloria", "success");
+
+            // Phase 7: Handle identity from server
+            if (payload.sessionToken) {
+              setClientSessionToken(payload.sessionToken);
+              setSessionTokenState(payload.sessionToken);
+            }
+            if (payload.characterId) {
+              setSelectedCharacterId(payload.characterId);
+              setCharacterId(payload.characterId);
+            }
+            if (payload.characterName) {
+              setCharacterName(payload.characterName);
+            }
+            if (payload.resumed) {
+              setIdentityStatus("resumed");
+              addToast("Sitzung wiederhergestellt", "success");
+            } else {
+              setIdentityStatus("guest");
+              addToast("Willkommen in Areloria", "success");
+            }
           },
           onWorldSnapshot(snapshot) {
             snapshotBuffer.push(snapshot);
@@ -404,8 +450,41 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
           onChunkSnapshot(payload) {
             chunkSnapshotStoreRef.current?.apply(payload);
             triggerUpdate();
+          },
+          // Phase 7 Event Handlers
+          onCharacterList(payload) {
+            setCharacters(payload.characters);
+            triggerUpdate();
+          },
+          onCharacterSelectResult(payload) {
+            if (payload.ok && payload.character) {
+              setSelectedCharacterId(payload.character.id);
+              setCharacterId(payload.character.id);
+              setCharacterName(payload.character.name);
+              addToast(`Character ${payload.character.name} ausgewählt`, "success");
+            } else if (payload.reason) {
+              addToast(`Auswahl fehlgeschlagen: ${payload.reason}`, "error");
+            }
+            setCharacterSelectOpen(false);
+            triggerUpdate();
+          },
+          onCharacterCreateResult(payload) {
+            if (payload.ok && payload.character) {
+              setCharacters((prev) => [...prev, payload.character!]);
+              setSelectedCharacterId(payload.character.id);
+              setCharacterId(payload.character.id);
+              setCharacterName(payload.character.name);
+              addToast(`Character ${payload.character.name} erstellt`, "success");
+            } else if (payload.reason) {
+              addToast(`Erstellung fehlgeschlagen: ${payload.reason}`, "error");
+            }
+            setCharacterSelectOpen(false);
+            triggerUpdate();
+          },
+          onOwnershipError(payload) {
+            addToast(`Ownership: ${payload.message}`, "error");
           }
-        });
+        }, identity);
         networkClientRef.current = network;
 
         // Phase 4: Initialize Gameplay Systems
@@ -735,6 +814,11 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
         combatLogCount={combatLogEntries.length}
         chunkSnapshotCount={chunkSnapshotCount}
         gameplayStateVersion={gameplayStateVersion}
+        onOpenIdentityDebug={() => setIdentityDebugOpen(true)}
+        onOpenCharacterSelect={() => setCharacterSelectOpen(true)}
+        stableGuestId={stableGuestId}
+        characterId={characterId}
+        identityStatus={identityStatus}
       />
 
       {/* Phase 4: Mobile Action Bar */}
@@ -791,6 +875,35 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
 
       {/* Phase 5: Combat Log */}
       <CombatLog entries={combatLogEntries} />
+
+      {/* Phase 7: Character Select Panel */}
+      <CharacterSelectPanel
+        open={characterSelectOpen}
+        characters={characters}
+        selectedCharacterId={getSelectedCharacterId()}
+        onSelect={(characterId) => {
+          networkClientRef.current?.sendCharacterSelect(characterId);
+        }}
+        onCreate={(name) => {
+          networkClientRef.current?.sendCharacterCreate(name);
+        }}
+        onClose={() => setCharacterSelectOpen(false)}
+      />
+
+      {/* Phase 7: Identity Debug Panel */}
+      <IdentityDebugPanel
+        open={identityDebugOpen}
+        stableGuestId={stableGuestId}
+        sessionToken={sessionToken}
+        playerId={localPlayerId}
+        characterId={characterId || null}
+        identityStatus={identityStatus}
+        onResetIdentity={() => {
+          resetClientIdentityForDebug();
+          window.location.reload();
+        }}
+        onClose={() => setIdentityDebugOpen(false)}
+      />
 
       {/* Network quality HUD - only in dev mode */}
       {config.design.showDebugHud && (

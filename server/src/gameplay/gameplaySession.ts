@@ -28,6 +28,7 @@ export interface ServerInputFrame {
   clientTimeMs?: number;
 }
 
+// Phase 7: Extended GameplaySession with identity fields
 export interface GameplaySession {
   playerId: string;
   sceneId: string;
@@ -35,6 +36,10 @@ export interface GameplaySession {
   acknowledgedInputSeq: number;
   entities: Map<string, ServerEntity>;
   skillCooldowns: Map<string, number>;
+  // Phase 7 Identity fields
+  identityId?: string;
+  characterId?: string;
+  sessionToken?: string;
 }
 
 function clampAxis(value: unknown): number {
@@ -107,7 +112,13 @@ export function makeWelcome(session: GameplaySession) {
     playerId: session.playerId,
     sceneId: session.sceneId,
     serverTick: session.serverTick,
-    protocolVersion: 5
+    protocolVersion: 7,
+    // Phase 7 identity fields
+    sessionToken: session.sessionToken,
+    identityId: session.identityId,
+    characterId: session.characterId,
+    characterName: session.entities.get(session.playerId)?.name,
+    resumed: false
   });
 }
 
