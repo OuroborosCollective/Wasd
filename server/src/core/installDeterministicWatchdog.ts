@@ -1,6 +1,7 @@
 import { eventBus } from './axiomatic-event-bus';
 import { serverWatchdogEmitter } from './watchdog-emitter';
 import { WATCHDOG_TICK_HZ, WATCHDOG_TICK_MS } from './watchdog-determinism';
+import { installWorldTickWatchdogBridge } from './installWorldTickWatchdogBridge.js';
 
 let installed = false;
 
@@ -16,14 +17,17 @@ export function installDeterministicWatchdogRuntime(): void {
     }
   }, 1);
 
+  installWorldTickWatchdogBridge();
+
   serverWatchdogEmitter.emit('server.watchdog.ready', {
     status: 'ready',
     tickHz: WATCHDOG_TICK_HZ,
     tickMs: WATCHDOG_TICK_MS,
     runtime: 'server-core',
+    worldTickBridge: true,
   }, 'LOW', 'server-core', 0);
 
-  console.log(`[DeterministicWatchdog] installed tick=${WATCHDOG_TICK_HZ}Hz step=${WATCHDOG_TICK_MS}ms ledger=${eventBus.getLedgerStats().size}`);
+  console.log(`[DeterministicWatchdog] installed tick=${WATCHDOG_TICK_HZ}Hz step=${WATCHDOG_TICK_MS}ms ledger=${eventBus.getLedgerStats().size} worldTickBridge=true`);
 }
 
 export function getDeterministicWatchdogStatus() {
