@@ -117,6 +117,9 @@ jobs:
           pnpm --filter @wasd/client-2d --if-present build
           test -f apps/client-2d/dist/index.html
           grep -q "${CLIENT_2D_MARKER}" apps/client-2d/dist/index.html
+          # Verify PWA files
+          test -f apps/client-2d/dist/manifest.webmanifest
+          test -f apps/client-2d/dist/service-worker.js
           node <<'NODE'
           const fs = require('node:fs');
           const sha = process.env.CLIENT_2D_BUILD_SHA;
