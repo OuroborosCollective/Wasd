@@ -4,6 +4,7 @@ export interface SnapshotBuffer {
   push(snapshot: WorldSnapshot): void;
   getLatest(): WorldSnapshot | null;
   getLastServerTick(): number;
+  getLastAcknowledgedInputSeq(): number;
   size(): number;
   clear(): void;
 }
@@ -15,6 +16,7 @@ export function createSnapshotBuffer(maxSnapshots = 12): SnapshotBuffer {
     push(snapshot) {
       snapshots.push({
         ...snapshot,
+        protocolVersion: snapshot.protocolVersion || 3,
         receivedAtMs: snapshot.receivedAtMs || performance.now()
       });
 
@@ -31,6 +33,10 @@ export function createSnapshotBuffer(maxSnapshots = 12): SnapshotBuffer {
 
     getLastServerTick() {
       return snapshots.at(-1)?.serverTick ?? 0;
+    },
+
+    getLastAcknowledgedInputSeq() {
+      return snapshots.at(-1)?.acknowledgedInputSeq ?? 0;
     },
 
     size() {

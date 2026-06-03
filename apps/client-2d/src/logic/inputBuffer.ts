@@ -7,6 +7,7 @@ export interface InputBuffer {
   setPointer(x: number, y: number): void;
   consumeForTick(tickId: number): InputFrame;
   getLastInput(): InputFrame;
+  getLastSequenceId(): number;
 }
 
 function clampAxis(value: number): number {
@@ -21,13 +22,16 @@ export function createInputBuffer(): InputBuffer {
   let skill1 = false;
   let pointerX: number | undefined;
   let pointerY: number | undefined;
+  let sequenceId = 0;
 
   let lastInput: InputFrame = {
+    sequenceId: 0,
     tickId: 0,
     moveX: 0,
     moveY: 0,
     primary: false,
-    skill1: false
+    skill1: false,
+    clientTimeMs: Date.now()
   };
 
   return {
@@ -50,14 +54,18 @@ export function createInputBuffer(): InputBuffer {
     },
 
     consumeForTick(tickId) {
+      sequenceId += 1;
+
       lastInput = {
+        sequenceId,
         tickId,
         moveX,
         moveY,
         primary,
         skill1,
         pointerX,
-        pointerY
+        pointerY,
+        clientTimeMs: Date.now()
       };
 
       primary = false;
@@ -68,6 +76,10 @@ export function createInputBuffer(): InputBuffer {
 
     getLastInput() {
       return lastInput;
+    },
+
+    getLastSequenceId() {
+      return sequenceId;
     }
   };
 }

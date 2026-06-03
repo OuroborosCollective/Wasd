@@ -2,6 +2,7 @@ import type { InputFrame, WorldSnapshot } from "../net/protocol";
 import type { EntityState, WorldViewState } from "../world/entities";
 import { cloneEntity } from "../world/entities";
 import { applyPlayerInput } from "./playerController";
+import { reconcileLocalEntity } from "./reconciliation";
 
 export interface ClientWorldOptions {
   localPlayerId?: string;
@@ -15,9 +16,10 @@ export interface ClientWorld {
   spawnLocalPlayer(): void;
   setLocalPlayerId(id: string): void;
   applyInput(input: InputFrame, fixedDtSec: number): void;
-  applySnapshot(snapshot: WorldSnapshot): void;
+  applySnapshot(snapshot: WorldSnapshot, pendingInputs?: InputFrame[], fixedDtSec?: number): void;
   getViewState(): WorldViewState;
   getEntityCount(): number;
+  getTickId(): number;
 }
 
 function createGuestPlayerId(): string {
@@ -49,6 +51,42 @@ export function createClientWorld(options: ClientWorldOptions): ClientWorld {
 
     entities.set(localPlayerId, player);
     return player;
+  }
+
+  function applyInputToLocalPlayer(input: InputFrame, fixedDtSec: number): void {
+    const player = ensureLocalPlayer();
+
+    const nextPlayer = applyPlayerInput(player, input, fixedDtSec, {
+      speedUnitsPerSecond: options.playerSpeed
+    });
+
+    entities.set(localPlayerId, nextPlayer);
+
+    if (input.skill1) {
+      const markerId = `skill_${input.sequenceId}`;
+
+      entities.set(markerId, {
+        id: markerId,
+        kind: "marker",
+        x: nextPlayer.x,
+        y: nextPlayer.y,
+        vx: 0,
+        vy: 0,
+        name: "Impact"
+      });
+    }
+  }
+
+  function cleanupTransientMarkers(): void {
+    for (const [id] of entities) {
+      if (id.startsWith("skill_")) {
+        const seq = Number(id.replace("skill_", ""));
+
+        if (Number.isFinite(seq) && seq < tickId - 20) {
+          entities.delete(id);
+        }
+      }
+    }
   }
 
   return {
@@ -104,42 +142,35 @@ export function createClientWorld(options: ClientWorldOptions): ClientWorld {
 
     applyInput(input, fixedDtSec) {
       tickId = input.tickId;
-
-      const player = ensureLocalPlayer();
-      const nextPlayer = applyPlayerInput(player, input, fixedDtSec, {
-        speedUnitsPerSecond: options.playerSpeed
-      });
-
-      entities.set(localPlayerId, nextPlayer);
-
-      if (input.skill1) {
-        const markerId = `skill_${input.tickId}`;
-
-        entities.set(markerId, {
-          id: markerId,
-          kind: "marker",
-          x: nextPlayer.x,
-          y: nextPlayer.y,
-          vx: 0,
-          vy: 0,
-          name: "Impact"
-        });
-      }
-
-      for (const [id, entity] of entities) {
-        if (id.startsWith("skill_")) {
-          const createdTick = Number(id.replace("skill_", ""));
-          if (Number.isFinite(createdTick) && tickId - createdTick > 8) {
-            entities.delete(id);
-          }
-        }
-      }
+      applyInputToLocalPlayer(input, fixedDtSec);
+      cleanupTransientMarkers();
     },
 
-    applySnapshot(snapshot) {
-      for (const entity of snapshot.entities) {
-        entities.set(entity.id, cloneEntity(entity));
+    applySnapshot(snapshot, pendingInputs = [], fixedDtSec = 0.1) {
+      tickId = Math.max(tickId, snapshot.serverTick);
+
+      if (snapshot.localPlayerId) {
+        this.setLocalPlayerId(snapshot.localPlayerId);
       }
+
+      const localBefore = entities.get(localPlayerId);
+
+      for (const serverEntity of snapshot.entities) {
+        if (serverEntity.id === localPlayerId && localBefore) {
+          entities.set(
+            localPlayerId,
+            reconcileLocalEntity(localBefore, cloneEntity(serverEntity))
+          );
+        } else {
+          entities.set(serverEntity.id, cloneEntity(serverEntity));
+        }
+      }
+
+      for (const input of pendingInputs) {
+        applyInputToLocalPlayer(input, fixedDtSec);
+      }
+
+      cleanupTransientMarkers();
     },
 
     getViewState() {
@@ -152,6 +183,10 @@ export function createClientWorld(options: ClientWorldOptions): ClientWorld {
 
     getEntityCount() {
       return entities.size;
+    },
+
+    getTickId() {
+      return tickId;
     }
   };
 }
