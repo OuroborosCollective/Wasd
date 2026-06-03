@@ -1,19 +1,24 @@
 import * as React from "react";
 
+import {
+  ARE_SIMULATION_TICK_HZ,
+  ARE_SIMULATION_TICK_MS,
+} from "@wasd/shared";
+
 /**
  * Deterministic viewport state for the browser client.
  *
  * Why this is stricter than a normal resize hook:
  * - no Date.now(), no performance.now(), no random input
  * - one global store instead of one listener per component
- * - browser resize/orientation noise is coalesced to the world-server cadence
+ * - browser resize/orientation noise is coalesced to the ARE/world-server cadence
  * - all derived values are pure functions of the current viewport snapshot
  *
  * This does NOT make viewport size part of authoritative game simulation.
  * The server remains authoritative. This hook is only for HUD/layout decisions.
  */
-export const WORLD_SERVER_TICK_HZ = 10;
-export const WORLD_SERVER_TICK_MS = 1000 / WORLD_SERVER_TICK_HZ;
+export const WORLD_SERVER_TICK_HZ = ARE_SIMULATION_TICK_HZ;
+export const WORLD_SERVER_TICK_MS = ARE_SIMULATION_TICK_MS;
 
 export const MOBILE_BREAKPOINT = 768;
 export const TABLET_BREAKPOINT = 1024;
