@@ -5,6 +5,7 @@ import { loadRootEnvFiles } from "./config/loadRootEnv.js";
 loadRootEnvFiles();
 
 import { getSupabaseAuthInitInfo } from "./config/supabase.js";
+import { installDeterministicWatchdogRuntime } from "./core/installDeterministicWatchdog.js";
 import { ServerBootstrap } from "./core/ServerBootstrap.js";
 import { installRuntimeChatRelay } from "./modules/chat/installRuntimeChatRelay.js";
 import "./modules/loot/installLootBridge.js";
@@ -37,6 +38,7 @@ process.on("uncaughtException", (error) => {
 
 try {
   validateConfig();
+  installDeterministicWatchdogRuntime();
   installRuntimeChatRelay();
   const server = new ServerBootstrap();
   server.start();
