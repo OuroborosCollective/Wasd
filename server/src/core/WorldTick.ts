@@ -64,6 +64,8 @@ import {
   type GameplaySession
 } from "../gameplay/gameplaySession.js";
 
+import { getGameplayPersistence } from "../gameplay/persistence/gameplayPersistence.js";
+
 // Environment variable for manifest authority secret
 const MANIFEST_AUTHORITY_SECRET = process.env.MANIFEST_AUTHORITY_SECRET ?? 'dev-secret-change-in-production';
 const WORLD_ID = process.env.WORLD_ID ?? 'areloria-main';
@@ -1244,13 +1246,50 @@ export class WorldTick {
         return;
       }
       
-      // Update session with display name
+      // Load or create player from persistence
+      const persistence = getGameplayPersistence();
+      let player: Awaited<ReturnType<typeof persistence.loadOrCreatePlayer>>;
+      try {
+        player = await persistence.loadOrCreatePlayer(playerId, displayName);
+      } catch (err) {
+        console.warn(`[WorldTick] Failed to load player from persistence, using defaults:`, err);
+        player = null;
+      }
+      
+      // Update session with display name and persisted position
       const session = createGameplaySession(playerId);
-      session.entities.get(playerId)!.name = displayName;
+      const playerEntity = session.entities.get(playerId)!;
+      playerEntity.name = displayName;
+      
+      if (player) {
+        playerEntity.x = player.x;
+        playerEntity.y = player.y;
+        playerEntity.hp = player.hp;
+        playerEntity.maxHp = player.maxHp;
+      }
       
       // Send welcome and initial world snapshot
       this.ws.sendToPlayer(id, makeWelcome(session));
       this.ws.sendToPlayer(id, makeWorldSnapshot(session));
+      
+      // Send inventory snapshot if persistence has data
+      try {
+        const inventorySlots = await persistence.inventory.getInventory(playerId);
+        if (inventorySlots.length > 0) {
+          const slots = inventorySlots.map(slot => ({
+            index: slot.index,
+            stack: slot.itemId ? { itemId: slot.itemId, quantity: slot.quantity } : null
+          }));
+          this.ws.sendToPlayer(id, {
+            type: "inventory_snapshot",
+            protocolVersion: SERVER_PROTOCOL_VERSION,
+            t: Date.now(), // ARE-DETERMINISM-ALLOW: server response timestamp
+            payload: { slots }
+          });
+        }
+      } catch (err) {
+        console.warn(`[WorldTick] Failed to load inventory from persistence:`, err);
+      }
     }
     
     // ─── input_frame ────────────────────────────────────────────────────
@@ -1368,6 +1407,19 @@ export class WorldTick {
       // Remove loot entity
       this.lootEntities.delete(entityId);
       this.lootSpawnTicks.delete(entityId);
+      
+      // Persist inventory update after confirmed server action
+      try {
+        const persistence = getGameplayPersistence();
+        const inventorySlots = player.inventory?.slots ?? [];
+        const slots = inventorySlots.map((slot: any, index: number) => ({
+          index,
+          stack: slot ? { itemId: slot.id ?? slot.signature ?? `item_${index}`, quantity: slot.quantity ?? 1 } : null
+        }));
+        await persistence.saveInventorySnapshot(playerId, slots);
+      } catch (err) {
+        console.warn(`[WorldTick] Failed to persist inventory after loot pickup:`, err);
+      }
       
       // Send success result
       this.ws.sendToPlayer(id, {

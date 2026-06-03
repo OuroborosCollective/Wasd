@@ -1,6 +1,10 @@
 import { envelope } from "./protocol.js";
+import { getGameplayPersistence } from "./persistence/gameplayPersistence.js";
+import { createDefaultPlayer } from "./persistence/playerRepository.js";
+import type { ServerEntityKind } from "./persistence/types.js";
 
-export type ServerEntityKind = "player" | "npc" | "loot" | "marker";
+export type { ServerEntityKind };
+export { createDefaultPlayer };
 
 export interface ServerEntity {
   id: string;
@@ -175,4 +179,94 @@ export function removeEntity(
   entityId: string
 ): boolean {
   return session.entities.delete(entityId);
+}
+
+/**
+ * Create a gameplay session from persistence.
+ * Loads player state and world entities, or creates defaults for new players.
+ */
+export async function createGameplaySessionFromPersistence(
+  playerId: string,
+  displayName = "Guest"
+): Promise<GameplaySession> {
+  const persistence = getGameplayPersistence();
+  const player = await persistence.loadOrCreatePlayer(playerId, displayName);
+
+  const session = createGameplaySession(player.id);
+  session.sceneId = player.sceneId;
+
+  const playerEntity = session.entities.get(player.id);
+
+  if (playerEntity) {
+    playerEntity.x = player.x;
+    playerEntity.y = player.y;
+    playerEntity.hp = player.hp;
+    playerEntity.maxHp = player.maxHp;
+    playerEntity.name = player.displayName;
+  }
+
+  // Load persisted world entities for this scene
+  const persistedEntities = await persistence.worldEntities.getSceneEntities(player.sceneId);
+
+  for (const entity of persistedEntities) {
+    if (entity.id === player.id) continue;
+
+    session.entities.set(entity.id, {
+      id: entity.id,
+      kind: entity.kind,
+      x: entity.x,
+      y: entity.y,
+      vx: entity.vx,
+      vy: entity.vy,
+      hp: entity.hp,
+      maxHp: entity.maxHp,
+      name: entity.name
+    });
+  }
+
+  return session;
+}
+
+/**
+ * Save the player entity from a session to persistence.
+ * Called periodically or on disconnect.
+ */
+export async function saveSessionPlayer(session: GameplaySession): Promise<void> {
+  const player = session.entities.get(session.playerId);
+
+  if (!player) return;
+
+  await getGameplayPersistence().savePlayerFromEntity({
+    id: player.id,
+    x: player.x,
+    y: player.y,
+    hp: player.hp,
+    maxHp: player.maxHp,
+    name: player.name
+  });
+}
+
+/**
+ * Save world entities from a session to persistence.
+ * Called periodically or on significant world state changes.
+ */
+export async function saveSessionWorldEntities(session: GameplaySession): Promise<void> {
+  const persistence = getGameplayPersistence();
+
+  for (const entity of session.entities.values()) {
+    // Don't persist player entity position (saved separately)
+    if (entity.kind === "player") continue;
+
+    await persistence.saveWorldEntity(session.sceneId, {
+      id: entity.id,
+      kind: entity.kind,
+      x: entity.x,
+      y: entity.y,
+      vx: entity.vx,
+      vy: entity.vy,
+      hp: entity.hp,
+      maxHp: entity.maxHp,
+      name: entity.name
+    });
+  }
 }

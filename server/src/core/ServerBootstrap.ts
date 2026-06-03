@@ -208,6 +208,27 @@ export class ServerBootstrap {
     const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
     if (adminContentPath) app.get("/admin-content.html", (_req, res) => res.sendFile(adminContentPath));
     if (existsSync(path.join(itchClientPath, "index.html"))) { app.use("/itch", express.static(itchClientPath, { index: "index.html" })); app.get("/itch/*", (_req, res) => res.sendFile(path.join(itchClientPath, "index.html"))); }
+    
+    // 2D Client - SPA fallback to index.html
+    const client2DPath = path.join(clientPath, "2d");
+    const client2DIndexPath = path.join(client2DPath, "index.html");
+    app.use("/2d", express.static(client2DPath, { index: "index.html", fallthrough: true }));
+    app.use("/2d", (_req, res) => {
+      if (existsSync(client2DIndexPath)) return res.sendFile(client2DIndexPath);
+      if (existsSync(rootIndexPath)) return res.sendFile(rootIndexPath);
+      return res.status(503).type("text/plain").send("Areloria 2D client assets are not available.");
+    });
+    
+    // 3D Client - SPA fallback to index.html
+    const client3DPath = path.join(clientPath, "3d");
+    const client3DIndexPath = path.join(client3DPath, "index.html");
+    app.use("/3d", express.static(client3DPath, { index: "index.html", fallthrough: true }));
+    app.use("/3d", (_req, res) => {
+      if (existsSync(client3DIndexPath)) return res.sendFile(client3DIndexPath);
+      if (existsSync(rootIndexPath)) return res.sendFile(rootIndexPath);
+      return res.status(503).type("text/plain").send("Areloria 3D client assets are not available.");
+    });
+    
     app.use("/portal", express.static(portalPath, { index: "index.html", fallthrough: true }));
     app.use("/portal", (_req, res) => {
       if (existsSync(portalIndexPath)) return res.sendFile(portalIndexPath);
