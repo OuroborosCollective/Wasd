@@ -1,32 +1,31 @@
-import { WatchdogEmitter } from './watchdog-emitter.js';
-import { RealityFissureBrain, FissureData } from '../../server/src/modules/brain/RealityFissureBrain.js';
+import { RealityFissureBrain } from '../../server/src/modules/brain/RealityFissureBrain.js';
+import { emitBackendWatchdogEvent, getBackendWatchdogTick } from './watchdog-runtime';
 
 export class WatchdogFissureMonitor {
-    private emitter: WatchdogEmitter;
     private brain: RealityFissureBrain;
 
-    constructor(emitterUrl: string = 'ws://localhost:9090') {
-        this.emitter = new WatchdogEmitter(emitterUrl);
+    constructor() {
         this.brain = new RealityFissureBrain();
     }
 
-    public reportParadoxToBrain(chunkId: string, paradoxType: string) {
+    public reportParadoxToBrain(chunkId: string, paradoxType: string, tick = getBackendWatchdogTick()): void {
         this.brain.reportParadox(chunkId, paradoxType);
-        this.evaluateFissures();
+        this.evaluateFissures(tick);
     }
 
-    private evaluateFissures(): void {
+    private evaluateFissures(tick: number): void {
         const criticalFissures = this.brain.getCriticalFissures();
 
         for (const fissure of criticalFissures) {
-            this.emitter.emit(
+            emitBackendWatchdogEvent(
                 'REALITY_FISSURE_ISOLATION',
                 {
-                    message: `Critical Reality Fissure detected in chunk ${fissure.chunkId}. Isolating and freezing physics.`,
-                    fissure
+                    message: 'Critical reality fissure detected.',
+                    fissure,
                 },
                 'CRITICAL',
-                'FISSURE_WATCHDOG'
+                'FISSURE_WATCHDOG',
+                tick,
             );
         }
     }

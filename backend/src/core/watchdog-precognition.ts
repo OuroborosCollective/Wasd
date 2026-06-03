@@ -1,44 +1,44 @@
-import { WatchdogEmitter } from './watchdog-emitter.js';
 import { MatrixPrecognitionBrain, PrecognitionData } from '../../server/src/modules/brain/MatrixPrecognitionBrain.js';
+import { emitBackendWatchdogEvent, getBackendWatchdogTick } from './watchdog-runtime';
 
 export class WatchdogPrecognitionMonitor {
-    private emitter: WatchdogEmitter;
     private brain: MatrixPrecognitionBrain;
 
-    constructor(emitterUrl: string = 'ws://localhost:9090') {
-        this.emitter = new WatchdogEmitter(emitterUrl);
+    constructor() {
         this.brain = new MatrixPrecognitionBrain();
     }
 
-    public feedData(activeConnections: number, npcCount: number) {
+    public feedData(activeConnections: number, npcCount: number, tick = getBackendWatchdogTick()): void {
         this.brain.recordState(activeConnections, npcCount);
-        this.evaluate();
+        this.evaluate(tick);
     }
 
-    private evaluate(): void {
+    private evaluate(tick: number): void {
         const data: PrecognitionData = this.brain.analyzeMatrixFlux();
 
         if (data.projectedLoad > 0.8) {
-             this.emitter.emit(
+             emitBackendWatchdogEvent(
                 'MATRIX_OVERLOAD_PREDICTION',
                 {
-                    message: `High Matrix Load Projected. Scaling shards proactive alert.`,
-                    data
+                    message: 'High matrix load projected.',
+                    data,
                 },
                 'HIGH',
-                'PRECOGNITION_WATCHDOG'
+                'PRECOGNITION_WATCHDOG',
+                tick,
             );
         }
 
         if (data.densitySpikeRisk > 0.7) {
-            this.emitter.emit(
+            emitBackendWatchdogEvent(
                 'DENSITY_SPIKE_WARNING',
                 {
-                    message: `Rapid density increase detected. Swarm threshold approaching.`,
-                    data
+                    message: 'Density spike risk threshold crossed.',
+                    data,
                 },
                 'MEDIUM',
-                'PRECOGNITION_WATCHDOG'
+                'PRECOGNITION_WATCHDOG',
+                tick,
             );
         }
     }
