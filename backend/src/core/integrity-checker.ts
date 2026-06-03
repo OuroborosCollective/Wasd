@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { AstInterfaceSync } from './ast-interface-sync';
+import { AstInterfaceSync, AstInterfaceSyncResult } from './ast-interface-sync';
 import { SchemaDiff } from './schema-diff';
 import { ConstraintValidator } from './constraint-validator';
 import { MigrationGenerator } from './migration-generator';
@@ -55,6 +55,8 @@ export interface WatchdogConfig {
     resetTimeoutMs: number;
     healthCheckTimeoutMs: number;
     externalServiceTimeoutMs: number;
+    tickHz: number;
+    astSyncBudgetMs: number;
 }
 
 export interface ModelSchema {
@@ -90,12 +92,11 @@ export interface HealthCheckResult {
 }
 
 export class SovereignWatchdog {
-    private astSync = new AstInterfaceSync();
     private emitter = new WatchdogEmitter(process.env.WATCHDOG_EMITTER_URL || 'ws://localhost:8080');
     private learning = new WatchdogLearning();
     private modelRegistry: Map<string, ModelSchema> = new Map();
     private auditReport: AuditEntry[] = [];
-    
+
     private breakerState: BreakerState = BreakerState.CLOSED;
     private failureCount = 0;
     private lastFailureTime: number = 0;
@@ -107,8 +108,20 @@ export class SovereignWatchdog {
         breakerThreshold: parseInt(process.env.WATCHDOG_BREAKER_THRESHOLD || '3'),
         resetTimeoutMs: 30000,
         healthCheckTimeoutMs: 5000,
-        externalServiceTimeoutMs: 3000
+        externalServiceTimeoutMs: 3000,
+        tickHz: parseInt(process.env.WATCHDOG_TICK_HZ || process.env.WORLD_TICK_HZ || '10'),
+        astSyncBudgetMs: parseInt(process.env.WATCHDOG_AST_SYNC_BUDGET_MS || '50')
     };
+
+    private astSync = new AstInterfaceSync({
+        strict: this.config.strict,
+        tickHz: this.config.tickHz,
+        maxSyncBudgetMs: this.config.astSyncBudgetMs,
+        safeJson: true,
+        useBigInt: true,
+        failOnBudgetOverrun: process.env.WATCHDOG_AST_SYNC_FAIL_ON_OVERRUN === 'true',
+        preserveSchemaOrder: true
+    });
 
     public registerSchema(modelName: string, schema: ModelSchema): void {
         this.modelRegistry.set(modelName, schema);
@@ -144,9 +157,6 @@ export class SovereignWatchdog {
         }
     }
 
-    /**
-     * Diagnostic Helper to ensure consistent error reporting.
-     */
     private createDiagnostic(code: string, error?: any, latency?: number): DiagnosticPayload {
         return {
             code,
@@ -163,14 +173,12 @@ export class SovereignWatchdog {
             case 'DB_TIMEOUT': return 'Increase DB instance performance or check network latency.';
             case 'ECONNREFUSED': return 'Database server is down or port is blocked.';
             case 'SCHEMA_DRIFT': return 'Execute prisma migrate dev or run the generated reconciliation script.';
+            case 'AST_SYNC_BUDGET_OVERRUN': return 'Move interface sync to a maintenance pass or lower WATCHDOG_AST_SYNC_BUDGET_MS pressure.';
             case 'WS_UNREACHABLE': return 'Check if the Watchdog Monitoring Gateway is online.';
             default: return 'Check internal logs for deep-trace analysis.';
         }
     }
 
-    /**
-     * Enhanced Health Check.
-     */
     public async performHealthCheck(dbClient: any): Promise<HealthCheckResult> {
         if (!this.evaluateBreaker()) {
             return { status: HealthStatus.CIRCUIT_OPEN, breaker: this.breakerState, error: 'Circuit Breaker is OPEN' };
@@ -182,10 +190,10 @@ export class SovereignWatchdog {
                 dbClient.query('SELECT 1'),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('DB_TIMEOUT')), this.config.healthCheckTimeoutMs))
             ]);
-            
+
             const latency = Date.now() - start;
             this.recordSuccess();
-            
+
             return {
                 status: latency > 1500 ? HealthStatus.DEGRADED : HealthStatus.HEALTHY,
                 latencyMs: latency,
@@ -201,43 +209,35 @@ export class SovereignWatchdog {
         }
     }
 
-    /**
-     * Explicit validation of external services (e.g., Emitter Gateway).
-     */
     private async checkExternalServices(): Promise<void> {
-        // Logic to ping the emitter gateway or other registered microservices
         try {
             const isEmitterAlive = await this.emitter.ping(this.config.externalServiceTimeoutMs);
             if (!isEmitterAlive) {
-                this.addToAudit('EMITTER', 'ERROR', IntegrityCategory.EXTERNAL_SERVICE_OFFLINE, 
-                    'Watchdog Emitter Gateway is unreachable', 
+                this.addToAudit('EMITTER', 'ERROR', IntegrityCategory.EXTERNAL_SERVICE_OFFLINE,
+                    'Watchdog Emitter Gateway is unreachable',
                     this.createDiagnostic('WS_UNREACHABLE'), false);
             }
         } catch (err) {
-            // Silently log or handle non-critical emitter failures to prevent blocking main integrity flow
             console.error('[Watchdog] External service check failed:', err);
         }
     }
 
-    /**
-     * Resilient Integrity Flow with Structured Diagnostics.
-     */
     public async checkDatabaseHealth(dbClient: any): Promise<AuditEntry[]> {
         this.auditReport = [];
-        
+
         await this.checkExternalServices();
 
         const health = await this.performHealthCheck(dbClient);
-        
+
         if (health.status === HealthStatus.UNHEALTHY || health.status === HealthStatus.CIRCUIT_OPEN) {
             const diag = this.createDiagnostic(health.error || 'HEALTH_CHECK_FAILED', null, health.latencyMs);
             this.handleConnectionError(new Error(health.error || 'Health check failed'), 'PRE_STAGE_HEALTH');
             this.addToAudit(
-                'GLOBAL', 
-                'INFRA_OFFLINE', 
-                IntegrityCategory.HEALTH_CHECK_FAILED, 
-                `Database health check failed: ${health.error}`, 
-                diag, 
+                'GLOBAL',
+                'INFRA_OFFLINE',
+                IntegrityCategory.HEALTH_CHECK_FAILED,
+                `Database health check failed: ${health.error}`,
+                diag,
                 true
             );
             return this.auditReport;
@@ -252,9 +252,9 @@ export class SovereignWatchdog {
                 if (diff.additions.length > 0 || diff.removals.length > 0 || diff.changes.length > 0) {
                     const migrationPath = MigrationGenerator.generate(diff, expectedSchema.tableName, this.config.migrationDir);
                     const diag = this.createDiagnostic('SCHEMA_DRIFT', null, Date.now() - start);
-                    
-                    this.addToAudit(modelName, 'DRIFT', IntegrityCategory.SCHEMA_DRIFT, 
-                        `Structural mismatch in ${expectedSchema.tableName}. Recon Engine action required.`, 
+
+                    this.addToAudit(modelName, 'DRIFT', IntegrityCategory.SCHEMA_DRIFT,
+                        `Structural mismatch in ${expectedSchema.tableName}. Recon Engine action required.`,
                         { diff, migrationPath, ...diag }, this.config.strict
                     );
 
@@ -265,14 +265,14 @@ export class SovereignWatchdog {
 
                 const actualConstraints = await ConstraintValidator.fetchConstraints(dbClient, expectedSchema.tableName);
                 const constraintStatus = await ConstraintValidator.validate(expectedSchema, actualConstraints);
-                
+
                 if (!constraintStatus.valid) {
                     this.addToAudit(modelName, 'VALIDATION_FAILED', IntegrityCategory.CONSTRAINT_VIOLATION,
-                        `Constraint violation detected for ${expectedSchema.tableName}`, 
+                        `Constraint violation detected for ${expectedSchema.tableName}`,
                         { missing: constraintStatus.missing, unexpected: constraintStatus.unexpected }, true
                     );
                 } else {
-                    this.addToAudit(modelName, 'SUCCESS', IntegrityCategory.VALIDATION_ERROR, 
+                    this.addToAudit(modelName, 'SUCCESS', IntegrityCategory.VALIDATION_ERROR,
                         `Integrity verified for ${expectedSchema.tableName}`, null, false
                     );
                 }
@@ -282,13 +282,13 @@ export class SovereignWatchdog {
                     this.recordFailure();
                     const diag = this.createDiagnostic(error.code || 'CONNECTION_LOST', error);
                     this.handleConnectionError(error, modelName);
-                    this.addToAudit(modelName, 'CONNECTION_LOST', IntegrityCategory.CONNECTION, 
+                    this.addToAudit(modelName, 'CONNECTION_LOST', IntegrityCategory.CONNECTION,
                         `Lost connection during verification of ${modelName}: ${error.message}`, diag, true
                     );
-                    break; 
+                    break;
                 } else {
                     const diag = this.createDiagnostic('INTERNAL_ERROR', error);
-                    this.addToAudit(modelName, 'ERROR', IntegrityCategory.VALIDATION_ERROR, 
+                    this.addToAudit(modelName, 'ERROR', IntegrityCategory.VALIDATION_ERROR,
                         `Internal Logic Error during check for ${modelName}: ${error.message}`, diag, true
                     );
                 }
@@ -301,13 +301,14 @@ export class SovereignWatchdog {
 
     private syncWithStateReconstructionEngine(): void {
         const criticalIssues = this.auditReport.filter(a => a.isCritical);
-        
+
         if (criticalIssues.length > 0) {
             console.error(`[StateReconstructionEngine] ALERT: Found ${criticalIssues.length} critical integrity violations.`);
-            
+
             try {
                 this.emitter.emit('RECONSTRUCTION_REQUIRED', {
                     timestamp: new Date().toISOString(),
+                    tickHz: this.config.tickHz,
                     issues: criticalIssues,
                     remediation: criticalIssues.map(i => {
                         if (i.category === IntegrityCategory.SCHEMA_DRIFT) return 'RUN_MIGRATIONS';
@@ -321,9 +322,11 @@ export class SovereignWatchdog {
         }
 
         try {
-            this.emitter.emit('INTEGRITY_SUMMARY', { 
+            this.emitter.emit('INTEGRITY_SUMMARY', {
+                tickHz: this.config.tickHz,
+                astSyncBudgetMs: this.config.astSyncBudgetMs,
                 insights: this.learning.getInsights(),
-                auditTrail: this.auditReport 
+                auditTrail: this.auditReport
             });
         } catch (e) {
             // Summary failure is not critical
@@ -331,11 +334,11 @@ export class SovereignWatchdog {
     }
 
     private addToAudit(
-        model: string, 
-        status: AuditEntry['status'], 
-        category: IntegrityCategory, 
-        message: string, 
-        details: any = null, 
+        model: string,
+        status: AuditEntry['status'],
+        category: IntegrityCategory,
+        message: string,
+        details: any = null,
         isCritical: boolean = false
     ): void {
         const entry: AuditEntry = {
@@ -372,8 +375,8 @@ export class SovereignWatchdog {
 
     private isConnectionError(error: any): boolean {
         const connectionCodes = ['ECONNREFUSED', 'PROTOCOL_CONNECTION_LOST', 'ETIMEDOUT', '57P01', '08000', '08003', '08006', '57P03', 'ECONNRESET'];
-        return (error.code && connectionCodes.includes(error.code)) || 
-               error.message?.toLowerCase().includes('connection') || 
+        return (error.code && connectionCodes.includes(error.code)) ||
+               error.message?.toLowerCase().includes('connection') ||
                error.message?.toLowerCase().includes('refused') ||
                error.message === 'DB_TIMEOUT';
     }
@@ -388,9 +391,9 @@ export class SovereignWatchdog {
         console.error('====================================================');
 
         try {
-            this.emitter.emit('SYSTEM_CRITICAL', { 
-                point: LogicPoint.PERSISTENCE, 
-                error: 'DB_CONNECTION_FAILURE', 
+            this.emitter.emit('SYSTEM_CRITICAL', {
+                point: LogicPoint.PERSISTENCE,
+                error: 'DB_CONNECTION_FAILURE',
                 diagnostics: {
                     ...diagnostics,
                     context,
@@ -402,13 +405,41 @@ export class SovereignWatchdog {
         }
     }
 
-    public synchronizeAxioms(interfacesPath: string): void {
-        for (const [modelName, schema] of this.modelRegistry.entries()) {
-            const interfacePath = path.join(interfacesPath, `${modelName}.ts`);
-            if (fs.existsSync(interfacePath)) {
-                this.astSync.syncInterfaceWithSchema(interfacePath, schema);
+    public synchronizeAxioms(interfacesPath: string): AstInterfaceSyncResult[] {
+        const startedAt = Date.now();
+        const results = this.astSync.syncBatchWithinTickBudget(interfacesPath, this.modelRegistry.entries(), {
+            strict: this.config.strict,
+            tickHz: this.config.tickHz,
+            maxSyncBudgetMs: this.config.astSyncBudgetMs,
+            failOnBudgetOverrun: process.env.WATCHDOG_AST_SYNC_FAIL_ON_OVERRUN === 'true'
+        });
+
+        for (const result of results) {
+            if (result.budgetOverrun) {
+                this.addToAudit(
+                    result.interfaceName,
+                    'DEGRADED',
+                    IntegrityCategory.SCHEMA_DRIFT,
+                    `AST interface sync exceeded deterministic tick budget: ${result.durationMs}ms > ${result.maxSyncBudgetMs}ms`,
+                    { ...this.createDiagnostic('AST_SYNC_BUDGET_OVERRUN', null, result.durationMs), result },
+                    false
+                );
             }
         }
+
+        try {
+            this.emitter.emit('AST_INTERFACE_SYNC_SUMMARY', {
+                tickHz: this.config.tickHz,
+                tickBudgetMs: Math.floor(1000 / this.config.tickHz),
+                budgetMs: this.config.astSyncBudgetMs,
+                durationMs: Date.now() - startedAt,
+                results
+            });
+        } catch (e) {
+            // Emitter failure must never block deterministic watchdog sync.
+        }
+
+        return results;
     }
 
     public getAuditReport(): AuditEntry[] {
