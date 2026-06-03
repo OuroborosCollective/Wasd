@@ -16,6 +16,10 @@ ENV PNPM_CONFIG_CHILD_CONCURRENCY=1
 ENV PNPM_CONFIG_SIDE_EFFECTS_CACHE=false
 ENV PNPM_CONFIG_VERIFY_STORE_INTEGRITY=false
 ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
+ENV WORLD_TICK_HZ=10
+ENV WATCHDOG_TICK_HZ=10
+ENV WATCHDOG_AST_SYNC_BUDGET_MS=50
+ENV WATCHDOG_AST_SYNC_FAIL_ON_OVERRUN=false
 
 RUN corepack enable && corepack prepare pnpm@11.1.1 --activate && \
     pnpm config set store-dir /pnpm/store && \
@@ -71,6 +75,13 @@ RUN rm -rf packages/sdk-examples || true && \
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=--max-old-space-size=8192
 ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
+
+RUN test -f backend/src/core/ast-interface-sync.ts && \
+    test -f backend/src/core/integrity-checker.ts && \
+    grep -q 'syncBatchWithinTickBudget' backend/src/core/ast-interface-sync.ts && \
+    grep -q 'deterministicHash' backend/src/core/ast-interface-sync.ts && \
+    grep -q 'WATCHDOG_AST_SYNC_BUDGET_MS' backend/src/core/integrity-checker.ts && \
+    grep -q 'AST_INTERFACE_SYNC_SUMMARY' backend/src/core/integrity-checker.ts
 
 RUN pnpm --filter @wasd/core-logic --if-present run build:runtime && \
     pnpm --filter @wasd/shared --if-present build && \
@@ -145,6 +156,10 @@ ENV GAME_PORT=3001
 ENV HOST=0.0.0.0
 ENV NODE_OPTIONS=--max-old-space-size=8192
 ENV UV_THREADPOOL_SIZE=16
+ENV WORLD_TICK_HZ=10
+ENV WATCHDOG_TICK_HZ=10
+ENV WATCHDOG_AST_SYNC_BUDGET_MS=50
+ENV WATCHDOG_AST_SYNC_FAIL_ON_OVERRUN=false
 
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/node_modules ./node_modules
