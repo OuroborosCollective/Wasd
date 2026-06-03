@@ -1,7 +1,9 @@
 import { RawData, WebSocket, WebSocketServer } from 'ws';
+import { AxiomaticEventBus } from './core/axiomatic-event-bus';
 import {
     WATCHDOG_TICK_HZ,
     WATCHDOG_TICK_MS,
+    createDeterministicEventFingerprint,
     createWatchdogTickStamp,
     normalizePositiveInteger,
     normalizeWatchdogEvent,
@@ -49,6 +51,8 @@ let totalRejected = 0;
 let shuttingDown = false;
 
 const clients = new Map<WebSocket, WatchdogClientMeta>();
+const axiomaticBus = AxiomaticEventBus.getInstance();
+axiomaticBus.beginTick(relayTick);
 
 const wss = new WebSocketServer({
     host: HOST,
@@ -220,10 +224,12 @@ function handleMessage(sender: WebSocket, data: RawData): void {
 
     relayTick = Math.max(relayTick, incomingTick);
     senderMeta.lastAcceptedTick = incomingTick;
+    axiomaticBus.beginTick(relayTick);
 
     const stamp = createWatchdogTickStamp(relayTick, ++relaySeq);
     const event = normalizeWatchdogEvent(validation.event, stamp, `client#${senderMeta.id}:${senderMeta.role}`);
 
+    mirrorToAxiomaticLedger(event, senderMeta, 'watchdog.relay.accepted');
     logEvent(event, senderMeta);
 
     const delivered = broadcast(sender, JSON.stringify(event));
@@ -291,10 +297,48 @@ function sendSystemEvent(ws: WebSocket, partial: Omit<DeterministicWatchdogEvent
         timestamp: stamp.timestamp,
     };
 
+    mirrorToAxiomaticLedger(event, undefined, 'watchdog.relay.system');
+
     try {
         ws.send(JSON.stringify(event));
     } catch (err) {
         console.error(`[Watchdog Server] Failed to send system event: ${toErrorMessage(err)}`);
+    }
+}
+
+function mirrorToAxiomaticLedger(event: DeterministicWatchdogEvent, sender: WatchdogClientMeta | undefined, relayKind: string): void {
+    try {
+        axiomaticBus.beginTick(event.tick);
+        axiomaticBus.publish(
+            event.type,
+            {
+                ...event.payload,
+                severity: event.severity,
+                source: event.origin,
+                origin: event.origin,
+                tick: event.tick,
+                seq: event.seq,
+                timestamp: event.timestamp,
+                channel: event.channel,
+                message: event.message,
+            },
+            {
+                tick: event.tick,
+                tickSequence: event.seq,
+                source: 'watchdog-server',
+                metadata: {
+                    ...event.metadata,
+                    relayKind,
+                    senderClientId: sender?.id ?? null,
+                    senderRole: sender?.role ?? null,
+                    eventFingerprint: createDeterministicEventFingerprint(event),
+                },
+                violationPolicy: 'reject',
+                silent: true,
+            },
+        );
+    } catch (err) {
+        console.error(`[Watchdog Server] Failed to mirror event into AxiomaticEventBus: ${toErrorMessage(err)}`);
     }
 }
 
@@ -380,7 +424,8 @@ function readBool(value: string | undefined, fallback: boolean): boolean {
 }
 
 function printStats(): void {
-    console.log(`[Watchdog Stats] clients=${clients.size} received=${totalReceived} relayed=${totalRelayed} rejected=${totalRejected} relayTick=${relayTick} relaySeq=${relaySeq}`);
+    const ledgerStats = axiomaticBus.getLedgerStats();
+    console.log(`[Watchdog Stats] clients=${clients.size} received=${totalReceived} relayed=${totalRelayed} rejected=${totalRejected} relayTick=${relayTick} relaySeq=${relaySeq} ledgerSize=${ledgerStats.size} ledgerResonance=${ledgerStats.currentResonance}`);
 
     for (const meta of clients.values()) {
         console.log(
