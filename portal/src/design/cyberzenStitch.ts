@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { ThemeAuraMode, VisualThemeState } from "@wasd/shared";
 
 export type CyberZenStitchArchetype =
@@ -11,15 +12,15 @@ export type CyberZenStitchArchetype =
   | "route_selector";
 
 export interface CyberZenStitchTemplate {
-  id: CyberZenStitchArchetype;
-  title: string;
-  role: string;
-  palette: string[];
-  sourceScreens: string[];
-  runtimeUse: string;
+  readonly id: CyberZenStitchArchetype;
+  readonly title: string;
+  readonly role: string;
+  readonly palette: readonly string[];
+  readonly sourceScreens: readonly string[];
+  readonly runtimeUse: string;
 }
 
-export const CYBERZEN_STITCH_TEMPLATES: CyberZenStitchTemplate[] = [
+export const CYBERZEN_STITCH_TEMPLATES = [
   {
     id: "auth_root",
     title: "AUTH_ROOT",
@@ -84,28 +85,91 @@ export const CYBERZEN_STITCH_TEMPLATES: CyberZenStitchTemplate[] = [
     sourceScreens: ["planned"],
     runtimeUse: "After AUTH_ROOT choose 3D Client, 2D Client or Science Portal",
   },
-];
+] as const satisfies readonly CyberZenStitchTemplate[];
+
+const DEFAULT_TEMPLATE_ID: CyberZenStitchArchetype = "science_hub";
+
+const CYBERZEN_TEMPLATE_BY_ID: Readonly<Record<CyberZenStitchArchetype, CyberZenStitchTemplate>> =
+  Object.freeze(
+    CYBERZEN_STITCH_TEMPLATES.reduce(
+      (acc, template) => {
+        acc[template.id] = template;
+        return acc;
+      },
+      {} as Record<CyberZenStitchArchetype, CyberZenStitchTemplate>,
+    ),
+  );
+
+const MODE_TO_TEMPLATE_ID: Readonly<Partial<Record<ThemeAuraMode, CyberZenStitchArchetype>>> =
+  Object.freeze({
+    fire_glitch: "fire_ouroboros",
+    repair_surgery: "fire_ouroboros",
+    oracle_gold: "are_logik",
+    governance_sovereign: "science_hub",
+    observation_past: "chain_validator",
+    identity_cyan: "auth_root",
+    loot_legendary: "cyber_globe",
+  });
+
+export type CyberZenTemplateCssVars = CSSProperties & {
+  "--stitch-bg": string;
+  "--stitch-a": string;
+  "--stitch-b": string;
+  "--stitch-c": string;
+  "--stitch-danger": string;
+  "--stitch-glow": string;
+};
 
 export function selectCyberZenTemplate(visual: VisualThemeState): CyberZenStitchTemplate {
-  const mode: ThemeAuraMode = visual.mode;
-  if (mode === "fire_glitch" || mode === "repair_surgery") return byId("fire_ouroboros");
-  if (mode === "oracle_gold") return byId("are_logik");
-  if (mode === "governance_sovereign") return byId("science_hub");
-  if (mode === "observation_past") return byId("chain_validator");
-  if (mode === "identity_cyan") return byId("auth_root");
-  if (mode === "loot_legendary") return byId("cyber_globe");
-  return byId("science_hub");
+  const mode = visual?.mode;
+  const templateId = mode ? MODE_TO_TEMPLATE_ID[mode] : undefined;
+
+  return byId(templateId ?? DEFAULT_TEMPLATE_ID);
 }
 
 export function byId(id: CyberZenStitchArchetype): CyberZenStitchTemplate {
-  return CYBERZEN_STITCH_TEMPLATES.find((template) => template.id === id) ?? CYBERZEN_STITCH_TEMPLATES[0];
+  return CYBERZEN_TEMPLATE_BY_ID[id] ?? CYBERZEN_TEMPLATE_BY_ID[DEFAULT_TEMPLATE_ID];
 }
 
-export function cyberZenTemplateCssVars(template: CyberZenStitchTemplate): React.CSSProperties {
-  const [a = "#00E5FF", b = "#39FF14", c = "#FF7A00"] = template.palette;
+export function isCyberZenStitchArchetype(value: string): value is CyberZenStitchArchetype {
+  return value in CYBERZEN_TEMPLATE_BY_ID;
+}
+
+export function getCyberZenTemplateTitle(id: CyberZenStitchArchetype): string {
+  return byId(id).title;
+}
+
+export function getCyberZenTemplateRuntimeUse(id: CyberZenStitchArchetype): string {
+  return byId(id).runtimeUse;
+}
+
+export function cyberZenTemplateCssVars(template: CyberZenStitchTemplate): CyberZenTemplateCssVars {
+  const [bg = "#0a0a0a", a = "#00E5FF", b = "#39FF14", c = "#FF7A00"] = template.palette;
+
   return {
+    "--stitch-bg": bg,
     "--stitch-a": a,
     "--stitch-b": b,
     "--stitch-c": c,
-  } as React.CSSProperties;
+    "--stitch-danger": template.id === "fire_ouroboros" ? "#E60000" : c,
+    "--stitch-glow": `0 0 22px ${a}`,
+  };
+}
+
+export function cyberZenTemplateClassName(template: CyberZenStitchTemplate): string {
+  return `cyberzen-stitch cyberzen-stitch--${template.id}`;
+}
+
+export function cyberZenTemplateDataAttrs(template: CyberZenStitchTemplate): {
+  "data-stitch-template": CyberZenStitchArchetype;
+  "data-stitch-role": string;
+} {
+  return {
+    "data-stitch-template": template.id,
+    "data-stitch-role": template.role,
+  };
+}
+
+export function selectCyberZenTemplateCssVars(visual: VisualThemeState): CyberZenTemplateCssVars {
+  return cyberZenTemplateCssVars(selectCyberZenTemplate(visual));
 }
