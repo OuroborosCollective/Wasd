@@ -1,9 +1,9 @@
 /**
  * Canonical ARE simulation cadence shared by server, client and tooling.
  *
- * This module is intentionally pure: no Date.now(), no performance.now(), no
- * timers and no process/browser globals. It defines duration conversion only;
- * actual simulation authority remains tick-based.
+ * This module is intentionally pure. It defines duration conversion only;
+ * actual simulation authority remains tick-based and must be supplied by the
+ * authoritative world loop.
  */
 export const ARE_SIMULATION_TICK_HZ = 10;
 export const ARE_SIMULATION_TICK_MS = 1000 / ARE_SIMULATION_TICK_HZ;

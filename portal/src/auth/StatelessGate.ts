@@ -2,7 +2,7 @@
  * StatelessGate — deterministic HKDF gate for the 10Hz world server.
  *
  * Rules:
- * - No Date.now(), Math.random(), mutable singleton state, or wall-clock dependency.
+ * - No wall-clock dependency or mutable singleton state.
  * - Token material is derived only from secret + canonical scope + logical tick/index.
  * - The server remains authoritative for tick indexes and replay policy.
  * - Client-provided ticks are hints at most; verify against server-side tick windows.
@@ -39,7 +39,7 @@ export interface StatelessTokenScope {
   /** Realm/shard/world id. */
   realmId?: string;
 
-  /** Server/session/challenge id. Must be deterministic input, not random inside this class. */
+  /** Server/session/challenge id. Must be deterministic input, not generated inside this class. */
   challengeId?: string;
 
   /** Domain separation for different systems. */
@@ -293,7 +293,7 @@ export class StatelessGate {
   private async importKeyMaterial(secret: string): Promise<CryptoKey> {
     return this.getCrypto().subtle.importKey(
       "raw",
-      this.encoder.encode(secret),
+      this.toFixedBufferSource(this.encoder.encode(secret)),
       { name: "HKDF" },
       false,
       ["deriveBits"],
@@ -301,7 +301,7 @@ export class StatelessGate {
   }
 
   /** Stable 64-bit big-endian salt for the logical index/tick. */
-  private encodeIndexSalt(logicalIndex: number): Uint8Array {
+  private encodeIndexSalt(logicalIndex: number): ArrayBuffer {
     const buffer = new ArrayBuffer(8);
     const view = new DataView(buffer);
     const high = Math.floor(logicalIndex / 0x100000000);
@@ -310,11 +310,11 @@ export class StatelessGate {
     view.setUint32(0, high, false);
     view.setUint32(4, low, false);
 
-    return new Uint8Array(buffer);
+    return buffer;
   }
 
   /** Canonical length-prefixed HKDF info. No JSON order drift, no delimiter ambiguity. */
-  private encodeInfo(scope: StatelessTokenScope): Uint8Array {
+  private encodeInfo(scope: StatelessTokenScope): ArrayBuffer {
     const purpose = scope.purpose ?? "authentication";
     const fields: readonly [string, string][] = [
       ["namespace", this.namespace],
@@ -333,7 +333,13 @@ export class StatelessGate {
       })
       .join("");
 
-    return this.encoder.encode(canonical);
+    return this.toFixedBufferSource(this.encoder.encode(canonical));
+  }
+
+  private toFixedBufferSource(bytes: Uint8Array): ArrayBuffer {
+    const buffer = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(buffer).set(bytes);
+    return buffer;
   }
 
   private withTickPurpose(scope: StatelessTokenScope): StatelessTokenScope {
