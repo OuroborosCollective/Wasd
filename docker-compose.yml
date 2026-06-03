@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.vps
+      args:
+        CLIENT_2D_BUILD_SHA: "${CLIENT_2D_BUILD_SHA:-}"
+        CLIENT_2D_MARKER: "${CLIENT_2D_MARKER:-REAL_PIXI_CLIENT}"
     pull_policy: build
     container_name: arelorian-engine
     restart: unless-stopped
@@ -33,6 +36,8 @@ services:
       PORT: "3001"
       GAME_PORT: "3001"
       HOST: "0.0.0.0"
+      CLIENT_2D_MARKER: "${CLIENT_2D_MARKER:-REAL_PIXI_CLIENT}"
+      CLIENT_2D_BUILD_SHA: "${CLIENT_2D_BUILD_SHA:-}"
 
       API_KEY: "${API_KEY:-}"
       API_KEYS: "${API_KEYS:-}"
