@@ -5,7 +5,7 @@
  * Runs tests on all game systems, generates structured JSONL logs.
  *
  * Key design principles:
- * - Deterministic: Uses seed + tick for all decisions (no Math.random())
+ * - Deterministic: Uses seed plus tick for all decisions.
  * - Tags: Uses "playtester", "synthetic", "monitor", "persistent" tags
  * - Non-intrusive: Won't affect real player metrics (leaderboards, economy)
  */
@@ -100,7 +100,7 @@ export interface PersistentPlaytesterNPCConfig {
 }
 
 /**
- * FNV-1a hash function for deterministic randomness
+ * FNV-1a hash function for deterministic selection
  */
 function hashString(input: string): number {
   let h = 0x811c9dc5;
@@ -114,8 +114,8 @@ function hashString(input: string): number {
 }
 
 /**
- * Deterministic picker: picks an element from an array based on seed + tick.
- * No Math.random() - fully reproducible.
+ * Deterministic picker: picks an element from an array based on seed plus tick.
+ * Fully reproducible.
  */
 function pickDeterministic<T>(
   seed: string,
