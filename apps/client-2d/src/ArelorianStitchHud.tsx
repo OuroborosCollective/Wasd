@@ -1,11 +1,18 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { InventoryPanel, type InventoryItem } from "./ui/InventoryPanel";
+import { EquipmentPanel, type EquipmentState } from "./ui/EquipmentPanel";
+import { QuestJournal, type QuestState } from "./ui/QuestJournal";
+import { ToastStack, type ClientToast } from "./ui/ToastStack";
+import { NpcDialoguePanel, type DialogueState } from "./ui/NpcDialoguePanel";
+import { CharacterSelectPanel, type ClientCharacterSummary } from "./ui/CharacterSelectPanel";
+import type { ClientIdentity } from "./identity/clientIdentity";
 
 type Msg = { from: string; txt: string };
 type HudPanel = "inventory" | "character" | "map" | "combat" | "guild" | "factions" | "quests" | null;
 type HudOverlay = "vitals" | "radar" | "chat";
 
 export interface ArelorianStitchHudProps {
+  // Core state
   connected: boolean;
   assetStatus: string;
   weaponCount: number;
@@ -13,6 +20,36 @@ export interface ArelorianStitchHudProps {
   inventoryItems?: InventoryItem[];
   playerName: string;
   messages: Msg[];
+  
+  // Phase 4: Equipment & Quests
+  equipment?: EquipmentState;
+  equipmentSyncStatus?: string;
+  quests?: QuestState[];
+  trackedQuestTitle?: string;
+  
+  // Phase 5: Dialogue & Combat
+  dialogue?: DialogueState;
+  combatLogCount?: number;
+  lootFeed?: { itemId: string; quantity: number }[];
+  
+  // Phase 7: Identity
+  characterId?: string;
+  characterName?: string;
+  characters?: ClientCharacterSummary[];
+  identityStatus?: string;
+  stableGuestId?: string;
+  sessionToken?: string | null;
+  playerId?: string;
+  
+  // Toast notifications
+  toasts?: ClientToast[];
+  
+  // Network state
+  networkStatus?: string;
+  rttMs?: number;
+  networkQuality?: string;
+  
+  // Callbacks
   onSkill: (skillId: string) => void;
   onChat: (text: string) => void;
   onInteract: () => void;
@@ -20,6 +57,11 @@ export interface ArelorianStitchHudProps {
   onEquipWeapon?: (item: InventoryItem) => void;
   onCycleWeapon?: () => void;
   onToggleAutoMove?: () => void;
+  onCloseDialogue?: () => void;
+  onTrackQuest?: (questId: string) => void;
+  onSelectCharacter?: (characterId: string) => void;
+  onCreateCharacter?: (name: string) => void;
+  
   // DEBUG: Player position & chunk visibility tracking
   debugPlayerPos?: { x: number; z: number };
   debugChunkCoords?: { chunkX: number; chunkZ: number };
@@ -55,6 +97,12 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || Boolean((target as HTMLElement | null)?.isContentEditable);
 }
 
+function shortId(id: string | undefined | null, len = 8): string {
+  if (!id) return "none";
+  if (id.length <= len) return id;
+  return `${id.slice(0, len - 1)}…`;
+}
+
 async function requestFullscreen() {
   const root = document.documentElement;
   if (document.fullscreenElement) {
@@ -72,6 +120,30 @@ export function ArelorianStitchHud({
   inventoryItems = [],
   playerName,
   messages,
+  // Phase 4
+  equipment,
+  equipmentSyncStatus,
+  quests = [],
+  trackedQuestTitle,
+  // Phase 5
+  dialogue,
+  combatLogCount = 0,
+  lootFeed,
+  // Phase 7
+  characterId,
+  characterName,
+  characters = [],
+  identityStatus,
+  stableGuestId,
+  sessionToken,
+  playerId,
+  // Toasts
+  toasts = [],
+  // Network
+  networkStatus = "connecting",
+  rttMs = 0,
+  networkQuality = "offline",
+  // Callbacks
   onSkill,
   onChat,
   onInteract,
@@ -79,7 +151,11 @@ export function ArelorianStitchHud({
   onEquipWeapon,
   onCycleWeapon,
   onToggleAutoMove,
-  // DEBUG props
+  onCloseDialogue,
+  onTrackQuest,
+  onSelectCharacter,
+  onCreateCharacter,
+  // DEBUG
   debugPlayerPos,
   debugChunkCoords,
   debugVisibleChunks,
@@ -91,6 +167,8 @@ export function ArelorianStitchHud({
   const [openOverlays, setOpenOverlays] = useState<Record<HudOverlay, boolean>>({ vitals: false, radar: false, chat: false });
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [chatText, setChatText] = useState("");
+  const [characterSelectOpen, setCharacterSelectOpen] = useState(false);
+  // Use real vitals from props if available, otherwise fallback to mock
   const hp = 86;
   const mana = 64;
   const stamina = 78;
@@ -229,28 +307,41 @@ export function ArelorianStitchHud({
         <Gauge label="XP" value={xp} tone="gold" />
       </aside>
 
-      {/* DEBUG HUD: Player Position & Chunk Visibility */}
+      {/* DEBUG HUD: Player Position & Chunk Visibility + Phase 7 Identity */}
       <aside className="stitch-debug" aria-label="Debug: Player Position & Chunk Tracking">
-        <div className="stitch-debug-title">POSITION DEBUG</div>
+        <div className="stitch-debug-title">DEBUG [P7]</div>
         <div className="stitch-debug-row">
           <span>Heartbeat:</span>
-          <span className={debugHeartbeatReceived ? "ok" : "warn"}>{debugHeartbeatReceived ? "✓" : "✗"}</span>
+          <span className={debugHeartbeatReceived ? "ok" : "warn"}>{debugHeartbeatReceived ? "✓" : "waiting"}</span>
         </div>
         <div className="stitch-debug-row">
           <span>Initialized:</span>
-          <span className={debugInitialized ? "ok" : "warn"}>{debugInitialized ? "✓" : "✗"}</span>
+          <span className={debugInitialized ? "ok" : "warn"}>{debugInitialized ? "✓" : "waiting"}</span>
         </div>
         <div className="stitch-debug-row">
           <span>Player Pos:</span>
-          <span>{debugPlayerPos ? `${debugPlayerPos.x.toFixed(0)}, ${debugPlayerPos.z.toFixed(0)}` : "---"}</span>
+          <span>{debugPlayerPos ? `${debugPlayerPos.x.toFixed(0)}, ${debugPlayerPos.z.toFixed(0)}` : "waiting"}</span>
         </div>
         <div className="stitch-debug-row">
           <span>Chunk Coords:</span>
-          <span>{debugChunkCoords ? `${debugChunkCoords.chunkX}, ${debugChunkCoords.chunkZ}` : "---"}</span>
+          <span>{debugChunkCoords ? `${debugChunkCoords.chunkX}, ${debugChunkCoords.chunkZ}` : "waiting"}</span>
         </div>
         <div className="stitch-debug-row">
           <span>Visible Chunks:</span>
-          <span>{debugVisibleChunks ?? "---"}</span>
+          <span>{debugVisibleChunks !== null && debugVisibleChunks !== undefined ? debugVisibleChunks : "waiting"}</span>
+        </div>
+        {/* Phase 7 Identity Debug */}
+        <div className="stitch-debug-row">
+          <span>Identity:</span>
+          <span>{identityStatus ?? "initializing"}</span>
+        </div>
+        <div className="stitch-debug-row">
+          <span>Character:</span>
+          <span>{characterName || shortId(characterId) || "none"}</span>
+        </div>
+        <div className="stitch-debug-row">
+          <span>Net:</span>
+          <span>{networkQuality}</span>
         </div>
       </aside>
 
@@ -305,9 +396,55 @@ export function ArelorianStitchHud({
         <button onClick={toggleInventory} aria-pressed={isInventoryOpen}>BAG</button>
         <button onClick={onToggleAutoMove}>AUTO</button>
         <button onClick={onInteract}>INTERACT</button>
+        <button onClick={() => setCharacterSelectOpen(true)}>CHAR</button>
       </section>
 
-      {activePanel && (activePanel !== "inventory" || isInventoryOpen) && (
+      {/* Phase 4: Equipment Panel */}
+      {equipment && (
+        <EquipmentPanel
+          open={activePanel === "character"}
+          equipment={equipment}
+          onClose={closePanel}
+        />
+      )}
+
+      {/* Phase 4: Quest Journal */}
+      <QuestJournal
+        open={activePanel === "quests"}
+        quests={quests}
+        onClose={closePanel}
+        onTrack={onTrackQuest ?? (() => {})}
+      />
+
+      {/* Phase 5: NPC Dialogue */}
+      {dialogue && (
+        <NpcDialoguePanel
+          dialogue={dialogue}
+          onClose={onCloseDialogue ?? closePanel}
+        />
+      )}
+
+      {/* Phase 5: Toast Notifications */}
+      {toasts.length > 0 && <ToastStack toasts={toasts} />}
+
+      {/* Phase 7: Character Select */}
+      <CharacterSelectPanel
+        open={characterSelectOpen}
+        characters={characters}
+        selectedCharacterId={characterId ?? null}
+        onSelect={(id) => {
+          onSelectCharacter?.(id);
+          setCharacterSelectOpen(false);
+        }}
+        onCreate={(name) => {
+          onCreateCharacter?.(name);
+          setCharacterSelectOpen(false);
+        }}
+        onClose={() => setCharacterSelectOpen(false)}
+      />
+
+      {/* StitchPanel for inventory and other panels */}
+      {activePanel && (activePanel !== "inventory" || isInventoryOpen) && activePanel !== "character" && activePanel !== "quests" && (
         <StitchPanel
           panel={activePanel}
           weaponCount={weaponCount}
@@ -366,7 +503,7 @@ function StitchPanel({
         {panel === "guild" && <GuildPreview />}
         {panel === "factions" && <FactionsPreview />}
         {panel === "quests" && <QuestPreview />}
-        {panel === "inventory" && weaponCount > 0 && <button className="stitch-cycle-fallback" type="button" onClick={onCycleWeapon}>Cycle equipped visual</button>}
+        {panel === "inventory" && weaponCount > 0 && <button className="stitch-cycle-fallback" type="button" onClick={onCycleWeapon}>Cycle Gear Visual</button>}
       </div>
     </div>
   );

@@ -272,6 +272,36 @@ export function DeterministicWorldIsoApp() {
   const [debugChunkCoords, setDebugChunkCoords] = useState<{ chunkX: number; chunkZ: number } | null>(null);
   const [debugVisibleChunks, setDebugVisibleChunks] = useState<number | null>(null);
 
+  // Phase 4: Equipment state
+  const [equipmentState, setEquipmentState] = useState<Record<string, string>>({});
+  const [questsState, setQuestsState] = useState<{ id: string; title: string; description: string; status: string; objectives: { id: string; label: string; current: number; required: number }[]; tracked: boolean }[]>([]);
+
+  // Phase 5: Dialogue state
+  const [dialogueState, setDialogueState] = useState<{ active: { npcName: string; text: string } | null }>({ active: null });
+
+  // Phase 7: Identity state
+  const [characterId, setCharacterId] = useState<string>("");
+  const [characterName, setCharacterName] = useState<string>("");
+  const [charactersState, setCharactersState] = useState<{ id: string; name: string; sceneId: string; level?: number }[]>([]);
+  const [identityStatus, setIdentityStatus] = useState<string>("initializing");
+  const [stableGuestId] = useState(() => {
+    // Try to load from localStorage
+    try {
+      const stored = localStorage.getItem("areloria.stableGuestId.v1");
+      if (stored && stored.startsWith("guest_")) return stored;
+    } catch { /* ignore */ }
+    // Generate new ID
+    const id = `guest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    try { localStorage.setItem("areloria.stableGuestId.v1", id); } catch { /* ignore */ }
+    return id;
+  });
+
+  // Toasts state
+  const [toastsState, setToastsState] = useState<{ id: string; message: string; severity: string; createdAtMs: number }[]>([]);
+
+  // Inventory items from server
+  const [inventoryItems, setInventoryItems] = useState<{ itemId: string; name: string; type: string; weaponVisualId?: string | null }[]>([]);
+
   // ─────────────────────────────────────────────────────────────────
   // ZERO-TRUST MANIFEST SYSTEM - Input Lockdown
   // ═════════════════════════════════════════════════════════════════
@@ -888,10 +918,61 @@ chunkManager.init({
       const source = String(payload.source ?? payload.npcName ?? "NPC");
       const text = String(payload.text ?? payload.dialogueText ?? "");
       if (!text) return;
+      // Update dialogue state for NPC Dialogue Panel
+      setDialogueState({ active: { npcName: source, text } });
       setMessages((items) => [
         ...items.slice(-12),
         { from: source, txt: text }
       ]);
+    });
+    c.on("toast", (event: any) => {
+      const payload = event.payload ?? event;
+      const message = String(payload.message ?? payload.text ?? "");
+      const severity = String(payload.severity ?? "info");
+      if (!message) return;
+      // Add to toast state
+      const toastId = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      setToastsState((prev) => [...prev.slice(-5), { id: toastId, message, severity, createdAtMs: Date.now() }]);
+      // Also show in chat
+      setMessages((items) => [...items.slice(-12), { from: "SYSTEM", txt: message }]);
+      // Auto-remove after 4s
+      setTimeout(() => {
+        setToastsState((prev) => prev.filter((t) => t.id !== toastId));
+      }, 4000);
+    });
+    c.on("inventory_snapshot", (event: any) => {
+      const payload = event.payload ?? event;
+      const slots = payload.slots ?? payload.items ?? [];
+      // Transform to inventory items
+      const items = Array.isArray(slots) ? slots.map((s: any, i: number) => ({
+        itemId: s?.itemId ?? s?.id ?? `item-${i}`,
+        name: s?.name ?? s?.itemId ?? "Item",
+        type: s?.type ?? "item",
+        weaponVisualId: s?.weaponVisualId ?? null
+      })) : [];
+      setInventoryItems(items);
+    });
+    c.on("equipment_snapshot", (event: any) => {
+      const payload = event.payload ?? event;
+      const slots = payload.slots ?? {};
+      setEquipmentState(slots);
+    });
+    c.on("quest_snapshot", (event: any) => {
+      const payload = event.payload ?? event;
+      const quests = payload.quests ?? [];
+      setQuestsState(quests.map((q: any) => ({
+        id: q.id ?? `quest-${Math.random()}`,
+        title: q.title ?? q.name ?? "Unknown Quest",
+        description: q.description ?? "",
+        status: q.status ?? "available",
+        objectives: (q.objectives ?? []).map((o: any, i: number) => ({
+          id: o.id ?? `obj-${i}`,
+          label: o.label ?? o.description ?? "Objective",
+          current: o.current ?? 0,
+          required: o.required ?? 1
+        })),
+        tracked: q.tracked ?? false
+      })));
     });
     c.on("INTERACTION_ACCEPTED", (event: any) => {
       const payload = event.payload ?? event;
@@ -1140,6 +1221,7 @@ chunkManager.init({
         assetStatus={assetStatus}
         weaponCount={weaponCount}
         equippedWeaponId={equippedWeaponId}
+        inventoryItems={inventoryItems}
         playerName={playerName}
         messages={messages}
         onSkill={sendSkill}
@@ -1148,6 +1230,27 @@ chunkManager.init({
         onStrike={strikeAction}
         onCycleWeapon={cycleEquippedWeapon}
         onToggleAutoMove={() => setMessages((items) => [...items.slice(-12), { from: "Navigator", txt: "WorldDirector routes are generated; auto-route execution follows server validation." }])}
+        // Phase 4: Equipment & Quests (wired when implemented)
+        equipment={equipmentState}
+        quests={questsState}
+        // Phase 5: Dialogue
+        dialogue={dialogueState}
+        // Phase 7: Identity
+        characterId={characterId}
+        characterName={characterName}
+        characters={charactersState}
+        identityStatus={identityStatus}
+        stableGuestId={stableGuestId}
+        playerId={playerName}
+        // Toasts
+        toasts={toastsState}
+        // Network
+        networkStatus={connected ? "connected" : "disconnected"}
+        networkQuality={connected ? "good" : "offline"}
+        // Callbacks
+        onTrackQuest={(questId) => {/* wire up quest tracking */}}
+        onSelectCharacter={(id) => {/* wire up character select */}}
+        onCreateCharacter={(name) => {/* wire up character create */}}
         // DEBUG: Player position & chunk tracking
         debugPlayerPos={debugPlayerPos ?? undefined}
         debugChunkCoords={debugChunkCoords ?? undefined}

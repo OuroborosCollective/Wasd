@@ -1,3 +1,32 @@
+/**
+ * Phase 5/7: GameBoot - Legacy/Development Component
+ * 
+ * ⚠️ IMPORTANT: This component is NOT used in the production/live render path.
+ * 
+ * LIVE RENDER PATH (what's actually rendered on VPS):
+ *   main.tsx → DeterministicWorldIsoApp.tsx → ArelorianStitchHud.tsx
+ * 
+ * UNUSED/LEGACY:
+ *   - GameBoot.tsx: NOT IMPORTED anywhere in production code
+ *   - DebugHud.tsx: NOT IMPORTED anywhere in production code
+ *   - ChatMiniPanel.tsx: NOT IMPORTED (ArelorianStitchHud has inline chat)
+ *   - MobileHud.tsx: NOT IMPORTED
+ *   - EquipmentPanel.tsx: NOT IMPORTED
+ *   - QuestJournal.tsx: NOT IMPORTED
+ *   - InventoryGrid.tsx: NOT IMPORTED
+ *   - InventoryOverlay.tsx: NOT IMPORTED
+ * 
+ * Purpose: This was an earlier development version with its own boot stack,
+ * input handling, and UI components. It exists as a reference/prototype but
+ * is NOT rendered in the live production build.
+ * 
+ * To use GameBoot features in production, they must be ported to:
+ *   - DeterministicWorldIsoApp.tsx (root live component)
+ *   - ArelorianStitchHud.tsx (actual HUD component)
+ * 
+ * Last used by: Development/testing only
+ */
+
 import React, { useEffect, useRef, useState } from "react";
 import { BOOT_PHASES, type BootPhase } from "../theme/designTokens";
 import { BootOverlay } from "./BootOverlay";
@@ -138,6 +167,19 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
   const [characters, setCharacters] = useState<ClientCharacterSummary[]>([]);
   const [characterSelectOpen, setCharacterSelectOpen] = useState(false);
   const [identityDebugOpen, setIdentityDebugOpen] = useState(false);
+
+  // Phase 7: Debug State (updated from server events)
+  const heartbeatReceivedRef = useRef<boolean>(false);
+  const initializedRef = useRef<boolean>(false);
+  const playerPosRef = useRef<{ x: number; z: number } | null>(null);
+  const chunkCoordsRef = useRef<{ chunkX: number; chunkZ: number } | null>(null);
+  const lastServerTickRef = useRef<number>(0);
+  const inventorySyncStatusRef = useRef<"server" | "local" | "fallback">("fallback");
+  const lastInventorySyncTickRef = useRef<number>(0);
+  const equipmentSyncStatusRef = useRef<"server" | "local" | "fallback">("fallback");
+  const lastEquipmentSyncTickRef = useRef<number>(0);
+  const gearCountRef = useRef<number>(0);
+  const itemCountRef = useRef<number>(0);
 
   // Force re-render for UI overlays
   const [, forceUpdate] = useState(0);
@@ -315,6 +357,9 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
             clientWorld.setLocalPlayerId(payload.playerId);
             serverClock.observe(payload.serverTick);
 
+            // Phase 7: Mark as initialized
+            initializedRef.current = true;
+
             // Phase 7: Handle identity from server
             if (payload.sessionToken) {
               setClientSessionToken(payload.sessionToken);
@@ -351,9 +396,24 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
               1 / config.logicHz
             );
 
+            // Phase 7: Update debug state from world snapshot
             lastSnapshotTickRef.current = snapshot.serverTick;
+            lastServerTickRef.current = snapshot.serverTick;
             entityCountRef.current = clientWorld.getEntityCount();
             pendingInputCountRef.current = pendingInputQueue.getPendingCount();
+
+            // Extract player position from local player
+            const localPlayer = clientWorld.getLocalPlayer();
+            if (localPlayer) {
+              playerPosRef.current = { x: localPlayer.x, z: localPlayer.y };
+              // Calculate chunk coords from player position
+              const chunkSize = 256; // Assuming chunk size of 256
+              chunkCoordsRef.current = {
+                chunkX: Math.floor(localPlayer.x / chunkSize),
+                chunkZ: Math.floor(localPlayer.y / chunkSize)
+              };
+            }
+
             triggerUpdate();
           },
           onCombatResult(result) {
@@ -377,6 +437,7 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
           onServerHeartbeat(payload) {
             serverClock.observe(payload.serverTick, payload.serverTimeMs);
             serverOffsetMsRef.current = serverClock.getServerTimeOffsetMs();
+            heartbeatReceivedRef.current = true;
             triggerUpdate();
 
             if (payload.clientSentAtMs !== undefined) {
@@ -393,6 +454,19 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
                 type: "inventory_set",
                 slots: payload.slots
               });
+              inventorySyncStatusRef.current = "server";
+              lastInventorySyncTickRef.current = lastServerTickRef.current;
+
+              // Count gear and items
+              let gearCount = 0;
+              let itemCount = 0;
+              for (const slot of payload.slots ?? []) {
+                if (slot?.weaponVisualId) gearCount++;
+                else if (slot?.itemId) itemCount++;
+              }
+              gearCountRef.current = gearCount;
+              itemCountRef.current = itemCount;
+
               triggerUpdate();
             }
           },
@@ -402,6 +476,8 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
                 type: "equipment_set",
                 slots: payload.slots
               });
+              equipmentSyncStatusRef.current = "server";
+              lastEquipmentSyncTickRef.current = lastServerTickRef.current;
               triggerUpdate();
             }
           },
@@ -819,6 +895,14 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
         stableGuestId={stableGuestId}
         characterId={characterId}
         identityStatus={identityStatus}
+        // Phase 7: Real state values from refs
+        heartbeatReceived={heartbeatReceivedRef.current}
+        initialized={initializedRef.current}
+        playerPos={playerPosRef.current}
+        chunkCoords={chunkCoordsRef.current}
+        lastServerTick={lastServerTickRef.current}
+        inventorySyncStatus={inventorySyncStatusRef.current}
+        equipmentSyncStatus={equipmentSyncStatusRef.current}
       />
 
       {/* Phase 4: Mobile Action Bar */}

@@ -79,7 +79,7 @@ export function InventoryPanel({ items, equippedWeaponId, onEquipWeapon }: Inven
     <div className="inventory-panel" aria-label="Inventory">
       <section className="inventory-section">
         <header><b>Gear</b><small>{gear.length} synced</small></header>
-        {gear.length === 0 ? <p className="inventory-empty">No synced gear yet.</p> : (
+        {gear.length === 0 ? <p className="inventory-empty">No gear synced yet.</p> : (
           <div className="inventory-grid" role="list">
             {gear.map((item) => {
               const active = Boolean(item.weaponVisualId && item.weaponVisualId === equippedWeaponId);
