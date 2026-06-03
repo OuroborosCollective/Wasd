@@ -1278,7 +1278,7 @@ export class WorldTick {
         this.ws.sendToPlayer(id, {
           type: "welcome",
           protocolVersion: SERVER_PROTOCOL_VERSION,
-          t: Date.now(),
+          t: Date.now(), // ARE-DETERMINISM-ALLOW: server response timestamp fallback
           payload: {
             playerId: newPlayerId,
             sceneId: "main",
