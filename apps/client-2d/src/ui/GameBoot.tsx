@@ -19,6 +19,20 @@ import { ToastStack, type ClientToast } from "./ui/ToastStack";
 import { ChatMiniPanel } from "./ui/ChatMiniPanel";
 import { NetworkQualityHud } from "./ui/NetworkQualityHud";
 import type { ChatMessagePayload } from "../net/protocol";
+// Phase 4 Game Modules
+import { createInventory, type InventoryState, applyInventoryEvent } from "../game/inventory";
+import { createEquipment, type EquipmentState, applyEquipmentEvent } from "../game/equipment";
+import { createInitialQuests, type QuestState, applyQuestEvent } from "../game/quests";
+import { createSkillStates, type SkillId, tickSkillCooldowns, canUseSkill, triggerSkillCooldown } from "../game/skills";
+import { createGameplayEventQueue, type GameplayEventQueue } from "../game/gameplayEvents";
+import { findNearestInteractionTarget } from "../game/interactions";
+import { createChunkObserver } from "../world/chunkObserver";
+// Phase 4 UI Components
+import { MobileActionBar } from "./MobileActionBar";
+import { InventoryPanel } from "./InventoryPanel";
+import { EquipmentPanel } from "./EquipmentPanel";
+import { QuestJournal } from "./QuestJournal";
+import { InteractionPrompt } from "./InteractionPrompt";
 
 type BootPhaseState =
   | "BOOTING"
@@ -57,6 +71,24 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
   const serverClockRef = useRef<ServerClock | null>(null);
   const combatFxRef = useRef<CombatFxStore | null>(null);
 
+  // Phase 4 Gameplay State Refs
+  const inventoryRef = useRef<InventoryState | null>(null);
+  const equipmentRef = useRef<EquipmentState | null>(null);
+  const questsRef = useRef<QuestState[]>([]);
+  const skillsRef = useRef<ReturnType<typeof createSkillStates> | null>(null);
+  const gameplayEventQueueRef = useRef<GameplayEventQueue | null>(null);
+  const chunkObserverRef = useRef<ReturnType<typeof createChunkObserver> | null>(null);
+  const interactionTargetRef = useRef<{ entityId: string; kind: "npc" | "loot"; label: string; distance: number } | null>(null);
+  const observedChunkCountRef = useRef<number>(0);
+
+  // Phase 4 UI State
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [equipmentOpen, setEquipmentOpen] = useState(false);
+  const [questOpen, setQuestOpen] = useState(false);
+  // UI display values (updated periodically)
+  const [inventoryCount, setInventoryCount] = useState(0);
+  const [trackedQuestTitle, setTrackedQuestTitle] = useState<string | undefined>(undefined);
+
   const networkStatusRef = useRef<NetworkStatus>("idle");
   const mountedRef = useRef(false);
   const lastSnapshotTickRef = useRef<number>(0);
@@ -69,6 +101,7 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
   const serverOffsetMsRef = useRef<number>(0);
   const toastsRef = useRef<ClientToast[]>([]);
   const chatMessagesRef = useRef<ChatMessagePayload[]>([]);
+  const gameplayEventQueueSizeRef = useRef<number>(0);
 
   // Force re-render for UI overlays
   const [, forceUpdate] = useState(0);
@@ -288,9 +321,68 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
               networkQualityRef.current = latencyTracker.getQuality();
               triggerUpdate();
             }
+          },
+          // Phase 4 Event Handlers
+          onInventorySnapshot(payload) {
+            if (inventoryRef.current) {
+              inventoryRef.current = applyInventoryEvent(inventoryRef.current, {
+                type: "inventory_set",
+                slots: payload.slots
+              });
+              triggerUpdate();
+            }
+          },
+          onEquipmentSnapshot(payload) {
+            if (equipmentRef.current) {
+              equipmentRef.current = applyEquipmentEvent(equipmentRef.current, {
+                type: "equipment_set",
+                slots: payload.slots
+              });
+              triggerUpdate();
+            }
+          },
+          onQuestSnapshot(payload) {
+            questsRef.current = applyQuestEvent(questsRef.current, {
+              type: "quest_snapshot",
+              quests: payload.quests
+            });
+            triggerUpdate();
+          },
+          onLootPickupResult(payload) {
+            if (payload.ok && payload.itemId) {
+              gameplayEventQueueRef.current?.push({
+                type: "loot_pickup_confirmed",
+                itemId: payload.itemId,
+                quantity: payload.quantity ?? 1,
+                entityId: payload.entityId
+              });
+              addToast(`+${payload.quantity ?? 1}x ${payload.itemId}`, "success");
+            } else if (payload.reason) {
+              addToast(payload.reason, "warning");
+            }
+          },
+          onNpcDialogue(payload) {
+            gameplayEventQueueRef.current?.push({
+              type: "npc_dialogue",
+              npcId: payload.npcId,
+              npcName: payload.npcName,
+              text: payload.text
+            });
+            addToast(`${payload.npcName}: ${payload.text.slice(0, 60)}...`, "info");
           }
         });
         networkClientRef.current = network;
+
+        // Phase 4: Initialize Gameplay Systems
+        inventoryRef.current = createInventory(24);
+        equipmentRef.current = createEquipment();
+        questsRef.current = createInitialQuests();
+        skillsRef.current = createSkillStates();
+        gameplayEventQueueRef.current = createGameplayEventQueue();
+        chunkObserverRef.current = createChunkObserver({
+          chunkSize: config.world.chunkSize,
+          radius: config.world.observerRadiusChunks
+        });
 
         // Phase 6: SYNCING_TICK - Start logic clock
         setPhase("SYNCING_TICK");
@@ -337,9 +429,55 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
             // 6. Step combat FX
             combatFx.step();
 
+            // Phase 4: Tick skill cooldowns
+            if (skillsRef.current) {
+              skillsRef.current = tickSkillCooldowns(skillsRef.current);
+            }
+
             // 7. Get view state
             const viewState = clientWorld.getViewState();
             entityCountRef.current = viewState.entities.length;
+
+            // Phase 4: Find interaction target
+            const localPlayer = viewState.entities.find(e => e.id === viewState.localPlayerId);
+            if (localPlayer) {
+              interactionTargetRef.current = findNearestInteractionTarget(
+                localPlayer,
+                viewState.entities,
+                80
+              );
+
+              // Phase 4: Update chunk observer
+              const chunkObserve = chunkObserverRef.current?.update(localPlayer.x, localPlayer.y);
+              if (chunkObserve) {
+                network.sendChunkObserve(chunkObserve);
+                observedChunkCountRef.current = chunkObserve.chunks.length;
+              }
+            }
+
+            // Phase 4: Drain and process gameplay events
+            const events = gameplayEventQueueRef.current?.drain() ?? [];
+            gameplayEventQueueSizeRef.current = events.length;
+
+            for (const event of events) {
+              if (inventoryRef.current) {
+                inventoryRef.current = applyInventoryEvent(inventoryRef.current, event as never);
+              }
+              if (equipmentRef.current) {
+                equipmentRef.current = applyEquipmentEvent(equipmentRef.current, event as never);
+              }
+              questsRef.current = applyQuestEvent(questsRef.current, event as never);
+            }
+
+            // Phase 4: Update UI display values
+            if (inventoryRef.current) {
+              const count = inventoryRef.current.slots.reduce((sum, slot) => sum + (slot.stack?.quantity ?? 0), 0);
+              if (count !== inventoryCount) setInventoryCount(count);
+            }
+            const tracked = questsRef.current.find(q => q.tracked);
+            if (tracked?.title !== trackedQuestTitle) {
+              setTrackedQuestTitle(tracked?.title);
+            }
 
             // 8. Render
             if (pixiRef.current) {
@@ -404,6 +542,89 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
   const serverOffsetMs = serverOffsetMsRef.current;
   const toasts = toastsRef.current;
   const chatMessages = chatMessagesRef.current;
+  const skills = skillsRef.current;
+  const inventory = inventoryRef.current;
+  const equipment = equipmentRef.current;
+  const quests = questsRef.current;
+  const interactionTarget = interactionTargetRef.current;
+  const observedChunkCount = observedChunkCountRef.current;
+  const gameplayEventQueueSize = gameplayEventQueueSizeRef.current;
+
+  // Phase 4 Action Handlers
+  function handleSkill(skillId: SkillId) {
+    const tickId = clockRef.current?.getTickId() ?? 0;
+    const sequenceId = lastSequenceIdRef.current + 1;
+
+    if (!canUseSkill(skillsRef.current ?? {}, skillId)) {
+      return;
+    }
+
+    // Trigger cooldown locally
+    if (skillsRef.current) {
+      skillsRef.current = triggerSkillCooldown(skillsRef.current, skillId);
+    }
+
+    // Push gameplay event
+    gameplayEventQueueRef.current?.push({
+      type: "skill_requested",
+      tickId,
+      skillId
+    });
+
+    // Send to network
+    networkClientRef.current?.sendSkillCast({
+      sequenceId,
+      tickId,
+      skillId: skillId === "impact_buster" ? "impact_buster" : "primary",
+      x: 0,
+      y: 0,
+      clientTimeMs: Date.now()
+    });
+
+    triggerUpdate();
+  }
+
+  function handleInteract() {
+    if (!interactionTarget) return;
+
+    const tickId = clockRef.current?.getTickId() ?? 0;
+    const sequenceId = lastSequenceIdRef.current + 1;
+
+    if (interactionTarget.kind === "loot") {
+      networkClientRef.current?.sendLootPickupRequest({
+        tickId,
+        sequenceId,
+        entityId: interactionTarget.entityId
+      });
+      gameplayEventQueueRef.current?.push({
+        type: "loot_pickup_requested",
+        tickId,
+        entityId: interactionTarget.entityId
+      });
+    } else if (interactionTarget.kind === "npc") {
+      networkClientRef.current?.sendNpcInteractRequest({
+        tickId,
+        sequenceId,
+        npcId: interactionTarget.entityId
+      });
+      gameplayEventQueueRef.current?.push({
+        type: "npc_interaction_requested",
+        tickId,
+        npcId: interactionTarget.entityId
+      });
+    }
+
+    triggerUpdate();
+  }
+
+  function handleQuestTrack(questId: string) {
+    networkClientRef.current?.sendQuestTrack(questId);
+    questsRef.current = applyQuestEvent(questsRef.current, {
+      type: "quest_track",
+      questId
+    });
+    triggerUpdate();
+  }
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -456,6 +677,53 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
         rttMs={rttMs}
         networkQuality={networkQuality}
         serverOffsetMs={serverOffsetMs}
+        inventoryCount={inventoryCount}
+        trackedQuestTitle={trackedQuestTitle}
+        observedChunkCount={observedChunkCount}
+        gameplayEventQueueSize={gameplayEventQueueSize}
+      />
+
+      {/* Phase 4: Mobile Action Bar */}
+      {phase === "READY" && skills && (
+        <MobileActionBar
+          skills={skills}
+          onSkill={handleSkill}
+          onInventory={() => setInventoryOpen(true)}
+          onQuest={() => setQuestOpen(true)}
+          onEquipment={() => setEquipmentOpen(true)}
+        />
+      )}
+
+      {/* Phase 4: Inventory Panel */}
+      {inventory && (
+        <InventoryPanel
+          open={inventoryOpen}
+          inventory={inventory}
+          onClose={() => setInventoryOpen(false)}
+        />
+      )}
+
+      {/* Phase 4: Equipment Panel */}
+      {equipment && (
+        <EquipmentPanel
+          open={equipmentOpen}
+          equipment={equipment}
+          onClose={() => setEquipmentOpen(false)}
+        />
+      )}
+
+      {/* Phase 4: Quest Journal */}
+      <QuestJournal
+        open={questOpen}
+        quests={quests}
+        onClose={() => setQuestOpen(false)}
+        onTrack={handleQuestTrack}
+      />
+
+      {/* Phase 4: Interaction Prompt */}
+      <InteractionPrompt
+        target={interactionTarget}
+        onInteract={handleInteract}
       />
 
       {/* Network quality HUD - only in dev mode */}

@@ -261,3 +261,91 @@ pnpm --filter client-2d typecheck  # if exists
 npx tsc --noEmit --project apps/client-2d/tsconfig.json
 npx eslint apps/client-2d/src/net apps/client-2d/src/logic apps/client-2d/src/ui/MobileHud.tsx apps/client-2d/src/ui/DebugHud.tsx apps/client-2d/src/engine/pixiClient.ts apps/client-2d/src/ui/GameBoot.tsx
 ```
+
+---
+
+## Phase 4: MMORPG Gameplay Layer (Current Implementation)
+
+### Architecture
+
+```
+GameBoot.tsx
+    |
+    +-- game/items.ts         (Item definitions & rarities)
+    +-- game/inventory.ts    (Inventory state & operations)
+    +-- game/equipment.ts    (Equipment slots)
+    +-- game/quests.ts       (Quest state & progress)
+    +-- game/skills.ts       (Skill definitions & cooldowns)
+    +-- game/gameplayEvents.ts (Event queue)
+    +-- game/interactions.ts   (NPC/Loot interaction)
+    +-- world/chunkObserver.ts (Chunk streaming)
+
+UI Components: MobileActionBar, InventoryPanel, EquipmentPanel, QuestJournal, InteractionPrompt
+```
+
+### New Files (Phase 4)
+
+| File | Purpose |
+|------|---------|
+| `game/items.ts` | Item definitions, rarities, stack types |
+| `game/inventory.ts` | Inventory state, add/remove items |
+| `game/equipment.ts` | Equipment slots (weapon/armor/trinket) |
+| `game/quests.ts` | Quest state, objectives, tracking |
+| `game/skills.ts` | Skill definitions, tick-based cooldowns |
+| `game/gameplayEvents.ts` | Event queue for gameplay changes |
+| `game/interactions.ts` | Find nearest NPC/Loot target |
+| `world/chunkObserver.ts` | Deterministic chunk streaming |
+| `ui/MobileActionBar.tsx` | Skill buttons with cooldown display |
+| `ui/EquipmentPanel.tsx` | Equipment slot display |
+| `ui/QuestJournal.tsx` | Quest list with tracking |
+| `ui/InteractionPrompt.tsx` | Contextual interaction prompt |
+
+### Updated Files
+
+| File | Changes |
+|------|---------|
+| `net/protocol.ts` | Protocol v4: +8 client messages, +8 server messages |
+| `net/networkClient.ts` | +7 send methods, +6 event handlers |
+| `ui/GameBoot.tsx` | Phase 4 state, logic tick integration |
+| `ui/DebugHud.tsx` | +4 gameplay display fields |
+| `system/clientVersion.ts` | Phase marker updated to P4 |
+
+### Protocol v4 Message Types
+
+**Client → Server:**
+- `loot_pickup_request` - Request loot from entity
+- `npc_interact_request` - Request NPC interaction
+- `inventory_action` - Inventory operations
+- `equipment_action` - Equip/unequip items
+- `quest_accept` - Accept a quest
+- `quest_track` - Track a quest
+- `chunk_observe` - Observe chunk boundaries
+
+**Server → Client:**
+- `inventory_snapshot` - Full inventory state
+- `equipment_snapshot` - Full equipment state
+- `quest_snapshot` - Full quest state
+- `loot_pickup_result` - Pickup success/failure
+- `npc_dialogue` - NPC dialogue text
+- `skill_result` - Skill cast result
+- `chunk_snapshot` - Chunk data
+- `gameplay_event` - Generic gameplay event
+
+### Deterministic Guarantees (Phase 4)
+
+1. **Gameplay runs through 10Hz logic loop** - All skill cooldowns tick down deterministically
+2. **UI does not own game rules** - React components only display state
+3. **Renderer does not own game rules** - PIXI only renders WorldViewState
+4. **Cooldowns are tick-based** - `tickSkillCooldowns()` called per tick, not setTimeout
+5. **Event-driven state changes** - Inventory, equipment, quests via events
+6. **Client playable without server** - Local state works offline
+7. **Network failures non-fatal** - Handlers use defensive checks
+8. **Chunk observe deterministic** - Only emits on chunk boundary change
+
+### Test Commands (Phase 4)
+
+```bash
+pnpm --filter client-2d build
+npx tsc --noEmit --project apps/client-2d/tsconfig.json
+npx eslint apps/client-2d/src/game apps/client-2d/src/world/apps/client-2d/src/ui apps/client-2d/src/net apps/client-2d/src/logic apps/client-2d/src/engine
+```

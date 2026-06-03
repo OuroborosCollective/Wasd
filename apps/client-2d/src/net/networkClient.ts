@@ -7,6 +7,13 @@ import type {
   CombatResultPayload,
   GuestLoginPayload,
   InputFrame,
+  InventorySnapshotPayload,
+  EquipmentSnapshotPayload,
+  QuestSnapshotPayload,
+  LootPickupResultPayload,
+  NpcDialoguePayload,
+  ChunkObservePayload,
+  SkillResultPayload,
   ServerEnvelope,
   SkillCastPayload,
   ToastPayload,
@@ -18,6 +25,13 @@ import {
   createClientEnvelope,
   isChatMessagePayload,
   isCombatResultPayload,
+  isInventorySnapshotPayload,
+  isEquipmentSnapshotPayload,
+  isQuestSnapshotPayload,
+  isLootPickupResultPayload,
+  isNpcDialoguePayload,
+  isChunkObservePayload,
+  isSkillResultPayload,
   isRecord,
   isServerHeartbeatPayload,
   isToastPayload,
@@ -35,6 +49,14 @@ export interface NetworkEvents {
   onCombatResult?: (payload: CombatResultPayload) => void;
   onServerHeartbeat?: (payload: { serverTimeMs: number; serverTick?: number; clientSentAtMs?: number }) => void;
   onStatusChange?: (status: NetworkStatus) => void;
+  // Phase 4 Events
+  onInventorySnapshot?: (payload: InventorySnapshotPayload) => void;
+  onEquipmentSnapshot?: (payload: EquipmentSnapshotPayload) => void;
+  onQuestSnapshot?: (payload: QuestSnapshotPayload) => void;
+  onLootPickupResult?: (payload: LootPickupResultPayload) => void;
+  onNpcDialogue?: (payload: NpcDialoguePayload) => void;
+  onChunkObserve?: (payload: ChunkObservePayload) => void;
+  onSkillResult?: (payload: SkillResultPayload) => void;
 }
 
 export interface NetworkClient {
@@ -43,6 +65,14 @@ export interface NetworkClient {
   sendInputFrame(frame: InputFrame): void;
   sendSkillCast(payload: SkillCastPayload): void;
   sendChat(text: string): void;
+  // Phase 4 Send Methods
+  sendLootPickupRequest(payload: { tickId: number; sequenceId: number; entityId: string }): void;
+  sendNpcInteractRequest(payload: { tickId: number; sequenceId: number; npcId: string }): void;
+  sendChunkObserve(payload: ChunkObservePayload): void;
+  sendQuestTrack(questId: string): void;
+  sendQuestAccept(questId: string): void;
+  sendInventoryAction(payload: { action: string; itemId?: string; slot?: number }): void;
+  sendEquipmentAction(payload: { action: string; slot?: string; itemId?: string }): void;
   getStatus(): NetworkStatus;
 }
 
@@ -158,6 +188,42 @@ export function createNetworkClient(
             : undefined
       });
     }
+
+    // Phase 4 Message Handlers
+    if (envelope.type === "inventory_snapshot" && isInventorySnapshotPayload(envelope.payload)) {
+      events.onInventorySnapshot?.(envelope.payload);
+      return;
+    }
+
+    if (envelope.type === "equipment_snapshot" && isEquipmentSnapshotPayload(envelope.payload)) {
+      events.onEquipmentSnapshot?.(envelope.payload);
+      return;
+    }
+
+    if (envelope.type === "quest_snapshot" && isQuestSnapshotPayload(envelope.payload)) {
+      events.onQuestSnapshot?.(envelope.payload);
+      return;
+    }
+
+    if (envelope.type === "loot_pickup_result" && isLootPickupResultPayload(envelope.payload)) {
+      events.onLootPickupResult?.(envelope.payload);
+      return;
+    }
+
+    if (envelope.type === "npc_dialogue" && isNpcDialoguePayload(envelope.payload)) {
+      events.onNpcDialogue?.(envelope.payload);
+      return;
+    }
+
+    if (envelope.type === "chunk_snapshot" && isRecord(envelope.payload)) {
+      // chunk_snapshot is optional, just pass through
+      return;
+    }
+
+    if (envelope.type === "skill_result" && isSkillResultPayload(envelope.payload)) {
+      events.onSkillResult?.(envelope.payload);
+      return;
+    }
   }
 
   function scheduleReconnect(connectFn: () => void): void {
@@ -252,6 +318,35 @@ export function createNetworkClient(
       if (payload.text.length > 0) {
         send("chat_send", payload);
       }
+    },
+
+    // Phase 4 Send Methods
+    sendLootPickupRequest(payload) {
+      send("loot_pickup_request", payload);
+    },
+
+    sendNpcInteractRequest(payload) {
+      send("npc_interact_request", payload);
+    },
+
+    sendChunkObserve(payload) {
+      send("chunk_observe", payload);
+    },
+
+    sendQuestTrack(questId) {
+      send("quest_track", { questId });
+    },
+
+    sendQuestAccept(questId) {
+      send("quest_accept", { questId });
+    },
+
+    sendInventoryAction(payload) {
+      send("inventory_action", payload);
+    },
+
+    sendEquipmentAction(payload) {
+      send("equipment_action", payload);
     },
 
     getStatus() {
