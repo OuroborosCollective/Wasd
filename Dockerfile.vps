@@ -126,10 +126,14 @@ RUN rm -rf apps/client-2d/dist && \
     echo "Copying public assets for client-2d" && \
     mkdir -p apps/client-2d/dist/assets && \
     cp -a apps/client-2d/public/assets/. apps/client-2d/dist/assets/ && \
+    cp -a apps/client-2d/public/manifest.webmanifest apps/client-2d/dist/manifest.webmanifest && \
+    cp -a apps/client-2d/public/service-worker.js apps/client-2d/dist/service-worker.js && \
     node -e "const fs=require('node:fs'); const sha=process.env.CLIENT_2D_BUILD_SHA||'docker-local'; const marker=process.env.CLIENT_2D_MARKER||'REAL_PIXI_CLIENT'; fs.writeFileSync('apps/client-2d/dist/build-stamp.json', JSON.stringify({ok:true,app:'client-2d',commit:sha,marker,generatedBy:'Dockerfile.vps'}, null, 2));" && \
     test -f apps/client-2d/dist/build-stamp.json && \
     grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json && \
     test -f apps/client-2d/dist/assets/cozy-spring/manifest.json && \
+    test -f apps/client-2d/dist/manifest.webmanifest && \
+    test -f apps/client-2d/dist/service-worker.js && \
     node -e "const m=require('./apps/client-2d/dist/assets/cozy-spring/manifest.json'); if(m.version!==3||m.importPolicy!=='tilesets-as-tiles-props-as-extracted-objects'||!m.props||Object.keys(m.props).length===0){console.error('Invalid Cozy manifest in client-2d dist', {version:m.version, policy:m.importPolicy, props:m.props&&Object.keys(m.props).length}); process.exit(1)}; console.log('Cozy manifest in dist OK', {version:m.version, props:Object.keys(m.props).length})"
 
 RUN VITE_BASE_PATH=/portal/ pnpm --filter @wasd/portal --if-present build || \
@@ -214,9 +218,13 @@ RUN test -f /app/server/dist/core/watchdog-determinism.js && \
 RUN test -f /app/client/dist/2d/index.html && \
     test -f /app/client/dist/2d/build-stamp.json && \
     grep -q "$CLIENT_2D_BUILD_SHA" /app/client/dist/2d/build-stamp.json && \
+    test -f /app/client/dist/2d/manifest.webmanifest && \
+    test -f /app/client/dist/2d/service-worker.js && \
     test -f /app/server/client/dist/2d/index.html && \
     test -f /app/server/client/dist/2d/build-stamp.json && \
     grep -q "$CLIENT_2D_BUILD_SHA" /app/server/client/dist/2d/build-stamp.json && \
+    test -f /app/server/client/dist/2d/manifest.webmanifest && \
+    test -f /app/server/client/dist/2d/service-worker.js && \
     grep -q "$CLIENT_2D_MARKER" /app/client/dist/2d/index.html && \
     grep -q "$CLIENT_2D_MARKER" /app/server/client/dist/2d/index.html && \
     test -f /app/client/dist/2d/assets/cozy-spring/manifest.json && \

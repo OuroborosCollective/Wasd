@@ -110,6 +110,16 @@ validate_client_2d_dockerfile_gate() {
     exit 1
   fi
 
+  # Verify PWA files exist in Dockerfile
+  if ! grep -q "manifest.webmanifest" Dockerfile.vps; then
+    echo "ERROR: Dockerfile.vps does not copy manifest.webmanifest for PWA."
+    exit 1
+  fi
+  if ! grep -q "service-worker.js" Dockerfile.vps; then
+    echo "ERROR: Dockerfile.vps does not copy service-worker.js for offline support."
+    exit 1
+  fi
+
   if [ -n "$CLIENT_2D_BUILD_SHA" ]; then
     test -f apps/client-2d/dist/build-stamp.json || { echo "ERROR: prebuilt client-2d build-stamp.json missing before Docker build."; exit 1; }
     grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json || { echo "ERROR: prebuilt client-2d build stamp does not match ${CLIENT_2D_BUILD_SHA}."; cat apps/client-2d/dist/build-stamp.json || true; exit 1; }
@@ -118,7 +128,7 @@ validate_client_2d_dockerfile_gate() {
     echo "WARN: CLIENT_2D_BUILD_SHA is empty; deploy can only prove marker, not exact client bundle freshness."
   fi
 
-  echo "Client-2D Dockerfile gate OK: ${CLIENT_2D_MARKER} enforced."
+  echo "Client-2D Dockerfile gate OK: ${CLIENT_2D_MARKER} enforced with PWA support."
 }
 
 ensure_external_network() {
