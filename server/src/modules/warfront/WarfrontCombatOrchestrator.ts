@@ -2,6 +2,7 @@ import type { NPC } from "../npc/NPCSystem.js";
 import { NPCSystem } from "../npc/NPCSystem.js";
 import { PlayerSystem } from "../player/PlayerSystem.js";
 import { CombatService, type CombatState } from "../combat/CombatService.js";
+import { npcFactionAdapter } from "../faction/NPCFactionAdapter.js";
 import { mulberry32, warfrontSeed } from "./warfrontRng.js";
 import { WarfrontCombatTelemetry, type WarfrontHudAgent, type WarfrontHudSnapshot } from "./WarfrontCombatTelemetry.js";
 
@@ -100,8 +101,23 @@ export function runWarfrontCombatTick(opts: {
   const { tickCount, npcSystem, playerSystem, combatService, broadcast } = opts;
   const tel = WarfrontCombatTelemetry.getInstance();
 
+  // Mini hook: deterministic NPC faction context without changing NPCSystem internals.
+  // The adapter rebuilds only every 10 ticks and reuses the previous frozen snapshot otherwise.
+  const factionSnapshot = npcFactionAdapter.tick({
+    tickCount,
+    npcSystem,
+    worldSeed: "areloria:warfront:faction-hook:v1",
+  });
+
+  if (broadcast && tickCount % 10 === 0) {
+    broadcast({
+      type: "NPC_FACTION_SNAPSHOT",
+      tick: tickCount,
+      payload: factionSnapshot,
+    });
+  }
+
   const dummy = playerSystem.getPlayer("dummy_player");
-  const dummyPos = dummy?.position ? { x: dummy.position.x, y: dummy.position.y } : { x: 500, y: 500 };
   const dummyRef = dummy
     ? { id: dummy.id, position: { x: dummy.position.x, y: dummy.position.y } }
     : null;
