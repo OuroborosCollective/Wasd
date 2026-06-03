@@ -1,24 +1,22 @@
-import { WatchdogEmitter } from './watchdog-emitter.js';
+import { emitBackendWatchdogEvent, getBackendWatchdogTick } from './watchdog-runtime';
 
 export class WatchdogChronoSynapticMonitor {
-    private emitter: WatchdogEmitter;
     private readonly tickThresholdMs: number = 50;
 
-    constructor(emitterUrl: string = 'ws://localhost:9090') {
-        this.emitter = new WatchdogEmitter(emitterUrl);
-    }
+    monitorTickTime(tickTimeMs: number, tick = getBackendWatchdogTick()): void {
+        if (tickTimeMs <= this.tickThresholdMs) return;
 
-    monitorTickTime(tickTimeMs: number): void {
-        if (tickTimeMs > this.tickThresholdMs) {
-            this.emitter.emit(
-                'SYNAPTIC_OVERLOAD',
-                {
-                    message: `Critical tick delay detected: ${tickTimeMs}ms. Initiating Chrono-Synaptic time dilation.`,
-                    overloadFactor: tickTimeMs / this.tickThresholdMs
-                },
-                'WARNING',
-                'CHRONO_SYNAPTIC_MONITOR'
-            );
-        }
+        emitBackendWatchdogEvent(
+            'SYNAPTIC_OVERLOAD',
+            {
+                message: 'Tick duration threshold crossed.',
+                tickTimeMs,
+                thresholdMs: this.tickThresholdMs,
+                overloadFactor: tickTimeMs / this.tickThresholdMs,
+            },
+            'MEDIUM',
+            'CHRONO_SYNAPTIC_MONITOR',
+            tick,
+        );
     }
 }
