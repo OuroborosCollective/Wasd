@@ -57,7 +57,11 @@ export function merkleRoot(hashes: readonly string[]): string {
  */
 export function computeDependencyRoot(deps: Array<{ componentId: string; checksum: string }>): string {
   // Sort by componentId for deterministic ordering
-  const sorted = [...deps].sort((a, b) => a.componentId.localeCompare(b.componentId));
+  const sorted = [...deps].sort((a, b) => {
+    const idA = a.componentId;
+    const idB = b.componentId;
+    return idA < idB ? -1 : idA > idB ? 1 : 0;
+  });
   const hashes = sorted.map(d => sha256Combine(d.componentId, d.checksum));
   return merkleRoot(hashes);
 }
