@@ -1,6 +1,10 @@
 import type { EntityState } from "../world/entities";
+import type { InventorySlot } from "../game/inventory";
+import type { EquipmentSlotId } from "../game/equipment";
+import type { QuestState } from "../game/quests";
+import type { SkillId } from "../game/skills";
 
-export const ARELORIA_PROTOCOL_VERSION = 3 as const;
+export const ARELORIA_PROTOCOL_VERSION = 4 as const;
 
 export type ClientMessageType =
   | "client_hello"
@@ -8,7 +12,14 @@ export type ClientMessageType =
   | "input_frame"
   | "skill_cast"
   | "chat_send"
-  | "client_heartbeat";
+  | "client_heartbeat"
+  | "loot_pickup_request"
+  | "npc_interact_request"
+  | "inventory_action"
+  | "equipment_action"
+  | "quest_accept"
+  | "quest_track"
+  | "chunk_observe";
 
 export type ServerMessageType =
   | "welcome"
@@ -16,7 +27,15 @@ export type ServerMessageType =
   | "combat_result"
   | "toast"
   | "chat_message"
-  | "server_heartbeat";
+  | "server_heartbeat"
+  | "inventory_snapshot"
+  | "equipment_snapshot"
+  | "quest_snapshot"
+  | "loot_pickup_result"
+  | "npc_dialogue"
+  | "skill_result"
+  | "chunk_snapshot"
+  | "gameplay_event";
 
 export interface InputFrame {
   sequenceId: number;
@@ -105,6 +124,70 @@ export interface CombatResultPayload {
   kind: "damage" | "heal" | "miss" | "block";
 }
 
+// Phase 4 Payload Types
+
+export interface LootPickupRequestPayload {
+  tickId: number;
+  sequenceId: number;
+  entityId: string;
+}
+
+export interface NpcInteractRequestPayload {
+  tickId: number;
+  sequenceId: number;
+  npcId: string;
+}
+
+export interface InventorySnapshotPayload {
+  slots: InventorySlot[];
+}
+
+export interface EquipmentSnapshotPayload {
+  slots: Record<EquipmentSlotId, string | null>;
+}
+
+export interface QuestSnapshotPayload {
+  quests: QuestState[];
+}
+
+export interface LootPickupResultPayload {
+  ok: boolean;
+  entityId?: string;
+  itemId?: string;
+  quantity?: number;
+  reason?: string;
+}
+
+export interface NpcDialoguePayload {
+  npcId: string;
+  npcName: string;
+  text: string;
+}
+
+export interface SkillResultPayload {
+  skillId: SkillId;
+  success: boolean;
+  tickId?: number;
+  reason?: string;
+}
+
+export interface ChunkObservePayload {
+  centerChunkId: string;
+  chunks: string[];
+}
+
+export interface ChunkSnapshotPayload {
+  chunks: Array<{
+    id: string;
+    entities?: EntityState[];
+  }>;
+}
+
+export interface GameplayEventPayload {
+  eventType: string;
+  data: Record<string, unknown>;
+}
+
 export interface ClientEnvelope<TType extends ClientMessageType, TPayload> {
   type: TType;
   payload: TPayload;
@@ -179,6 +262,54 @@ export function isServerHeartbeatPayload(
   value: unknown
 ): value is ServerHeartbeatPayload {
   return isRecord(value) && typeof value.serverTimeMs === "number";
+}
+
+// Phase 4 Payload Validators
+
+export function isInventorySnapshotPayload(value: unknown): value is InventorySnapshotPayload {
+  return isRecord(value) && Array.isArray(value.slots);
+}
+
+export function isEquipmentSnapshotPayload(value: unknown): value is EquipmentSnapshotPayload {
+  return (
+    isRecord(value) &&
+    isRecord(value.slots) &&
+    typeof value.slots.weapon === "string" ||
+    value.slots.weapon === null
+  );
+}
+
+export function isQuestSnapshotPayload(value: unknown): value is QuestSnapshotPayload {
+  return isRecord(value) && Array.isArray(value.quests);
+}
+
+export function isLootPickupResultPayload(value: unknown): value is LootPickupResultPayload {
+  return isRecord(value) && typeof value.ok === "boolean";
+}
+
+export function isNpcDialoguePayload(value: unknown): value is NpcDialoguePayload {
+  return (
+    isRecord(value) &&
+    typeof value.npcId === "string" &&
+    typeof value.npcName === "string" &&
+    typeof value.text === "string"
+  );
+}
+
+export function isChunkObservePayload(value: unknown): value is ChunkObservePayload {
+  return (
+    isRecord(value) &&
+    typeof value.centerChunkId === "string" &&
+    Array.isArray(value.chunks)
+  );
+}
+
+export function isSkillResultPayload(value: unknown): value is SkillResultPayload {
+  return (
+    isRecord(value) &&
+    typeof value.skillId === "string" &&
+    typeof value.success === "boolean"
+  );
 }
 
 export function createClientEnvelope<TType extends ClientMessageType, TPayload>(

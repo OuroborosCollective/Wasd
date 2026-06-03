@@ -15,6 +15,11 @@ interface Props {
   rttMs: number;
   networkQuality: string;
   serverOffsetMs: number;
+  // Phase 4 Props
+  inventoryCount?: number;
+  trackedQuestTitle?: string;
+  observedChunkCount?: number;
+  gameplayEventQueueSize?: number;
 }
 
 export function DebugHud({
@@ -30,7 +35,11 @@ export function DebugHud({
   acknowledgedInputSeq,
   rttMs,
   networkQuality,
-  serverOffsetMs
+  serverOffsetMs,
+  inventoryCount = 0,
+  trackedQuestTitle,
+  observedChunkCount = 0,
+  gameplayEventQueueSize = 0
 }: Props) {
   if (!config.design.showDebugHud) return null;
 
@@ -52,7 +61,7 @@ export function DebugHud({
         backdropFilter: "blur(10px)"
       }}
     >
-      <strong style={{ color: "#00e5ff" }}>ARELORIA DEBUG</strong>
+      <strong style={{ color: "#00e5ff" }}>ARELORIA DEBUG [P4]</strong>
       <div>boot: {bootPhase}</div>
       <div>net: {networkStatus}</div>
       <div>tick: {tickId}</div>
@@ -65,8 +74,16 @@ export function DebugHud({
       <div>rtt: {rttMs}ms</div>
       <div>quality: {networkQuality}</div>
       <div>offset: {serverOffsetMs}ms</div>
-      <div>mode: {config.mode}</div>
-      <div>ws: {config.network.wsUrl}</div>
+      {/* Phase 4 Display */}
+      <div style={{ marginTop: 8, borderTop: "1px solid rgba(0,229,255,.15)", paddingTop: 6 }}>
+        <strong style={{ color: "#00e5ff" }}>GAMEPLAY</strong>
+      </div>
+      <div>inventory: {inventoryCount} items</div>
+      <div>quest: {trackedQuestTitle ?? "none"}</div>
+      <div>chunks: {observedChunkCount}</div>
+      <div>events: {gameplayEventQueueSize}</div>
+      <div style={{ marginTop: 6 }}>mode: {config.mode}</div>
+      <div style={{ opacity: 0.6 }}>ws: {config.network.wsUrl}</div>
     </div>
   );
 }
