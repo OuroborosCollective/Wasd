@@ -402,8 +402,9 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
             entityCountRef.current = clientWorld.getEntityCount();
             pendingInputCountRef.current = pendingInputQueue.getPendingCount();
 
-            // Extract player position from local player
-            const localPlayer = clientWorld.getLocalPlayer();
+            // Extract player position from local player via getViewState()
+            const viewState = clientWorld.getViewState();
+            const localPlayer = viewState.entities.find(e => e.id === viewState.localPlayerId);
             if (localPlayer) {
               playerPosRef.current = { x: localPlayer.x, z: localPlayer.y };
               // Calculate chunk coords from player position
