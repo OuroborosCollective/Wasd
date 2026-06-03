@@ -4,13 +4,21 @@ import { BootOverlay } from "./BootOverlay";
 import { ARELORIA_BOOT_CONFIG, type AreloriaBootConfig } from "../boot/boot.config";
 import { createLogicClock, type LogicTick } from "../logic/logicClock";
 import { createInputBuffer, type InputBuffer } from "../logic/inputBuffer";
+import { createPendingInputQueue, type PendingInputQueue } from "../logic/pendingInputQueue";
 import { createClientWorld, type ClientWorld } from "../logic/clientWorld";
-import { createNetworkClient, type NetworkStatus } from "../net/networkClient";
+import { createNetworkClient, type NetworkStatus, type NetworkClient } from "../net/networkClient";
 import { createSnapshotBuffer, type SnapshotBuffer } from "../net/snapshotBuffer";
+import { createLatencyTracker, type LatencyTracker } from "../net/latencyTracker";
+import { createServerClock, type ServerClock } from "../net/serverClock";
 import { createPixiClient, type PixiClient } from "../engine/pixiClient";
+import { createCombatFxStore, type CombatFxStore } from "../fx/combatFx";
 import { MobileHud } from "./MobileHud";
 import { DebugHud } from "./DebugHud";
 import { VersionOverlay } from "./VersionOverlay";
+import { ToastStack, type ClientToast } from "./ui/ToastStack";
+import { ChatMiniPanel } from "./ui/ChatMiniPanel";
+import { NetworkQualityHud } from "./ui/NetworkQualityHud";
+import type { ChatMessagePayload } from "../net/protocol";
 
 type BootPhaseState =
   | "BOOTING"
@@ -41,12 +49,26 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
   const pixiRef = useRef<PixiClient | null>(null);
   const clockRef = useRef<ReturnType<typeof createLogicClock> | null>(null);
   const inputBufferRef = useRef<InputBuffer | null>(null);
+  const pendingInputQueueRef = useRef<PendingInputQueue | null>(null);
   const clientWorldRef = useRef<ClientWorld | null>(null);
   const snapshotBufferRef = useRef<SnapshotBuffer | null>(null);
+  const networkClientRef = useRef<NetworkClient | null>(null);
+  const latencyTrackerRef = useRef<LatencyTracker | null>(null);
+  const serverClockRef = useRef<ServerClock | null>(null);
+  const combatFxRef = useRef<CombatFxStore | null>(null);
+
   const networkStatusRef = useRef<NetworkStatus>("idle");
   const mountedRef = useRef(false);
   const lastSnapshotTickRef = useRef<number>(0);
   const entityCountRef = useRef<number>(0);
+  const pendingInputCountRef = useRef<number>(0);
+  const lastSequenceIdRef = useRef<number>(0);
+  const acknowledgedInputSeqRef = useRef<number>(0);
+  const rttMsRef = useRef<number>(0);
+  const networkQualityRef = useRef<"offline" | "poor" | "ok" | "good">("offline");
+  const serverOffsetMsRef = useRef<number>(0);
+  const toastsRef = useRef<ClientToast[]>([]);
+  const chatMessagesRef = useRef<ChatMessagePayload[]>([]);
 
   // Force re-render for UI overlays
   const [, forceUpdate] = useState(0);
@@ -54,6 +76,24 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
 
   // Keyboard state for WASD
   const keysRef = useRef<Set<string>>(new Set());
+
+  // Toast helper
+  function addToast(message: string, severity: ClientToast["severity"] = "info"): void {
+    const toast: ClientToast = {
+      id: `toast_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      message,
+      severity,
+      createdAtMs: Date.now()
+    };
+    toastsRef.current = [...toastsRef.current.slice(-8), toast];
+    triggerUpdate();
+
+    // Auto-remove after 4200ms
+    setTimeout(() => {
+      toastsRef.current = toastsRef.current.filter((t) => t.id !== toast.id);
+      triggerUpdate();
+    }, 4200);
+  }
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -163,9 +203,24 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
         pixiRef.current = pixi;
         if (disposed) return;
 
-        // Initialize core systems
+        // Initialize Phase 3 systems
         const inputBuffer = createInputBuffer();
         inputBufferRef.current = inputBuffer;
+
+        const pendingInputQueue = createPendingInputQueue();
+        pendingInputQueueRef.current = pendingInputQueue;
+
+        const snapshotBuffer = createSnapshotBuffer();
+        snapshotBufferRef.current = snapshotBuffer;
+
+        const latencyTracker = createLatencyTracker();
+        latencyTrackerRef.current = latencyTracker;
+
+        const serverClock = createServerClock();
+        serverClockRef.current = serverClock;
+
+        const combatFx = createCombatFxStore();
+        combatFxRef.current = combatFx;
 
         const clientWorld = createClientWorld({
           spawnX: 0,
@@ -174,10 +229,7 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
         });
         clientWorldRef.current = clientWorld;
 
-        const snapshotBuffer = createSnapshotBuffer();
-        snapshotBufferRef.current = snapshotBuffer;
-
-        // Connect network
+        // Connect network with Phase 3 events
         const network = createNetworkClient(config, {
           onStatusChange(status) {
             networkStatusRef.current = status;
@@ -185,15 +237,60 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
           },
           onWelcome(payload) {
             clientWorld.setLocalPlayerId(payload.playerId);
+            serverClock.observe(payload.serverTick);
+            addToast("Willkommen in Areloria", "success");
           },
           onWorldSnapshot(snapshot) {
             snapshotBuffer.push(snapshot);
-            clientWorld.applySnapshot(snapshot);
+
+            // Acknowledge pending inputs
+            if (snapshot.acknowledgedInputSeq !== undefined) {
+              pendingInputQueue.acknowledge(snapshot.acknowledgedInputSeq);
+              acknowledgedInputSeqRef.current = snapshot.acknowledgedInputSeq;
+            }
+
+            // Apply snapshot with pending inputs for reconciliation
+            clientWorld.applySnapshot(
+              snapshot,
+              pendingInputQueue.getPending(),
+              1 / config.logicHz
+            );
+
             lastSnapshotTickRef.current = snapshot.serverTick;
             entityCountRef.current = clientWorld.getEntityCount();
+            pendingInputCountRef.current = pendingInputQueue.getPendingCount();
             triggerUpdate();
+          },
+          onCombatResult(result) {
+            combatFx.push(result);
+            if (result.kind === "damage" && result.amount !== undefined) {
+              addToast(`${result.amount} Schaden!`, "warning");
+            }
+          },
+          onToast(payload) {
+            addToast(
+              payload.message,
+              (payload.severity as ClientToast["severity"]) ?? "info"
+            );
+          },
+          onChatMessage(payload) {
+            chatMessagesRef.current = [...chatMessagesRef.current.slice(-24), payload];
+            triggerUpdate();
+          },
+          onServerHeartbeat(payload) {
+            serverClock.observe(payload.serverTick, payload.serverTimeMs);
+            serverOffsetMsRef.current = serverClock.getServerTimeOffsetMs();
+            triggerUpdate();
+
+            if (payload.clientSentAtMs !== undefined) {
+              latencyTracker.markPong(payload.clientSentAtMs, Date.now());
+              rttMsRef.current = latencyTracker.getRttMs();
+              networkQualityRef.current = latencyTracker.getQuality();
+              triggerUpdate();
+            }
           }
         });
+        networkClientRef.current = network;
 
         // Phase 6: SYNCING_TICK - Start logic clock
         setPhase("SYNCING_TICK");
@@ -211,17 +308,45 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
           onTick(logicTick: LogicTick) {
             if (!mountedRef.current) return;
 
+            // 1. Consume input for this tick
             const input = inputBuffer.consumeForTick(logicTick.tickId);
+
+            // 2. Push to pending queue
+            pendingInputQueue.push(input);
+            lastSequenceIdRef.current = input.sequenceId;
+            pendingInputCountRef.current = pendingInputQueue.getPendingCount();
+
+            // 3. Apply to local player
             clientWorld.applyInput(input, logicTick.fixedDtSec);
+
+            // 4. Send to network
             network.sendInputFrame(input);
 
+            // 5. If skill cast, send skill message
+            if (input.skill1) {
+              network.sendSkillCast({
+                sequenceId: input.sequenceId,
+                tickId: input.tickId,
+                skillId: "impact_buster",
+                x: clientWorld.localPlayerId ? 0 : 0,
+                y: clientWorld.localPlayerId ? 0 : 0,
+                clientTimeMs: input.clientTimeMs
+              });
+            }
+
+            // 6. Step combat FX
+            combatFx.step();
+
+            // 7. Get view state
             const viewState = clientWorld.getViewState();
             entityCountRef.current = viewState.entities.length;
 
+            // 8. Render
             if (pixiRef.current) {
               pixiRef.current.logicTick(
                 { tickId: logicTick.tickId, fixedDtSec: logicTick.fixedDtSec },
-                viewState
+                viewState,
+                combatFx.getAll()
               );
             }
 
@@ -271,6 +396,14 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
   const networkStatus = networkStatusRef.current;
   const entityCount = entityCountRef.current;
   const lastSnapshotTick = lastSnapshotTickRef.current;
+  const pendingInputCount = pendingInputCountRef.current;
+  const lastSequenceId = lastSequenceIdRef.current;
+  const acknowledgedInputSeq = acknowledgedInputSeqRef.current;
+  const rttMs = rttMsRef.current;
+  const networkQuality = networkQualityRef.current;
+  const serverOffsetMs = serverOffsetMsRef.current;
+  const toasts = toastsRef.current;
+  const chatMessages = chatMessagesRef.current;
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -297,6 +430,17 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
       {/* Mobile touch controls - always visible */}
       {inputBufferRef.current && <MobileHud input={inputBufferRef.current} />}
 
+      {/* Toast notifications */}
+      {toasts.length > 0 && <ToastStack toasts={toasts} />}
+
+      {/* Chat mini panel */}
+      {phase === "READY" && (
+        <ChatMiniPanel
+          messages={chatMessages}
+          onSend={(text) => networkClientRef.current?.sendChat(text)}
+        />
+      )}
+
       {/* Debug HUD - only in dev mode */}
       <DebugHud
         config={config}
@@ -306,7 +450,26 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
         entityCount={entityCount}
         localPlayerId={localPlayerId}
         lastSnapshotTick={lastSnapshotTick}
+        pendingInputCount={pendingInputCount}
+        lastSequenceId={lastSequenceId}
+        acknowledgedInputSeq={acknowledgedInputSeq}
+        rttMs={rttMs}
+        networkQuality={networkQuality}
+        serverOffsetMs={serverOffsetMs}
       />
+
+      {/* Network quality HUD - only in dev mode */}
+      {config.design.showDebugHud && (
+        <NetworkQualityHud
+          rttMs={rttMs}
+          quality={networkQuality}
+          pendingInputs={pendingInputCount}
+          lastSequenceId={lastSequenceId}
+          acknowledgedInputSeq={acknowledgedInputSeq}
+          serverTick={lastSnapshotTick}
+          serverOffsetMs={serverOffsetMs}
+        />
+      )}
 
       {/* Version overlay */}
       <VersionOverlay config={config} />

@@ -1,32 +1,48 @@
 import type { AreloriaBootConfig } from "../boot/boot.config";
 import type {
+  ChatMessagePayload,
+  ChatSendPayload,
+  ClientHeartbeatPayload,
   ClientHelloPayload,
+  CombatResultPayload,
   GuestLoginPayload,
   InputFrame,
   ServerEnvelope,
   SkillCastPayload,
+  ToastPayload,
+  WelcomePayload,
   WorldSnapshot
 } from "./protocol";
 import {
+  ARELORIA_PROTOCOL_VERSION,
   createClientEnvelope,
+  isChatMessagePayload,
+  isCombatResultPayload,
   isRecord,
+  isServerHeartbeatPayload,
+  isToastPayload,
+  isWelcomePayload,
   isWorldSnapshot
 } from "./protocol";
 
+export type NetworkStatus = "idle" | "connecting" | "connected" | "disconnected";
+
 export interface NetworkEvents {
-  onWelcome?: (payload: { playerId: string; sceneId?: string; serverTick?: number }) => void;
+  onWelcome?: (payload: WelcomePayload) => void;
   onWorldSnapshot?: (snapshot: WorldSnapshot) => void;
-  onToast?: (payload: { message: string; severity?: string }) => void;
+  onToast?: (payload: ToastPayload) => void;
+  onChatMessage?: (payload: ChatMessagePayload) => void;
+  onCombatResult?: (payload: CombatResultPayload) => void;
+  onServerHeartbeat?: (payload: { serverTimeMs: number; serverTick?: number; clientSentAtMs?: number }) => void;
   onStatusChange?: (status: NetworkStatus) => void;
 }
-
-export type NetworkStatus = "idle" | "connecting" | "connected" | "disconnected";
 
 export interface NetworkClient {
   connect(): void;
   close(): void;
   sendInputFrame(frame: InputFrame): void;
   sendSkillCast(payload: SkillCastPayload): void;
+  sendChat(text: string): void;
   getStatus(): NetworkStatus;
 }
 
@@ -39,6 +55,7 @@ export function createNetworkClient(
   let closedByUser = false;
   let reconnectAttempt = 0;
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
+  let lastServerTick = 0;
 
   function setStatus(next: NetworkStatus): void {
     status = next;
@@ -62,9 +79,14 @@ export function createNetworkClient(
     stopHeartbeat();
 
     heartbeatTimer = setInterval(() => {
-      send("client_heartbeat", {
-        client: config.clientId
-      });
+      const clientTimeMs = Date.now();
+
+      const payload: ClientHeartbeatPayload = {
+        clientTimeMs,
+        lastServerTick
+      };
+
+      send("client_heartbeat", payload);
     }, config.network.heartbeatMs);
   }
 
@@ -82,44 +104,58 @@ export function createNetworkClient(
       return;
     }
 
-    if (envelope.type === "welcome" && isRecord(envelope.payload)) {
-      const playerId = envelope.payload.playerId;
+    if (
+      typeof envelope.protocolVersion === "number" &&
+      envelope.protocolVersion > ARELORIA_PROTOCOL_VERSION
+    ) {
+      console.warn("[Areloria Network] Future protocol ignored", envelope);
+      return;
+    }
 
-      if (typeof playerId === "string") {
-        events.onWelcome?.({
-          playerId,
-          sceneId:
-            typeof envelope.payload.sceneId === "string"
-              ? envelope.payload.sceneId
-              : undefined,
-          serverTick:
-            typeof envelope.payload.serverTick === "number"
-              ? envelope.payload.serverTick
-              : undefined
-        });
-      }
-
+    if (envelope.type === "welcome" && isWelcomePayload(envelope.payload)) {
+      lastServerTick = envelope.payload.serverTick ?? lastServerTick;
+      events.onWelcome?.(envelope.payload);
       return;
     }
 
     if (envelope.type === "world_snapshot" && isWorldSnapshot(envelope.payload)) {
+      lastServerTick = envelope.payload.serverTick;
+
       events.onWorldSnapshot?.({
         ...envelope.payload,
+        protocolVersion: envelope.payload.protocolVersion || ARELORIA_PROTOCOL_VERSION,
         receivedAtMs: performance.now()
       });
+
       return;
     }
 
-    if (envelope.type === "toast" && isRecord(envelope.payload)) {
-      events.onToast?.({
-        message:
-          typeof envelope.payload.message === "string"
-            ? envelope.payload.message
-            : "Server message",
-        severity:
-          typeof envelope.payload.severity === "string"
-            ? envelope.payload.severity
-            : "info"
+    if (envelope.type === "combat_result" && isCombatResultPayload(envelope.payload)) {
+      events.onCombatResult?.(envelope.payload);
+      return;
+    }
+
+    if (envelope.type === "toast" && isToastPayload(envelope.payload)) {
+      events.onToast?.(envelope.payload);
+      return;
+    }
+
+    if (envelope.type === "chat_message" && isChatMessagePayload(envelope.payload)) {
+      events.onChatMessage?.(envelope.payload);
+      return;
+    }
+
+    if (
+      envelope.type === "server_heartbeat" &&
+      isServerHeartbeatPayload(envelope.payload)
+    ) {
+      events.onServerHeartbeat?.({
+        ...envelope.payload,
+        clientSentAtMs:
+          isRecord(envelope.payload) &&
+          typeof envelope.payload.clientSentAtMs === "number"
+            ? envelope.payload.clientSentAtMs
+            : undefined
       });
     }
   }
@@ -162,7 +198,8 @@ export function createNetworkClient(
         client: config.clientId,
         engine: config.engine,
         logicHz: config.logicHz,
-        version: "phase-2"
+        version: "phase-3",
+        protocolVersion: ARELORIA_PROTOCOL_VERSION
       };
 
       const login: GuestLoginPayload = {
@@ -205,6 +242,16 @@ export function createNetworkClient(
 
     sendSkillCast(payload) {
       send("skill_cast", payload);
+    },
+
+    sendChat(text) {
+      const payload: ChatSendPayload = {
+        text: text.trim().slice(0, 240)
+      };
+
+      if (payload.text.length > 0) {
+        send("chat_send", payload);
+      }
     },
 
     getStatus() {

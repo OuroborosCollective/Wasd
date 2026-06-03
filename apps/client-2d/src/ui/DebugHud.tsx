@@ -9,6 +9,12 @@ interface Props {
   entityCount: number;
   localPlayerId: string;
   lastSnapshotTick: number;
+  pendingInputCount: number;
+  lastSequenceId: number;
+  acknowledgedInputSeq: number;
+  rttMs: number;
+  networkQuality: string;
+  serverOffsetMs: number;
 }
 
 export function DebugHud({
@@ -18,7 +24,13 @@ export function DebugHud({
   tickId,
   entityCount,
   localPlayerId,
-  lastSnapshotTick
+  lastSnapshotTick,
+  pendingInputCount,
+  lastSequenceId,
+  acknowledgedInputSeq,
+  rttMs,
+  networkQuality,
+  serverOffsetMs
 }: Props) {
   if (!config.design.showDebugHud) return null;
 
@@ -47,6 +59,12 @@ export function DebugHud({
       <div>entities: {entityCount}</div>
       <div>player: {localPlayerId}</div>
       <div>snapshot: {lastSnapshotTick}</div>
+      <div>pending: {pendingInputCount}</div>
+      <div>seq: {lastSequenceId}</div>
+      <div>ack: {acknowledgedInputSeq}</div>
+      <div>rtt: {rttMs}ms</div>
+      <div>quality: {networkQuality}</div>
+      <div>offset: {serverOffsetMs}ms</div>
       <div>mode: {config.mode}</div>
       <div>ws: {config.network.wsUrl}</div>
     </div>
