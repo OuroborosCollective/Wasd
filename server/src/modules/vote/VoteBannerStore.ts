@@ -3,6 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { resolveContentFile } from "../content/contentDataRoot.js";
 import type { VoteBannerEntry, VoteVerificationMode } from "./voteTypes.js";
+import { deepClone } from "../../utils/deepClone.js";
 
 const DEFAULT_BANNER_FILE = "world/vote-banners.json";
 const ALLOWED_VERIFY_MODES = new Set<VoteVerificationMode>([
@@ -53,7 +54,7 @@ function normalizeRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {};
   }
-  return JSON.parse(JSON.stringify(value));
+  return deepClone(value) as Record<string, unknown>;
 }
 
 function normalizeBanner(raw: Partial<VoteBannerEntry>, now: number): VoteBannerEntry {

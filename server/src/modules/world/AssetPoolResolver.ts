@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { deterministicNow } from "../../core/determinism/AREDeterminism.js";
+import { deepClone } from "../../utils/deepClone.js";
 
 type PoolEntry = string | string[];
 
@@ -51,7 +52,7 @@ export class AssetPoolResolver {
   }
 
   public getDocument(): AssetPoolDocument {
-    return JSON.parse(JSON.stringify(this.document));
+    return deepClone(this.document);
   }
 
   public createSnapshot(label?: string): AssetPoolSnapshotMeta | null {

@@ -1,3 +1,6 @@
+import { WeatherEconomyBridge } from "./WeatherEconomyBridge.js";
+import { KAPPA } from "../../core/are/Kappa.js";
+
 export class EconomySystem {
   private goldSupply: number = 0;
   private itemPrices: Map<string, number> = new Map();
@@ -40,6 +43,16 @@ export class EconomySystem {
 
   resetPrices() {
     this.itemPrices = new Map(this.defaultPrices);
+  }
+
+  /**
+   * Calculates a weather-adjusted price for an item.
+   * Uses deterministic fixed-point multipliers.
+   */
+  getWeatherAdjustedPrice(itemId: string, itemCategory: string, weather: string): number {
+    const basePrice = this.getPrice(itemId);
+    const multiplier = WeatherEconomyBridge.getPriceMultiplier(weather, itemCategory);
+    return Math.max(1, Math.floor((basePrice * multiplier) / KAPPA));
   }
 
   getShop(_shopId: string) {

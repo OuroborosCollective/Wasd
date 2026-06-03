@@ -278,7 +278,11 @@ export class ManifestFactory {
     if (deps.length === 0) return sha256('');
 
     // Sort and hash each dependency
-    const sorted = [...deps].sort((a, b) => a.componentId.localeCompare(b.componentId));
+    const sorted = [...deps].sort((a, b) => {
+      const idA = a.componentId;
+      const idB = b.componentId;
+      return idA < idB ? -1 : idA > idB ? 1 : 0;
+    });
     const hashes = sorted.map(dep => {
       const canonical = JSON.stringify({
         componentId: dep.componentId,
