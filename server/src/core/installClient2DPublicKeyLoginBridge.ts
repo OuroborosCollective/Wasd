@@ -27,14 +27,97 @@ function readSpawn(msg: any): { x: number; y: number; z: number } {
   };
 }
 
+function readMove(msg: any): { dx: number; dy: number } | null {
+  const rawDx = Number(msg?.dx ?? msg?.input?.dx ?? 0);
+  const rawDy = Number(msg?.dy ?? msg?.dz ?? msg?.input?.dy ?? msg?.input?.dz ?? 0);
+  if (!Number.isFinite(rawDx) || !Number.isFinite(rawDy)) return null;
+  let dx = Math.max(-1, Math.min(1, rawDx));
+  let dy = Math.max(-1, Math.min(1, rawDy));
+  const magSq = dx * dx + dy * dy;
+  if (magSq <= 0) return null;
+  if (magSq > 1) {
+    const mag = Math.sqrt(magSq);
+    dx /= mag;
+    dy /= mag;
+  }
+  return { dx, dy };
+}
+
 function isClient2DPublicKeyLogin(msg: any): boolean {
   return msg?.type === "login" && !msg?.token && Boolean(msg?.publicKey || msg?.identityHash) && (msg?.source === "client-2d" || msg?.appearance === "client-2d");
+}
+
+function isClient2DMovement(msg: any): boolean {
+  return msg?.type === "MOVE" || msg?.type === "move_intent" || (msg?.type === "input" && msg?.source === "client-2d");
+}
+
+function isClient2DPresence(msg: any): boolean {
+  return msg?.type === "presence" && (msg?.source === "client-2d" || msg?.clientRoute === "/2d/");
+}
+
+function positionPayload(player: any) {
+  return {
+    x: player.position.x,
+    y: player.position.y,
+    z: player.position.z ?? 0,
+  };
+}
+
+function broadcastServerPresence(ws: GameWebSocketServer, socketId: string, player: any, tick: WorldTick, reason: string, seq?: unknown): void {
+  const payload = {
+    ok: true,
+    reason,
+    seq,
+    tick: Number((tick as any).tickCount ?? 0),
+    socketId,
+    playerId: player.id,
+    name: player.name,
+    isOffline: Boolean(player.isOffline),
+    position: positionPayload(player),
+  };
+  ws.sendToPlayer(socketId, { type: "presence_ack", payload });
+  ws.broadcast({ type: "server_presence", payload });
+}
+
+function registerPresence(ws: GameWebSocketServer, tick: WorldTick, socketId: string, uid: string, player: any): void {
+  (tick as any).socketToPlayer?.set(socketId, uid);
+  (tick as any).playerToSocket?.set(uid, socketId);
+  tick.observerEngine.register(socketId, { x: player.position.x, y: player.position.y });
+  broadcastServerPresence(ws, socketId, player, tick, "client2d_register");
 }
 
 export function installClient2DPublicKeyLoginBridge(ws: GameWebSocketServer, tick: WorldTick): void {
   const originalHandler = ws.onPlayerMessage?.bind(ws);
 
   ws.onPlayerMessage = async (socketId: string, msg: any) => {
+    if (isClient2DPresence(msg)) {
+      const uid = (tick as any).socketToPlayer?.get(socketId);
+      const player = uid ? (tick as any).playerSystem?.getPlayer(uid) : null;
+      if (player) {
+        player.isOffline = false;
+        tick.observerEngine.updatePosition(socketId, { x: player.position.x, y: player.position.y });
+        broadcastServerPresence(ws, socketId, player, tick, "client2d_presence", msg?.seq);
+      }
+      return;
+    }
+
+    if (isClient2DMovement(msg)) {
+      const uid = (tick as any).socketToPlayer?.get(socketId);
+      const player = uid ? (tick as any).playerSystem?.getPlayer(uid) : null;
+      const move = readMove(msg);
+      if (player && move) {
+        const speed = Number((tick as any).client2DMoveSpeed ?? 5);
+        player.position.x += move.dx * speed;
+        player.position.y += move.dy * speed;
+        player.position.z = Number(player.position.z ?? 0);
+        player.isOffline = false;
+        player.state = "walking";
+        tick.observerEngine.updatePosition(socketId, { x: player.position.x, y: player.position.y });
+        broadcastServerPresence(ws, socketId, player, tick, "client2d_move", msg?.seq);
+      }
+      return;
+    }
+
     if (!isClient2DPublicKeyLogin(msg)) {
       if (originalHandler) await originalHandler(socketId, msg);
       return;
@@ -61,14 +144,14 @@ export function installClient2DPublicKeyLoginBridge(ws: GameWebSocketServer, tic
     player.isOffline = false;
     player.state = "idle";
 
-    (tick as any).socketToPlayer?.set(socketId, uid);
-    (tick as any).playerToSocket?.set(uid, socketId);
-    tick.observerEngine.register(socketId, { x: player.position.x, y: player.position.y });
+    registerPresence(ws, tick, socketId, uid, player);
 
     ws.sendToPlayer(socketId, {
       type: "welcome",
       id: uid,
+      playerId: uid,
       playerName: player.name,
+      spawnPosition: positionPayload(player),
       stats: {
         gold: player.gold ?? 0,
         xp: player.xp ?? 0,
