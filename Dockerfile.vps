@@ -4,6 +4,11 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+ARG CLIENT_2D_BUILD_SHA=""
+ARG CLIENT_2D_MARKER="REAL_PIXI_CLIENT"
+ENV CLIENT_2D_BUILD_SHA=$CLIENT_2D_BUILD_SHA
+ENV CLIENT_2D_MARKER=$CLIENT_2D_MARKER
+
 RUN apk add --no-cache libc6-compat dumb-init python3 make g++ unzip
 
 ENV PNPM_HOME=/pnpm
@@ -16,10 +21,6 @@ ENV PNPM_CONFIG_CHILD_CONCURRENCY=1
 ENV PNPM_CONFIG_SIDE_EFFECTS_CACHE=false
 ENV PNPM_CONFIG_VERIFY_STORE_INTEGRITY=false
 ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
-ENV WORLD_TICK_HZ=10
-ENV WATCHDOG_TICK_HZ=10
-ENV WATCHDOG_AST_SYNC_BUDGET_MS=50
-ENV WATCHDOG_AST_SYNC_FAIL_ON_OVERRUN=false
 
 RUN corepack enable && corepack prepare pnpm@11.1.1 --activate && \
     pnpm config set store-dir /pnpm/store && \
@@ -121,10 +122,13 @@ RUN rm -rf /tmp/wasd-3d-dist && mkdir -p /tmp/wasd-3d-dist && cp -a client/dist/
 RUN rm -rf apps/client-2d/dist && \
     pnpm --filter @wasd/client-2d --if-present build && \
     test -f apps/client-2d/dist/index.html && \
-    grep -q 'REAL_PIXI_CLIENT' apps/client-2d/dist/index.html && \
+    grep -q "$CLIENT_2D_MARKER" apps/client-2d/dist/index.html && \
     echo "Copying public assets for client-2d" && \
     mkdir -p apps/client-2d/dist/assets && \
     cp -a apps/client-2d/public/assets/. apps/client-2d/dist/assets/ && \
+    node -e "const fs=require('node:fs'); const sha=process.env.CLIENT_2D_BUILD_SHA||'docker-local'; const marker=process.env.CLIENT_2D_MARKER||'REAL_PIXI_CLIENT'; fs.writeFileSync('apps/client-2d/dist/build-stamp.json', JSON.stringify({ok:true,app:'client-2d',commit:sha,marker,generatedBy:'Dockerfile.vps'}, null, 2));" && \
+    test -f apps/client-2d/dist/build-stamp.json && \
+    grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json && \
     test -f apps/client-2d/dist/assets/cozy-spring/manifest.json && \
     node -e "const m=require('./apps/client-2d/dist/assets/cozy-spring/manifest.json'); if(m.version!==3||m.importPolicy!=='tilesets-as-tiles-props-as-extracted-objects'||!m.props||Object.keys(m.props).length===0){console.error('Invalid Cozy manifest in client-2d dist', {version:m.version, policy:m.importPolicy, props:m.props&&Object.keys(m.props).length}); process.exit(1)}; console.log('Cozy manifest in dist OK', {version:m.version, props:Object.keys(m.props).length})"
 
@@ -136,7 +140,9 @@ RUN rm -rf client/dist/2d client/dist/3d client/dist/portal && \
     cp -a apps/client-2d/dist/. client/dist/2d/ && \
     cp -a portal/dist/. client/dist/portal/ && \
     cp -a /tmp/wasd-3d-dist/. client/dist/3d/ && \
-    grep -q 'REAL_PIXI_CLIENT' client/dist/2d/index.html && \
+    grep -q "$CLIENT_2D_MARKER" client/dist/2d/index.html && \
+    test -f client/dist/2d/build-stamp.json && \
+    grep -q "$CLIENT_2D_BUILD_SHA" client/dist/2d/build-stamp.json && \
     test -f client/dist/2d/assets/cozy-spring/manifest.json && \
     node -e "const m=require('./client/dist/2d/assets/cozy-spring/manifest.json'); if(m.version!==3||m.importPolicy!=='tilesets-as-tiles-props-as-extracted-objects'||!m.props||Object.keys(m.props).length===0){console.error('Invalid Cozy manifest in final 2d dist', {version:m.version, policy:m.importPolicy, props:m.props&&Object.keys(m.props).length}); process.exit(1)}; console.log('Final Cozy manifest OK', {version:m.version, props:Object.keys(m.props).length})" && \
     sed -i 's#"/assets/#"/3d/assets/#g; s#href=/assets/#href=/3d/assets/#g; s#src=/assets/#src=/3d/assets/#g' client/dist/3d/index.html || true
@@ -146,16 +152,23 @@ RUN node scripts/write-runtime-entrypoints.mjs && \
 
 RUN test -f client/dist/index.html && \
     test -f client/dist/2d/index.html && \
+    test -f client/dist/2d/build-stamp.json && \
+    grep -q "$CLIENT_2D_BUILD_SHA" client/dist/2d/build-stamp.json && \
     test -f client/dist/3d/index.html && \
     test -f client/dist/portal/index.html && \
     test -f client/dist/design-routes.json && \
-    grep -q 'REAL_PIXI_CLIENT' client/dist/2d/index.html && \
+    grep -q "$CLIENT_2D_MARKER" client/dist/2d/index.html && \
     grep -q 'LIVE_ENTRYPOINTS' client/dist/index.html && \
     grep -q 'PORTAL ONLINE' client/dist/portal/index.html
 
 FROM node:22-alpine AS runner
 
 WORKDIR /app
+
+ARG CLIENT_2D_BUILD_SHA=""
+ARG CLIENT_2D_MARKER="REAL_PIXI_CLIENT"
+ENV CLIENT_2D_BUILD_SHA=$CLIENT_2D_BUILD_SHA
+ENV CLIENT_2D_MARKER=$CLIENT_2D_MARKER
 
 RUN apk add --no-cache dumb-init libc6-compat && \
     addgroup -S nodejs && \
@@ -199,9 +212,13 @@ RUN test -f /app/server/dist/core/watchdog-determinism.js && \
     grep -q 'world.sensor.frame' /app/server/dist/core/watchdog-live-sensors.js
 
 RUN test -f /app/client/dist/2d/index.html && \
+    test -f /app/client/dist/2d/build-stamp.json && \
+    grep -q "$CLIENT_2D_BUILD_SHA" /app/client/dist/2d/build-stamp.json && \
     test -f /app/server/client/dist/2d/index.html && \
-    grep -q 'REAL_PIXI_CLIENT' /app/client/dist/2d/index.html && \
-    grep -q 'REAL_PIXI_CLIENT' /app/server/client/dist/2d/index.html && \
+    test -f /app/server/client/dist/2d/build-stamp.json && \
+    grep -q "$CLIENT_2D_BUILD_SHA" /app/server/client/dist/2d/build-stamp.json && \
+    grep -q "$CLIENT_2D_MARKER" /app/client/dist/2d/index.html && \
+    grep -q "$CLIENT_2D_MARKER" /app/server/client/dist/2d/index.html && \
     test -f /app/client/dist/2d/assets/cozy-spring/manifest.json && \
     test -f /app/server/client/dist/2d/assets/cozy-spring/manifest.json && \
     test -f /app/client/dist/portal/index.html && \
