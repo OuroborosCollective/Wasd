@@ -25,6 +25,12 @@ interface Props {
   combatLogCount?: number;
   chunkSnapshotCount?: number;
   gameplayStateVersion?: number;
+  // Phase 7 Props
+  onOpenIdentityDebug?: () => void;
+  onOpenCharacterSelect?: () => void;
+  stableGuestId?: string;
+  characterId?: string;
+  identityStatus?: string;
 }
 
 export function DebugHud({
@@ -48,7 +54,12 @@ export function DebugHud({
   dialogueOpen = false,
   combatLogCount = 0,
   chunkSnapshotCount = 0,
-  gameplayStateVersion = 0
+  gameplayStateVersion = 0,
+  onOpenIdentityDebug,
+  onOpenCharacterSelect,
+  stableGuestId,
+  characterId,
+  identityStatus
 }: Props) {
   if (!config.design.showDebugHud) return null;
 
@@ -70,12 +81,12 @@ export function DebugHud({
         backdropFilter: "blur(10px)"
       }}
     >
-      <strong style={{ color: "#00e5ff" }}>ARELORIA DEBUG [P5]</strong>
+      <strong style={{ color: "#00e5ff" }}>ARELORIA DEBUG [P7]</strong>
       <div>boot: {bootPhase}</div>
       <div>net: {networkStatus}</div>
       <div>tick: {tickId}</div>
       <div>entities: {entityCount}</div>
-      <div>player: {localPlayerId}</div>
+      <div>player: {localPlayerId.slice(0, 12)}...</div>
       <div>snapshot: {lastSnapshotTick}</div>
       <div>pending: {pendingInputCount}</div>
       <div>seq: {lastSequenceId}</div>
@@ -99,6 +110,18 @@ export function DebugHud({
       <div>combatLog: {combatLogCount}</div>
       <div>chunkSnap: {chunkSnapshotCount}</div>
       <div>stateVer: {gameplayStateVersion}</div>
+      {/* Phase 7 Identity Display */}
+      <div style={{ marginTop: 8, borderTop: "1px solid rgba(0,229,255,.15)", paddingTop: 6 }}>
+        <strong style={{ color: "#00e5ff" }}>IDENTITY</strong>
+      </div>
+      <div>status: {identityStatus ?? "none"}</div>
+      <div>stableGuest: {stableGuestId ? `${stableGuestId.slice(0, 10)}...` : "none"}</div>
+      <div>character: {characterId ? `${characterId.slice(0, 10)}...` : "none"}</div>
+      {/* Phase 7 Debug Actions */}
+      <div style={{ marginTop: 8, borderTop: "1px solid rgba(0,229,255,.15)", paddingTop: 6, pointerEvents: "auto" }}>
+        <button type="button" onClick={onOpenCharacterSelect} style={{ marginRight: 6, padding: "2px 6px", fontSize: 10, cursor: "pointer" }}>Characters</button>
+        <button type="button" onClick={onOpenIdentityDebug} style={{ padding: "2px 6px", fontSize: 10, cursor: "pointer" }}>Identity</button>
+      </div>
       <div style={{ marginTop: 6 }}>mode: {config.mode}</div>
       <div style={{ opacity: 0.6 }}>ws: {config.network.wsUrl}</div>
     </div>

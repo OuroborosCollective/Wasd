@@ -2,6 +2,9 @@ import type { AreloriaBootConfig } from "../boot/boot.config";
 import type {
   ChatMessagePayload,
   ChatSendPayload,
+  CharacterListPayload,
+  CharacterSelectResultPayload,
+  CharacterCreateResultPayload,
   ClientHeartbeatPayload,
   ClientHelloPayload,
   CombatResultPayload,
@@ -14,6 +17,7 @@ import type {
   NpcDialoguePayload,
   ChunkObservePayload,
   ChunkSnapshotPayload,
+  OwnershipErrorPayload,
   SkillResultPayload,
   ServerEnvelope,
   SkillCastPayload,
@@ -40,9 +44,21 @@ import {
   isServerHeartbeatPayload,
   isToastPayload,
   isWelcomePayload,
-  isWorldSnapshot
+  isWorldSnapshot,
+  isCharacterListPayload,
+  isCharacterSelectResultPayload,
+  isCharacterCreateResultPayload,
+  isOwnershipErrorPayload
 } from "./protocol";
 import { createRequestId } from "../game/serverContract";
+
+// Phase 7: Identity fields passed to network client
+export interface NetworkIdentityFields {
+  stableGuestId?: string;
+  sessionToken?: string;
+  accountId?: string;
+  selectedCharacterId?: string;
+}
 
 export type NetworkStatus = "idle" | "connecting" | "connected" | "disconnected";
 
@@ -65,6 +81,11 @@ export interface NetworkEvents {
   // Phase 5 Events
   onServerError?: (payload: ServerErrorPayload) => void;
   onChunkSnapshot?: (payload: ChunkSnapshotPayload) => void;
+  // Phase 7 Events
+  onCharacterList?: (payload: CharacterListPayload) => void;
+  onCharacterSelectResult?: (payload: CharacterSelectResultPayload) => void;
+  onCharacterCreateResult?: (payload: CharacterCreateResultPayload) => void;
+  onOwnershipError?: (payload: OwnershipErrorPayload) => void;
 }
 
 export interface NetworkClient {
@@ -81,12 +102,18 @@ export interface NetworkClient {
   sendQuestAccept(questId: string): void;
   sendInventoryAction(payload: { action: string; itemId?: string; slot?: number }): void;
   sendEquipmentAction(payload: { action: string; slot?: string; itemId?: string }): void;
+  // Phase 7 Send Methods
+  sendIdentityResume(): void;
+  sendCharacterListRequest(): void;
+  sendCharacterSelect(characterId: string): void;
+  sendCharacterCreate(name: string): void;
   getStatus(): NetworkStatus;
 }
 
 export function createNetworkClient(
   config: AreloriaBootConfig,
-  events: NetworkEvents
+  events: NetworkEvents,
+  identity: NetworkIdentityFields = {}
 ): NetworkClient {
   let ws: WebSocket | null = null;
   let status: NetworkStatus = "idle";
@@ -237,6 +264,27 @@ export function createNetworkClient(
       events.onSkillResult?.(envelope.payload);
       return;
     }
+
+    // Phase 7 Message Handlers
+    if (envelope.type === "character_list" && isCharacterListPayload(envelope.payload)) {
+      events.onCharacterList?.(envelope.payload);
+      return;
+    }
+
+    if (envelope.type === "character_select_result" && isCharacterSelectResultPayload(envelope.payload)) {
+      events.onCharacterSelectResult?.(envelope.payload);
+      return;
+    }
+
+    if (envelope.type === "character_create_result" && isCharacterCreateResultPayload(envelope.payload)) {
+      events.onCharacterCreateResult?.(envelope.payload);
+      return;
+    }
+
+    if (envelope.type === "ownership_error" && isOwnershipErrorPayload(envelope.payload)) {
+      events.onOwnershipError?.(envelope.payload);
+      return;
+    }
   }
 
   function scheduleReconnect(connectFn: () => void): void {
@@ -277,12 +325,19 @@ export function createNetworkClient(
         client: config.clientId,
         engine: config.engine,
         logicHz: config.logicHz,
-        version: "phase-3",
-        protocolVersion: ARELORIA_PROTOCOL_VERSION
+        version: "phase-7",
+        protocolVersion: ARELORIA_PROTOCOL_VERSION,
+        stableGuestId: identity.stableGuestId,
+        sessionToken: identity.sessionToken,
+        accountId: identity.accountId,
+        selectedCharacterId: identity.selectedCharacterId
       };
 
       const login: GuestLoginPayload = {
-        displayName: "Guest"
+        displayName: "Guest",
+        stableGuestId: identity.stableGuestId,
+        sessionToken: identity.sessionToken,
+        selectedCharacterId: identity.selectedCharacterId
       };
 
       send("client_hello", hello);
@@ -380,6 +435,31 @@ export function createNetworkClient(
       send("equipment_action", {
         requestId: createRequestId("equip"),
         ...payload
+      });
+    },
+
+    // Phase 7 Send Methods
+    sendIdentityResume() {
+      send("identity_resume", {
+        sessionToken: identity.sessionToken
+      });
+    },
+
+    sendCharacterListRequest() {
+      send("character_list_request", {});
+    },
+
+    sendCharacterSelect(characterId: string) {
+      send("character_select", {
+        requestId: createRequestId("char"),
+        characterId
+      });
+    },
+
+    sendCharacterCreate(name: string) {
+      send("character_create", {
+        requestId: createRequestId("char"),
+        name: name.trim().slice(0, 24)
       });
     },
 

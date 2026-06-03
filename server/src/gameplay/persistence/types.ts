@@ -6,6 +6,8 @@
  * 
  * These types complement the existing PersistenceDirector and are used
  * by the GameplayPersistence facade for the Protocol v5 gameplay contract.
+ * 
+ * Phase 7: Extended with identity types for stable player ownership.
  */
 
 export type ServerEntityKind = "player" | "npc" | "loot" | "marker";
@@ -18,6 +20,31 @@ export interface PersistedPlayer {
   y: number;
   hp: number;
   maxHp: number;
+  createdAtMs: number;
+  updatedAtMs: number;
+}
+
+// Phase 7: Identity persistence types
+export interface PersistedIdentity {
+  identityId: string;
+  kind: "guest" | "account";
+  stableGuestId?: string;
+  accountId?: string;
+  createdAtMs: number;
+  updatedAtMs: number;
+}
+
+export interface PersistedCharacter {
+  id: string;
+  ownerIdentityId: string;
+  playerId: string;
+  name: string;
+  sceneId: string;
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  level: number;
   createdAtMs: number;
   updatedAtMs: number;
 }

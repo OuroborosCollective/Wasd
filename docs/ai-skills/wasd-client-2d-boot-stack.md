@@ -524,3 +524,174 @@ npx eslint apps/client-2d/src/game apps/client-2d/src/world apps/client-2d/src/u
 ---
 
 **Phase 5 = Areloria is now a real multiplayer MMORPG server.** 🚀
+
+---
+
+## Phase 7: Identity, Auth Binding & Stable Player Ownership (Current Implementation)
+
+### Architecture
+
+```
+Client: apps/client-2d/src/
+    +-- identity/clientIdentity.ts       (stable guest ID)
+    +-- identity/sessionToken.ts        (session persistence)
+    +-- identity/characterSelection.ts   (character state)
+    +-- ui/IdentityDebugPanel.tsx        (debug UI)
+    +-- ui/CharacterSelectPanel.tsx      (character select UI)
+    +-- net/protocol.ts                  (Protocol v7)
+    +-- net/networkClient.ts             (identity fields)
+    +-- ui/GameBoot.tsx                  (identity integration)
+    +-- ui/DebugHud.tsx                  (identity display)
+
+Server: server/src/gameplay/identity/
+    +-- types.ts                        (identity types)
+    +-- identityRepository.ts           (memory storage)
+    +-- sessionTokenService.ts          (token management)
+    +-- characterService.ts             (character CRUD)
+    +-- ownershipService.ts             (ownership checks)
+    +-- identityService.ts              (identity resolution)
+    
+WorldTick.ts Integration:
+    +-- client_hello handler (identity resolution)
+    +-- guest_login handler (identity fields)
+    +-- identity_resume handler
+    +-- character_list_request handler
+    +-- character_create handler
+    +-- character_select handler
+```
+
+### New Files (Phase 7)
+
+**Client Files (5 files):**
+
+| File | Purpose |
+|------|---------|
+| `identity/clientIdentity.ts` | Stable guest ID generation and persistence |
+| `identity/sessionToken.ts` | Client-side session token storage |
+| `identity/characterSelection.ts` | Selected character persistence |
+| `ui/IdentityDebugPanel.tsx` | Debug panel for identity state |
+| `ui/CharacterSelectPanel.tsx` | Character selection UI |
+
+**Server Files (5 files):**
+
+| File | Purpose |
+|------|---------|
+| `gameplay/identity/types.ts` | Identity, Character, SessionToken types |
+| `gameplay/identity/identityRepository.ts` | In-memory identity storage |
+| `gameplay/identity/sessionTokenService.ts` | Token creation and verification |
+| `gameplay/identity/characterService.ts` | Character management |
+| `gameplay/identity/identityService.ts` | Main identity resolution service |
+
+### Updated Files
+
+| File | Changes |
+|------|---------|
+| `net/protocol.ts` | Protocol v7, identity fields, new messages |
+| `net/networkClient.ts` | Identity fields, new events/methods |
+| `ui/GameBoot.tsx` | Identity state, handlers, UI panels |
+| `ui/DebugHud.tsx` | Identity display and debug buttons |
+| `system/clientVersion.ts` | Phase 7 constant |
+| `gameplay/protocol.ts` | Server protocol v7 |
+| `gameplay/gameplaySession.ts` | Identity fields on session |
+| `gameplay/persistence/types.ts` | PersistedIdentity, PersistedCharacter |
+| `core/WorldTick.ts` | Identity handlers, character management |
+
+### Protocol v7 Messages
+
+**New Client Messages:**
+- `identity_resume` - Resume session with session token
+- `character_list_request` - Get character list
+- `character_select` - Select existing character
+- `character_create` - Create new character
+
+**New Server Messages:**
+- `identity_resume_result` - Resume confirmation
+- `character_list` - List of characters
+- `character_select_result` - Selection confirmation
+- `character_create_result` - Creation confirmation
+- `ownership_error` - Ownership violation
+
+### Deterministic Guarantees (Phase 7)
+
+1. **StableGuestId is NOT a security proof** - Only a recognition hint
+2. **Server creates authoritative playerId** - Client cannot choose
+3. **Server creates sessionToken** - Client receives, cannot forge
+4. **Identity Resolution is server-side** - Only server decides ownership
+5. **Reconnect with valid token resumes same player** - Same character state
+6. **Duplicate login replaces old session** - No double players in world
+7. **Character ownership validated** - Only owned characters selectable
+8. **All identity decisions logged/warned server-side** - Audit trail
+9. **Fallback to guest if identity fails** - Degrades gracefully
+
+### Key Types
+
+```typescript
+// Identity fields in client_hello/guest_login
+interface IdentityClientFields {
+  stableGuestId?: string;      // Client-generated, server validates
+  sessionToken?: string;       // Server-issued, client stores
+  accountId?: string;         // For future account binding
+  selectedCharacterId?: string; // Last selected character
+}
+
+// Welcome with identity info
+interface WelcomePayload {
+  playerId: string;
+  sessionToken?: string;      // New session token for client
+  identityId?: string;
+  characterId?: string;
+  characterName?: string;
+  resumed?: boolean;
+}
+
+// Character data
+interface CharacterSummaryPayload {
+  id: string;
+  name: string;
+  sceneId: string;
+  level?: number;
+  updatedAtMs?: number;
+}
+```
+
+### Testing Checklist (Phase 7)
+
+When deployed, verify in client:
+- [ ] Debug HUD shows stableGuestId (truncated)
+- [ ] Debug HUD shows identity status
+- [ ] Debug HUD shows character ID
+- [ ] "Characters" button opens character select
+- [ ] "Identity" button opens identity debug
+- [ ] Page reload preserves stableGuestId
+- [ ] Page reload sends sessionToken
+- [ ] Server resumes same playerId after reload
+- [ ] Character list populated on connect
+- [ ] Can create new character
+- [ ] Can select existing character
+
+### Test Commands (Phase 7)
+
+```bash
+pnpm --filter @wasd/client-2d build
+pnpm --filter @wasd/server build
+npx tsc --noEmit --project apps/client-2d/tsconfig.json
+npx tsc --noEmit --project server/tsconfig.json
+```
+
+### Related Files (Phase 7)
+
+**Client:**
+- `apps/client-2d/src/identity/` - Identity modules
+- `apps/client-2d/src/ui/IdentityDebugPanel.tsx` - Debug UI
+- `apps/client-2d/src/ui/CharacterSelectPanel.tsx` - Character UI
+- `apps/client-2d/src/net/protocol.ts` - Protocol v7
+- `apps/client-2d/src/ui/GameBoot.tsx` - Identity integration
+
+**Server:**
+- `server/src/gameplay/identity/` - Server identity services
+- `server/src/gameplay/protocol.ts` - Server protocol v7
+- `server/src/core/WorldTick.ts` - Identity handlers
+
+---
+
+**Phase 7 = Persistence is now tied to stable identity/character ownership.** 🧠⚔️

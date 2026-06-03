@@ -66,6 +66,10 @@ import {
 
 import { getGameplayPersistence } from "../gameplay/persistence/gameplayPersistence.js";
 
+// Phase 7: Identity imports
+import { getIdentityService } from "../gameplay/identity/identityService.js";
+import { createOwnershipService } from "../gameplay/identity/ownershipService.js";
+
 // Environment variable for manifest authority secret
 const MANIFEST_AUTHORITY_SECRET = process.env.MANIFEST_AUTHORITY_SECRET ?? 'dev-secret-change-in-production';
 const WORLD_ID = process.env.WORLD_ID ?? 'areloria-main';
@@ -1199,41 +1203,97 @@ export class WorldTick {
     // Client initiates connection with protocol version and client info.
     // This handler runs BEFORE the socketToPlayer lookup (line 927) since
     // new v5 clients don't go through legacy login that populates that map.
+    // Phase 7: Supports identity fields for stable guest IDs and session tokens.
     else if (msg.type === "client_hello") {
       const requestId = getRequestId(msg);
       const payload = (msg as any).payload;
       
-      // Validate protocol version compatibility
+      // Validate protocol version compatibility (v5 or higher)
       if (typeof payload?.protocolVersion !== "number" || payload.protocolVersion < 5) {
-        this.ws.sendToPlayer(id, serverError("invalid_payload", "Protocol version 5 required", requestId));
+        this.ws.sendToPlayer(id, serverError("invalid_payload", "Protocol version 5 or higher required", requestId));
         return;
       }
       
-      // Create a new guest player for this v5 connection
-      const session = createGameplaySession(null); // null = guest (unauthenticated)
-      const newPlayerId = session.playerId;
+      // Phase 7: Try to resolve identity from client payload
+      const identityService = getIdentityService();
+      const ownershipService = createOwnershipService();
       
-      // Register in socket mappings for subsequent messages
-      this.socketToPlayer.set(id, newPlayerId);
-      this.playerToSocket.set(newPlayerId, id);
-      
-      this.ws.sendToPlayer(id, {
-        type: "welcome",
-        protocolVersion: SERVER_PROTOCOL_VERSION,
-        t: Date.now(), // ARE-DETERMINISM-ALLOW: server response timestamp
-        payload: {
-          playerId: newPlayerId,
-          sceneId: "main",
-          serverTick: this.tickCount,
-          message: "Willkommen in Areloria"
-        }
-      });
+      try {
+        const resolution = await identityService.resolve({
+          stableGuestId: payload?.stableGuestId,
+          sessionToken: payload?.sessionToken,
+          selectedCharacterId: payload?.selectedCharacterId,
+          displayName: payload?.displayName || "Guest"
+        });
+        
+        // Create session with resolved player
+        const session = createGameplaySession(resolution.character.playerId);
+        
+        // Phase 7: Store identity info on session
+        session.identityId = resolution.identity.identityId;
+        session.characterId = resolution.character.id;
+        session.sessionToken = resolution.sessionToken;
+        
+        const playerEntity = session.entities.get(resolution.character.playerId)!;
+        playerEntity.name = resolution.character.name;
+        playerEntity.x = resolution.character.x;
+        playerEntity.y = resolution.character.y;
+        
+        // Register in socket mappings
+        this.socketToPlayer.set(id, resolution.character.playerId);
+        this.playerToSocket.set(resolution.character.playerId, id);
+        
+        // Send welcome with identity info
+        const welcome = makeWelcome(session);
+        (welcome.payload as any).resumed = resolution.resumed;
+        (welcome.payload as any).sessionToken = resolution.sessionToken;
+        (welcome.payload as any).identityId = resolution.identity.identityId;
+        (welcome.payload as any).characterId = resolution.character.id;
+        (welcome.payload as any).characterName = resolution.character.name;
+        this.ws.sendToPlayer(id, welcome);
+        
+        // Phase 7: Send character list
+        const characters = await identityService.listCharacters(resolution.identity.identityId);
+        this.ws.sendToPlayer(id, envelope("character_list", {
+          characters: characters.map(c => ({
+            id: c.id,
+            name: c.name,
+            sceneId: c.sceneId,
+            level: c.level,
+            updatedAtMs: c.updatedAtMs
+          })),
+          selectedCharacterId: resolution.character.id
+        }));
+        
+      } catch (err) {
+        console.warn(`[WorldTick] Identity resolution failed, falling back to guest:`, err);
+        
+        // Fallback to simple guest login
+        const session = createGameplaySession(null);
+        const newPlayerId = session.playerId;
+        
+        this.socketToPlayer.set(id, newPlayerId);
+        this.playerToSocket.set(newPlayerId, id);
+        
+        this.ws.sendToPlayer(id, {
+          type: "welcome",
+          protocolVersion: SERVER_PROTOCOL_VERSION,
+          t: Date.now(),
+          payload: {
+            playerId: newPlayerId,
+            sceneId: "main",
+            serverTick: this.tickCount,
+            message: "Willkommen in Areloria"
+          }
+        });
+      }
       return;
     }
     
     // ─── guest_login ────────────────────────────────────────────────────
     // Guest login without authentication (for local testing).
     // Handled after client_hello since v5 clients need to complete hello first.
+    // Phase 7: Supports identity fields for stable guest IDs and session tokens.
     else if (msg.type === "guest_login") {
       const requestId = getRequestId(msg);
       const payload = (msg as any).payload;
@@ -1246,50 +1306,284 @@ export class WorldTick {
         return;
       }
       
-      // Load or create player from persistence
-      const persistence = getGameplayPersistence();
-      let player: Awaited<ReturnType<typeof persistence.loadOrCreatePlayer>>;
+      // Phase 7: Try to resolve identity from guest_login payload if not already resolved
+      const identityService = getIdentityService();
+      
       try {
-        player = await persistence.loadOrCreatePlayer(playerId, displayName);
+        const resolution = await identityService.resolve({
+          stableGuestId: payload?.stableGuestId,
+          sessionToken: payload?.sessionToken,
+          selectedCharacterId: payload?.selectedCharacterId,
+          displayName
+        });
+        
+        // Update session with resolved identity
+        const session = createGameplaySession(resolution.character.playerId);
+        session.identityId = resolution.identity.identityId;
+        session.characterId = resolution.character.id;
+        session.sessionToken = resolution.sessionToken;
+        
+        const playerEntity = session.entities.get(resolution.character.playerId)!;
+        playerEntity.name = resolution.character.name;
+        playerEntity.x = resolution.character.x;
+        playerEntity.y = resolution.character.y;
+        
+        // Send welcome with identity info
+        const welcome = makeWelcome(session);
+        (welcome.payload as any).resumed = resolution.resumed;
+        (welcome.payload as any).sessionToken = resolution.sessionToken;
+        (welcome.payload as any).identityId = resolution.identity.identityId;
+        (welcome.payload as any).characterId = resolution.character.id;
+        (welcome.payload as any).characterName = resolution.character.name;
+        this.ws.sendToPlayer(id, welcome);
+        this.ws.sendToPlayer(id, makeWorldSnapshot(session));
+        
+        // Send character list
+        const characters = await identityService.listCharacters(resolution.identity.identityId);
+        this.ws.sendToPlayer(id, envelope("character_list", {
+          characters: characters.map(c => ({
+            id: c.id,
+            name: c.name,
+            sceneId: c.sceneId,
+            level: c.level,
+            updatedAtMs: c.updatedAtMs
+          })),
+          selectedCharacterId: resolution.character.id
+        }));
+        
       } catch (err) {
-        console.warn(`[WorldTick] Failed to load player from persistence, using defaults:`, err);
-        player = null;
-      }
-      
-      // Update session with display name and persisted position
-      const session = createGameplaySession(playerId);
-      const playerEntity = session.entities.get(playerId)!;
-      playerEntity.name = displayName;
-      
-      if (player) {
-        playerEntity.x = player.x;
-        playerEntity.y = player.y;
-        playerEntity.hp = player.hp;
-        playerEntity.maxHp = player.maxHp;
-      }
-      
-      // Send welcome and initial world snapshot
-      this.ws.sendToPlayer(id, makeWelcome(session));
-      this.ws.sendToPlayer(id, makeWorldSnapshot(session));
-      
-      // Send inventory snapshot if persistence has data
-      try {
-        const inventorySlots = await persistence.inventory.getInventory(playerId);
-        if (inventorySlots.length > 0) {
-          const slots = inventorySlots.map(slot => ({
-            index: slot.index,
-            stack: slot.itemId ? { itemId: slot.itemId, quantity: slot.quantity } : null
-          }));
-          this.ws.sendToPlayer(id, {
-            type: "inventory_snapshot",
-            protocolVersion: SERVER_PROTOCOL_VERSION,
-            t: Date.now(), // ARE-DETERMINISM-ALLOW: server response timestamp
-            payload: { slots }
-          });
+        console.warn(`[WorldTick] guest_login identity resolution failed, using fallback:`, err);
+        
+        // Fallback to simple guest
+        const persistence = getGameplayPersistence();
+        let player: Awaited<ReturnType<typeof persistence.loadOrCreatePlayer>>;
+        try {
+          player = await persistence.loadOrCreatePlayer(playerId, displayName);
+        } catch (persistErr) {
+          console.warn(`[WorldTick] Persistence failed:`, persistErr);
+          player = null;
         }
-      } catch (err) {
-        console.warn(`[WorldTick] Failed to load inventory from persistence:`, err);
+        
+        const session = createGameplaySession(playerId);
+        const playerEntity = session.entities.get(playerId)!;
+        playerEntity.name = displayName;
+        
+        if (player) {
+          playerEntity.x = player.x;
+          playerEntity.y = player.y;
+          playerEntity.hp = player.hp;
+          playerEntity.maxHp = player.maxHp;
+        }
+        
+        this.ws.sendToPlayer(id, makeWelcome(session));
+        this.ws.sendToPlayer(id, makeWorldSnapshot(session));
       }
+    }
+    
+    // ─── identity_resume ────────────────────────────────────────────────
+    // Phase 7: Resume a session with a valid session token
+    else if (msg.type === "identity_resume") {
+      const requestId = getRequestId(msg);
+      const payload = (msg as any).payload;
+      const sessionToken = payload?.sessionToken;
+      
+      if (!sessionToken) {
+        this.ws.sendToPlayer(id, serverError("invalid_payload", "sessionToken required", requestId));
+        return;
+      }
+      
+      const identityService = getIdentityService();
+      
+      try {
+        const resolution = await identityService.resolve({ sessionToken });
+        
+        const session = createGameplaySession(resolution.character.playerId);
+        session.identityId = resolution.identity.identityId;
+        session.characterId = resolution.character.id;
+        session.sessionToken = resolution.sessionToken;
+        
+        const playerEntity = session.entities.get(resolution.character.playerId)!;
+        playerEntity.name = resolution.character.name;
+        playerEntity.x = resolution.character.x;
+        playerEntity.y = resolution.character.y;
+        
+        // Update socket mappings
+        this.socketToPlayer.set(id, resolution.character.playerId);
+        this.playerToSocket.set(resolution.character.playerId, id);
+        
+        const welcome = makeWelcome(session);
+        (welcome.payload as any).resumed = true;
+        (welcome.payload as any).sessionToken = resolution.sessionToken;
+        (welcome.payload as any).identityId = resolution.identity.identityId;
+        (welcome.payload as any).characterId = resolution.character.id;
+        (welcome.payload as any).characterName = resolution.character.name;
+        this.ws.sendToPlayer(id, welcome);
+        
+        this.ws.sendToPlayer(id, envelope("identity_resume_result", {
+          ok: true,
+          resumed: true,
+          identityId: resolution.identity.identityId,
+          characterId: resolution.character.id,
+          sessionToken: resolution.sessionToken
+        }));
+        
+      } catch (err) {
+        console.warn(`[WorldTick] identity_resume failed:`, err);
+        this.ws.sendToPlayer(id, envelope("identity_resume_result", {
+          ok: false,
+          reason: "Invalid or expired session token"
+        }));
+      }
+      return;
+    }
+    
+    // ─── character_list_request ─────────────────────────────────────────
+    // Phase 7: Request character list for current identity
+    else if (msg.type === "character_list_request") {
+      const requestId = getRequestId(msg);
+      const playerId = this.socketToPlayer.get(id);
+      
+      if (!playerId) {
+        this.ws.sendToPlayer(id, serverError("not_authenticated", "Send client_hello first", requestId));
+        return;
+      }
+      
+      // Get identity from existing session or create guest identity
+      const identityService = getIdentityService();
+      
+      try {
+        const identity = await identityService.resolve({});
+        const characters = await identityService.listCharacters(identity.identity.identityId);
+        
+        this.ws.sendToPlayer(id, envelope("character_list", {
+          characters: characters.map(c => ({
+            id: c.id,
+            name: c.name,
+            sceneId: c.sceneId,
+            level: c.level,
+            updatedAtMs: c.updatedAtMs
+          }))
+        }));
+      } catch (err) {
+        console.warn(`[WorldTick] character_list_request failed:`, err);
+        this.ws.sendToPlayer(id, envelope("character_list", {
+          characters: []
+        }));
+      }
+      return;
+    }
+    
+    // ─── character_create ────────────────────────────────────────────────
+    // Phase 7: Create a new character
+    else if (msg.type === "character_create") {
+      const requestId = getRequestId(msg);
+      const payload = (msg as any).payload;
+      const name = (payload?.name || "Adventurer").trim().slice(0, 24);
+      const playerId = this.socketToPlayer.get(id);
+      
+      if (!playerId) {
+        this.ws.sendToPlayer(id, serverError("not_authenticated", "Send client_hello first", requestId));
+        return;
+      }
+      
+      const identityService = getIdentityService();
+      
+      try {
+        // Get identity from session token or create guest
+        const identityId = payload?.identityId || `identity_${playerId}`;
+        
+        const character = await identityService.createCharacter(identityId, name);
+        
+        this.ws.sendToPlayer(id, envelope("character_create_result", {
+          ok: true,
+          character: {
+            id: character.id,
+            name: character.name,
+            sceneId: character.sceneId,
+            level: character.level,
+            updatedAtMs: character.updatedAtMs
+          }
+        }));
+        
+      } catch (err) {
+        console.warn(`[WorldTick] character_create failed:`, err);
+        this.ws.sendToPlayer(id, envelope("character_create_result", {
+          ok: false,
+          reason: "Failed to create character"
+        }));
+      }
+      return;
+    }
+    
+    // ─── character_select ────────────────────────────────────────────────
+    // Phase 7: Select an existing character
+    else if (msg.type === "character_select") {
+      const requestId = getRequestId(msg);
+      const payload = (msg as any).payload;
+      const characterId = payload?.characterId as string;
+      
+      if (!characterId) {
+        this.ws.sendToPlayer(id, serverError("invalid_payload", "characterId required", requestId));
+        return;
+      }
+      
+      const playerId = this.socketToPlayer.get(id);
+      if (!playerId) {
+        this.ws.sendToPlayer(id, serverError("not_authenticated", "Send client_hello first", requestId));
+        return;
+      }
+      
+      const identityService = getIdentityService();
+      
+      try {
+        const character = await identityService.listCharacters(playerId).then(list => 
+          list.find(c => c.id === characterId)
+        );
+        
+        if (!character) {
+          this.ws.sendToPlayer(id, envelope("character_select_result", {
+            ok: false,
+            reason: "Character not found or not owned by you"
+          }));
+          return;
+        }
+        
+        // Create new session for selected character
+        const session = createGameplaySession(character.playerId);
+        session.identityId = character.ownerIdentityId;
+        session.characterId = character.id;
+        
+        const playerEntity = session.entities.get(character.playerId)!;
+        playerEntity.name = character.name;
+        playerEntity.x = character.x;
+        playerEntity.y = character.y;
+        
+        // Update socket mappings
+        this.socketToPlayer.set(id, character.playerId);
+        this.playerToSocket.set(character.playerId, id);
+        
+        this.ws.sendToPlayer(id, makeWelcome(session));
+        this.ws.sendToPlayer(id, makeWorldSnapshot(session));
+        
+        this.ws.sendToPlayer(id, envelope("character_select_result", {
+          ok: true,
+          character: {
+            id: character.id,
+            name: character.name,
+            sceneId: character.sceneId,
+            level: character.level,
+            updatedAtMs: character.updatedAtMs
+          }
+        }));
+        
+      } catch (err) {
+        console.warn(`[WorldTick] character_select failed:`, err);
+        this.ws.sendToPlayer(id, envelope("character_select_result", {
+          ok: false,
+          reason: "Failed to select character"
+        }));
+      }
+      return;
     }
     
     // ─── input_frame ────────────────────────────────────────────────────

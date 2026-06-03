@@ -4,11 +4,17 @@ import type { EquipmentSlotId } from "../game/equipment";
 import type { QuestState } from "../game/quests";
 import type { SkillId } from "../game/skills";
 
-export const ARELORIA_PROTOCOL_VERSION = 5 as const;
+// Protocol v7: Identity, Auth Binding & Stable Player Ownership
+export const ARELORIA_PROTOCOL_VERSION = 7 as const;
 
 export type ClientMessageType =
   | "client_hello"
   | "guest_login"
+  | "identity_resume"
+  | "character_list_request"
+  | "character_select"
+  | "character_create"
+  | "account_bind_request"
   | "input_frame"
   | "skill_cast"
   | "chat_send"
@@ -23,6 +29,12 @@ export type ClientMessageType =
 
 export type ServerMessageType =
   | "welcome"
+  | "identity_challenge"
+  | "identity_resume_result"
+  | "character_list"
+  | "character_select_result"
+  | "character_create_result"
+  | "ownership_error"
   | "world_snapshot"
   | "combat_result"
   | "toast"
@@ -35,7 +47,8 @@ export type ServerMessageType =
   | "npc_dialogue"
   | "skill_result"
   | "chunk_snapshot"
-  | "gameplay_event";
+  | "gameplay_event"
+  | "server_error";
 
 export interface InputFrame {
   sequenceId: number;
@@ -58,7 +71,16 @@ export interface WorldSnapshot {
   entities: EntityState[];
 }
 
-export interface ClientHelloPayload {
+// Phase 7: Identity Client Fields (optional fields for client_hello and guest_login)
+export interface IdentityClientFields {
+  stableGuestId?: string;
+  sessionToken?: string;
+  accountId?: string;
+  selectedCharacterId?: string;
+}
+
+// Protocol v7: Client Hello with identity fields
+export interface ClientHelloPayload extends IdentityClientFields {
   client: "REAL_PIXI_CLIENT";
   engine: "PIXI_2D";
   logicHz: number;
@@ -66,8 +88,60 @@ export interface ClientHelloPayload {
   protocolVersion: typeof ARELORIA_PROTOCOL_VERSION;
 }
 
-export interface GuestLoginPayload {
+// Protocol v7: Guest Login with identity fields
+export interface GuestLoginPayload extends IdentityClientFields {
   displayName: string;
+}
+
+// Protocol v7: Welcome with extended identity fields
+export interface WelcomePayload {
+  playerId: string;
+  sceneId?: string;
+  serverTick?: number;
+  protocolVersion?: number;
+  // Phase 7 identity fields
+  sessionToken?: string;
+  identityId?: string;
+  characterId?: string;
+  characterName?: string;
+  resumed?: boolean;
+}
+
+// Protocol v7: Character Summary
+export interface CharacterSummaryPayload {
+  id: string;
+  name: string;
+  sceneId: string;
+  level?: number;
+  updatedAtMs?: number;
+}
+
+// Protocol v7: Character List
+export interface CharacterListPayload {
+  characters: CharacterSummaryPayload[];
+  selectedCharacterId?: string;
+}
+
+// Protocol v7: Character Select Result
+export interface CharacterSelectResultPayload {
+  ok: boolean;
+  reason?: string;
+  character?: CharacterSummaryPayload;
+  sessionToken?: string;
+}
+
+// Protocol v7: Character Create Result
+export interface CharacterCreateResultPayload {
+  ok: boolean;
+  reason?: string;
+  character?: CharacterSummaryPayload;
+  sessionToken?: string;
+}
+
+// Protocol v7: Ownership Error
+export interface OwnershipErrorPayload {
+  code: string;
+  message: string;
 }
 
 export interface SkillCastPayload {
@@ -337,6 +411,28 @@ export function isChunkSnapshotPayload(value: unknown): value is ChunkSnapshotPa
     typeof value.chunkId === "string" &&
     typeof value.serverTick === "number" &&
     Array.isArray(value.tiles)
+  );
+}
+
+// Phase 7 Payload Validators
+
+export function isCharacterListPayload(value: unknown): value is CharacterListPayload {
+  return isRecord(value) && Array.isArray(value.characters);
+}
+
+export function isCharacterSelectResultPayload(value: unknown): value is CharacterSelectResultPayload {
+  return isRecord(value) && typeof value.ok === "boolean";
+}
+
+export function isCharacterCreateResultPayload(value: unknown): value is CharacterCreateResultPayload {
+  return isRecord(value) && typeof value.ok === "boolean";
+}
+
+export function isOwnershipErrorPayload(value: unknown): value is OwnershipErrorPayload {
+  return (
+    isRecord(value) &&
+    typeof value.code === "string" &&
+    typeof value.message === "string"
   );
 }
 
