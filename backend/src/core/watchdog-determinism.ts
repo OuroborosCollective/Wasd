@@ -1,5 +1,6 @@
 export const WATCHDOG_TICK_HZ = 10 as const;
 export const WATCHDOG_TICK_MS = 100 as const;
+export const WATCHDOG_DETERMINISM_VERSION = 2 as const;
 
 export type WatchdogSeverity =
     | 'LOW'
@@ -92,6 +93,8 @@ export function normalizeWatchdogEvent(
     const origin = sanitizeText(input.origin || input.source || fallbackOrigin, fallbackOrigin);
     const message = sanitizeText(input.message, input.type || 'watchdog.event');
     const channel = sanitizeText(input.channel, 'watchdog');
+    const payload = normalizeRecord(input.payload);
+    const metadata = normalizeRecord(input.metadata);
 
     return {
         ...input,
@@ -100,8 +103,14 @@ export function normalizeWatchdogEvent(
         source: origin,
         origin,
         message,
-        payload: normalizeRecord(input.payload),
-        metadata: normalizeRecord(input.metadata),
+        payload,
+        metadata: {
+            ...metadata,
+            determinismVersion: WATCHDOG_DETERMINISM_VERSION,
+            tickHz: WATCHDOG_TICK_HZ,
+            tickMs: WATCHDOG_TICK_MS,
+            payloadHash: deterministicPayloadHash(payload),
+        },
         channel,
         tick: stamp.tick,
         seq: stamp.seq,
@@ -146,6 +155,25 @@ export function validateWatchdogEventCandidate(input: unknown):
         return { ok: false, reason: 'Watchdog event metadata must be a plain object when provided.' };
     }
 
+    if (candidate.tick !== undefined && normalizePositiveInteger(candidate.tick, -1) < 0) {
+        return { ok: false, reason: 'Watchdog event tick must be a non-negative integer when provided.' };
+    }
+
+    if (candidate.seq !== undefined && normalizePositiveInteger(candidate.seq, -1) < 0) {
+        return { ok: false, reason: 'Watchdog event seq must be a non-negative integer when provided.' };
+    }
+
+    if (candidate.timestamp !== undefined) {
+        const normalizedTick = normalizePositiveInteger(candidate.tick, 0);
+        const expectedTimestamp = normalizedTick * WATCHDOG_TICK_MS;
+        if (typeof candidate.timestamp !== 'number' || !Number.isFinite(candidate.timestamp) || candidate.timestamp < 0) {
+            return { ok: false, reason: 'Watchdog event timestamp must be a non-negative finite number when provided.' };
+        }
+        if (candidate.tick !== undefined && Math.floor(candidate.timestamp) !== expectedTimestamp) {
+            return { ok: false, reason: 'Watchdog event timestamp must equal tick * 100ms in strict deterministic mode.' };
+        }
+    }
+
     return {
         ok: true,
         event: candidate as WatchdogEvent,
@@ -167,6 +195,47 @@ export function sanitizeText(value: unknown, fallback: string): string {
 export function normalizeRecord(value: unknown): Record<string, unknown> {
     if (!isPlainRecord(value)) return {};
     return value;
+}
+
+export function stableStringify(value: unknown): string {
+    if (value === null) return 'null';
+    if (value === undefined) return 'undefined';
+    if (typeof value === 'bigint') return `"${value.toString()}n"`;
+    if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '0';
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    if (typeof value === 'string') return JSON.stringify(value);
+    if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+    if (typeof value === 'object') {
+        const record = value as Record<string, unknown>;
+        const keys = Object.keys(record).sort(compareStableText);
+        return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`).join(',')}}`;
+    }
+    return JSON.stringify(String(value));
+}
+
+export function fnv1a32(input: string): number {
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < input.length; i += 1) {
+        hash ^= input.charCodeAt(i);
+        hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    return hash >>> 0;
+}
+
+export function fnv1a32Hex(input: string): string {
+    return fnv1a32(input).toString(16).padStart(8, '0');
+}
+
+export function deterministicPayloadHash(payload: unknown): string {
+    return fnv1a32Hex(stableStringify(payload));
+}
+
+export function createDeterministicEventFingerprint(event: Pick<DeterministicWatchdogEvent, 'tick' | 'seq' | 'type' | 'origin' | 'payload'>): string {
+    return fnv1a32Hex(`${event.tick}:${event.seq}:${event.type}:${event.origin}:${stableStringify(event.payload)}`);
+}
+
+export function compareStableText(a: string, b: string): number {
+    return a < b ? -1 : a > b ? 1 : 0;
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
