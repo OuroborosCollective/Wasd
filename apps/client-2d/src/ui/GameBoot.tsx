@@ -1,6 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import { BOOT_PHASES, type BootPhase } from "../theme/designTokens";
 import { BootOverlay } from "./BootOverlay";
+import { ARELORIA_BOOT_CONFIG, type AreloriaBootConfig } from "../boot/boot.config";
+import { createLogicClock, type LogicTick } from "../logic/logicClock";
+import { createInputBuffer, type InputBuffer } from "../logic/inputBuffer";
+import { createClientWorld, type ClientWorld } from "../logic/clientWorld";
+import { createNetworkClient, type NetworkStatus } from "../net/networkClient";
+import { createSnapshotBuffer, type SnapshotBuffer } from "../net/snapshotBuffer";
+import { createPixiClient, type PixiClient } from "../engine/pixiClient";
+import { MobileHud } from "./MobileHud";
+import { DebugHud } from "./DebugHud";
+import { VersionOverlay } from "./VersionOverlay";
 
 type BootPhaseState =
   | "BOOTING"
@@ -26,8 +36,70 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
   const [message, setMessage] = useState("Initialisiere Areloria…");
   const [fatal, setFatal] = useState<string | null>(null);
 
+  // Runtime state refs (not React state to avoid re-render storms)
+  const configRef = useRef<AreloriaBootConfig>(ARELORIA_BOOT_CONFIG);
+  const pixiRef = useRef<PixiClient | null>(null);
+  const clockRef = useRef<ReturnType<typeof createLogicClock> | null>(null);
+  const inputBufferRef = useRef<InputBuffer | null>(null);
+  const clientWorldRef = useRef<ClientWorld | null>(null);
+  const snapshotBufferRef = useRef<SnapshotBuffer | null>(null);
+  const networkStatusRef = useRef<NetworkStatus>("idle");
+  const mountedRef = useRef(false);
+  const lastSnapshotTickRef = useRef<number>(0);
+  const entityCountRef = useRef<number>(0);
+
+  // Force re-render for UI overlays
+  const [, forceUpdate] = useState(0);
+  const triggerUpdate = () => forceUpdate((n) => n + 1);
+
+  // Keyboard state for WASD
+  const keysRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
+        e.preventDefault();
+        keysRef.current.add(key);
+        updateKeyboardInput();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      keysRef.current.delete(key);
+      updateKeyboardInput();
+    };
+
+    function updateKeyboardInput() {
+      const input = inputBufferRef.current;
+      if (!input) return;
+
+      let x = 0;
+      let y = 0;
+
+      if (keysRef.current.has("a") || keysRef.current.has("arrowleft")) x -= 1;
+      if (keysRef.current.has("d") || keysRef.current.has("arrowright")) x += 1;
+      if (keysRef.current.has("w") || keysRef.current.has("arrowup")) y -= 1;
+      if (keysRef.current.has("s") || keysRef.current.has("arrowdown")) y += 1;
+
+      input.setMove(x, y);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
   useEffect(() => {
     let disposed = false;
+    mountedRef.current = true;
 
     async function boot() {
       try {
@@ -35,18 +107,14 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
         setPhase("BOOTING");
         setMessage("Starte Areloria Client…");
 
-        // Small delay for visual feedback
         await new Promise((resolve) => setTimeout(resolve, 300));
-
         if (disposed) return;
 
         // Phase 2: CHECKING_DEVICE
         setPhase("CHECKING_DEVICE");
         setMessage("Prüfe Gerät, WebGL und Browser-Fähigkeiten…");
 
-        // Run client health check
         const healthResult = await runDeviceHealthCheck();
-
         if (disposed) return;
 
         if (!healthResult.ok) {
@@ -67,23 +135,107 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
           setPhase("OFFLINE");
           setMessage("Server nicht erreichbar. Starte im Offline-Modus.");
           onDegraded?.();
-          return;
         }
 
-        // Phase 4: LOADING_ASSETS
+        // Phase 4: LOADING_ASSETS (minimal - PIXI assets are simple)
         setPhase("LOADING_ASSETS");
         setMessage("Lade Spiel-Assets…");
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        if (disposed) return;
 
-        // Phase 5: CONNECTING_WORLD
+        // Phase 5: CONNECTING_WORLD - Initialize PIXI
         setPhase("CONNECTING_WORLD");
         setMessage("Verbinde mit der Spielwelt…");
 
-        // Phase 6: SYNCING_TICK
+        const mount = mountRef.current;
+        if (!mount) {
+          throw new Error("Mount element not found");
+        }
+
+        const config = configRef.current;
+        const pixi = await createPixiClient({
+          mount,
+          maxFps: config.renderMaxFps,
+          theme: config.design.theme,
+          chunkSize: config.world.chunkSize,
+          interpolationMs: config.world.interpolationMs
+        });
+        pixiRef.current = pixi;
+        if (disposed) return;
+
+        // Initialize core systems
+        const inputBuffer = createInputBuffer();
+        inputBufferRef.current = inputBuffer;
+
+        const clientWorld = createClientWorld({
+          spawnX: 0,
+          spawnY: 0,
+          playerSpeed: 80 // units per second
+        });
+        clientWorldRef.current = clientWorld;
+
+        const snapshotBuffer = createSnapshotBuffer();
+        snapshotBufferRef.current = snapshotBuffer;
+
+        // Connect network
+        const network = createNetworkClient(config, {
+          onStatusChange(status) {
+            networkStatusRef.current = status;
+            triggerUpdate();
+          },
+          onWelcome(payload) {
+            clientWorld.setLocalPlayerId(payload.playerId);
+          },
+          onWorldSnapshot(snapshot) {
+            snapshotBuffer.push(snapshot);
+            clientWorld.applySnapshot(snapshot);
+            lastSnapshotTickRef.current = snapshot.serverTick;
+            entityCountRef.current = clientWorld.getEntityCount();
+            triggerUpdate();
+          }
+        });
+
+        // Phase 6: SYNCING_TICK - Start logic clock
         setPhase("SYNCING_TICK");
         setMessage("Synchronisiere Spielzustand…");
 
-        // Ready
-        if (disposed) return;
+        // Spawn local player immediately for offline/degraded mode
+        clientWorld.spawnLocalPlayer();
+
+        // Start network connection (non-blocking, will reconnect automatically)
+        network.connect();
+
+        // Create logic clock at 10Hz
+        const clock = createLogicClock({
+          hz: config.logicHz,
+          onTick(logicTick: LogicTick) {
+            if (!mountedRef.current) return;
+
+            const input = inputBuffer.consumeForTick(logicTick.tickId);
+            clientWorld.applyInput(input, logicTick.fixedDtSec);
+            network.sendInputFrame(input);
+
+            const viewState = clientWorld.getViewState();
+            entityCountRef.current = viewState.entities.length;
+
+            if (pixiRef.current) {
+              pixiRef.current.logicTick(
+                { tickId: logicTick.tickId, fixedDtSec: logicTick.fixedDtSec },
+                viewState
+              );
+            }
+
+            triggerUpdate();
+          }
+        });
+
+        clockRef.current = clock;
+        clock.start();
+
+        if (disposed) {
+          clock.stop();
+          return;
+        }
 
         document.body.dataset.areloriaBoot = "ready";
         setPhase("READY");
@@ -102,8 +254,23 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
 
     return () => {
       disposed = true;
+      mountedRef.current = false;
+
+      if (clockRef.current) {
+        clockRef.current.stop();
+      }
+      if (pixiRef.current) {
+        pixiRef.current.destroy();
+      }
     };
   }, [onReady, onDegraded, onFatal]);
+
+  const config = configRef.current;
+  const tickId = clockRef.current?.getTickId() ?? 0;
+  const localPlayerId = clientWorldRef.current?.localPlayerId ?? "pending";
+  const networkStatus = networkStatusRef.current;
+  const entityCount = entityCountRef.current;
+  const lastSnapshotTick = lastSnapshotTickRef.current;
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -126,6 +293,23 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
           fatal={fatal}
         />
       )}
+
+      {/* Mobile touch controls - always visible */}
+      {inputBufferRef.current && <MobileHud input={inputBufferRef.current} />}
+
+      {/* Debug HUD - only in dev mode */}
+      <DebugHud
+        config={config}
+        bootPhase={phase}
+        networkStatus={networkStatus}
+        tickId={tickId}
+        entityCount={entityCount}
+        localPlayerId={localPlayerId}
+        lastSnapshotTick={lastSnapshotTick}
+      />
+
+      {/* Version overlay */}
+      <VersionOverlay config={config} />
     </div>
   );
 }
@@ -137,7 +321,6 @@ interface HealthCheckResult {
 
 async function runDeviceHealthCheck(): Promise<HealthCheckResult> {
   try {
-    // WebGL check
     const canvas = document.createElement("canvas");
     const gl =
       canvas.getContext("webgl2") ??
@@ -148,12 +331,10 @@ async function runDeviceHealthCheck(): Promise<HealthCheckResult> {
       return { ok: false, reason: "WebGL ist auf diesem Gerät nicht verfügbar." };
     }
 
-    // Online check
     if (!navigator.onLine) {
       return { ok: false, reason: "Gerät ist offline." };
     }
 
-    // Viewport check
     if (window.innerWidth < 320 || window.innerHeight < 240) {
       return { ok: false, reason: "Viewport zu klein für Areloria." };
     }
@@ -180,7 +361,6 @@ async function checkServerHealth(): Promise<boolean> {
     clearTimeout(timeoutId);
     return response.ok;
   } catch {
-    // Server health check failed - continue anyway (degraded mode)
     console.warn("[Areloria Boot] Server health check failed, continuing anyway");
     return true;
   }
