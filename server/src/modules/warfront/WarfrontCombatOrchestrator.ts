@@ -5,15 +5,21 @@ import { CombatService, type CombatState } from "../combat/CombatService.js";
 import { npcFactionAdapter } from "../faction/NPCFactionAdapter.js";
 import { mulberry32, warfrontSeed } from "./warfrontRng.js";
 import { WarfrontCombatTelemetry, type WarfrontHudAgent, type WarfrontHudSnapshot } from "./WarfrontCombatTelemetry.js";
+import { createWorldTickTimeAdapter, type WorldTickTimeAdapter } from "../../core/WorldTickTimeAdapter.js";
 
 const WF_PREFIX = "wf_";
 const STRIKE_RANGE = 42;
+const FACTION_SNAPSHOT_BROADCAST_MS = 1000;
 const SKILL_OPENING: CombatState = { comboIndex: 0, lastSkillId: null, lastTimestamp: 0 };
 
 function dist2(a: { x: number; y: number }, b: { x: number; y: number }): number {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   return Math.hypot(dx, dy);
+}
+
+function shouldBroadcastFactionSnapshot(time: WorldTickTimeAdapter): boolean {
+  return time.nowTick() % time.cooldownTicks(FACTION_SNAPSHOT_BROADCAST_MS) === 0;
 }
 
 function pickTarget(
@@ -99,6 +105,7 @@ export function runWarfrontCombatTick(opts: {
   broadcast?: (payload: unknown) => void;
 }): void {
   const { tickCount, npcSystem, playerSystem, combatService, broadcast } = opts;
+  const time = createWorldTickTimeAdapter(() => tickCount);
   const tel = WarfrontCombatTelemetry.getInstance();
 
   // Mini hook: deterministic NPC faction context without changing NPCSystem internals.
@@ -109,11 +116,12 @@ export function runWarfrontCombatTick(opts: {
     worldSeed: "areloria:warfront:faction-hook:v1",
   });
 
-  if (broadcast && tickCount % 10 === 0) {
+  if (broadcast && shouldBroadcastFactionSnapshot(time)) {
     broadcast({
       type: "NPC_FACTION_SNAPSHOT",
       tick: tickCount,
       payload: factionSnapshot,
+      time: time.snapshot(),
     });
   }
 
@@ -199,6 +207,7 @@ export function runWarfrontCombatTick(opts: {
         defenderId: tgt.id,
         damage: applied,
         kill: killed,
+        time: time.snapshot(),
       });
     }
   }
