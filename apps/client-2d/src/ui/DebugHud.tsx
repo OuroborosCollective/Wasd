@@ -20,6 +20,11 @@ interface Props {
   trackedQuestTitle?: string;
   observedChunkCount?: number;
   gameplayEventQueueSize?: number;
+  // Phase 5 Props
+  dialogueOpen?: boolean;
+  combatLogCount?: number;
+  chunkSnapshotCount?: number;
+  gameplayStateVersion?: number;
 }
 
 export function DebugHud({
@@ -39,7 +44,11 @@ export function DebugHud({
   inventoryCount = 0,
   trackedQuestTitle,
   observedChunkCount = 0,
-  gameplayEventQueueSize = 0
+  gameplayEventQueueSize = 0,
+  dialogueOpen = false,
+  combatLogCount = 0,
+  chunkSnapshotCount = 0,
+  gameplayStateVersion = 0
 }: Props) {
   if (!config.design.showDebugHud) return null;
 
@@ -61,7 +70,7 @@ export function DebugHud({
         backdropFilter: "blur(10px)"
       }}
     >
-      <strong style={{ color: "#00e5ff" }}>ARELORIA DEBUG [P4]</strong>
+      <strong style={{ color: "#00e5ff" }}>ARELORIA DEBUG [P5]</strong>
       <div>boot: {bootPhase}</div>
       <div>net: {networkStatus}</div>
       <div>tick: {tickId}</div>
@@ -82,6 +91,14 @@ export function DebugHud({
       <div>quest: {trackedQuestTitle ?? "none"}</div>
       <div>chunks: {observedChunkCount}</div>
       <div>events: {gameplayEventQueueSize}</div>
+      {/* Phase 5 Display */}
+      <div style={{ marginTop: 8, borderTop: "1px solid rgba(0,229,255,.15)", paddingTop: 6 }}>
+        <strong style={{ color: "#00e5ff" }}>CONTRACT</strong>
+      </div>
+      <div>dialogue: {dialogueOpen ? "open" : "closed"}</div>
+      <div>combatLog: {combatLogCount}</div>
+      <div>chunkSnap: {chunkSnapshotCount}</div>
+      <div>stateVer: {gameplayStateVersion}</div>
       <div style={{ marginTop: 6 }}>mode: {config.mode}</div>
       <div style={{ opacity: 0.6 }}>ws: {config.network.wsUrl}</div>
     </div>

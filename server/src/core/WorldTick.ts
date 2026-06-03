@@ -44,6 +44,26 @@ import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
 import { PersistentPlaytesterNPC, type PlaytesterWorldPort, type PlaytesterNpcSpawn } from "../modules/playtester/PersistentPlaytesterNPC.js";
 import { PlaytesterJsonlLogger } from "../modules/playtester/PlaytesterJsonlLogger.js";
 
+// Phase 5: Gameplay Contract imports
+import { 
+  SERVER_PROTOCOL_VERSION,
+  safeJsonParse,
+  isRecord,
+  getRequestId,
+  serverError,
+  envelope
+} from "../gameplay/protocol.js";
+
+import {
+  createGameplaySession,
+  makeWelcome,
+  makeWorldSnapshot,
+  applyInputFrame,
+  distanceToEntity,
+  removeEntity,
+  type GameplaySession
+} from "../gameplay/gameplaySession.js";
+
 // Environment variable for manifest authority secret
 const MANIFEST_AUTHORITY_SECRET = process.env.MANIFEST_AUTHORITY_SECRET ?? 'dev-secret-change-in-production';
 const WORLD_ID = process.env.WORLD_ID ?? 'areloria-main';
@@ -1165,6 +1185,358 @@ export class WorldTick {
       }
       if (!success) {
         this.ws.sendToPlayer(id, { type: "storage_error", code: reason, message: reason });
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // PHASE 5: SERVER GAMEPLAY CONTRACT
+    // Authoritative message handling for Protocol v5 client-2d
+    // ═══════════════════════════════════════════════════════════════════════
+    
+    // ─── client_hello ────────────────────────────────────────────────────
+    // Client initiates connection with protocol version and client info
+    else if (msg.type === "client_hello") {
+      const requestId = getRequestId(msg);
+      const payload = msg as any;
+      
+      // Validate protocol version compatibility
+      if (typeof payload.protocolVersion !== "number" || payload.protocolVersion < 5) {
+        this.ws.sendToPlayer(id, serverError("invalid_payload", "Protocol version 5 required", requestId));
+        return;
+      }
+      
+      this.ws.sendToPlayer(id, {
+        type: "welcome",
+        protocolVersion: SERVER_PROTOCOL_VERSION,
+        t: Date.now(),
+        payload: {
+          playerId: playerId,
+          sceneId: "main",
+          serverTick: this.tickCount,
+          message: "Willkommen in Areloria"
+        }
+      });
+    }
+    
+    // ─── guest_login ────────────────────────────────────────────────────
+    // Guest login without authentication (for local testing)
+    else if (msg.type === "guest_login") {
+      const requestId = getRequestId(msg);
+      const displayName = (msg as any).displayName || "Guest";
+      
+      // Create a gameplay session for this connection
+      const session = createGameplaySession(playerId);
+      session.entities.get(playerId)!.name = displayName;
+      
+      // Send welcome and initial world snapshot
+      this.ws.sendToPlayer(id, makeWelcome(session));
+      this.ws.sendToPlayer(id, makeWorldSnapshot(session));
+    }
+    
+    // ─── input_frame ────────────────────────────────────────────────────
+    // Deterministic input frame with sequenceId for reconciliation
+    else if (msg.type === "input_frame") {
+      const requestId = getRequestId(msg);
+      const payload = msg as any;
+      
+      if (typeof payload.sequenceId !== "number" || typeof payload.tickId !== "number") {
+        this.ws.sendToPlayer(id, serverError("invalid_payload", "input_frame requires sequenceId and tickId", requestId));
+        return;
+      }
+      
+      // Update player position from input
+      // Using KappaPosGrid for deterministic movement
+      const moveX = Math.max(-1, Math.min(1, Number(payload.moveX) || 0));
+      const moveY = Math.max(-1, Math.min(1, Number(payload.moveY) || 0));
+      
+      if (moveX !== 0 || moveY !== 0) {
+        const speed = 5; //tiles per 100ms tick
+        const current = KappaPosGrid.create(player.position.x, player.position.y, player.position.z || 0);
+        const moved = KappaPosGrid.move(current, moveX * speed, moveY * speed, 0, 1);
+        player.position.x = KappaPosGrid.toExternal(moved.x);
+        player.position.y = KappaPosGrid.toExternal(moved.y);
+        player.position.z = KappaPosGrid.toExternal(moved.z ?? 0);
+        this.observerEngine.updatePosition(id, { x: player.position.x, y: player.position.y });
+      }
+      
+      // Send world snapshot with acknowledged input seq
+      const allPlayers = this.playerSystem.getAllPlayers();
+      const allNpcs = this.npcSystem.getAllNPCs();
+      const strippedLoot = this.snapshotLootEntities();
+      
+      const entities = [
+        ...allPlayers.filter(p => !p.isOffline).map(p => ({
+          id: p.id, kind: "player" as const, x: p.position.x, y: p.position.y, vx: 0, vy: 0,
+          name: p.name, hp: p.health, maxHp: p.maxHealth
+        })),
+        ...allNpcs.map(n => ({
+          id: n.id, kind: "npc" as const, x: n.position.x, y: n.position.y, vx: 0, vy: 0,
+          name: n.name, hp: n.health, maxHp: n.maxHealth
+        })),
+        ...strippedLoot.map(l => ({
+          id: l.id, kind: "loot" as const, x: l.position?.x ?? 0, y: l.position?.y ?? 0, vx: 0, vy: 0
+        }))
+      ];
+      
+      this.ws.sendToPlayer(id, {
+        type: "world_snapshot",
+        protocolVersion: SERVER_PROTOCOL_VERSION,
+        t: Date.now(),
+        payload: {
+          protocolVersion: SERVER_PROTOCOL_VERSION,
+          serverTick: this.tickCount,
+          acknowledgedInputSeq: payload.sequenceId,
+          localPlayerId: playerId,
+          receivedAtMs: Date.now(),
+          entities
+        }
+      });
+    }
+    
+    // ─── loot_pickup_request ─────────────────────────────────────────────
+    // Player attempts to pick up loot entity
+    else if (msg.type === "loot_pickup_request") {
+      const requestId = getRequestId(msg);
+      const payload = msg as any;
+      const entityId = payload?.entityId as string;
+      
+      if (!entityId) {
+        this.ws.sendToPlayer(id, {
+          type: "loot_pickup_result",
+          protocolVersion: SERVER_PROTOCOL_VERSION,
+          t: Date.now(),
+          payload: { requestId, ok: false, code: "invalid_payload", reason: "entityId required" }
+        });
+        return;
+      }
+      
+      const lootEntity = this.lootEntities.get(entityId);
+      if (!lootEntity) {
+        this.ws.sendToPlayer(id, {
+          type: "loot_pickup_result",
+          protocolVersion: SERVER_PROTOCOL_VERSION,
+          t: Date.now(),
+          payload: { requestId, ok: false, code: "not_found", reason: "Loot not found", entityId }
+        });
+        return;
+      }
+      
+      // Check proximity - player must be within 20 tiles
+      const dist = Math.hypot(player.position.x - lootEntity.position.x, player.position.y - lootEntity.position.y);
+      if (dist > 20) {
+        this.ws.sendToPlayer(id, {
+          type: "loot_pickup_result",
+          protocolVersion: SERVER_PROTOCOL_VERSION,
+          t: Date.now(),
+          payload: { requestId, ok: false, code: "too_far", reason: "Loot is too far away", entityId }
+        });
+        return;
+      }
+      
+      // Add item to player inventory
+      this.inventorySystem.addItem(player, lootEntity.item);
+      
+      // Remove loot entity
+      this.lootEntities.delete(entityId);
+      this.lootSpawnTicks.delete(entityId);
+      
+      // Send success result
+      this.ws.sendToPlayer(id, {
+        type: "loot_pickup_result",
+        protocolVersion: SERVER_PROTOCOL_VERSION,
+        t: Date.now(),
+        payload: {
+          requestId,
+          ok: true,
+          code: "ok",
+          entityId,
+          itemId: lootEntity.item.id,
+          quantity: lootEntity.item.quantity ?? 1
+        }
+      });
+      
+      // Send updated inventory snapshot
+      this.ws.sendToPlayer(id, {
+        type: "inventory_snapshot",
+        protocolVersion: SERVER_PROTOCOL_VERSION,
+        t: Date.now(),
+        payload: { slots: player.inventory?.slots ?? [] }
+      });
+    }
+    
+    // ─── npc_interact_request ────────────────────────────────────────────
+    // Player interacts with NPC
+    else if (msg.type === "npc_interact_request") {
+      const requestId = getRequestId(msg);
+      const payload = msg as any;
+      const npcId = payload?.npcId as string;
+      
+      if (!npcId) {
+        this.ws.sendToPlayer(id, serverError("invalid_payload", "npcId required", requestId));
+        return;
+      }
+      
+      const npc = this.npcSystem.getNPC(npcId);
+      if (!npc) {
+        this.ws.sendToPlayer(id, serverError("not_found", "NPC not found", requestId));
+        return;
+      }
+      
+      // Check proximity - player must be within 20 tiles
+      const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y);
+      if (dist > 20) {
+        this.ws.sendToPlayer(id, serverError("too_far", "NPC is too far away", requestId));
+        return;
+      }
+      
+      // Get dialogue from NPC system
+      const interaction = this.npcSystem.handleInteraction(npcId, player, this.questSystem.getQuestDefinitions(), { 
+        tick: this.tickCount, 
+        biomeId: "forest_village" 
+      });
+      
+      if (interaction) {
+        this.ws.sendToPlayer(id, {
+          type: "npc_dialogue",
+          protocolVersion: SERVER_PROTOCOL_VERSION,
+          t: Date.now(),
+          payload: {
+            requestId,
+            npcId,
+            npcName: npc.name ?? "Unknown",
+            text: interaction.text ?? "",
+            choices: interaction.choices ?? []
+          }
+        });
+      }
+    }
+    
+    // ─── chunk_observe ───────────────────────────────────────────────────
+    // Player observes chunks for terrain data
+    else if (msg.type === "chunk_observe") {
+      const requestId = getRequestId(msg);
+      const payload = msg as any;
+      const centerChunkId = payload?.centerChunkId as string;
+      
+      // Generate chunk tiles for the observed area
+      const tiles = [];
+      const chunkCoords = (centerChunkId || "0:0").split(":");
+      const baseX = parseInt(chunkCoords[0] || "0", 10) * 64;
+      const baseZ = parseInt(chunkCoords[1] || "0", 10) * 64;
+      
+      // Generate 3x3 grid of tiles around center
+      for (let dx = 0; dx < 3; dx++) {
+        for (let dz = 0; dz < 3; dz++) {
+          tiles.push({
+            x: baseX + dx,
+            y: baseZ + dz,
+            terrain: (dx === 1 && dz === 1) ? "town" : "grass"
+          });
+        }
+      }
+      
+      this.ws.sendToPlayer(id, {
+        type: "chunk_snapshot",
+        protocolVersion: SERVER_PROTOCOL_VERSION,
+        t: Date.now(),
+        payload: {
+          requestId,
+          chunkId: centerChunkId || "0:0",
+          serverTick: this.tickCount,
+          tiles
+        }
+      });
+    }
+    
+    // ─── skill_cast ──────────────────────────────────────────────────────
+    // Player casts a skill
+    else if (msg.type === "skill_cast") {
+      const requestId = getRequestId(msg);
+      const payload = msg as any;
+      const skillId = payload?.skillId as string;
+      const targetX = payload?.x ?? player.position.x;
+      const targetY = payload?.y ?? player.position.y;
+      
+      if (!skillId) {
+        this.ws.sendToPlayer(id, serverError("invalid_payload", "skillId required", requestId));
+        return;
+      }
+      
+      // Check cooldown
+      const cooldownTicks = Math.max(1, Math.ceil(800 / 100)); // 800ms default
+      const nowTick = this.tickCount;
+      const lastCast = this.lastActionTimes.get(charName)?.["skill_" + skillId] ?? 0;
+      
+      if (nowTick - lastCast < cooldownTicks) {
+        this.ws.sendToPlayer(id, {
+          type: "skill_result",
+          protocolVersion: SERVER_PROTOCOL_VERSION,
+          t: Date.now(),
+          payload: {
+            requestId,
+            ok: false,
+            skillId,
+            reason: "Cooldown not ready",
+            cooldownRemainingTicks: cooldownTicks - (nowTick - lastCast)
+          }
+        });
+        return;
+      }
+      
+      // Update cooldown
+      const pTimes = this.lastActionTimes.get(charName) || {};
+      pTimes["skill_" + skillId] = nowTick;
+      this.lastActionTimes.set(charName, pTimes);
+      
+      // Handle specific skills
+      if (skillId === "impact_buster" || skillId === "primary") {
+        // Find target in range
+        const range = 30;
+        const allNpcs = this.npcSystem.getAllNPCs();
+        let hitTarget: any = null;
+        
+        for (const npc of allNpcs) {
+          const dist = Math.hypot(npc.position.x - player.position.x, npc.position.y - player.position.y);
+          if (dist < range) {
+            hitTarget = npc;
+            break;
+          }
+        }
+        
+        if (hitTarget) {
+          const damage = 10;
+          hitTarget.health -= damage;
+          
+          // Broadcast combat result
+          this.ws.broadcast({
+            type: "combat_result",
+            payload: {
+              id: `combat_${this.tickCount}_${Date.now()}`,
+              atTick: this.tickCount,
+              sourceId: playerId,
+              targetId: hitTarget.id,
+              x: hitTarget.position.x,
+              y: hitTarget.position.y,
+              amount: damage,
+              kind: "damage" as const
+            }
+          });
+          
+          // Send skill result to caster
+          this.ws.sendToPlayer(id, {
+            type: "skill_result",
+            protocolVersion: SERVER_PROTOCOL_VERSION,
+            t: Date.now(),
+            payload: { requestId, ok: true, skillId }
+          });
+        } else {
+          this.ws.sendToPlayer(id, {
+            type: "skill_result",
+            protocolVersion: SERVER_PROTOCOL_VERSION,
+            t: Date.now(),
+            payload: { requestId, ok: true, skillId, reason: "No target in range" }
+          });
+        }
       }
     }
   }

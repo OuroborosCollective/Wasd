@@ -33,6 +33,15 @@ import { InventoryPanel } from "./InventoryPanel";
 import { EquipmentPanel } from "./EquipmentPanel";
 import { QuestJournal } from "./QuestJournal";
 import { InteractionPrompt } from "./InteractionPrompt";
+// Phase 5 Game Modules
+import { createDialogueState, type DialogueState, openDialogue, closeDialogue } from "../game/dialogue";
+import { createLootFeedStore, type LootFeedStore } from "../game/loot";
+import { createCombatLogStore, type CombatLogStore } from "../game/combat";
+import { createChunkSnapshotStore, type ChunkSnapshotStore } from "../world/chunkSnapshot";
+// Phase 5 UI Components
+import { NpcDialoguePanel } from "./NpcDialoguePanel";
+import { LootFeed } from "./LootFeed";
+import { CombatLog } from "./CombatLog";
 
 type BootPhaseState =
   | "BOOTING"
@@ -80,6 +89,13 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
   const chunkObserverRef = useRef<ReturnType<typeof createChunkObserver> | null>(null);
   const interactionTargetRef = useRef<{ entityId: string; kind: "npc" | "loot"; label: string; distance: number } | null>(null);
   const observedChunkCountRef = useRef<number>(0);
+
+  // Phase 5 Gameplay State Refs
+  const dialogueStateRef = useRef<DialogueState>(createDialogueState());
+  const lootFeedStoreRef = useRef<LootFeedStore | null>(null);
+  const combatLogStoreRef = useRef<CombatLogStore | null>(null);
+  const chunkSnapshotStoreRef = useRef<ChunkSnapshotStore | null>(null);
+  const gameplayStateVersionRef = useRef<number>(0);
 
   // Phase 4 UI State
   const [inventoryOpen, setInventoryOpen] = useState(false);
@@ -296,9 +312,11 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
           },
           onCombatResult(result) {
             combatFx.push(result);
+            combatLogStoreRef.current?.push(result);
             if (result.kind === "damage" && result.amount !== undefined) {
               addToast(`${result.amount} Schaden!`, "warning");
             }
+            triggerUpdate();
           },
           onToast(payload) {
             addToast(
@@ -350,6 +368,7 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
           },
           onLootPickupResult(payload) {
             if (payload.ok && payload.itemId) {
+              lootFeedStoreRef.current?.push(payload.itemId, payload.quantity ?? 1);
               gameplayEventQueueRef.current?.push({
                 type: "loot_pickup_confirmed",
                 itemId: payload.itemId,
@@ -360,15 +379,31 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
             } else if (payload.reason) {
               addToast(payload.reason, "warning");
             }
+            triggerUpdate();
           },
           onNpcDialogue(payload) {
-            gameplayEventQueueRef.current?.push({
-              type: "npc_dialogue",
+            dialogueStateRef.current = openDialogue(dialogueStateRef.current, {
               npcId: payload.npcId,
               npcName: payload.npcName,
               text: payload.text
             });
             addToast(`${payload.npcName}: ${payload.text.slice(0, 60)}...`, "info");
+            triggerUpdate();
+          },
+          // Phase 5 Event Handlers
+          onServerError(payload) {
+            addToast(`Server: ${payload.message}`, "error");
+          },
+          onSkillResult(payload) {
+            if (!payload.ok && payload.reason) {
+              addToast(`Skill: ${payload.reason}`, "warning");
+            } else if (payload.ok) {
+              addToast(`Skill ${payload.skillId} aktiviert`, "info");
+            }
+          },
+          onChunkSnapshot(payload) {
+            chunkSnapshotStoreRef.current?.apply(payload);
+            triggerUpdate();
           }
         });
         networkClientRef.current = network;
@@ -383,6 +418,11 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
           chunkSize: config.world.chunkSize,
           radius: config.world.observerRadiusChunks
         });
+
+        // Phase 5: Initialize Server Contract Stores
+        lootFeedStoreRef.current = createLootFeedStore(12);
+        combatLogStoreRef.current = createCombatLogStore(30);
+        chunkSnapshotStoreRef.current = createChunkSnapshotStore(128);
 
         // Phase 6: SYNCING_TICK - Start logic clock
         setPhase("SYNCING_TICK");
@@ -549,6 +589,11 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
   const interactionTarget = interactionTargetRef.current;
   const observedChunkCount = observedChunkCountRef.current;
   const gameplayEventQueueSize = gameplayEventQueueSizeRef.current;
+  const dialogueState = dialogueStateRef.current;
+  const lootFeedEntries = lootFeedStoreRef.current?.getAll() ?? [];
+  const combatLogEntries = combatLogStoreRef.current?.getAll() ?? [];
+  const chunkSnapshotCount = chunkSnapshotStoreRef.current?.size() ?? 0;
+  const gameplayStateVersion = gameplayStateVersionRef.current;
 
   // Phase 4 Action Handlers
   function handleSkill(skillId: SkillId) {
@@ -626,6 +671,11 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
     triggerUpdate();
   }
 
+  function handleDialogueClose() {
+    dialogueStateRef.current = closeDialogue(dialogueStateRef.current);
+    triggerUpdate();
+  }
+
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
       <div
@@ -681,6 +731,10 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
         trackedQuestTitle={trackedQuestTitle}
         observedChunkCount={observedChunkCount}
         gameplayEventQueueSize={gameplayEventQueueSize}
+        dialogueOpen={dialogueState.active !== null}
+        combatLogCount={combatLogEntries.length}
+        chunkSnapshotCount={chunkSnapshotCount}
+        gameplayStateVersion={gameplayStateVersion}
       />
 
       {/* Phase 4: Mobile Action Bar */}
@@ -725,6 +779,18 @@ export function GameBoot({ onReady, onDegraded, onFatal }: GameBootProps): React
         target={interactionTarget}
         onInteract={handleInteract}
       />
+
+      {/* Phase 5: NPC Dialogue Panel */}
+      <NpcDialoguePanel
+        dialogue={dialogueState}
+        onClose={handleDialogueClose}
+      />
+
+      {/* Phase 5: Loot Feed */}
+      <LootFeed entries={lootFeedEntries} />
+
+      {/* Phase 5: Combat Log */}
+      <CombatLog entries={combatLogEntries} />
 
       {/* Network quality HUD - only in dev mode */}
       {config.design.showDebugHud && (

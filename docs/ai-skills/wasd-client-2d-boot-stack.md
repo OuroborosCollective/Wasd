@@ -349,3 +349,178 @@ pnpm --filter client-2d build
 npx tsc --noEmit --project apps/client-2d/tsconfig.json
 npx eslint apps/client-2d/src/game apps/client-2d/src/world/apps/client-2d/src/ui apps/client-2d/src/net apps/client-2d/src/logic apps/client-2d/src/engine
 ```
+---
+
+## Phase 5: Server Gameplay Contract (Current Implementation)
+
+### Architecture
+
+```
+GameBoot.tsx
+    |
+    +-- game/serverContract.ts   (requestId, ServerResultCode, isOkResult)
+    +-- game/gameplayReducer.ts  (applyAuthoritativeGameplayEvent)
+    +-- game/dialogue.ts         (DialogueState, openDialogue, closeDialogue)
+    +-- game/loot.ts             (LootFeedStore)
+    +-- game/combat.ts           (CombatLogStore)
+    +-- world/chunkSnapshot.ts   (ChunkSnapshotStore)
+    +-- net/protocol.ts          (Protocol v5)
+    +-- net/networkClient.ts     (requestId tracking)
+
+Server: server/src/gameplay/
+    +-- protocol.ts             (ServerEnvelope, serverError)
+    +-- gameplaySession.ts       (GameplaySession, applyInputFrame)
+    
+WorldTick.ts Integration:
+    +-- client_hello handler
+    +-- guest_login handler
+    +-- input_frame handler
+    +-- loot_pickup_request handler
+    +-- npc_interact_request handler
+    +-- chunk_observe handler
+    +-- skill_cast handler
+
+UI Components: NpcDialoguePanel, LootFeed, CombatLog
+```
+
+### New Files (Phase 5)
+
+**Client Files (9 files):**
+
+| File | Purpose |
+|------|---------|
+| `game/serverContract.ts` | Request/response contract with requestId, ServerResultCode types |
+| `game/gameplayReducer.ts` | Authoritative event reducer for inventory/equipment/quest |
+| `game/dialogue.ts` | NPC dialogue state management (DialogueState, openDialogue, closeDialogue) |
+| `game/loot.ts` | Loot feed store (createLootFeedStore, LootFeedEntry) |
+| `game/combat.ts` | Combat log store (createCombatLogStore, CombatLogEntry) |
+| `world/chunkSnapshot.ts` | Chunk snapshot store (createChunkSnapshotStore, ChunkSnapshot) |
+| `ui/NpcDialoguePanel.tsx` | NPC dialogue display panel |
+| `ui/LootFeed.tsx` | Loot notification feed (left side) |
+| `ui/CombatLog.tsx` | Combat log display (right side) |
+
+**Server Files (2 files):**
+
+| File | Purpose |
+|------|---------|
+| `server/src/gameplay/protocol.ts` | ServerEnvelope, serverError(), safeJsonParse(), getRequestId() |
+| `server/src/gameplay/gameplaySession.ts` | GameplaySession, createGameplaySession, makeWelcome, makeWorldSnapshot, applyInputFrame |
+
+**Server Integration (1 file, +372 lines):**
+
+| File | Changes |
+|------|---------|
+| `server/src/core/WorldTick.ts` | Phase 5 imports, 7 new message handlers |
+
+### Updated Files
+
+| File | Changes |
+|------|---------|
+| `net/protocol.ts` | Protocol v5, ServerErrorPayload, updated SkillResultPayload, isServerErrorPayload, isChunkSnapshotPayload |
+| `net/networkClient.ts` | requestId in all send methods, onServerError, onSkillResult, onChunkSnapshot handlers |
+| `ui/GameBoot.tsx` | Phase 5 stores (dialogueState, lootFeedStore, combatLogStore, chunkSnapshotStore), UI components |
+| `ui/DebugHud.tsx` | ARELORIA DEBUG [P5], CONTRACT section (dialogueOpen, combatLogCount, chunkSnapshotCount, stateVer) |
+
+### Removed (Dead Code)
+
+| Path | Reason |
+|------|--------|
+| `apps/server/` | Not built by Dockerfile.vps, removed to prevent confusion |
+
+### Protocol v5 Message Handlers
+
+| Message | Handler | Response |
+|---------|---------|----------|
+| `client_hello` | Validate protocol v5 | `welcome` |
+| `guest_login` | Create session, send snapshot | `welcome` + `world_snapshot` |
+| `input_frame` | Process deterministic movement | `world_snapshot` mit `acknowledgedInputSeq` |
+| `loot_pickup_request` | Check distance (20 tiles), give loot | `loot_pickup_result` + `inventory_snapshot` |
+| `npc_interact_request` | Check distance (20 tiles), get dialogue | `npc_dialogue` |
+| `chunk_observe` | Generate tiles | `chunk_snapshot` |
+| `skill_cast` | Check cooldown, apply damage | `skill_result` + `combat_result` |
+
+### ServerResultCode Types
+
+```typescript
+type ServerResultCode =
+  | "ok"
+  | "invalid_payload"
+  | "not_found"
+  | "too_far"
+  | "inventory_full"
+  | "cooldown"
+  | "not_allowed"
+  | "server_error";
+```
+
+### Authoritative Gameplay Event Types
+
+```typescript
+type AuthoritativeGameplayEvent =
+  | InventoryEvent    // inventory_set, inventory_add, inventory_remove
+  | EquipmentEvent   // equipment_set, equipment_equip, equipment_unequip
+  | QuestEvent;       // quest_snapshot, quest_accept, quest_progress, quest_complete, quest_track
+```
+
+### Deterministic Guarantees (Phase 5)
+
+1. **Server is authoritative** - Client requests only, server confirms/rejects
+2. **Client coordinates not trusted blindly** - Only via `input_frame` with sequenceId
+3. **input_frame contains only movement intent** - Server calculates final position
+4. **Server updates position deterministically** - Via KappaPosGrid
+5. **Loot Pickup checks distance** - 20 tile radius, fails gracefully with `too_far`
+6. **NPC Interaction checks distance** - 20 tile radius, fails gracefully
+7. **Skill Cast validates cooldown** - Tick-based cooldown, not time-based
+8. **Invalid payloads return server_error** - No throws, no crashes
+9. **No unseeded random decisions** - All randomness seeded/deterministic
+
+### Docker Build Verification
+
+Dockerfile.vps builds:
+- `apps/client-2d/src/` → `@wasd/client-2d` ✅
+- `server/src/gameplay/` → `@wasd/server` ✅
+- `server/src/core/WorldTick.ts` → `@wasd/server` ✅
+
+### Testing Checklist (Phase 5)
+
+When deployed, verify in client:
+- [ ] Debug HUD: network **connected**?
+- [ ] **welcome** received (protocolVersion: 5)?
+- [ ] **world_snapshot** received with entities?
+- [ ] Player moves → **acknowledgedInputSeq** increases?
+- [ ] NPC Prompt → **npc_dialogue** received?
+- [ ] Loot Prompt → **loot_pickup_result** + **inventory_snapshot**?
+- [ ] **chunk_observe** → **chunk_snapshot**?
+- [ ] **skill_cast** → **skill_result** + **combat_result**?
+
+### Test Commands (Phase 5)
+
+```bash
+pnpm --filter client-2d build
+pnpm --filter @wasd/server build
+npx tsc --noEmit --project apps/client-2d/tsconfig.json
+npx tsc --noEmit --project server/tsconfig.json
+npx eslint apps/client-2d/src/game apps/client-2d/src/world apps/client-2d/src/ui apps/client-2d/src/net apps/client-2d/src/logic apps/client-2d/src/engine
+```
+
+### Related Files (Phase 5)
+
+**Client:**
+- `apps/client-2d/src/game/serverContract.ts` - Request/response contract
+- `apps/client-2d/src/game/gameplayReducer.ts` - Event reducer
+- `apps/client-2d/src/game/dialogue.ts` - Dialogue state
+- `apps/client-2d/src/game/loot.ts` - Loot store
+- `apps/client-2d/src/game/combat.ts` - Combat log
+- `apps/client-2d/src/world/chunkSnapshot.ts` - Chunk store
+- `apps/client-2d/src/ui/NpcDialoguePanel.tsx` - Dialogue UI
+- `apps/client-2d/src/ui/LootFeed.tsx` - Loot UI
+- `apps/client-2d/src/ui/CombatLog.tsx` - Combat UI
+
+**Server:**
+- `server/src/gameplay/protocol.ts` - Server protocol
+- `server/src/gameplay/gameplaySession.ts` - Session management
+- `server/src/core/WorldTick.ts` - Message handlers
+
+---
+
+**Phase 5 = Areloria is now a real multiplayer MMORPG server.** 🚀
