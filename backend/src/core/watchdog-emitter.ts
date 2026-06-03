@@ -30,6 +30,7 @@ export class WatchdogEmitter {
     constructor(private url: string, options: WatchdogEmitterOptions = {}) {
         this.eventBus = AxiomaticEventBus.getInstance();
         this.tick = normalizePositiveInteger(options.initialTick, 0);
+        this.eventBus.beginTick(this.tick);
         this.role = options.role || 'agent';
         this.localOnly = options.localOnly === true || process.env.WATCHDOG_LOCAL_ONLY === '1';
 
@@ -40,10 +41,14 @@ export class WatchdogEmitter {
 
     public setWorldTick(tick: number): void {
         this.tick = normalizePositiveInteger(tick, this.tick);
+        this.seq = 0;
+        this.eventBus.beginTick(this.tick);
     }
 
     public advanceTick(): number {
         this.tick += 1;
+        this.seq = 0;
+        this.eventBus.beginTick(this.tick);
         return this.tick;
     }
 
@@ -98,7 +103,7 @@ export class WatchdogEmitter {
                 systemState: 'UNSTABLE',
             },
             'HIGH',
-            'JULES_AI',
+            'WATCHDOG_AI',
             tick,
         );
     }
@@ -110,8 +115,14 @@ export class WatchdogEmitter {
         source = 'SYSTEM_CORE',
         tick = this.tick,
     ): DeterministicWatchdogEvent {
-        const stamp = createWatchdogTickStamp(tick, ++this.seq);
-        this.tick = stamp.tick;
+        const safeTick = normalizePositiveInteger(tick, this.tick);
+        if (safeTick !== this.tick) {
+            this.tick = safeTick;
+            this.seq = 0;
+            this.eventBus.beginTick(this.tick);
+        }
+
+        const stamp = createWatchdogTickStamp(this.tick, ++this.seq);
 
         const event = normalizeWatchdogEvent(
             {
@@ -133,8 +144,14 @@ export class WatchdogEmitter {
     }
 
     public emitEvent(event: WatchdogEvent, tick = event.tick ?? this.tick): DeterministicWatchdogEvent {
-        const stamp = createWatchdogTickStamp(tick, ++this.seq);
-        this.tick = stamp.tick;
+        const safeTick = normalizePositiveInteger(tick, this.tick);
+        if (safeTick !== this.tick) {
+            this.tick = safeTick;
+            this.seq = 0;
+            this.eventBus.beginTick(this.tick);
+        }
+
+        const stamp = createWatchdogTickStamp(this.tick, ++this.seq);
         const normalized = normalizeWatchdogEvent(event, stamp, event.origin || event.source || 'SYSTEM_CORE');
         this.broadcast(normalized);
         return normalized;
@@ -149,16 +166,30 @@ export class WatchdogEmitter {
             }
         }
 
-        this.eventBus.publish(event.type, {
-            ...event.payload,
-            severity: event.severity,
-            source: event.origin,
-            origin: event.origin,
-            tick: event.tick,
-            seq: event.seq,
-            timestamp: event.timestamp,
-            channel: event.channel,
-        });
+        this.eventBus.publish(
+            event.type,
+            {
+                ...event.payload,
+                severity: event.severity,
+                source: event.origin,
+                origin: event.origin,
+                tick: event.tick,
+                seq: event.seq,
+                timestamp: event.timestamp,
+                channel: event.channel,
+            },
+            {
+                tick: event.tick,
+                tickSequence: event.seq,
+                source: event.origin,
+                metadata: {
+                    severity: event.severity,
+                    channel: event.channel,
+                    watchdogTimestamp: event.timestamp,
+                },
+                violationPolicy: 'reject',
+            },
+        );
 
         if (this.ws && this.ws.readyState === WebSocket.OPEN && this.ws.bufferedAmount < 512 * 1024) {
             try {
