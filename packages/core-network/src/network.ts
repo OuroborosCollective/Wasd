@@ -27,6 +27,16 @@ function parseJsonMessage(raw: MessageEvent["data"]): any | null {
   }
 }
 
+function finiteNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function clampUnit(value: unknown): number {
+  const n = finiteNumber(value, 0);
+  return Math.max(-1, Math.min(1, n));
+}
+
 function readClient2DIdentity() {
   const handle = localStorage.getItem("wasd:2d:name") || "architect";
   const publicKey = localStorage.getItem("wasd:2d:publicKey") || `are-client2d-${handle}`;
@@ -35,15 +45,34 @@ function readClient2DIdentity() {
   return { handle, publicKey, identityHash, role };
 }
 
+function readClient2DSpawn() {
+  try {
+    const raw = localStorage.getItem("wasd:2d:lastServerPosition") || localStorage.getItem("wasd:2d:spawn");
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw);
+    const x = finiteNumber(parsed?.x, NaN);
+    const y = finiteNumber(parsed?.y ?? parsed?.z, NaN);
+    const z = finiteNumber(parsed?.z, 0);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined;
+    return { x, y, z };
+  } catch {
+    return undefined;
+  }
+}
+
 export class ArelorianClient {
   private socket: WebSocket | null = null;
   private listeners: Map<string, Set<EventListener>> = new Map();
   private config: ConnectionConfig;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private presenceTimer: ReturnType<typeof setInterval> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private _worldState: any = null;
   private _connected = false;
   private intentionalClose = false;
+  private moveSeq = 0;
+  private presenceSeq = 0;
+  private lastKnownServerPosition: { x: number; y: number; z: number } | null = null;
 
   constructor(config: ConnectionConfig) {
     this.config = {
@@ -75,6 +104,7 @@ export class ArelorianClient {
       if (this.socket !== socket || this.intentionalClose) return;
       this._connected = true;
       const identity = readClient2DIdentity();
+      const spawn = readClient2DSpawn();
       this.sendRaw({
         type: "login",
         source: "client-2d",
@@ -85,10 +115,12 @@ export class ArelorianClient {
         role: identity.role,
         class: identity.role,
         appearance: "client-2d",
+        ...(spawn ? { spawn } : {}),
       });
       console.log("[Arelorian] Connected to native world socket", wsUrl);
       this.dispatch({ type: "connect" as any, payload: {} } as ServerEvent);
       this.startHeartbeat();
+      this.startPresence();
     });
 
     socket.addEventListener("close", () => {
@@ -97,6 +129,7 @@ export class ArelorianClient {
       console.log("[Arelorian] Native world socket disconnected");
       this.dispatch({ type: "disconnect" as any, payload: {} } as ServerEvent);
       this.stopHeartbeat();
+      this.stopPresence();
       if (!this.intentionalClose) {
         this.reconnectTimer = setTimeout(() => this.connect(), this.config.reconnectInterval);
       }
@@ -108,7 +141,12 @@ export class ArelorianClient {
       if (!msg?.type) return;
       const payload = msg.payload ?? msg;
       const serverEvent = { type: msg.type, payload } as ServerEvent;
-      if (msg.type === "WORLD_HEARTBEAT") this._worldState = payload;
+      if (msg.type === "WORLD_HEARTBEAT") {
+        this._worldState = payload;
+        this.rememberServerPosition(payload?.self);
+      }
+      if (msg.type === "world_snapshot") this.rememberServerPosition(payload?.selfEntity ?? payload?.self);
+      if (msg.type === "server_presence" || msg.type === "presence_ack") this.rememberServerPosition(payload?.position ?? msg.position);
       if (msg.type === "world_tick") this._worldState = { players: msg.players, agents: msg.npcs, npcs: msg.npcs, loot: msg.loot, tick: msg.tick };
       console.log("[Arelorian] Event:", msg.type, payload);
       this.dispatch(serverEvent);
@@ -124,6 +162,7 @@ export class ArelorianClient {
     this.intentionalClose = true;
     this.clearReconnectTimer();
     this.stopHeartbeat();
+    this.stopPresence();
     const socket = this.socket;
     this.socket = null;
     socket?.close();
@@ -142,6 +181,26 @@ export class ArelorianClient {
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
+    }
+  }
+
+  private startPresence(): void {
+    this.stopPresence();
+    this.presenceTimer = setInterval(() => {
+      this.sendRaw({
+        type: "presence",
+        source: "client-2d",
+        seq: ++this.presenceSeq,
+        lastMoveSeq: this.moveSeq,
+        clientRoute: typeof location !== "undefined" ? location.pathname : "/2d/",
+      });
+    }, 1000);
+  }
+
+  private stopPresence(): void {
+    if (this.presenceTimer) {
+      clearInterval(this.presenceTimer);
+      this.presenceTimer = null;
     }
   }
 
@@ -177,13 +236,38 @@ export class ArelorianClient {
     }
   }
 
+  private rememberServerPosition(raw: any): void {
+    if (!raw || typeof raw !== "object") return;
+    const x = finiteNumber(raw.x ?? raw.position?.x, NaN);
+    const y = finiteNumber(raw.y ?? raw.z ?? raw.position?.y ?? raw.position?.z, NaN);
+    const z = finiteNumber(raw.z ?? raw.position?.z ?? 0, 0);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    this.lastKnownServerPosition = { x, y, z };
+    try {
+      localStorage.setItem("wasd:2d:lastServerPosition", JSON.stringify(this.lastKnownServerPosition));
+    } catch {
+      // ignore storage access issues
+    }
+  }
+
   emit(event: string, payload: Record<string, unknown>): void {
     this.sendRaw({ type: event, ...payload });
   }
 
   sendPlayerAction(action: string, payload: Record<string, unknown>): void {
     if (action === "MOVE") {
-      this.sendRaw({ type: "MOVE", ...payload });
+      const dx = clampUnit(payload.dx);
+      const dz = clampUnit(payload.dz ?? payload.dy);
+      if (dx === 0 && dz === 0) return;
+      this.sendRaw({
+        type: "MOVE",
+        dx,
+        dy: dz,
+        dz,
+        source: "client-2d",
+        seq: ++this.moveSeq,
+        basis: "server_authoritative_intent",
+      });
       return;
     }
     if (action === "USE_SKILL") {
