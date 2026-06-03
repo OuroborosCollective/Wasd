@@ -1,3 +1,6 @@
+export const ARE_SIMULATION_TICK_HZ = 10;
+export const ARE_SIMULATION_TICK_MS = 1000 / ARE_SIMULATION_TICK_HZ;
+
 export interface AREClock {
   now(): number;
 }
@@ -7,6 +10,24 @@ export interface ARERng {
   nextInt(maxExclusive: number): number;
   nextRange(minInclusive: number, maxInclusive: number): number;
   fork(label: string): ARERng;
+}
+
+/**
+ * Convert real-duration declarations into deterministic simulation ticks.
+ *
+ * Simulation code should store and compare ticks, not wall-clock timestamps.
+ * This helper keeps duration-to-tick conversion tied to the canonical ARE clock
+ * cadence so cooldowns, UI coalescing, replay checks and bots do not drift into
+ * separate hidden assumptions.
+ */
+export function msToARETicks(ms: number): number {
+  if (!Number.isFinite(ms) || ms <= 0) return 1;
+  return Math.max(1, Math.ceil(ms / ARE_SIMULATION_TICK_MS));
+}
+
+export function areTicksToMs(ticks: number): number {
+  if (!Number.isFinite(ticks) || ticks <= 0) return 0;
+  return Math.trunc(ticks) * ARE_SIMULATION_TICK_MS;
 }
 
 /**
