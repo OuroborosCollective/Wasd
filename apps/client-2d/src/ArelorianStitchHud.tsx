@@ -234,23 +234,23 @@ export function ArelorianStitchHud({
         <div className="stitch-debug-title">POSITION DEBUG</div>
         <div className="stitch-debug-row">
           <span>Heartbeat:</span>
-          <span className={debugHeartbeatReceived ? "ok" : "warn"}>{debugHeartbeatReceived ? "✓" : "✗"}</span>
+          <span className={debugHeartbeatReceived ? "ok" : "warn"}>{debugHeartbeatReceived ? "✓" : "waiting"}</span>
         </div>
         <div className="stitch-debug-row">
           <span>Initialized:</span>
-          <span className={debugInitialized ? "ok" : "warn"}>{debugInitialized ? "✓" : "✗"}</span>
+          <span className={debugInitialized ? "ok" : "warn"}>{debugInitialized ? "✓" : "waiting"}</span>
         </div>
         <div className="stitch-debug-row">
           <span>Player Pos:</span>
-          <span>{debugPlayerPos ? `${debugPlayerPos.x.toFixed(0)}, ${debugPlayerPos.z.toFixed(0)}` : "---"}</span>
+          <span>{debugPlayerPos ? `${debugPlayerPos.x.toFixed(0)}, ${debugPlayerPos.z.toFixed(0)}` : "waiting"}</span>
         </div>
         <div className="stitch-debug-row">
           <span>Chunk Coords:</span>
-          <span>{debugChunkCoords ? `${debugChunkCoords.chunkX}, ${debugChunkCoords.chunkZ}` : "---"}</span>
+          <span>{debugChunkCoords ? `${debugChunkCoords.chunkX}, ${debugChunkCoords.chunkZ}` : "waiting"}</span>
         </div>
         <div className="stitch-debug-row">
           <span>Visible Chunks:</span>
-          <span>{debugVisibleChunks ?? "---"}</span>
+          <span>{debugVisibleChunks !== null && debugVisibleChunks !== undefined ? debugVisibleChunks : "waiting"}</span>
         </div>
       </aside>
 
@@ -366,7 +366,7 @@ function StitchPanel({
         {panel === "guild" && <GuildPreview />}
         {panel === "factions" && <FactionsPreview />}
         {panel === "quests" && <QuestPreview />}
-        {panel === "inventory" && weaponCount > 0 && <button className="stitch-cycle-fallback" type="button" onClick={onCycleWeapon}>Cycle equipped visual</button>}
+        {panel === "inventory" && weaponCount > 0 && <button className="stitch-cycle-fallback" type="button" onClick={onCycleWeapon}>Cycle Gear Visual</button>}
       </div>
     </div>
   );
