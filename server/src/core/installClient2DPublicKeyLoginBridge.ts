@@ -55,30 +55,35 @@ function isClient2DPresence(msg: any): boolean {
   return msg?.type === "presence" && (msg?.source === "client-2d" || msg?.clientRoute === "/2d/");
 }
 
-function sendServerPresence(ws: GameWebSocketServer, socketId: string, player: any, tick: WorldTick, seq?: unknown): void {
-  ws.sendToPlayer(socketId, {
-    type: "presence_ack",
-    payload: {
-      ok: true,
-      seq,
-      tick: Number((tick as any).tickCount ?? 0),
-      playerId: player.id,
-      position: {
-        x: player.position.x,
-        y: player.position.y,
-        z: player.position.z ?? 0,
-      },
-    },
-  });
+function positionPayload(player: any) {
+  return {
+    x: player.position.x,
+    y: player.position.y,
+    z: player.position.z ?? 0,
+  };
 }
 
-function registerPresence(tick: WorldTick, socketId: string, uid: string, player: any): void {
+function broadcastServerPresence(ws: GameWebSocketServer, socketId: string, player: any, tick: WorldTick, reason: string, seq?: unknown): void {
+  const payload = {
+    ok: true,
+    reason,
+    seq,
+    tick: Number((tick as any).tickCount ?? 0),
+    socketId,
+    playerId: player.id,
+    name: player.name,
+    isOffline: Boolean(player.isOffline),
+    position: positionPayload(player),
+  };
+  ws.sendToPlayer(socketId, { type: "presence_ack", payload });
+  ws.broadcast({ type: "server_presence", payload });
+}
+
+function registerPresence(ws: GameWebSocketServer, tick: WorldTick, socketId: string, uid: string, player: any): void {
   (tick as any).socketToPlayer?.set(socketId, uid);
   (tick as any).playerToSocket?.set(uid, socketId);
   tick.observerEngine.register(socketId, { x: player.position.x, y: player.position.y });
-  if (typeof (tick as any).publishPlayerPresence === "function") {
-    (tick as any).publishPlayerPresence(socketId, player, "client2d_bridge");
-  }
+  broadcastServerPresence(ws, socketId, player, tick, "client2d_register");
 }
 
 export function installClient2DPublicKeyLoginBridge(ws: GameWebSocketServer, tick: WorldTick): void {
@@ -91,7 +96,7 @@ export function installClient2DPublicKeyLoginBridge(ws: GameWebSocketServer, tic
       if (player) {
         player.isOffline = false;
         tick.observerEngine.updatePosition(socketId, { x: player.position.x, y: player.position.y });
-        sendServerPresence(ws, socketId, player, tick, msg?.seq);
+        broadcastServerPresence(ws, socketId, player, tick, "client2d_presence", msg?.seq);
       }
       return;
     }
@@ -108,10 +113,7 @@ export function installClient2DPublicKeyLoginBridge(ws: GameWebSocketServer, tic
         player.isOffline = false;
         player.state = "walking";
         tick.observerEngine.updatePosition(socketId, { x: player.position.x, y: player.position.y });
-        if (typeof (tick as any).publishPlayerPresence === "function") {
-          (tick as any).publishPlayerPresence(socketId, player, "client2d_move");
-        }
-        sendServerPresence(ws, socketId, player, tick, msg?.seq);
+        broadcastServerPresence(ws, socketId, player, tick, "client2d_move", msg?.seq);
       }
       return;
     }
@@ -142,18 +144,14 @@ export function installClient2DPublicKeyLoginBridge(ws: GameWebSocketServer, tic
     player.isOffline = false;
     player.state = "idle";
 
-    registerPresence(tick, socketId, uid, player);
+    registerPresence(ws, tick, socketId, uid, player);
 
     ws.sendToPlayer(socketId, {
       type: "welcome",
       id: uid,
       playerId: uid,
       playerName: player.name,
-      spawnPosition: {
-        x: player.position.x,
-        y: player.position.y,
-        z: player.position.z ?? 0,
-      },
+      spawnPosition: positionPayload(player),
       stats: {
         gold: player.gold ?? 0,
         xp: player.xp ?? 0,
