@@ -1,93 +1,166 @@
 import { WebSocket } from 'ws';
 import { AxiomaticEventBus } from './axiomatic-event-bus';
+import {
+    createWatchdogTickStamp,
+    normalizePositiveInteger,
+    normalizeWatchdogEvent,
+    type CanonicalWatchdogSeverity,
+    type DeterministicWatchdogEvent,
+    type WatchdogEvent,
+} from './watchdog-determinism';
 
-export type WatchdogSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type WatchdogSeverity = CanonicalWatchdogSeverity;
+export type { WatchdogEvent, DeterministicWatchdogEvent };
 
-export interface WatchdogEvent {
-    type: string;
-    severity: WatchdogSeverity;
-    timestamp: number;
-    source: string;
-    payload: any;
+export interface WatchdogEmitterOptions {
+    initialTick?: number;
+    role?: string;
+    localOnly?: boolean;
 }
 
 export class WatchdogEmitter {
     private ws: WebSocket | null = null;
-    private listeners: ((event: WatchdogEvent) => void)[] = [];
+    private listeners: ((event: DeterministicWatchdogEvent) => void)[] = [];
     private eventBus: AxiomaticEventBus;
+    private tick = 0;
+    private seq = 0;
+    private readonly role: string;
+    private readonly localOnly: boolean;
 
-    constructor(private url: string) {
+    constructor(private url: string, options: WatchdogEmitterOptions = {}) {
         this.eventBus = AxiomaticEventBus.getInstance();
-        this.connect();
+        this.tick = normalizePositiveInteger(options.initialTick, 0);
+        this.role = options.role || 'agent';
+        this.localOnly = options.localOnly === true || process.env.WATCHDOG_LOCAL_ONLY === '1';
+
+        if (!this.localOnly) {
+            this.connect();
+        }
+    }
+
+    public setWorldTick(tick: number): void {
+        this.tick = normalizePositiveInteger(tick, this.tick);
+    }
+
+    public advanceTick(): number {
+        this.tick += 1;
+        return this.tick;
+    }
+
+    public get currentTick(): number {
+        return this.tick;
+    }
+
+    public get currentSeq(): number {
+        return this.seq;
     }
 
     private connect(): void {
         try {
-            this.ws = new WebSocket(this.url);
+            this.ws = new WebSocket(this.decorateUrl(this.url));
+
             this.ws.on('error', () => {
-                console.warn(`[Watchdog Emitter] Could not connect to ${this.url}. Operating in local/bus mode.`);
+                console.warn(`[Watchdog Emitter] Could not connect to ${this.url}. Operating in local bus mode.`);
             });
+
             this.ws.on('open', () => {
                 console.log(`[Watchdog Emitter] Connected to telemetry sink: ${this.url}`);
             });
-        } catch (e) {
-            console.warn('[Watchdog Emitter] Connection attempt failed.');
+        } catch {
+            console.warn('[Watchdog Emitter] Connection attempt failed. Operating in local bus mode.');
         }
     }
 
-    public subscribe(listener: (event: WatchdogEvent) => void): void {
+    private decorateUrl(rawUrl: string): string {
+        try {
+            const parsed = new URL(rawUrl);
+            parsed.searchParams.set('role', this.role);
+            return parsed.toString();
+        } catch {
+            return rawUrl;
+        }
+    }
+
+    public subscribe(listener: (event: DeterministicWatchdogEvent) => void): void {
         this.listeners.push(listener);
     }
 
-    /**
-     * Triggers a global system instability alert via the AxiomaticEventBus.
-     * Specifically used for Jules AI context and reality-bus synchronization.
-     */
-    public triggerInstabilityAlert(reason: string, details: any = {}): void {
-        const alertEvent: WatchdogEvent = {
-            type: 'WATCHDOG_ALERT',
-            severity: 'HIGH',
-            timestamp: Date.now(),
-            source: 'JULES_AI',
-            payload: {
+    public unsubscribe(listener: (event: DeterministicWatchdogEvent) => void): void {
+        this.listeners = this.listeners.filter((candidate) => candidate !== listener);
+    }
+
+    public triggerInstabilityAlert(reason: string, details: Record<string, unknown> = {}, tick = this.tick): void {
+        this.emit(
+            'WATCHDOG_ALERT',
+            {
                 reason,
                 ...details,
-                systemState: 'UNSTABLE'
-            }
-        };
-
-        this.broadcast(alertEvent);
+                systemState: 'UNSTABLE',
+            },
+            'HIGH',
+            'JULES_AI',
+            tick,
+        );
     }
 
-    /**
-     * Standard emit for general watchdog events.
-     */
-    public emit(type: string, payload: any, severity: WatchdogSeverity = 'LOW', source: string = 'SYSTEM_CORE'): void {
-        const event: WatchdogEvent = {
-            type,
-            severity,
-            timestamp: Date.now(),
+    public emit(
+        type: string,
+        payload: Record<string, unknown> = {},
+        severity: WatchdogSeverity = 'LOW',
+        source = 'SYSTEM_CORE',
+        tick = this.tick,
+    ): DeterministicWatchdogEvent {
+        const stamp = createWatchdogTickStamp(tick, ++this.seq);
+        this.tick = stamp.tick;
+
+        const event = normalizeWatchdogEvent(
+            {
+                type,
+                severity,
+                source,
+                origin: source,
+                message: type,
+                payload,
+                metadata: {},
+                channel: 'watchdog.emitter',
+            },
+            stamp,
             source,
-            payload
-        };
+        );
 
         this.broadcast(event);
+        return event;
     }
 
-    private broadcast(event: WatchdogEvent): void {
-        // 1. Notify Local Listeners
-        this.listeners.forEach(l => l(event));
+    public emitEvent(event: WatchdogEvent, tick = event.tick ?? this.tick): DeterministicWatchdogEvent {
+        const stamp = createWatchdogTickStamp(tick, ++this.seq);
+        this.tick = stamp.tick;
+        const normalized = normalizeWatchdogEvent(event, stamp, event.origin || event.source || 'SYSTEM_CORE');
+        this.broadcast(normalized);
+        return normalized;
+    }
 
-        // 2. Feed into Axiomatic Event Bus (Reality-Bus)
+    private broadcast(event: DeterministicWatchdogEvent): void {
+        for (const listener of this.listeners) {
+            try {
+                listener(event);
+            } catch (err) {
+                console.error('[Watchdog Emitter] Local listener failed', err);
+            }
+        }
+
         this.eventBus.publish(event.type, {
             ...event.payload,
             severity: event.severity,
-            source: event.source,
-            timestamp: event.timestamp
+            source: event.origin,
+            origin: event.origin,
+            tick: event.tick,
+            seq: event.seq,
+            timestamp: event.timestamp,
+            channel: event.channel,
         });
 
-        // 3. Send via WebSocket if available
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN && this.ws.bufferedAmount < 512 * 1024) {
             try {
                 this.ws.send(JSON.stringify(event));
             } catch (err) {
