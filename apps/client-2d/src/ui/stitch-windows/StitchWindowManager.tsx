@@ -24,12 +24,44 @@ import {
   LevelUpCelebration,
   GatheringInterfaceResourceTracking,
   CraftingInterfaceRecipeManagement,
-  // New screens
+  // Previously integrated screens
   TradeWindowPlayerExchange,
   GameplayHUDQuestTracker,
   GameplayHUDCollapsiblePanels,
   InventoryMatrixAnimated,
   MailInterfaceCommunications,
+  PetMountInterface,
+  // Batch integrated screens
+  AuctionMarketWindow,
+  PartyRaidInterface,
+  SocialHubFriends,
+  DungeonRaidBrowser,
+  TeleportTravelMenu,
+  WeatherOverlayRain,
+  WeatherOverlaySandstorm,
+  WeatherOverlayElectronStorm,
+  UpgradeCrystallineForge,
+  UpgradeDarkCyberZen,
+  RefinementSuccess,
+  RefinementFailed,
+  SupportTutorialsAchievements,
+  WarfrontVictory,
+  WarfrontDefeat,
+  WarfrontLeaderboard,
+  WarfrontRewards,
+  WarfrontStrategicMap,
+  WorldAtlasPathfinding,
+  WorldAtlasTownZoom,
+  InteractiveWorldAtlas,
+  InteractiveWorldMap,
+  ModularItemDetail3Part,
+  ModularItemDetailView,
+  ModularDaggerDetail,
+  ModularSpearDetail,
+  ModularAxeDetail,
+  ModularStaffDetail,
+  ModularWeaponDetail3Part,
+  InventoryMatrix30Slot,
   type StitchComponentName,
   STITCH_COMPONENTS,
 } from '../stitch-screens';
@@ -55,12 +87,44 @@ const STITCH_COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
   LevelUpCelebration,
   GatheringInterfaceResourceTracking,
   CraftingInterfaceRecipeManagement,
-  // New screens
+  // Previously integrated screens
   TradeWindowPlayerExchange,
   GameplayHUDQuestTracker,
   GameplayHUDCollapsiblePanels,
   InventoryMatrixAnimated,
   MailInterfaceCommunications,
+  PetMountInterface,
+  // Batch integrated screens
+  AuctionMarketWindow,
+  PartyRaidInterface,
+  SocialHubFriends,
+  DungeonRaidBrowser,
+  TeleportTravelMenu,
+  WeatherOverlayRain,
+  WeatherOverlaySandstorm,
+  WeatherOverlayElectronStorm,
+  UpgradeCrystallineForge,
+  UpgradeDarkCyberZen,
+  RefinementSuccess,
+  RefinementFailed,
+  SupportTutorialsAchievements,
+  WarfrontVictory,
+  WarfrontDefeat,
+  WarfrontLeaderboard,
+  WarfrontRewards,
+  WarfrontStrategicMap,
+  WorldAtlasPathfinding,
+  WorldAtlasTownZoom,
+  InteractiveWorldAtlas,
+  InteractiveWorldMap,
+  ModularItemDetail3Part,
+  ModularItemDetailView,
+  ModularDaggerDetail,
+  ModularSpearDetail,
+  ModularAxeDetail,
+  ModularStaffDetail,
+  ModularWeaponDetail3Part,
+  InventoryMatrix30Slot,
 };
 
 export type StitchScreenId =
@@ -81,12 +145,44 @@ export type StitchScreenId =
   | 'levelUp'
   | 'gathering'
   | 'crafting'
-  // New screens
+  // Previously integrated screens
   | 'trade'
   | 'questTracker'
   | 'collapsiblePanels'
   | 'inventory'
-  | 'mail';
+  | 'mail'
+  | 'petMount'
+  // Batch integrated screens
+  | 'auctionMarket'
+  | 'partyRaid'
+  | 'socialHub'
+  | 'dungeonRaid'
+  | 'teleport'
+  | 'weatherRain'
+  | 'weatherSandstorm'
+  | 'weatherElectronStorm'
+  | 'upgradeCrystalline'
+  | 'upgradeDarkCyber'
+  | 'refinementSuccess'
+  | 'refinementFailed'
+  | 'support'
+  | 'warfrontVictory'
+  | 'warfrontDefeat'
+  | 'warfrontLeaderboard'
+  | 'warfrontRewards'
+  | 'warfrontStrategic'
+  | 'worldAtlasPathfinding'
+  | 'worldAtlasTown'
+  | 'worldAtlasInteractive'
+  | 'worldMapInteractive'
+  | 'modularItemDetail'
+  | 'modularItemView'
+  | 'modularDagger'
+  | 'modularSpear'
+  | 'modularAxe'
+  | 'modularStaff'
+  | 'modularWeapon'
+  | 'inventory30Slot';
 
 interface StitchScreenConfig {
   component: string;
@@ -116,12 +212,44 @@ export const STITCH_SCREENS: Record<StitchScreenId, StitchScreenConfig> = {
   levelUp: { component: 'LevelUpCelebration', title: 'Level Up!', modal: true },
   gathering: { component: 'GatheringInterfaceResourceTracking', title: 'Gathering', modal: true },
   crafting: { component: 'CraftingInterfaceRecipeManagement', title: 'Crafting', modal: true },
-  // New screens
+  // Previously integrated screens
   trade: { component: 'TradeWindowPlayerExchange', title: 'Trade', modal: true },
   questTracker: { component: 'GameplayHUDQuestTracker', title: 'Quest Tracker', modal: false },
   collapsiblePanels: { component: 'GameplayHUDCollapsiblePanels', title: 'Panels', modal: false },
   inventory: { component: 'InventoryMatrixAnimated', title: 'Inventory', modal: true },
   mail: { component: 'MailInterfaceCommunications', title: 'Mail', modal: true },
+  petMount: { component: 'PetMountInterface', title: 'Pet & Mount', modal: true },
+  // Batch integrated screens
+  auctionMarket: { component: 'AuctionMarketWindow', title: 'Auction & Market', modal: true },
+  partyRaid: { component: 'PartyRaidInterface', title: 'Party & Raid', modal: true },
+  socialHub: { component: 'SocialHubFriends', title: 'Social Hub', modal: true },
+  dungeonRaid: { component: 'DungeonRaidBrowser', title: 'Dungeons & Raids', modal: true },
+  teleport: { component: 'TeleportTravelMenu', title: 'Teleport & Travel', modal: true },
+  weatherRain: { component: 'WeatherOverlayRain', title: 'Weather: Rain', modal: false, fullscreen: true },
+  weatherSandstorm: { component: 'WeatherOverlaySandstorm', title: 'Weather: Sandstorm', modal: false, fullscreen: true },
+  weatherElectronStorm: { component: 'WeatherOverlayElectronStorm', title: 'Weather: Electron Storm', modal: false, fullscreen: true },
+  upgradeCrystalline: { component: 'UpgradeCrystallineForge', title: 'Crystalline Forge', modal: true },
+  upgradeDarkCyber: { component: 'UpgradeDarkCyberZen', title: 'Upgrade & Refine', modal: true },
+  refinementSuccess: { component: 'RefinementSuccess', title: 'Refinement Success', modal: true },
+  refinementFailed: { component: 'RefinementFailed', title: 'Refinement Failed', modal: true },
+  support: { component: 'SupportTutorialsAchievements', title: 'Support & Achievements', modal: true },
+  warfrontVictory: { component: 'WarfrontVictory', title: 'Warfront Victory', modal: true },
+  warfrontDefeat: { component: 'WarfrontDefeat', title: 'Warfront Defeat', modal: true },
+  warfrontLeaderboard: { component: 'WarfrontLeaderboard', title: 'Warfront Leaderboard', modal: true },
+  warfrontRewards: { component: 'WarfrontRewards', title: 'Warfront Rewards', modal: true },
+  warfrontStrategic: { component: 'WarfrontStrategicMap', title: 'Warfront Map', modal: true },
+  worldAtlasPathfinding: { component: 'WorldAtlasPathfinding', title: 'World Atlas', modal: true },
+  worldAtlasTown: { component: 'WorldAtlasTownZoom', title: 'Town & Group Finder', modal: true },
+  worldAtlasInteractive: { component: 'InteractiveWorldAtlas', title: 'Interactive Atlas', modal: true },
+  worldMapInteractive: { component: 'InteractiveWorldMap', title: 'Interactive Map', modal: true },
+  modularItemDetail: { component: 'ModularItemDetail3Part', title: 'Item Detail', modal: true },
+  modularItemView: { component: 'ModularItemDetailView', title: 'Item View', modal: true },
+  modularDagger: { component: 'ModularDaggerDetail', title: 'Dagger Detail', modal: true },
+  modularSpear: { component: 'ModularSpearDetail', title: 'Spear Detail', modal: true },
+  modularAxe: { component: 'ModularAxeDetail', title: 'Axe Detail', modal: true },
+  modularStaff: { component: 'ModularStaffDetail', title: 'Staff Detail', modal: true },
+  modularWeapon: { component: 'ModularWeaponDetail3Part', title: 'Weapon Detail', modal: true },
+  inventory30Slot: { component: 'InventoryMatrix30Slot', title: 'Inventory (30)', modal: true },
 };
 
 interface StitchWindowState {
@@ -337,4 +465,129 @@ export function useInventory() {
 
 export function useMail() {
   return useStitchScreen('mail');
+}
+
+export function usePetMount() {
+  return useStitchScreen('petMount');
+}
+
+// Batch integrated screen hooks
+export function useAuctionMarket() {
+  return useStitchScreen('auctionMarket');
+}
+
+export function usePartyRaid() {
+  return useStitchScreen('partyRaid');
+}
+
+export function useSocialHub() {
+  return useStitchScreen('socialHub');
+}
+
+export function useDungeonRaid() {
+  return useStitchScreen('dungeonRaid');
+}
+
+export function useTeleport() {
+  return useStitchScreen('teleport');
+}
+
+export function useWeatherRain() {
+  return useStitchScreen('weatherRain');
+}
+
+export function useWeatherSandstorm() {
+  return useStitchScreen('weatherSandstorm');
+}
+
+export function useWeatherElectronStorm() {
+  return useStitchScreen('weatherElectronStorm');
+}
+
+export function useUpgradeCrystalline() {
+  return useStitchScreen('upgradeCrystalline');
+}
+
+export function useUpgradeDarkCyber() {
+  return useStitchScreen('upgradeDarkCyber');
+}
+
+export function useRefinementSuccess() {
+  return useStitchScreen('refinementSuccess');
+}
+
+export function useRefinementFailed() {
+  return useStitchScreen('refinementFailed');
+}
+
+export function useSupport() {
+  return useStitchScreen('support');
+}
+
+export function useWarfrontVictory() {
+  return useStitchScreen('warfrontVictory');
+}
+
+export function useWarfrontDefeat() {
+  return useStitchScreen('warfrontDefeat');
+}
+
+export function useWarfrontLeaderboard() {
+  return useStitchScreen('warfrontLeaderboard');
+}
+
+export function useWarfrontRewards() {
+  return useStitchScreen('warfrontRewards');
+}
+
+export function useWarfrontStrategic() {
+  return useStitchScreen('warfrontStrategic');
+}
+
+export function useWorldAtlasPathfinding() {
+  return useStitchScreen('worldAtlasPathfinding');
+}
+
+export function useWorldAtlasTown() {
+  return useStitchScreen('worldAtlasTown');
+}
+
+export function useWorldAtlasInteractive() {
+  return useStitchScreen('worldAtlasInteractive');
+}
+
+export function useWorldMapInteractive() {
+  return useStitchScreen('worldMapInteractive');
+}
+
+export function useModularItemDetail() {
+  return useStitchScreen('modularItemDetail');
+}
+
+export function useModularItemView() {
+  return useStitchScreen('modularItemView');
+}
+
+export function useModularDagger() {
+  return useStitchScreen('modularDagger');
+}
+
+export function useModularSpear() {
+  return useStitchScreen('modularSpear');
+}
+
+export function useModularAxe() {
+  return useStitchScreen('modularAxe');
+}
+
+export function useModularStaff() {
+  return useStitchScreen('modularStaff');
+}
+
+export function useModularWeapon() {
+  return useStitchScreen('modularWeapon');
+}
+
+export function useInventory30Slot() {
+  return useStitchScreen('inventory30Slot');
 }
