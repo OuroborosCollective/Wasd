@@ -108,27 +108,56 @@ jobs:
           set -euo pipefail
 
           echo "🧠 Building Autonomous Wiki..."
+          echo "Current directory: $(pwd)"
+          echo "WIKI_SOURCE_DIR: $WIKI_SOURCE_DIR"
+          echo "WIKI_BUILD_DIR: $WIKI_BUILD_DIR"
           echo ""
 
+          # Debug: Check if script exists
+          if [ ! -f "scripts/wiki/build-autonomous-wiki.mjs" ]; then
+            echo "::error::Script not found: scripts/wiki/build-autonomous-wiki.mjs"
+            ls -la scripts/wiki/
+            exit 1
+          fi
+
+          # Debug: Check if source exists
+          if [ ! -d "$WIKI_SOURCE_DIR" ]; then
+            echo "::warning::Wiki source directory not found, creating: $WIKI_SOURCE_DIR"
+            mkdir -p "$WIKI_SOURCE_DIR"
+          fi
+
+          # Run build script
           node scripts/wiki/build-autonomous-wiki.mjs \
             --source "$WIKI_SOURCE_DIR" \
             --out "$WIKI_BUILD_DIR" \
             --rebuild "$REBUILD"
+          BUILD_EXIT_CODE=$?
 
           echo ""
-          echo "✅ Build complete"
+          echo "✅ Build exit code: $BUILD_EXIT_CODE"
 
           # Show generated files
           echo ""
           echo "📄 Generated wiki pages:"
-          find "$WIKI_BUILD_DIR" -name "*.md" -type f | wc -l | xargs echo "  Total:"
+          if [ -d "$WIKI_BUILD_DIR" ]; then
+            ls -la "$WIKI_BUILD_DIR/"
+            echo "Files count: $(find "$WIKI_BUILD_DIR" -name "*.md" | wc -l)"
+          else
+            echo "::error::WIKI_BUILD_DIR not created: $WIKI_BUILD_DIR"
+            exit 1
+          fi
+
+          # Exit with build result
+          exit $BUILD_EXIT_CODE
 
       - name: Upload wiki build
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: wiki-build
           path: ${{ env.WIKI_BUILD_DIR }}
           retention-days: 1
+          if-no-files-found: error
 
   validate-wiki:
     name: Validate Wiki
