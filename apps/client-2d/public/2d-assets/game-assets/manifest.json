@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "generatedAt": "2026-06-04T13:58:58.560Z",
+  "sourceIssue": 1080,
+  "stitchProjectUrl": "https://stitch.withgoogle.com/projects/5320982353793182486",
+  "basePath": "/2d-assets/game-assets",
+  "categories": [
+    "models",
+    "effects",
+    "biomes",
+    "symbols",
+    "weather"
+  ],
+  "notes": [
+    "Stitch-generated game assets for Arelorian 2D client.",
+    "Models, effects, biomes, symbols, and weather effects.",
+    "Organized for Cozy Asset Director auto-cropping workflow."
+  ],
+  "sources": [],
+  "assets": {
+    "models": {},
+    "effects": {},
+    "biomes": {},
+    "symbols": {},
+    "weather": {}
+  }
+}
