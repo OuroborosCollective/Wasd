@@ -45,19 +45,53 @@ import { fileURLToPath } from "node:url";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const root = resolve(scriptDir, "..");
 
-const args = new Map(
-  process.argv
-    .slice(2)
-    .filter((arg) => arg.startsWith("--"))
-    .map((arg) => {
-      const [k, ...rest] = arg.slice(2).split("=");
-      return [k, rest.length ? rest.join("=") : "true"];
-    })
+function parseArgs(argv) {
+  const out = new Map();
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+
+    if (!arg.startsWith("--")) continue;
+
+    const raw = arg.slice(2);
+
+    if (raw.includes("=")) {
+      const [key, ...rest] = raw.split("=");
+      out.set(key, rest.join("="));
+      continue;
+    }
+
+    const next = argv[i + 1];
+
+    if (next && !next.startsWith("--")) {
+      out.set(raw, next);
+      i += 1;
+    } else {
+      out.set(raw, "true");
+    }
+  }
+
+  return out;
+}
+
+const args = parseArgs(process.argv.slice(2));
+
+const publicRoot = resolve(
+  args.get("public-root") || join(root, "apps/client-2d/public/2d-assets")
 );
 
-const inputDir = resolve(args.get("input") || args.get("local-inbox") || "./asset-inbox");
-const outputDir = resolve(args.get("output") || join(root, "apps/client-2d/public/2d-assets/auto-assets"));
-const publicRoot = resolve(args.get("public-root") || join(root, "apps/client-2d/public/2d-assets"));
+const inputDir = resolve(
+  args.get("input") ||
+  args.get("local-inbox") ||
+  "./asset-inbox"
+);
+
+const outputDir = resolve(
+  args.get("output") ||
+  join(publicRoot, "game-assets")
+);
+
+const scanExisting = args.get("scan-existing") === "true";
 const dryRun = args.get("dry-run") === "true";
 const cropEnabled = args.get("crop") !== "false";
 const manifestPath = join(outputDir, "manifest.json");
@@ -888,7 +922,7 @@ async function main() {
 
   manifest.stats.totalFiles = files.length;
 
-  log(`Gefundene Dateien: ${files.length}`, "scan");
+  log(`Gefundene Dateien im Input: ${files.length}`, "scan");
 
   for (const file of files) {
     const ext = extname(file).toLowerCase();
@@ -918,6 +952,45 @@ async function main() {
       });
 
       log(`Fehler bei ${file}: ${error.message}`, "warn");
+    }
+  }
+
+  // Scan existing assets if requested
+  if (scanExisting) {
+    log("Scanne bestehende 2D-Assets...", "scan");
+
+    const existingRoot = publicRoot;
+    const excludeDir = outputDir; // Don't re-import from game-assets itself
+
+    if (existsSync(existingRoot)) {
+      const existingFiles = listFiles(existingRoot).filter((f) => {
+        // Skip files in outputDir (game-assets)
+        return !f.startsWith(excludeDir + "/");
+      });
+
+      log(`Gefundene bestehende Dateien: ${existingFiles.length}`, "scan");
+
+      for (const file of existingFiles) {
+        const ext = extname(file).toLowerCase();
+
+        if (!ext) continue;
+
+        try {
+          await processFile({
+            file,
+            baseDir: existingRoot,
+            manifest,
+            rootManifest,
+          });
+
+          manifest.stats.importedFiles += 1;
+        } catch (error) {
+          manifest.stats.skippedFiles += 1;
+          log(`Fehler bei ${file}: ${error.message}`, "warn");
+        }
+      }
+    } else {
+      log(`Bestehendes Asset-Verzeichnis nicht gefunden: ${existingRoot}`, "warn");
     }
   }
 
