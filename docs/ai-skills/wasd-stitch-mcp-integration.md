@@ -100,6 +100,11 @@ The following screens are currently integrated:
 | Level-Up Celebration | `LevelUpCelebration` | feedback |
 | Gathering Interface | `GatheringInterfaceResourceTracking` | gameplay |
 | Crafting Interface | `CraftingInterfaceRecipeManagement` | gameplay |
+| Trade Window - Player Exchange | `TradeWindowPlayerExchange` | gameplay |
+| Gameplay HUD - Quest Tracker | `GameplayHUDQuestTracker` | hud |
+| Gameplay HUD - Collapsible Panels | `GameplayHUDCollapsiblePanels` | hud |
+| Inventory Matrix - Animated | `InventoryMatrixAnimated` | inventory |
+| Mail Interface - Communications | `MailInterfaceCommunications` | social |
 
 ## Design Token Reference
 
@@ -197,8 +202,8 @@ function MenuButton() {
 ## Planned Screens
 
 The user has indicated interest in creating:
-- [ ] Trade Window
-- [ ] Mail/Message System
+- [x] Trade Window ✅ (integrated)
+- [x] Mail/Message System ✅ (integrated)
 - [ ] Achievement Panel
 - [ ] Market/Auction House
 - [ ] Mount/Pet Interface
@@ -207,12 +212,9 @@ The user has indicated interest in creating:
 ## Additional Screens in Stitch (Not Yet Integrated)
 
 These screens exist in Stitch but are not yet in the codebase:
-- Trade Window - Player Exchange
 - Gameplay HUD - AI Lore Helper & Timeline
-- Gameplay HUD - Quest Tracker Overlay
-- Gameplay HUD - Collapsible Buff Bar
 - Gameplay HUD - Buff Bar & Feedback
-- Gameplay HUD - Collapsible Panels & Mini Icons
+- Gameplay HUD - Collapsible Buff Bar
 - Weather Overlay - Rain (Cyan Surge)
 - World Atlas - Town Zoom & Group Finder
 - Refinement Success - Celebration Overlay
