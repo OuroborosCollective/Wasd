@@ -1,0 +1,167 @@
+{
+  "frames": {
+    "age_idle_0.png": {
+      "x": 1792,
+      "y": 0,
+      "w": 256,
+      "h": 256
+    },
+    "age_idle_1.png": {
+      "x": 1792,
+      "y": 256,
+      "w": 256,
+      "h": 256
+    },
+    "age_idle_2.png": {
+      "x": 1792,
+      "y": 512,
+      "w": 256,
+      "h": 256
+    },
+    "age_idle_3.png": {
+      "x": 1792,
+      "y": 768,
+      "w": 256,
+      "h": 256
+    },
+    "age_idle_4.png": {
+      "x": 1792,
+      "y": 1024,
+      "w": 256,
+      "h": 256
+    },
+    "age_walk_0.png": {
+      "x": 1792,
+      "y": 1280,
+      "w": 256,
+      "h": 256
+    },
+    "age_walk_1.png": {
+      "x": 1792,
+      "y": 1536,
+      "w": 256,
+      "h": 256
+    },
+    "age_walk_2.png": {
+      "x": 1792,
+      "y": 1792,
+      "w": 256,
+      "h": 256
+    },
+    "age_walk_3.png": {
+      "x": 1792,
+      "y": 2048,
+      "w": 256,
+      "h": 256
+    },
+    "age_walk_4.png": {
+      "x": 1792,
+      "y": 2304,
+      "w": 256,
+      "h": 256
+    },
+    "age_fight_0.png": {
+      "x": 1792,
+      "y": 2560,
+      "w": 256,
+      "h": 256
+    },
+    "age_fight_1.png": {
+      "x": 1792,
+      "y": 2816,
+      "w": 256,
+      "h": 256
+    },
+    "age_fight_2.png": {
+      "x": 1792,
+      "y": 3072,
+      "w": 256,
+      "h": 256
+    },
+    "age_fight_3.png": {
+      "x": 1792,
+      "y": 3328,
+      "w": 256,
+      "h": 256
+    },
+    "age_fight_4.png": {
+      "x": 1792,
+      "y": 3584,
+      "w": 256,
+      "h": 256
+    },
+    "age_die_0.png": {
+      "x": 1792,
+      "y": 3840,
+      "w": 256,
+      "h": 256
+    },
+    "age_die_1.png": {
+      "x": 1792,
+      "y": 4096,
+      "w": 256,
+      "h": 256
+    },
+    "age_die_2.png": {
+      "x": 1792,
+      "y": 4352,
+      "w": 256,
+      "h": 256
+    },
+    "age_die_3.png": {
+      "x": 1792,
+      "y": 4608,
+      "w": 256,
+      "h": 256
+    },
+    "age_die_4.png": {
+      "x": 1792,
+      "y": 4864,
+      "w": 256,
+      "h": 256
+    }
+  },
+  "animations": {
+    "idle": [
+      "age_idle_0.png",
+      "age_idle_1.png",
+      "age_idle_2.png",
+      "age_idle_3.png",
+      "age_idle_4.png"
+    ],
+    "walk": [
+      "age_walk_0.png",
+      "age_walk_1.png",
+      "age_walk_2.png",
+      "age_walk_3.png",
+      "age_walk_4.png"
+    ],
+    "fight": [
+      "age_fight_0.png",
+      "age_fight_1.png",
+      "age_fight_2.png",
+      "age_fight_3.png",
+      "age_fight_4.png"
+    ],
+    "die": [
+      "age_die_0.png",
+      "age_die_1.png",
+      "age_die_2.png",
+      "age_die_3.png",
+      "age_die_4.png"
+    ]
+  },
+  "meta": {
+    "app": "Areloria WASD - Cozy Asset Director",
+    "version": "1.0.0",
+    "image": "stitch_age.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 2048,
+      "h": 5120
+    },
+    "scale": "1",
+    "stitchProject": "3680791926463184978",
+    "category": "models"
+  }
+}

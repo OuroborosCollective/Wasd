@@ -15,6 +15,7 @@ This guide explains how to use the **Cozy Asset Director** workflow for integrat
 | **biomes** | Environment terrain tiles | Stitch biome/ground sheets | `/2d-assets/game-assets/biomes/` |
 | **symbols** | UI icons, item graphics | Stitch icon/symbol sheets | `/2d-assets/game-assets/symbols/` |
 | **weather** | Weather overlays, particles | Stitch weather sheets | `/2d-assets/game-assets/weather/` |
+| **shirts** | Equipment overlays, armor | Stitch character sheets | `/2d-assets/game-assets/shirts/` |
 
 ---
 
@@ -22,33 +23,26 @@ This guide explains how to use the **Cozy Asset Director** workflow for integrat
 
 ### 1. Generate Assets in Stitch
 
-1. Open [Arelorian project](https://stitch.withgoogle.com/projects/5320982353793182486)
+1. Open [Arelorian project](https://stitch.withgoogle.com/projects/3680791926463184978)
 2. Create/select screen with game asset sprites
 3. Export as PNG sprite sheet
 4. Include corresponding JSON atlas metadata
 
-### 2. Upload to GitHub Issue
-
-1. Create or update GitHub issue (default: #1071)
-2. Attach ZIP file containing:
-   - PNG sprite sheets
-   - JSON atlas metadata
-   - (Optional) README with asset descriptions
-
-### 3. Run Import Script
+### 2. Import via Scripts
 
 ```bash
-# Full import
+# Import character shirt/equipment overlays (NEW)
+node scripts/import-stitch-shirts.mjs
+
+# Full import from GitHub issue
 node scripts/stitch-game-assets-importer.mjs
 
 # Dry-run (verify without importing)
+node scripts/import-stitch-shirts.mjs --dry-run
 node scripts/stitch-game-assets-importer.mjs --dry-run
-
-# With custom issue number
-ISSUE_NUMBER=1080 node scripts/stitch-game-assets-importer.mjs
 ```
 
-### 4. Auto-Crop with Cozy Asset Director
+### 3. Auto-Crop with Cozy Asset Director
 
 After import, use the Cozy Asset Director in-game or via admin panel:
 
@@ -56,6 +50,7 @@ After import, use the Cozy Asset Director in-game or via admin panel:
 /cozy-director --category=models --auto-crop --verify
 /cozy-director --category=effects --frame=64x64
 /cozy-director --category=biomes --tile-size=64
+/cozy-director --category=shirts --overlay --anchor=0.85
 ```
 
 ---
@@ -76,9 +71,86 @@ apps/client-2d/public/2d-assets/
 │   ├── effects/                    # Combat/skill FX
 │   ├── biomes/                     # Terrain tiles
 │   ├── symbols/                    # UI icons
-│   └── weather/                    # Weather overlays
+│   ├── weather/                    # Weather overlays
+│   └── shirts/                     # Equipment overlays
+│       ├── shirt_archer_base.png
+│       ├── shirt_archer_base.json
+│       ├── shirt_warrior_base.png
+│       └── ...
 └── credits/
     └── stitch-game-assets-provenance.md
+```
+
+---
+
+## 🔧 Shirts/Equipment Overlays
+
+The **shirts** category is specifically for equipment overlays that sit on top of character sprites:
+
+### Shirt Asset Format
+
+```json
+{
+  "shirts": {
+    "archer": {
+      "src": "/2d-assets/game-assets/shirts/shirt_archer_base.png",
+      "atlas": "/2d-assets/game-assets/shirts/shirt_archer_base.json",
+      "category": "shirts",
+      "overlay": true,
+      "anchorY": 0.85,
+      "frames": { "idle": 5, "walk": 5, "fight": 5, "die": 5 },
+      "directions": 8
+    }
+  }
+}
+```
+
+### Shirt Naming Convention
+
+- Pattern: `shirt_{class}_base.png/json`
+- Classes: archer, bard, berserker, cleric, mage, necromancer, paladin, ranger, rogue, warrior
+- Frame size: 64x64 pixels
+- Grid: 16x16 (characters in 8 directions × 4 animations × 5 frames)
+
+### Auto-Detection Patterns for Shirts
+
+```javascript
+shirts: {
+  patterns: ['shirt', 'armor', 'equipment', 'clothing', 'chainmail', 'plate', 'leather', 'robe', 'tunic'],
+  overlay: true,
+  anchorY: 0.85,
+  frameSize: 64
+}
+```
+
+---
+
+## 🖥️ VPS Deployment Integration
+
+### Asset Sync on Deploy
+
+Assets are automatically synced to VPS via the deployment script:
+
+```bash
+# On VPS deployment, assets are copied to:
+/app/server/client/dist/2d-assets/game-assets/shirts/
+```
+
+### Verify Shirt Assets on VPS
+
+```bash
+# SSH to VPS and check
+ls -la /opt/areloria/apps/client-2d/public/2d-assets/game-assets/shirts/
+
+# Check manifest
+cat /opt/areloria/apps/client-2d/public/2d-assets/game-assets/manifest.json | jq '.assets.shirts'
+```
+
+### Force Re-sync Shirts
+
+```bash
+# From repo root
+scp -r apps/client-2d/public/2d-assets/game-assets/shirts/* user@vps:/opt/areloria/apps/client-2d/public/2d-assets/game-assets/shirts/
 ```
 
 ---
@@ -136,6 +208,7 @@ const CATEGORIES = {
 | biomes | 64x64 | 0 | none | Tiled terrain |
 | symbols | 64x64 | 1 | none | UI icons |
 | weather | 128x128 | 0 | none | Overlay particles |
+| shirts | 64x64 | 2 | none | Equipment overlays, anchorY: 0.85 |
 
 ### Crop Rules
 
@@ -171,6 +244,15 @@ const CATEGORIES = {
   layer: 'overlay',
   blend: 'additive'
 }
+
+// Shirts: Equipment overlays (NEW)
+{
+  frameSize: 64,
+  grid: { cols: 16, rows: 16 },
+  animations: ['idle', 'walk', 'fight', 'die'],
+  overlay: true,
+  anchor: { x: 0.5, y: 0.85 }
+}
 ```
 
 ---
@@ -185,6 +267,9 @@ node scripts/validate-pixi-assets.mjs --check-game-assets
 
 # Verify all assets are referenced
 node scripts/check-integrity.mjs
+
+# Check shirts specifically
+cat apps/client-2d/public/2d-assets/game-assets/manifest.json | jq '.assets.shirts'
 ```
 
 ### 2. Asset Loading Test
@@ -204,21 +289,21 @@ Open browser devtools and check:
    - [ ] Biome tiles tile seamlessly
    - [ ] Symbols display in UI
    - [ ] Weather overlays blend correctly
+   - [ ] Shirt overlays render on characters with correct anchor
 
 ---
 
 ## 📋 Workflow Checklist
 
 - [ ] **Stitch**: Generate asset sprites in Stitch project
-- [ ] **Organize**: Group by category (models/effects/etc)
+- [ ] **Organize**: Group by category (models/effects/shirts/etc)
 - [ ] **Export**: Export as PNG + JSON atlas
-- [ ] **Upload**: Attach ZIP to GitHub issue #1071
-- [ ] **Import**: Run `stitch-game-assets-importer.mjs`
+- [ ] **Import**: Run `import-stitch-shirts.mjs` for overlays, `stitch-game-assets-importer.mjs` for others
 - [ ] **Verify**: Check manifest and asset loading
 - [ ] **Crop**: Run Cozy Asset Director auto-crop
 - [ ] **Test**: Verify in dev environment
+- [ ] **Deploy**: Push to VPS with `deploy/vps-prod-build.sh`
 - [ ] **Merge**: Submit PR with asset updates
-- [ ] **Deploy**: Push to live when approved
 
 ---
 

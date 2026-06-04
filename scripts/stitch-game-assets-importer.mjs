@@ -96,6 +96,15 @@ const CATEGORIES = {
     depth: { zHeight: 0, isoFootprint: { w: 0, h: 0 }, shadow: null },
     frameSize: 128,
   },
+  shirts: {
+    folder: 'shirts',
+    tags: ['equipment', 'armor', 'overlay', 'shirt', 'clothing'],
+    patterns: ['shirt', 'shirts', 'armor', 'armor_overlay', 'equipment', 'cloth', 'clothing', 'tunic', 'robe', 'chainmail', 'plate', 'leather', 'mail'],
+    depth: { zHeight: 2, isoFootprint: { w: 64, h: 64 }, shadow: null },
+    frameSize: 64,
+    overlay: true, // Equipment overlay for character sprites
+    anchorY: 0.85, // Bottom anchor for layering on characters
+  },
 };
 
 function log(message, type = 'info') {
@@ -193,6 +202,7 @@ function ensureManifestShape(manifest) {
   manifest.biomes ??= {};
   manifest.symbols ??= {};
   manifest.weather ??= {};
+  manifest.shirts ??= {};
   
   return manifest;
 }
