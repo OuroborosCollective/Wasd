@@ -102,6 +102,31 @@ Performance/safety:
   - `POST /validate-preview`
   - `POST /publish-pack`
 
+### Stitch Game Assets Integration
+Stitch-generated game assets (models, effects, biomes, symbols, weather) are imported via:
+- **Import script**: `scripts/stitch-game-assets-importer.mjs`
+- **Documentation**: `docs/COZY_ASSET_DIRECTOR_WORKFLOW.md`
+- **Asset manifest**: `apps/client-2d/public/2d-assets/game-assets/manifest.json`
+
+**Usage:**
+```bash
+# Import from GitHub issue #1071 (ZIP attachments)
+node scripts/stitch-game-assets-importer.mjs
+
+# Dry-run (verify without importing)
+node scripts/stitch-game-assets-importer.mjs --dry-run
+
+# Custom issue
+ISSUE_NUMBER=1080 node scripts/stitch-game-assets-importer.mjs
+```
+
+**Categories:**
+- `models`: Character sprites, NPC animations (256x256 frames)
+- `effects`: Skill particles, combat FX (128x128 frames)
+- `biomes`: Environment terrain tiles (64x64 tiles)
+- `symbols`: UI icons, item graphics (64x64 icons)
+- `weather`: Weather overlays, particles (128x128 overlays)
+
 ### Setup gotchas
 - **pnpm v11 `allowBuilds`**: pnpm v11 replaced `onlyBuiltDependencies` with `allowBuilds` in `pnpm-workspace.yaml`. Build scripts for esbuild, prisma, protobufjs, ssh2, etc. must be explicitly allowed with boolean `true` values—string placeholders cause install failures.
 - **Tailwind CSS v4**: The client uses `tailwindcss@4` which requires `@tailwindcss/postcss` plugin (not the legacy `tailwindcss` PostCSS plugin) and `@import "tailwindcss"` syntax instead of the old `@tailwind` directives.
