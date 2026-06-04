@@ -1,3 +1,23 @@
+/**
+ * Phase 5/7: MobileHud - Legacy/Development Component
+ *
+ * ⚠️ IMPORTANT: This component is NOT used in the production/live render path.
+ *
+ * LIVE RENDER PATH (what's actually rendered on VPS):
+ *   main.tsx → DeterministicWorldIsoApp.tsx → MobileMovePad.tsx
+ *
+ * UNUSED/LEGACY:
+ *   - MobileHud.tsx: NOT IMPORTED anywhere in production code
+ *   - The actual mobile controls in live client is MobileMovePad.tsx
+ *
+ * Purpose: This was an earlier mobile HUD implementation. MobileMovePad.tsx
+ * is the live mobile controls component.
+ *
+ * To use mobile features in production, use MobileMovePad.tsx
+ *
+ * Last used by: Development/testing only
+ */
+
 import React from "react";
 import type { InputBuffer } from "../logic/inputBuffer";
 
