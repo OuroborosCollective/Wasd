@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { InventoryPanel, type InventoryItem } from "./ui/InventoryPanel";
+import { EquipmentPanel } from "./ui/windows/EquipmentPanel";
 
 type Msg = { from: string; txt: string };
 type HudPanel = "inventory" | "character" | "map" | "combat" | "guild" | "factions" | "quests" | null;
@@ -393,7 +394,7 @@ function StitchPanel({
           <button onClick={onClose} aria-label="Close panel">×</button>
         </header>
         {panel === "inventory" && <InventoryPanel items={inventoryItems} equippedWeaponId={equippedWeaponId} onEquipWeapon={(item) => onEquipWeapon?.(item)} />}
-        {panel === "character" && <CharacterPreview />}
+        {panel === "character" && <EquipmentPanel isOpen={true} onClose={onClose} />}
         {panel === "combat" && <CombatPreview equippedWeaponId={equippedWeaponId} />}
         {panel === "map" && <MapPreview />}
         {panel === "guild" && <GuildPreview />}

@@ -623,6 +623,7 @@ export function DeterministicWorldIsoApp() {
 
       // Initialize ChunkManager for deterministic chunk streaming
       const binder = createWorldPlanAssetBinder(assets.manifest, (src) => textureFor(assets, src));
+      console.log('[WorldSetup] binder created, manifest entries:', assets.manifest ? 'loaded' : 'null', 'textures:', assets.textures.size);
       const chunkManager = new ChunkManager({
         worldSeed: WORLD_SEED,
         biomeId: "forest_village",
@@ -649,6 +650,7 @@ chunkManager.init({
       chunkManagerRef.current = chunkManager;
 
       const plan = generateChunkScenePlan({ worldSeed: WORLD_SEED, chunkX: 0, chunkZ: 0, biomeId: "forest_village", kappa: 1000, chunkTiles: 16 });
+      console.log('[WorldSetup] generated plan, terrain:', plan.terrain?.length, 'props:', plan.props?.length, 'settlement props:', plan.settlement?.props?.length, 'npcs:', plan.npcs?.length);
       renderChunkScenePlan(plan, binder, {
         width: app.screen.width,
         height: app.screen.height,
