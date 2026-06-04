@@ -21,6 +21,9 @@ import { FacingDirection, inputToFacing, serverPosToKappa, getFacingEntity, type
 // Zero-Trust Manifest System with Input Lockdown
 import { useZeroTrustManifest, DivergenceAlert, isInputLocked } from "./manifest";
 
+// Player Vital State - Deterministic server-authoritative state
+import { playerVitalState, usePlayerVitalState, extractVitalsFromPayload, toInventoryItems, type PlayerVitalsData } from "./live/playerVitalState";
+
 const EQUIPPED_WEAPON_KEY = "wasd:2d:equippedWeaponVisualId";
 const WORLD_SEED = "areloria:earth_1_1";
 const NPC_INTERACT_COOLDOWN_MS = 1000;
@@ -276,6 +279,29 @@ export function DeterministicWorldIsoApp() {
   const [debugAckSeq, setDebugAckSeq] = useState<number | null>(null);
   const [debugIdentity, setDebugIdentity] = useState<string | null>(null);
   const [debugCharacter, setDebugCharacter] = useState<string | null>(null);
+
+  // ─────────────────────────────────────────────────────────────────
+  // PLAYER VITAL STATE - Deterministic Server-Authoritative State
+  // ═════════════════════════════════════════════════════════════════
+  // All vitals (HP/Mana/Stamina/XP) come ONLY from server heartbeat.
+  // No Date.now(), no Math.random(), no client-side prediction.
+  const vitalState = usePlayerVitalState();
+  
+  // Convert inventory slots to HUD inventory items
+  const inventoryItems = toInventoryItems(vitalState.inventory);
+  
+  // Build vitals data for HUD (with fallback defaults)
+  const vitalsData: PlayerVitalsData = {
+    hp: vitalState.vitals.hp,
+    maxHp: vitalState.vitals.maxHp,
+    mana: vitalState.vitals.mana,
+    maxMana: vitalState.vitals.maxMana,
+    stamina: vitalState.vitals.stamina,
+    maxStamina: vitalState.vitals.maxStamina,
+    xp: vitalState.vitals.xp,
+    maxXp: vitalState.vitals.maxXp,
+    level: vitalState.vitals.level,
+  };
 
   // ─────────────────────────────────────────────────────────────────
   // ZERO-TRUST MANIFEST SYSTEM - Input Lockdown
@@ -747,6 +773,26 @@ chunkManager.init({
           chunkX,
           chunkZ,
         });
+
+        // ─────────────────────────────────────────────────────────────────
+        // DETERMINISTIC PLAYER VITALS - Server Authoritative Update
+        // ═════════════════════════════════════════════════════════════════
+        // Extract vitals from heartbeat payload and update playerVitalState.
+        // This is deterministic: tick + acknowledgedSeq drive the update.
+        // NO Date.now(), NO Math.random(), NO client-side prediction.
+        const tick = event.payload?.tick ?? event.payload?.serverTick ?? null;
+        const acknowledgedSeq = event.payload?.acknowledgedInputSeq ?? event.payload?.ackSeq ?? -1;
+        
+        if (tick !== null) {
+          const vitalsUpdate = extractVitalsFromPayload(event.payload);
+          if (Object.keys(vitalsUpdate).length > 0) {
+            playerVitalState.onHeartbeatVitals(
+              tick as number,
+              acknowledgedSeq as number,
+              vitalsUpdate
+            );
+          }
+        }
       }
       
       payloadEntries(event.payload?.agents ?? event.payload?.npcs, "agent").forEach(([id, npc]: any) => {
@@ -1154,6 +1200,7 @@ chunkManager.init({
         assetStatus={assetStatus}
         weaponCount={weaponCount}
         equippedWeaponId={equippedWeaponId}
+        inventoryItems={inventoryItems}
         playerName={playerName}
         messages={messages}
         onSkill={sendSkill}
@@ -1162,6 +1209,8 @@ chunkManager.init({
         onStrike={strikeAction}
         onCycleWeapon={cycleEquippedWeapon}
         onToggleAutoMove={() => setMessages((items) => [...items.slice(-12), { from: "Navigator", txt: "WorldDirector routes are generated; auto-route execution follows server validation." }])}
+        // Player vitals (Deterministic - server-authoritative)
+        vitals={vitalsData}
         // DEBUG: Player position & chunk tracking
         debugPlayerPos={debugPlayerPos ?? undefined}
         debugChunkCoords={debugChunkCoords ?? undefined}
