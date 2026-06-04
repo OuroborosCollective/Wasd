@@ -780,7 +780,7 @@ chunkManager.init({
         // Extract vitals from heartbeat payload and update playerVitalState.
         // This is deterministic: tick + acknowledgedSeq drive the update.
         // NO Date.now(), NO Math.random(), NO client-side prediction.
-        const tick = event.payload?.tick ?? event.payload?.serverTick ?? null;
+        // Note: tick already declared above at line 759
         const acknowledgedSeq = event.payload?.acknowledgedInputSeq ?? event.payload?.ackSeq ?? -1;
         
         if (tick !== null) {
