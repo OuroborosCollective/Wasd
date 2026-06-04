@@ -232,6 +232,17 @@ RUN test -f /app/client/dist/2d/index.html && \
     test -f /app/client/dist/portal/index.html && \
     test -f /app/server/client/dist/portal/index.html
 
+# Create symlink for 2d-assets to make them accessible at /2d-assets/ root path
+RUN ln -s /app/server/client/dist/2d/2d-assets /app/server/client/dist/2d-assets && \
+    ln -s /app/client/dist/2d/2d-assets /app/client/dist/2d-assets && \
+    # Create placeholder icons for PWA manifest (will be replaced by real icons in production)
+    mkdir -p /app/server/client/dist/2d/2d-assets/credits && \
+    mkdir -p /app/client/dist/2d/2d-assets/credits && \
+    echo 'iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAADklEQVR42u3BAQ0AAADCoPdPbQ8HFAAAAAAA8GIAoAAiRIq0yAAAAABJRU5ErkJggg==' | base64 -d > /app/server/client/dist/2d/2d-assets/credits/icon-192.png && \
+    cp /app/server/client/dist/2d/2d-assets/credits/icon-192.png /app/server/client/dist/2d/2d-assets/credits/icon-512.png && \
+    cp /app/server/client/dist/2d/2d-assets/credits/icon-192.png /app/client/dist/2d/2d-assets/credits/icon-192.png && \
+    cp /app/server/client/dist/2d/2d-assets/credits/icon-192.png /app/client/dist/2d/2d-assets/credits/icon-512.png
+
 RUN rm -rf \
     /app/server/src \
     /app/server/test \
