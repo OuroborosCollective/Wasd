@@ -209,6 +209,7 @@ When working on specific topics, check the skills in `docs/ai-skills/`:
 - `vite-public-assets-docker-fix.md` - Vite public/ directory in Docker builds
 - `vps-deployment-workflow-best-practices.md` - Complete VPS deployment workflow
 - `github-pr-draft-workaround.md` - GitHub PR draft state and merge fixes
+- `wasd-vps-deployment-troubleshooting.md` - VPS deployment issues (2D client blank page, WebSocket, Nginx conflicts)
 
 ### Tools (in `tools/`)
 - `tools/vps/vps-verify.py` - VPS deployment verification script
