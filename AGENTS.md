@@ -107,6 +107,35 @@ Stitch-generated game assets (models, effects, biomes, symbols, weather) are imp
 - **Import script**: `scripts/stitch-game-assets-importer.mjs`
 - **Documentation**: `docs/COZY_ASSET_DIRECTOR_WORKFLOW.md`
 - **Asset manifest**: `apps/client-2d/public/2d-assets/game-assets/manifest.json`
+- **Sprite manifest**: `apps/client-2d/src/manifest/gameAssetsManifest.ts`
+
+**MCP Connection (Stitch)**:
+```bash
+curl -s -X POST "https://stitch.googleapis.com/mcp" \
+  -H "X-Goog-Api-Key: $STITCH_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
+```
+
+**Workflow**:
+1. Create Stitch project: `create_project` with title
+2. Upload DESIGN.md via `upload_design_md` (base64 encoded)
+3. Create design system: `create_design_system_from_design_md`
+4. Generate sprites: `generate_screen_from_text` with design system ID
+5. Download from `downloadUrl` in response
+
+**Sprite Naming Convention (Deterministic)**:
+```
+{class}_{race}_{gender}_{direction}_{animation}[_f{fr}].png
+Example: warrior_human_male_e_idle.png
+```
+
+**Sprite Specs**:
+- Size: 256x256 pixels
+- Format: PNG with alpha channel
+- Directions: 8 (n, ne, e, se, s, sw, w, nw)
+- Animations: idle, walk, run, attack, defend, talk, sleep, die
+- Frames: 30 per animation per direction
 
 **Usage:**
 ```bash
@@ -121,11 +150,22 @@ ISSUE_NUMBER=1080 node scripts/stitch-game-assets-importer.mjs
 ```
 
 **Categories:**
-- `models`: Character sprites, NPC animations (256x256 frames)
-- `effects`: Skill particles, combat FX (128x128 frames)
-- `biomes`: Environment terrain tiles (64x64 tiles)
-- `symbols`: UI icons, item graphics (64x64 icons)
-- `weather`: Weather overlays, particles (128x128 overlays)
+- `models/characters/`: Character sprites (e.g., `warrior_human_male_e_idle.png`)
+- `effects/combat/`: Combat FX
+- `effects/magic/`: Spell particles
+- `biomes/`: Environment tiles
+- `symbols/`: UI icons, item graphics
+- `weather/`: Weather overlays
+
+**Available Stitch MCP Tools**:
+- `create_project` - Create new project
+- `get_project` - Get project details
+- `upload_design_md` - Upload design spec (base64)
+- `create_design_system_from_design_md` - Create design system
+- `generate_screen_from_text` - Generate sprite image
+- `generate_variants` - Generate variations
+- `get_screen` - Retrieve generated screen
+- `list_screens` - List project screens
 
 ### Setup gotchas
 - **pnpm v11 `allowBuilds`**: pnpm v11 replaced `onlyBuiltDependencies` with `allowBuilds` in `pnpm-workspace.yaml`. Build scripts for esbuild, prisma, protobufjs, ssh2, etc. must be explicitly allowed with boolean `true` values—string placeholders cause install failures.
