@@ -271,6 +271,11 @@ export function DeterministicWorldIsoApp() {
   const [debugPlayerPos, setDebugPlayerPos] = useState<{ x: number; z: number } | null>(null);
   const [debugChunkCoords, setDebugChunkCoords] = useState<{ chunkX: number; chunkZ: number } | null>(null);
   const [debugVisibleChunks, setDebugVisibleChunks] = useState<number | null>(null);
+  // DEBUG: Additional runtime values
+  const [debugServerTick, setDebugServerTick] = useState<number | null>(null);
+  const [debugAckSeq, setDebugAckSeq] = useState<number | null>(null);
+  const [debugIdentity, setDebugIdentity] = useState<string | null>(null);
+  const [debugCharacter, setDebugCharacter] = useState<string | null>(null);
 
   // ─────────────────────────────────────────────────────────────────
   // ZERO-TRUST MANIFEST SYSTEM - Input Lockdown
@@ -618,6 +623,7 @@ export function DeterministicWorldIsoApp() {
 
       // Initialize ChunkManager for deterministic chunk streaming
       const binder = createWorldPlanAssetBinder(assets.manifest, (src) => textureFor(assets, src));
+      console.log('[WorldSetup] binder created, manifest entries:', assets.manifest ? 'loaded' : 'null', 'textures:', assets.textures.size);
       const chunkManager = new ChunkManager({
         worldSeed: WORLD_SEED,
         biomeId: "forest_village",
@@ -644,6 +650,7 @@ chunkManager.init({
       chunkManagerRef.current = chunkManager;
 
       const plan = generateChunkScenePlan({ worldSeed: WORLD_SEED, chunkX: 0, chunkZ: 0, biomeId: "forest_village", kappa: 1000, chunkTiles: 16 });
+      console.log('[WorldSetup] generated plan, terrain:', plan.terrain?.length, 'props:', plan.props?.length, 'settlement props:', plan.settlement?.props?.length, 'npcs:', plan.npcs?.length);
       renderChunkScenePlan(plan, binder, {
         width: app.screen.width,
         height: app.screen.height,
@@ -722,6 +729,13 @@ chunkManager.init({
         if (chunkManagerRef.current) {
           setDebugVisibleChunks(chunkManagerRef.current.getActiveChunkCount());
         }
+        // Extract additional runtime values from heartbeat
+        const tick = event.payload?.tick ?? event.payload?.serverTick ?? null;
+        setDebugServerTick(tick);
+        const selfId = event.payload?.self?.id ?? null;
+        setDebugCharacter(selfId);
+        // Set identity from playerName (or could use identityHash from login)
+        setDebugIdentity(playerName);
         
         // Console debug log for deep debugging
         console.log("[PlayerPosDebug]", {
@@ -1154,6 +1168,12 @@ chunkManager.init({
         debugVisibleChunks={debugVisibleChunks ?? undefined}
         debugHeartbeatReceived={debugHeartbeatReceived}
         debugInitialized={hasInitializedVisibility.current}
+        // DEBUG: Additional runtime values
+        debugNetworkStatus={connected ? "connected" : "disconnected"}
+        debugServerTick={debugServerTick ?? undefined}
+        debugAckSeq={debugAckSeq ?? undefined}
+        debugIdentity={debugIdentity ?? undefined}
+        debugCharacter={debugCharacter ?? undefined}
       />
     </div>
   );

@@ -8,6 +8,11 @@ import { PixiModuleInspector } from "./PixiModuleInspector";
 import { WorldHeartMonitor } from "./WorldHeartMonitor";
 import { KenneyUiLiveSkinBadge } from "./KenneyUiLiveSkinBadge";
 import { InteractionOverlayRoot } from "./ui/InteractionOverlayRoot";
+import { LootFeed } from "./ui/LootFeed";
+import { ToastStack, type ClientToast } from "./ui/ToastStack";
+import { NpcDialoguePanel } from "./ui/NpcDialoguePanel";
+import { InteractionPrompt } from "./ui/InteractionPrompt";
+import { createLootFeedStore, type LootFeedStore, type LootFeedEntry } from "./game/loot";
 import { installClient2DDepthRuntime } from "./client2dDepthRuntime";
 import { installViewportRuntime } from "./ViewportController";
 import { ARELORIA_BOOT_CONFIG } from "./boot/boot.config";
@@ -104,6 +109,114 @@ function setupGlobalErrorHandlers(): void {
   });
 }
 
+// ─── UI Overlay Wrapper ─────────────────────────────────────────────────────
+
+import { useState, useEffect, useRef } from "react";
+
+/** Wrapper component that renders floating UI overlays */
+function UIOverlayLayer() {
+  const [lootEntries, setLootEntries] = useState<LootFeedEntry[]>([]);
+  const [toasts, setToasts] = useState<ClientToast[]>([]);
+  const [dialogueActive, setDialogueActive] = useState<{ npcName: string; text: string } | null>(null);
+  const [interactionTarget, setInteractionTarget] = useState<{ label: string } | null>(null);
+  
+  // Loot feed store (synced to component state)
+  const lootFeedRef = useRef(createLootFeedStore(6));
+
+  useEffect(() => {
+    // Update loot feed periodically
+    const lootInterval = setInterval(() => {
+      setLootEntries([...lootFeedRef.current.getAll()]);
+    }, 500);
+    
+    // Update toasts periodically (auto-dismiss after 5s)
+    const toastInterval = setInterval(() => {
+      const now = Date.now();
+      setToasts(prev => prev.filter(t => now - t.createdAtMs < 5000));
+    }, 1000);
+
+    // Listen for UI events
+    const handler = ((event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      
+      // Loot pickup
+      if (detail?.event === "LOOT_PICKUP" || detail?.type === "loot_pickup") {
+        const payload = detail.payload ?? detail;
+        if (payload?.itemId) {
+          lootFeedRef.current.push(payload.itemId, payload.quantity ?? 1);
+          setLootEntries([...lootFeedRef.current.getAll()]);
+        }
+      }
+      
+      // Toast notifications
+      if (detail?.event === "TOAST" || detail?.type === "toast") {
+        const payload = detail.payload ?? detail;
+        if (payload?.message) {
+          const newToast: ClientToast = {
+            id: `toast_${Date.now()}`,
+            message: String(payload.message),
+            severity: payload.severity ?? "info",
+            createdAtMs: Date.now(),
+          };
+          setToasts(prev => [...prev.slice(-4), newToast]);
+        }
+      }
+      
+      // NPC Dialogue
+      if (detail?.event === "npc_dialogue" || detail?.type === "npc_dialogue") {
+        const payload = detail.payload ?? detail;
+        setDialogueActive({
+          npcName: String(payload.npcName ?? payload.name ?? "NPC"),
+          text: String(payload.text ?? payload.message ?? ""),
+        });
+      }
+      if (detail?.event === "DIALOGUE_CLOSE") {
+        setDialogueActive(null);
+      }
+      
+      // Interaction target
+      if (detail?.event === "INTERACTION_TARGET" || detail?.type === "interaction_target") {
+        const payload = detail.payload ?? detail;
+        setInteractionTarget({ label: String(payload.label ?? "Interact") });
+      }
+      if (detail?.event === "INTERACTION_CLEAR") {
+        setInteractionTarget(null);
+      }
+    }) as EventListener;
+    
+    window.addEventListener("wasd:network-packet", handler);
+    
+    return () => {
+      clearInterval(lootInterval);
+      clearInterval(toastInterval);
+      window.removeEventListener("wasd:network-packet", handler);
+    };
+  }, []);
+
+  return (
+    <>
+      <LootFeed entries={lootEntries} />
+      <ToastStack toasts={toasts} />
+      {dialogueActive && (
+        <NpcDialoguePanel
+          dialogue={{ active: dialogueActive }}
+          onClose={() => setDialogueActive(null)}
+        />
+      )}
+      {interactionTarget && (
+        <InteractionPrompt
+          target={interactionTarget}
+          onInteract={() => {
+            window.dispatchEvent(new CustomEvent("wasd:client-action", {
+              detail: { action: "interact", payload: {} },
+            }));
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 async function main(): Promise<void> {
   document.body.dataset.areloriaBoot = "mounting";
 
@@ -128,6 +241,7 @@ async function main(): Promise<void> {
         <MobileMovePad />
         <KenneyUiLiveSkinBadge />
         <InteractionOverlayRoot />
+        <UIOverlayLayer />
       </CyberZenLoginGate>
     </React.StrictMode>
   );
