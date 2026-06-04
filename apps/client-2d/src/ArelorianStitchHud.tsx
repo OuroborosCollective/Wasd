@@ -6,6 +6,18 @@ type Msg = { from: string; txt: string };
 type HudPanel = "inventory" | "character" | "map" | "combat" | "guild" | "factions" | "quests" | null;
 type HudOverlay = "vitals" | "radar" | "chat";
 
+export interface PlayerVitalsData {
+  hp: number;
+  maxHp: number;
+  mana: number;
+  maxMana: number;
+  stamina: number;
+  maxStamina: number;
+  xp: number;
+  maxXp: number;
+  level: number;
+}
+
 export interface ArelorianStitchHudProps {
   connected: boolean;
   assetStatus: string;
@@ -21,6 +33,8 @@ export interface ArelorianStitchHudProps {
   onEquipWeapon?: (item: InventoryItem) => void;
   onCycleWeapon?: () => void;
   onToggleAutoMove?: () => void;
+  // Player vitals (Deterministic - from server heartbeat)
+  vitals?: PlayerVitalsData;
   // DEBUG: Player position & chunk visibility tracking
   debugPlayerPos?: { x: number; z: number };
   debugChunkCoords?: { chunkX: number; chunkZ: number };
@@ -86,6 +100,7 @@ export function ArelorianStitchHud({
   onEquipWeapon,
   onCycleWeapon,
   onToggleAutoMove,
+  vitals,
   // DEBUG props
   debugPlayerPos,
   debugChunkCoords,
@@ -103,10 +118,13 @@ export function ArelorianStitchHud({
   const [openOverlays, setOpenOverlays] = useState<Record<HudOverlay, boolean>>({ vitals: false, radar: false, chat: false });
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [chatText, setChatText] = useState("");
-  const hp = 86;
-  const mana = 64;
-  const stamina = 78;
-  const xp = 31;
+
+  // Deterministic vitals from server (no Math.random, no Date.now)
+  const hpPercent = vitals ? Math.round((vitals.hp / vitals.maxHp) * 100) : 86;
+  const manaPercent = vitals ? Math.round((vitals.mana / vitals.maxMana) * 100) : 64;
+  const staminaPercent = vitals ? Math.round((vitals.stamina / vitals.maxStamina) * 100) : 78;
+  const xpPercent = vitals ? Math.round((vitals.xp / vitals.maxXp) * 100) : 31;
+  const level = vitals?.level ?? 1;
 
   const visibleMessages = useMemo(() => messages.slice(-6), [messages]);
   const hudClasses = [
@@ -232,13 +250,13 @@ export function ArelorianStitchHud({
       <aside className="stitch-vitals" aria-label="Player Vital Stats">
         <div className="stitch-portrait"><span>Ω</span></div>
         <div className="stitch-nameplate">
-          <small>Observer</small>
+          <small>Lv.{level}</small>
           <strong>{playerName}</strong>
         </div>
-        <Gauge label="HP" value={hp} tone="ruby" />
-        <Gauge label="MP" value={mana} tone="aether" />
-        <Gauge label="STA" value={stamina} tone="emerald" />
-        <Gauge label="XP" value={xp} tone="gold" />
+        <Gauge label="HP" value={hpPercent} tone="ruby" />
+        <Gauge label="MP" value={manaPercent} tone="aether" />
+        <Gauge label="STA" value={staminaPercent} tone="emerald" />
+        <Gauge label="XP" value={xpPercent} tone="gold" />
       </aside>
 
       {/* DEBUG HUD: Player Position & Chunk Visibility */}
