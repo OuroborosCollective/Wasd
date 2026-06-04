@@ -27,6 +27,13 @@ export { GatheringInterfaceResourceTracking } from './GatheringInterfaceResource
 export { CraftingInterfaceRecipeManagement } from './CraftingInterfaceRecipeManagement';
 export { ArelorianProjectBrief } from './ArelorianProjectBrief';
 
+// New screens from Stitch (integrated 2026-06-04)
+export { TradeWindowPlayerExchange } from './TradeWindowPlayerExchange';
+export { GameplayHUDQuestTracker } from './GameplayHUDQuestTracker';
+export { GameplayHUDCollapsiblePanels } from './GameplayHUDCollapsiblePanels';
+export { InventoryMatrixAnimated } from './InventoryMatrixAnimated';
+export { MailInterfaceCommunications } from './MailInterfaceCommunications';
+
 /**
  * Type definitions for Stitch screen components
  */
@@ -42,7 +49,7 @@ export interface StitchScreenProps {
 export const STITCH_COMPONENTS = {
   login: ['LoginScreenNewLogo'],
   character: ['CharacterSelection', 'AttributesMatrix', 'SkillsMatrix'],
-  hud: ['IngameHud', 'IngameHudNewActionTriggers'],
+  hud: ['IngameHud', 'IngameHudNewActionTriggers', 'GameplayHUDQuestTracker', 'GameplayHUDCollapsiblePanels'],
   map: ['WorldMiniMap'],
   quests: ['QuestJournal', 'QuestRewardPopup'],
   social: ['GuildPanel', 'FactionReputation'],
@@ -51,6 +58,9 @@ export const STITCH_COMPONENTS = {
   celebration: ['LevelUpCelebration'],
   gathering: ['GatheringInterfaceResourceTracking'],
   crafting: ['CraftingInterfaceRecipeManagement'],
+  inventory: ['InventoryMatrixAnimated'],
+  mail: ['MailInterfaceCommunications'],
+  trade: ['TradeWindowPlayerExchange'],
 } as const;
 
 export type StitchComponentName = keyof typeof STITCH_COMPONENTS;
