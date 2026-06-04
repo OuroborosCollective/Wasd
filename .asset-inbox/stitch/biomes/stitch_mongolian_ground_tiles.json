@@ -1,0 +1,75 @@
+{
+  "frames": {
+    "stitch_mongolian_ground_tiles_steppe_grass_dry": {
+      "frame": {
+        "x": 30,
+        "y": 120,
+        "w": 210,
+        "h": 210
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 210,
+        "h": 210
+      },
+      "sourceSize": {
+        "w": 210,
+        "h": 210
+      }
+    },
+    "stitch_mongolian_ground_tiles_packed_red_earth": {
+      "frame": {
+        "x": 280,
+        "y": 170,
+        "w": 350,
+        "h": 350
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 350,
+        "h": 350
+      },
+      "sourceSize": {
+        "w": 350,
+        "h": 350
+      }
+    },
+    "stitch_mongolian_ground_tiles_rug_pattern_yurt": {
+      "frame": {
+        "x": 650,
+        "y": 580,
+        "w": 330,
+        "h": 280
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 330,
+        "h": 280
+      },
+      "sourceSize": {
+        "w": 330,
+        "h": 280
+      }
+    }
+  },
+  "meta": {
+    "app": "Areloria WASD Stitch generated atlas importer",
+    "version": "1.0",
+    "image": "stitch_mongolian_ground_tiles.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1024,
+      "h": 1024
+    },
+    "scale": "1"
+  }
+}
