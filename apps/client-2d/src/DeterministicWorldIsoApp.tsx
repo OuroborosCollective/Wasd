@@ -271,6 +271,11 @@ export function DeterministicWorldIsoApp() {
   const [debugPlayerPos, setDebugPlayerPos] = useState<{ x: number; z: number } | null>(null);
   const [debugChunkCoords, setDebugChunkCoords] = useState<{ chunkX: number; chunkZ: number } | null>(null);
   const [debugVisibleChunks, setDebugVisibleChunks] = useState<number | null>(null);
+  // DEBUG: Additional runtime values
+  const [debugServerTick, setDebugServerTick] = useState<number | null>(null);
+  const [debugAckSeq, setDebugAckSeq] = useState<number | null>(null);
+  const [debugIdentity, setDebugIdentity] = useState<string | null>(null);
+  const [debugCharacter, setDebugCharacter] = useState<string | null>(null);
 
   // ─────────────────────────────────────────────────────────────────
   // ZERO-TRUST MANIFEST SYSTEM - Input Lockdown
@@ -722,6 +727,13 @@ chunkManager.init({
         if (chunkManagerRef.current) {
           setDebugVisibleChunks(chunkManagerRef.current.getActiveChunkCount());
         }
+        // Extract additional runtime values from heartbeat
+        const tick = event.payload?.tick ?? event.payload?.serverTick ?? null;
+        setDebugServerTick(tick);
+        const selfId = event.payload?.self?.id ?? null;
+        setDebugCharacter(selfId);
+        // Set identity from playerName (or could use identityHash from login)
+        setDebugIdentity(playerName);
         
         // Console debug log for deep debugging
         console.log("[PlayerPosDebug]", {
@@ -1154,6 +1166,12 @@ chunkManager.init({
         debugVisibleChunks={debugVisibleChunks ?? undefined}
         debugHeartbeatReceived={debugHeartbeatReceived}
         debugInitialized={hasInitializedVisibility.current}
+        // DEBUG: Additional runtime values
+        debugNetworkStatus={connected ? "connected" : "disconnected"}
+        debugServerTick={debugServerTick ?? undefined}
+        debugAckSeq={debugAckSeq ?? undefined}
+        debugIdentity={debugIdentity ?? undefined}
+        debugCharacter={debugCharacter ?? undefined}
       />
     </div>
   );

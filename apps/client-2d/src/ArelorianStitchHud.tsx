@@ -23,9 +23,15 @@ export interface ArelorianStitchHudProps {
   // DEBUG: Player position & chunk visibility tracking
   debugPlayerPos?: { x: number; z: number };
   debugChunkCoords?: { chunkX: number; chunkZ: number };
-  debugVisibleChunks?: number;
+  debugVisibleChunks?: number | null;
   debugHeartbeatReceived?: boolean;
   debugInitialized?: boolean;
+  // DEBUG: Additional runtime values
+  debugNetworkStatus?: "connected" | "disconnected" | "waiting";
+  debugServerTick?: number | null;
+  debugAckSeq?: number | null;
+  debugIdentity?: string | null;
+  debugCharacter?: string | null;
 }
 
 const skills = [
@@ -85,6 +91,11 @@ export function ArelorianStitchHud({
   debugVisibleChunks,
   debugHeartbeatReceived,
   debugInitialized,
+  debugNetworkStatus,
+  debugServerTick,
+  debugAckSeq,
+  debugIdentity,
+  debugCharacter,
 }: ArelorianStitchHudProps) {
   const [activePanel, setActivePanel] = useState<HudPanel>(null);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
@@ -233,12 +244,18 @@ export function ArelorianStitchHud({
       <aside className="stitch-debug" aria-label="Debug: Player Position & Chunk Tracking">
         <div className="stitch-debug-title">POSITION DEBUG</div>
         <div className="stitch-debug-row">
+          <span>Network:</span>
+          <span className={debugNetworkStatus === "connected" ? "ok" : debugNetworkStatus === "disconnected" ? "error" : "warn"}>
+            {debugNetworkStatus ?? "waiting"}
+          </span>
+        </div>
+        <div className="stitch-debug-row">
           <span>Heartbeat:</span>
-          <span className={debugHeartbeatReceived ? "ok" : "warn"}>{debugHeartbeatReceived ? "✓" : "waiting"}</span>
+          <span className={debugHeartbeatReceived ? "ok" : "warn"}>{debugHeartbeatReceived ? "OK" : "waiting"}</span>
         </div>
         <div className="stitch-debug-row">
           <span>Initialized:</span>
-          <span className={debugInitialized ? "ok" : "warn"}>{debugInitialized ? "✓" : "waiting"}</span>
+          <span className={debugInitialized ? "ok" : "warn"}>{debugInitialized ? "YES" : "waiting"}</span>
         </div>
         <div className="stitch-debug-row">
           <span>Player Pos:</span>
@@ -250,7 +267,23 @@ export function ArelorianStitchHud({
         </div>
         <div className="stitch-debug-row">
           <span>Visible Chunks:</span>
-          <span>{debugVisibleChunks !== null && debugVisibleChunks !== undefined ? debugVisibleChunks : "waiting"}</span>
+          <span>{debugVisibleChunks != null ? debugVisibleChunks : "waiting"}</span>
+        </div>
+        <div className="stitch-debug-row">
+          <span>Server Tick:</span>
+          <span>{debugServerTick != null ? debugServerTick : "waiting"}</span>
+        </div>
+        <div className="stitch-debug-row">
+          <span>Ack Seq:</span>
+          <span>{debugAckSeq != null ? debugAckSeq : "waiting"}</span>
+        </div>
+        <div className="stitch-debug-row">
+          <span>Identity:</span>
+          <span>{debugIdentity ? debugIdentity.slice(0, 8) + "..." : "waiting"}</span>
+        </div>
+        <div className="stitch-debug-row">
+          <span>Character:</span>
+          <span>{debugCharacter ?? "waiting"}</span>
         </div>
       </aside>
 
