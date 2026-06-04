@@ -50,8 +50,8 @@ env:
   WIKI_BUILD_DIR: ".wiki-build"
 
 jobs:
-  build-wiki:
-    name: Build Wiki
+  wiki-engine:
+    name: Autonomous Wiki Engine
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -72,7 +72,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "📂 Verifying source tree..."
+          echo "Verifying source tree..."
 
           if [ ! -d "docs" ]; then
             echo "::error::Missing docs directory"
@@ -89,11 +89,11 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Source tree valid"
+          echo "Source tree valid"
 
           # Show what changed
           echo ""
-          echo "📝 Recent changes:"
+          echo "Recent changes:"
           git diff --stat HEAD~5..HEAD -- docs/ server/src/ apps/ scripts/wiki/ 2>/dev/null || true
 
       - name: Generate autonomous wiki
@@ -107,105 +107,59 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "🧠 Building Autonomous Wiki..."
-          echo ""
+          echo "Building Autonomous Wiki..."
 
+          # Debug: Check if script exists
+          if [ ! -f "scripts/wiki/build-autonomous-wiki.mjs" ]; then
+            echo "::error::Script not found: scripts/wiki/build-autonomous-wiki.mjs"
+            ls -la scripts/wiki/
+            exit 1
+          fi
+
+          # Run build script
           node scripts/wiki/build-autonomous-wiki.mjs \
             --source "$WIKI_SOURCE_DIR" \
             --out "$WIKI_BUILD_DIR" \
             --rebuild "$REBUILD"
 
           echo ""
-          echo "✅ Build complete"
+          echo "Build complete"
 
           # Show generated files
           echo ""
-          echo "📄 Generated wiki pages:"
-          find "$WIKI_BUILD_DIR" -name "*.md" -type f | wc -l | xargs echo "  Total:"
+          echo "Generated wiki pages:"
+          ls -la "$WIKI_BUILD_DIR/"
+          echo "Files count: $(find "$WIKI_BUILD_DIR" -name "*.md" | wc -l)"
 
-      - name: Upload wiki build
-        uses: actions/upload-artifact@v4
-        with:
-          name: wiki-build
-          path: ${{ env.WIKI_BUILD_DIR }}
-          retention-days: 1
-
-  validate-wiki:
-    name: Validate Wiki
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: build-wiki
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Download wiki build
-        uses: actions/download-artifact@v4
-        with:
-          name: wiki-build
-          path: ${{ env.WIKI_BUILD_DIR }}
-
-      - name: Run validation
-        id: validate
+      - name: Validate wiki content
         shell: bash
         run: |
           set -euo pipefail
 
-          echo "🔍 Validating wiki content..."
-          echo ""
+          echo "Validating wiki content..."
 
           # Run validation (allow warnings but not errors)
           if node scripts/wiki/validate-wiki.mjs --dir "$WIKI_BUILD_DIR" --no-fail; then
             echo ""
-            echo "✅ Validation passed"
+            echo "Validation passed"
           else
             EXIT_CODE=$?
             echo ""
-            echo "⚠️ Validation completed with issues"
+            echo "Validation completed with issues"
             exit $EXIT_CODE
           fi
 
-  sync-wiki:
-    name: Sync to GitHub Wiki
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: validate-wiki
-    if: ${{ github.event.inputs.dry_run != 'true' }}
-
-    env:
-      DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Download wiki build
-        uses: actions/download-artifact@v4
-        with:
-          name: wiki-build
-          path: ${{ env.WIKI_BUILD_DIR }}
-
-      - name: Sync to Wiki
-        if: env.DRY_RUN == 'false'
+      - name: Sync to GitHub Wiki
+        if: ${{ github.event.inputs.dry_run != 'true' }}
         env:
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
           WIKI_TOKEN: ${{ secrets.WIKI_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
-          echo "🚀 Syncing to GitHub Wiki..."
-          echo ""
+          echo "Syncing to GitHub Wiki..."
 
           # Use WIKI_TOKEN if available, otherwise GITHUB_TOKEN
           if [ -n "${WIKI_TOKEN:-}" ]; then
@@ -220,30 +174,23 @@ jobs:
             --dry-run "false"
 
           echo ""
-          echo "✅ Wiki sync complete"
+          echo "Wiki sync complete"
 
       - name: Dry Run Preview
-        if: env.DRY_RUN == 'true'
+        if: ${{ github.event.inputs.dry_run == 'true' }}
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
-          echo "🔍 DRY RUN MODE"
-          echo ""
+          echo "DRY RUN MODE"
 
           node scripts/wiki/push-wiki.mjs \
             --dir "$WIKI_BUILD_DIR" \
             --dry-run "true"
 
-  summary:
-    name: Summary
-    runs-on: ubuntu-latest
-    needs: [build-wiki, validate-wiki, sync-wiki]
-    if: always()
-
-    steps:
-      - name: Generate Summary
+      - name: Summary
+        if: always()
         shell: bash
         run: |
           echo "## Autonomous Wiki Engine" >> "$GITHUB_STEP_SUMMARY"
@@ -254,12 +201,3 @@ jobs:
           echo "- Branch: $GITHUB_REF_NAME" >> "$GITHUB_STEP_SUMMARY"
           echo "- Dry run: ${{ github.event.inputs.dry_run || 'false' }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Rebuild all: ${{ github.event.inputs.rebuild_all || 'true' }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "### Jobs" >> "$GITHUB_STEP_SUMMARY"
-          echo "- ✅ Build: ${{ needs.build-wiki.result }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- ✅ Validate: ${{ needs.validate-wiki.result }}" >> "$GITHUB_STEP_SUMMARY"
-          if ${{ github.event.inputs.dry_run != 'true' }}
-          echo "- ✅ Sync: ${{ needs.sync-wiki.result }}" >> "$GITHUB_STEP_SUMMARY"
-          else
-          echo "- ⏭️ Sync: Skipped (dry-run)" >> "$GITHUB_STEP_SUMMARY"
-          fi
