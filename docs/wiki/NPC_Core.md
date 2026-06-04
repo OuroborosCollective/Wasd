@@ -1,27 +1,150 @@
-# NPC Core: The Emergent Sovereign
+# NPC Core: The Emergent Sovereign 🤖
 
-NPCs in Areloria are not static quest-givers. They are "Small Brain" agents with personality, memory, and agency.
+```
+╭───────────────────────────────────────────────────────────────────────────────╮
+│                                                                               │
+│     ███╗   ███╗███████╗██╗   ██╗██████╗ ███████╗██╗████████╗██╗   ██╗  │
+│     ████╗ ████║██╔════╝██║   ██║██╔══██╗██╔════╝██║╚══██╔══╝╚██╗ ██╔╝  │
+│     ██╔████╔██║█████╗  ██║   ██║██████╔╝███████╗██║   ██║ ╚████╔╝   │
+│     ██║╚██╔╝██║██╔══╝  ██║   ██║██╔══██╗╚════██║██║   ██║  ╚██╔╝    │
+│     ██║ ╚═╝ ██║███████╗╚██████╔╝██║  ██║███████║██║   ██║   ██║    │
+│     ╚═╝     ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝   ╚═╝   ╚═╝    │
+│                                                                               │
+│                      AUTONOMOUS NPC INTELLIGENCE                               │
+╰───────────────────────────────────────────────────────────────────────────────╯
+```
 
-## 1. DNA and Traits
-Every NPC is born with a unique DNA string that determines:
-- **Physical Traits**: Strength, Agility, Resilience.
-- **Psychological Traits**: Ambition, Empathy, Aggression, Stability.
-- **Genealogy**: NPCs track their lineage and house history.
+---
 
-## 2. Memory Layers
-NPCs perceive and remember the world through five distinct layers:
-1. **Local Memory**: Personal experiences (e.g., "A player attacked me").
-2. **Social Memory**: Shared rumors within a village (e.g., "The local merchant is a thief").
-3. **Faction Memory**: Strategic knowledge shared across a guild or nation.
-4. **Historical Memory**: Deep-seated cultural biases and legendary events.
-5. **Oracle Memory**: Prophetic visions and world-level shifts.
+## The Five Layers of NPC Memory
 
-## 3. NPC Sovereignty
-NPCs have the same "civilizational rights" as players. They can:
-- Own land and property.
-- Start or participate in political movements.
-- Engage in trade and influence the market.
-- Form families and alliances.
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│    ╭───────────╮                                                           │
+│    │  ORACLE   │  ◈ Prophetic visions & world-level shifts                │
+│    │  MEMORY   │  ◈ Long-term patterns & prophecy                        │
+│    ╰─────┬─────╯                                                           │
+│          │                                                                   │
+│    ╭─────┴─────╮                                                           │
+│    │ HISTORICAL │  ◈ Cultural biases & legendary events                    │
+│    │  MEMORY   │  ◈ Deep traditions & war histories                      │
+│    ╰─────┬─────╯                                                           │
+│          │                                                                   │
+│    ╭─────┴─────╮                                                           │
+│    │  FACTION   │  ◈ Strategic guild/nation knowledge                     │
+│    │  MEMORY   │  ◈ Political alliances & enemies                         │
+│    ╰─────┬─────╯                                                           │
+│          │                                                                   │
+│    ╭─────┴─────╮                                                           │
+│    │  SOCIAL   │  ◈ Village rumors & shared experiences                   │
+│    │  MEMORY   │  ◈ "The merchant is a thief"                          │
+│    ╰─────┬─────╯                                                           │
+│          │                                                                   │
+│    ╭─────┴─────╮                                                           │
+│    │   LOCAL   │  ◈ Personal experiences & observations                  │
+│    │  MEMORY   │  ◈ "A player attacked me"                             │
+│    ╰───────────╯                                                           │
+│                                                                             │
+│    ┌─────────────────────────────────────────────────────────────────┐    │
+│    │                     WORLD OBSERVATION                             │    │
+│    │                   (NPC Perceives World)                         │    │
+│    └─────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
-## 4. Personality Heuristics
-The **Personality Engine** processes the NPC's state every tick, mapping their current memory and traits to a set of possible actions, ensuring their behavior is consistent with their "soul."
+---
+
+## NPC DNA: The Soul Blueprint
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│   DNA STRING ──────────────────────────────────────────────────────────────   │
+│                                                                             │
+│   ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐              │
+│   │ PHYSICAL        │  │ PSYCHOLOGICAL   │  │ GENEALOGY       │              │
+│   │ ────────────    │  │ ────────────    │  │ ────────────    │              │
+│   │ Strength       │  │ Ambition       │  │ Lineage        │              │
+│   │ Agility        │  │ Empathy        │  │ House History  │              │
+│   │ Resilience     │  │ Aggression     │  │ Bloodline      │              │
+│   │                │  │ Stability      │  │                │              │
+│   └─────────────────┘  └─────────────────┘  └─────────────────┘              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Trait Ranges
+
+| Category | Trait | Range | Influence |
+|----------|-------|-------|-----------|
+| **Physical** | Strength | 1-100 | Combat, gathering |
+| **Physical** | Agility | 1-100 | Movement, stealth |
+| **Physical** | Resilience | 1-100 | Health, survival |
+| **Psychological** | Ambition | 0.0-1.0 | Career, politics |
+| **Psychological** | Empathy | 0.0-1.0 | Social bonds |
+| **Psychological** | Aggression | 0.0-1.0 | Combat triggers |
+| **Psychological** | Stability | 0.0-1.0 | Mental health |
+
+---
+
+## NPC Sovereign Rights
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│   🏛️  NPC CIVILIZATIONAL RIGHTS                                           │
+│   ════════════════════════════════════════════════════════════════════════   │
+│                                                                             │
+│   ✓ Own land and property     ✓ Start political movements                  │
+│   ✓ Participate in governance  ✓ Form alliances & treaties                 │
+│   ✓ Engage in trade           ✓ Influence market prices                   │
+│   ✓ Form families             ✓ Accumulate wealth & reputation             │
+│   ✓ Worship or rebel           ✓ Declare war or seek peace                  │
+│                                                                             │
+│   ⚠️ NPCs have the same "civilizational rights" as players               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Implementation Files
+
+| System | File | Status |
+|--------|------|--------|
+| NPC System | `server/src/modules/npc/NPCSystem.ts` | 🟢 LIVE |
+| Memory Cache | `server/src/modules/npc/memory.ts` | 🟢 LIVE |
+| Relationships | `server/src/modules/npc/relations.ts` | 🟢 LIVE |
+| Personality Engine | `server/src/modules/npc/personality.ts` | 🟡 BETA |
+| Genealogy | `server/src/modules/npc/genealogy.ts` | 🔵 PLANNED |
+
+---
+
+## Personality Heuristics
+
+The **Personality Engine** processes NPC state every tick:
+
+```
+    ┌─────────────────────────────────────────────┐
+    │           PERSONALITY ENGINE                 │
+    │              (Every Tick)                  │
+    │                                              │
+    │   Memory ──▶ Heuristics ──▶ Action          │
+    │      │            │            │            │
+    │      ▼            ▼            ▼            │
+    │   Events      Traits      Behavior           │
+    │              mapped        consistent         │
+    │              to soul       with DNA          │
+    └─────────────────────────────────────────────┘
+```
+
+---
+
+## See Also
+
+- [[Home]]
+- [[Glossary]]
+- [[Economy and Matrix|Economy_and_Matrix]] — NPC trade & scarcity
+- [[Systems Architecture|Systems_Architecture]] — Server systems
