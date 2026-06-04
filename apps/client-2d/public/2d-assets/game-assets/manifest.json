@@ -18,7 +18,338 @@
   ],
   "sources": [],
   "assets": {
-    "models": {},
+    "models": {
+      "warrior_human_male_e_idle": {
+        "src": "/2d-assets/game-assets/models/characters/warrior_human_male_e_idle.png",
+        "atlas": "/2d-assets/game-assets/models/characters/character-sprites-atlas.json",
+        "source": "Stitch-generated via MCP",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "models",
+        "group": "human_male",
+        "tags": [
+          "character",
+          "sprite",
+          "idle",
+          "warrior",
+          "human",
+          "male"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 64,
+            "h": 64
+          },
+          "shadow": {
+            "w": 72,
+            "h": 20,
+            "alpha": 0.35
+          }
+        },
+        "characterClass": "warrior",
+        "race": "human",
+        "gender": "male",
+        "direction": "e",
+        "animation": "idle"
+      },
+      "mage_elf_female_e_idle": {
+        "src": "/2d-assets/game-assets/models/characters/mage_elf_female_e_idle.png",
+        "atlas": "/2d-assets/game-assets/models/characters/character-sprites-atlas.json",
+        "source": "Stitch-generated via MCP",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "models",
+        "group": "elf_female",
+        "tags": [
+          "character",
+          "sprite",
+          "idle",
+          "mage",
+          "elf",
+          "female"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 64,
+            "h": 64
+          },
+          "shadow": {
+            "w": 72,
+            "h": 20,
+            "alpha": 0.35
+          }
+        },
+        "characterClass": "mage",
+        "race": "elf",
+        "gender": "female",
+        "direction": "e",
+        "animation": "idle"
+      },
+      "archer_dwarf_male_e_idle": {
+        "src": "/2d-assets/game-assets/models/characters/archer_dwarf_male_e_idle.png",
+        "atlas": "/2d-assets/game-assets/models/characters/character-sprites-atlas.json",
+        "source": "Stitch-generated via MCP",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "models",
+        "group": "dwarf_male",
+        "tags": [
+          "character",
+          "sprite",
+          "idle",
+          "archer",
+          "dwarf",
+          "male"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 64,
+            "h": 64
+          },
+          "shadow": {
+            "w": 72,
+            "h": 20,
+            "alpha": 0.35
+          }
+        },
+        "characterClass": "archer",
+        "race": "dwarf",
+        "gender": "male",
+        "direction": "e",
+        "animation": "idle"
+      },
+      "rogue_halfling_female_e_idle": {
+        "src": "/2d-assets/game-assets/models/characters/rogue_halfling_female_e_idle.png",
+        "atlas": "/2d-assets/game-assets/models/characters/character-sprites-atlas.json",
+        "source": "Stitch-generated via MCP",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "models",
+        "group": "halfling_female",
+        "tags": [
+          "character",
+          "sprite",
+          "idle",
+          "rogue",
+          "halfling",
+          "female"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 64,
+            "h": 64
+          },
+          "shadow": {
+            "w": 72,
+            "h": 20,
+            "alpha": 0.35
+          }
+        },
+        "characterClass": "rogue",
+        "race": "halfling",
+        "gender": "female",
+        "direction": "e",
+        "animation": "idle"
+      },
+      "cleric_human_male_e_idle": {
+        "src": "/2d-assets/game-assets/models/characters/cleric_human_male_e_idle.png",
+        "atlas": "/2d-assets/game-assets/models/characters/character-sprites-atlas.json",
+        "source": "Stitch-generated via MCP",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "models",
+        "group": "human_male",
+        "tags": [
+          "character",
+          "sprite",
+          "idle",
+          "cleric",
+          "human",
+          "male"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 64,
+            "h": 64
+          },
+          "shadow": {
+            "w": 72,
+            "h": 20,
+            "alpha": 0.35
+          }
+        },
+        "characterClass": "cleric",
+        "race": "human",
+        "gender": "male",
+        "direction": "e",
+        "animation": "idle"
+      },
+      "ranger_woodelf_female_e_idle": {
+        "src": "/2d-assets/game-assets/models/characters/ranger_woodelf_female_e_idle.png",
+        "atlas": "/2d-assets/game-assets/models/characters/character-sprites-atlas.json",
+        "source": "Stitch-generated via MCP",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "models",
+        "group": "woodelf_female",
+        "tags": [
+          "character",
+          "sprite",
+          "idle",
+          "ranger",
+          "woodelf",
+          "female"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 64,
+            "h": 64
+          },
+          "shadow": {
+            "w": 72,
+            "h": 20,
+            "alpha": 0.35
+          }
+        },
+        "characterClass": "ranger",
+        "race": "woodelf",
+        "gender": "female",
+        "direction": "e",
+        "animation": "idle"
+      },
+      "paladin_human_male_e_idle": {
+        "src": "/2d-assets/game-assets/models/characters/paladin_human_male_e_idle.png",
+        "atlas": "/2d-assets/game-assets/models/characters/character-sprites-atlas.json",
+        "source": "Stitch-generated via MCP",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "models",
+        "group": "human_male",
+        "tags": [
+          "character",
+          "sprite",
+          "idle",
+          "paladin",
+          "human",
+          "male"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 64,
+            "h": 64
+          },
+          "shadow": {
+            "w": 72,
+            "h": 20,
+            "alpha": 0.35
+          }
+        },
+        "characterClass": "paladin",
+        "race": "human",
+        "gender": "male",
+        "direction": "e",
+        "animation": "idle"
+      },
+      "necromancer_darkelf_female_e_idle": {
+        "src": "/2d-assets/game-assets/models/characters/necromancer_darkelf_female_e_idle.png",
+        "atlas": "/2d-assets/game-assets/models/characters/character-sprites-atlas.json",
+        "source": "Stitch-generated via MCP",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "models",
+        "group": "darkelf_female",
+        "tags": [
+          "character",
+          "sprite",
+          "idle",
+          "necromancer",
+          "darkelf",
+          "female"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 64,
+            "h": 64
+          },
+          "shadow": {
+            "w": 72,
+            "h": 20,
+            "alpha": 0.35
+          }
+        },
+        "characterClass": "necromancer",
+        "race": "darkelf",
+        "gender": "female",
+        "direction": "e",
+        "animation": "idle"
+      },
+      "berserker_human_male_e_idle": {
+        "src": "/2d-assets/game-assets/models/characters/berserker_human_male_e_idle.png",
+        "atlas": "/2d-assets/game-assets/models/characters/character-sprites-atlas.json",
+        "source": "Stitch-generated via MCP",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "models",
+        "group": "human_male",
+        "tags": [
+          "character",
+          "sprite",
+          "idle",
+          "berserker",
+          "human",
+          "male"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 64,
+            "h": 64
+          },
+          "shadow": {
+            "w": 72,
+            "h": 20,
+            "alpha": 0.35
+          }
+        },
+        "characterClass": "berserker",
+        "race": "human",
+        "gender": "male",
+        "direction": "e",
+        "animation": "idle"
+      },
+      "bard_gnome_male_e_idle": {
+        "src": "/2d-assets/game-assets/models/characters/bard_gnome_male_e_idle.png",
+        "atlas": "/2d-assets/game-assets/models/characters/character-sprites-atlas.json",
+        "source": "Stitch-generated via MCP",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "models",
+        "group": "gnome_male",
+        "tags": [
+          "character",
+          "sprite",
+          "idle",
+          "bard",
+          "gnome",
+          "male"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 64,
+            "h": 64
+          },
+          "shadow": {
+            "w": 72,
+            "h": 20,
+            "alpha": 0.35
+          }
+        },
+        "characterClass": "bard",
+        "race": "gnome",
+        "gender": "male",
+        "direction": "e",
+        "animation": "idle"
+      }
+    },
     "effects": {},
     "biomes": {},
     "symbols": {},

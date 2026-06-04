@@ -1,0 +1,325 @@
+{
+  "version": 1,
+  "kind": "characterSpriteAtlas",
+  "spriteSize": 512,
+  "frameCount": 1,
+  "animations": [
+    "idle"
+  ],
+  "directions": [
+    "e"
+  ],
+  "basePath": "/2d-assets/game-assets/models/characters",
+  "frames": {
+    "warrior_human_male": {
+      "id": "warrior_human_male",
+      "className": "Warrior",
+      "race": "human",
+      "gender": "male",
+      "direction": "e",
+      "animation": "idle",
+      "src": "/2d-assets/game-assets/models/characters/warrior_human_male_e_idle.png",
+      "sheetFrame": {
+        "x": 0,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      },
+      "frameSize": {
+        "w": 512,
+        "h": 512
+      },
+      "depth": {
+        "zHeight": 2,
+        "isoFootprint": {
+          "w": 64,
+          "h": 64
+        },
+        "shadow": {
+          "w": 72,
+          "h": 20,
+          "alpha": 0.35
+        }
+      }
+    },
+    "mage_elf_female": {
+      "id": "mage_elf_female",
+      "className": "Mage",
+      "race": "elf",
+      "gender": "female",
+      "direction": "e",
+      "animation": "idle",
+      "src": "/2d-assets/game-assets/models/characters/mage_elf_female_e_idle.png",
+      "sheetFrame": {
+        "x": 0,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      },
+      "frameSize": {
+        "w": 512,
+        "h": 512
+      },
+      "depth": {
+        "zHeight": 2,
+        "isoFootprint": {
+          "w": 64,
+          "h": 64
+        },
+        "shadow": {
+          "w": 72,
+          "h": 20,
+          "alpha": 0.35
+        }
+      }
+    },
+    "archer_dwarf_male": {
+      "id": "archer_dwarf_male",
+      "className": "Archer",
+      "race": "dwarf",
+      "gender": "male",
+      "direction": "e",
+      "animation": "idle",
+      "src": "/2d-assets/game-assets/models/characters/archer_dwarf_male_e_idle.png",
+      "sheetFrame": {
+        "x": 0,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      },
+      "frameSize": {
+        "w": 512,
+        "h": 512
+      },
+      "depth": {
+        "zHeight": 2,
+        "isoFootprint": {
+          "w": 64,
+          "h": 64
+        },
+        "shadow": {
+          "w": 72,
+          "h": 20,
+          "alpha": 0.35
+        }
+      }
+    },
+    "rogue_halfling_female": {
+      "id": "rogue_halfling_female",
+      "className": "Rogue",
+      "race": "halfling",
+      "gender": "female",
+      "direction": "e",
+      "animation": "idle",
+      "src": "/2d-assets/game-assets/models/characters/rogue_halfling_female_e_idle.png",
+      "sheetFrame": {
+        "x": 0,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      },
+      "frameSize": {
+        "w": 512,
+        "h": 512
+      },
+      "depth": {
+        "zHeight": 2,
+        "isoFootprint": {
+          "w": 64,
+          "h": 64
+        },
+        "shadow": {
+          "w": 72,
+          "h": 20,
+          "alpha": 0.35
+        }
+      }
+    },
+    "cleric_human_male": {
+      "id": "cleric_human_male",
+      "className": "Cleric",
+      "race": "human",
+      "gender": "male",
+      "direction": "e",
+      "animation": "idle",
+      "src": "/2d-assets/game-assets/models/characters/cleric_human_male_e_idle.png",
+      "sheetFrame": {
+        "x": 0,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      },
+      "frameSize": {
+        "w": 512,
+        "h": 512
+      },
+      "depth": {
+        "zHeight": 2,
+        "isoFootprint": {
+          "w": 64,
+          "h": 64
+        },
+        "shadow": {
+          "w": 72,
+          "h": 20,
+          "alpha": 0.35
+        }
+      }
+    },
+    "ranger_woodelf_female": {
+      "id": "ranger_woodelf_female",
+      "className": "Ranger",
+      "race": "woodelf",
+      "gender": "female",
+      "direction": "e",
+      "animation": "idle",
+      "src": "/2d-assets/game-assets/models/characters/ranger_woodelf_female_e_idle.png",
+      "sheetFrame": {
+        "x": 0,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      },
+      "frameSize": {
+        "w": 512,
+        "h": 512
+      },
+      "depth": {
+        "zHeight": 2,
+        "isoFootprint": {
+          "w": 64,
+          "h": 64
+        },
+        "shadow": {
+          "w": 72,
+          "h": 20,
+          "alpha": 0.35
+        }
+      }
+    },
+    "paladin_human_male": {
+      "id": "paladin_human_male",
+      "className": "Paladin",
+      "race": "human",
+      "gender": "male",
+      "direction": "e",
+      "animation": "idle",
+      "src": "/2d-assets/game-assets/models/characters/paladin_human_male_e_idle.png",
+      "sheetFrame": {
+        "x": 0,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      },
+      "frameSize": {
+        "w": 512,
+        "h": 512
+      },
+      "depth": {
+        "zHeight": 2,
+        "isoFootprint": {
+          "w": 64,
+          "h": 64
+        },
+        "shadow": {
+          "w": 72,
+          "h": 20,
+          "alpha": 0.35
+        }
+      }
+    },
+    "necromancer_darkelf_female": {
+      "id": "necromancer_darkelf_female",
+      "className": "Necromancer",
+      "race": "darkelf",
+      "gender": "female",
+      "direction": "e",
+      "animation": "idle",
+      "src": "/2d-assets/game-assets/models/characters/necromancer_darkelf_female_e_idle.png",
+      "sheetFrame": {
+        "x": 0,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      },
+      "frameSize": {
+        "w": 512,
+        "h": 512
+      },
+      "depth": {
+        "zHeight": 2,
+        "isoFootprint": {
+          "w": 64,
+          "h": 64
+        },
+        "shadow": {
+          "w": 72,
+          "h": 20,
+          "alpha": 0.35
+        }
+      }
+    },
+    "berserker_human_male": {
+      "id": "berserker_human_male",
+      "className": "Berserker",
+      "race": "human",
+      "gender": "male",
+      "direction": "e",
+      "animation": "idle",
+      "src": "/2d-assets/game-assets/models/characters/berserker_human_male_e_idle.png",
+      "sheetFrame": {
+        "x": 0,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      },
+      "frameSize": {
+        "w": 512,
+        "h": 512
+      },
+      "depth": {
+        "zHeight": 2,
+        "isoFootprint": {
+          "w": 64,
+          "h": 64
+        },
+        "shadow": {
+          "w": 72,
+          "h": 20,
+          "alpha": 0.35
+        }
+      }
+    },
+    "bard_gnome_male": {
+      "id": "bard_gnome_male",
+      "className": "Bard",
+      "race": "gnome",
+      "gender": "male",
+      "direction": "e",
+      "animation": "idle",
+      "src": "/2d-assets/game-assets/models/characters/bard_gnome_male_e_idle.png",
+      "sheetFrame": {
+        "x": 0,
+        "y": 0,
+        "w": 512,
+        "h": 512
+      },
+      "frameSize": {
+        "w": 512,
+        "h": 512
+      },
+      "depth": {
+        "zHeight": 2,
+        "isoFootprint": {
+          "w": 64,
+          "h": 64
+        },
+        "shadow": {
+          "w": 72,
+          "h": 20,
+          "alpha": 0.35
+        }
+      }
+    }
+  }
+}
