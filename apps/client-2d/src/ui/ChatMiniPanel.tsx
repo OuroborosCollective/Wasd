@@ -1,3 +1,24 @@
+/**
+ * Phase 5/7: ChatMiniPanel - Legacy/Development Component
+ *
+ * ⚠️ IMPORTANT: This component is NOT used in the production/live render path.
+ *
+ * LIVE RENDER PATH (what's actually rendered on VPS):
+ *   main.tsx → DeterministicWorldIsoApp.tsx → ArelorianStitchHud.tsx
+ *   (ArelorianStitchHud has inline chat in stitch-chat section)
+ *
+ * UNUSED/LEGACY:
+ *   - ChatMiniPanel.tsx: NOT IMPORTED anywhere in production code
+ *   - The actual chat in live client is inline in ArelorianStitchHud.tsx
+ *
+ * Purpose: This was a standalone chat panel. ArelorianStitchHud has its own
+ * chat implementation (stitch-chat section) instead.
+ *
+ * To add chat features to production, use the chat in ArelorianStitchHud.tsx
+ *
+ * Last used by: Development/testing only
+ */
+
 import React from "react";
 import type { ChatMessagePayload } from "../net/protocol";
 
