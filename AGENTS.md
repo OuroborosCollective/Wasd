@@ -224,3 +224,48 @@ The manifest system provides deterministic, server-authoritative state managemen
 - **Genesis**: `GENESIS_STATE_HASH = '0'.repeat(64)`, `GENESIS_PREVIOUS_HASH = 'GENESIS'`
 - **Env vars**: `MANIFEST_AUTHORITY_SECRET`, `WORLD_ID`
 See `docs/MANIFEST_SYSTEM.md` for full documentation.
+
+### Areloria Codex Engine (Autonomous Wiki Sync)
+The project uses an autonomous wiki engine to sync documentation to GitHub Wiki:
+
+**Structure:**
+```
+scripts/wiki/
+  build-autonomous-wiki.mjs   # Main builder - generates wiki pages
+  validate-wiki.mjs          # Content validator
+  push-wiki.mjs              # Robust wiki push with diff/preview
+  lib/
+    scan-files.mjs           # File scanner and parser
+    parse-markdown.mjs       # Markdown analyzer
+    generate-home.mjs        # Home page generator
+    generate-sidebar.mjs     # Sidebar generator
+    generate-changelog.mjs  # Auto-changelog from git
+    generate-module-map.mjs  # Architecture diagrams
+    validate-links.mjs       # Link validator
+```
+
+**Workflow:** `.github/workflows/wiki-engine.yml`
+- Triggers on push to main (docs/**, server/src/**, client/src/**, scripts/wiki/**)
+- Supports manual triggers with dry-run and rebuild options
+- Jobs: Build Wiki → Validate Wiki → Sync to GitHub Wiki
+
+**Running locally:**
+```bash
+# Build the wiki
+node scripts/wiki/build-autonomous-wiki.mjs --source docs/wiki --out .wiki-build --rebuild true
+
+# Validate wiki content
+node scripts/wiki/validate-wiki.mjs --dir .wiki-build
+
+# Push to wiki (dry-run)
+node scripts/wiki/push-wiki.mjs --dir .wiki-build --dry-run true
+```
+
+**Generated pages:**
+- `Home.md` - Auto-generated with project overview
+- `_Sidebar.md` - Auto-generated navigation
+- `Systems_Architecture.md` - Architecture with Mermaid diagrams
+- `Implementation-Map.md` - Module overview
+- `Changelog.md` - Recent commits
+- `Roadmap.md` - From docs/ROADMAP_TO_RELEASE.md
+- `Status.md` - Current system status
