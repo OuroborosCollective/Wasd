@@ -1,83 +1,944 @@
 #!/usr/bin/env node
 /**
- * Autonomous Stitch asset importer for WASD client-2d.
- * Correct target: apps/client-2d/public/2d-assets/game-assets
+ * autonomous-asset-director.mjs
+ *
+ * Autonomer Asset-Importer für Areloria / WASD.
+ *
+ * Ziel:
+ * - Keine starren Vorgaben.
+ * - Alle Dateien scannen.
+ * - Dateityp + Kategorie erkennen.
+ * - Bilder optional pixelbasiert analysieren.
+ * - Transparente Ränder deterministisch croppen.
+ * - Lesbarkeit / Kontrast / Alpha-Fläche bewerten.
+ * - Procedural Naming mit stabilem Hash.
+ * - Sortiertes Manifest erzeugen.
+ *
  * Usage:
- *   node scripts/stitch-game-assets-importer.mjs --local-inbox=./asset-inbox
- *   node scripts/stitch-game-assets-importer.mjs --local-inbox=./asset-inbox --dry-run
- *   GITHUB_TOKEN=... ISSUE_NUMBER=1071 node scripts/stitch-game-assets-importer.mjs
+ *   node scripts/autonomous-asset-director.mjs --input=./stitch-export
+ *   node scripts/autonomous-asset-director.mjs --input=./stitch-export --dry-run
+ *   node scripts/autonomous-asset-director.mjs --input=./stitch-export --output=./apps/client-2d/public/2d-assets/auto-assets
+ *
+ * Optional:
+ *   pnpm add -D sharp
+ *
+ * Ohne sharp:
+ * - Datei-Detektion funktioniert.
+ * - Bildgröße für PNG wird gelesen.
+ * - Cropping wird übersprungen.
+ *
+ * Mit sharp:
+ * - PNG/JPG/WEBP werden analysiert.
+ * - Alpha-Crop wird erzeugt.
+ * - Kontrast und Lesbarkeit werden berechnet.
  */
-import crypto from 'node:crypto';
-import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { basename, dirname, extname, join, relative, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
-import { fileURLToPath } from 'node:url';
 
-const REPO = process.env.GITHUB_REPOSITORY || 'OuroborosCollective/Wasd';
-const TOKEN = process.env.GITHUB_TOKEN || '';
-const ISSUE_NUMBER = String(process.env.ISSUE_NUMBER || '1071');
-const STITCH_PROJECT_URL = 'https://stitch.withgoogle.com/projects/5320982353793182486';
-const args = new Map(process.argv.slice(2).filter((a) => a.startsWith('--')).map((a) => { const [k, ...v] = a.slice(2).split('='); return [k, v.length ? v.join('=') : 'true']; }));
-const dryRun = args.get('dry-run') === 'true';
-const localInbox = args.get('local-inbox') || args.get('input') || null;
+import crypto from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync, copyFileSync } from "node:fs";
+import { basename, dirname, extname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// -----------------------------------------------------------------------------
+// CLI
+// -----------------------------------------------------------------------------
+
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const root = resolve(scriptDir, '..');
-const publicRoot = join(root, 'apps/client-2d/public/2d-assets');
-const gameAssetsRoot = join(publicRoot, 'game-assets');
-const manifestPath = join(publicRoot, 'manifest.json');
-const outputRoot = resolve(args.get('output') || gameAssetsRoot);
-const workRoot = join(tmpdir(), `wasd-stitch-assets-${Date.now()}`);
-const extractRoot = join(workRoot, 'extract');
-const zipRoot = join(workRoot, 'zips');
+const root = resolve(scriptDir, "..");
 
-const EXT_KIND = { '.png': 'image', '.jpg': 'image', '.jpeg': 'image', '.webp': 'image', '.gif': 'image', '.svg': 'vector', '.json': 'metadata', '.atlas': 'metadata', '.glb': 'model3d', '.gltf': 'model3d', '.fbx': 'model3d', '.obj': 'model3d', '.wav': 'audio', '.mp3': 'audio', '.ogg': 'audio', '.mp4': 'video', '.webm': 'video', '.zip': 'archive' };
-const CAT = {
-  models: { keys: ['character','charakter','player','npc','hero','guard','villager','samurai','mongol','warrior','knight','mage','rogue','archer','enemy','monster','boss'], frame: 256, depth: { zHeight: 2, isoFootprint: { w: 64, h: 64 }, shadow: { w: 72, h: 20, alpha: 0.35 } }, tags: ['character','npc','sprite'] },
-  effects: { keys: ['effect','effects','fx','particle','spell','magic','combat','slash','fire','ice','lightning','impact','explosion','aura','hit','spark'], frame: 128, depth: { zHeight: 1, isoFootprint: { w: 32, h: 32 }, shadow: { w: 40, h: 12, alpha: 0.25 } }, tags: ['fx','particle','spell'] },
-  biomes: { keys: ['biome','terrain','ground','tile','grass','forest','desert','snow','swamp','water','lava','road','stone','sand','dirt'], frame: 64, depth: { zHeight: 0, tileWidth: 64, tileHeight: 64, shadow: null }, tags: ['terrain','tile'] },
-  symbols: { keys: ['symbol','icon','ui','hud','button','panel','slot','inventory','paperdoll','resource','coin','gem','ore','potion','item'], frame: 64, depth: { zHeight: 1, isoFootprint: { w: 32, h: 32 }, shadow: null }, tags: ['ui','icon'] },
-  weather: { keys: ['weather','rain','snow','storm','fog','mist','cloud','wind','thunder','overlay'], frame: 128, depth: { zHeight: 0, isoFootprint: { w: 0, h: 0 }, shadow: null }, tags: ['weather','overlay'] },
-  shirts: { keys: ['shirt','armor_overlay','equipment','clothing','cloth','tunic','robe','chainmail','plate','leather','helmet','boots','gloves','pants'], frame: 64, depth: { zHeight: 2, isoFootprint: { w: 64, h: 64 }, shadow: null }, tags: ['equipment','overlay'], overlay: true },
-  buildings: { keys: ['building','house','wall','castle','tower','gate','door','bridge','city','village','kingdom','fort','dungeon'], frame: 256, depth: { zHeight: 3, isoFootprint: { w: 128, h: 96 }, shadow: { w: 144, h: 32, alpha: 0.3 } }, tags: ['building','world'] },
-  audio: { keys: ['audio','sound','sfx','music','ambient','footstep','attack','click'], frame: 0, depth: {}, tags: ['audio'] },
-  misc: { keys: [], frame: 64, depth: { zHeight: 1, isoFootprint: { w: 32, h: 32 }, shadow: null }, tags: ['misc'] }
-};
-const CULTURE = { samurai: ['samurai','japan','ronin','shogun','katana'], mongolian: ['mongol','steppe','khan'], medieval: ['medieval','castle','knight','kingdom','fantasy'], cyber: ['cyber','neon','electron','tech'], forest: ['forest','druid','woodland'], desert: ['desert','sand','nomad'] };
-const cats = Object.keys(CAT);
+const args = new Map(
+  process.argv
+    .slice(2)
+    .filter((arg) => arg.startsWith("--"))
+    .map((arg) => {
+      const [k, ...rest] = arg.slice(2).split("=");
+      return [k, rest.length ? rest.join("=") : "true"];
+    })
+);
 
-function log(m,t='info'){ console.log(`[StitchGameAssets] ${t==='warn'?'⚠️':t==='dry'?'🧪':'✅'} ${m}`); }
-function sh(c,a,o={}){ return execFileSync(c,a,{stdio:'pipe',encoding:'utf8',...o}); }
-function slug(s,max=96){ return (String(s||'asset').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').replace(/_{2,}/g,'_').slice(0,max) || 'asset'); }
-function files(d){ const out=[]; if(!existsSync(d)) return out; for(const x of readdirSync(d)){ const p=join(d,x), st=statSync(p); if(st.isDirectory()) out.push(...files(p)); else out.push(p); } return out.sort(); }
-function readJson(p){ return JSON.parse(readFileSync(p,'utf8')); }
-function writeJson(p,v){ if(dryRun){ log(`[DRY-RUN] write ${p}`,'dry'); return; } mkdirSync(dirname(p),{recursive:true}); writeFileSync(p, JSON.stringify(v,null,2)+'\n'); }
-function copy(src,dst){ if(dryRun){ log(`[DRY-RUN] copy ${src} -> ${dst}`,'dry'); return; } mkdirSync(dirname(dst),{recursive:true}); copyFileSync(src,dst); }
-function hash(p){ return crypto.createHash('sha256').update(readFileSync(p)).digest('hex'); }
-function tokens(p,base){ const rel=relative(base,p), ext=extname(p); return (ext?rel.slice(0,-ext.length):rel).split(/[\\/_.\-\s]+/g).map((x)=>slug(x,48)).filter(Boolean); }
-function score(ts,ks){ let n=0; for(const t of ts) for(const k of ks) n += t===k ? 5 : t.includes(k) ? 3 : (k.includes(t)&&t.length>=4) ? 1 : 0; return n; }
-function kind(p){ return EXT_KIND[extname(p).toLowerCase()] || 'binary'; }
-function category(p,base){ const k=kind(p), ts=tokens(p,base); if(k==='audio') return 'audio'; if(k==='metadata') return 'misc'; let best='misc', bs=0; const order=['shirts','weather','effects','biomes','models','symbols','buildings']; for(const c of order){ const s=score(ts,CAT[c].keys); if(s>bs){ best=c; bs=s; } } if(k==='model3d' && best==='misc') return 'models'; if(k==='image' && best==='misc') return 'effects'; return best; }
-function culture(p,base){ const ts=tokens(p,base); let best='cross-cultural', bs=0; for(const [c,ks] of Object.entries(CULTURE)){ const s=score(ts,ks); if(s>bs){ best=c; bs=s; } } return best; }
-function pngSize(p){ try{ const b=readFileSync(p); if(b.length>=24 && b[0]===0x89 && b[1]===0x50 && b[2]===0x4e && b[3]===0x47) return { width:b.readUInt32BE(16), height:b.readUInt32BE(20) }; }catch{} return null; }
-function ensureManifest(m){ m.version??=1; m.generatedAt=new Date().toISOString(); m.basePath??='/2d-assets'; m.sources??=[]; m.fallbacks??={}; for(const c of cats) m[c]??={}; m.gameAssets??={}; return m; }
-function gameManifest(src){ return { version:2, generatedAt:new Date().toISOString(), mode:'deterministic-open-detection', source:src, stitchProjectUrl:STITCH_PROJECT_URL, basePath:'/2d-assets/game-assets', outputPath:'apps/client-2d/public/2d-assets/game-assets', categories:cats, sources:[], stats:{totalFiles:0, importedFiles:0, skippedFiles:0}, assets:Object.fromEntries(cats.map((c)=>[c,{}])), index:[] }; }
-function atlasJson({imageName,id,frameSize,size,cat}){ const w=size?.width || frameSize*4, h=size?.height || frameSize*4, cols=Math.max(1,Math.floor(w/frameSize)), rows=Math.max(1,Math.floor(h/frameSize)); const frames={}, names=[]; for(let i=0;i<cols*rows;i++){ const n=`${id}_frame_${String(i+1).padStart(2,'0')}`; names.push(n); frames[n]={ frame:{x:(i%cols)*frameSize,y:Math.floor(i/cols)*frameSize,w:frameSize,h:frameSize}, rotated:false, trimmed:false, spriteSourceSize:{x:0,y:0,w:frameSize,h:frameSize}, sourceSize:{w:frameSize,h:frameSize}, anchor:{x:0.5,y:cat==='models'?0.9:cat==='shirts'?0.85:0.5} }; } return { frames, animations:{ [`${id}_${cat==='models'?'default':'loop'}`]:names }, meta:{ app:'Areloria WASD Stitch Importer', image:imageName, size:{w,h}, scale:'1' } }; }
-async function gh(path){ if(!TOKEN) throw new Error('GITHUB_TOKEN required or use --local-inbox'); const r=await fetch(`https://api.github.com${path}`,{headers:{Authorization:`Bearer ${TOKEN}`,Accept:'application/vnd.github+json','User-Agent':'wasd-stitch-assets'}}); if(!r.ok) throw new Error(`${r.status} ${await r.text()}`); return r.json(); }
+const inputDir = resolve(args.get("input") || args.get("local-inbox") || "./asset-inbox");
+const outputDir = resolve(args.get("output") || join(root, "apps/client-2d/public/2d-assets/auto-assets"));
+const publicRoot = resolve(args.get("public-root") || join(root, "apps/client-2d/public/2d-assets"));
+const dryRun = args.get("dry-run") === "true";
+const cropEnabled = args.get("crop") !== "false";
+const manifestPath = join(outputDir, "manifest.json");
+const rootManifestPath = join(publicRoot, "manifest.json");
 
-async function importDir(base, rootManifest, gm, source='local-inbox'){
-  const all=files(base), jsons=all.filter((p)=>extname(p).toLowerCase()==='.json'); gm.stats.totalFiles+=all.length; log(`Scanning ${all.length} files from ${base}`);
-  for(const p of all){ try{
-    if(kind(p)==='archive'){ gm.stats.skippedFiles++; continue; }
-    const cat=category(p,base), cfg=CAT[cat], group=culture(p,base), h=hash(p), k=kind(p), ext=extname(p).toLowerCase(), size=k==='image'?pngSize(p):null;
-    const id=slug(['stitch',cat,group,k,...tokens(p,base).slice(-4),size?`${size.width}x${size.height}`:'nosize',h.slice(0,10)].join('_'),120);
-    const dir=join(outputRoot,id), name=`${id}${ext||'.bin'}`; copy(p,join(dir,name));
-    let atlas=null; if(k==='image' && ['.png','.jpg','.jpeg','.webp'].includes(ext)){ const an=`${id}.json`; writeJson(join(dir,an), atlasJson({imageName:name,id,frameSize:cfg.frame||64,size,cat})); atlas=`/2d-assets/game-assets/${id}/${an}`; }
-    const entry={ id, src:`/2d-assets/game-assets/${id}/${name}`, originalSrc:`/2d-assets/game-assets/${id}/${name}`, atlas, source, sourcePath:relative(base,p), kind:k, category:cat, group, hash:h, sizeBytes:statSync(p).size, tags:['stitch','game-asset',k,cat,group,...cfg.tags], ...cfg.depth };
-    if(cfg.overlay){ entry.overlay=true; entry.layer='equipment-overlay'; entry.anchorY=0.85; }
-    writeJson(join(dir,`${id}.meta.json`),entry); gm.assets[cat][id]=entry; gm.index.push({id,category:cat,kind:k,group,src:entry.src,atlas,sourcePath:entry.sourcePath}); rootManifest[cat][id]=entry; rootManifest.gameAssets[id]={id,category:cat,kind:k,group,src:entry.src,atlas,tags:entry.tags}; gm.stats.importedFiles++;
-  }catch(e){ gm.stats.skippedFiles++; log(`Skipped ${relative(base,p)}: ${e.message}`,'warn'); } }
+// -----------------------------------------------------------------------------
+// Optional sharp
+// -----------------------------------------------------------------------------
+
+let sharp = null;
+
+try {
+  const mod = await import("sharp");
+  sharp = mod.default;
+} catch {
+  sharp = null;
 }
-async function importIssue(rootManifest,gm){ const issue=await gh(`/repos/${REPO}/issues/${ISSUE_NUMBER}`), comments=await gh(`/repos/${REPO}/issues/${ISSUE_NUMBER}/comments?per_page=100`); const text=[issue.body||'',...comments.map((c)=>c.body||'')].join('\n'); const urls=[...new Set([...text.matchAll(/https:\/\/github\.com\/user-attachments\/files\/[^\s)\]]+\.zip/gi)].map((m)=>m[0]))]; for(const [i,u] of urls.entries()){ const name=slug(decodeURIComponent(u.split('/').pop()||`pack_${i}.zip`)), zp=join(zipRoot,`${name}.zip`), ex=join(extractRoot,name); gm.sources.push({name,url:u}); if(dryRun) continue; mkdirSync(ex,{recursive:true}); sh('curl',['-L','--fail','--retry','3','-o',zp,u],{stdio:'inherit'}); sh('unzip',['-q','-o',zp,'-d',ex],{stdio:'inherit'}); await importDir(ex,rootManifest,gm,name); } }
-async function main(){ log(`2D target locked: ${gameAssetsRoot}`); if(!dryRun){ rmSync(workRoot,{recursive:true,force:true}); mkdirSync(extractRoot,{recursive:true}); mkdirSync(zipRoot,{recursive:true}); mkdirSync(outputRoot,{recursive:true}); mkdirSync(publicRoot,{recursive:true}); } const rootManifest=existsSync(manifestPath)?ensureManifest(readJson(manifestPath)):ensureManifest({}); const gm=gameManifest(localInbox?'local-inbox':`issue-${ISSUE_NUMBER}`); if(localInbox){ const inbox=resolve(localInbox); if(!existsSync(inbox)) throw new Error(`Missing inbox: ${inbox}`); gm.sources.push({name:'local-inbox',path:inbox}); await importDir(inbox,rootManifest,gm); } else await importIssue(rootManifest,gm); gm.index.sort((a,b)=>a.category.localeCompare(b.category)||a.kind.localeCompare(b.kind)||a.id.localeCompare(b.id)); writeJson(join(outputRoot,'manifest.json'),gm); writeJson(manifestPath,rootManifest); if(!dryRun) rmSync(workRoot,{recursive:true,force:true}); log(`Done imported=${gm.stats.importedFiles} skipped=${gm.stats.skippedFiles}`); }
-main().catch((e)=>{ console.error(`[StitchGameAssets] ❌ ${e.stack||e.message}`); process.exit(1); });
+
+// -----------------------------------------------------------------------------
+// Rules: offen, aber nicht blind
+// -----------------------------------------------------------------------------
+
+const EXTENSION_KIND = {
+  ".png": "image",
+  ".jpg": "image",
+  ".jpeg": "image",
+  ".webp": "image",
+  ".svg": "vector",
+  ".gif": "image",
+
+  ".json": "metadata",
+  ".atlas": "metadata",
+  ".xml": "metadata",
+  ".txt": "text",
+  ".md": "text",
+
+  ".glb": "model3d",
+  ".gltf": "model3d",
+  ".fbx": "model3d",
+  ".obj": "model3d",
+  ".mtl": "model3d",
+  ".blend": "model3d",
+
+  ".wav": "audio",
+  ".mp3": "audio",
+  ".ogg": "audio",
+  ".flac": "audio",
+
+  ".mp4": "video",
+  ".webm": "video",
+  ".mov": "video",
+
+  ".ttf": "font",
+  ".otf": "font",
+  ".woff": "font",
+  ".woff2": "font",
+
+  ".zip": "archive",
+};
+
+const CATEGORY_HINTS = {
+  character: [
+    "character",
+    "charakter",
+    "hero",
+    "player",
+    "npc",
+    "villager",
+    "guard",
+    "warrior",
+    "mage",
+    "rogue",
+    "samurai",
+    "knight",
+    "archer",
+    "enemy",
+    "monster",
+    "boss",
+  ],
+
+  equipment: [
+    "shirt",
+    "armor",
+    "helmet",
+    "boots",
+    "gloves",
+    "pants",
+    "robe",
+    "tunic",
+    "chainmail",
+    "plate",
+    "leather",
+    "weapon",
+    "sword",
+    "axe",
+    "bow",
+    "shield",
+    "staff",
+  ],
+
+  biome: [
+    "biome",
+    "terrain",
+    "ground",
+    "tile",
+    "grass",
+    "forest",
+    "desert",
+    "snow",
+    "swamp",
+    "water",
+    "lava",
+    "road",
+    "stone",
+    "sand",
+    "dirt",
+    "environment",
+  ],
+
+  effect: [
+    "effect",
+    "fx",
+    "particle",
+    "spell",
+    "magic",
+    "slash",
+    "impact",
+    "fire",
+    "ice",
+    "lightning",
+    "explosion",
+    "aura",
+    "hit",
+    "spark",
+    "smoke",
+  ],
+
+  weather: [
+    "weather",
+    "rain",
+    "snow",
+    "storm",
+    "fog",
+    "mist",
+    "cloud",
+    "wind",
+    "thunder",
+    "overlay",
+  ],
+
+  ui: [
+    "ui",
+    "icon",
+    "symbol",
+    "button",
+    "hud",
+    "panel",
+    "frame",
+    "cursor",
+    "menu",
+    "slot",
+    "inventory",
+    "paperdoll",
+  ],
+
+  building: [
+    "building",
+    "house",
+    "wall",
+    "castle",
+    "tower",
+    "gate",
+    "door",
+    "bridge",
+    "city",
+    "village",
+    "kingdom",
+    "fort",
+    "dungeon",
+  ],
+
+  audio: [
+    "music",
+    "sound",
+    "sfx",
+    "ambient",
+    "footstep",
+    "attack",
+    "hit",
+    "ui",
+    "click",
+    "weather",
+    "combat",
+  ],
+
+  unknown: [],
+};
+
+const CULTURE_HINTS = {
+  samurai: ["samurai", "japan", "japanese", "ronin", "shogun", "katana"],
+  mongolian: ["mongol", "mongolian", "steppe", "khan"],
+  medieval: ["medieval", "castle", "knight", "kingdom", "fantasy"],
+  cyber: ["cyber", "neon", "electron", "arc", "tech"],
+  forest: ["forest", "druid", "woodland", "nature"],
+  desert: ["desert", "sand", "nomad"],
+  neutral: [],
+};
+
+// -----------------------------------------------------------------------------
+// Logging
+// -----------------------------------------------------------------------------
+
+function log(message, type = "info") {
+  const icon =
+    type === "error" ? "❌" :
+    type === "warn" ? "⚠️" :
+    type === "dry" ? "🧪" :
+    type === "scan" ? "🔎" :
+    type === "brain" ? "🧠" :
+    "✅";
+
+  console.log(`[AutoAssetDirector] ${icon} ${message}`);
+}
+
+// -----------------------------------------------------------------------------
+// Files
+// -----------------------------------------------------------------------------
+
+function listFiles(dir) {
+  const out = [];
+
+  if (!existsSync(dir)) return out;
+
+  for (const item of readdirSync(dir)) {
+    const full = join(dir, item);
+    const st = statSync(full);
+
+    if (st.isDirectory()) {
+      out.push(...listFiles(full));
+    } else {
+      out.push(full);
+    }
+  }
+
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
+function ensureDir(dir) {
+  if (!dryRun) mkdirSync(dir, { recursive: true });
+}
+
+function writeJson(file, payload) {
+  if (dryRun) {
+    log(`[DRY-RUN] write ${file}`, "dry");
+    return;
+  }
+
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, JSON.stringify(payload, null, 2) + "\n");
+}
+
+function copyFileSafe(src, dst) {
+  if (dryRun) {
+    log(`[DRY-RUN] copy ${src} -> ${dst}`, "dry");
+    return;
+  }
+
+  mkdirSync(dirname(dst), { recursive: true });
+  copyFileSync(src, dst);
+}
+
+function sha256File(file) {
+  const buf = readFileSync(file);
+  return crypto.createHash("sha256").update(buf).digest("hex");
+}
+
+function shortHash(file) {
+  return sha256File(file).slice(0, 12);
+}
+
+function slug(input, max = 96) {
+  return (
+    String(input || "asset")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .replace(/_{2,}/g, "_")
+      .slice(0, max) || "asset"
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Primitive PNG size reader
+// -----------------------------------------------------------------------------
+
+function readPngSize(file) {
+  try {
+    const buf = readFileSync(file);
+
+    const isPng =
+      buf.length >= 24 &&
+      buf[0] === 0x89 &&
+      buf[1] === 0x50 &&
+      buf[2] === 0x4e &&
+      buf[3] === 0x47 &&
+      buf[4] === 0x0d &&
+      buf[5] === 0x0a &&
+      buf[6] === 0x1a &&
+      buf[7] === 0x0a;
+
+    if (!isPng) return null;
+
+    return {
+      width: buf.readUInt32BE(16),
+      height: buf.readUInt32BE(20),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Detection logic
+// -----------------------------------------------------------------------------
+
+function tokenizePath(file, baseDir) {
+  const rel = relative(baseDir, file);
+  const ext = extname(file).toLowerCase();
+  const noExt = rel.slice(0, -ext.length);
+  const parts = noExt.split(/[\\/_.\-\s]+/g);
+
+  return parts
+    .map((p) => slug(p, 48))
+    .filter(Boolean);
+}
+
+function scoreByHints(tokens, hints) {
+  let score = 0;
+
+  for (const token of tokens) {
+    for (const hint of hints) {
+      if (token === hint) score += 4;
+      else if (token.includes(hint)) score += 2;
+      else if (hint.includes(token) && token.length >= 4) score += 1;
+    }
+  }
+
+  return score;
+}
+
+function detectCategory(tokens, kind) {
+  if (kind === "audio") return "audio";
+  if (kind === "font") return "font";
+  if (kind === "video") return "video";
+  if (kind === "archive") return "archive";
+  if (kind === "model3d") {
+    const buildingScore = scoreByHints(tokens, CATEGORY_HINTS.building);
+    const characterScore = scoreByHints(tokens, CATEGORY_HINTS.character);
+    const equipmentScore = scoreByHints(tokens, CATEGORY_HINTS.equipment);
+
+    if (buildingScore >= characterScore && buildingScore >= equipmentScore && buildingScore > 0) return "building";
+    if (equipmentScore >= characterScore && equipmentScore > 0) return "equipment";
+    if (characterScore > 0) return "character";
+
+    return "model3d";
+  }
+
+  let best = "unknown";
+  let bestScore = 0;
+
+  for (const [category, hints] of Object.entries(CATEGORY_HINTS)) {
+    const score = scoreByHints(tokens, hints);
+    if (score > bestScore) {
+      best = category;
+      bestScore = score;
+    }
+  }
+
+  if (bestScore === 0 && kind === "image") return "effect";
+  if (bestScore === 0 && kind === "metadata") return "metadata";
+
+  return best;
+}
+
+function detectCulture(tokens) {
+  let best = "neutral";
+  let bestScore = 0;
+
+  for (const [culture, hints] of Object.entries(CULTURE_HINTS)) {
+    const score = scoreByHints(tokens, hints);
+    if (score > bestScore) {
+      best = culture;
+      bestScore = score;
+    }
+  }
+
+  return best;
+}
+
+function detectKind(file) {
+  const ext = extname(file).toLowerCase();
+  return EXTENSION_KIND[ext] || "binary";
+}
+
+// -----------------------------------------------------------------------------
+// Image analysis with optional sharp
+// -----------------------------------------------------------------------------
+
+async function analyzeImage(file) {
+  const ext = extname(file).toLowerCase();
+
+  const fallback = {
+    readable: false,
+    tool: sharp ? "sharp" : "none",
+    width: null,
+    height: null,
+    hasAlpha: null,
+    cropBox: null,
+    alphaCoverage: null,
+    contrastScore: null,
+    readabilityScore: null,
+    warnings: [],
+  };
+
+  if (![".png", ".jpg", ".jpeg", ".webp"].includes(ext)) {
+    return fallback;
+  }
+
+  if (!sharp) {
+    if (ext === ".png") {
+      const size = readPngSize(file);
+      if (size) {
+        return {
+          ...fallback,
+          width: size.width,
+          height: size.height,
+          warnings: ["sharp_missing_pixel_analysis_disabled"],
+        };
+      }
+    }
+
+    return {
+      ...fallback,
+      warnings: ["sharp_missing_image_analysis_disabled"],
+    };
+  }
+
+  try {
+    const image = sharp(file, { limitInputPixels: false });
+    const meta = await image.metadata();
+
+    const raw = await image
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const { data, info } = raw;
+    const width = info.width;
+    const height = info.height;
+    const channels = info.channels;
+
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+
+    let alphaPixels = 0;
+    let totalPixels = width * height;
+
+    let luminanceSum = 0;
+    let luminanceMin = 255;
+    let luminanceMax = 0;
+    let visibleSamples = 0;
+
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const i = (y * width + x) * channels;
+
+        const r = data[i] ?? 0;
+        const g = data[i + 1] ?? 0;
+        const b = data[i + 2] ?? 0;
+        const a = data[i + 3] ?? 255;
+
+        if (a > 8) {
+          alphaPixels += 1;
+
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+
+          const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+          luminanceSum += lum;
+          luminanceMin = Math.min(luminanceMin, lum);
+          luminanceMax = Math.max(luminanceMax, lum);
+          visibleSamples += 1;
+        }
+      }
+    }
+
+    const alphaCoverage = totalPixels > 0 ? alphaPixels / totalPixels : 0;
+    const contrastScore = visibleSamples > 0 ? (luminanceMax - luminanceMin) / 255 : 0;
+
+    const cropBox =
+      maxX >= minX && maxY >= minY
+        ? {
+            x: minX,
+            y: minY,
+            width: maxX - minX + 1,
+            height: maxY - minY + 1,
+          }
+        : null;
+
+    const areaScore = Math.min(1, Math.max(0, alphaCoverage * 2.2));
+    const sizeScore = Math.min(1, Math.max(0, Math.min(width, height) / 256));
+    const readabilityScore = Number(
+      ((contrastScore * 0.45 + areaScore * 0.35 + sizeScore * 0.2) * 100).toFixed(2)
+    );
+
+    const warnings = [];
+
+    if (alphaCoverage < 0.03) warnings.push("very_low_visible_pixel_coverage");
+    if (contrastScore < 0.12) warnings.push("low_contrast");
+    if (width < 32 || height < 32) warnings.push("very_small_image");
+    if (width > 4096 || height > 4096) warnings.push("very_large_image");
+
+    return {
+      readable: true,
+      tool: "sharp",
+      width,
+      height,
+      format: meta.format,
+      hasAlpha: Boolean(meta.hasAlpha),
+      cropBox,
+      alphaCoverage: Number(alphaCoverage.toFixed(4)),
+      contrastScore: Number(contrastScore.toFixed(4)),
+      readabilityScore,
+      warnings,
+    };
+  } catch (error) {
+    return {
+      ...fallback,
+      warnings: [`image_analysis_failed:${error.message}`],
+    };
+  }
+}
+
+async function writeCroppedImageIfUseful({ src, dst, analysis }) {
+  if (!sharp) return false;
+  if (!cropEnabled) return false;
+  if (!analysis?.cropBox) return false;
+
+  const { x, y, width, height } = analysis.cropBox;
+
+  if (width <= 0 || height <= 0) return false;
+
+  const originalArea = analysis.width * analysis.height;
+  const cropArea = width * height;
+
+  // Nur croppen, wenn wirklich Rand wegfällt.
+  if (cropArea / originalArea > 0.96) return false;
+
+  if (dryRun) {
+    log(`[DRY-RUN] crop ${src} -> ${dst}`, "dry");
+    return true;
+  }
+
+  mkdirSync(dirname(dst), { recursive: true });
+
+  await sharp(src)
+    .extract({ left: x, top: y, width, height })
+    .png()
+    .toFile(dst);
+
+  return true;
+}
+
+// -----------------------------------------------------------------------------
+// Procedural naming
+// -----------------------------------------------------------------------------
+
+function createAssetId({ file, baseDir, kind, category, culture, analysis }) {
+  const tokens = tokenizePath(file, baseDir);
+  const hash = shortHash(file);
+
+  const importantTokens = tokens
+    .filter((token) => !["asset", "assets", "image", "png", "export", "stitch"].includes(token))
+    .slice(-4);
+
+  const sizePart =
+    analysis?.width && analysis?.height
+      ? `${analysis.width}x${analysis.height}`
+      : "nosize";
+
+  return slug(
+    [
+      "auto",
+      category,
+      culture,
+      kind,
+      ...importantTokens,
+      sizePart,
+      hash,
+    ].join("_"),
+    120
+  );
+}
+
+function getTargetExtension(file, cropped) {
+  const ext = extname(file).toLowerCase();
+
+  if (cropped) return ".png";
+  if (ext) return ext;
+
+  return ".bin";
+}
+
+// -----------------------------------------------------------------------------
+// Manifest
+// -----------------------------------------------------------------------------
+
+function createManifest() {
+  return {
+    version: 2,
+    generatedAt: new Date().toISOString(),
+    mode: "autonomous-detection",
+    inputDir,
+    outputDir,
+    sharpEnabled: Boolean(sharp),
+    cropEnabled,
+    categories: {},
+    assets: [],
+    stats: {
+      totalFiles: 0,
+      importedFiles: 0,
+      skippedFiles: 0,
+      croppedImages: 0,
+      warnings: 0,
+    },
+  };
+}
+
+function loadRootManifest() {
+  if (!existsSync(rootManifestPath)) {
+    return {
+      version: 1,
+      generatedAt: new Date().toISOString(),
+      basePath: "/2d-assets",
+      autoAssets: {},
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(rootManifestPath, "utf8"));
+    parsed.version ??= 1;
+    parsed.generatedAt = new Date().toISOString();
+    parsed.basePath ??= "/2d-assets";
+    parsed.autoAssets ??= {};
+    return parsed;
+  } catch {
+    return {
+      version: 1,
+      generatedAt: new Date().toISOString(),
+      basePath: "/2d-assets",
+      autoAssets: {},
+    };
+  }
+}
+
+function addToCategoryBucket(manifest, category, entry) {
+  manifest.categories[category] ??= {
+    count: 0,
+    assets: [],
+  };
+
+  manifest.categories[category].count += 1;
+  manifest.categories[category].assets.push(entry.id);
+}
+
+// -----------------------------------------------------------------------------
+// Sorting intelligence
+// -----------------------------------------------------------------------------
+
+function sortAssets(a, b) {
+  const categoryCompare = a.category.localeCompare(b.category);
+  if (categoryCompare !== 0) return categoryCompare;
+
+  const kindCompare = a.kind.localeCompare(b.kind);
+  if (kindCompare !== 0) return kindCompare;
+
+  const readA = a.analysis?.readabilityScore ?? -1;
+  const readB = b.analysis?.readabilityScore ?? -1;
+
+  if (readA !== readB) return readB - readA;
+
+  return a.id.localeCompare(b.id);
+}
+
+// -----------------------------------------------------------------------------
+// Main import
+// -----------------------------------------------------------------------------
+
+async function processFile({ file, baseDir, manifest, rootManifest }) {
+  const rel = relative(baseDir, file);
+  const ext = extname(file).toLowerCase();
+  const kind = detectKind(file);
+  const tokens = tokenizePath(file, baseDir);
+  const category = detectCategory(tokens, kind);
+  const culture = detectCulture(tokens);
+  const hash = shortHash(file);
+  const sizeBytes = statSync(file).size;
+
+  const analysis = kind === "image" ? await analyzeImage(file) : null;
+
+  const id = createAssetId({
+    file,
+    baseDir,
+    kind,
+    category,
+    culture,
+    analysis,
+  });
+
+  const categoryDir = join(outputDir, category);
+  const assetDir = join(categoryDir, id);
+
+  const originalName = `${id}${ext || ".bin"}`;
+  const originalTarget = join(assetDir, originalName);
+
+  let cropped = false;
+  let mainFileName = originalName;
+  let mainTarget = originalTarget;
+
+  ensureDir(assetDir);
+
+  if (kind === "image" && sharp && cropEnabled && analysis?.cropBox) {
+    const croppedName = `${id}.cropped.png`;
+    const croppedTarget = join(assetDir, croppedName);
+
+    cropped = await writeCroppedImageIfUseful({
+      src: file,
+      dst: croppedTarget,
+      analysis,
+    });
+
+    if (cropped) {
+      mainFileName = croppedName;
+      mainTarget = croppedTarget;
+      manifest.stats.croppedImages += 1;
+    }
+  }
+
+  // Original immer sichern.
+  copyFileSafe(file, originalTarget);
+
+  const publicBase = "/2d-assets/auto-assets";
+  const publicPath = `${publicBase}/${category}/${id}/${mainFileName}`;
+  const originalPublicPath = `${publicBase}/${category}/${id}/${originalName}`;
+
+  const entry = {
+    id,
+    hash,
+    kind,
+    category,
+    culture,
+    ext,
+    sourcePath: rel,
+    sizeBytes,
+    src: publicPath,
+    originalSrc: originalPublicPath,
+    cropped,
+    tokens,
+    analysis,
+    tags: [
+      "auto",
+      kind,
+      category,
+      culture,
+      cropped ? "cropped" : "original",
+      ...(analysis?.warnings?.length ? ["needs-review"] : []),
+    ],
+    createdAt: new Date().toISOString(),
+  };
+
+  if (analysis?.warnings?.length) {
+    manifest.stats.warnings += analysis.warnings.length;
+  }
+
+  writeJson(join(assetDir, `${id}.meta.json`), entry);
+
+  manifest.assets.push(entry);
+  addToCategoryBucket(manifest, category, entry);
+
+  rootManifest.autoAssets[id] = {
+    id,
+    kind,
+    category,
+    culture,
+    src: publicPath,
+    originalSrc: originalPublicPath,
+    cropped,
+    readabilityScore: analysis?.readabilityScore ?? null,
+    tags: entry.tags,
+  };
+
+  return entry;
+}
+
+async function main() {
+  log("Autonomous Asset Director gestartet", "brain");
+  log(`Input: ${inputDir}`, "scan");
+  log(`Output: ${outputDir}`, "scan");
+  log(`Sharp Pixel Skill: ${sharp ? "aktiv" : "nicht installiert"}`, sharp ? "brain" : "warn");
+  log(`Dry Run: ${dryRun ? "ja" : "nein"}`);
+
+  if (!existsSync(inputDir)) {
+    throw new Error(`Input directory does not exist: ${inputDir}`);
+  }
+
+  ensureDir(outputDir);
+
+  const files = listFiles(inputDir);
+  const manifest = createManifest();
+  const rootManifest = loadRootManifest();
+
+  manifest.stats.totalFiles = files.length;
+
+  log(`Gefundene Dateien: ${files.length}`, "scan");
+
+  for (const file of files) {
+    const ext = extname(file).toLowerCase();
+
+    if (!ext) {
+      manifest.stats.skippedFiles += 1;
+      continue;
+    }
+
+    try {
+      await processFile({
+        file,
+        baseDir: inputDir,
+        manifest,
+        rootManifest,
+      });
+
+      manifest.stats.importedFiles += 1;
+    } catch (error) {
+      manifest.stats.skippedFiles += 1;
+
+      manifest.assets.push({
+        id: `failed_${shortHash(file)}`,
+        sourcePath: relative(inputDir, file),
+        error: error.message,
+        failed: true,
+      });
+
+      log(`Fehler bei ${file}: ${error.message}`, "warn");
+    }
+  }
+
+  manifest.assets.sort(sortAssets);
+
+  for (const bucket of Object.values(manifest.categories)) {
+    bucket.assets.sort();
+  }
+
+  writeJson(manifestPath, manifest);
+  writeJson(rootManifestPath, rootManifest);
+
+  log("Import abgeschlossen");
+  log(`Importiert: ${manifest.stats.importedFiles}`);
+  log(`Übersprungen: ${manifest.stats.skippedFiles}`);
+  log(`Cropped Images: ${manifest.stats.croppedImages}`);
+  log(`Warnings: ${manifest.stats.warnings}`);
+  log(`Manifest: ${manifestPath}`);
+}
+
+main().catch((error) => {
+  console.error(`[AutoAssetDirector] ❌ ${error.stack || error.message}`);
+  process.exit(1);
+});
