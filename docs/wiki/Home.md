@@ -50,6 +50,9 @@ This wiki connects five layers of the project:
 - `server/src/core/WorldTick.ts` — canonical simulation heartbeat.
 - `scripts/are-asset-forge.mjs` — deterministic asset metadata forge.
 - `scripts/enrich-stitch-atlas-frames.mjs` — Stitch atlas frame preparation.
+- `apps/client-2d/src/DeterministicWorldIsoApp.tsx` — PixiJS deterministic isometric renderer.
+- `apps/client-2d/src/ArelorianStitchHud.tsx` — Game UI overlay with server-authoritative vitals.
+- `apps/client-2d/src/live/playerVitalState.ts` — Server-authoritative HP/MP/Stamina/XP state.
 - `apps/client-2d/src/stackedProps.ts` — Pixi prop rendering with frame cropping.
 - `apps/client-2d/public/2d-assets/manifest.json` — runtime asset manifest.
 - `.github/workflows/sync-wiki.yml` — syncs `docs/wiki/**` into the GitHub Wiki.

@@ -16,11 +16,14 @@ Primary source-of-truth docs:
 - `docs/DOCUMENTATION_INDEX.md`
 
 ### Client-2D specifics
-- Entry: `apps/client-2d/src/DeterministicWorldIsoApp.tsx`
+- Entry: `apps/client-2d/src/DeterministicWorldIsoApp.tsx` (main deterministic isometric renderer)
+- HUD: `apps/client-2d/src/ArelorianStitchHud.tsx` (game UI overlay)
+- Vitals state: `apps/client-2d/src/live/playerVitalState.ts` (server-authoritative HP/MP/STA/XP)
 - UI system: `apps/client-2d/src/ui/UIManager.tsx` with `useSyncExternalStore`
 - Rendering: PixiJS v7 with interpolated sprite movement (60 FPS lerp from 10 Hz server updates)
 - WebSocket events: Listen on `wasd:network-packet` for UI updates
 - CSS: Native CSS files (no Tailwind in 2D client unless requested)
+- Vitals: Deterministic, server-authoritative via heartbeat. NO Date.now(), NO Math.random(), NO client prediction.
 
 ### Production .env (VPS)
 - Use `deploy/ENV_SETUP.md`.

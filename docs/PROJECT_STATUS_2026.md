@@ -10,11 +10,12 @@ Use it before trusting older reconstruction or handover docs.
 | Monorepo layout | `client/` (Vite + Babylon.js), `client-2d/` (PixiJS v7 + React), `server/` (Express + WebSocket), `game-data/` (authoritative JSON content) |
 | Main server loop | `server/src/core/WorldTick.ts` at ~100 ms sim tick |
 | Main client entry | `client/src/main.ts` |
-| 2D client entry | `apps/client-2d/src/App.tsx` |
+| 2D client entry | `apps/client-2d/src/DeterministicWorldIsoApp.tsx` (replaces `App.tsx` for deterministic isometric rendering) |
 | Primary rendering (3D) | Babylon.js (`@babylonjs/core` + loaders + materials + addons) |
 | Primary rendering (2D) | PixiJS v7 + React UI (`apps/client-2d/`) |
 | Networking | WebSocket (`ws`) via `server/src/networking/WebSocketServer.ts` |
-| **Manifest System** | Deterministic server-authoritative state via hash chain in `server/src/core/manifest/`; client divergence detection in `apps/client-2d/src/manifest/`; resync API at `/api/manifest/*` |
+| **Player Vitals State** | Server-authoritative vitals (HP/MP/Stamina/XP) in `apps/client-2d/src/live/playerVitalState.ts`; heartbeat-driven via `playerVitalState.onHeartbeatVitals()`; HUD receives vitals via `usePlayerVitalState()` hook |
+| **ArelorianStitchHud** | Deterministic HUD with server-authoritative vitals; receives `vitals` prop from heartbeat state; Gauge components display HP/MP/STA/XP percentages |
 | Data content root | `game-data/` by default, optional published pack via `USE_PUBLISHED_CONTENT` / `CONTENT_PACK_DIR` |
 
 ## Authentication and persistence

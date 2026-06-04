@@ -34,6 +34,12 @@ This roadmap tracks the gap between what is already live in the repository and w
 | World systems | Chunk/terrain/weather/resource foundations active | Expand biome/content depth and optimize streaming boundaries |
 | **2D Client UI** | Inventory, Character overlay (press C), native CSS styling shipped | Expand with Quest tracker, Map, Settings panels |
 
+**2D Client Vitals (DONE in PR #1678):**
+- Deterministic player vitals state (`playerVitalState.ts`)
+- Heartbeat-driven vitals update (tick + acknowledgedSeq ordering)
+- HUD displays real HP/MP/Stamina/XP from server
+- No Date.now(), no Math.random(), no client-side prediction
+
 ---
 
 ## Tier C — polish and operational quality

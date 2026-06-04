@@ -11,13 +11,17 @@ owner: client-2d
 
 This guide captures best practices for working with the client-2d (PixiJS) isometric renderer. It focuses on common pitfalls, debugging strategies, and patterns that prevent issues like chunk visibility failures.
 
+**Updated 2026-06-04:** Added Player Vital State section.
+
 ## Core Architecture
 
 ### Entry Points
 
 | Entry | File | Purpose |
 |-------|------|---------|
-| Main App | `DeterministicWorldIsoApp.tsx` | React + PixiJS integration |
+| Main App | `DeterministicWorldIsoApp.tsx` | React + PixiJS deterministic isometric rendering |
+| HUD | `ArelorianStitchHud.tsx` | Game UI overlay with vitals display |
+| Live State | `live/playerVitalState.ts` | Server-authoritative vitals management |
 | UI System | `UIManager.tsx` | React UI overlay |
 | Rendering | PixiJS v7 | 60 FPS interpolated sprites |
 
@@ -232,6 +236,71 @@ function onHeartbeat(event: any) {
   }
 }
 ```
+
+## Player Vital State (Deterministic)
+
+All player vitals (HP, MP, Stamina, XP) are server-authoritative and flow through `playerVitalState.ts`.
+
+### Architecture
+
+```
+Server Heartbeat (WORLD_HEARTBEAT)
+        ↓
+extractVitalsFromPayload(payload)  ← No Date.now(), no Math.random()
+        ↓
+playerVitalState.onHeartbeatVitals(tick, acknowledgedSeq, vitalsUpdate)
+        ↓ (useSyncExternalStore)
+usePlayerVitalState() in app
+        ↓
+vitalsData → <ArelorianStitchHud vitals={vitalsData} />
+        ↓
+Gauge components: HP/MP/STA/XP percentages
+```
+
+### Usage in App
+
+```typescript
+import { playerVitalState, usePlayerVitalState, extractVitalsFromPayload, toInventoryItems, type PlayerVitalsData } from "./live/playerVitalState";
+
+// Hook in component
+const vitalState = usePlayerVitalState();
+const inventoryItems = toInventoryItems(vitalState.inventory);
+
+const vitalsData: PlayerVitalsData = {
+  hp: vitalState.vitals.hp,
+  maxHp: vitalState.vitals.maxHp,
+  mana: vitalState.vitals.mana,
+  maxMana: vitalState.vitals.maxMana,
+  stamina: vitalState.vitals.stamina,
+  maxStamina: vitalState.vitals.maxStamina,
+  xp: vitalState.vitals.xp,
+  maxXp: vitalState.vitals.maxXp,
+  level: vitalState.vitals.level,
+};
+```
+
+### Update from Heartbeat
+
+```typescript
+// In WORLD_HEARTBEAT handler:
+const tick = event.payload?.tick ?? event.payload?.serverTick ?? null;
+const acknowledgedSeq = event.payload?.acknowledgedInputSeq ?? event.payload?.ackSeq ?? -1;
+
+if (tick !== null) {
+  const vitalsUpdate = extractVitalsFromPayload(event.payload);
+  if (Object.keys(vitalsUpdate).length > 0) {
+    playerVitalState.onHeartbeatVitals(tick, acknowledgedSeq, vitalsUpdate);
+  }
+}
+```
+
+### Rules
+
+✅ **Server-authoritative**: All values come from heartbeat only
+✅ **Deterministic**: tick + acknowledgedSeq drive ordering
+✅ **No Date.now()**: Only server time references
+✅ **No Math.random()**: All randomness from ARERng
+✅ **No client prediction**: Vitals come directly from server
 
 ## Debugging Checklist
 

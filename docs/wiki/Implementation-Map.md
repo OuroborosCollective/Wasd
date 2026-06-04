@@ -42,8 +42,10 @@ Use it to keep [[ARE Logic Core|ARE-Logic-Core]] and shipped code aligned.
 | Asset validation | `scripts/validate-client-2d-assets.mjs` | active |
 | Weapon pool extraction | `scripts/extract-2d-weapon-pool.mjs` | active |
 | Asset manifest | `apps/client-2d/public/2d-assets/manifest.json` | active |
+| Deterministic renderer | `apps/client-2d/src/DeterministicWorldIsoApp.tsx` | active |
+| HUD overlay | `apps/client-2d/src/ArelorianStitchHud.tsx` | active |
+| Player vitals state | `apps/client-2d/src/live/playerVitalState.ts` | active |
 | Pixi prop rendering | `apps/client-2d/src/stackedProps.ts` | active |
-| Client scene | `apps/client-2d/src/CyberZenIsoApp.tsx` | active |
 
 ---
 
