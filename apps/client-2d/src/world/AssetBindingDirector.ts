@@ -74,7 +74,13 @@ function isValidPropCandidate(id: string, entry: AssetEntry | null | undefined):
     'petals', 'petal', 'ground-details', 'ground_detail', 'ground detail',
     'label', 'text', 'ui', 'font', 'sheet', 'preview',
     'petals_and',
-    'decor-and-homey', 'extra-cozy-details', 'homey'
+    'decor-and-homey', 'extra-cozy-details', 'homey',
+    // Letter/font artifacts (e.g., "GA", "NC", "&", "E" sprites from alphabet packs)
+    'alphabet', 'letters', 'glyph', 'symbol', 'character_set', 'characterset',
+    'abc_', '_abc', 'az_', '_az', 'uppercase', 'lowercase', 'number',
+    'pixel_font', 'pixelfont', 'bitmap_font', 'bitmapfont',
+    'sign_letter', 'sign_number', 'wall_letter',
+    'tile_number', 'tile_letter', 'ground_number', 'ground_letter',
   ];
   
   for (const pattern of artifactPatterns) {
@@ -116,6 +122,94 @@ function isValidPropCandidate(id: string, entry: AssetEntry | null | undefined):
     // Also reject very small crops (likely sheet fragments)
     if (width < 16 || height < 16) return false;
   }
+  
+  // Reject entries with single-letter or very short IDs that look like sprite sheet cells
+  // These are often letter/symbol sprites from alphabet packs (e.g., "G", "A", "N", "C", "&", "E")
+  // that were incorrectly imported as game entities
+  const idBase = idLower.split('_')[0].split('-')[0]; // Get first segment of ID
+  if (idBase && idBase.length <= 2 && /^[a-z0-9&]+$/.test(idBase)) {
+    // Reject single letters or letter combinations like "ga", "nc", "&", "e"
+    // but allow proper prop names that happen to be short
+    const singleLetterPatterns = ['ga', 'nc', 'ea', 'eb', 'ec', 'ed', 'npc', 'ga_', 'nc_'];
+    for (const pattern of singleLetterPatterns) {
+      if (idLower === pattern || idLower.startsWith(pattern + '_') || idLower.startsWith(pattern + '-')) {
+        return false;
+      }
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * Hard runtime filter: is this entry a valid character/NPC for rendering?
+ * Returns false for letter sprites, symbol packs, or non-entity artifacts.
+ */
+function isValidCharacterCandidate(id: string, entry: AssetEntry | null | undefined): boolean {
+  if (!entry) return false;
+  
+  // Must have source
+  if (!entry.src) return false;
+  
+  // Cannot be marked as prop or tile
+  if ((entry.meta as any)?.usableAsProp === true) return false;
+  if ((entry.meta as any)?.usableAsTile === true) return false;
+  
+  const idLower = id.toLowerCase();
+  const srcLower = (entry.src || '').toLowerCase();
+  const groupLower = (entry.group || '').toLowerCase();
+  const sourceNameLower = (entry.sourceName || '').toLowerCase();
+  const kindLower = (entry.kind || '').toLowerCase();
+  
+  // Reject if kind is "deco" or similar non-character kinds
+  if (kindLower === 'deco' || kindLower === 'prop' || kindLower === 'tile') {
+    return false;
+  }
+  
+  // Reject artifact patterns in ID/src/group/sourceName
+  const artifactPatterns = [
+    'alphabet', 'letters', 'glyph', 'symbol', 'character_set', 'characterset',
+    'abc_', '_abc', 'az_', '_az', 'uppercase', 'lowercase',
+    'pixel_font', 'pixelfont', 'bitmap_font', 'bitmapfont',
+    'ground_', 'tile_', 'terrain_', 'prop_',
+    'petals', 'petal', 'ground-details', 'ground_detail',
+    'label', 'text', 'ui', 'font', 'sheet', 'preview',
+    'deco', 'decor',
+  ];
+  
+  for (const pattern of artifactPatterns) {
+    if (idLower.includes(pattern) || srcLower.includes(pattern) || 
+        groupLower.includes(pattern) || sourceNameLower.includes(pattern)) {
+      return false;
+    }
+  }
+  
+  // Reject NC_ prefix patterns (often letter sprite artifacts)
+  const srcFilename = entry.src?.split('/').pop() || '';
+  if (/\bnc_\d/.test(idLower) || /\bnc_[a-z]/.test(idLower) ||
+      srcFilename.toLowerCase().startsWith('nc_')) {
+    return false;
+  }
+  
+  // Reject entries with single-letter or very short IDs
+  const idBase = idLower.split('_')[0].split('-')[0];
+  if (idBase && idBase.length <= 2 && /^[a-z0-9&]+$/.test(idBase)) {
+    const singleLetterPatterns = ['ga', 'nc', 'ea', 'eb', 'ec', 'ed', 'npc', 'ga_', 'nc_'];
+    for (const pattern of singleLetterPatterns) {
+      if (idLower === pattern || idLower.startsWith(pattern + '_') || idLower.startsWith(pattern + '-')) {
+        return false;
+      }
+    }
+  }
+  
+  // Size validation: characters should be reasonable size
+  const width = entry.width ?? 0;
+  const height = entry.height ?? 0;
+  
+  // Reject tiny entries (likely sprite sheet fragments)
+  if (width < 16 || height < 16) return false;
+  // Reject huge entries (likely full sheets not sliced)
+  if (width > 512 || height > 512) return false;
   
   return true;
 }
@@ -566,10 +660,13 @@ export class AssetBindingDirector {
     context: AssetBindingContext,
   ): BindingResult {
     const seed = combineSeed('npc', role, String(context.seed));
-    const candidates = this.collectCandidates('characters');
     
+    // Collect candidates from characters category and apply strict filter
+    const rawCandidates = this.collectCandidates('characters');
+    const candidates = rawCandidates.filter(([id, entry]) => isValidCharacterCandidate(id, entry));
+
     if (candidates.length === 0) {
-      return this.createEmptyResult(seed, role, true, 'no characters in manifest');
+      return this.createEmptyResult(seed, role, true, 'no valid characters in manifest after filtering');
     }
 
     // Create semantic query
