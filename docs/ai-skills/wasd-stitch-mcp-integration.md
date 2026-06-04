@@ -202,8 +202,8 @@ function MenuButton() {
 ## Planned Screens
 
 The user has indicated interest in creating:
-- [x] Trade Window ✅ (integrated)
-- [x] Mail/Message System ✅ (integrated)
+- [ ] Trade Window
+- [ ] Mail/Message System
 - [ ] Achievement Panel
 - [ ] Market/Auction House
 - [ ] Mount/Pet Interface
@@ -212,9 +212,12 @@ The user has indicated interest in creating:
 ## Additional Screens in Stitch (Not Yet Integrated)
 
 These screens exist in Stitch but are not yet in the codebase:
+- Trade Window - Player Exchange
 - Gameplay HUD - AI Lore Helper & Timeline
-- Gameplay HUD - Buff Bar & Feedback
+- Gameplay HUD - Quest Tracker Overlay
 - Gameplay HUD - Collapsible Buff Bar
+- Gameplay HUD - Buff Bar & Feedback
+- Gameplay HUD - Collapsible Panels & Mini Icons
 - Weather Overlay - Rain (Cyan Surge)
 - World Atlas - Town Zoom & Group Finder
 - Refinement Success - Celebration Overlay
