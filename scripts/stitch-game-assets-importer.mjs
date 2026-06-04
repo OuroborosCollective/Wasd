@@ -1,568 +1,83 @@
 #!/usr/bin/env node
 /**
- * stitch-game-assets-importer.mjs
- * 
- * Imports Stitch-generated game assets (models, effects, biomes, symbols, weather)
- * from the Arelorian Stitch project into the 2D client asset system.
- * 
+ * Autonomous Stitch asset importer for WASD client-2d.
+ * Correct target: apps/client-2d/public/2d-assets/game-assets
  * Usage:
- *   node scripts/stitch-game-assets-importer.mjs [--dry-run]
- * 
- * Environment:
- *   GITHUB_TOKEN - Required for GitHub API access
- *   STITCH_API_KEY - Optional, for MCP-based asset listing
- *   ISSUE_NUMBER - GitHub issue with asset ZIP attachments (default: 1071)
- * 
- * Asset Categories:
- *   - models: Character sprites, NPC models
- *   - effects: Skill particles, combat FX
- *   - biomes: Environment terrain, transitions
- *   - symbols: Icons, UI elements
- *   - weather: Weather overlays, particle effects
- * 
- * Target: Cozy Asset Director workflow for auto-cropping and live game integration
+ *   node scripts/stitch-game-assets-importer.mjs --local-inbox=./asset-inbox
+ *   node scripts/stitch-game-assets-importer.mjs --local-inbox=./asset-inbox --dry-run
+ *   GITHUB_TOKEN=... ISSUE_NUMBER=1071 node scripts/stitch-game-assets-importer.mjs
  */
-
+import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-// Configuration
-const PROJECT_ID = '5320982353793182486';
+const REPO = process.env.GITHUB_REPOSITORY || 'OuroborosCollective/Wasd';
+const TOKEN = process.env.GITHUB_TOKEN || '';
+const ISSUE_NUMBER = String(process.env.ISSUE_NUMBER || '1071');
 const STITCH_PROJECT_URL = 'https://stitch.withgoogle.com/projects/5320982353793182486';
-const repo = process.env.GITHUB_REPOSITORY || 'Arelorian/Ouroboros';
-const token = process.env.GITHUB_TOKEN;
-const issueNumber = String(process.env.ISSUE_NUMBER || '1071');
-const dryRun = process.argv.includes('--dry-run');
-const localInbox = process.argv.find(a => a.startsWith('--local-inbox='))?.split('=')[1] || null;
-const localOutput = process.argv.find(a => a.startsWith('--output='))?.split('=')[1] || null;
-
+const args = new Map(process.argv.slice(2).filter((a) => a.startsWith('--')).map((a) => { const [k, ...v] = a.slice(2).split('='); return [k, v.length ? v.join('=') : 'true']; }));
+const dryRun = args.get('dry-run') === 'true';
+const localInbox = args.get('local-inbox') || args.get('input') || null;
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const root = resolve(scriptDir, '..');
 const publicRoot = join(root, 'apps/client-2d/public/2d-assets');
-const stitchRoot = join(publicRoot, 'stitch');
 const gameAssetsRoot = join(publicRoot, 'game-assets');
 const manifestPath = join(publicRoot, 'manifest.json');
-
-const workRoot = join(tmpdir(), `wasd-stitch-game-assets-${Date.now()}`);
+const outputRoot = resolve(args.get('output') || gameAssetsRoot);
+const workRoot = join(tmpdir(), `wasd-stitch-assets-${Date.now()}`);
 const extractRoot = join(workRoot, 'extract');
 const zipRoot = join(workRoot, 'zips');
 
-// Asset category definitions
-const CATEGORIES = {
-  models: {
-    folder: 'models',
-    tags: ['character', 'npc', 'sprite', 'animation'],
-    patterns: ['character', 'charakter', 'npc', 'samurai', 'mongolian', 'medieval', 'guard', 'hero'],
-    depth: { zHeight: 2, isoFootprint: { w: 64, h: 64 }, shadow: { w: 72, h: 20, alpha: 0.35 } },
-    frameSize: 256,
-  },
-  effects: {
-    folder: 'effects',
-    tags: ['fx', 'particle', 'magic', 'combat', 'spell'],
-    patterns: ['effect', 'effects', 'fx', 'particle', 'spell', 'magic', 'combat', 'slash', 'fire', 'ice', 'lightning'],
-    depth: { zHeight: 1, isoFootprint: { w: 32, h: 32 }, shadow: { w: 40, h: 12, alpha: 0.25 } },
-    frameSize: 128,
-  },
-  biomes: {
-    folder: 'biomes',
-    tags: ['terrain', 'environment', 'ground', 'tile'],
-    patterns: ['biome', 'terrain', 'ground', 'tile', 'environment', 'forest', 'desert', 'snow', 'swamp'],
-    depth: { tileWidth: 64, tileHeight: 64 },
-    frameSize: 64,
-  },
-  symbols: {
-    folder: 'symbols',
-    tags: ['icon', 'ui', 'symbol', 'item'],
-    patterns: ['icon', 'symbol', 'item', 'resource', 'diamond', 'glass', 'armor', 'weapon'],
-    depth: { zHeight: 1, isoFootprint: { w: 32, h: 32 }, shadow: null },
-    frameSize: 64,
-  },
-  weather: {
-    folder: 'weather',
-    tags: ['weather', 'particle', 'overlay', 'rain', 'snow', 'storm'],
-    patterns: ['weather', 'rain', 'snow', 'storm', 'electron', 'surge', 'overlay', 'particle'],
-    depth: { zHeight: 0, isoFootprint: { w: 0, h: 0 }, shadow: null },
-    frameSize: 128,
-  },
-  shirts: {
-    folder: 'shirts',
-    tags: ['equipment', 'armor', 'overlay', 'shirt', 'clothing'],
-    patterns: ['shirt', 'shirts', 'armor', 'armor_overlay', 'equipment', 'cloth', 'clothing', 'tunic', 'robe', 'chainmail', 'plate', 'leather', 'mail'],
-    depth: { zHeight: 2, isoFootprint: { w: 64, h: 64 }, shadow: null },
-    frameSize: 64,
-    overlay: true, // Equipment overlay for character sprites
-    anchorY: 0.85, // Bottom anchor for layering on characters
-  },
+const EXT_KIND = { '.png': 'image', '.jpg': 'image', '.jpeg': 'image', '.webp': 'image', '.gif': 'image', '.svg': 'vector', '.json': 'metadata', '.atlas': 'metadata', '.glb': 'model3d', '.gltf': 'model3d', '.fbx': 'model3d', '.obj': 'model3d', '.wav': 'audio', '.mp3': 'audio', '.ogg': 'audio', '.mp4': 'video', '.webm': 'video', '.zip': 'archive' };
+const CAT = {
+  models: { keys: ['character','charakter','player','npc','hero','guard','villager','samurai','mongol','warrior','knight','mage','rogue','archer','enemy','monster','boss'], frame: 256, depth: { zHeight: 2, isoFootprint: { w: 64, h: 64 }, shadow: { w: 72, h: 20, alpha: 0.35 } }, tags: ['character','npc','sprite'] },
+  effects: { keys: ['effect','effects','fx','particle','spell','magic','combat','slash','fire','ice','lightning','impact','explosion','aura','hit','spark'], frame: 128, depth: { zHeight: 1, isoFootprint: { w: 32, h: 32 }, shadow: { w: 40, h: 12, alpha: 0.25 } }, tags: ['fx','particle','spell'] },
+  biomes: { keys: ['biome','terrain','ground','tile','grass','forest','desert','snow','swamp','water','lava','road','stone','sand','dirt'], frame: 64, depth: { zHeight: 0, tileWidth: 64, tileHeight: 64, shadow: null }, tags: ['terrain','tile'] },
+  symbols: { keys: ['symbol','icon','ui','hud','button','panel','slot','inventory','paperdoll','resource','coin','gem','ore','potion','item'], frame: 64, depth: { zHeight: 1, isoFootprint: { w: 32, h: 32 }, shadow: null }, tags: ['ui','icon'] },
+  weather: { keys: ['weather','rain','snow','storm','fog','mist','cloud','wind','thunder','overlay'], frame: 128, depth: { zHeight: 0, isoFootprint: { w: 0, h: 0 }, shadow: null }, tags: ['weather','overlay'] },
+  shirts: { keys: ['shirt','armor_overlay','equipment','clothing','cloth','tunic','robe','chainmail','plate','leather','helmet','boots','gloves','pants'], frame: 64, depth: { zHeight: 2, isoFootprint: { w: 64, h: 64 }, shadow: null }, tags: ['equipment','overlay'], overlay: true },
+  buildings: { keys: ['building','house','wall','castle','tower','gate','door','bridge','city','village','kingdom','fort','dungeon'], frame: 256, depth: { zHeight: 3, isoFootprint: { w: 128, h: 96 }, shadow: { w: 144, h: 32, alpha: 0.3 } }, tags: ['building','world'] },
+  audio: { keys: ['audio','sound','sfx','music','ambient','footstep','attack','click'], frame: 0, depth: {}, tags: ['audio'] },
+  misc: { keys: [], frame: 64, depth: { zHeight: 1, isoFootprint: { w: 32, h: 32 }, shadow: null }, tags: ['misc'] }
 };
+const CULTURE = { samurai: ['samurai','japan','ronin','shogun','katana'], mongolian: ['mongol','steppe','khan'], medieval: ['medieval','castle','knight','kingdom','fantasy'], cyber: ['cyber','neon','electron','tech'], forest: ['forest','druid','woodland'], desert: ['desert','sand','nomad'] };
+const cats = Object.keys(CAT);
 
-function log(message, type = 'info') {
-  const prefix = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : '✅';
-  console.log(`[StitchGameAssets] ${prefix} ${message}`);
+function log(m,t='info'){ console.log(`[StitchGameAssets] ${t==='warn'?'⚠️':t==='dry'?'🧪':'✅'} ${m}`); }
+function sh(c,a,o={}){ return execFileSync(c,a,{stdio:'pipe',encoding:'utf8',...o}); }
+function slug(s,max=96){ return (String(s||'asset').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').replace(/_{2,}/g,'_').slice(0,max) || 'asset'); }
+function files(d){ const out=[]; if(!existsSync(d)) return out; for(const x of readdirSync(d)){ const p=join(d,x), st=statSync(p); if(st.isDirectory()) out.push(...files(p)); else out.push(p); } return out.sort(); }
+function readJson(p){ return JSON.parse(readFileSync(p,'utf8')); }
+function writeJson(p,v){ if(dryRun){ log(`[DRY-RUN] write ${p}`,'dry'); return; } mkdirSync(dirname(p),{recursive:true}); writeFileSync(p, JSON.stringify(v,null,2)+'\n'); }
+function copy(src,dst){ if(dryRun){ log(`[DRY-RUN] copy ${src} -> ${dst}`,'dry'); return; } mkdirSync(dirname(dst),{recursive:true}); copyFileSync(src,dst); }
+function hash(p){ return crypto.createHash('sha256').update(readFileSync(p)).digest('hex'); }
+function tokens(p,base){ const rel=relative(base,p), ext=extname(p); return (ext?rel.slice(0,-ext.length):rel).split(/[\\/_.\-\s]+/g).map((x)=>slug(x,48)).filter(Boolean); }
+function score(ts,ks){ let n=0; for(const t of ts) for(const k of ks) n += t===k ? 5 : t.includes(k) ? 3 : (k.includes(t)&&t.length>=4) ? 1 : 0; return n; }
+function kind(p){ return EXT_KIND[extname(p).toLowerCase()] || 'binary'; }
+function category(p,base){ const k=kind(p), ts=tokens(p,base); if(k==='audio') return 'audio'; if(k==='metadata') return 'misc'; let best='misc', bs=0; const order=['shirts','weather','effects','biomes','models','symbols','buildings']; for(const c of order){ const s=score(ts,CAT[c].keys); if(s>bs){ best=c; bs=s; } } if(k==='model3d' && best==='misc') return 'models'; if(k==='image' && best==='misc') return 'effects'; return best; }
+function culture(p,base){ const ts=tokens(p,base); let best='cross-cultural', bs=0; for(const [c,ks] of Object.entries(CULTURE)){ const s=score(ts,ks); if(s>bs){ best=c; bs=s; } } return best; }
+function pngSize(p){ try{ const b=readFileSync(p); if(b.length>=24 && b[0]===0x89 && b[1]===0x50 && b[2]===0x4e && b[3]===0x47) return { width:b.readUInt32BE(16), height:b.readUInt32BE(20) }; }catch{} return null; }
+function ensureManifest(m){ m.version??=1; m.generatedAt=new Date().toISOString(); m.basePath??='/2d-assets'; m.sources??=[]; m.fallbacks??={}; for(const c of cats) m[c]??={}; m.gameAssets??={}; return m; }
+function gameManifest(src){ return { version:2, generatedAt:new Date().toISOString(), mode:'deterministic-open-detection', source:src, stitchProjectUrl:STITCH_PROJECT_URL, basePath:'/2d-assets/game-assets', outputPath:'apps/client-2d/public/2d-assets/game-assets', categories:cats, sources:[], stats:{totalFiles:0, importedFiles:0, skippedFiles:0}, assets:Object.fromEntries(cats.map((c)=>[c,{}])), index:[] }; }
+function atlasJson({imageName,id,frameSize,size,cat}){ const w=size?.width || frameSize*4, h=size?.height || frameSize*4, cols=Math.max(1,Math.floor(w/frameSize)), rows=Math.max(1,Math.floor(h/frameSize)); const frames={}, names=[]; for(let i=0;i<cols*rows;i++){ const n=`${id}_frame_${String(i+1).padStart(2,'0')}`; names.push(n); frames[n]={ frame:{x:(i%cols)*frameSize,y:Math.floor(i/cols)*frameSize,w:frameSize,h:frameSize}, rotated:false, trimmed:false, spriteSourceSize:{x:0,y:0,w:frameSize,h:frameSize}, sourceSize:{w:frameSize,h:frameSize}, anchor:{x:0.5,y:cat==='models'?0.9:cat==='shirts'?0.85:0.5} }; } return { frames, animations:{ [`${id}_${cat==='models'?'default':'loop'}`]:names }, meta:{ app:'Areloria WASD Stitch Importer', image:imageName, size:{w,h}, scale:'1' } }; }
+async function gh(path){ if(!TOKEN) throw new Error('GITHUB_TOKEN required or use --local-inbox'); const r=await fetch(`https://api.github.com${path}`,{headers:{Authorization:`Bearer ${TOKEN}`,Accept:'application/vnd.github+json','User-Agent':'wasd-stitch-assets'}}); if(!r.ok) throw new Error(`${r.status} ${await r.text()}`); return r.json(); }
+
+async function importDir(base, rootManifest, gm, source='local-inbox'){
+  const all=files(base), jsons=all.filter((p)=>extname(p).toLowerCase()==='.json'); gm.stats.totalFiles+=all.length; log(`Scanning ${all.length} files from ${base}`);
+  for(const p of all){ try{
+    if(kind(p)==='archive'){ gm.stats.skippedFiles++; continue; }
+    const cat=category(p,base), cfg=CAT[cat], group=culture(p,base), h=hash(p), k=kind(p), ext=extname(p).toLowerCase(), size=k==='image'?pngSize(p):null;
+    const id=slug(['stitch',cat,group,k,...tokens(p,base).slice(-4),size?`${size.width}x${size.height}`:'nosize',h.slice(0,10)].join('_'),120);
+    const dir=join(outputRoot,id), name=`${id}${ext||'.bin'}`; copy(p,join(dir,name));
+    let atlas=null; if(k==='image' && ['.png','.jpg','.jpeg','.webp'].includes(ext)){ const an=`${id}.json`; writeJson(join(dir,an), atlasJson({imageName:name,id,frameSize:cfg.frame||64,size,cat})); atlas=`/2d-assets/game-assets/${id}/${an}`; }
+    const entry={ id, src:`/2d-assets/game-assets/${id}/${name}`, originalSrc:`/2d-assets/game-assets/${id}/${name}`, atlas, source, sourcePath:relative(base,p), kind:k, category:cat, group, hash:h, sizeBytes:statSync(p).size, tags:['stitch','game-asset',k,cat,group,...cfg.tags], ...cfg.depth };
+    if(cfg.overlay){ entry.overlay=true; entry.layer='equipment-overlay'; entry.anchorY=0.85; }
+    writeJson(join(dir,`${id}.meta.json`),entry); gm.assets[cat][id]=entry; gm.index.push({id,category:cat,kind:k,group,src:entry.src,atlas,sourcePath:entry.sourcePath}); rootManifest[cat][id]=entry; rootManifest.gameAssets[id]={id,category:cat,kind:k,group,src:entry.src,atlas,tags:entry.tags}; gm.stats.importedFiles++;
+  }catch(e){ gm.stats.skippedFiles++; log(`Skipped ${relative(base,p)}: ${e.message}`,'warn'); } }
 }
-
-function sh(cmd, args, opts = {}) {
-  return execFileSync(cmd, args, { stdio: 'pipe', encoding: 'utf8', ...opts });
-}
-
-async function gh(path) {
-  const res = await fetch(`https://api.github.com${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'wasd-stitch-game-assets-importer',
-    },
-  });
-  if (!res.ok) throw new Error(`GitHub API ${path} failed: ${res.status} ${await res.text()}`);
-  return res.json();
-}
-
-function slug(input, max = 96) {
-  return String(input || 'asset')
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .replace(/_{2,}/g, '_')
-    .slice(0, max) || 'asset';
-}
-
-function listFiles(dir) {
-  const out = [];
-  if (!existsSync(dir)) return out;
-  for (const item of readdirSync(dir)) {
-    const full = join(dir, item);
-    const st = statSync(full);
-    if (st.isDirectory()) out.push(...listFiles(full));
-    else out.push(full);
-  }
-  return out;
-}
-
-function readJson(file) {
-  return JSON.parse(readFileSync(file, 'utf8'));
-}
-
-function categoryFor(text, categoryOverrides = {}) {
-  const hay = text.toLowerCase();
-  
-  // Check explicit patterns per category
-  for (const [cat, config] of Object.entries(CATEGORIES)) {
-    for (const pattern of config.patterns) {
-      if (hay.includes(pattern)) {
-        // Check for specific exclusions
-        if (cat === 'models' && /weather|particle|effect/.test(hay)) continue;
-        if (cat === 'effects' && /character|npc/.test(hay)) continue;
-        return cat;
-      }
-    }
-  }
-  
-  // Default logic based on common terms
-  if (/effect|particle|spell|magic|slash|fire|ice/i.test(hay)) return 'effects';
-  if (/weather|rain|snow|storm|overlay/i.test(hay)) return 'weather';
-  if (/biome|terrain|ground|environment|tile/i.test(hay)) return 'biomes';
-  if (/icon|symbol|item|resource|armor|weapon/i.test(hay)) return 'symbols';
-  if (/character|npc|samurai|guard|medieval|mongolian/i.test(hay)) return 'models';
-  
-  return 'effects'; // Default fallback
-}
-
-function cultureFor(text) {
-  const hay = text.toLowerCase();
-  if (/samurai|japanese|japan/.test(hay)) return 'samurai';
-  if (/mongol|mongolian|steppe/.test(hay)) return 'mongolian';
-  if (/medieval|fantasy|castle/.test(hay)) return 'medieval';
-  return 'cross-cultural';
-}
-
-function ensureManifestShape(manifest) {
-  manifest.version ??= 1;
-  manifest.generatedAt = new Date().toISOString();
-  manifest.basePath ??= '/2d-assets';
-  manifest.sources ??= [];
-  manifest.fallbacks ??= {};
-  
-  // Add game-assets categories
-  manifest.models ??= {};
-  manifest.effects ??= {};
-  manifest.biomes ??= {};
-  manifest.symbols ??= {};
-  manifest.weather ??= {};
-  manifest.shirts ??= {};
-  
-  return manifest;
-}
-
-function patchSpritesheetJson(payload, imageName, framePrefix) {
-  const cloned = JSON.parse(JSON.stringify(payload));
-  cloned.frames ??= {};
-  
-  const frames = {};
-  for (const [name, frame] of Object.entries(cloned.frames)) {
-    const normalizedName = slug(name.replace(/\.(png|webp|jpg|jpeg)$/i, ''), 96);
-    frames[normalizedName] = {
-      ...frame,
-      rotated: false,
-      trimmed: Boolean(frame.trimmed),
-    };
-  }
-  
-  cloned.frames = frames;
-  cloned.meta = {
-    ...(cloned.meta ?? {}),
-    app: 'Areloria WASD Stitch Game Assets Importer',
-    image: imageName,
-    scale: String(cloned.meta?.scale ?? '1'),
-  };
-  
-  return cloned;
-}
-
-function synthesizeGridJson({ imageName, framePrefix, frameSize = 256, columns = 4, rows = 4 }) {
-  const names = [];
-  const animations = {};
-  
-  // Generate standard animation frames
-  for (let i = 1; i <= 4; i++) names.push(`idle_${String(i).padStart(2, '0')}`);
-  for (let i = 1; i <= 4; i++) names.push(`walk_${String(i).padStart(2, '0')}`);
-  for (let i = 1; i <= 4; i++) names.push(`attack_${String(i).padStart(2, '0')}`);
-  for (let i = 1; i <= 4; i++) names.push(`death_${String(i).padStart(2, '0')}`);
-  
-  const frames = {};
-  names.forEach((name, index) => {
-    const x = (index % columns) * frameSize;
-    const y = Math.floor(index / columns) * frameSize;
-    frames[`${framePrefix}_${name}`] = {
-      frame: { x, y, w: frameSize, h: frameSize },
-      rotated: false,
-      trimmed: false,
-      spriteSourceSize: { x: 0, y: 0, w: frameSize, h: frameSize },
-      sourceSize: { w: frameSize, h: frameSize },
-      anchor: { x: 0.5, y: 0.9 },
-    };
-  });
-  
-  return {
-    frames,
-    animations: {
-      [`${framePrefix}_idle`]: names.slice(0, 4).map((_, i) => `${framePrefix}_idle_${String(i + 1).padStart(2, '0')}`),
-      [`${framePrefix}_walk`]: names.slice(4, 8).map((_, i) => `${framePrefix}_walk_${String(i + 1).padStart(2, '0')}`),
-      [`${framePrefix}_attack`]: names.slice(8, 12).map((_, i) => `${framePrefix}_attack_${String(i + 1).padStart(2, '0')}`),
-      [`${framePrefix}_death`]: names.slice(12, 16).map((_, i) => `${framePrefix}_death_${String(i + 1).padStart(2, '0')}`),
-    },
-    meta: {
-      app: 'Areloria WASD Stitch Game Assets Importer',
-      version: '1.0',
-      image: imageName,
-      format: 'RGBA8888',
-      size: { w: columns * frameSize, h: rows * frameSize },
-      scale: '1',
-    },
-  };
-}
-
-function defaultDepthMetadata(category, sourceText) {
-  const config = CATEGORIES[category] || {};
-  return config.depth || { zHeight: 1, isoFootprint: { w: 64, h: 32 }, shadow: { w: 72, h: 20, alpha: 0.32 } };
-}
-
-async function main() {
-  log(`Starting Stitch game assets import (dry-run: ${dryRun})`);
-  
-  // Setup directories
-  rmSync(workRoot, { recursive: true, force: true });
-  mkdirSync(extractRoot, { recursive: true });
-  mkdirSync(zipRoot, { recursive: true });
-  mkdirSync(gameAssetsRoot, { recursive: true });
-  
-  // Determine output path
-  const outputPath = localOutput || gameAssetsRoot;
-  mkdirSync(outputPath, { recursive: true });
-  
-  // Load or create root manifest
-  const rootManifest = existsSync(manifestPath) 
-    ? ensureManifestShape(readJson(manifestPath)) 
-    : ensureManifestShape({});
-  
-  const gameAssetsManifest = {
-    version: 1,
-    generatedAt: new Date().toISOString(),
-    sourceIssue: localInbox ? 'local-inbox' : Number(issueNumber),
-    stitchProjectUrl: STITCH_PROJECT_URL,
-    basePath: '/2d-assets/game-assets',
-    categories: Object.keys(CATEGORIES),
-    notes: [
-      'Stitch-generated game assets for Arelorian 2D client.',
-      'Models, effects, biomes, symbols, and weather effects.',
-      'Organized for Cozy Asset Director auto-cropping workflow.',
-    ],
-    sources: [],
-    assets: {
-      models: {},
-      effects: {},
-      biomes: {},
-      symbols: {},
-      weather: {},
-    },
-  };
-  
-  // LOCAL INBOX MODE - Import directly from local folder
-  if (localInbox && existsSync(localInbox)) {
-    log(`Importing from local inbox: ${localInbox}`);
-    
-    const files = listFiles(localInbox);
-    const pngFiles = files.filter((file) => extname(file).toLowerCase() === '.png');
-    const jsonFiles = files.filter((file) => extname(file).toLowerCase() === '.json');
-    
-    log(`Found ${pngFiles.length} PNG files in local inbox`);
-    
-    for (const pngFile of pngFiles) {
-      const folder = basename(dirname(pngFile));
-      const rel = relative(localInbox, pngFile);
-      const descriptor = `${folder} ${rel}`;
-      
-      const category = categoryFor(descriptor);
-      const culture = cultureFor(descriptor);
-      const config = CATEGORIES[category] || {};
-      
-      const atlasIdBase = slug(`stitch_${category}_${culture}_${folder}`, 72);
-      let atlasId = atlasIdBase;
-      let suffix = 2;
-      while (gameAssetsManifest.assets[category]?.[atlasId] || existsSync(join(outputPath, atlasId))) {
-        atlasId = `${atlasIdBase}_${String(suffix).padStart(2, '0')}`;
-        suffix++;
-      }
-      
-      const atlasDir = join(outputPath, atlasId);
-      mkdirSync(atlasDir, { recursive: true });
-      
-      const imageName = `${atlasId}.png`;
-      const jsonName = `${atlasId}.json`;
-      
-      const imageRel = `game-assets/${atlasId}/${imageName}`;
-      const jsonRel = `game-assets/${atlasId}/${jsonName}`;
-      
-      copyFileSync(pngFile, join(atlasDir, imageName));
-      
-      // Find matching JSON
-      let jsonPayload;
-      let repair = 'meta-image-normalized';
-      
-      const matchingJson = jsonFiles.find(f => slug(basename(f)) === slug(basename(pngFile, '.png') + '.json'));
-      
-      if (matchingJson) {
-        jsonPayload = patchSpritesheetJson(readJson(matchingJson), imageName, atlasId);
-      } else {
-        const frameSize = config.frameSize || 256;
-        jsonPayload = synthesizeGridJson({ imageName, framePrefix: atlasId, frameSize, columns: 4, rows: 4 });
-        repair = 'synthesized-grid';
-      }
-      
-      writeFileSync(join(atlasDir, jsonName), JSON.stringify(jsonPayload, null, 2) + '\n');
-      
-      // Create entry
-      const entry = {
-        src: `/2d-assets/${imageRel}`,
-        atlas: `/2d-assets/${jsonRel}`,
-        source: 'local-inbox',
-        sourcePath: rel,
-        license: 'Project-owned Stitch-generated asset.',
-        kind: category,
-        group: culture,
-        tags: ['stitch', 'game-asset', category, culture, ...(config.tags || [])],
-        ...defaultDepthMetadata(category, descriptor),
-      };
-      
-      gameAssetsManifest.assets[category][atlasId] = entry;
-      rootManifest[category] ??= {};
-      rootManifest[category][atlasId] = entry;
-    }
-    
-    log(`Imported ${pngFiles.length} assets from local inbox`);
-  }
-  // GITHUB ISSUE MODE - Import from ZIP attachments (only if no local inbox)
-  else if (!localInbox && token) {
-    try {
-      log('Fetching asset URLs from GitHub issue...');
-      const issue = await gh(`/repos/${repo}/issues/${issueNumber}`);
-      const comments = await gh(`/repos/${repo}/issues/${issueNumber}/comments?per_page=100`);
-      const text = [issue.body || '', ...comments.map((c) => c.body || '')].join('\n');
-      
-      const urls = [...new Set([...text.matchAll(/https:\/\/github\.com\/user-attachments\/files\/[^\s)\]]+\.zip/gi)].map((m) => m[0]))];
-      
-      if (urls.length) {
-        log(`Found ${urls.length} ZIP attachments in issue #${issueNumber}`);
-        
-        let imported = 0;
-        for (const [sourceIndex, url] of urls.entries()) {
-          if (dryRun) {
-            log(`[DRY-RUN] Would download: ${url}`);
-            continue;
-          }
-          
-          const rawZipName = decodeURIComponent(url.split('/').pop() || `stitch-game-pack-${sourceIndex + 1}.zip`);
-          const zipName = rawZipName.replace(/[^a-zA-Z0-9_.() -]+/g, '_');
-          const zipSlug = slug(zipName.replace(/\.zip$/i, ''), 72);
-          const zipPath = join(zipRoot, `${String(sourceIndex + 1).padStart(2, '0')}_${zipSlug}.zip`);
-          const targetExtract = join(extractRoot, zipSlug);
-          mkdirSync(targetExtract, { recursive: true });
-          
-          log(`Downloading ${zipName}...`);
-          try {
-            sh('curl', ['-L', '--fail', '--retry', '3', '--retry-delay', '2', '-A', 'wasd-stitch-game-importer', '-o', zipPath, url], { stdio: 'inherit' });
-          } catch (e) {
-            log(`Failed to download ${url}: ${e.message}`, 'error');
-            continue;
-          }
-          
-          log(`Extracting ${zipName}...`);
-          sh('unzip', ['-q', '-o', zipPath, '-d', targetExtract], { stdio: 'inherit' });
-          
-          gameAssetsManifest.sources.push({ name: zipName, url, importedAs: zipSlug });
-          
-          // Process files
-          const files = listFiles(targetExtract);
-          const pngFiles = files.filter((file) => extname(file).toLowerCase() === '.png');
-          const jsonFiles = files.filter((file) => extname(file).toLowerCase() === '.json');
-          
-          for (const pngFile of pngFiles) {
-            const folder = basename(dirname(pngFile));
-            const rel = relative(targetExtract, pngFile);
-            const descriptor = `${folder} ${rel}`;
-            
-            const category = categoryFor(descriptor);
-            const culture = cultureFor(descriptor);
-            const config = CATEGORIES[category] || {};
-            
-            const atlasIdBase = slug(`stitch_${category}_${culture}_${folder}`, 72);
-            let atlasId = atlasIdBase;
-            let suffix = 2;
-            while (gameAssetsManifest.assets[category]?.[atlasId] || existsSync(join(gameAssetsRoot, atlasId))) {
-              atlasId = `${atlasIdBase}_${String(suffix).padStart(2, '0')}`;
-              suffix++;
-            }
-            
-            const atlasDir = join(gameAssetsRoot, atlasId);
-            mkdirSync(atlasDir, { recursive: true });
-            
-            const imageName = `${atlasId}.png`;
-            const jsonName = `${atlasId}.json`;
-            
-            const imageRel = `game-assets/${atlasId}/${imageName}`;
-            const jsonRel = `game-assets/${atlasId}/${jsonName}`;
-            
-            copyFileSync(pngFile, join(atlasDir, imageName));
-            
-            // Find matching JSON
-            let jsonPayload;
-            let repair = 'meta-image-normalized';
-            
-            const matchingJson = jsonFiles.find(f => slug(basename(f)) === slug(basename(pngFile, '.png') + '.json'));
-            
-            if (matchingJson) {
-              jsonPayload = patchSpritesheetJson(readJson(matchingJson), imageName, atlasId);
-            } else {
-              const frameSize = config.frameSize || 256;
-              jsonPayload = synthesizeGridJson({ imageName, framePrefix: atlasId, frameSize, columns: 4, rows: 4 });
-              repair = 'synthesized-grid';
-            }
-            
-            writeFileSync(join(atlasDir, jsonName), JSON.stringify(jsonPayload, null, 2) + '\n');
-            
-            // Create entry
-            const entry = {
-              src: `/2d-assets/${imageRel}`,
-              atlas: `/2d-assets/${jsonRel}`,
-              source: zipName,
-              sourcePath: rel,
-              license: 'Project-owned Stitch-generated asset. See /2d-assets/credits/stitch-game-assets-provenance.md',
-              kind: category,
-              group: culture,
-              tags: ['stitch', 'game-asset', category, culture, ...(config.tags || [])],
-              ...defaultDepthMetadata(category, descriptor),
-            };
-            
-            gameAssetsManifest.assets[category][atlasId] = entry;
-            rootManifest[category] ??= {};
-            rootManifest[category][atlasId] = entry;
-            
-            imported++;
-          }
-        }
-        
-        log(`Imported ${imported} game asset atlases`);
-      } else {
-        log(`No ZIP attachments found in issue #${issueNumber}`, 'warn');
-        log('Please upload Stitch-generated game asset ZIPs to the issue.', 'warn');
-      }
-    } catch (e) {
-      log(`GitHub API error: ${e.message}`, 'error');
-    }
-  }
-  
-  // Write manifests
-  const stitchGameManifestPath = join(outputPath, 'manifest.json');
-  writeFileSync(stitchGameManifestPath, JSON.stringify(gameAssetsManifest, null, 2) + '\n');
-  writeFileSync(manifestPath, JSON.stringify(rootManifest, null, 2) + '\n');
-  
-  // Create provenance document
-  const provenanceDir = join(publicRoot, 'credits');
-  mkdirSync(provenanceDir, { recursive: true });
-  const provenance = [
-    '# Stitch Game Assets Provenance',
-    '',
-    `Generated: ${new Date().toISOString()}`,
-    `Source issue: #${issueNumber}`,
-    `Stitch project: ${STITCH_PROJECT_URL}`,
-    '',
-    'These assets were generated via Google Stitch and imported into Arelorian.',
-    '',
-    '## Categories',
-    '- models: Character sprites and NPC animations',
-    '- effects: Skill particles and combat FX',
-    '- biomes: Environment terrain tiles',
-    '- symbols: UI icons and item graphics',
-    '- weather: Weather overlays and particle effects',
-    '',
-    '## Import sources',
-    '',
-    ...gameAssetsManifest.sources.map(s => `- ${s.name}: ${s.url || 'local'}`),
-  ];
-  writeFileSync(join(provenanceDir, 'stitch-game-assets-provenance.md'), provenance.join('\n') + '\n');
-  
-  // Summary
-  log('Import complete!');
-  log(`Summary:`);
-  log(`  - models: ${Object.keys(gameAssetsManifest.assets.models).length} atlases`);
-  log(`  - effects: ${Object.keys(gameAssetsManifest.assets.effects).length} atlases`);
-  log(`  - biomes: ${Object.keys(gameAssetsManifest.assets.biomes).length} atlases`);
-  log(`  - symbols: ${Object.keys(gameAssetsManifest.assets.symbols).length} atlases`);
-  log(`  - weather: ${Object.keys(gameAssetsManifest.assets.weather).length} atlases`);
-  log('');
-  log('Assets ready for Cozy Asset Director auto-cropping workflow.');
-  log(`Manifest: ${stitchGameManifestPath}`);
-  
-  // Cleanup
-  if (!dryRun) {
-    rmSync(workRoot, { recursive: true, force: true });
-  }
-}
-
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+async function importIssue(rootManifest,gm){ const issue=await gh(`/repos/${REPO}/issues/${ISSUE_NUMBER}`), comments=await gh(`/repos/${REPO}/issues/${ISSUE_NUMBER}/comments?per_page=100`); const text=[issue.body||'',...comments.map((c)=>c.body||'')].join('\n'); const urls=[...new Set([...text.matchAll(/https:\/\/github\.com\/user-attachments\/files\/[^\s)\]]+\.zip/gi)].map((m)=>m[0]))]; for(const [i,u] of urls.entries()){ const name=slug(decodeURIComponent(u.split('/').pop()||`pack_${i}.zip`)), zp=join(zipRoot,`${name}.zip`), ex=join(extractRoot,name); gm.sources.push({name,url:u}); if(dryRun) continue; mkdirSync(ex,{recursive:true}); sh('curl',['-L','--fail','--retry','3','-o',zp,u],{stdio:'inherit'}); sh('unzip',['-q','-o',zp,'-d',ex],{stdio:'inherit'}); await importDir(ex,rootManifest,gm,name); } }
+async function main(){ log(`2D target locked: ${gameAssetsRoot}`); if(!dryRun){ rmSync(workRoot,{recursive:true,force:true}); mkdirSync(extractRoot,{recursive:true}); mkdirSync(zipRoot,{recursive:true}); mkdirSync(outputRoot,{recursive:true}); mkdirSync(publicRoot,{recursive:true}); } const rootManifest=existsSync(manifestPath)?ensureManifest(readJson(manifestPath)):ensureManifest({}); const gm=gameManifest(localInbox?'local-inbox':`issue-${ISSUE_NUMBER}`); if(localInbox){ const inbox=resolve(localInbox); if(!existsSync(inbox)) throw new Error(`Missing inbox: ${inbox}`); gm.sources.push({name:'local-inbox',path:inbox}); await importDir(inbox,rootManifest,gm); } else await importIssue(rootManifest,gm); gm.index.sort((a,b)=>a.category.localeCompare(b.category)||a.kind.localeCompare(b.kind)||a.id.localeCompare(b.id)); writeJson(join(outputRoot,'manifest.json'),gm); writeJson(manifestPath,rootManifest); if(!dryRun) rmSync(workRoot,{recursive:true,force:true}); log(`Done imported=${gm.stats.importedFiles} skipped=${gm.stats.skippedFiles}`); }
+main().catch((e)=>{ console.error(`[StitchGameAssets] ❌ ${e.stack||e.message}`); process.exit(1); });
