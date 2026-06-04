@@ -1,0 +1,167 @@
+{
+  "frames": {
+    "ogue_idle_0.png": {
+      "x": 1792,
+      "y": 0,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_idle_1.png": {
+      "x": 1792,
+      "y": 256,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_idle_2.png": {
+      "x": 1792,
+      "y": 512,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_idle_3.png": {
+      "x": 1792,
+      "y": 768,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_idle_4.png": {
+      "x": 1792,
+      "y": 1024,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_walk_0.png": {
+      "x": 1792,
+      "y": 1280,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_walk_1.png": {
+      "x": 1792,
+      "y": 1536,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_walk_2.png": {
+      "x": 1792,
+      "y": 1792,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_walk_3.png": {
+      "x": 1792,
+      "y": 2048,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_walk_4.png": {
+      "x": 1792,
+      "y": 2304,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_fight_0.png": {
+      "x": 1792,
+      "y": 2560,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_fight_1.png": {
+      "x": 1792,
+      "y": 2816,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_fight_2.png": {
+      "x": 1792,
+      "y": 3072,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_fight_3.png": {
+      "x": 1792,
+      "y": 3328,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_fight_4.png": {
+      "x": 1792,
+      "y": 3584,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_die_0.png": {
+      "x": 1792,
+      "y": 3840,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_die_1.png": {
+      "x": 1792,
+      "y": 4096,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_die_2.png": {
+      "x": 1792,
+      "y": 4352,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_die_3.png": {
+      "x": 1792,
+      "y": 4608,
+      "w": 256,
+      "h": 256
+    },
+    "ogue_die_4.png": {
+      "x": 1792,
+      "y": 4864,
+      "w": 256,
+      "h": 256
+    }
+  },
+  "animations": {
+    "idle": [
+      "ogue_idle_0.png",
+      "ogue_idle_1.png",
+      "ogue_idle_2.png",
+      "ogue_idle_3.png",
+      "ogue_idle_4.png"
+    ],
+    "walk": [
+      "ogue_walk_0.png",
+      "ogue_walk_1.png",
+      "ogue_walk_2.png",
+      "ogue_walk_3.png",
+      "ogue_walk_4.png"
+    ],
+    "fight": [
+      "ogue_fight_0.png",
+      "ogue_fight_1.png",
+      "ogue_fight_2.png",
+      "ogue_fight_3.png",
+      "ogue_fight_4.png"
+    ],
+    "die": [
+      "ogue_die_0.png",
+      "ogue_die_1.png",
+      "ogue_die_2.png",
+      "ogue_die_3.png",
+      "ogue_die_4.png"
+    ]
+  },
+  "meta": {
+    "app": "Areloria WASD - Cozy Asset Director",
+    "version": "1.0.0",
+    "image": "stitch_ogue.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 2048,
+      "h": 5120
+    },
+    "scale": "1",
+    "stitchProject": "3680791926463184978",
+    "category": "models"
+  }
+}

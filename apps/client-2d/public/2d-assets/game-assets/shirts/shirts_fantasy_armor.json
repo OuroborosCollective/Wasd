@@ -1,0 +1,215 @@
+{
+  "frames": {
+    "shirt_chainmail_iron": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_chainmail_gold": {
+      "frame": { "x": 64, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_chainmail_red": {
+      "frame": { "x": 128, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_chainmail_blue": {
+      "frame": { "x": 192, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_plate_iron": {
+      "frame": { "x": 0, "y": 64, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_plate_gold": {
+      "frame": { "x": 64, "y": 64, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_plate_royal": {
+      "frame": { "x": 128, "y": 64, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_plate_void": {
+      "frame": { "x": 192, "y": 64, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_leather_brown": {
+      "frame": { "x": 0, "y": 128, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_leather_green": {
+      "frame": { "x": 64, "y": 128, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_leather_black": {
+      "frame": { "x": 128, "y": 128, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_leather_camo": {
+      "frame": { "x": 192, "y": 128, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_robe_blue": {
+      "frame": { "x": 0, "y": 192, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_robe_purple": {
+      "frame": { "x": 64, "y": 192, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_robe_white": {
+      "frame": { "x": 128, "y": 192, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_robe_red": {
+      "frame": { "x": 192, "y": 192, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_tunic_brown": {
+      "frame": { "x": 256, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_tunic_green": {
+      "frame": { "x": 320, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_tunic_gold": {
+      "frame": { "x": 384, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_tunic_blue": {
+      "frame": { "x": 448, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_mail_iron": {
+      "frame": { "x": 256, "y": 64, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_mail_steel": {
+      "frame": { "x": 320, "y": 64, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_mail_silver": {
+      "frame": { "x": 384, "y": 64, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_mail_rune": {
+      "frame": { "x": 448, "y": 64, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_scale_green": {
+      "frame": { "x": 256, "y": 128, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_scale_bone": {
+      "frame": { "x": 320, "y": 128, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_scale_dragon": {
+      "frame": { "x": 384, "y": 128, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_scale_fire": {
+      "frame": { "x": 448, "y": 128, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_cloth_white": {
+      "frame": { "x": 256, "y": 192, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_cloth_black": {
+      "frame": { "x": 320, "y": 192, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_cloth_grey": {
+      "frame": { "x": 384, "y": 192, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    },
+    "shirt_cloth_pink": {
+      "frame": { "x": 448, "y": 192, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "anchor": { "x": 0.5, "y": 0.85 }
+    }
+  },
+  "meta": {
+    "app": "Areloria WASD - Cozy Asset Director",
+    "version": "1.0.0",
+    "image": "shirts_fantasy_armor.png",
+    "format": "RGBA8888",
+    "size": { "w": 512, "h": 256 },
+    "scale": "1",
+    "category": "shirts",
+    "frameSize": 64,
+    "gridLayout": "8x4",
+    "stitchProject": "3680791926463184978",
+    "stitchScreen": null,
+    "autoCropEnabled": true,
+    "cropRules": {
+      "trimTransparentPixels": true,
+      "minimumCropArea": 8,
+      "preserveAspectRatio": true
+    }
+  }
+}

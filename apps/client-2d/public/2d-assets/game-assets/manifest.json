@@ -18,10 +18,214 @@
   ],
   "sources": [],
   "assets": {
-    "models": {},
+    "models": {
+      "models_a_professional_sprite_atlas_sheet_for_a_vdmz": {
+        "src": "/2d-assets/game-assets/models/characters/models_a_professional_sprite_atlas_sheet_for_a_vdmz.png",
+        "atlas": "/2d-assets/game-assets/models/characters/models_a_professional_sprite_atlas_sheet_for_a_vdmz.json",
+        "category": "models",
+        "folder": "models/characters",
+        "patterns": [
+          {},
+          {}
+        ],
+        "frameSize": 256,
+        "grid": {
+          "cols": 8,
+          "rows": 20
+        },
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9
+        },
+        "zHeight": 2,
+        "animations": [
+          "idle",
+          "walk",
+          "fight",
+          "die"
+        ]
+      }
+    },
     "effects": {},
-    "biomes": {},
-    "symbols": {},
-    "weather": {}
-  }
+    "biomes": {
+      "biomes_a_professional_sprite_atlas_sheet_for_a_vdoz": {
+        "src": "/2d-assets/game-assets/biomes/biomes_a_professional_sprite_atlas_sheet_for_a_vdoz.png",
+        "atlas": "/2d-assets/game-assets/biomes/biomes_a_professional_sprite_atlas_sheet_for_a_vdoz.json",
+        "category": "biomes",
+        "folder": "biomes",
+        "patterns": [
+          {},
+          {},
+          {}
+        ],
+        "frameSize": 64,
+        "grid": {
+          "cols": 8,
+          "rows": 8
+        },
+        "anchor": {
+          "x": 0.5,
+          "y": 0.5
+        },
+        "zHeight": 0,
+        "tileBased": true
+      }
+    },
+    "symbols": {
+      "symbols_a_high_fidelity_icon_atlas_sheet_for_2d_vdqa": {
+        "src": "/2d-assets/game-assets/symbols/symbols_a_high_fidelity_icon_atlas_sheet_for_2d_vdqa.png",
+        "atlas": "/2d-assets/game-assets/symbols/symbols_a_high_fidelity_icon_atlas_sheet_for_2d_vdqa.json",
+        "category": "symbols",
+        "folder": "symbols",
+        "patterns": [
+          {},
+          {}
+        ],
+        "frameSize": 64,
+        "grid": {
+          "cols": 8,
+          "rows": 8
+        },
+        "anchor": {
+          "x": 0.5,
+          "y": 0.5
+        },
+        "zHeight": 1,
+        "ui": true
+      }
+    },
+    "weather": {},
+    "shirts": {
+      "cleric": {
+        "src": "/2d-assets/game-assets/shirts/shirt_cleric_base.png",
+        "atlas": "/2d-assets/game-assets/shirts/shirt_cleric_base.json",
+        "category": "shirts",
+        "overlay": true,
+        "anchorY": 0.85,
+        "frames": {
+          "idle": 5,
+          "walk": 5,
+          "fight": 5,
+          "die": 5
+        },
+        "directions": 8
+      },
+      "mage": {
+        "src": "/2d-assets/game-assets/shirts/shirt_mage_base.png",
+        "atlas": "/2d-assets/game-assets/shirts/shirt_mage_base.json",
+        "category": "shirts",
+        "overlay": true,
+        "anchorY": 0.85,
+        "frames": {
+          "idle": 5,
+          "walk": 5,
+          "fight": 5,
+          "die": 5
+        },
+        "directions": 8
+      },
+      "archer": {
+        "src": "/2d-assets/game-assets/shirts/shirt_archer_base.png",
+        "atlas": "/2d-assets/game-assets/shirts/shirt_archer_base.json",
+        "category": "shirts",
+        "overlay": true,
+        "anchorY": 0.85,
+        "frames": {
+          "idle": 5,
+          "walk": 5,
+          "fight": 5,
+          "die": 5
+        },
+        "directions": 8
+      },
+      "berserker": {
+        "src": "/2d-assets/game-assets/shirts/shirt_berserker_base.png",
+        "atlas": "/2d-assets/game-assets/shirts/shirt_berserker_base.json",
+        "category": "shirts",
+        "overlay": true,
+        "anchorY": 0.85,
+        "frames": {
+          "idle": 5,
+          "walk": 5,
+          "fight": 5,
+          "die": 5
+        },
+        "directions": 8
+      },
+      "bard": {
+        "src": "/2d-assets/game-assets/shirts/shirt_bard_base.png",
+        "atlas": "/2d-assets/game-assets/shirts/shirt_bard_base.json",
+        "category": "shirts",
+        "overlay": true,
+        "anchorY": 0.85,
+        "frames": {
+          "idle": 5,
+          "walk": 5,
+          "fight": 5,
+          "die": 5
+        },
+        "directions": 8
+      },
+      "warrior": {
+        "src": "/2d-assets/game-assets/shirts/shirt_warrior_base.png",
+        "atlas": "/2d-assets/game-assets/shirts/shirt_warrior_base.json",
+        "category": "shirts",
+        "overlay": true,
+        "anchorY": 0.85,
+        "frames": {
+          "idle": 5,
+          "walk": 5,
+          "fight": 5,
+          "die": 5
+        },
+        "directions": 8
+      }
+    },
+    "resources": {
+      "resources_a_high_fidelity_icon_atlas_sheet_for_2d_vdrk": {
+        "src": "/2d-assets/game-assets/biomes/resources/resources_a_high_fidelity_icon_atlas_sheet_for_2d_vdrk.png",
+        "atlas": "/2d-assets/game-assets/biomes/resources/resources_a_high_fidelity_icon_atlas_sheet_for_2d_vdrk.json",
+        "category": "resources",
+        "folder": "biomes/resources",
+        "patterns": [
+          {},
+          {}
+        ],
+        "frameSize": 64,
+        "grid": {
+          "cols": 8,
+          "rows": 8
+        },
+        "anchor": {
+          "x": 0.5,
+          "y": 0.5
+        },
+        "zHeight": 0
+      }
+    },
+    "props": {
+      "props_a_high_fidelity_tile_atlas_sheet_for_a_2_vdsq": {
+        "src": "/2d-assets/game-assets/biomes/props/props_a_high_fidelity_tile_atlas_sheet_for_a_2_vdsq.png",
+        "atlas": "/2d-assets/game-assets/biomes/props/props_a_high_fidelity_tile_atlas_sheet_for_a_2_vdsq.json",
+        "category": "props",
+        "folder": "biomes/props",
+        "patterns": [
+          {},
+          {}
+        ],
+        "frameSize": 64,
+        "grid": {
+          "cols": 8,
+          "rows": 8
+        },
+        "anchor": {
+          "x": 0.5,
+          "y": 0.5
+        },
+        "zHeight": 1
+      }
+    }
+  },
+  "shirtsUpdatedAt": "2026-06-04T18:24:00.060Z",
+  "lastFullImport": "2026-06-04T18:28:58.857Z"
 }
