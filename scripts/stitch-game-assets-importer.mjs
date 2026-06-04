@@ -45,6 +45,8 @@ const repo = process.env.GITHUB_REPOSITORY || 'Arelorian/Ouroboros';
 const token = process.env.GITHUB_TOKEN;
 const issueNumber = String(process.env.ISSUE_NUMBER || '1071');
 const dryRun = process.argv.includes('--dry-run');
+const localInbox = process.argv.find(a => a.startsWith('--local-inbox='))?.split('=')[1] || null;
+const localOutput = process.argv.find(a => a.startsWith('--output='))?.split('=')[1] || null;
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const root = resolve(scriptDir, '..');
@@ -271,15 +273,15 @@ function defaultDepthMetadata(category, sourceText) {
 async function main() {
   log(`Starting Stitch game assets import (dry-run: ${dryRun})`);
   
-  if (!token && !dryRun) {
-    log('GITHUB_TOKEN not set. Running in demo mode with sample data.', 'warn');
-  }
-  
   // Setup directories
   rmSync(workRoot, { recursive: true, force: true });
   mkdirSync(extractRoot, { recursive: true });
   mkdirSync(zipRoot, { recursive: true });
   mkdirSync(gameAssetsRoot, { recursive: true });
+  
+  // Determine output path
+  const outputPath = localOutput || gameAssetsRoot;
+  mkdirSync(outputPath, { recursive: true });
   
   // Load or create root manifest
   const rootManifest = existsSync(manifestPath) 
@@ -289,7 +291,7 @@ async function main() {
   const gameAssetsManifest = {
     version: 1,
     generatedAt: new Date().toISOString(),
-    sourceIssue: Number(issueNumber),
+    sourceIssue: localInbox ? 'local-inbox' : Number(issueNumber),
     stitchProjectUrl: STITCH_PROJECT_URL,
     basePath: '/2d-assets/game-assets',
     categories: Object.keys(CATEGORIES),
@@ -308,8 +310,82 @@ async function main() {
     },
   };
   
-  // Import from GitHub issue attachments if token available
-  if (token) {
+  // LOCAL INBOX MODE - Import directly from local folder
+  if (localInbox && existsSync(localInbox)) {
+    log(`Importing from local inbox: ${localInbox}`);
+    
+    const files = listFiles(localInbox);
+    const pngFiles = files.filter((file) => extname(file).toLowerCase() === '.png');
+    const jsonFiles = files.filter((file) => extname(file).toLowerCase() === '.json');
+    
+    log(`Found ${pngFiles.length} PNG files in local inbox`);
+    
+    for (const pngFile of pngFiles) {
+      const folder = basename(dirname(pngFile));
+      const rel = relative(localInbox, pngFile);
+      const descriptor = `${folder} ${rel}`;
+      
+      const category = categoryFor(descriptor);
+      const culture = cultureFor(descriptor);
+      const config = CATEGORIES[category] || {};
+      
+      const atlasIdBase = slug(`stitch_${category}_${culture}_${folder}`, 72);
+      let atlasId = atlasIdBase;
+      let suffix = 2;
+      while (gameAssetsManifest.assets[category]?.[atlasId] || existsSync(join(outputPath, atlasId))) {
+        atlasId = `${atlasIdBase}_${String(suffix).padStart(2, '0')}`;
+        suffix++;
+      }
+      
+      const atlasDir = join(outputPath, atlasId);
+      mkdirSync(atlasDir, { recursive: true });
+      
+      const imageName = `${atlasId}.png`;
+      const jsonName = `${atlasId}.json`;
+      
+      const imageRel = `game-assets/${atlasId}/${imageName}`;
+      const jsonRel = `game-assets/${atlasId}/${jsonName}`;
+      
+      copyFileSync(pngFile, join(atlasDir, imageName));
+      
+      // Find matching JSON
+      let jsonPayload;
+      let repair = 'meta-image-normalized';
+      
+      const matchingJson = jsonFiles.find(f => slug(basename(f)) === slug(basename(pngFile, '.png') + '.json'));
+      
+      if (matchingJson) {
+        jsonPayload = patchSpritesheetJson(readJson(matchingJson), imageName, atlasId);
+      } else {
+        const frameSize = config.frameSize || 256;
+        jsonPayload = synthesizeGridJson({ imageName, framePrefix: atlasId, frameSize, columns: 4, rows: 4 });
+        repair = 'synthesized-grid';
+      }
+      
+      writeFileSync(join(atlasDir, jsonName), JSON.stringify(jsonPayload, null, 2) + '\n');
+      
+      // Create entry
+      const entry = {
+        src: `/2d-assets/${imageRel}`,
+        atlas: `/2d-assets/${jsonRel}`,
+        source: 'local-inbox',
+        sourcePath: rel,
+        license: 'Project-owned Stitch-generated asset.',
+        kind: category,
+        group: culture,
+        tags: ['stitch', 'game-asset', category, culture, ...(config.tags || [])],
+        ...defaultDepthMetadata(category, descriptor),
+      };
+      
+      gameAssetsManifest.assets[category][atlasId] = entry;
+      rootManifest[category] ??= {};
+      rootManifest[category][atlasId] = entry;
+    }
+    
+    log(`Imported ${pngFiles.length} assets from local inbox`);
+  }
+  // GITHUB ISSUE MODE - Import from ZIP attachments (only if no local inbox)
+  else if (!localInbox && token) {
     try {
       log('Fetching asset URLs from GitHub issue...');
       const issue = await gh(`/repos/${repo}/issues/${issueNumber}`);
@@ -429,7 +505,7 @@ async function main() {
   }
   
   // Write manifests
-  const stitchGameManifestPath = join(gameAssetsRoot, 'manifest.json');
+  const stitchGameManifestPath = join(outputPath, 'manifest.json');
   writeFileSync(stitchGameManifestPath, JSON.stringify(gameAssetsManifest, null, 2) + '\n');
   writeFileSync(manifestPath, JSON.stringify(rootManifest, null, 2) + '\n');
   

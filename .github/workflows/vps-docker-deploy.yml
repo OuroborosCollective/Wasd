@@ -100,16 +100,33 @@ jobs:
       - name: Import Cozy Spring assets when inbox exists
         run: |
           set -euo pipefail
-          INBOX=".asset-inbox/cozy-spring"
+          INBOX="apps/client-2d/public/assets/cozy-spring"
           MANIFEST="apps/client-2d/public/assets/cozy-spring/manifest.json"
-          if [ -d "$INBOX" ]; then
-            echo "Importing Cozy Spring assets from $INBOX"
-            python3 scripts/extract-cozy-spring-objects.py --inbox "$INBOX" --output apps/client-2d/public/assets/cozy-spring --tmp .tmp/cozy-spring-extract --verbose
+          if [ -d ".asset-inbox/cozy-spring" ]; then
+            echo "Importing Cozy Spring assets from .asset-inbox/cozy-spring"
+            python3 scripts/extract-cozy-spring-objects.py --inbox ".asset-inbox/cozy-spring" --output "$INBOX" --tmp .tmp/cozy-spring-extract --verbose
           else
             echo "No Cozy inbox found; using committed fallback assets."
           fi
           test -f "$MANIFEST"
-          node -e "const m=require('./apps/client-2d/public/assets/cozy-spring/manifest.json'); if(m.importPolicy!=='tilesets-as-tiles-props-as-extracted-objects'||!m.props||Object.keys(m.props).length===0){throw new Error('Invalid Cozy manifest')}; console.log('Cozy manifest OK', Object.keys(m.props).length)"
+          node -e "const m=require('./${MANIFEST}'); if(m.importPolicy!=='tilesets-as-tiles-props-as-extracted-objects'||!m.props||Object.keys(m.props).length===0){throw new Error('Invalid Cozy manifest')}; console.log('Cozy manifest OK', Object.keys(m.props).length)"
+
+      - name: Import Stitch game assets when inbox exists
+        run: |
+          set -euo pipefail
+          STITCH_INBOX=".asset-inbox/stitch"
+          STITCH_OUT="apps/client-2d/public/2d-assets/game-assets"
+          if [ -d "$STITCH_INBOX" ] && [ -n "$(ls -A "$STITCH_INBOX" 2>/dev/null)" ]; then
+            echo "Importing Stitch game assets from $STITCH_INBOX"
+            mkdir -p "$STITCH_OUT"
+            # Copy stitch inbox contents to game-assets folder
+            cp -r "$STITCH_INBOX"/* "$STITCH_OUT/" 2>/dev/null || true
+            # Update manifest with stitch assets
+            node scripts/stitch-game-assets-importer.mjs --local-inbox "$STITCH_INBOX" --output "$STITCH_OUT"
+          else
+            echo "No Stitch inbox found; skipping Stitch asset import."
+          fi
+          echo "Stitch assets ready at $STITCH_OUT"
 
       - name: Build client-2d on GitHub runner
         run: |
