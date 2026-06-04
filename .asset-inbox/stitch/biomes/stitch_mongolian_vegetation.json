@@ -1,0 +1,75 @@
+{
+  "frames": {
+    "stitch_mongolian_vegetation_larch_tree_sparse": {
+      "frame": {
+        "x": 30,
+        "y": 20,
+        "w": 100,
+        "h": 120
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 100,
+        "h": 120
+      },
+      "sourceSize": {
+        "w": 100,
+        "h": 120
+      }
+    },
+    "stitch_mongolian_vegetation_steppe_grass_tuft": {
+      "frame": {
+        "x": 150,
+        "y": 280,
+        "w": 120,
+        "h": 130
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 120,
+        "h": 130
+      },
+      "sourceSize": {
+        "w": 120,
+        "h": 130
+      }
+    },
+    "stitch_mongolian_vegetation_desert_flower_small": {
+      "frame": {
+        "x": 580,
+        "y": 620,
+        "w": 80,
+        "h": 70
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 80,
+        "h": 70
+      },
+      "sourceSize": {
+        "w": 80,
+        "h": 70
+      }
+    }
+  },
+  "meta": {
+    "app": "Areloria WASD Stitch generated atlas importer",
+    "version": "1.0",
+    "image": "stitch_mongolian_vegetation.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1024,
+      "h": 1024
+    },
+    "scale": "1"
+  }
+}

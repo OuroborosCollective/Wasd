@@ -1,0 +1,115 @@
+{
+  "frames": {
+    "stitch_medieval_vegetation_03_oak_large_1": {
+      "frame": {
+        "x": 40,
+        "y": 20,
+        "w": 220,
+        "h": 260
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 220,
+        "h": 260
+      },
+      "sourceSize": {
+        "w": 220,
+        "h": 260
+      }
+    },
+    "stitch_medieval_vegetation_03_oak_large_2": {
+      "frame": {
+        "x": 280,
+        "y": 30,
+        "w": 210,
+        "h": 250
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 210,
+        "h": 250
+      },
+      "sourceSize": {
+        "w": 210,
+        "h": 250
+      }
+    },
+    "stitch_medieval_vegetation_03_willow_weeping": {
+      "frame": {
+        "x": 50,
+        "y": 300,
+        "w": 230,
+        "h": 270
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 230,
+        "h": 270
+      },
+      "sourceSize": {
+        "w": 230,
+        "h": 270
+      }
+    },
+    "stitch_medieval_vegetation_03_flower_bush_red": {
+      "frame": {
+        "x": 550,
+        "y": 310,
+        "w": 110,
+        "h": 100
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 110,
+        "h": 100
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 100
+      }
+    },
+    "stitch_medieval_vegetation_03_fern_tall": {
+      "frame": {
+        "x": 80,
+        "y": 750,
+        "w": 100,
+        "h": 220
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 100,
+        "h": 220
+      },
+      "sourceSize": {
+        "w": 100,
+        "h": 220
+      }
+    }
+  },
+  "meta": {
+    "app": "Areloria WASD Stitch generated atlas importer",
+    "version": "1.0",
+    "image": "stitch_medieval_vegetation_03.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1024,
+      "h": 1024
+    },
+    "scale": "1"
+  }
+}

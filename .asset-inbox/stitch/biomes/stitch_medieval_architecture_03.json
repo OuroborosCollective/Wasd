@@ -1,0 +1,55 @@
+{
+  "frames": {
+    "stitch_medieval_architecture_03_medieval_house_1": {
+      "frame": {
+        "x": 60,
+        "y": 40,
+        "w": 350,
+        "h": 380
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 350,
+        "h": 380
+      },
+      "sourceSize": {
+        "w": 350,
+        "h": 380
+      }
+    },
+    "stitch_medieval_architecture_03_city_wall_section": {
+      "frame": {
+        "x": 550,
+        "y": 50,
+        "w": 400,
+        "h": 350
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 400,
+        "h": 350
+      },
+      "sourceSize": {
+        "w": 400,
+        "h": 350
+      }
+    }
+  },
+  "meta": {
+    "app": "Areloria WASD Stitch generated atlas importer",
+    "version": "1.0",
+    "image": "stitch_medieval_architecture_03.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1024,
+      "h": 1024
+    },
+    "scale": "1"
+  }
+}
