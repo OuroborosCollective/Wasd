@@ -33,6 +33,39 @@ export { GameplayHUDQuestTracker } from './GameplayHUDQuestTracker';
 export { GameplayHUDCollapsiblePanels } from './GameplayHUDCollapsiblePanels';
 export { InventoryMatrixAnimated } from './InventoryMatrixAnimated';
 export { MailInterfaceCommunications } from './MailInterfaceCommunications';
+export { PetMountInterface } from './PetMountInterface';
+
+// Screens integrated 2026-06-04 (batch)
+export { AuctionMarketWindow } from './AuctionMarketWindow';
+export { PartyRaidInterface } from './PartyRaidInterface';
+export { SocialHubFriends } from './SocialHubFriends';
+export { DungeonRaidBrowser } from './DungeonRaidBrowser';
+export { TeleportTravelMenu } from './TeleportTravelMenu';
+export { WeatherOverlayRain } from './WeatherOverlayRain';
+export { WeatherOverlaySandstorm } from './WeatherOverlaySandstorm';
+export { WeatherOverlayElectronStorm } from './WeatherOverlayElectronStorm';
+export { UpgradeCrystallineForge } from './UpgradeCrystallineForge';
+export { UpgradeDarkCyberZen } from './UpgradeDarkCyberZen';
+export { RefinementSuccess } from './RefinementSuccess';
+export { RefinementFailed } from './RefinementFailed';
+export { SupportTutorialsAchievements } from './SupportTutorialsAchievements';
+export { WarfrontVictory } from './WarfrontVictory';
+export { WarfrontDefeat } from './WarfrontDefeat';
+export { WarfrontLeaderboard } from './WarfrontLeaderboard';
+export { WarfrontRewards } from './WarfrontRewards';
+export { WarfrontStrategicMap } from './WarfrontStrategicMap';
+export { WorldAtlasPathfinding } from './WorldAtlasPathfinding';
+export { WorldAtlasTownZoom } from './WorldAtlasTownZoom';
+export { InteractiveWorldAtlas } from './InteractiveWorldAtlas';
+export { InteractiveWorldMap } from './InteractiveWorldMap';
+export { ModularItemDetail3Part } from './ModularItemDetail3Part';
+export { ModularItemDetailView } from './ModularItemDetailView';
+export { ModularDaggerDetail } from './ModularDaggerDetail';
+export { ModularSpearDetail } from './ModularSpearDetail';
+export { ModularAxeDetail } from './ModularAxeDetail';
+export { ModularStaffDetail } from './ModularStaffDetail';
+export { ModularWeaponDetail3Part } from './ModularWeaponDetail3Part';
+export { InventoryMatrix30Slot } from './InventoryMatrix30Slot';
 
 /**
  * Type definitions for Stitch screen components

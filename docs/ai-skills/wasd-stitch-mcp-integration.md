@@ -79,32 +79,100 @@ with create_mcp_tools(mcp_config) as client:
 
 ## Stitch Screen Components
 
-The following screens are currently integrated:
+The following screens are currently integrated (54 total):
 
+### Authentication & Character
 | Screen | Component | Category |
 |--------|-----------|----------|
 | Login Screen - New Logo | `LoginScreenNewLogo` | auth |
 | Character Selection | `CharacterSelection` | character |
+| Attributes Matrix | `AttributesMatrix` | character |
+| Skills Matrix | `SkillsMatrix` | character |
+
+### HUD & Navigation
+| Screen | Component | Category |
+|--------|-----------|----------|
 | Ingame HUD | `IngameHud` | hud |
 | Ingame HUD - New Action Triggers | `IngameHudNewActionTriggers` | hud |
 | World & Mini Map | `WorldMiniMap` | navigation |
-| World Loading Screen - 10s Timer | `WorldLoadingScreen10sTimer` | system |
-| Skills Matrix | `SkillsMatrix` | character |
-| Attributes Matrix | `AttributesMatrix` | character |
-| Quest Journal | `QuestJournal` | quests |
-| Quest Reward Popup | `QuestRewardPopup` | quests |
-| Guild Panel | `GuildPanel` | social |
-| Faction Reputation | `FactionReputation` | social |
-| NPC Dialogue - Oracle of Tides | `NpcDialogueOracleOfTides` | dialogue |
-| Settings Menu - Diamond Glass | `SettingsMenuDiamondGlass` | system |
-| Level-Up Celebration | `LevelUpCelebration` | feedback |
-| Gathering Interface | `GatheringInterfaceResourceTracking` | gameplay |
-| Crafting Interface | `CraftingInterfaceRecipeManagement` | gameplay |
-| Trade Window - Player Exchange | `TradeWindowPlayerExchange` | gameplay |
 | Gameplay HUD - Quest Tracker | `GameplayHUDQuestTracker` | hud |
 | Gameplay HUD - Collapsible Panels | `GameplayHUDCollapsiblePanels` | hud |
-| Inventory Matrix - Animated | `InventoryMatrixAnimated` | inventory |
+
+### Quests & Dialogue
+| Screen | Component | Category |
+|--------|-----------|----------|
+| Quest Journal | `QuestJournal` | quests |
+| Quest Reward Popup | `QuestRewardPopup` | quests |
+| NPC Dialogue - Oracle of Tides | `NpcDialogueOracleOfTides` | dialogue |
+
+### Social & Guild
+| Screen | Component | Category |
+|--------|-----------|----------|
+| Guild Panel | `GuildPanel` | social |
+| Faction Reputation | `FactionReputation` | social |
 | Mail Interface - Communications | `MailInterfaceCommunications` | social |
+| Trade Window - Player Exchange | `TradeWindowPlayerExchange` | social |
+| Party & Raid Interface - Group Finder | `PartyRaidInterface` | social |
+| Social Hub - Friends & Party | `SocialHubFriends` | social |
+
+### Inventory & Items
+| Screen | Component | Category |
+|--------|-----------|----------|
+| Inventory Matrix - Animated | `InventoryMatrixAnimated` | inventory |
+| Inventory Matrix - 30-Slot Grid | `InventoryMatrix30Slot` | inventory |
+| Pet & Mount Interface | `PetMountInterface` | inventory |
+| Modular Item Detail - 3-Part Structure | `ModularItemDetail3Part` | item-detail |
+| Modular Item Detail View | `ModularItemDetailView` | item-detail |
+| Modular Dagger Detail - Silent Sting | `ModularDaggerDetail` | item-detail |
+| Modular Spear Detail - Guardian Pike | `ModularSpearDetail` | item-detail |
+| Modular Axe Detail - 2H Heavy Cleaver | `ModularAxeDetail` | item-detail |
+| Modular Staff Detail - Crystalline Focus | `ModularStaffDetail` | item-detail |
+| Modular Weapon Detail - 3-Part Logic | `ModularWeaponDetail3Part` | item-detail |
+
+### Crafting & Upgrade
+| Screen | Component | Category |
+|--------|-----------|----------|
+| Gathering Interface | `GatheringInterfaceResourceTracking` | gameplay |
+| Crafting Interface | `CraftingInterfaceRecipeManagement` | gameplay |
+| Upgrade & Refinement - Crystalline Forge | `UpgradeCrystallineForge` | upgrade |
+| Upgrade & Refinement - Dark Cyber-Zen | `UpgradeDarkCyberZen` | upgrade |
+| Refinement Success - Celebration | `RefinementSuccess` | upgrade |
+| Refinement Failed - Critical Error | `RefinementFailed` | upgrade |
+
+### World & Atlas
+| Screen | Component | Category |
+|--------|-----------|----------|
+| World Loading Screen - 10s Timer | `WorldLoadingScreen10sTimer` | system |
+| World Atlas - Pathfinding & Icon Glossary | `WorldAtlasPathfinding` | navigation |
+| World Atlas - Town Zoom & Group Finder | `WorldAtlasTownZoom` | navigation |
+| Interactive World Atlas | `InteractiveWorldAtlas` | navigation |
+| Interactive World Map | `InteractiveWorldMap` | navigation |
+
+### Dungeons & Raids
+| Screen | Component | Category |
+|--------|-----------|----------|
+| Dungeon & Raid Browser | `DungeonRaidBrowser` | gameplay |
+| Warfront Victory - Sector Secured | `WarfrontVictory` | warfront |
+| Warfront Defeat - Tactical Retreat | `WarfrontDefeat` | warfront |
+| Warfront Leaderboard & Rewards | `WarfrontLeaderboard` | warfront |
+| Warfront Rewards - Animated Claim | `WarfrontRewards` | warfront |
+| Warfront - Strategic Map & Combat Log | `WarfrontStrategicMap` | warfront |
+
+### Weather Effects
+| Screen | Component | Category |
+|--------|-----------|----------|
+| Weather Overlay - Rain (Cyan Surge) | `WeatherOverlayRain` | effects |
+| Weather Overlay - Sandstorm (Solar Haze) | `WeatherOverlaySandstorm` | effects |
+| Weather Overlay - Electron Storm (Neon Surge) | `WeatherOverlayElectronStorm` | effects |
+
+### System & Support
+| Screen | Component | Category |
+|--------|-----------|----------|
+| Settings Menu - Diamond Glass | `SettingsMenuDiamondGlass` | system |
+| Level-Up Celebration | `LevelUpCelebration` | feedback |
+| Support, Tutorials & Achievements | `SupportTutorialsAchievements` | system |
+| Teleport & Travel Menu - Boss Timers | `TeleportTravelMenu` | navigation |
+| Auction & Market Window | `AuctionMarketWindow` | economy |
 
 ## Design Token Reference
 
