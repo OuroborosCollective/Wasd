@@ -100,6 +100,11 @@ The following screens are currently integrated:
 | Level-Up Celebration | `LevelUpCelebration` | feedback |
 | Gathering Interface | `GatheringInterfaceResourceTracking` | gameplay |
 | Crafting Interface | `CraftingInterfaceRecipeManagement` | gameplay |
+| Trade Window - Player Exchange | `TradeWindowPlayerExchange` | gameplay |
+| Gameplay HUD - Quest Tracker | `GameplayHUDQuestTracker` | hud |
+| Gameplay HUD - Collapsible Panels | `GameplayHUDCollapsiblePanels` | hud |
+| Inventory Matrix - Animated | `InventoryMatrixAnimated` | inventory |
+| Mail Interface - Communications | `MailInterfaceCommunications` | social |
 
 ## Design Token Reference
 

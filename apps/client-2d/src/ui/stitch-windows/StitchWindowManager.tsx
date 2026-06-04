@@ -24,6 +24,12 @@ import {
   LevelUpCelebration,
   GatheringInterfaceResourceTracking,
   CraftingInterfaceRecipeManagement,
+  // New screens
+  TradeWindowPlayerExchange,
+  GameplayHUDQuestTracker,
+  GameplayHUDCollapsiblePanels,
+  InventoryMatrixAnimated,
+  MailInterfaceCommunications,
   type StitchComponentName,
   STITCH_COMPONENTS,
 } from '../stitch-screens';
@@ -49,6 +55,12 @@ const STITCH_COMPONENT_MAP: Record<string, React.ComponentType<any>> = {
   LevelUpCelebration,
   GatheringInterfaceResourceTracking,
   CraftingInterfaceRecipeManagement,
+  // New screens
+  TradeWindowPlayerExchange,
+  GameplayHUDQuestTracker,
+  GameplayHUDCollapsiblePanels,
+  InventoryMatrixAnimated,
+  MailInterfaceCommunications,
 };
 
 export type StitchScreenId =
@@ -68,7 +80,13 @@ export type StitchScreenId =
   | 'settings'
   | 'levelUp'
   | 'gathering'
-  | 'crafting';
+  | 'crafting'
+  // New screens
+  | 'trade'
+  | 'questTracker'
+  | 'collapsiblePanels'
+  | 'inventory'
+  | 'mail';
 
 interface StitchScreenConfig {
   component: string;
@@ -98,6 +116,12 @@ export const STITCH_SCREENS: Record<StitchScreenId, StitchScreenConfig> = {
   levelUp: { component: 'LevelUpCelebration', title: 'Level Up!', modal: true },
   gathering: { component: 'GatheringInterfaceResourceTracking', title: 'Gathering', modal: true },
   crafting: { component: 'CraftingInterfaceRecipeManagement', title: 'Crafting', modal: true },
+  // New screens
+  trade: { component: 'TradeWindowPlayerExchange', title: 'Trade', modal: true },
+  questTracker: { component: 'GameplayHUDQuestTracker', title: 'Quest Tracker', modal: false },
+  collapsiblePanels: { component: 'GameplayHUDCollapsiblePanels', title: 'Panels', modal: false },
+  inventory: { component: 'InventoryMatrixAnimated', title: 'Inventory', modal: true },
+  mail: { component: 'MailInterfaceCommunications', title: 'Mail', modal: true },
 };
 
 interface StitchWindowState {
@@ -292,4 +316,25 @@ export function useSkills() {
 
 export function useLevelUp() {
   return useStitchScreen('levelUp');
+}
+
+// New screen hooks
+export function useTrade() {
+  return useStitchScreen('trade');
+}
+
+export function useQuestTracker() {
+  return useStitchScreen('questTracker');
+}
+
+export function useCollapsiblePanels() {
+  return useStitchScreen('collapsiblePanels');
+}
+
+export function useInventory() {
+  return useStitchScreen('inventory');
+}
+
+export function useMail() {
+  return useStitchScreen('mail');
 }
