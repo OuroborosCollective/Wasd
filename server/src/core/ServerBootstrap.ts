@@ -30,6 +30,7 @@ import { getSupabaseSummary, verifySupabaseToken } from "../config/supabase.js";
 import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
 import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.js";
 import { registerSelfHealingDashboard } from "../selfhealing/SelfHealingDashboard.js";
+import { createSelfHealWorkshopRouter } from "../routes/selfHealWorkshopRoute.js";
 import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
 import { PlaytesterMonitorStream } from "../modules/playtester/PlaytesterMonitorStream.js";
 import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRTCSignaling.js";
@@ -185,6 +186,7 @@ export class ServerBootstrap {
     app.use("/api/are/validation", areValidationRouter(tick));
     app.use("/api/are/replay", areReplayRouter(tick));
     app.use("/api/are", createAREHeartbeatRouter(tick, ws));
+    app.use("/api/self-healing", createSelfHealWorkshopRouter());
     app.use("/api/manifest", createManifestResyncRouter(tick));
     app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());
     app.use("/api/are-shadow", areShadowLogRouter());

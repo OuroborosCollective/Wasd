@@ -262,6 +262,18 @@ export const ARELORIA_MODULE_REGISTRY: readonly AreloriaModuleRegistryEntry[] = 
     notes: "Dashboard zeigt Status/Logs, fehlt Dry-Run, Risk-Level, PatchProposal, RollbackPlan",
   },
   {
+    id: "selfheal-workshop",
+    title: "SelfHeal Dry-Run Workshop",
+    runtimeSurface: "server",
+    status: "partial",
+    deterministic: true,
+    serverAuthoritative: true,
+    visibleInClient: true,
+    hasE2ETest: true,
+    entrypoints: ["/api/self-healing"],
+    notes: "Dry-run proposals with risk level and rollback plan. Apply is intentionally not implemented. Press S to open in 2D client.",
+  },
+  {
     id: "server-worldtick",
     title: "Server WorldTick (10Hz)",
     runtimeSurface: "server",
