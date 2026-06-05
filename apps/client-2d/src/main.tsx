@@ -13,6 +13,7 @@ import { ToastStack, type ClientToast } from "./ui/ToastStack";
 import { NpcDialoguePanel } from "./ui/NpcDialoguePanel";
 import { InteractionPrompt } from "./ui/InteractionPrompt";
 import { ModuleRegistryPanel } from "./ModuleRegistryPanel";
+import { SelfHealWorkshopPanel } from "./SelfHealWorkshopPanel";
 import { createLootFeedStore, type LootFeedStore, type LootFeedEntry } from "./game/loot";
 import { installClient2DDepthRuntime } from "./client2dDepthRuntime";
 import { installViewportRuntime } from "./ViewportController";
@@ -28,6 +29,7 @@ import "./mobileResponsive.css";
 import "./kenneyUiLiveSkin.css";
 import "./hudSafeZones.css";
 import "./moduleRegistry.css";
+import "./selfHealWorkshop.css";
 
 installClient2DDepthRuntime();
 installViewportRuntime();
@@ -122,6 +124,7 @@ function UIOverlayLayer() {
   const [dialogueActive, setDialogueActive] = useState<{ npcName: string; text: string } | null>(null);
   const [interactionTarget, setInteractionTarget] = useState<{ label: string } | null>(null);
   const [showRegistry, setShowRegistry] = useState(false);
+  const [showWorkshop, setShowWorkshop] = useState(false);
   
   // Loot feed store (synced to component state)
   const lootFeedRef = useRef(createLootFeedStore(6));
@@ -138,13 +141,18 @@ function UIOverlayLayer() {
       setToasts(prev => prev.filter(t => now - t.createdAtMs < 5000));
     }, 1000);
 
-    // Keyboard shortcut for Module Registry (M key)
+    // Keyboard shortcuts
     function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+      
+      // M key - Module Registry
       if (e.key === "m" || e.key === "M") {
-        // Don't toggle if typing in an input
-        const target = e.target as HTMLElement;
-        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
         setShowRegistry(prev => !prev);
+      }
+      // S key - SelfHeal Workshop
+      if (e.key === "s" || e.key === "S") {
+        setShowWorkshop(prev => !prev);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -239,6 +247,20 @@ function UIOverlayLayer() {
               ×
             </button>
             <ModuleRegistryPanel />
+          </div>
+        </div>
+      )}
+      {showWorkshop && (
+        <div className="module-registry-overlay" onClick={() => setShowWorkshop(false)}>
+          <div className="module-registry-modal" onClick={e => e.stopPropagation()}>
+            <button
+              className="module-registry-close"
+              onClick={() => setShowWorkshop(false)}
+              aria-label="Close Workshop"
+            >
+              ×
+            </button>
+            <SelfHealWorkshopPanel />
           </div>
         </div>
       )}
