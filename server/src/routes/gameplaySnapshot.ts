@@ -18,6 +18,7 @@ import type { WorldTick } from "../core/WorldTick.js";
 import { createGameplaySnapshot } from "./gameplaySnapshotUtils.js";
 import { questProgressionStore } from "../quests/QuestProgressionStore.js";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
+import { getSkillProgressionService } from "../skills/skillRuntime.js";
 
 /**
  * Get current tick ID from WorldTick instance.
@@ -50,12 +51,17 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
 
     // Hydrate persisted quest state before returning
     await questProgressionStore.hydratePlayer(identity.playerId);
-
     const questState = questProgressionStore.getPlayerQuestState(identity.playerId);
+
+    // Get skill state
+    const skillService = await getSkillProgressionService();
+    await skillService.hydratePlayer(identity.playerId);
+    const skillState = await skillService.getPlayerSkillState(identity.playerId);
 
     const snapshot = createGameplaySnapshot({
       serverTick,
       quests: questState.quests,
+      skills: skillState.skills,
       guild: null,
       factions: [],
       map: {},
