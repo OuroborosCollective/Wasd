@@ -54,7 +54,7 @@ export function createSelfHealWorkshopRouter() {
    */
   router.get("/:patchId", (req: Request, res: Response) => {
     try {
-      const { patchId } = req.params;
+      const patchId = String(req.params.patchId);
       const proposal = selfHealWorkshop.getProposalByPatchId(patchId);
       
       if (!proposal) {
@@ -91,21 +91,23 @@ async function detectIssuesFromSystem(): Promise<SelfHealIssue[]> {
   try {
     const { areInvariantGuard } = await import("../are/AREInvariantGuard.js");
     const guardStatus = areInvariantGuard?.getStatus?.();
-    if (guardStatus && guardStatus.lastScanResult) {
-      const violations = guardStatus.lastScanResult.violations || [];
-      for (const violation of violations) {
-        issues.push({
-          id: `determinism-${violation.token}-${violation.line}`,
-          kind: "determinism_violation",
-          subsystem: "are",
-          message: `Determinism violation: ${violation.token} at line ${violation.line}`,
-          evidence: [
-            `Token: ${violation.token}`,
-            `Line: ${violation.line}`,
-            `File: ${violation.file}`,
-          ],
-          affectedFiles: [violation.file],
-        });
+    if (guardStatus && guardStatus.scannedSources?.length) {
+      for (const scanResult of guardStatus.scannedSources) {
+        const violations = scanResult.violations || [];
+        for (const violation of violations) {
+          issues.push({
+            id: `determinism-${violation.token}-${violation.line}`,
+            kind: "determinism_violation",
+            subsystem: "are",
+            message: `Determinism violation: ${violation.token} at line ${violation.line}`,
+            evidence: [
+              `Token: ${violation.token}`,
+              `Line: ${violation.line}`,
+              `File: ${violation.file}`,
+            ],
+            affectedFiles: [violation.file],
+          });
+        }
       }
     }
   } catch {
