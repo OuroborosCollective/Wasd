@@ -56,7 +56,7 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
     // Get skill state
     const skillService = await getSkillProgressionService();
     await skillService.hydratePlayer(identity.playerId);
-    const skillState = skillService.getPlayerSkillState(identity.playerId);
+    const skillState = await skillService.getPlayerSkillState(identity.playerId);
 
     const snapshot = createGameplaySnapshot({
       serverTick,

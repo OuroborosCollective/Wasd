@@ -16,6 +16,7 @@
  */
 
 import { questProgressionStore } from "./QuestProgressionStore";
+import { bridgeNpcKillToCombatXp } from "../skills/SkillGameplayEventBridge.js";
 
 export type GameplayQuestEvent =
   | {
@@ -86,6 +87,9 @@ export function handleGameplayQuestEvent(event: GameplayQuestEvent): QuestGamepl
   }
 
   if (event.type === "player_npc_kill") {
+    // Bridge NPC kill to skill XP (combat) - always fires for kills
+    void bridgeNpcKillToCombatXp(event.playerId);
+
     if (!TRAINING_TARGET_IDS.has(event.npcId)) {
       return {
         ok: true,
