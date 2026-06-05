@@ -56,6 +56,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Enable Sharp pixel skill for Stitch assets
+        run: |
+          set -euo pipefail
+          pnpm add -D sharp --lockfile-only --no-frozen-lockfile
+          pnpm install --frozen-lockfile --ignore-scripts=false --reporter=append-only
+          node -e "import('sharp').then(()=>console.log('sharp ok')).catch(e=>{console.error('sharp load failed:',e.message);process.exit(1)})"
+
       - name: Resolve import issue number
         id: import_issue
         run: |

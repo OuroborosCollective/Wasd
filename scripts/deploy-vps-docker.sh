@@ -264,6 +264,10 @@ import_cozy_assets_after_reset() {
       --output apps/client-2d/public/assets/cozy-spring \
       --tmp .tmp/cozy-spring-extract \
       --verbose
+    echo "Filtering keyboard glyph props from runtime spawning"
+    python3 scripts/filter-cozy-keyboard-glyph-props.py \
+      --manifest "$manifest" \
+      --output-root apps/client-2d/public/assets/cozy-spring
   else
     echo "WARN: $inbox absent on VPS; using repository public Cozy assets if present."
   fi
