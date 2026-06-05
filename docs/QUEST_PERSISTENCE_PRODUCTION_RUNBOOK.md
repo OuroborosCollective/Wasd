@@ -432,6 +432,18 @@ psql -d "$DATABASE_URL" -c "SELECT COUNT(*) FROM player_quest_state"
 - **Verify sha256 before restore** - prevents corrupted data
 - **No destructive operations** - restore requires operator confirmation
 
+## Related Persistence Systems
+
+The `/opt/areloria/data` directory may now contain multiple state files:
+
+| File | Description | Migration |
+|------|-------------|-----------|
+| `quest-state.json` | Active quest state | 005_player_quest_state.sql |
+| `skill-state.json` | Player skill progression | 006_player_skill_state.sql |
+| `inventory-state.json` | Player gathered items | 007_player_inventory_state.sql |
+
+Backup policy should cover all `*-state.json` files.
+
 ## Emergency Contacts
 
 If production issues persist after following this runbook:

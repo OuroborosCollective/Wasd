@@ -99,7 +99,30 @@ export interface ResourceNodeSnapshot {
 }
 
 /**
- * Live Gameplay Snapshot shape (includes skills and resources)
+ * Inventory Slot shape (server-authoritative)
+ */
+export interface InventorySlotSnapshot {
+  slotId: string;
+  itemId: string;
+  name: string;
+  quantity: number;
+  category: "resource" | "quest" | "consumable" | "equipment";
+  stackable: boolean;
+  maxStack: number;
+}
+
+/**
+ * Player Inventory Snapshot shape
+ */
+export interface PlayerInventorySnapshot {
+  playerId: string;
+  schemaVersion: 1;
+  slots: InventorySlotSnapshot[];
+  capacity: number;
+}
+
+/**
+ * Live Gameplay Snapshot shape (includes skills, resources, and inventory)
  */
 export interface LiveGameplaySnapshot {
   status: "live";
@@ -107,19 +130,21 @@ export interface LiveGameplaySnapshot {
   quests: QuestSnapshot[];
   skills: SkillSnapshot[];
   resources: ResourceNodeSnapshot[];
+  inventory: PlayerInventorySnapshot;
   guild: GuildSnapshot;
   factions: FactionStandingSnapshot[];
   map: MapSnapshot;
 }
 
 /**
- * Input for creating a gameplay snapshot (includes skills and resources)
+ * Input for creating a gameplay snapshot (includes skills, resources, and inventory)
  */
 export interface GameplaySnapshotInput {
   serverTick: number;
   quests?: QuestSnapshot[];
   skills?: SkillSnapshot[];
   resources?: ResourceNodeSnapshot[];
+  inventory?: PlayerInventorySnapshot | null;
   guild?: GuildSnapshot | null;
   factions?: FactionStandingSnapshot[];
   map?: Partial<MapSnapshot>;
@@ -136,12 +161,21 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGamepl
   const sortedResources = [...(input.resources ?? [])].sort((a, b) => a.id.localeCompare(b.id));
   const sortedFactions = [...(input.factions ?? [])].sort((a, b) => a.id.localeCompare(b.id));
 
+  // Sort inventory slots by itemId for deterministic output
+  const sortedSlots = [...(input.inventory?.slots ?? [])].sort((a, b) => a.itemId.localeCompare(b.itemId));
+
   return {
     status: "live",
     serverTick: input.serverTick,
     quests: sortedQuests,
     skills: sortedSkills,
     resources: sortedResources,
+    inventory: input.inventory ?? {
+      playerId: "unknown",
+      schemaVersion: 1,
+      slots: sortedSlots,
+      capacity: 32,
+    },
     guild: input.guild ?? {
       id: null,
       name: null,
@@ -171,6 +205,7 @@ export function createEmptyGameplaySnapshot(serverTick: number): LiveGameplaySna
     serverTick,
     quests: [],
     skills: [],
+    inventory: null,
     guild: null,
     factions: [],
     map: {},

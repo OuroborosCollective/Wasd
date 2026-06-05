@@ -74,5 +74,9 @@ export interface GatherResourceResult {
   xpReward?: number;
   itemRewardId?: string;
   itemRewardName?: string;
+  /** Whether the item was successfully added to player inventory */
+  inventoryAdded?: boolean;
+  /** Quantity added to inventory (0 if failed) */
+  inventoryQuantity?: number;
   snapshot?: ResourceNodeSnapshot | null;
 }

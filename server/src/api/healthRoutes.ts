@@ -3,6 +3,7 @@ import type { WorldTick } from '../core/WorldTick.js';
 import { getDeterministicWatchdogStatus } from '../core/installDeterministicWatchdog.js';
 import { checkQuestPersistenceWritable } from './questPersistenceHealth.js';
 import { checkSkillPersistenceWritable } from './skillPersistenceHealth.js';
+import { checkInventoryPersistenceWritable } from './inventoryPersistenceHealth.js';
 
 export type HealthRouteOptions = {
   getTick: () => WorldTick | undefined;
@@ -83,6 +84,15 @@ export function healthRoutes(options: HealthRouteOptions): Router {
   router.get('/skill-persistence', async (_req: Request, res: Response) => {
     noStore(res);
     const result = await checkSkillPersistenceWritable();
+    res.status(result.ok ? 200 : 503).json({
+      ok: result.ok,
+      persistence: result,
+    });
+  });
+
+  router.get('/inventory-persistence', async (_req: Request, res: Response) => {
+    noStore(res);
+    const result = await checkInventoryPersistenceWritable();
     res.status(result.ok ? 200 : 503).json({
       ok: result.ok,
       persistence: result,

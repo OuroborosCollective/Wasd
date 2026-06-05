@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { InventoryPanel, type InventoryItem } from "./ui/InventoryPanel";
+import { InventoryPanel as InventorySnapshotPanel } from "./ui/windows/InventoryPanel";
 import { EquipmentPanel } from "./ui/windows/EquipmentPanel";
 import { AREHeartbeatPanel, DEFAULT_ARE_HEARTBEAT, type AREHeartbeatSnapshot } from "./AREHeartbeatPanel";
 import { QuestJournalPanel } from "./ui/windows/QuestJournalPanel";
@@ -441,7 +442,12 @@ function StitchPanel({
           </div>
           <button onClick={onClose} aria-label="Close panel">×</button>
         </header>
-        {panel === "inventory" && <InventoryPanel items={inventoryItems} equippedWeaponId={equippedWeaponId} onEquipWeapon={(item) => onEquipWeapon?.(item)} />}
+        {panel === "inventory" && (
+          <>
+            <InventorySnapshotPanel inventory={liveGameplay.inventory} />
+            <InventoryPanel items={inventoryItems} equippedWeaponId={equippedWeaponId} onEquipWeapon={(item) => onEquipWeapon?.(item)} />
+          </>
+        )}
         {panel === "character" && <EquipmentPanel isOpen={true} onClose={onClose} />}
         {panel === "combat" && <CombatPreview equippedWeaponId={equippedWeaponId} />}
         {panel === "map" && <MapStatusPanel snapshot={liveGameplay} />}

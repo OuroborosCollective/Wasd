@@ -20,6 +20,7 @@ import { questProgressionStore } from "../quests/QuestProgressionStore.js";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { getSkillProgressionService } from "../skills/skillRuntime.js";
 import { gatheringService } from "../resources/GatheringService.js";
+import { getInventoryService } from "../inventory/inventoryRuntime.js";
 
 /**
  * Get current tick ID from WorldTick instance.
@@ -62,11 +63,16 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
     // Get resource node snapshots
     const resources = gatheringService.listResourceSnapshots(serverTick);
 
+    // Get inventory state
+    const inventoryService = await getInventoryService();
+    const inventory = await inventoryService.getPlayerInventory(identity.playerId);
+
     const snapshot = createGameplaySnapshot({
       serverTick,
       quests: questState.quests,
       skills: skillState.skills,
       resources,
+      inventory,
       guild: null,
       factions: [],
       map: {},
