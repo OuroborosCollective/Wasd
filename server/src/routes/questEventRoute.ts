@@ -25,7 +25,7 @@ import {
 export const questEventRouter = Router();
 
 // Mount at /api/quest/event - router is mounted at /api/quest in ServerBootstrap
-questEventRouter.post("/event", (req, res) => {
+questEventRouter.post("/event", async (req, res) => {
   // Ensure JSON body is parsed
   if (!req.body || typeof req.body !== "object") {
     res.status(400).json({
@@ -44,6 +44,9 @@ questEventRouter.post("/event", (req, res) => {
     });
     return;
   }
+
+  // Hydrate persisted state before processing event
+  await questProgressionStore.hydratePlayer(event.playerId);
 
   const questState = questProgressionStore.applyEvent(event);
 

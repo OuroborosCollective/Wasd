@@ -1,17 +1,18 @@
 /**
  * QUEST PROGRESSION STORE
  *
- * Minimal in-memory quest progression store.
+ * Server-authoritative quest progression store with optional persistence.
  * Serves as integration anchor for server-side quest state.
  *
  * MVP Features:
  * - "first_steps" quest with accept, npc_talk, npc_kill events
  * - Deterministic progression - same events produce same state
  * - Player isolation by playerId
+ * - Optional persistence via QuestPersistenceAdapter
  *
  * Status: PARTIAL
- * - In-memory only, no persistence
- * - Later: connect to persistent storage
+ * - In-memory with optional JSON-file persistence
+ * - Later: DB-backed persistence option
  * - NPC ID validation via allowlist for security
  *
  * Rules:
@@ -19,6 +20,7 @@
  * - No Math.random()
  * - No client decides completion directly
  * - NPC ID must match objective target allowlist
+ * - Persistence failures do not crash gameplay loop
  */
 
 import {
@@ -27,6 +29,11 @@ import {
   type PlayerQuestState,
   type QuestSnapshot,
 } from "./QuestSnapshotTypes";
+import {
+  createPersistedQuestState,
+  type QuestPersistenceAdapter,
+} from "./QuestPersistence";
+import { JsonQuestPersistenceAdapter } from "./JsonQuestPersistenceAdapter";
 
 export type QuestEvent =
   | { type: "quest_accept"; playerId: string; questId: string }
@@ -87,6 +94,41 @@ function createFirstStepsQuest(
 
 export class QuestProgressionStore {
   private readonly playerQuests = new Map<string, Map<string, QuestSnapshot>>();
+  private readonly hydratedPlayers = new Set<string>();
+
+  constructor(private readonly persistence?: QuestPersistenceAdapter) {}
+
+  /**
+   * Hydrate player quest state from persistence.
+   * Safe to call multiple times - only hydrates once per playerId.
+   */
+  async hydratePlayer(playerId: string): Promise<void> {
+    if (!this.persistence || this.hydratedPlayers.has(playerId)) return;
+
+    const persisted = await this.persistence.loadPlayerQuestState(playerId);
+    if (persisted) {
+      const map = new Map<string, QuestSnapshot>();
+      for (const quest of persisted.quests) {
+        map.set(quest.id, normalizeQuestSnapshot(quest));
+      }
+      this.playerQuests.set(playerId, map);
+    }
+
+    this.hydratedPlayers.add(playerId);
+  }
+
+  /**
+   * Flush player state to persistence (for testing).
+   * Not required for normal gameplay - persistence happens async after events.
+   */
+  async flushPlayerForTests(playerId: string): Promise<void> {
+    if (!this.persistence) return;
+
+    const state = this.getPlayerQuestState(playerId);
+    await this.persistence.savePlayerQuestState(
+      createPersistedQuestState(playerId, state.quests),
+    );
+  }
 
   getPlayerQuestState(playerId: string): PlayerQuestState {
     const quests = this.playerQuests.get(playerId);
@@ -122,6 +164,7 @@ export class QuestProgressionStore {
   applyEvent(event: QuestEvent): PlayerQuestState {
     if (event.type === "quest_accept") {
       this.acceptQuest(event.playerId, event.questId);
+      void this.persistPlayerState(event.playerId);
       return this.getPlayerQuestState(event.playerId);
     }
 
@@ -171,6 +214,8 @@ export class QuestProgressionStore {
       objectives,
     });
 
+    void this.persistPlayerState(event.playerId);
+
     return this.getPlayerQuestState(event.playerId);
   }
 
@@ -190,6 +235,31 @@ export class QuestProgressionStore {
     }
     return quests;
   }
+
+  /**
+   * Persist player state asynchronously.
+   * Failures are swallowed to prevent gameplay loop crashes.
+   */
+  private async persistPlayerState(playerId: string): Promise<void> {
+    if (!this.persistence) return;
+
+    try {
+      const state = this.getPlayerQuestState(playerId);
+      await this.persistence.savePlayerQuestState(
+        createPersistedQuestState(playerId, state.quests),
+      );
+    } catch {
+      // Never crash gameplay loop because persistence failed.
+      // Later SelfHeal/Watchdog can observe persistence errors.
+    }
+  }
 }
 
-export const questProgressionStore = new QuestProgressionStore();
+/**
+ * Global quest progression store singleton with JSON file persistence.
+ * Uses QUEST_STATE_FILE env var for custom path.
+ * Falls back to process.cwd()/data/quest-state.json.
+ */
+export const questProgressionStore = new QuestProgressionStore(
+  new JsonQuestPersistenceAdapter(),
+);
