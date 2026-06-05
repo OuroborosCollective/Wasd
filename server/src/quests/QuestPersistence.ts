@@ -24,6 +24,7 @@ export interface QuestPersistenceAdapter {
   loadPlayerQuestState(playerId: string): Promise<PersistedQuestPlayerState | null>;
   savePlayerQuestState(state: PersistedQuestPlayerState): Promise<void>;
   loadAllPlayerQuestStates?(): Promise<PersistedQuestPlayerState[]>;
+  health?(): Promise<{ ok: boolean; driver: string; error?: string }>;
 }
 
 export function normalizePersistedQuestState(
