@@ -379,6 +379,28 @@ docker rm -f arelorian-engine monitor-bridge arelorian-ingress-router >/dev/null
 neutralize_legacy_node_runtime
 free_host_port_safely "$ARELORIAN_PORT"
 assert_host_port_free_stable "$ARELORIAN_PORT" 5
+
+# === Quest State Persistence Mount Check ===
+QUEST_DATA_DIR="${QUEST_DATA_DIR:-/opt/areloria/data}"
+echo "[deploy] Ensuring quest persistence data dir: ${QUEST_DATA_DIR}"
+mkdir -p "$QUEST_DATA_DIR"
+
+# Schreibtest auf Hostseite
+QUEST_WRITE_TEST="${QUEST_DATA_DIR}/.quest-write-test"
+if printf 'ok\n' > "$QUEST_WRITE_TEST" 2>/dev/null; then
+  if [ "$(cat "$QUEST_WRITE_TEST" 2>/dev/null)" = "ok" ]; then
+    rm -f "$QUEST_WRITE_TEST"
+    echo "[deploy] Quest persistence host data dir writable: ${QUEST_DATA_DIR}"
+  else
+    rm -f "$QUEST_WRITE_TEST"
+    echo "ERROR: Quest persistence write test failed for ${QUEST_DATA_DIR}"
+    exit 1
+  fi
+else
+  echo "ERROR: Cannot write to quest persistence data dir: ${QUEST_DATA_DIR}"
+  exit 1
+fi
+
 compose_cmd up -d --remove-orphans arelorian-engine monitor-bridge
 if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
   compose_cmd up -d --remove-orphans ingress-router
