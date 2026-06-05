@@ -5,8 +5,8 @@
  * Accepts only allowlisted event types - no arbitrary mutations.
  *
  * MVP Status:
- * - No auth required for test/dev
- * - Later: integrate with session/auth
+ * - Dev/test mode: query playerId allowed as fallback
+ * - Production mode: requires authenticated playerId
  * - Later: connect to real NPC/combat hooks
  *
  * Rules:
@@ -14,6 +14,7 @@
  * - Server determines progression
  * - Only accept allowlisted event types
  * - NPC id must match objective target for progression
+ * - Server-resolved playerId wins over client-provided
  */
 
 import { Router } from "express";
@@ -21,6 +22,7 @@ import {
   questProgressionStore,
   type QuestEvent,
 } from "../quests/QuestProgressionStore.js";
+import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 
 export const questEventRouter = Router();
 
@@ -35,7 +37,20 @@ questEventRouter.post("/event", async (req, res) => {
     return;
   }
 
-  const event = parseQuestEvent(req.body);
+  const identity = resolveHttpPlayerIdentity(req as Parameters<typeof resolveHttpPlayerIdentity>[0]);
+
+  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+    res.status(401).json({
+      ok: false,
+      error: "authenticated_player_required",
+    });
+    return;
+  }
+
+  const event = parseQuestEvent({
+    ...(req.body as Record<string, unknown>),
+    playerId: identity.playerId,
+  });
 
   if (!event) {
     res.status(400).json({
@@ -53,6 +68,8 @@ questEventRouter.post("/event", async (req, res) => {
   res.json({
     ok: true,
     playerId: event.playerId,
+    playerIdentitySource: identity.source,
+    authenticated: identity.authenticated,
     questState,
   });
 });
@@ -61,10 +78,11 @@ function parseQuestEvent(body: unknown): QuestEvent | null {
   const b = body as Record<string, unknown> | null;
   if (!b || typeof b !== "object") return null;
 
+  // playerId is now server-resolved from auth/session, not from body
   const playerId =
     typeof b.playerId === "string" && b.playerId.trim()
       ? b.playerId.trim()
-      : "guest";
+      : "anonymous";
 
   if (b.type === "quest_accept" && typeof b.questId === "string") {
     return {
