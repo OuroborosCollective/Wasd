@@ -204,12 +204,19 @@ When working on specific topics, check the skills in `docs/ai-skills/`:
 - `wasd-asset-tagging.md` - Asset tagging workflow and patterns
 - `wasd-docs-best-practices.md` - Documentation standards
 - `wasd-stitch-mcp-integration.md` - Stitch MCP connection and UI screen integration
+- `wasd-quest-persistence-ops.md` - Quest persistence implementation & ops (PRs #1697-#1701)
+- `wasd-health-endpoint-verification.md` - Health check patterns for VPS verification
+- `wasd-production-activation-workflow.md` - Complete workflow for production activation
+
 ### VPS & Deployment Skills
 - `vps-ssh-paramiko-patterns.md` - SSH access to VPS via Paramiko
 - `vite-public-assets-docker-fix.md` - Vite public/ directory in Docker builds
 - `vps-deployment-workflow-best-practices.md` - Complete VPS deployment workflow
 - `github-pr-draft-workaround.md` - GitHub PR draft state and merge fixes
 - `wasd-vps-deployment-troubleshooting.md` - VPS deployment issues (2D client blank page, WebSocket, Nginx conflicts)
+- `wasd-vps-paramiko-ssh.md` - Python paramiko patterns for VPS automation
+- `wasd-docker-compose-troubleshooting.md` - Docker compose errors and workarounds
+- `wasd-production-activation-workflow.md` - Production activation from code deploy to verification
 
 ### Tools (in `tools/`)
 - `tools/vps/vps-verify.py` - VPS deployment verification script
