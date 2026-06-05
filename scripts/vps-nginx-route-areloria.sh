@@ -132,7 +132,7 @@ http {
     error_log /var/log/nginx/error.log;
     gzip on;
     client_max_body_size 999m;
-    include /etc/nginx/conf.d/*.conf;
+    include ${INCLUDE_DIR}/*.conf;
 }
 EOF
   fi
@@ -143,12 +143,12 @@ ensure_public_nginx_conf_includes_conf_d() {
   tmp=$(mktemp)
   
   if ! grep -q 'include.*conf.d/\*.conf' "$PUBLIC_NGINX_CONF" 2>/dev/null; then
-    echo "WARN: /etc/nginx/conf.d/*.conf is not included in nginx.conf. Patching..."
+    echo "WARN: ${INCLUDE_DIR}/*.conf is not included in nginx.conf. Patching..."
     cat "$PUBLIC_NGINX_CONF" > "$tmp"
     if grep -q '^http {' "$tmp"; then
-      sed -i '/^http {/a\    include /etc/nginx/conf.d/*.conf;' "$tmp"
+      sed -i "/^http {/a\\    include ${INCLUDE_DIR}/*.conf;" "$tmp"
     else
-      echo '    include /etc/nginx/conf.d/*.conf;' >> "$tmp"
+      echo "    include ${INCLUDE_DIR}/*.conf;" >> "$tmp"
     fi
     cat "$tmp" | write_root "$PUBLIC_NGINX_CONF"
   fi
