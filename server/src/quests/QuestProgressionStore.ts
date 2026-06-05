@@ -11,8 +11,7 @@
  * - Optional persistence via QuestPersistenceAdapter
  *
  * Status: PARTIAL
- * - In-memory with optional JSON-file persistence
- * - Later: DB-backed persistence option
+ * - In-memory with optional JSON-file or Postgres persistence
  * - NPC ID validation via allowlist for security
  *
  * Rules:
@@ -34,6 +33,7 @@ import {
   type QuestPersistenceAdapter,
 } from "./QuestPersistence";
 import { JsonQuestPersistenceAdapter } from "./JsonQuestPersistenceAdapter";
+import { PgQuestPersistenceAdapter } from "./PgQuestPersistenceAdapter.js";
 
 export type QuestEvent =
   | { type: "quest_accept"; playerId: string; questId: string }
@@ -90,6 +90,25 @@ function createFirstStepsQuest(
       },
     ],
   });
+}
+
+/**
+ * Create persistence adapter based on environment.
+ * Supports JSON (default) and Postgres (production).
+ */
+function createPersistenceAdapter(): QuestPersistenceAdapter {
+  const driver = process.env.QUEST_PERSISTENCE_DRIVER ?? "json";
+
+  if (driver === "postgres" && process.env.DATABASE_URL) {
+    try {
+      return new PgQuestPersistenceAdapter(process.env.DATABASE_URL);
+    } catch (error) {
+      console.warn("[quest-store] Failed to create Postgres adapter, falling back to JSON:", error);
+      return new JsonQuestPersistenceAdapter();
+    }
+  }
+
+  return new JsonQuestPersistenceAdapter();
 }
 
 export class QuestProgressionStore {
@@ -253,13 +272,24 @@ export class QuestProgressionStore {
       // Later SelfHeal/Watchdog can observe persistence errors.
     }
   }
+
+  /**
+   * Get persistence driver info for health checks.
+   */
+  getPersistenceInfo(): { driver: string; adapter: string } {
+    const driver = process.env.QUEST_PERSISTENCE_DRIVER ?? "json";
+    return {
+      driver,
+      adapter: this.persistence?.constructor?.name ?? "unknown",
+    };
+  }
 }
 
 /**
- * Global quest progression store singleton with JSON file persistence.
- * Uses QUEST_STATE_FILE env var for custom path.
- * Falls back to process.cwd()/data/quest-state.json.
+ * Global quest progression store singleton with configurable persistence.
+ * Uses QUEST_PERSISTENCE_DRIVER env var (default: json).
+ * Falls back to JSON when DATABASE_URL unavailable for Postgres.
  */
 export const questProgressionStore = new QuestProgressionStore(
-  new JsonQuestPersistenceAdapter(),
+  createPersistenceAdapter(),
 );
