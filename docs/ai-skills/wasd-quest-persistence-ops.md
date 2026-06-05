@@ -75,11 +75,25 @@ CRON_LINE='*/30 * * * * cd /opt/areloria && APP_DIR=/opt/areloria scripts/backup
 crontab -l | grep backup-quest-state
 ```
 
-### 5. Permissions Fix
+### 5. Permission Hardening
 
+**⚠️ Important: Never leave chmod 777 as permanent state!**
+
+Use the fix script (recommended):
 ```bash
-# Fix data directory permissions
-chmod 777 /opt/areloria/data
+# Fix permissions - sets ownership to container user
+bash scripts/fix-quest-data-permissions.sh
+```
+
+The script:
+1. Detects container UID/GID
+2. Sets ownership to container user
+3. Sets mode to 750 (no world-writable)
+4. Verifies container can write
+
+**Emergency workaround only (temporary):**
+```bash
+chmod 777 /opt/areloria/data  # TEMPORARY - fix with script ASAP!
 ```
 
 ### 6. Container Restart
@@ -144,26 +158,29 @@ curl http://localhost:3001/health/quest-persistence
 
 | Issue | Solution |
 |-------|----------|
-| `EACCES: permission denied` on `/app/data` | `chmod 777 /opt/areloria/data` |
+| `EACCES: permission denied` on `/app/data` | Run `scripts/fix-quest-data-permissions.sh` (or manual: `chown -R 100:101 /opt/areloria/data && chmod 750 /opt/areloria/data`) |
+| chmod 777 warning in verify script | Run `scripts/fix-quest-data-permissions.sh` to set proper container-user ownership |
 | Quest vars not loaded in container | Restart container or use `--force-recreate` |
 | docker-compose.yml invalid | Check vars are in `environment` section, not `build` |
-| Health returns `"writable": false` | Check permissions and mount path |
+| Health returns `"writable": false` | Check permissions and mount path with verify script |
 
 ## Related Files
 
 - `scripts/backup-quest-state.sh` - Backup script with rotation
 - `scripts/restore-quest-state-dry-run.sh` - Dry-run restore validation
-- `scripts/verify-quest-persistence-production.sh` - VPS verification
+- `scripts/verify-quest-persistence-production.sh` - VPS verification (includes permission check)
+- `scripts/fix-quest-data-permissions.sh` - Fix world-writable permissions
 - `docs/QUEST_PERSISTENCE_PRODUCTION_RUNBOOK.md` - Complete operational guide
 - `server/migrations/005_player_quest_state.sql` - DB migration
 - `server/src/quests/PgQuestPersistenceAdapter.ts` - Postgres adapter
 - `server/src/quests/JsonQuestPersistenceAdapter.ts` - JSON adapter
 - `server/src/api/questPersistenceHealth.ts` - Health endpoint
 
-## Rules
+## Security Rules
 
 - ✅ No secrets committed to git
 - ✅ No new DB provisioned (use existing)
 - ✅ No destructive migrations (use `IF NOT EXISTS`)
 - ✅ No backups in repo (in `.gitignore`)
 - ✅ Graceful degradation if DB unreachable
+- ⚠️ **Never use chmod 777 as permanent solution** - use fix script instead

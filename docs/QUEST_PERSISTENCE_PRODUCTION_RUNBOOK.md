@@ -45,7 +45,7 @@ Before deploying quest persistence, verify the mount:
 
 ```bash
 # SSH to VPS
-ssh vps
+ssh root@46.202.154.25
 
 # Verify host directory
 mkdir -p /opt/areloria/data
@@ -54,9 +54,48 @@ test -w /opt/areloria/data && echo "host-write-ok"
 # Verify container mount
 docker exec arelorian-engine sh -lc 'test -w /app/data && echo container-write-ok'
 
+# Check container UID/GID (needed for secure permissions)
+docker exec arelorian-engine sh -lc 'id -u && id -g'
+
+# Check current permissions
+stat -c '%a %U:%G' /opt/areloria/data
+
 # Run full verification
 bash scripts/verify-quest-persistence-production.sh
 ```
+
+### 1b. Permission Hardening
+
+After mount verification, apply secure permissions:
+
+```bash
+# Option 1: Use the fix script (recommended)
+bash scripts/fix-quest-data-permissions.sh
+
+# Option 2: Manual fix (if fix script unavailable)
+# 1. Get container UID/GID
+CONTAINER_UID=$(docker exec arelorian-engine sh -lc 'id -u')
+CONTAINER_GID=$(docker exec arelorian-engine sh -lc 'id -g')
+
+# 2. Set ownership to container user
+chown -R ${CONTAINER_UID}:${CONTAINER_GID} /opt/areloria/data
+
+# 3. Set secure mode (owner rw, group r-x, no world access)
+chmod 750 /opt/areloria/data
+
+# 4. Verify
+stat -c '%a %U:%G' /opt/areloria/data
+docker exec arelorian-engine sh -lc 'test -w /app/data && echo ok'
+```
+
+> **Warning: chmod 777 is a temporary emergency fix only**
+>
+> If the data directory is not writable and no other solution works:
+> ```bash
+> chmod 777 /opt/areloria/data  # TEMPORARY - fix properly ASAP!
+> ```
+> This allows any local process to write quest state. Replace with proper
+> container-user ownership as soon as possible using the fix script above.
 
 ### 2. Postgres Table Setup (Production)
 
@@ -245,18 +284,43 @@ curl http://localhost:3000/health/quest-persistence
 
 **Symptom:** Health endpoint returns `"writable": false`
 
-**Fix:**
+**Diagnosis:**
 ```bash
-# Check permissions
+# Check current permissions
 ls -la /opt/areloria/data/
+stat -c '%a %U:%G' /opt/areloria/data
 
-# Fix permissions
-chown -R $(whoami): /opt/areloria/data/
-chmod 755 /opt/areloria/data/
+# Check container UID/GID
+docker exec arelorian-engine sh -lc 'id -u && id -g'
+```
+
+**Fix (recommended - use fix script):**
+```bash
+# Run the fix script - sets ownership to container user
+bash scripts/fix-quest-data-permissions.sh
+```
+
+**Fix (manual):**
+```bash
+# Get container UID/GID
+CONTAINER_UID=$(docker exec arelorian-engine sh -lc 'id -u')
+CONTAINER_GID=$(docker exec arelorian-engine sh -lc 'id -g')
+
+# Set ownership
+chown -R ${CONTAINER_UID}:${CONTAINER_GID} /opt/areloria/data
+
+# Set secure mode
+chmod 750 /opt/areloria/data
 
 # Verify
 docker exec arelorian-engine sh -lc 'test -w /app/data && echo ok'
 ```
+
+**Emergency Fix (temporary only):**
+```bash
+chmod 777 /opt/areloria/data  # WARNING: security risk - fix properly ASAP!
+```
+> Only use 777 as a last resort. Replace with proper ownership using the fix script.
 
 ### No Backups in Directory
 
