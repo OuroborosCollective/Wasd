@@ -65,6 +65,24 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# 1b. Check world-writable permissions (security check)
+# -----------------------------------------------------------------------------
+log_info "1b. Checking data directory permissions..."
+
+if [ -d "$APP_DIR/data" ]; then
+  MODE=$(stat -c '%a' "$APP_DIR/data" 2>/dev/null || echo "unknown")
+  if [ "$MODE" = "777" ]; then
+    log_warn "Data directory is world-writable (777) - security risk!"
+    log_info "  Run: scripts/fix-quest-data-permissions.sh to fix"
+    FAILED=$((FAILED + 1))
+  elif [ "$MODE" = "750" ] || [ "$MODE" = "755" ] || [ "$MODE" = "700" ]; then
+    log_ok "Data directory permissions are secure: $MODE"
+  else
+    log_info "Data directory mode: $MODE"
+  fi
+fi
+
+# -----------------------------------------------------------------------------
 # 2. Check container mount
 # -----------------------------------------------------------------------------
 log_info "2. Checking container mount..."
