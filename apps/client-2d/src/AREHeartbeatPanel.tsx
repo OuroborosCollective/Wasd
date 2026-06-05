@@ -11,7 +11,10 @@
  * - Kein Math.random() für ARE-Werte
  * - Kein Date.now() für Simulation
  * - Fehlende Werte als "waiting" anzeigen, nicht fälschen
+ * - Date.now() ist nur erlaubt für UI-Stale-Erkennung/lastUpdated
  */
+
+import { useEffect, useState } from "react";
 
 export interface AREHeartbeatSnapshot {
   tickId: number | null;
@@ -27,6 +30,11 @@ export interface AREHeartbeatSnapshot {
  * ARE Endpoint für Heartbeat-Daten
  */
 const ARE_HEARTBEAT_ENDPOINT = "/api/are/heartbeat";
+
+/**
+ * Polling interval in milliseconds (defensive: 2s, not 10Hz)
+ */
+const ARE_HEARTBEAT_POLL_MS = 2000;
 
 /**
  * Default-Snapshot (alle Werte als "waiting")
@@ -90,10 +98,52 @@ interface AREHeartbeatPanelProps {
 }
 
 export function AREHeartbeatPanel({ snapshot, compact = false }: AREHeartbeatPanelProps) {
-  // If no snapshot provided, fetch from server
-  // For now, use default with "waiting" status
-  const data: AREHeartbeatSnapshot = snapshot ?? DEFAULT_ARE_HEARTBEAT;
-  
+  // Internal state for live updates (unless snapshot prop provided)
+  const [liveSnapshot, setLiveSnapshot] = useState<AREHeartbeatSnapshot>(
+    snapshot ?? DEFAULT_ARE_HEARTBEAT
+  );
+
+  // If snapshot prop is provided, use it directly (for testing)
+  // Otherwise, fetch from server
+  useEffect(() => {
+    if (snapshot) {
+      setLiveSnapshot(snapshot);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function updateHeartbeat() {
+      const next = await fetchAREHeartbeat();
+
+      if (cancelled) return;
+
+      if (next) {
+        setLiveSnapshot(next);
+      } else {
+        // On fetch failure, mark as stale if we have data, or waiting if not
+        setLiveSnapshot((current) => ({
+          ...current,
+          heartbeatStatus: current.tickId === null ? "waiting" : "stale",
+        }));
+      }
+    }
+
+    // Initial fetch
+    void updateHeartbeat();
+
+    // Set up polling for live updates
+    const interval = window.setInterval(() => {
+      void updateHeartbeat();
+    }, ARE_HEARTBEAT_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [snapshot]);
+
+  const data = liveSnapshot;
   const isWaiting = data.heartbeatStatus === "waiting";
   const isStale = data.heartbeatStatus === "stale";
 
