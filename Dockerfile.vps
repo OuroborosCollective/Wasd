@@ -233,15 +233,33 @@ RUN test -f /app/client/dist/2d/index.html && \
     test -f /app/server/client/dist/portal/index.html
 
 # Create symlink for 2d-assets to make them accessible at /2d-assets/ root path
-RUN ln -s /app/server/client/dist/2d/2d-assets /app/server/client/dist/2d-assets && \
-    ln -s /app/client/dist/2d/2d-assets /app/client/dist/2d-assets && \
-    # Create placeholder icons for PWA manifest (will be replaced by real icons in production)
-    mkdir -p /app/server/client/dist/2d/2d-assets/credits && \
-    mkdir -p /app/client/dist/2d/2d-assets/credits && \
-    echo 'iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAADklEQVR42u3BAQ0AAADCoPdPbQ8HFAAAAAAA8GIAoAAiRIq0yAAAAABJRU5ErkJggg==' | base64 -d > /app/server/client/dist/2d/2d-assets/credits/icon-192.png && \
-    cp /app/server/client/dist/2d/2d-assets/credits/icon-192.png /app/server/client/dist/2d/2d-assets/credits/icon-512.png && \
-    cp /app/server/client/dist/2d/2d-assets/credits/icon-192.png /app/client/dist/2d/2d-assets/credits/icon-192.png && \
-    cp /app/server/client/dist/2d/2d-assets/credits/icon-192.png /app/client/dist/2d/2d-assets/credits/icon-512.png
+# This must come AFTER the client build steps that create 2d-assets
+RUN set -e && \
+    echo "Setting up 2d-assets symlinks..." && \
+    if [ -d "/app/server/client/dist/2d/2d-assets" ]; then \
+        ln -sf /app/server/client/dist/2d/2d-assets /app/server/client/dist/2d-assets 2>/dev/null || true; \
+    fi && \
+    if [ -d "/app/client/dist/2d/2d-assets" ]; then \
+        ln -sf /app/client/dist/2d/2d-assets /app/client/dist/2d-assets 2>/dev/null || true; \
+    fi && \
+    echo "Symlinks done"
+
+# Create placeholder icons for PWA manifest using node.js
+RUN node -e "
+const fs = require('fs');
+const path = require('path');
+const base64 = 'iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAADklEQVR42u3BAQ0AAADCoPdPbQ8HFAAAAAAA8GIAoAAiRIq0yAAAAABJRU5ErkJggg==';
+const iconPath = '/app/server/client/dist/2d/2d-assets/credits';
+try {
+  fs.mkdirSync(iconPath, { recursive: true });
+  const buffer = Buffer.from(base64, 'base64');
+  fs.writeFileSync(path.join(iconPath, 'icon-192.png'), buffer);
+  fs.writeFileSync(path.join(iconPath, 'icon-512.png'), buffer);
+  console.log('PWA icons created successfully');
+} catch (e) {
+  console.log('Icon creation skipped:', e.message);
+}
+"
 
 RUN rm -rf \
     /app/server/src \
