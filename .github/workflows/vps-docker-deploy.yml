@@ -164,14 +164,14 @@ jobs:
               -p "${SSH_PORT}" \
               -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
-              -o ConnectTimeout=25 \
+              -o ConnectTimeout=65 \
               -o ServerAliveInterval=15 \
-              -o ServerAliveCountMax=4 \
+              -o ServerAliveCountMax=6 \
               "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
               "echo 'SSH OK'; hostname; uname -a; command -v docker; docker --version; df -h /"; then
               exit 0
             fi
-            sleep 12
+            sleep 16
           done
           echo "ERROR: VPS SSH stayed unreachable after retries."
           exit 255
@@ -185,7 +185,7 @@ jobs:
             if sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -P "${SSH_PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${CLIENT_2D_ARCHIVE}" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${DEPLOY_PATH}/${CLIENT_2D_ARCHIVE}"; then
               exit 0
             fi
-            sleep 10
+            sleep 15
           done
           exit 1
 
@@ -196,8 +196,8 @@ jobs:
             -p "${SSH_PORT}" \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=10 \
+            -o ServerAliveInterval=36 \
+            -o ServerAliveCountMax=16 \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
             "DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_BRANCH='${DEPLOY_BRANCH}' ARELORIAN_PORT='${ARELORIAN_PORT}' ARELORIAN_DOCKER_NETWORK='${ARELORIAN_DOCKER_NETWORK}' CLIENT_2D_ARCHIVE='${CLIENT_2D_ARCHIVE}' CLIENT_2D_MARKER='${CLIENT_2D_MARKER}' CLIENT_2D_BUILD_SHA='${CLIENT_2D_BUILD_SHA}' GITHUB_SHA_EXPECTED='${GITHUB_SHA}' bash -s" <<'REMOTE_EOF'
           set -Eeuo pipefail
