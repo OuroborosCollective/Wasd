@@ -12,6 +12,7 @@ import { LootFeed } from "./ui/LootFeed";
 import { ToastStack, type ClientToast } from "./ui/ToastStack";
 import { NpcDialoguePanel } from "./ui/NpcDialoguePanel";
 import { InteractionPrompt } from "./ui/InteractionPrompt";
+import { ModuleRegistryPanel } from "./ModuleRegistryPanel";
 import { createLootFeedStore, type LootFeedStore, type LootFeedEntry } from "./game/loot";
 import { installClient2DDepthRuntime } from "./client2dDepthRuntime";
 import { installViewportRuntime } from "./ViewportController";
@@ -26,6 +27,7 @@ import "./mobilePlayability.css";
 import "./mobileResponsive.css";
 import "./kenneyUiLiveSkin.css";
 import "./hudSafeZones.css";
+import "./moduleRegistry.css";
 
 installClient2DDepthRuntime();
 installViewportRuntime();
@@ -119,6 +121,7 @@ function UIOverlayLayer() {
   const [toasts, setToasts] = useState<ClientToast[]>([]);
   const [dialogueActive, setDialogueActive] = useState<{ npcName: string; text: string } | null>(null);
   const [interactionTarget, setInteractionTarget] = useState<{ label: string } | null>(null);
+  const [showRegistry, setShowRegistry] = useState(false);
   
   // Loot feed store (synced to component state)
   const lootFeedRef = useRef(createLootFeedStore(6));
@@ -134,6 +137,17 @@ function UIOverlayLayer() {
       const now = Date.now();
       setToasts(prev => prev.filter(t => now - t.createdAtMs < 5000));
     }, 1000);
+
+    // Keyboard shortcut for Module Registry (M key)
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "m" || e.key === "M") {
+        // Don't toggle if typing in an input
+        const target = e.target as HTMLElement;
+        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+        setShowRegistry(prev => !prev);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
 
     // Listen for UI events
     const handler = ((event: Event) => {
@@ -189,6 +203,7 @@ function UIOverlayLayer() {
     return () => {
       clearInterval(lootInterval);
       clearInterval(toastInterval);
+      window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("wasd:network-packet", handler);
     };
   }, []);
@@ -212,6 +227,20 @@ function UIOverlayLayer() {
             }));
           }}
         />
+      )}
+      {showRegistry && (
+        <div className="module-registry-overlay" onClick={() => setShowRegistry(false)}>
+          <div className="module-registry-modal" onClick={e => e.stopPropagation()}>
+            <button
+              className="module-registry-close"
+              onClick={() => setShowRegistry(false)}
+              aria-label="Close Registry"
+            >
+              ×
+            </button>
+            <ModuleRegistryPanel />
+          </div>
+        </div>
       )}
     </>
   );
