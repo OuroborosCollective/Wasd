@@ -18,6 +18,7 @@ import { createLootFeedStore, type LootFeedStore, type LootFeedEntry } from "./g
 import { installClient2DDepthRuntime } from "./client2dDepthRuntime";
 import { installViewportRuntime } from "./ViewportController";
 import { ARELORIA_BOOT_CONFIG } from "./boot/boot.config";
+import { LiveGameplayNetworkBridge } from "./game/LiveGameplayNetworkBridge";
 import "./forestBiomeManifestBridge";
 import "./client2dBootstrapNpcOverlay";
 import "./theme.css";
@@ -293,6 +294,7 @@ async function main(): Promise<void> {
         <KenneyUiLiveSkinBadge />
         <InteractionOverlayRoot />
         <UIOverlayLayer />
+        <LiveGameplayNetworkBridge />
       </CyberZenLoginGate>
     </React.StrictMode>
   );

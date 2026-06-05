@@ -2,6 +2,11 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { InventoryPanel, type InventoryItem } from "./ui/InventoryPanel";
 import { EquipmentPanel } from "./ui/windows/EquipmentPanel";
 import { AREHeartbeatPanel, DEFAULT_ARE_HEARTBEAT, type AREHeartbeatSnapshot } from "./AREHeartbeatPanel";
+import { QuestJournalPanel } from "./ui/windows/QuestJournalPanel";
+import { GuildStatusPanel } from "./ui/windows/GuildStatusPanel";
+import { FactionStandingPanel } from "./ui/windows/FactionStandingPanel";
+import { MapStatusPanel } from "./ui/windows/MapStatusPanel";
+import { useLiveGameplaySnapshot } from "./game/useLiveGameplaySnapshot";
 import "./areHeartbeat.css";
 
 type Msg = { from: string; txt: string };
@@ -120,6 +125,9 @@ export function ArelorianStitchHud({
   const [openOverlays, setOpenOverlays] = useState<Record<HudOverlay, boolean>>({ vitals: false, radar: false, chat: false });
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [chatText, setChatText] = useState("");
+  
+  // Live gameplay snapshot from server (display-only, no game logic)
+  const liveGameplay = useLiveGameplaySnapshot();
 
   // Deterministic vitals from server (no Math.random, no Date.now)
   const hpPercent = vitals ? Math.round((vitals.hp / vitals.maxHp) * 100) : 86;
@@ -385,6 +393,7 @@ export function ArelorianStitchHud({
           onEquipWeapon={onEquipWeapon}
           onCycleWeapon={onCycleWeapon}
           onClose={closePanel}
+          liveGameplay={liveGameplay}
         />
       )}
     </div>
@@ -408,6 +417,7 @@ function StitchPanel({
   onEquipWeapon,
   onCycleWeapon,
   onClose,
+  liveGameplay,
 }: {
   panel: Exclude<HudPanel, null>;
   weaponCount: number;
@@ -416,6 +426,7 @@ function StitchPanel({
   onEquipWeapon?: (item: InventoryItem) => void;
   onCycleWeapon?: () => void;
   onClose: () => void;
+  liveGameplay: ReturnType<typeof useLiveGameplaySnapshot>;
 }) {
   const title = panelTitle(panel);
   return (
@@ -431,10 +442,10 @@ function StitchPanel({
         {panel === "inventory" && <InventoryPanel items={inventoryItems} equippedWeaponId={equippedWeaponId} onEquipWeapon={(item) => onEquipWeapon?.(item)} />}
         {panel === "character" && <EquipmentPanel isOpen={true} onClose={onClose} />}
         {panel === "combat" && <CombatPreview equippedWeaponId={equippedWeaponId} />}
-        {panel === "map" && <MapPreview />}
-        {panel === "guild" && <GuildPreview />}
-        {panel === "factions" && <FactionsPreview />}
-        {panel === "quests" && <QuestPreview />}
+        {panel === "map" && <MapStatusPanel snapshot={liveGameplay} />}
+        {panel === "guild" && <GuildStatusPanel snapshot={liveGameplay} />}
+        {panel === "factions" && <FactionStandingPanel snapshot={liveGameplay} />}
+        {panel === "quests" && <QuestJournalPanel snapshot={liveGameplay} />}
         {panel === "inventory" && weaponCount > 0 && <button className="stitch-cycle-fallback" type="button" onClick={onCycleWeapon}>Cycle Gear Visual</button>}
       </div>
     </div>
@@ -462,18 +473,6 @@ function CharacterPreview() {
 }
 function CombatPreview({ equippedWeaponId }: { equippedWeaponId?: string | null }) {
   return <div className="stitch-grid-panel"><Info label="Tick" value="10Hz" /><Info label="Weapon" value={cleanWeaponName(equippedWeaponId)} /><Info label="Threat" value="low" /><Info label="Warfront" value="cycle-linked" /></div>;
-}
-function MapPreview() {
-  return <div className="stitch-map-preview"><span /><span /><span /><span /><b>Millbrook</b></div>;
-}
-function GuildPreview() {
-  return <div className="stitch-grid-panel"><Info label="Guild" value="unclaimed" /><Info label="Village Rights" value="50 members" /><Info label="Treasury" value="offline" /><Info label="Rank" value="observer" /></div>;
-}
-function FactionsPreview() {
-  return <div className="stitch-grid-panel"><Info label="Millbrook" value="neutral" /><Info label="Oracle Circle" value="trusted" /><Info label="Warfront" value="contested" /><Info label="Merchants" value="open" /></div>;
-}
-function QuestPreview() {
-  return <div className="stitch-grid-panel"><Info label="First Steps" value="available" /><Info label="Oracle Echo" value="hidden" /><Info label="Warfront Aid" value="locked" /><Info label="Crafting" value="pending" /></div>;
 }
 function Info({ label, value }: { label: string; value: string }) {
   return <article className="stitch-info"><small>{label}</small><b>{value}</b></article>;
