@@ -1,9 +1,9 @@
 /**
  * GAMEPLAY SNAPSHOT ROUTE
- * 
+ *
  * Serves live gameplay snapshot for the 2D client.
  * Provides Quest/Guild/Faction/Map data from server-authoritative state.
- * 
+ *
  * Rules:
  * - No Math.random() for gameplay values
  * - No Date.now() for gameplay state
@@ -14,7 +14,8 @@
 
 import express from "express";
 import type { WorldTick } from "../core/WorldTick.js";
-import { createEmptyGameplaySnapshot } from "./gameplaySnapshotUtils.js";
+import { createGameplaySnapshot } from "./gameplaySnapshotUtils.js";
+import { questProgressionStore } from "../quests/QuestProgressionStore.js";
 
 /**
  * Get current tick ID from WorldTick instance.
@@ -32,13 +33,28 @@ function getCurrentTickId(tick: WorldTick | null): number {
 export function createGameplaySnapshotRouter(tick: WorldTick) {
   const router = express.Router();
 
-  router.get("/snapshot", (_req, res) => {
+  router.get("/snapshot", (req, res) => {
     const serverTick = getCurrentTickId(tick);
+    const playerId =
+      typeof req.query.playerId === "string" && req.query.playerId.trim()
+        ? req.query.playerId.trim()
+        : "guest";
 
-    // Real subsystems not connected yet - return empty but honest snapshot
-    const snapshot = createEmptyGameplaySnapshot(serverTick);
+    const questState = questProgressionStore.getPlayerQuestState(playerId);
 
-    res.json({ ok: true, snapshot });
+    const snapshot = createGameplaySnapshot({
+      serverTick,
+      quests: questState.quests,
+      guild: null,
+      factions: [],
+      map: {},
+    });
+
+    res.json({
+      ok: true,
+      playerId,
+      snapshot,
+    });
   });
 
   return router;
