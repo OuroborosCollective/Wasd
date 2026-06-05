@@ -12,7 +12,7 @@
  * - Amount cap for safety
  */
 
-import { Router } from "express";
+import express, { Router } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { getSkillProgressionService } from "../skills/skillRuntime.js";
 import type { SkillId } from "../skills/SkillTypes.js";
