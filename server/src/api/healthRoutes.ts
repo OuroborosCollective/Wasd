@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import type { WorldTick } from '../core/WorldTick.js';
 import { getDeterministicWatchdogStatus } from '../core/installDeterministicWatchdog.js';
+import { checkQuestPersistenceWritable } from './questPersistenceHealth.js';
 
 export type HealthRouteOptions = {
   getTick: () => WorldTick | undefined;
@@ -67,6 +68,15 @@ export function healthRoutes(options: HealthRouteOptions): Router {
     const snapshot = safe(() => tick?.getWorldHashSnapshot?.() ?? null, null);
     const ok = Boolean(snapshot);
     res.status(ok ? 200 : 503).json({ ok, status: ok ? 'hashed' : 'unavailable', snapshot });
+  });
+
+  router.get('/quest-persistence', async (_req: Request, res: Response) => {
+    noStore(res);
+    const result = await checkQuestPersistenceWritable();
+    res.status(result.ok ? 200 : 503).json({
+      ok: result.ok,
+      persistence: result,
+    });
   });
 
   return router;
