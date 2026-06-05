@@ -10,12 +10,14 @@
  * - All values come from real server state
  * - Empty/null states are honest and allowed
  * - status="empty" means server reachable but no gameplay data yet
+ * - Server determines playerId from auth/session, not client
  */
 
 import express from "express";
 import type { WorldTick } from "../core/WorldTick.js";
 import { createGameplaySnapshot } from "./gameplaySnapshotUtils.js";
 import { questProgressionStore } from "../quests/QuestProgressionStore.js";
+import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 
 /**
  * Get current tick ID from WorldTick instance.
@@ -34,16 +36,22 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
   const router = express.Router();
 
   router.get("/snapshot", async (req, res) => {
+    const identity = resolveHttpPlayerIdentity(req as Parameters<typeof resolveHttpPlayerIdentity>[0]);
+
+    if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+      res.status(401).json({
+        ok: false,
+        error: "authenticated_player_required",
+      });
+      return;
+    }
+
     const serverTick = getCurrentTickId(tick);
-    const playerId =
-      typeof req.query.playerId === "string" && req.query.playerId.trim()
-        ? req.query.playerId.trim()
-        : "guest";
 
     // Hydrate persisted quest state before returning
-    await questProgressionStore.hydratePlayer(playerId);
+    await questProgressionStore.hydratePlayer(identity.playerId);
 
-    const questState = questProgressionStore.getPlayerQuestState(playerId);
+    const questState = questProgressionStore.getPlayerQuestState(identity.playerId);
 
     const snapshot = createGameplaySnapshot({
       serverTick,
@@ -55,7 +63,9 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
 
     res.json({
       ok: true,
-      playerId,
+      playerId: identity.playerId,
+      playerIdentitySource: identity.source,
+      authenticated: identity.authenticated,
       snapshot,
     });
   });
