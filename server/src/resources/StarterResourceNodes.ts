@@ -1,0 +1,69 @@
+/**
+ * STARTER RESOURCE NODES
+ *
+ * Deterministic MVP resource nodes for woodcutting, mining, and fishing.
+ * No procedural generation - static definitions for MVP.
+ *
+ * Rules:
+ * - No Math.random()
+ * - No Date.now()
+ * - Stable node IDs
+ * - Sorted by ID for determinism
+ */
+
+import type { ResourceNodeDefinition } from "./ResourceTypes.js";
+
+/**
+ * MVP starter resource nodes.
+ * Positioned near spawn point (around x:460-540, y:500-580).
+ * All require level 1 minimum.
+ */
+export const STARTER_RESOURCE_NODES: readonly ResourceNodeDefinition[] = [
+  {
+    id: "starter_tree_001",
+    kind: "tree",
+    title: "Young Pine",
+    skillId: "woodcutting",
+    requiredLevel: 1,
+    xpReward: 25,
+    itemRewardId: "wood_log",
+    itemRewardName: "Wood Log",
+    respawnTicks: 30,
+    position: { x: 460, y: 500 },
+    radius: 24,
+  },
+  {
+    id: "starter_ore_001",
+    kind: "ore",
+    title: "Copper Rock",
+    skillId: "mining",
+    requiredLevel: 1,
+    xpReward: 30,
+    itemRewardId: "copper_ore",
+    itemRewardName: "Copper Ore",
+    respawnTicks: 40,
+    position: { x: 540, y: 520 },
+    radius: 24,
+  },
+  {
+    id: "starter_fish_001",
+    kind: "fish_spot",
+    title: "Calm Fishing Spot",
+    skillId: "fishing",
+    requiredLevel: 1,
+    xpReward: 20,
+    itemRewardId: "raw_fish",
+    itemRewardName: "Raw Fish",
+    respawnTicks: 25,
+    position: { x: 500, y: 580 },
+    radius: 28,
+  },
+] as const;
+
+/**
+ * Get sorted list of all starter resource node IDs.
+ * Sorted for deterministic iteration.
+ */
+export function getStarterResourceNodeIds(): string[] {
+  return STARTER_RESOURCE_NODES.map((node) => node.id).sort();
+}

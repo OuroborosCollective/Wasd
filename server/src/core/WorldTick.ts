@@ -44,6 +44,7 @@ import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
 import { PersistentPlaytesterNPC, type PlaytesterWorldPort, type PlaytesterNpcSpawn } from "../modules/playtester/PersistentPlaytesterNPC.js";
 import { PlaytesterJsonlLogger } from "../modules/playtester/PlaytesterJsonlLogger.js";
 import { handleGameplayQuestEvent } from "../quests/QuestGameplayEventBridge.js";
+import { gatheringService } from "../resources/GatheringService.js";
 
 // Phase 5: Gameplay Contract imports
 import { 
@@ -323,6 +324,7 @@ export class WorldTick {
   private socketToPlayer: Map<string, string> = new Map();
   private lastActionTimes: Map<string, any> = new Map();
   private pendingForestResourceActions: Array<{ socketId: string; playerId: string; input: any }> = [];
+  private pendingStarterResourceActions: Array<{ socketId: string; playerId: string; input: any }> = [];
   private depletedResources: Map<string, number> = new Map();
 
   public assetPoolResolver: any = { getDocument: () => ({}), setEntry: () => true, removeEntry: () => true, setDefault: () => true, removeDefault: () => true, reload: () => true };
@@ -945,6 +947,9 @@ export class WorldTick {
     else if (msg.type === "attack") { if (!checkCooldown(800)) return; this.handleAttack(id, player, msg); }
     else if (msg.type === "interact") { if (!checkCooldown(500)) return; this.handleInteract(id, player, msg); }
     else if (actionPayload?.kappaCoordinate) { this.pendingForestResourceActions.push({ socketId: id, playerId, input: actionPayload }); }
+    else if (actionPayload?.nodeId && ["starter_tree_001", "starter_ore_001", "starter_fish_001"].includes(actionPayload.nodeId)) {
+      this.pendingStarterResourceActions.push({ socketId: id, playerId, input: actionPayload });
+    }
     else if (msg.type === "dialogue_choice") this.handleDialogueChoice(id, player, msg);
     else if (msg.type === "equip") { this.inventorySystem.equipItem(player, msg.itemId); this.saveAll(); }
     else if (msg.type === "unequip") { this.inventorySystem.unequipItem(player, msg.slot); this.saveAll(); }
@@ -2026,6 +2031,63 @@ export class WorldTick {
       player.questLog.collected[checked.itemId] = safeInt(player.questLog.collected[checked.itemId], 0) + 1;
       this.depletedResources.set(checked.key, this.tickCount + FOREST_RESPAWN_TICKS);
       this.ws.sendToPlayer(request.socketId, { type: "FOREST_RESOURCE_ACCEPTED", resourceKey: checked.key, itemId: checked.itemId, quantity: 1, respawnTick: this.tickCount + FOREST_RESPAWN_TICKS });
+    }
+
+    // ─── Starter Resource Nodes (Deterministic Gathering) ─────────────────────
+    // Handle starter_tree_001, starter_ore_001, starter_fish_001
+    // Uses .then() to avoid blocking the synchronous tick() method
+    const starterQueue = this.pendingStarterResourceActions.splice(0, this.pendingStarterResourceActions.length);
+    for (const request of starterQueue) {
+      const player = this.playerSystem.getPlayer(request.playerId);
+      if (!player || player.isOffline) continue;
+
+      const playerId = this.socketToPlayer.get(request.socketId) ?? player?.id ?? request.playerId;
+      const nodeId = request.input?.nodeId as string;
+
+      // Only handle our specific starter node IDs
+      if (!nodeId || !["starter_tree_001", "starter_ore_001", "starter_fish_001"].includes(nodeId)) {
+        continue;
+      }
+
+      // Non-blocking: process gather asynchronously
+      gatheringService.gather({
+        playerId,
+        nodeId,
+        playerPosition: player.position ?? { x: 0, y: 0 },
+        currentTick: this.tickCount,
+        onItemReward: (item) => {
+          this.inventorySystem.addItem(player, {
+            id: item.id,
+            name: item.name,
+            quantity: item.quantity,
+            source: "resource_gather",
+          });
+        },
+      }).then((result) => {
+        // Send result to player
+        this.ws.sendToPlayer(request.socketId, {
+          type: "RESOURCE_GATHER_RESULT",
+          payload: result,
+        });
+
+        // If successful, also send skill progress update
+        if (result.ok && result.skillId && result.xpReward) {
+          this.ws.sendToPlayer(request.socketId, {
+            type: "SKILL_PROGRESS",
+            payload: {
+              playerId,
+              skillId: result.skillId,
+              xpReward: result.xpReward,
+            },
+          });
+        }
+      }).catch((err) => {
+        console.error(`[GatheringService] Error processing gather for ${nodeId}:`, err);
+        this.ws.sendToPlayer(request.socketId, {
+          type: "RESOURCE_GATHER_RESULT",
+          payload: { ok: false, playerId, nodeId, reason: "node_not_found" },
+        });
+      });
     }
   }
 

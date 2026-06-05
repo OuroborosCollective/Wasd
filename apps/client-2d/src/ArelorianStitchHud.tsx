@@ -6,11 +6,12 @@ import { QuestJournalPanel } from "./ui/windows/QuestJournalPanel";
 import { GuildStatusPanel } from "./ui/windows/GuildStatusPanel";
 import { FactionStandingPanel } from "./ui/windows/FactionStandingPanel";
 import { MapStatusPanel } from "./ui/windows/MapStatusPanel";
+import { ResourceNodePanel } from "./ui/windows/ResourceNodePanel";
 import { useLiveGameplaySnapshot } from "./game/useLiveGameplaySnapshot";
 import "./areHeartbeat.css";
 
 type Msg = { from: string; txt: string };
-type HudPanel = "inventory" | "character" | "map" | "combat" | "guild" | "factions" | "quests" | null;
+type HudPanel = "inventory" | "character" | "map" | "combat" | "guild" | "factions" | "quests" | "resources" | null;
 type HudOverlay = "vitals" | "radar" | "chat";
 
 export interface PlayerVitalsData {
@@ -71,6 +72,7 @@ const panels: { id: Exclude<HudPanel, null>; label: string; icon: string; shortc
   { id: "guild", label: "Guild", icon: "♜", shortcut: "g" },
   { id: "factions", label: "Factions", icon: "⚖", shortcut: "f" },
   { id: "quests", label: "Quests", icon: "!", shortcut: "q" },
+  { id: "resources", label: "Resources", icon: "⛏", shortcut: "r" },
 ];
 
 const overlays: { id: HudOverlay; label: string; short: string }[] = [
@@ -446,6 +448,7 @@ function StitchPanel({
         {panel === "guild" && <GuildStatusPanel snapshot={liveGameplay} />}
         {panel === "factions" && <FactionStandingPanel snapshot={liveGameplay} />}
         {panel === "quests" && <QuestJournalPanel snapshot={liveGameplay} />}
+        {panel === "resources" && <ResourceNodePanel resources={liveGameplay.resources ?? []} />}
         {panel === "inventory" && weaponCount > 0 && <button className="stitch-cycle-fallback" type="button" onClick={onCycleWeapon}>Cycle Gear Visual</button>}
       </div>
     </div>
@@ -461,6 +464,7 @@ function panelTitle(panel: Exclude<HudPanel, null>) {
     guild: "Guild Console",
     factions: "Faction Reputation",
     quests: "Quest Log",
+    resources: "Resource Nodes",
   } as const)[panel];
 }
 

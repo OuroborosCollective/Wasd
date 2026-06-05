@@ -80,25 +80,46 @@ export interface MapSnapshot {
 }
 
 /**
- * Live Gameplay Snapshot shape (includes skills)
+ * Resource Node Snapshot shape
+ */
+export interface ResourceNodeSnapshot {
+  id: string;
+  kind: "tree" | "ore" | "fish_spot";
+  title: string;
+  skillId: "woodcutting" | "mining" | "fishing";
+  requiredLevel: number;
+  xpReward: number;
+  itemRewardId: string;
+  itemRewardName: string;
+  position: { x: number; y: number };
+  radius: number;
+  status: "available" | "depleted" | "locked";
+  depletedUntilTick: number | null;
+  remainingTicks: number;
+}
+
+/**
+ * Live Gameplay Snapshot shape (includes skills and resources)
  */
 export interface LiveGameplaySnapshot {
   status: "live";
   serverTick: number;
   quests: QuestSnapshot[];
   skills: SkillSnapshot[];
+  resources: ResourceNodeSnapshot[];
   guild: GuildSnapshot;
   factions: FactionStandingSnapshot[];
   map: MapSnapshot;
 }
 
 /**
- * Input for creating a gameplay snapshot (includes skills)
+ * Input for creating a gameplay snapshot (includes skills and resources)
  */
 export interface GameplaySnapshotInput {
   serverTick: number;
   quests?: QuestSnapshot[];
   skills?: SkillSnapshot[];
+  resources?: ResourceNodeSnapshot[];
   guild?: GuildSnapshot | null;
   factions?: FactionStandingSnapshot[];
   map?: Partial<MapSnapshot>;
@@ -112,6 +133,7 @@ export interface GameplaySnapshotInput {
 export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGameplaySnapshot {
   const sortedQuests = [...(input.quests ?? [])].sort((a, b) => a.id.localeCompare(b.id));
   const sortedSkills = [...(input.skills ?? [])].sort((a, b) => a.id.localeCompare(b.id));
+  const sortedResources = [...(input.resources ?? [])].sort((a, b) => a.id.localeCompare(b.id));
   const sortedFactions = [...(input.factions ?? [])].sort((a, b) => a.id.localeCompare(b.id));
 
   return {
@@ -119,6 +141,7 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGamepl
     serverTick: input.serverTick,
     quests: sortedQuests,
     skills: sortedSkills,
+    resources: sortedResources,
     guild: input.guild ?? {
       id: null,
       name: null,
