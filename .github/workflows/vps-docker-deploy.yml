@@ -105,6 +105,8 @@ jobs:
           if [ -d ".asset-inbox/cozy-spring" ]; then
             echo "Importing Cozy Spring assets from .asset-inbox/cozy-spring"
             python3 scripts/extract-cozy-spring-objects.py --inbox ".asset-inbox/cozy-spring" --output "$INBOX" --tmp .tmp/cozy-spring-extract --verbose
+            echo "Filtering keyboard glyph props from runtime spawning"
+            python3 scripts/filter-cozy-keyboard-glyph-props.py --manifest "$MANIFEST" --output-root "$INBOX"
           else
             echo "No Cozy inbox found; using committed fallback assets."
           fi
