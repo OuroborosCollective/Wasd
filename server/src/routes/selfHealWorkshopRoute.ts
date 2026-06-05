@@ -5,6 +5,7 @@
  */
 
 import type { Express, Request, Response } from "express";
+import { Router } from "express";
 import { selfHealWorkshop } from "../selfhealing/SelfHealingWorkshop.js";
 import type { SelfHealIssue } from "../selfhealing/SelfHealingWorkshopTypes.js";
 
@@ -13,7 +14,7 @@ import type { SelfHealIssue } from "../selfhealing/SelfHealingWorkshopTypes.js";
  * Read-only - no file mutation.
  */
 export function createSelfHealWorkshopRouter() {
-  const router = require("express").Router();
+  const router = Router();
 
   /**
    * GET /api/self-healing
