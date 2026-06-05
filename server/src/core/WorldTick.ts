@@ -43,6 +43,7 @@ import { sha256 } from "./manifest/ManifestHasher.js";
 import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
 import { PersistentPlaytesterNPC, type PlaytesterWorldPort, type PlaytesterNpcSpawn } from "../modules/playtester/PersistentPlaytesterNPC.js";
 import { PlaytesterJsonlLogger } from "../modules/playtester/PlaytesterJsonlLogger.js";
+import { handleGameplayQuestEvent } from "../quests/QuestGameplayEventBridge.js";
 
 // Phase 5: Gameplay Contract imports
 import { 
@@ -1795,6 +1796,24 @@ export class WorldTick {
           }
         });
       }
+
+      // Quest progression: NPC interaction triggers quest events
+      const questResult = handleGameplayQuestEvent({
+        type: "player_npc_interaction",
+        playerId,
+        npcId,
+      });
+
+      if (questResult.changed) {
+        // Send quest progress update to player
+        this.ws.sendToPlayer(id, {
+          type: "QUEST_PROGRESS",
+          payload: {
+            playerId,
+            questIds: questResult.questIds,
+          },
+        });
+      }
     }
     
     // ─── chunk_observe ───────────────────────────────────────────────────
@@ -2044,7 +2063,29 @@ export class WorldTick {
   }
   private handleInteract(id: string, player: any, msg: any) { const targetId = msg.targetId; const npc = this.npcSystem.getNPC(targetId); const loot = this.lootEntities.get(targetId); if (npc) { const dist = Math.hypot(player.position.x - npc.position.x, player.position.y - npc.position.y); if (dist < 20) { const interaction = this.npcSystem.handleInteraction(targetId, player, this.questSystem.getQuestDefinitions(), { tick: this.tickCount, biomeId: "forest_village" }); if (interaction) this.ws.sendToPlayer(id, { type: "dialogue", source: interaction.source, text: interaction.text, choices: interaction.choices, npcId: interaction.npcId }); } } else if (loot) { const dist = Math.hypot(player.position.x - loot.position.x, player.position.y - loot.position.y); if (dist < 20) { this.inventorySystem.addItem(player, loot.item); this.lootEntities.delete(targetId); this.lootSpawnTicks.delete(targetId); this.ws.sendToPlayer(id, { type: "dialogue", source: "System", text: `Picked up ${loot.item.name}!` }); } } }
   private handleDialogueChoice(id: string, player: any, msg: any) { const { npcId, nodeId, choiceId } = msg; const interaction = this.npcSystem.handleChoice(npcId, nodeId, choiceId, player); if (interaction) this.ws.sendToPlayer(id, { type: "dialogue", source: interaction.source, text: interaction.text, choices: interaction.choices, npcId: interaction.npcId }); }
-  private handleNPCDeath(socketId: string, player: any, npc: any, npcInstanceId: string) { npc.health = npc.maxHealth || 100; this.ws.sendToPlayer(socketId, { type: "dialogue", source: "System", text: `${npc.name} respawns.` }); }
+  private handleNPCDeath(socketId: string, player: any, npc: any, npcInstanceId: string) {
+    const playerId = this.socketToPlayer.get(socketId) ?? player?.id ?? "unknown";
+
+    npc.health = npc.maxHealth || 100;
+    this.ws.sendToPlayer(socketId, { type: "dialogue", source: "System", text: `${npc.name} respawns.` });
+
+    // Quest progression: NPC kill triggers quest events
+    const questResult = handleGameplayQuestEvent({
+      type: "player_npc_kill",
+      playerId,
+      npcId: npc.id,
+    });
+
+    if (questResult.changed) {
+      this.ws.sendToPlayer(socketId, {
+        type: "QUEST_PROGRESS",
+        payload: {
+          playerId,
+          questIds: questResult.questIds,
+        },
+      });
+    }
+  }
   private hydratePlayer(player: any) { if (!player.id) player.id = "unknown"; if (!player.name) player.name = player.id; if (!player.position) player.position = { x: 0, y: 0 }; if (!player.inventory) player.inventory = []; if (!player.quests) player.quests = []; if (!player.equipment) player.equipment = { weapon: null, armor: null }; }
   private async saveAll() { const allPlayers = this.playerSystem.getAllPlayers(); const data: any = {}; for (const p of allPlayers) if (p.id !== "dummy_player") data[p.id] = p; await this.persistence.save(data); }
   
