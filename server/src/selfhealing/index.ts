@@ -34,7 +34,6 @@ export {
 // System (legacy)
 export {
   SelfHealingSystem,
-  sovereignEngine,
   safeExecute,
   bootstrapSelfHealing,
   resolveSelfHealingConfigFromEnv,
@@ -43,6 +42,7 @@ export {
   type SelfHealingConfig,
   type SelfHealingDashboardConfig,
 } from "./SelfHealingSystem.js";
+export { default as sovereignEngine } from "./SelfHealingSystem.js";
 
 // Dashboard (legacy)
 export {

@@ -63,11 +63,19 @@ export class LiveGameplayStore {
 export const liveGameplayStore = new LiveGameplayStore();
 
 // HTTP fallback fetch for when WebSocket hasn't delivered data yet
-export async function fetchGameplaySnapshot(): Promise<LiveGameplaySnapshot | null> {
+const DEFAULT_PLAYER_ID = "guest";
+
+export async function fetchGameplaySnapshot(
+  playerId: string = DEFAULT_PLAYER_ID
+): Promise<LiveGameplaySnapshot | null> {
   try {
-    const response = await fetch("/api/gameplay/snapshot", {
-      cache: "no-store",
-    });
+    const encodedPlayerId = encodeURIComponent(playerId);
+    const response = await fetch(
+      `/api/gameplay/snapshot?playerId=${encodedPlayerId}`,
+      {
+        cache: "no-store",
+      }
+    );
     if (!response.ok) return null;
     const data = (await response.json()) as {
       ok?: boolean;
