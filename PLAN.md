@@ -1,122 +1,215 @@
-# 1. OBJECTIVE
+# Areloria / WASD — Current Implementation Plan
 
-Analyze the Areloria/Wasd MMORPG project from the agent package documents and create a prioritized implementation plan for the next development steps. The goal is to continue building on the existing vertical slice while maintaining architectural integrity.
+This plan is a living, practical companion to:
 
-# 2. CONTEXT SUMMARY
+- `README_START_HERE.md`
+- `docs/PROJECT_STATUS_2026.md`
+- `docs/ROADMAP_TO_RELEASE.md`
+- `docs/DOCUMENTATION_INDEX.md`
 
-**Project:** Areloria/Ouroboros - Server-authoritative browser MMORPG built with TypeScript, Three.js (client), Express/WebSocket (server)
+It replaces older agent-package assumptions such as Three.js-only client, Python backend, npm-only setup, or one-off vertical-slice planning.
 
-**Current State (from Agent Package):**
-- Strong internal vertical slice with working gameplay loop
-- Data-driven NPCs, Quests, Dialogues, Spawns via JSON
-- Server-authoritative movement and state
-- Chunk system (64x64), Observer simulation
-- Item Registry as Source of Truth
-- Persistence over restart
-- Reputation system, Quest chains with prerequisites
-- Content Validator and Manifest system
+---
 
-**Documentation Files Present:**
-- README_START_HERE.md ✓
-- PROJECT_LOCK_RULES.md ✓
-- final-lock/FINAL_TRUTH.md ✓
-- 100+ design docs in /docs
-- 55+ JSON game-data files
+## 1. Objective
 
-**Core Rules (MUST NOT BREAK):**
-- Server authority
-- 64x64 chunks
-- Observer simulation
-- Data-driven content (NPCs, Quests, Dialogues, Spawns)
-- Item Registry as Source of Truth
-- Generic runtime (no One-Off logic)
+Continue building Areloria / WASD toward a stable public release while preserving the systems that already work.
 
-# 3. APPROACH OVERVIEW
+The current project is a server-authoritative browser MMORPG foundation with:
 
-Following the "Gardener Mode" from the agent package:
-1. **Assess current state** - Run builds and tests to understand what's working
-2. **Choose ONE small safe step** - Based on recommended paths in agent package
-3. **Implement and validate** - Run build, tests, and validators
-4. **Report structured results**
+- Node.js + TypeScript + Express + WebSocket server,
+- authoritative `WorldTick` at roughly 100 ms / 10 Hz,
+- Babylon.js 3D client,
+- PixiJS v7 + React 2D client,
+- JSON-driven content in `game-data/`,
+- Supabase-first auth path,
+- Postgres/file persistence drivers,
+- deterministic manifest and ARE guard direction,
+- live modules for combat, loot, quests, NPC runtime, chunks, resources, storage, warfront, world boss, voting, crafting, admin content, and playtester monitoring.
 
-**Safe vs Unsafe Categories (from Agent Package):**
-- SAFE: Content validation, Manifests, Data-driven content, Small UI/UX, Tests, Build hardening
-- UNSAFE: WorldTick redesign, Chunk/Observer changes, Combat core overhaul, Auth system
+The goal is not to rewrite the engine. The goal is to harden, expose, test, document, and polish what already lives.
 
-# 4. IMPLEMENTATION STEPS
+---
 
-## Step 1: Assess Current State
-**Goal:** Understand what works and what needs attention
-**Method:**
-- Run `npm run build` to verify client and server compile
-- Run `npm run test` to see test results
-- Check if Content Validator runs
-**Reference:** package.json, vitest.config.ts
+## 2. Current context summary
 
-## Step 2: Choose Priority Area
-**Goal:** Select the most impactful small next step
-**Method:** Based on agent package recommendations:
-- "Echte Live-In-Game-Beweise für vorhandene Systeme" (Real in-game proof)
-- "kleine Quest-/Dialog-Politur" (Small quest/dialogue polish)
-- "Build-/Validator-/Manifest-Härtung" (Build/Validator/Manifest hardening)
+### Project
 
-**Recommended First Step:** Run build and tests to establish baseline, then add a small data-driven enhancement or fix
+Areloria / Ouroboros / WASD — deterministic browser MMORPG and living-world simulation architecture.
 
-## Step 3: Execute Chosen Step
-**Goal:** Make ONE small, safe change
-**Method:**
-- If build passes: Add a small content pack or fix a minor issue
-- If issues found: Fix only what's necessary
-**Reference:** game-data/*.json for content, server/src/modules/* for code
+### Current runtime stack
 
-## Step 4: Validate and Report
-**Goal:** Verify the change doesn't break existing systems
-**Method:**
-- Run build
-- Run tests
-- Run content validator if available
-- Report in agent format (A. Ziel, B. Dateien, C. Änderungen, D. Prüfungen, E. Ergebnis, F. Risiken, G. Nächster Schritt)
+| Layer | Current path |
+|---|---|
+| Server | `server/` — Node.js, TypeScript, Express, `ws`, authoritative `WorldTick` |
+| 3D client | `client/` — Vite, TypeScript, Babylon.js |
+| 2D client | `apps/client-2d/` — PixiJS v7 + React |
+| Data | `game-data/` JSON, optional `published-content/current` pack |
+| Persistence | `PERSISTENCE_DRIVER=auto|postgres|file` |
+| Auth | Supabase JWT path with explicit guest/dev toggles |
+| Ops | VPS Docker/PM2 docs exist; active release work should verify current deploy workflow before trusting it |
 
+### Already live foundations
 
-# 5. TESTING AND VALIDATION
+- Server-authoritative movement/combat/skills.
+- Inventory, equipment, loot pickup/drop/sync.
+- Anti-Ninja Loot Lock.
+- Player stats sync.
+- Quest and questline systems.
+- NPC memory/relationship/proactive chat runtime.
+- Ouroboros agent tick.
+- Chunk/world/resource/weather/time systems.
+- Storage entities.
+- Warfront, world boss, vote, crafting.
+- Admin content tools and GLB/model-needs pipeline.
+- Playtester monitor with WebRTC mode.
+- Gameplay Fusion Director: quest echo, adaptive quest scene profiles, construction contracts.
+- Monorepo/architecture/WorldTick guards.
 
-## Success Criteria for Each Step
+---
 
-**Build Success:**
-- `npm run build` completes without errors
-- Both client and server compile successfully
+## 3. Core rules — must not break
 
-**Test Success:**
-- `npm run test` runs without critical failures
-- Core gameplay loop tests pass (quest, inventory, combat)
+1. **Server authority:** gameplay truth belongs on the server.
+2. **10 Hz simulation discipline:** no unbounded work inside `WorldTick`.
+3. **Determinism:** simulation-affecting results must not depend on hidden wall-clock time or process-local randomness.
+4. **64x64 chunk logic:** keep world partitioning consistent.
+5. **Observer principle:** expensive simulation should be tied to observation/relevance.
+6. **Data-driven content:** NPCs, quests, dialogue, spawns, items, and world content should stay generic and JSON/content driven where possible.
+7. **Protected structures:** do not damage player-built/paid/protected structures unless an explicit reviewed policy allows it.
+8. **Small PRs:** one focused change, clear verification, no unrelated lockfile churn.
 
-**Content Validation Success:**
-- Content Validator passes for any modified data files
-- All referenced IDs are valid (questIds, itemIds, npcIds, dialogue nodes)
+---
 
-## Validation Commands Reference
+## 4. Current priority order
+
+### Priority 1 — release blockers
+
+1. Verify production deploy path and domain routing.
+2. Harden persistence migration, backup, restore, and rollback policy.
+3. Lock down Supabase/session behavior for production.
+4. Finish deterministic migration/gate for Level A/B simulation paths.
+5. Validate Android/mobile performance budgets.
+6. Complete player-facing UI for critical systems.
+7. Audit release content pack and assets.
+8. Keep smoke/E2E/deploy gates green.
+
+### Priority 2 — player-visible MMORPG maturation
+
+1. Quest tracker, map, settings, combat log.
+2. Storage/crafting/voting/warfront/world-boss UI polish.
+3. NPC reputation effects, refusal/help rules, bounded memory scenarios.
+4. Combat/XP/stamina/mana balance.
+5. Content pack quality pass.
+
+### Priority 3 — deeper simulation systems
+
+1. Settlement/civilization lifecycle.
+2. Economy and Matrix Energy loop.
+3. NPC politics and civic parity.
+4. Housing/protected-structure validators.
+5. Procedural dungeons and world-boss distance rules.
+6. 13-point World Brain and advanced ARE research extensions.
+
+---
+
+## 5. Safe work categories
+
+Safe, preferred next PRs:
+
+- Documentation alignment.
+- Tests and E2E smoke coverage.
+- Content validation and model-path audit improvements.
+- UI panels that consume existing server state.
+- Guardrail improvements with low runtime risk.
+- Small content additions under `game-data/`.
+- Deploy verification docs/scripts that do not rewrite runtime behavior.
+
+Risky, isolate carefully:
+
+- `WorldTick` orchestration changes.
+- Auth/session behavior changes.
+- Persistence schema/migration behavior.
+- Chunk/observer simulation rules.
+- Combat/loot RNG and deterministic seed changes.
+- Protected-structure or monetization policy changes.
+- Broad workflow/deploy rewrites.
+
+---
+
+## 6. Standard implementation loop
+
+1. **Assess**
+   - Read current docs.
+   - Inspect the exact code path.
+   - Identify whether the change affects simulation truth, UI, ops, or docs only.
+
+2. **Choose one small step**
+   - Prefer one file group / one feature area.
+   - Avoid broad refactors while release blockers are open.
+
+3. **Implement**
+   - Preserve deterministic inputs.
+   - Feature-flag heavy systems.
+   - Keep tick work bounded.
+   - Update docs if behavior changes.
+
+4. **Validate**
+   - Run relevant package build/tests/guards.
+   - For release path changes, include deploy verification notes.
+
+5. **Report**
+   - Goal.
+   - Files changed.
+   - What changed.
+   - Checks run.
+   - Risks.
+   - Next step.
+
+---
+
+## 7. Validation command reference
+
+Use package scripts as source of truth.
 
 ```bash
-# Full build
-npm run build
-
-# Run tests
-npm run test
-
-# Run linter
-npm run lint
+corepack enable
+pnpm install
+pnpm run build
+pnpm run guard:all
+pnpm --filter @wasd/server --if-present test
+pnpm --filter @wasd/server --if-present build
+pnpm --filter @wasd/shared --if-present build
+pnpm --filter @wasd/client --if-present build
+pnpm --filter @wasd/client-2d --if-present build
+pnpm run assets:pixi:validate
+pnpm run assets:pixi:validate-batches
+node scripts/check-are-determinism.mjs
 ```
 
-## Next Steps After This Plan
+For release/deploy work, also verify:
 
-Based on the agent package's recommendations, the first actionable task should be:
+- `/health`
+- `/client-config.json`
+- `/`
+- `/portal`
+- WebSocket upgrade path
+- container/process state
+- recent engine logs
+- backup/restore proof when persistence is touched
 
-1. **Run build and tests** to establish baseline
-2. **Fix any blocking issues** found
-3. **Add one small enhancement** such as:
-   - A new quest chain via game-data/quests/quests.json
-   - A new NPC via game-data/npc/npcs.json
-   - A small UI polish that doesn't break data truth
-   - Additional test coverage for existing systems
+---
 
-The agent package emphasizes: **"Arbeite präzise. Arbeite klein. Arbeite nachvollziehbar. Beschädige nichts, was schon lebt."**
+## 8. Immediate recommended next work
+
+1. Merge the refreshed roadmap/docs PR.
+2. Run the full guard/build suite on the branch.
+3. Fix any workflow/docs mismatch around Docker vs PM2 deployment language.
+4. Add a deterministic E2E smoke scenario covering login, movement, NPC interaction, quest update, combat, loot pickup, and reconnect.
+5. Add a release checklist artifact that records exact green checks before alpha tags.
+
+---
+
+## 9. Operating principle
+
+Work precisely. Work small. Preserve what already lives. Make every release claim traceable to code, tests, docs, or a verified deploy.
