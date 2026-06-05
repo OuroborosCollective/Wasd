@@ -23,6 +23,7 @@ import { createGameplaySnapshotRouter } from "../routes/gameplaySnapshot.js";
 import { questEventRouter } from "../routes/questEventRoute.js";
 import { default as skillEventRouter } from "../routes/skillEventRoute.js";
 import { default as resourceGatherRouter } from "../routes/resourceGatherRoute.js";
+import { default as inventoryRouter } from "../routes/inventoryRoute.js";
 import { sovereignDeployRouter } from "../api/sovereignDeployRoute.js";
 import { healthRoutes } from "../api/healthRoutes.js";
 import { agoraRouter } from "../api/agoraRoute.js";
@@ -194,6 +195,7 @@ export class ServerBootstrap {
     app.use("/api/quest", questEventRouter);
     app.use("/api/skill", skillEventRouter);
     app.use("/api/resource", resourceGatherRouter);
+    app.use("/api/inventory", inventoryRouter);
     app.use("/api/self-healing", createSelfHealWorkshopRouter());
     app.use("/api/manifest", createManifestResyncRouter(tick));
     app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());

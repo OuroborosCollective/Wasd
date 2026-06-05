@@ -73,12 +73,36 @@ export interface ResourceNodeSnapshot {
   remainingTicks: number;
 }
 
+/**
+ * Inventory Slot shape (server-authoritative, client display-only)
+ */
+export interface InventorySlotSnapshot {
+  slotId: string;
+  itemId: string;
+  name: string;
+  quantity: number;
+  category: "resource" | "quest" | "consumable" | "equipment";
+  stackable: boolean;
+  maxStack: number;
+}
+
+/**
+ * Player Inventory Snapshot shape
+ */
+export interface PlayerInventorySnapshot {
+  playerId: string;
+  schemaVersion: 1;
+  slots: InventorySlotSnapshot[];
+  capacity: number;
+}
+
 export interface LiveGameplaySnapshot {
   status: LiveDataStatus;
   serverTick: number | null;
   quests: QuestSnapshot[];
   skills: SkillSnapshot[];
   resources: ResourceNodeSnapshot[];
+  inventory: PlayerInventorySnapshot;
   guild: GuildSnapshot;
   factions: FactionStandingSnapshot[];
   map: MapSnapshot;
@@ -91,6 +115,12 @@ export const EMPTY_LIVE_GAMEPLAY_SNAPSHOT: LiveGameplaySnapshot = {
   quests: [],
   skills: [],
   resources: [],
+  inventory: {
+    playerId: "unknown",
+    schemaVersion: 1,
+    slots: [],
+    capacity: 32,
+  },
   guild: {
     id: null,
     name: null,
@@ -121,6 +151,7 @@ export function normalizeLiveGameplaySnapshot(
     quests: Array.isArray(input.quests) ? input.quests : [],
     skills: normalizeSkills(input.skills),
     resources: normalizeResources(input.resources),
+    inventory: normalizeInventory(input.inventory),
     guild: {
       id: input.guild?.id ?? null,
       name: input.guild?.name ?? null,
@@ -216,4 +247,49 @@ export function normalizeResources(input: unknown): ResourceNodeSnapshot[] {
       remainingTicks: Math.max(0, Math.floor(Number(node.remainingTicks ?? 0))),
     }))
     .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * Normalize inventory snapshots from server.
+ * Pure function - no mutation of input.
+ */
+export function normalizeInventory(input: unknown): PlayerInventorySnapshot {
+  if (!input || typeof input !== "object") {
+    return {
+      playerId: "unknown",
+      schemaVersion: 1,
+      slots: [],
+      capacity: 32,
+    };
+  }
+
+  const raw = input as any;
+
+  const slots = Array.isArray(raw.slots)
+    ? raw.slots
+        .filter(
+          (slot: any) =>
+            slot &&
+            typeof slot === "object" &&
+            typeof slot.itemId === "string" &&
+            typeof slot.quantity === "number"
+        )
+        .map((slot: any) => ({
+          slotId: String(slot.slotId ?? `slot_${slot.itemId}`),
+          itemId: String(slot.itemId),
+          name: String(slot.name ?? slot.itemId),
+          quantity: Math.max(0, Math.floor(Number(slot.quantity ?? 0))),
+          category: (slot.category as PlayerInventorySnapshot["slots"][0]["category"]) ?? "resource",
+          stackable: Boolean(slot.stackable ?? true),
+          maxStack: Math.max(1, Math.floor(Number(slot.maxStack ?? 999))),
+        }))
+        .sort((a, b) => a.itemId.localeCompare(b.itemId))
+    : [];
+
+  return {
+    playerId: String(raw.playerId ?? "unknown"),
+    schemaVersion: 1,
+    capacity: Math.max(0, Math.floor(Number(raw.capacity ?? 32))),
+    slots,
+  };
 }

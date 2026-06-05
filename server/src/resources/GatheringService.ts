@@ -16,6 +16,7 @@ import type { PlayerSkillState, SkillSnapshot } from "../skills/SkillTypes.js";
 import type { ResourceNodeStore } from "./ResourceNodeStore.js";
 import { resourceNodeStore } from "./ResourceNodeStore.js";
 import type { GatherResourceResult } from "./ResourceTypes.js";
+import { getInventoryService } from "../inventory/inventoryRuntime.js";
 
 /**
  * Get player skill level for a specific skill.
@@ -40,6 +41,7 @@ export class GatheringService {
   /**
    * Attempt to gather from a resource node.
    * Server-authoritative: resolves skill level, applies XP, triggers rewards.
+   * Persists gathered items to player inventory.
    */
   async gather(input: GatherInput): Promise<GatherResourceResult> {
     const { playerId, nodeId, playerPosition, currentTick, onItemReward } = input;
@@ -77,7 +79,29 @@ export class GatheringService {
       source: "resource_gather",
     });
 
-    // Trigger item reward callback (inventory system integration point)
+    // Persist item reward to player inventory
+    if (result.itemRewardId) {
+      const inventoryService = await getInventoryService();
+      const inventoryResult = await inventoryService.addItem({
+        playerId,
+        itemId: result.itemRewardId,
+        quantity: 1,
+      });
+
+      // Extend result with inventory status
+      (result as any).inventoryAdded = inventoryResult.ok;
+      (result as any).inventoryQuantity = inventoryResult.ok ? inventoryResult.quantity : 0;
+
+      // If inventory failed (full), log but still grant XP and deplete node
+      // MVP: For stackable resources with 999 maxStack, inventory_full is rare
+      if (!inventoryResult.ok) {
+        console.warn(
+          `[gathering] inventory add failed for ${playerId}: ${inventoryResult.reason}`,
+        );
+      }
+    }
+
+    // Trigger item reward callback (backward compatibility)
     if (result.itemRewardId && result.itemRewardName && onItemReward) {
       onItemReward({
         id: result.itemRewardId,
