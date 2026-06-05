@@ -57,13 +57,12 @@ log_info "sha256 verification passed"
 
 # Validate JSON schema using Node.js
 log_info "validating quest backup schema..."
-node << 'NODEEOF'
+node -e "
 const fs = require('node:fs');
 const path = process.argv[1];
-const file = path;
 
 try {
-  const raw = fs.readFileSync(file, 'utf8');
+  const raw = fs.readFileSync(path, 'utf8');
   const data = JSON.parse(raw);
 
   // Validate schema structure
@@ -72,7 +71,7 @@ try {
   }
 
   if (data.schemaVersion !== 1) {
-    throw new Error(`Unsupported schema version: ${data.schemaVersion} (expected 1)`);
+    throw new Error('Unsupported schema version: ' + data.schemaVersion + ' (expected 1)');
   }
 
   if (!Array.isArray(data.players)) {
@@ -86,25 +85,24 @@ try {
     }
 
     if (!Array.isArray(player.quests)) {
-      throw new Error(`Invalid quests for player ${player.playerId}: must be an array`);
+      throw new Error('Invalid quests for player ' + player.playerId + ': must be an array');
     }
 
     // Validate each quest
     for (const quest of player.quests) {
       if (typeof quest.id !== 'string') {
-        throw new Error(`Invalid quest in ${player.playerId}: missing id`);
+        throw new Error('Invalid quest in ' + player.playerId + ': missing id');
       }
     }
   }
 
-  console.log(`[quest-restore-dry-run] Schema validation passed: ${data.players.length} players`);
+  console.log('[quest-restore-dry-run] Schema validation passed: ' + data.players.length + ' players');
   process.exit(0);
 } catch (error) {
-  console.error(`[quest-restore-dry-run] ERROR: ${error.message}`);
+  console.error('[quest-restore-dry-run] ERROR: ' + error.message);
   process.exit(1);
 }
-NODEEOF
-"$BACKUP_FILE"
+" "$BACKUP_FILE"
 
 NODE_EXIT=$?
 
