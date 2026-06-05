@@ -21,6 +21,7 @@ import { financeRouter } from "../api/financeRoute.js";
 import { createAREHeartbeatRouter } from "../routes/areHeartbeat.js";
 import { createGameplaySnapshotRouter } from "../routes/gameplaySnapshot.js";
 import { questEventRouter } from "../routes/questEventRoute.js";
+import { default as skillEventRouter } from "../routes/skillEventRoute.js";
 import { sovereignDeployRouter } from "../api/sovereignDeployRoute.js";
 import { healthRoutes } from "../api/healthRoutes.js";
 import { agoraRouter } from "../api/agoraRoute.js";
@@ -190,6 +191,7 @@ export class ServerBootstrap {
     app.use("/api/are", createAREHeartbeatRouter(tick, ws));
     app.use("/api/gameplay", createGameplaySnapshotRouter(tick));
     app.use("/api/quest", questEventRouter);
+    app.use("/api/skill", skillEventRouter);
     app.use("/api/self-healing", createSelfHealWorkshopRouter());
     app.use("/api/manifest", createManifestResyncRouter(tick));
     app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());

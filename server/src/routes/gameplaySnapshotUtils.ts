@@ -57,6 +57,18 @@ export interface FactionStandingSnapshot {
 }
 
 /**
+ * Skill Snapshot shape
+ */
+export interface SkillSnapshot {
+  id: string;
+  title: string;
+  level: number;
+  xp: number;
+  xpForNextLevel: number;
+  progressRatio: number;
+}
+
+/**
  * Map shape
  */
 export interface MapSnapshot {
@@ -68,23 +80,25 @@ export interface MapSnapshot {
 }
 
 /**
- * Live Gameplay Snapshot shape
+ * Live Gameplay Snapshot shape (includes skills)
  */
 export interface LiveGameplaySnapshot {
   status: "live";
   serverTick: number;
   quests: QuestSnapshot[];
+  skills: SkillSnapshot[];
   guild: GuildSnapshot;
   factions: FactionStandingSnapshot[];
   map: MapSnapshot;
 }
 
 /**
- * Input for creating a gameplay snapshot
+ * Input for creating a gameplay snapshot (includes skills)
  */
 export interface GameplaySnapshotInput {
   serverTick: number;
   quests?: QuestSnapshot[];
+  skills?: SkillSnapshot[];
   guild?: GuildSnapshot | null;
   factions?: FactionStandingSnapshot[];
   map?: Partial<MapSnapshot>;
@@ -97,12 +111,14 @@ export interface GameplaySnapshotInput {
  */
 export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGameplaySnapshot {
   const sortedQuests = [...(input.quests ?? [])].sort((a, b) => a.id.localeCompare(b.id));
+  const sortedSkills = [...(input.skills ?? [])].sort((a, b) => a.id.localeCompare(b.id));
   const sortedFactions = [...(input.factions ?? [])].sort((a, b) => a.id.localeCompare(b.id));
 
   return {
     status: "live",
     serverTick: input.serverTick,
     quests: sortedQuests,
+    skills: sortedSkills,
     guild: input.guild ?? {
       id: null,
       name: null,
@@ -131,6 +147,7 @@ export function createEmptyGameplaySnapshot(serverTick: number): LiveGameplaySna
   return createGameplaySnapshot({
     serverTick,
     quests: [],
+    skills: [],
     guild: null,
     factions: [],
     map: {},
