@@ -113,9 +113,10 @@ export function handleGameplayQuestEvent(event: GameplayQuestEvent): QuestGamepl
     };
   }
 
+  const unknownEvent = event as { playerId: string };
   return {
     ok: false,
-    playerId: event.playerId,
+    playerId: unknownEvent.playerId,
     changed: false,
     questIds: before.quests.map((q) => q.id).sort(),
     reason: "unsupported_event",
