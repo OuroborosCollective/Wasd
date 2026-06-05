@@ -57,11 +57,28 @@ export interface MapSnapshot {
   biome: string | null;
 }
 
+export interface ResourceNodeSnapshot {
+  id: string;
+  kind: "tree" | "ore" | "fish_spot";
+  title: string;
+  skillId: "woodcutting" | "mining" | "fishing";
+  requiredLevel: number;
+  xpReward: number;
+  itemRewardId: string;
+  itemRewardName: string;
+  position: { x: number; y: number };
+  radius: number;
+  status: "available" | "depleted" | "locked";
+  depletedUntilTick: number | null;
+  remainingTicks: number;
+}
+
 export interface LiveGameplaySnapshot {
   status: LiveDataStatus;
   serverTick: number | null;
   quests: QuestSnapshot[];
   skills: SkillSnapshot[];
+  resources: ResourceNodeSnapshot[];
   guild: GuildSnapshot;
   factions: FactionStandingSnapshot[];
   map: MapSnapshot;
@@ -73,6 +90,7 @@ export const EMPTY_LIVE_GAMEPLAY_SNAPSHOT: LiveGameplaySnapshot = {
   serverTick: null,
   quests: [],
   skills: [],
+  resources: [],
   guild: {
     id: null,
     name: null,
@@ -102,6 +120,7 @@ export function normalizeLiveGameplaySnapshot(
     serverTick: typeof input.serverTick === "number" ? input.serverTick : null,
     quests: Array.isArray(input.quests) ? input.quests : [],
     skills: normalizeSkills(input.skills),
+    resources: normalizeResources(input.resources),
     guild: {
       id: input.guild?.id ?? null,
       name: input.guild?.name ?? null,
@@ -155,6 +174,46 @@ export function normalizeSkills(input: unknown): SkillSnapshot[] {
       xp: Math.max(0, Math.floor(Number(skill.xp ?? 0))),
       xpForNextLevel: Math.max(1, Math.floor(Number(skill.xpForNextLevel ?? 100))),
       progressRatio: Math.max(0, Math.min(1, Number(skill.progressRatio ?? 0))),
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * Normalize resource node snapshots from server.
+ * Pure function - no mutation of input.
+ */
+export function normalizeResources(input: unknown): ResourceNodeSnapshot[] {
+  if (!Array.isArray(input)) return [];
+
+  const validKinds = new Set(["tree", "ore", "fish_spot"]);
+  const validSkillIds = new Set(["woodcutting", "mining", "fishing"]);
+
+  return input
+    .filter((node): node is ResourceNodeSnapshot =>
+      node &&
+      typeof node === "object" &&
+      typeof (node as any).id === "string" &&
+      validKinds.has((node as any).kind) &&
+      validSkillIds.has((node as any).skillId)
+    )
+    .map((node: any) => ({
+      id: String(node.id),
+      kind: node.kind,
+      title: String(node.title ?? node.id),
+      skillId: node.skillId,
+      requiredLevel: Math.max(1, Math.floor(Number(node.requiredLevel ?? 1))),
+      xpReward: Math.max(0, Math.floor(Number(node.xpReward ?? 0))),
+      itemRewardId: String(node.itemRewardId ?? "unknown_item"),
+      itemRewardName: String(node.itemRewardName ?? "Unknown Item"),
+      position: {
+        x: Number(node.position?.x ?? 0),
+        y: Number(node.position?.y ?? 0),
+      },
+      radius: Math.max(1, Number(node.radius ?? 16)),
+      status: node.status === "depleted" ? "depleted" : "available",
+      depletedUntilTick:
+        typeof node.depletedUntilTick === "number" ? node.depletedUntilTick : null,
+      remainingTicks: Math.max(0, Math.floor(Number(node.remainingTicks ?? 0))),
     }))
     .sort((a, b) => a.id.localeCompare(b.id));
 }
