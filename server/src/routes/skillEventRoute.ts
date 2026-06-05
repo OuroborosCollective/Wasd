@@ -19,6 +19,9 @@ import type { SkillId } from "../skills/SkillTypes.js";
 
 const router = Router();
 
+// Parse JSON bodies for POST requests
+router.use(express.json());
+
 const ALLOWED_SKILLS = new Set<SkillId>([
   "woodcutting",
   "mining",
@@ -44,12 +47,13 @@ function parseXpAmount(value: unknown): number | null {
 }
 
 /**
- * POST /api/skill/event
+ * POST /event
  *
  * Apply a skill XP gain event.
+ * Mounted at /api/skill, so full path is /api/skill/event
  * Requires authenticated player in production.
  */
-router.post("/api/skill/event", async (req, res) => {
+router.post("/event", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
 
   if (process.env.NODE_ENV === "production" && !identity.authenticated) {
@@ -97,11 +101,12 @@ router.post("/api/skill/event", async (req, res) => {
 });
 
 /**
- * GET /api/skill/state
+ * GET /state
  *
  * Get current player skill state.
+ * Mounted at /api/skill, so full path is /api/skill/state
  */
-router.get("/api/skill/state", async (req, res) => {
+router.get("/state", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
 
   if (process.env.NODE_ENV === "production" && !identity.authenticated) {
