@@ -33,6 +33,10 @@ export type QuestEvent =
   | { type: "npc_kill"; playerId: string; npcId: string }
   | { type: "item_pickup"; playerId: string; itemId: string; quantity: number };
 
+// Constants for quest objective targets
+const TALK_TO_ELDER_NPC_ID = "town_elder";
+const TRAINING_DUMMY_NPC_ID = "training_dummy";
+
 const FIRST_STEPS_QUEST_ID = "first_steps";
 
 function createFirstStepsQuest(
@@ -114,7 +118,8 @@ export class QuestProgressionStore {
     const objectives = quest.objectives.map((objective) => {
       if (
         event.type === "npc_talk" &&
-        objective.id === "talk_to_elder"
+        objective.id === "talk_to_elder" &&
+        event.npcId === TALK_TO_ELDER_NPC_ID
       ) {
         return {
           ...objective,
@@ -125,7 +130,8 @@ export class QuestProgressionStore {
 
       if (
         event.type === "npc_kill" &&
-        objective.id === "defeat_training_dummy"
+        objective.id === "defeat_training_dummy" &&
+        event.npcId === TRAINING_DUMMY_NPC_ID
       ) {
         return {
           ...objective,

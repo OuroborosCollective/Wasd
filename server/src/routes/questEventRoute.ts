@@ -13,6 +13,7 @@
  * - No arbitrary status/completion from client
  * - Server determines progression
  * - Only accept allowlisted event types
+ * - NPC id must match objective target for progression
  */
 
 import { Router } from "express";
@@ -22,6 +23,36 @@ import {
 } from "../quests/QuestProgressionStore.js";
 
 export const questEventRouter = Router();
+
+// Mount at /api/quest/event - router is mounted at /api/quest in ServerBootstrap
+questEventRouter.post("/event", (req, res) => {
+  // Ensure JSON body is parsed
+  if (!req.body || typeof req.body !== "object") {
+    res.status(400).json({
+      ok: false,
+      error: "invalid_quest_event",
+    });
+    return;
+  }
+
+  const event = parseQuestEvent(req.body);
+
+  if (!event) {
+    res.status(400).json({
+      ok: false,
+      error: "invalid_quest_event",
+    });
+    return;
+  }
+
+  const questState = questProgressionStore.applyEvent(event);
+
+  res.json({
+    ok: true,
+    playerId: event.playerId,
+    questState,
+  });
+});
 
 function parseQuestEvent(body: unknown): QuestEvent | null {
   const b = body as Record<string, unknown> | null;
@@ -67,23 +98,3 @@ function parseQuestEvent(body: unknown): QuestEvent | null {
 
   return null;
 }
-
-questEventRouter.post("/api/quest/event", (req, res) => {
-  const event = parseQuestEvent(req.body);
-
-  if (!event) {
-    res.status(400).json({
-      ok: false,
-      error: "invalid_quest_event",
-    });
-    return;
-  }
-
-  const questState = questProgressionStore.applyEvent(event);
-
-  res.json({
-    ok: true,
-    playerId: event.playerId,
-    questState,
-  });
-});

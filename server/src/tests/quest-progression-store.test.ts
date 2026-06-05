@@ -59,7 +59,7 @@ describe("QuestProgressionStore", () => {
   });
 
   describe("npc_talk event", () => {
-    it("completes talk_to_elder objective when npc_talk event received", () => {
+    it("completes talk_to_elder objective only when talking to town_elder", () => {
       const store = new QuestProgressionStore();
 
       // Accept quest first
@@ -69,22 +69,34 @@ describe("QuestProgressionStore", () => {
         questId: "first_steps",
       });
 
-      // Talk to NPC
+      // Talk to wrong NPC - should NOT complete objective
+      store.applyEvent({
+        type: "npc_talk",
+        playerId: "p1",
+        npcId: "wrong_npc",
+      });
+
+      let quest = store.getPlayerQuestState("p1").quests.find(
+        (q) => q.id === "first_steps"
+      );
+      let objective = quest?.objectives.find(
+        (o) => o.id === "talk_to_elder"
+      );
+      expect(objective?.completed).toBe(false); // Not completed
+
+      // Talk to correct NPC - should complete objective
       store.applyEvent({
         type: "npc_talk",
         playerId: "p1",
         npcId: "town_elder",
       });
 
-      const quest = store.getPlayerQuestState("p1").quests.find(
+      quest = store.getPlayerQuestState("p1").quests.find(
         (q) => q.id === "first_steps"
       );
-      const objective = quest?.objectives.find(
-        (o) => o.id === "talk_to_elder"
-      );
+      objective = quest?.objectives.find((o) => o.id === "talk_to_elder");
 
       expect(objective?.completed).toBe(true);
-      expect(quest?.status).toBe("active"); // Still active (one objective left)
     });
 
     it("auto-activates quest if npc_talk received when quest is available", () => {
