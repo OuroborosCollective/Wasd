@@ -103,7 +103,7 @@ export class QuestProgressionStore {
     }
 
     const state = this.getOrCreatePlayerQuestMap(event.playerId);
-    const quest =
+    let quest =
       state.get(FIRST_STEPS_QUEST_ID) ?? createFirstStepsQuest("active");
 
     // Auto-activate if available
