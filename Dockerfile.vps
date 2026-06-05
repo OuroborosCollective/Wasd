@@ -15,7 +15,7 @@ ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV CI=true
 ENV npm_config_jobs=1
-ENV NODE_OPTIONS=--max-old-space-size=8192
+ENV NODE_OPTIONS=--max-old-space-size=4096
 ENV PNPM_CONFIG_NETWORK_CONCURRENCY=1
 ENV PNPM_CONFIG_CHILD_CONCURRENCY=1
 ENV PNPM_CONFIG_SIDE_EFFECTS_CACHE=false
@@ -78,14 +78,14 @@ RUN rm -rf packages/sdk-examples || true && \
     pnpm config set verify-deps-before-run false
 
 ENV NODE_ENV=production
-ENV NODE_OPTIONS=--max-old-space-size=8192
+ENV NODE_OPTIONS=--max-old-space-size=4096
 ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
 
 RUN node scripts/verify-vps-build-logic.mjs
 
 RUN pnpm --filter @wasd/core-logic --if-present run build:runtime && \
     pnpm --filter @wasd/shared --if-present build && \
-    pnpm --filter @wasd/engine --if-present build && \
+    pnpm --filter @wasd/engine --if-present run build:runtime && \
     pnpm --filter @wasd/server --if-present build
 
 RUN test -f dist/engine/index.js && \
