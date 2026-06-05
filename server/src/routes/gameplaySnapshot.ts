@@ -33,12 +33,15 @@ function getCurrentTickId(tick: WorldTick | null): number {
 export function createGameplaySnapshotRouter(tick: WorldTick) {
   const router = express.Router();
 
-  router.get("/snapshot", (req, res) => {
+  router.get("/snapshot", async (req, res) => {
     const serverTick = getCurrentTickId(tick);
     const playerId =
       typeof req.query.playerId === "string" && req.query.playerId.trim()
         ? req.query.playerId.trim()
         : "guest";
+
+    // Hydrate persisted quest state before returning
+    await questProgressionStore.hydratePlayer(playerId);
 
     const questState = questProgressionStore.getPlayerQuestState(playerId);
 
