@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { InventoryPanel, type InventoryItem } from "./ui/InventoryPanel";
 import { EquipmentPanel } from "./ui/windows/EquipmentPanel";
+import { AREHeartbeatPanel, DEFAULT_ARE_HEARTBEAT, type AREHeartbeatSnapshot } from "./AREHeartbeatPanel";
+import "./areHeartbeat.css";
 
 type Msg = { from: string; txt: string };
 type HudPanel = "inventory" | "character" | "map" | "combat" | "guild" | "factions" | "quests" | null;
@@ -305,6 +307,21 @@ export function ArelorianStitchHud({
           <span>{debugCharacter ?? "waiting"}</span>
         </div>
       </aside>
+
+      {/* ARE HEARTBEAT PANEL: tickId, kappa, observerCount, replayHash */}
+      <div className="stitch-are-heartbeat">
+        <AREHeartbeatPanel
+          snapshot={{
+            tickId: debugServerTick ?? null,
+            kappa: debugPlayerPos ? Math.round((debugPlayerPos.x + debugPlayerPos.z) * 1000) : null,
+            observerCount: null,
+            replayHash: null,
+            serverTick: debugServerTick ?? null,
+            heartbeatStatus: debugHeartbeatReceived ? "live" : "waiting",
+            lastUpdated: null,
+          }}
+        />
+      </div>
 
       <aside className="stitch-side-menu" aria-label="Game Menus">
         {panels.map((panel) => (

@@ -1,0 +1,160 @@
+/* ─── ARE Heartbeat Panel ─────────────────────────────────────────────────── */
+
+.are-heartbeat-panel {
+  padding: 12px 14px;
+  border: 1px solid rgba(72, 233, 255, 0.26);
+  border-radius: 12px;
+  background: rgba(8, 15, 34, 0.72);
+  min-width: 220px;
+}
+
+.are-heartbeat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(72, 233, 255, 0.12);
+}
+
+.are-heartbeat-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.are-heartbeat-header strong {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 700;
+  color: #48e9ff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.are-heartbeat-status-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.are-heartbeat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.are-heartbeat-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.are-heartbeat-label {
+  font-size: 10px;
+  color: rgba(245, 247, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.are-heartbeat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f5f7ff;
+}
+
+.are-heartbeat-replay {
+  padding-top: 8px;
+  border-top: 1px solid rgba(72, 233, 255, 0.08);
+}
+
+.are-heartbeat-hash {
+  display: block;
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  font-size: 11px;
+  color: rgba(245, 247, 255, 0.7);
+  word-break: break-all;
+  font-family: ui-monospace, monospace;
+}
+
+.are-heartbeat-warning {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 122, 0, 0.12);
+  border: 1px solid rgba(255, 122, 0, 0.3);
+  border-radius: 8px;
+  color: #ff7a00;
+  font-size: 11px;
+}
+
+.are-heartbeat-waiting {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(72, 233, 255, 0.06);
+  border-radius: 8px;
+  color: rgba(245, 247, 255, 0.5);
+  font-size: 11px;
+  text-align: center;
+}
+
+.are-heartbeat-footer {
+  margin-top: 8px;
+  text-align: right;
+}
+
+.are-heartbeat-footer small {
+  font-size: 10px;
+  color: rgba(245, 247, 255, 0.35);
+}
+
+/* Compact Badge */
+.are-heartbeat-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid rgba(72, 233, 255, 0.26);
+  border-radius: 8px;
+  background: rgba(8, 15, 34, 0.6);
+  color: #f5f7ff;
+  font-size: 11px;
+}
+
+.are-heartbeat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.are-heartbeat-compact-label {
+  color: #48e9ff;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.are-heartbeat-compact-tick {
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  color: rgba(245, 247, 255, 0.6);
+}
+
+/* Integration with ArelorianStitchHud Debug Panel */
+.stitch-debug-row .are-heartbeat-compact {
+  vertical-align: middle;
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .are-heartbeat-panel {
+    min-width: unset;
+  }
+
+  .are-heartbeat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
