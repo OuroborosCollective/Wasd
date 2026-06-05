@@ -10,6 +10,11 @@ pnpm-debug.log*
 .env.production.local
 !.env.example
 
+# Quest state and backups (never commit)
+data/
+*.backup
+*.bak
+
 # PnP configuration
 .pnp.*
 
