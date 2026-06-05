@@ -188,6 +188,7 @@ ENV WORLD_TICK_HZ=10
 ENV WATCHDOG_TICK_HZ=10
 ENV WATCHDOG_AST_SYNC_BUDGET_MS=50
 ENV WATCHDOG_AST_SYNC_FAIL_ON_OVERRUN=false
+ENV QUEST_STATE_FILE=/app/data/quest-state.json
 
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/node_modules ./node_modules
@@ -241,7 +242,9 @@ RUN ln -s /app/server/client/dist/2d/2d-assets /app/server/client/dist/2d-assets
     echo 'iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAADklEQVR42u3BAQ0AAADCoPdPbQ8HFAAAAAAA8GIAoAAiRIq0yAAAAABJRU5ErkJggg==' | base64 -d > /app/server/client/dist/2d/2d-assets/credits/icon-192.png && \
     cp /app/server/client/dist/2d/2d-assets/credits/icon-192.png /app/server/client/dist/2d/2d-assets/credits/icon-512.png && \
     cp /app/server/client/dist/2d/2d-assets/credits/icon-192.png /app/client/dist/2d/2d-assets/credits/icon-192.png && \
-    cp /app/server/client/dist/2d/2d-assets/credits/icon-192.png /app/client/dist/2d/2d-assets/credits/icon-512.png
+    cp /app/server/client/dist/2d/2d-assets/credits/icon-192.png /app/client/dist/2d/2d-assets/credits/icon-512.png && \
+    # Create quest state data directory for persistence
+    mkdir -p /app/data
 
 RUN rm -rf \
     /app/server/src \
