@@ -12,12 +12,13 @@
  * Status: PARTIAL
  * - In-memory only, no persistence
  * - Later: connect to persistent storage
- * - Later: connect real NPC/combat hooks
+ * - NPC ID validation via allowlist for security
  *
  * Rules:
  * - No Date.now() for quest progression
  * - No Math.random()
  * - No client decides completion directly
+ * - NPC ID must match objective target allowlist
  */
 
 import {
@@ -33,11 +34,29 @@ export type QuestEvent =
   | { type: "npc_kill"; playerId: string; npcId: string }
   | { type: "item_pickup"; playerId: string; itemId: string; quantity: number };
 
-// Constants for quest objective targets
-const TALK_TO_ELDER_NPC_ID = "town_elder";
-const TRAINING_DUMMY_NPC_ID = "training_dummy";
+// Constants for quest objective targets - NPC ID allowlists
+const TOWN_ELDER_IDS = new Set([
+  "town_elder",
+  "npc_town_elder",
+  "npc_1",
+]);
+
+const TRAINING_TARGET_IDS = new Set([
+  "training_dummy",
+  "npc_training_dummy",
+  "dummy",
+  "npc_2",
+]);
 
 const FIRST_STEPS_QUEST_ID = "first_steps";
+
+function isTownElderNpc(npcId: string): boolean {
+  return TOWN_ELDER_IDS.has(npcId);
+}
+
+function isTrainingTargetNpc(npcId: string): boolean {
+  return TRAINING_TARGET_IDS.has(npcId);
+}
 
 function createFirstStepsQuest(
   status: QuestSnapshot["status"] = "available"
@@ -119,7 +138,7 @@ export class QuestProgressionStore {
       if (
         event.type === "npc_talk" &&
         objective.id === "talk_to_elder" &&
-        event.npcId === TALK_TO_ELDER_NPC_ID
+        isTownElderNpc(event.npcId)
       ) {
         return {
           ...objective,
@@ -131,7 +150,7 @@ export class QuestProgressionStore {
       if (
         event.type === "npc_kill" &&
         objective.id === "defeat_training_dummy" &&
-        event.npcId === TRAINING_DUMMY_NPC_ID
+        isTrainingTargetNpc(event.npcId)
       ) {
         return {
           ...objective,
