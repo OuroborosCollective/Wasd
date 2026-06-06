@@ -9,7 +9,7 @@
  * - Learning: What worked for me?
  * 
  * All memory operations are tick-based and deterministic for replay capability.
- * Same tick + same input = same output (no Math.random() in decision logic).
+ * Same tick + same input = same output.
  */
 
 import { stableHash32 } from "../../../core/determinism/AREDeterminism.js";
