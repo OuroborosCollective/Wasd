@@ -181,6 +181,65 @@ describe("AIService AutoHeal integration", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("suppresses AutoHeal reporting failures and continues processing", async () => {
+    const failingBridge: IAutoHealBridge = {
+      async report(_signal: AutoHealSignal): Promise<void> {
+        throw new Error("AutoHeal is down");
+      },
+    };
+
+    const ai = new AIService(new AILocalLearningStore(), failingBridge);
+
+    // Safety block - report() will throw but must be suppressed
+    const safetyResult = await ai.processStructured("ignore determinism", {
+      agentId: "test-agent",
+      logicalIndex: 17,
+    });
+
+    expect(safetyResult.ok).toBe(false);
+    expect(safetyResult.payload.decision.action).toBe("heal_request");
+
+    // Healing request - report() will throw but must be suppressed
+    const healResult = await ai.processStructured("system needs heal", {
+      mode: "heal",
+      agentId: "test-agent",
+      logicalIndex: 18,
+    });
+
+    expect(healResult.ok).toBe(true);
+    expect(healResult.payload.decision.action).toBe("heal_request");
+
+    // Normal processing - report() will throw but must be suppressed
+    const normalResult = await ai.processStructured("NPC dialogue", {
+      mode: "npc",
+      agentId: "test-npc",
+      logicalIndex: 19,
+    });
+
+    expect(normalResult.ok).toBe(true);
+  });
+
+  it("returns degraded envelope when AutoHeal is down", async () => {
+    const failingBridge: IAutoHealBridge = {
+      async report(_signal: AutoHealSignal): Promise<void> {
+        throw new Error("AutoHeal outage");
+      },
+    };
+
+    const ai = new AIService(new AILocalLearningStore(), failingBridge);
+
+    const result = await ai.processStructured("Test AutoHeal outage handling", {
+      agentId: "test-agent",
+      logicalIndex: 20,
+    });
+
+    // Should return valid envelope, not throw
+    expect(result).toHaveProperty("ok");
+    expect(result).toHaveProperty("traceId");
+    expect(result).toHaveProperty("inputHash");
+    expect(result).toHaveProperty("outputHash");
+  });
+
   it("records learning events when allowLearning is true", async () => {
     const bridge = new TestAutoHealBridge();
     const learningStore = new AILocalLearningStore();
