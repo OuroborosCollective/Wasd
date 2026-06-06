@@ -51,20 +51,46 @@ jobs:
       - name: Verify runtime files
         run: |
           set -euo pipefail
-          test -f client/dist/index.html
-          test -f client/dist/3d/index.html
-          test -f client/dist/portal/index.html
-          test -f client/dist/apps/index.html
-          test -f client/dist/are-console.html
-          test -f client/dist/sovereign-truth.html
-          test -f client/dist/runtime-build-info.json
-          test -f apps/client-2d/dist/index.html
-          grep -q 'CHOOSE' client/dist/index.html
-          grep -q 'Sovereign Tools' client/dist/index.html
-          grep -q 'SCIENCE PORTAL' client/dist/portal/index.html
-          grep -q 'SOVEREIGN TOOLS' client/dist/apps/index.html
-          grep -q 'ARE Runtime Console' client/dist/are-console.html
-          grep -q '"/2d/"' client/dist/runtime-build-info.json
-          grep -q '"/3d/"' client/dist/runtime-build-info.json
-          grep -q '"/apps/"' client/dist/runtime-build-info.json
+
+          require_file() {
+            local path="$1"
+            if [ ! -f "$path" ]; then
+              echo "::error::Missing runtime file: $path"
+              echo "client/dist tree:"
+              find client/dist -maxdepth 3 -type f | sort || true
+              echo "apps/client-2d/dist tree:"
+              find apps/client-2d/dist -maxdepth 2 -type f | sort || true
+              exit 1
+            fi
+          }
+
+          require_grep() {
+            local needle="$1"
+            local path="$2"
+            if ! grep -q "$needle" "$path"; then
+              echo "::error::Missing marker '$needle' in $path"
+              echo "--- $path head ---"
+              sed -n '1,80p' "$path" || true
+              echo "--- $path grep context ---"
+              grep -nE 'CHOOSE|Sovereign|SCIENCE|SOVEREIGN|ARE Runtime|/2d/|/3d/|/apps/' "$path" || true
+              exit 1
+            fi
+          }
+
+          require_file client/dist/index.html
+          require_file client/dist/3d/index.html
+          require_file client/dist/portal/index.html
+          require_file client/dist/apps/index.html
+          require_file client/dist/are-console.html
+          require_file client/dist/sovereign-truth.html
+          require_file client/dist/runtime-build-info.json
+          require_file apps/client-2d/dist/index.html
+          require_grep 'CHOOSE' client/dist/index.html
+          require_grep 'Sovereign Tools' client/dist/index.html
+          require_grep 'SCIENCE PORTAL' client/dist/portal/index.html
+          require_grep 'SOVEREIGN TOOLS' client/dist/apps/index.html
+          require_grep 'ARE Runtime Console' client/dist/are-console.html
+          require_grep '"/2d/"' client/dist/runtime-build-info.json
+          require_grep '"/3d/"' client/dist/runtime-build-info.json
+          require_grep '"/apps/"' client/dist/runtime-build-info.json
           echo 'Public route hub smoke OK'
