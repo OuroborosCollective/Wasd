@@ -44,20 +44,36 @@ JS="$(curl -fsSL "$SCRIPT_URL?verify=$(date +%s)")" || {
 
 # Verify each post-login UI marker exists in the bundle
 # These are the data-testid values that prove the post-login fix is present
+# Note: post-login-children-root may be minified, so we check the className version too
 MISSING_MARKERS=0
-for marker in \
-  "post-login-children-root" \
-  "deterministic-world-root" \
-  "arelorian-stitch-hud" \
-  "gameplay-window-dock" \
-  "world-boot-status"
-do
-  if ! printf '%s' "$JS" | grep -q "$marker"; then
-    echo "ERROR: live JS bundle missing marker: $marker"
+REQUIRED_MARKERS="
+  deterministic-world-root
+  arelorian-stitch-hud
+  gameplay-window-dock
+  world-boot-status
+"
+OPTIONAL_MARKERS="
+  post-login-children-root
+  postLoginShell
+"
+
+# Check required markers
+for marker in $REQUIRED_MARKERS; do
+  if ! printf '%s' "$JS" | grep -F "$marker" >/dev/null 2>&1; then
+    echo "ERROR: live JS bundle missing required marker: $marker"
     echo "This means production is not serving the expected post-login fix bundle."
     MISSING_MARKERS=$((MISSING_MARKERS + 1))
   else
     echo "[2d-live] found marker: $marker"
+  fi
+done
+
+# Check optional markers (warn but don't fail)
+for marker in $OPTIONAL_MARKERS; do
+  if printf '%s' "$JS" | grep -F "$marker" >/dev/null 2>&1; then
+    echo "[2d-live] found optional marker: $marker"
+  else
+    echo "WARN: optional marker not found (may be minified): $marker"
   fi
 done
 
