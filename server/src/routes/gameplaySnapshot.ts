@@ -3,6 +3,7 @@
  *
  * Serves live gameplay snapshot for the 2D client.
  * Provides Quest/Guild/Faction/Map data from server-authoritative state.
+ * Includes Character Profile and Paperdoll Snapshot.
  *
  * Rules:
  * - No Math.random() for gameplay values
@@ -23,6 +24,9 @@ import { gatheringService } from "../resources/GatheringService.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
 import { craftingService } from "../crafting/CraftingService.js";
 import { equipmentService } from "../equipment/equipmentRuntime.js";
+import { characterService } from "../character/characterRuntime.js";
+import { toCharacterProfileSnapshot } from "../character/CharacterTypes.js";
+import { createPaperdollSnapshot } from "../character/PaperdollTypes.js";
 
 /**
  * Get current tick ID from WorldTick instance.
@@ -75,8 +79,20 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
     // Get equipment state
     const equipment = await equipmentService.getPlayerEquipment(identity.playerId);
 
+    // Get character profile
+    const character = await characterService.getCharacterProfile(identity.playerId);
+    const characterSnapshot = toCharacterProfileSnapshot(character);
+
+    // Create paperdoll snapshot from character and equipment
+    const paperdoll = createPaperdollSnapshot({
+      character: characterSnapshot,
+      equipment,
+    });
+
     const snapshot = createGameplaySnapshot({
       serverTick,
+      character: characterSnapshot,
+      paperdoll,
       quests: questState.quests,
       skills: skillState.skills,
       resources,
