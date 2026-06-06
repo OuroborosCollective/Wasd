@@ -37,6 +37,18 @@ async function waitForJson(url, deadline) {
   throw lastError ?? new Error(`Timed out waiting for ${url}`);
 }
 
+async function waitForPageTarget(deadline) {
+  let lastTargets = [];
+  while (Date.now() < deadline) {
+    const targets = await waitForJson(`http://127.0.0.1:${debugPort}/json/list`, deadline);
+    lastTargets = targets;
+    const page = targets.find((target) => target.type === 'page' && target.webSocketDebuggerUrl);
+    if (page) return page;
+    await sleep(250);
+  }
+  throw new Error(`Timed out waiting for Chrome page target. targets=${JSON.stringify(lastTargets)}`);
+}
+
 class CdpClient {
   constructor(wsUrl) {
     this.wsUrl = wsUrl;
@@ -150,8 +162,10 @@ async function main() {
   const deadline = Date.now() + timeoutMs;
   let client;
   try {
-    const version = await waitForJson(`http://127.0.0.1:${debugPort}/json/version`, deadline);
-    client = new CdpClient(version.webSocketDebuggerUrl);
+    await waitForJson(`http://127.0.0.1:${debugPort}/json/version`, deadline);
+    const pageTarget = await waitForPageTarget(deadline);
+    console.log(`[smoke] connecting to page target ${pageTarget.id || pageTarget.url}`);
+    client = new CdpClient(pageTarget.webSocketDebuggerUrl);
     await client.connect();
     await client.send('Page.enable');
     await client.send('Runtime.enable');
