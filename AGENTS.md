@@ -207,6 +207,7 @@ When working on specific topics, check the skills in `docs/ai-skills/`:
 - `wasd-quest-persistence-ops.md` - Quest persistence implementation & ops (PRs #1697-#1701)
 - `wasd-health-endpoint-verification.md` - Health check patterns for VPS verification
 - `wasd-production-activation-workflow.md` - Complete workflow for production activation
+- `wasd-npc-autonomous-brain.md` - NPC autonomous brain system (memory, decisions, learning)
 
 ### VPS & Deployment Skills
 - `vps-ssh-paramiko-patterns.md` - SSH access to VPS via Paramiko
