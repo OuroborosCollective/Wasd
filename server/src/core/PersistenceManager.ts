@@ -232,7 +232,7 @@ export class PersistenceManager {
     const envelope: PersistenceEnvelope<T> = Object.freeze({
       schemaVersion: this.schemaVersion,
       logicalIndex,
-      savedAtUnixMs: Date.now(),
+      savedAtUnixMs: Date.now(), // ARE-DETERMINISM-ALLOW: ops telemetry timestamp, not simulation input
       driver: this.backend.name,
       hash,
       payload: canonicalPayload as T,
@@ -251,7 +251,7 @@ export class PersistenceManager {
 
 
         this.lastHash = hash;
-        this.lastSuccessfulSaveAt = Date.now();
+        this.lastSuccessfulSaveAt = Date.now(); // ARE-DETERMINISM-ALLOW: persistence health tracking, not simulation
       });
     });
   }
@@ -363,7 +363,7 @@ export class PersistenceManager {
 
 
         this.lastHash = hash;
-        this.lastSuccessfulSaveAt = Date.now();
+        this.lastSuccessfulSaveAt = Date.now(); // ARE-DETERMINISM-ALLOW: persistence health tracking, not simulation
       });
     });
   }
