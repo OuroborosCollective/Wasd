@@ -12,13 +12,14 @@
  */
 
 import { Router } from "express";
+import { json } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { equipmentService } from "../equipment/equipmentRuntime.js";
 
 const router = Router();
 
 // Parse JSON bodies for POST requests
-router.use(require("express").json());
+router.use(json());
 
 function parseItemId(value: unknown): string | null {
   if (typeof value !== "string") return null;
