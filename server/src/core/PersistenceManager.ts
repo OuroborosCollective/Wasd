@@ -34,18 +34,17 @@ export interface JsonObject {
 }
 
 
-export interface WorldObjectSnapshot extends JsonObject {
+export interface WorldObjectSnapshot {
   readonly id: string;
-  readonly logicalIndex?: number;
-  readonly type?: string;
-  readonly updatedAtTick?: number;
-  // Extended fields for WorldObject compatibility
+  readonly type: string; // Required to match WorldObject
   readonly name?: string;
   readonly position?: { x: number; y: number };
   readonly rotation?: number;
   readonly scale?: number;
   readonly glbPath?: string;
-  readonly [key: string]: unknown; // Index signature for compatibility
+  readonly logicalIndex?: number;
+  readonly updatedAtTick?: number;
+  readonly [key: string]: unknown; // Index signature for dynamic properties
 }
 
 
@@ -800,8 +799,8 @@ export class PersistenceManager {
     if (ai !== bi) return ai - bi;
 
 
-    const at = typeof a.type === "string" ? a.type : "";
-    const bt = typeof b.type === "string" ? b.type : "";
+    const at = a.type ?? "";
+    const bt = b.type ?? "";
 
 
     if (at !== bt) return at.localeCompare(bt, "en");
