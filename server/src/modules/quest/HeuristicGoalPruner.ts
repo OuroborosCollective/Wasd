@@ -7,6 +7,22 @@
  * Forces deterministic state transition to 'wandering' for CPU savings.
  */
 
+import type {
+  NPCState,
+  NPCLongTermGoal,
+  NPCGoalType,
+  NPCMemoryEvent,
+  NPCRelation,
+} from "../../types/npc.types.js";
+
+import {
+  filterGoalsByType,
+  getTopGoal,
+} from "../../types/npc.types.js";
+
+// Re-export types for consumers
+export type { NPCState as NpcStateType, NPCGoalType as GoalType } from "../../types/npc.types.js";
+
 export enum EchoZoneType {
   COMBAT = 'COMBAT',
   COLLECT = 'COLLECT',
@@ -15,12 +31,21 @@ export enum EchoZoneType {
   SOCIAL = 'SOCIAL'
 }
 
+/**
+ * Legacy-compatible NPCMemoryCache using new types
+ */
 export interface NPCMemoryCache {
-  longTermGoals: Goal[];
-  shortTermGoals: Goal[];
+  longTermGoals: NPCLongTermGoal[];
+  shortTermGoals: NPCLongTermGoal[];
   lastPruneTime: number;
+  // v2 fields
+  events?: NPCMemoryEvent[];
+  relations?: NPCRelation[];
 }
 
+/**
+ * Legacy Goal interface for backward compatibility
+ */
 export interface Goal {
   id: string;
   type: string;
@@ -29,8 +54,9 @@ export interface Goal {
   y?: number;
 }
 
-export type NPCState = 'idle' | 'wandering' | 'combat' | 'questing' | 'collecting';
-
+/**
+ * Echo Zone for NPC focus areas
+ */
 export interface EchoZone {
   x: number;
   y: number;
@@ -39,6 +65,9 @@ export interface EchoZone {
   type: EchoZoneType;
 }
 
+/**
+ * Result of pruning operation
+ */
 export interface PruningResult {
   pruned: boolean;
   goalsRemoved: number;
@@ -50,6 +79,28 @@ const SCAN_RADIUS_SQ = 1600;
 const COMBAT_INTENSITY_THRESHOLD = 0.95;
 const COLLECT_INTENSITY_THRESHOLD = 0.80;
 const TICK_RATE_MS = 100;
+
+/**
+ * Map EchoZoneType to allowed goal types for filtering
+ */
+const ECHO_ZONE_GOAL_TYPES: Record<EchoZoneType, NPCGoalType[]> = {
+  [EchoZoneType.COMBAT]: ['combat', 'survive', 'defend'],
+  [EchoZoneType.COLLECT]: ['collect', 'gather'],
+  [EchoZoneType.QUEST]: ['quest_main', 'quest_side'],
+  [EchoZoneType.TRADE]: ['trade'],
+  [EchoZoneType.SOCIAL]: ['social'],
+};
+
+/**
+ * Map EchoZoneType to NPCState
+ */
+const ECHO_ZONE_STATE_MAP: Record<EchoZoneType, NPCState> = {
+  [EchoZoneType.COMBAT]: 'combat',
+  [EchoZoneType.COLLECT]: 'collecting',
+  [EchoZoneType.QUEST]: 'questing',
+  [EchoZoneType.TRADE]: 'trading',
+  [EchoZoneType.SOCIAL]: 'social',
+};
 
 export function isInEchoZone(npcX: number, npcY: number, zone: EchoZone): boolean {
   const dx = npcX - zone.x;
@@ -71,27 +122,16 @@ export function isHighIntensityZone(zone: EchoZone): boolean {
 }
 
 export function determineStateTransition(zone: EchoZone): NPCState {
-  switch (zone.type) {
-    case EchoZoneType.COMBAT: return 'combat';
-    case EchoZoneType.COLLECT: return 'collecting';
-    case EchoZoneType.QUEST: return 'questing';
-    default: return 'wandering';
-  }
+  return ECHO_ZONE_STATE_MAP[zone.type] ?? 'wandering';
 }
 
-function filterRelevantGoals(goals: Goal[], zoneType: EchoZoneType): Goal[] {
-  return goals.filter(goal => {
-    if (zoneType === EchoZoneType.COMBAT) {
-      return goal.type === 'combat' || goal.type === 'survive';
-    }
-    if (zoneType === EchoZoneType.COLLECT) {
-      return goal.type === 'collect' || goal.type === 'gather';
-    }
-    if (zoneType === EchoZoneType.QUEST) {
-      return goal.type.startsWith('quest_');
-    }
-    return goal.priority >= 80;
-  });
+function filterRelevantGoals(goals: NPCLongTermGoal[], zoneType: EchoZoneType): NPCLongTermGoal[] {
+  const allowedTypes = ECHO_ZONE_GOAL_TYPES[zoneType];
+  if (!allowedTypes) {
+    // Fallback: keep high priority goals
+    return filterGoalsByType(goals, ['combat', 'survive', 'defend', 'trade']);
+  }
+  return filterGoalsByType(goals, allowedTypes);
 }
 
 export class HeuristicGoalPruner {
@@ -159,6 +199,13 @@ export class HeuristicGoalPruner {
     npc.state = 'wandering';
     npc.stateTimer = 0;
     npc.memory.shortTermGoals = [];
+  }
+
+  /**
+   * Get top goal from NPC memory (using shared helper)
+   */
+  public static getTopGoal(npc: { memory: NPCMemoryCache }): NPCLongTermGoal | undefined {
+    return getTopGoal(npc.memory.longTermGoals);
   }
 }
 
