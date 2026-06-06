@@ -6,7 +6,7 @@
  * Deterministic: No Date.now(), no Math.random().
  */
 
-import { Router } from "express";
+import express, { Router } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { characterService } from "./characterRuntime.js";
 import {
@@ -15,6 +15,8 @@ import {
 } from "./CharacterTypes.js";
 
 const router = Router();
+
+router.use(express.json({ limit: "64kb" }));
 
 function isGuestHttpAllowed(): boolean {
   const allowGuest = !["0", "false", "no"].includes(
