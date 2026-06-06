@@ -2,6 +2,7 @@
  * CHARACTER PROFILE ROUTE
  *
  * REST API for character profile management.
+ * Mounted at /api/character by ServerBootstrap.
  * Deterministic: No Date.now(), no Math.random().
  */
 
@@ -15,10 +16,24 @@ import {
 
 const router = Router();
 
-router.get("/api/character/profile", async (req, res) => {
+function isGuestHttpAllowed(): boolean {
+  const allowGuest = !["0", "false", "no"].includes(
+    process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase() || "",
+  );
+  const allowDev = !["0", "false", "no"].includes(
+    process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || "",
+  );
+  return allowGuest || allowDev || process.env.ALLOW_DEV_PLAYER_ID === "true";
+}
+
+function rejectUnauthenticatedInLockedProduction(identity: { authenticated: boolean }): boolean {
+  return process.env.NODE_ENV === "production" && !identity.authenticated && !isGuestHttpAllowed();
+}
+
+router.get("/profile", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
 
-  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+  if (rejectUnauthenticatedInLockedProduction(identity)) {
     res.status(401).json({ ok: false, error: "authenticated_player_required" });
     return;
   }
@@ -28,14 +43,16 @@ router.get("/api/character/profile", async (req, res) => {
   res.json({
     ok: true,
     playerId: identity.playerId,
+    playerIdentitySource: identity.source,
+    authenticated: identity.authenticated,
     profile,
   });
 });
 
-router.post("/api/character/create", async (req, res) => {
+router.post("/create", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
 
-  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+  if (rejectUnauthenticatedInLockedProduction(identity)) {
     res.status(401).json({ ok: false, error: "authenticated_player_required" });
     return;
   }
@@ -62,6 +79,9 @@ router.post("/api/character/create", async (req, res) => {
 
   res.status(result.ok ? 200 : 409).json({
     ok: result.ok,
+    playerId: identity.playerId,
+    playerIdentitySource: identity.source,
+    authenticated: identity.authenticated,
     result,
   });
 });

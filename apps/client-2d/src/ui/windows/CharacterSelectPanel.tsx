@@ -11,6 +11,7 @@
  */
 
 import React, { useState } from "react";
+import { fetchGameplaySnapshot, liveGameplayStore } from "../../game/liveGameplayStore";
 
 const START_PATHS = [
   "wanderer",
@@ -180,6 +181,11 @@ export function CharacterSelectPanel({ onCreated }: Props) {
               : { ok: false, error: `Server returned non-JSON response (${response.status})` };
 
             if (result.ok) {
+              setStatus("Character created. Syncing world snapshot...");
+              const snapshot = await fetchGameplaySnapshot();
+              if (snapshot) {
+                liveGameplayStore.setSnapshot(snapshot);
+              }
               setStatus("Character created.");
               onCreated?.();
 
