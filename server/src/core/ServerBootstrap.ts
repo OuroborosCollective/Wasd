@@ -232,8 +232,22 @@ export class ServerBootstrap {
     // 2D Client - SPA fallback to index.html
     const client2DPath = path.join(clientPath, "2d");
     const client2DIndexPath = path.join(client2DPath, "index.html");
+    // Prevent stale HTML/build-stamp caching - always fresh for 2D client
+    app.use("/2d", (_req, _res, next) => {
+      // Inject no-store headers for HTML and build-stamp
+      // This ensures browsers get fresh content after deployment
+      _res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      next();
+    });
     app.use("/2d", express.static(client2DPath, { index: "index.html", fallthrough: true }));
     app.use("/2d", (_req, res) => {
+      // Ensure build-stamp.json and index.html have no-cache headers
+      const ext = path.extname(_req.path).toLowerCase();
+      if (ext === ".html" || ext === ".json" || _req.path.includes("build-stamp")) {
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+      }
       if (existsSync(client2DIndexPath)) return res.sendFile(client2DIndexPath);
       if (existsSync(rootIndexPath)) return res.sendFile(rootIndexPath);
       return res.status(503).type("text/plain").send("Areloria 2D client assets are not available.");

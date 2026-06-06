@@ -274,3 +274,18 @@ jobs:
           if (data.commit !== expected) { console.error(`ERROR: stale 2D bundle. expected=${expected} got=${data.commit}`); process.exit(1); }
           console.log(`2D build stamp OK: ${data.commit}`);
           NODE
+
+      - name: Verify live 2D bundle markers
+        run: |
+          set -euo pipefail
+          BASE_URL=https://arelorian.de EXPECTED_SHA="${GITHUB_SHA}" bash scripts/verify-client-2d-live-bundle.sh
+
+      - name: Install Playwright and browser
+        run: |
+          set -euo pipefail
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Production post-login 2D browser smoke
+        run: |
+          set -euo pipefail
+          BASE_URL=https://arelorian.de pnpm run test:e2e -- e2e/client-2d-production-post-login.spec.ts

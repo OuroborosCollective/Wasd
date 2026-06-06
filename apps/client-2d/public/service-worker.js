@@ -39,6 +39,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // /2d/ assets must always be fresh - never cache
+  // This prevents stale bundles after deployment
+  if (
+    url.pathname.startsWith("/2d/") ||
+    url.pathname === "/2d" ||
+    url.pathname === "/2d/"
+  ) {
+    event.respondWith(fetch(request, { cache: "no-store" }));
+    return;
+  }
+
+  // For other assets, use network-first with cache fallback
   event.respondWith(
     fetch(request)
       .then((response) => {
