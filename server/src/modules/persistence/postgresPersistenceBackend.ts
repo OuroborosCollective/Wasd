@@ -60,7 +60,7 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
     return testPostgresConnection();
   }
 
-  async save(data: Record<string, any>): Promise<void> {
+  async save(data: Readonly<Record<string, unknown>>): Promise<void> {
     if (!isDatabaseConfigured()) {
       console.warn("[Persistence] Postgres save skipped (database not configured).");
       return;
@@ -85,13 +85,13 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
     }
   }
 
-  async load(): Promise<Record<string, any>> {
+  async load(): Promise<Record<string, unknown>> {
     if (!isDatabaseConfigured()) {
       return {};
     }
     try {
       const result = await db.query("SELECT id, snapshot FROM player_snapshots");
-      const out: Record<string, any> = {};
+      const out: Record<string, unknown> = {};
       for (const row of result.rows ?? []) {
         const id = typeof row.id === "string" ? row.id : "";
         if (!id) continue;
@@ -106,7 +106,9 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
     }
   }
 
-  async saveWorldObjects(objects: any[]): Promise<void> {
+  async saveWorldObjects(
+    objects: readonly Readonly<Record<string, unknown>>[],
+  ): Promise<void> {
     if (!isDatabaseConfigured()) {
       console.warn("[Persistence] Postgres saveWorldObjects skipped (database not configured).");
       return;
@@ -128,7 +130,7 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
     }
   }
 
-  async loadWorldObjects(): Promise<any[]> {
+  async loadWorldObjects(): Promise<Record<string, unknown>[]> {
     if (!isDatabaseConfigured()) {
       return [];
     }
@@ -137,7 +139,7 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
       const rows = result.rows ?? [];
       return rows
         .map((r) => (r?.snapshot && typeof r.snapshot === "object" ? r.snapshot : null))
-        .filter(Boolean);
+        .filter(Boolean) as Record<string, unknown>[];
     } catch (err) {
       console.error("[Persistence] Failed to load world objects from Postgres:", err);
       return [];

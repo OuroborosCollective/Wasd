@@ -20,7 +20,7 @@ export class FilePersistenceBackend implements IPersistenceBackend {
     return true;
   }
 
-  async save(data: Record<string, any>): Promise<void> {
+  async save(data: Readonly<Record<string, unknown>>): Promise<void> {
     try {
       const dir = path.dirname(this.playersFilePath);
       if (!fs.existsSync(dir)) {
@@ -40,14 +40,14 @@ export class FilePersistenceBackend implements IPersistenceBackend {
     }
   }
 
-  async load(): Promise<Record<string, any>> {
+  async load(): Promise<Record<string, unknown>> {
     try {
       if (!fs.existsSync(this.playersFilePath)) {
         console.log(`[Persistence] No player save file yet (${this.playersFilePath}).`);
         return {};
       }
       const raw = fs.readFileSync(this.playersFilePath, "utf-8");
-      const parsed = JSON.parse(raw) as Record<string, any>;
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
       const count = Object.keys(parsed).length;
       console.log(`Loaded ${count} players from ${this.playersFilePath}.`);
       return parsed;
@@ -57,11 +57,13 @@ export class FilePersistenceBackend implements IPersistenceBackend {
     }
   }
 
-  async saveWorldObjects(_objects: any[]): Promise<void> {
+  async saveWorldObjects(
+    _objects: readonly Readonly<Record<string, unknown>>[],
+  ): Promise<void> {
     console.warn("[Persistence] File backend does not persist world objects.");
   }
 
-  async loadWorldObjects(): Promise<any[]> {
+  async loadWorldObjects(): Promise<Record<string, unknown>[]> {
     return [];
   }
 }
