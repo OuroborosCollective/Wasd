@@ -22,7 +22,6 @@ import {
 
 // Re-export types for consumers
 export type { NPCState as NpcStateType, NPCGoalType as GoalType } from "../../types/npc.types.js";
-export { NPCState as NpcStateType, NPCGoalType as GoalType } from "../../types/npc.types.js";
 
 export enum EchoZoneType {
   COMBAT = 'COMBAT',
