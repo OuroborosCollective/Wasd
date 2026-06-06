@@ -47,6 +47,7 @@ jobs:
       CLIENT_2D_ARCHIVE: wasd-client-2d-dist-${{ github.sha }}.tgz
       CLIENT_2D_MARKER: REAL_PIXI_CLIENT
       CLIENT_2D_BUILD_SHA: ${{ github.sha }}
+      PLAYWRIGHT_VERSION: 1.56.1
 
     steps:
       - name: Checkout repository
@@ -121,9 +122,7 @@ jobs:
           if [ -d "$STITCH_INBOX" ] && [ -n "$(ls -A "$STITCH_INBOX" 2>/dev/null)" ]; then
             echo "Importing Stitch game assets from $STITCH_INBOX"
             mkdir -p "$STITCH_OUT"
-            # Copy stitch inbox contents to game-assets folder
             cp -r "$STITCH_INBOX"/* "$STITCH_OUT/" 2>/dev/null || true
-            # Update manifest with stitch assets
             node scripts/stitch-game-assets-importer.mjs --local-inbox "$STITCH_INBOX" --output "$STITCH_OUT"
           else
             echo "No Stitch inbox found; skipping Stitch asset import."
@@ -136,7 +135,6 @@ jobs:
           pnpm --filter @wasd/client-2d --if-present build
           test -f apps/client-2d/dist/index.html
           grep -q "${CLIENT_2D_MARKER}" apps/client-2d/dist/index.html
-          # Verify PWA files
           test -f apps/client-2d/dist/manifest.webmanifest
           test -f apps/client-2d/dist/service-worker.js
           node <<'NODE'
@@ -280,12 +278,14 @@ jobs:
           set -euo pipefail
           BASE_URL=https://arelorian.de EXPECTED_SHA="${GITHUB_SHA}" bash scripts/verify-client-2d-live-bundle.sh
 
-      - name: Install Playwright and browser
+      - name: Install Playwright production-smoke dependencies
         run: |
           set -euo pipefail
+          pnpm add -Dw "@playwright/test@${PLAYWRIGHT_VERSION}" --no-frozen-lockfile --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
+          pnpm exec playwright --version
           pnpm exec playwright install --with-deps chromium
 
       - name: Production post-login 2D browser smoke
         run: |
           set -euo pipefail
-          BASE_URL=https://arelorian.de pnpm run test:e2e -- e2e/client-2d-production-post-login.spec.ts
+          BASE_URL=https://arelorian.de E2E_SKIP_WEBSERVER=1 E2E_BASE_URL=https://arelorian.de pnpm exec playwright test e2e/client-2d-production-post-login.spec.ts --project=chromium --config=playwright.config.ts
