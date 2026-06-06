@@ -180,6 +180,24 @@ export class QuestProgressionStore {
     return quest;
   }
 
+  /**
+   * Preserve derived quest completion from server-authoritative snapshots.
+   * This is used for start-path quests whose objectives are derived from inventory.
+   * Once completed, they must not regress when follow-up crafting consumes items.
+   */
+  upsertDerivedQuestSnapshot(playerId: string, quest: QuestSnapshot): QuestSnapshot {
+    const normalized = normalizeQuestSnapshot(quest);
+    const existing = this.getOrCreatePlayerQuestMap(playerId).get(normalized.id);
+
+    if (existing?.status === "completed") {
+      return existing;
+    }
+
+    this.setQuest(playerId, normalized);
+    void this.persistPlayerState(playerId);
+    return normalized;
+  }
+
   applyEvent(event: QuestEvent): PlayerQuestState {
     if (event.type === "quest_accept") {
       this.acceptQuest(event.playerId, event.questId);
