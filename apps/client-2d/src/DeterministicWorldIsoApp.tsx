@@ -269,6 +269,10 @@ export function DeterministicWorldIsoApp() {
   const [equippedWeaponId, setEquippedWeaponId] = useState<string | null>(() => localStorage.getItem(EQUIPPED_WEAPON_KEY));
   const [messages, setMessages] = useState<Msg[]>([{ from: "WorldDirector", txt: "Deterministic Millbrook plan initializing." }]);
   
+  // World boot phase tracking for debugging
+  const [worldBootPhase, setWorldBootPhase] = useState<"mounting" | "pixi_init" | "assets_loading" | "world_ready" | "failed">("mounting");
+  const [worldBootError, setWorldBootError] = useState<string | null>(null);
+  
   // DEBUG: Player position & chunk visibility state
   const [debugHeartbeatReceived, setDebugHeartbeatReceived] = useState(false);
   const [debugPlayerPos, setDebugPlayerPos] = useState<{ x: number; z: number } | null>(null);
@@ -606,95 +610,140 @@ export function DeterministicWorldIsoApp() {
 
   useEffect(() => {
     if (!host.current || appRef.current) return;
-    const app = new Application();
-    appRef.current = app;
-    app.init({ backgroundAlpha: 0, resizeTo: host.current, antialias: true, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 2) }).then(async () => {
-      host.current?.appendChild(app.canvas);
-      const assets = await loadWorldAssets();
-      assetsRef.current = assets;
-      const initialWeaponId = resolveEquippedWeaponId(assets.manifest, playerName);
-      setEquippedWeaponId(initialWeaponId);
-      setWeaponCount(weaponIds(assets.manifest).length);
-      setAssetStatus(assets.textures.size > 0 ? `ASSETS_${assets.textures.size}_LOADED` : "PROXY_GRAPHICS");
-      setMessages((items) => [...items.slice(-12), { from: "AssetBinder", txt: `Loaded ${assets.textures.size} textures for semantic world binding.` }]);
 
-      const world = new Container();
-      const terrain = new Container();
-      const props = new Container();
-      const actors = new Container();
-      const fx = new Container();
-      world.sortableChildren = true;
-      terrain.sortableChildren = true;
-      props.sortableChildren = true;
-      actors.sortableChildren = true;
-      fx.sortableChildren = true;
-      worldLayerRef.current = world;
-      actorLayerRef.current = actors;
-      fxLayerRef.current = fx;
-      
-      // Initialize CombatFXManager for combat visual effects
-      if (fx) {
-        combatFXRef.current = new CombatFXManager(app, fx);
+    let cancelled = false;
+
+    async function bootWorld() {
+      try {
+        setWorldBootPhase("pixi_init");
+        document.body.dataset.worldBoot = "pixi_init";
+
+        const app = new Application();
+        appRef.current = app;
+
+        await app.init({
+          backgroundAlpha: 0,
+          resizeTo: host.current!,
+          antialias: true,
+          autoDensity: true,
+          resolution: Math.min(devicePixelRatio || 1, 2),
+        });
+
+        if (cancelled) return;
+
+        host.current?.appendChild(app.canvas);
+
+        setWorldBootPhase("assets_loading");
+        document.body.dataset.worldBoot = "assets_loading";
+
+        const assets = await loadWorldAssets();
+
+        if (cancelled) return;
+
+        assetsRef.current = assets;
+        const initialWeaponId = resolveEquippedWeaponId(assets.manifest, playerName);
+        setEquippedWeaponId(initialWeaponId);
+        setWeaponCount(weaponIds(assets.manifest).length);
+        setAssetStatus(assets.textures.size > 0 ? `ASSETS_${assets.textures.size}_LOADED` : "PROXY_GRAPHICS");
+        setMessages((items) => [...items.slice(-12), { from: "AssetBinder", txt: `Loaded ${assets.textures.size} textures for semantic world binding.` }]);
+
+        const world = new Container();
+        const terrain = new Container();
+        const props = new Container();
+        const actors = new Container();
+        const fx = new Container();
+        world.sortableChildren = true;
+        terrain.sortableChildren = true;
+        props.sortableChildren = true;
+        actors.sortableChildren = true;
+        fx.sortableChildren = true;
+        worldLayerRef.current = world;
+        actorLayerRef.current = actors;
+        fxLayerRef.current = fx;
+        
+        // Initialize CombatFXManager for combat visual effects
+        if (fx) {
+          combatFXRef.current = new CombatFXManager(app, fx);
+        }
+        
+        app.stage.sortableChildren = true;
+        app.stage.eventMode = "static";
+        app.stage.hitArea = app.screen;
+        world.addChild(terrain, props, actors, fx);
+        app.stage.addChild(world);
+        app.stage.on("pointertap", (event) => {
+          const point = fx.toLocal(event.global);
+          spawnTouchRipple(fx, { x: point.x, y: point.y });
+        });
+
+        // Initialize ChunkManager for deterministic chunk streaming
+        const binder = createWorldPlanAssetBinder(assets.manifest, (src) => textureFor(assets, src));
+        console.log('[WorldSetup] binder created, manifest entries:', assets.manifest ? 'loaded' : 'null', 'textures:', assets.textures.size);
+        const chunkManager = new ChunkManager({
+          worldSeed: WORLD_SEED,
+          biomeId: "forest_village",
+          chunkTiles: 16,
+          viewRadius: 1,
+          throttleMs: 500,
+        });
+        // Extract entity class from NPC role (e.g., "npc_blacksmith" → "blacksmith")
+        function extractEntityClass(role: string | undefined): string {
+          if (!role) return 'npc';
+          // Strip "npc_" prefix if present
+          const stripped = role.replace(/^npc_/i, '');
+          return stripped || 'npc';
+        }
+
+        chunkManager.init({
+          worldContainer: terrain,  // Use terrain layer for chunks
+          binder,
+          textureFor: (src) => textureFor(assets, src),
+          addNpcActor: ({ id, tileX, tileZ, name, role, characterVisualId }) => setActor(id, tileX, tileZ, roleDisplayName(role) || name, false, characterVisualId, null, extractEntityClass(role)),
+          width: app.screen.width,
+          height: app.screen.height,
+        });
+        chunkManagerRef.current = chunkManager;
+
+        const plan = generateChunkScenePlan({ worldSeed: WORLD_SEED, chunkX: 0, chunkZ: 0, biomeId: "forest_village", kappa: 1000, chunkTiles: 16 });
+        console.log('[WorldSetup] generated plan, terrain:', plan.terrain?.length, 'props:', plan.props?.length, 'settlement props:', plan.settlement?.props?.length, 'npcs:', plan.npcs?.length);
+        renderChunkScenePlan(plan, binder, {
+          width: app.screen.width,
+          height: app.screen.height,
+          terrain,
+          props,
+          actors,
+          textureFor: (entry) => textureFor(assets, entry?.src),
+          addNpcActor: ({ id, tileX, tileZ, name, role, characterVisualId }) => setActor(id, tileX, tileZ, roleDisplayName(role) || name, false, characterVisualId, null, extractEntityClass(role)),
+        });
+
+        const [centerX, centerZ] = plan.settlement.centerCell.split(":").map((value) => Number(value));
+        setActor("self", centerX, centerZ + 1, playerName, true, null, initialWeaponId);
+        startNetwork(app);
+        app.ticker.add((ticker) => tick(app, ticker.deltaTime));
+
+        setWorldBootPhase("world_ready");
+        document.body.dataset.worldBoot = "world_ready";
+      } catch (error) {
+        console.error("[DeterministicWorldIsoApp] boot failed", error);
+
+        const message =
+          error instanceof Error
+            ? `${error.name}: ${error.message}`
+            : String(error ?? "unknown world boot error");
+
+        setWorldBootPhase("failed");
+        setWorldBootError(message);
+        document.body.dataset.worldBoot = "failed";
       }
-      
-      app.stage.sortableChildren = true;
-      app.stage.eventMode = "static";
-      app.stage.hitArea = app.screen;
-      world.addChild(terrain, props, actors, fx);
-      app.stage.addChild(world);
-      app.stage.on("pointertap", (event) => {
-        const point = fx.toLocal(event.global);
-        spawnTouchRipple(fx, { x: point.x, y: point.y });
-      });
+    }
 
-      // Initialize ChunkManager for deterministic chunk streaming
-      const binder = createWorldPlanAssetBinder(assets.manifest, (src) => textureFor(assets, src));
-      console.log('[WorldSetup] binder created, manifest entries:', assets.manifest ? 'loaded' : 'null', 'textures:', assets.textures.size);
-      const chunkManager = new ChunkManager({
-        worldSeed: WORLD_SEED,
-        biomeId: "forest_village",
-        chunkTiles: 16,
-        viewRadius: 1,
-        throttleMs: 500,
-      });
-      // Extract entity class from NPC role (e.g., "npc_blacksmith" → "blacksmith")
-function extractEntityClass(role: string | undefined): string {
-  if (!role) return 'npc';
-  // Strip "npc_" prefix if present
-  const stripped = role.replace(/^npc_/i, '');
-  return stripped || 'npc';
-}
+    void bootWorld();
 
-chunkManager.init({
-        worldContainer: terrain,  // Use terrain layer for chunks
-        binder,
-        textureFor: (src) => textureFor(assets, src),
-        addNpcActor: ({ id, tileX, tileZ, name, role, characterVisualId }) => setActor(id, tileX, tileZ, roleDisplayName(role) || name, false, characterVisualId, null, extractEntityClass(role)),
-        width: app.screen.width,
-        height: app.screen.height,
-      });
-      chunkManagerRef.current = chunkManager;
-
-      const plan = generateChunkScenePlan({ worldSeed: WORLD_SEED, chunkX: 0, chunkZ: 0, biomeId: "forest_village", kappa: 1000, chunkTiles: 16 });
-      console.log('[WorldSetup] generated plan, terrain:', plan.terrain?.length, 'props:', plan.props?.length, 'settlement props:', plan.settlement?.props?.length, 'npcs:', plan.npcs?.length);
-      renderChunkScenePlan(plan, binder, {
-        width: app.screen.width,
-        height: app.screen.height,
-        terrain,
-        props,
-        actors,
-        textureFor: (entry) => textureFor(assets, entry?.src),
-        addNpcActor: ({ id, tileX, tileZ, name, role, characterVisualId }) => setActor(id, tileX, tileZ, roleDisplayName(role) || name, false, characterVisualId, null, extractEntityClass(role)),
-      });
-
-      const [centerX, centerZ] = plan.settlement.centerCell.split(":").map((value) => Number(value));
-      setActor("self", centerX, centerZ + 1, playerName, true, null, initialWeaponId);
-      startNetwork(app);
-      app.ticker.add((ticker) => tick(app, ticker.deltaTime));
-    });
     return () => {
+      cancelled = true;
       clientRef.current?.disconnect();
-      app.destroy(true);
+      appRef.current?.destroy(true);
+      appRef.current = null;
     };
   }, []);
 
@@ -1193,8 +1242,24 @@ chunkManager.init({
         />
       )}
       
+      {/* World Boot Status - normal status while Pixi initializes */}
+      <div
+        data-testid="world-boot-status"
+        className={`world-boot-status world-boot-status--${worldBootPhase}`}
+      >
+        <strong>Areloria World</strong>
+        <span>
+          {worldBootPhase === "mounting" && "Mounting React world root…"}
+          {worldBootPhase === "pixi_init" && "Starting Pixi renderer…"}
+          {worldBootPhase === "assets_loading" && "Loading world assets…"}
+          {worldBootPhase === "world_ready" && "World ready"}
+          {worldBootPhase === "failed" && "World boot failed"}
+        </span>
+        {worldBootError && <code>{worldBootError}</code>}
+      </div>
+      
       <div className="az-world-glow" />
-      <div ref={host} className="az-pixi" />
+      <div ref={host} className="az-pixi" data-testid="pixi-host" />
       <ArelorianStitchHud
         connected={connected}
         assetStatus={assetStatus}

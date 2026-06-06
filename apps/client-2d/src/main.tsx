@@ -310,6 +310,8 @@ function UIOverlayLayer() {
 async function main(): Promise<void> {
   // Mark boot start for E2E testing
   document.body.dataset.areloriaBoot = "mounting";
+  document.body.dataset.client2dBoot = "ok";
+  document.body.dataset.postLoginShell = "waiting-for-entry";
 
   const rootElement = document.getElementById("root");
 

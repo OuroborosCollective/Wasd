@@ -79,7 +79,60 @@ canvas { display: block; filter: saturate(1.16) contrast(1.08); touch-action: no
 .az-touch-pad .right { grid-column: 3; grid-row: 2; }
 .az-touch-pad .down { grid-column: 2; grid-row: 3; }
 
-.stitch-hud { position: absolute; inset: 0; z-index: 20; pointer-events: none; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+.stitch-hud { position: absolute; inset: 0; z-index: 50; pointer-events: none; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+
+.stitch-hud[data-testid="arelorian-stitch-hud"] {
+  z-index: 50;
+}
+
+.gameplay-window-dock {
+  z-index: 100;
+}
+
+.gameplay-windows-layer {
+  z-index: 95;
+}
+
+[data-testid="character-paperdoll-root"],
+[data-testid="character-select"],
+[data-testid="paperdoll-panel-live"] {
+  position: relative;
+  z-index: 96;
+}
+
+/* World Boot Status - normal status while Pixi initializes */
+.world-boot-status {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: 12px;
+  z-index: 85;
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  max-width: calc(100vw - 24px);
+  border: 1px solid rgba(0, 229, 255, 0.32);
+  border-radius: 12px;
+  background: rgba(5, 6, 6, 0.82);
+  color: #effcff;
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.world-boot-status--world_ready {
+  opacity: 0.65;
+}
+
+.world-boot-status--failed {
+  border-color: rgba(255, 122, 0, 0.75);
+  color: #ffb86b;
+}
+
+.world-boot-status code {
+  white-space: pre-wrap;
+  font-size: 11px;
+  color: #ff9f7a;
+}
 .stitch-hud button, .stitch-hud input { pointer-events: auto; }
 .stitch-scanlines { position: absolute; inset: 0; pointer-events: none; opacity: .22; background: repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0 1px, transparent 1px 4px); mix-blend-mode: overlay; }
 .stitch-topbar { position: absolute; top: 14px; left: 14px; right: 14px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 14px; border: 1px solid rgba(0,229,255,.28); border-radius: 20px; background: linear-gradient(135deg, rgba(3,8,16,.82), rgba(13,18,33,.58)); box-shadow: 0 0 30px rgba(0,229,255,.14), inset 0 1px 0 rgba(255,255,255,.08); backdrop-filter: blur(15px); pointer-events: auto; }

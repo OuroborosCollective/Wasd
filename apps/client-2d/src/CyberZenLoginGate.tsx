@@ -75,7 +75,14 @@ export function CyberZenLoginGate({ children }: Props): React.ReactElement {
   const [entered, setEntered] = useState(() => localStorage.getItem("wasd:2d:entered") === "1");
   const identity = useMemo(() => deriveIdentity(name), [name]);
 
-  if (entered) return <>{children}</>;
+  if (entered) {
+    document.body.dataset.postLoginShell = "entered-rendering-children";
+    return (
+      <div data-testid="post-login-children-root" className="post-login-children-root">
+        {children}
+      </div>
+    );
+  }
 
   function enter(): void {
     localStorage.setItem("wasd:2d:name", identity.handle);
@@ -85,6 +92,9 @@ export function CyberZenLoginGate({ children }: Props): React.ReactElement {
     localStorage.setItem("wasd:2d:spawn", JSON.stringify(identity.spawn));
     localStorage.setItem("wasd:2d:loadout", JSON.stringify(identity.loadout));
     localStorage.setItem("wasd:2d:entered", "1");
+
+    document.body.dataset.postLoginShell = "enter-clicked";
+
     setEntered(true);
   }
 
