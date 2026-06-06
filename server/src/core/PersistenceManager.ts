@@ -39,6 +39,13 @@ export interface WorldObjectSnapshot extends JsonObject {
   readonly logicalIndex?: number;
   readonly type?: string;
   readonly updatedAtTick?: number;
+  // Extended fields for WorldObject compatibility
+  readonly name?: string;
+  readonly position?: { x: number; y: number };
+  readonly rotation?: number;
+  readonly scale?: number;
+  readonly glbPath?: string;
+  readonly [key: string]: unknown; // Index signature for compatibility
 }
 
 
@@ -314,7 +321,7 @@ export class PersistenceManager {
    * 2. type
    * 3. id
    */
-  public async saveWorldObjects<T extends WorldObjectSnapshot>(
+  public async saveWorldObjects<T extends { id: string; [key: string]: unknown }>(
     objects: readonly T[],
     logicalIndex = 0,
   ): Promise<void> {
@@ -370,7 +377,7 @@ export class PersistenceManager {
 
 
   public async loadWorldObjects<
-    T extends WorldObjectSnapshot = WorldObjectSnapshot,
+    T extends { id: string; [key: string]: unknown } = WorldObjectSnapshot,
   >(): Promise<readonly Readonly<T>[]> {
     const result = await this.executeWithRetry("loadWorldObjects", async () => {
       await this.ensureInitialized();
@@ -442,7 +449,7 @@ export class PersistenceManager {
    * Wichtig:
    * Fehler werden intern gespeichert und über getHealth() sichtbar.
    */
-  public persistWorldObjectsAsync<T extends WorldObjectSnapshot>(
+  public persistWorldObjectsAsync<T extends { id: string; [key: string]: unknown }>(
     objects: readonly T[],
     logicalIndex: number,
   ): void {
@@ -783,8 +790,8 @@ export class PersistenceManager {
 
 
   private static compareWorldObjects(
-    a: WorldObjectSnapshot,
-    b: WorldObjectSnapshot,
+    a: { id: string; logicalIndex?: number; type?: string; [key: string]: unknown },
+    b: { id: string; logicalIndex?: number; type?: string; [key: string]: unknown },
   ): number {
     const ai = PersistenceManager.safeSortNumber(a.logicalIndex);
     const bi = PersistenceManager.safeSortNumber(b.logicalIndex);
