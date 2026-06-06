@@ -8,6 +8,10 @@ import { createEmergenceCollapsePayload, type WorldEmergenceCollapsePayload } fr
 import { WorldEventBus } from '../world/WorldEventBus';
 import { WorldResonanceAdapter, type LootCapsule, type WorldResonanceResult } from '../world/WorldResonanceAdapter';
 import { generateInteractionResponse } from '../dialogue/DialogueDirector';
+import {
+    pruneNPCGoalsForTick,
+    type NPCGoalPruningRuntimeReport,
+} from './NPCGoalPruningRuntime.js';
 
 const NPC_CHAT_COOLDOWN_TICKS = 300;
 const NPC_CHAT_ROLL_MODULO = 997;
@@ -112,6 +116,7 @@ export class NPCSystem {
     private resonanceEvents: WorldResonanceResult[] = [];
     private lootCapsules: LootCapsule[] = [];
     private shadowLogs: Record<string, unknown>[] = [];
+    private goalPruneReports: NPCGoalPruningRuntimeReport[] = [];
     private lastChatTickByNpc = new Map<string, number>();
 
     public resonanceEngine: TraitResonanceEngine;
@@ -202,6 +207,14 @@ export class NPCSystem {
         return logs;
     }
 
+
+    public drainGoalPruneReports(): NPCGoalPruningRuntimeReport[] {
+        const reports = this.goalPruneReports;
+        this.goalPruneReports = [];
+        return reports;
+    }
+
+
     public handleInteraction(npcId: string, player: any, questDefs: any, worldContext?: { tick?: number; biomeId?: string }): any {
         const npc = this.getNPC(npcId);
         if (!npc) return null;
@@ -284,6 +297,16 @@ export class NPCSystem {
 
         for (const npc of this.cachedSortedNpcs) {
             if (npc.state === 'decomposition') continue;
+
+            // ─────────────────────────────────────────────────────────────────
+            // GOAL PRUNING: Heuristic goal list management per tick
+            // ═════════════════════════════════════════════════════════════════
+            const pruneReport = pruneNPCGoalsForTick(npc, currentTick);
+            if (pruneReport && pruneReport.removed > 0) {
+                this.goalPruneReports.push(pruneReport);
+            }
+            // ═════════════════════════════════════════════════════════════════
+
             this.processEmergentDecision(npc, currentTick, averageDrift, averageThreat, colonyUtility);
             if (npc.state === 'decomposition') continue;
             this.processPerception(npc, playerContexts);
@@ -566,7 +589,8 @@ export class NPCSystem {
 
     private static memoryHash(npc: NPC): string {
         const last = npc.memory?.lastThermalDecision;
-        return `${npc.id}:${last?.kappaHash ?? 'memory:0'}:${last?.risk ?? 'NONE'}`;
+        const goalPrune = npc.memory?.lastGoalPrune;
+        return `${npc.id}:${last?.kappaHash ?? 'memory:0'}:${last?.risk ?? 'NONE'}:${goalPrune?.tick ?? 0}:${goalPrune?.removed ?? 0}`;
     }
 
     private static localStateHash(npc: NPC): string {
