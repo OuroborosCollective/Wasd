@@ -265,10 +265,24 @@ export class PersistenceManager {
 
   /**
    * Rückwärtskompatibel zu deinem alten save().
-   * Besser: saveSnapshot(logicalIndex, data) benutzen.
+   * Speichert player data direkt ohne Envelope-Wrapper.
+   * Für neue Implementierungen: saveSnapshot() benutzen.
    */
   public async save<T extends JsonObject>(data: T): Promise<void> {
-    await this.saveSnapshot(0, data);
+    // Wichtig: Backends erwarten { playerId: playerData } Format
+    // NICHT als Envelope wrappen, das würde Player-Persistenz brechen
+    await this.enqueueWrite("save", async () => {
+      await this.ensureInitialized();
+
+      await this.executeWithRetry("save", async () => {
+        await this.withTimeout(
+          this.backend.save(data as Readonly<Record<string, unknown>>),
+          "save",
+        );
+
+        this.lastSuccessfulSaveAt = Date.now(); // ARE-DETERMINISM-ALLOW: persistence health tracking
+      });
+    });
   }
 
 
@@ -547,28 +561,29 @@ export class PersistenceManager {
     promise: Promise<T>,
     operation: string,
   ): Promise<T> {
-    let timeout: NodeJS.Timeout | undefined;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, this.operationTimeoutMs);
 
-
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeout = setTimeout(() => {
-        reject(
-          this.error(
-            operation,
-            `operation timed out after ${this.operationTimeoutMs}ms`,
-          ),
-        );
-      }, this.operationTimeoutMs);
-    });
-
-
-    try {
-      return await Promise.race([promise, timeoutPromise]);
-    } finally {
-      if (timeout) {
+    const wrappedPromise = Promise.race([
+      promise.then((result) => {
         clearTimeout(timeout);
-      }
-    }
+        return result;
+      }),
+      new Promise<never>((_, reject) => {
+        controller.signal.addEventListener("abort", () => {
+          reject(
+            this.error(
+              operation,
+              `operation timed out after ${this.operationTimeoutMs}ms`,
+            ),
+          );
+        });
+      }),
+    ]);
+
+    return wrappedPromise;
   }
 
 
