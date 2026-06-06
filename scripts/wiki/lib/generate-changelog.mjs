@@ -16,12 +16,6 @@ import { existsSync, readFileSync } from 'node:fs';
  */
 
 /**
- * @typedef {Object} ChangelogSection
- * @property {string} title
- * @property {Commit[]} commits
- */
-
-/**
  * Classify commit type from message
  * @param {string} message
  * @returns {string}
@@ -238,44 +232,55 @@ export function generateChangelog(options = {}) {
  */
 export function generateCompactChangelog(options = {}) {
   const {
-    since = '2 weeks ago',
-    limit = 30,
-    projectName = 'Areloria'
+    since = '8 weeks ago',
+    limit = 120,
+    projectName = 'Areloria',
+    maxEntries = 30
   } = options;
   
   const commits = getCommits(since, limit);
+  const filteredCommits = commits.filter(commit => !/^docs:\s+sync wiki/i.test(commit.message));
   
-  if (commits.length === 0) {
-    return `## Recent Changes\n\nNo recent changes.\n`;
+  let output = `# ${projectName} Changelog\n\n`;
+  output += `> Autonomous changelog generated from git history.\n\n`;
+  
+  if (filteredCommits.length === 0) {
+    output += `No recent project changes found.\n\n`;
+    output += `---\n`;
+    output += `**Generated:** ${new Date().toISOString()}\n`;
+    output += `**Commits analyzed:** ${commits.length}\n`;
+    return output;
   }
   
   // Take only recent unique messages
   const uniqueMessages = [];
   const seen = new Set();
   
-  for (const commit of commits) {
-    const key = commit.message.toLowerCase().slice(0, 50);
+  for (const commit of filteredCommits) {
+    const key = `${commit.message.toLowerCase()}|${commit.date}`;
     if (!seen.has(key)) {
       seen.add(key);
       uniqueMessages.push(commit);
     }
   }
   
-  let output = `## Recent Changes\n\n`;
-  output += `*Last ${uniqueMessages.length} changes*\n\n`;
+  output += `## Recent Changes\n\n`;
+  output += `*Latest ${Math.min(uniqueMessages.length, maxEntries)} project changes from ${filteredCommits.length} eligible commits.*\n\n`;
   
-  for (const commit of uniqueMessages.slice(0, 15)) {
+  for (const commit of uniqueMessages.slice(0, maxEntries)) {
     // Clean and shorten message
     let msg = commit.message
-      .replace(/^[^:]+:\s*/, '')  // Remove conventional commit prefix
-      .replace(/^\[[^\]]+\]\s*/, '');  // Remove issue refs
+      .replace(/^[^:]+:\s*/, '')
+      .replace(/^\[[^\]]+\]\s*/, '');
     
-    const shortHash = commit.hash.slice(0, 6);
-    output += `- **${msg}** — \`${commit.date}\`\n`;
+    const shortHash = commit.hash.slice(0, 7);
+    output += `- **${msg}** — ${commit.date} · \`${shortHash}\`\n`;
   }
   
-  output += `\n---\n`;
-  output += `*Full changelog auto-generated from git history*\n`;
+  output += `\n---\n\n`;
+  output += `**Generated:** ${new Date().toISOString()}\n`;
+  output += `**Commits analyzed:** ${commits.length}\n`;
+  output += `**Project commits listed:** ${uniqueMessages.length}\n`;
   
   return output;
 }
