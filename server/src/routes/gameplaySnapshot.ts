@@ -83,10 +83,24 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
     // Get character profile
     const character = await characterService.getCharacterProfile(identity.playerId);
     const characterSnapshot = toCharacterProfileSnapshot(character);
-    const startPathQuest = createStartPathQuestSnapshot({
+    const derivedStartPathQuest = createStartPathQuestSnapshot({
       character: characterSnapshot,
       inventory,
     });
+
+    const persistedStartPathQuest = derivedStartPathQuest
+      ? questState.quests.find((quest) => quest.id === derivedStartPathQuest.id)
+      : null;
+
+    const startPathQuest = persistedStartPathQuest?.status === "completed"
+      ? persistedStartPathQuest
+      : derivedStartPathQuest?.status === "completed"
+        ? questProgressionStore.upsertDerivedQuestSnapshot(identity.playerId, derivedStartPathQuest)
+        : derivedStartPathQuest;
+
+    const baseQuests = startPathQuest
+      ? questState.quests.filter((quest) => quest.id !== startPathQuest.id)
+      : questState.quests;
 
     // Create paperdoll snapshot from character and equipment
     const paperdoll = createPaperdollSnapshot({
@@ -99,8 +113,8 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
       character: characterSnapshot,
       paperdoll,
       quests: startPathQuest
-        ? [...questState.quests, startPathQuest]
-        : questState.quests,
+        ? [...baseQuests, startPathQuest]
+        : baseQuests,
       skills: skillState.skills,
       resources,
       inventory,
