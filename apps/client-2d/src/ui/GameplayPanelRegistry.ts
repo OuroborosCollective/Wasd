@@ -3,6 +3,7 @@
 
 export type GameplayPanelId =
   | "character"
+  | "quests"
   | "skills"
   | "resources"
   | "inventory"
@@ -29,6 +30,15 @@ export const GAMEPLAY_PANEL_REGISTRY: readonly GameplayPanelRegistration[] = [
     shortcut: "P",
     testId: "character-paperdoll-root",
     defaultOpen: true,
+    mobileDefaultOpen: true,
+    requiresLiveSnapshot: true,
+  },
+  {
+    id: "quests",
+    title: "Quests",
+    shortcut: "Q",
+    testId: "quest-panel-live",
+    defaultOpen: false,
     mobileDefaultOpen: true,
     requiresLiveSnapshot: true,
   },
