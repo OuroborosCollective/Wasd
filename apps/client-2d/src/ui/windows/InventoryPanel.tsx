@@ -18,6 +18,7 @@ import type {
   PlayerEquipmentSnapshot,
 } from "../../game/liveGameplaySnapshot";
 import { equipGatheringTool } from "../../game/equipment";
+import { getGatheringToolIcon, isGatheringTool } from "../utils/ItemIconMapper";
 
 interface Props {
   inventory: PlayerInventorySnapshot;
@@ -33,16 +34,23 @@ const GATHERING_TOOL_IDS = new Set([
 
 // Slot labels
 const SLOT_LABELS: Record<string, string> = {
-  woodcutting_tool: "🪓 Woodcutting",
-  mining_tool: "⛏️ Mining",
-  fishing_tool: "🎣 Fishing",
+  woodcutting_tool: "Woodcutting",
+  mining_tool: "Mining",
+  fishing_tool: "Fishing",
 };
 
-// Tool icons
-const TOOL_ICONS: Record<string, string> = {
-  wooden_axe: "🪓",
-  copper_pickaxe: "⛏️",
-  simple_fishing_rod: "🎣",
+// Tool display names
+const TOOL_NAMES: Record<string, string> = {
+  wooden_axe: "Wooden Axe",
+  copper_pickaxe: "Copper Pickaxe",
+  simple_fishing_rod: "Simple Fishing Rod",
+};
+
+// Tool rarity (all common for now)
+const TOOL_RARITY: Record<string, string> = {
+  wooden_axe: "common",
+  copper_pickaxe: "common",
+  simple_fishing_rod: "common",
 };
 
 const categoryIcons: Record<string, string> = {
@@ -100,12 +108,18 @@ export function InventoryPanel({ inventory, equipment }: Props) {
           <div className="equipped-tools">
             <h4 className="subsection-title">Equipped</h4>
             <div className="equipped-list">
-              {equipped.map((slot) => (
-                <div key={slot.slotId} className="equipped-slot">
-                  <span className="slot-label">{SLOT_LABELS[slot.slotId] ?? slot.slotId}:</span>
-                  <span className="item-name">{slot.title}</span>
-                </div>
-              ))}
+              {equipped.map((slot) => {
+                const iconPath = getGatheringToolIcon(slot.itemId);
+                return (
+                  <div key={slot.slotId} className={`equipped-slot rarity-${TOOL_RARITY[slot.itemId] ?? "common"}`}>
+                    {iconPath && (
+                      <img src={iconPath} alt={slot.title} className="tool-svg-icon" />
+                    )}
+                    <span className="slot-label">{SLOT_LABELS[slot.slotId] ?? slot.slotId}:</span>
+                    <span className="item-name">{slot.title}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -114,18 +128,23 @@ export function InventoryPanel({ inventory, equipment }: Props) {
           <div className="available-tools">
             <h4 className="subsection-title">Available Tools</h4>
             <div className="tools-grid">
-              {tools.map((slot) => (
-                <button
-                  key={slot.slotId}
-                  type="button"
-                  className="tool-button"
-                  onClick={() => handleEquip(slot.itemId)}
-                  title={`Equip ${slot.name}`}
-                >
-                  <span className="tool-icon">{TOOL_ICONS[slot.itemId] ?? "🔧"}</span>
-                  <span className="tool-name">{slot.name}</span>
-                </button>
-              ))}
+              {tools.map((slot) => {
+                const iconPath = getGatheringToolIcon(slot.itemId);
+                return (
+                  <button
+                    key={slot.slotId}
+                    type="button"
+                    className={`tool-button rarity-${TOOL_RARITY[slot.itemId] ?? "common"}`}
+                    onClick={() => handleEquip(slot.itemId)}
+                    title={`Equip ${slot.name}`}
+                  >
+                    {iconPath && (
+                      <img src={iconPath} alt={slot.name} className="tool-svg-icon" />
+                    )}
+                    <span className="tool-name">{TOOL_NAMES[slot.itemId] ?? slot.name}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -136,20 +155,28 @@ export function InventoryPanel({ inventory, equipment }: Props) {
       </p>
 
       <div className="inventory-grid">
-        {slots.map((slot) => (
-          <article key={slot.slotId} className="inventory-slot">
-            <div className="inventory-slot__icon">
-              {categoryIcons[slot.category] ?? "📦"}
-            </div>
-            <div className="inventory-slot__info">
-              <strong className="inventory-slot__name">{slot.name}</strong>
-              <span className="inventory-slot__quantity">
-                x{slot.quantity}
-              </span>
-              <small className="inventory-slot__category">{slot.category}</small>
-            </div>
-          </article>
-        ))}
+        {slots.map((slot) => {
+          const iconPath = getGatheringToolIcon(slot.itemId);
+          const rarity = TOOL_RARITY[slot.itemId] ?? slot.category;
+          return (
+            <article key={slot.slotId} className={`inventory-slot rarity-${rarity}`}>
+              <div className="inventory-slot__icon">
+                {iconPath ? (
+                  <img src={iconPath} alt={slot.name} className="inventory-slot-svg" />
+                ) : (
+                  categoryIcons[slot.category] ?? "📦"
+                )}
+              </div>
+              <div className="inventory-slot__info">
+                <strong className="inventory-slot__name">{slot.name}</strong>
+                <span className="inventory-slot__quantity">
+                  x{slot.quantity}
+                </span>
+                <small className="inventory-slot__category">{slot.category}</small>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );

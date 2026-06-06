@@ -212,6 +212,15 @@
   color: #c8d0dc;
 }
 
+/* SVG icon in inventory slot */
+.inventory-slot-svg {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
 /* ─── Rarity Borders ───────────────────────────────────────────────── */
 
 .inventory-slot.rarity-common,
@@ -500,6 +509,12 @@
   border-radius: 3px;
 }
 
+/* SVG icon in equipped slot */
+.gathering-tools-section .equipped-slot .tool-svg-icon {
+  width: 20px;
+  height: 20px;
+}
+
 .gathering-tools-section .slot-label {
   font-size: 0.6rem;
   color: #7a8090;
@@ -546,6 +561,15 @@
 .gathering-tools-section .tool-icon {
   font-size: 1.1rem;
   flex-shrink: 0;
+}
+
+.gathering-tools-section .tool-svg-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
 }
 
 .gathering-tools-section .tool-name {

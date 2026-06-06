@@ -87,6 +87,12 @@ const MATERIAL_ICON_MAP: Record<string, string> = {
   gem: "GM",
 };
 
+const GATHERING_TOOL_ICON_MAP: Record<string, string> = {
+  wooden_axe: "🪓",
+  copper_pickaxe: "⛏️",
+  simple_fishing_rod: "🎣",
+};
+
 const QUEST_ICON_MAP: Record<string, string> = {
   quest_item: "QS",
   key: "KY",
@@ -250,4 +256,24 @@ export function getRuneElementName(runeId: string): string {
     rune_nature: "Nature",
   };
   return names[runeId] ?? runeId;
+}
+
+/**
+ * Get SVG icon path for gathering tool items.
+ * Returns null if itemId is not a gathering tool.
+ */
+export function getGatheringToolIcon(itemId: string): string | null {
+  const iconPaths: Record<string, string> = {
+    wooden_axe: "/2d-assets/symbols/gathering/wooden_axe.svg",
+    copper_pickaxe: "/2d-assets/symbols/gathering/copper_pickaxe.svg",
+    simple_fishing_rod: "/2d-assets/symbols/gathering/simple_fishing_rod.svg",
+  };
+  return iconPaths[itemId] ?? null;
+}
+
+/**
+ * Check if item is a gathering tool.
+ */
+export function isGatheringTool(itemId: string): boolean {
+  return itemId in GATHERING_TOOL_ICON_MAP;
 }
