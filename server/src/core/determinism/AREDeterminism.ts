@@ -98,6 +98,16 @@ export function deterministicRandom(seed: string | number | bigint = 0): number 
   return new SeededARERng(typeof seed === 'bigint' ? seed.toString() : seed).nextFloat();
 }
 
+/**
+ * Stable 32-bit FNV-1a hash for deterministic ordering, replay IDs, and memory hashes.
+ *
+ * This is intentionally small and non-cryptographic. Do not use it for auth,
+ * signatures, secrets, or any security boundary.
+ */
+export function stableHash32(seed: string | number | bigint): number {
+  return hashSeed(String(seed));
+}
+
 function stablePart(part: unknown): string {
   if (part === null) return 'null';
   if (part === undefined) return 'undefined';
