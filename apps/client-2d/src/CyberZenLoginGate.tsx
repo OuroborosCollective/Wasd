@@ -51,13 +51,15 @@ class PostLoginChildBoundary extends React.Component<PostLoginChildBoundaryProps
 
     return (
       <section
-        className="post-login-child-error"
-        data-testid="post-login-child-error"
+        className="post-login-child-sync"
+        data-testid="post-login-child-sync"
         data-child-label={this.props.label}
-        role="alert"
+        role="status"
+        aria-live="polite"
       >
-        <strong>Post-login module failed: {this.props.label}</strong>
-        <code>{this.state.error}</code>
+        <small>WORLD SYNC</small>
+        <strong>Module wird neu synchronisiert…</strong>
+        <span>{this.props.label}</span>
       </section>
     );
   }
