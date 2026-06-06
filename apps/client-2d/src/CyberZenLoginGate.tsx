@@ -15,6 +15,54 @@ interface GateIdentity {
   identityHash: string;
 }
 
+interface PostLoginChildBoundaryProps {
+  label: string;
+  children: React.ReactNode;
+}
+
+interface PostLoginChildBoundaryState {
+  error: string | null;
+}
+
+class PostLoginChildBoundary extends React.Component<PostLoginChildBoundaryProps, PostLoginChildBoundaryState> {
+  public state: PostLoginChildBoundaryState = { error: null };
+
+  public static getDerivedStateFromError(error: unknown): PostLoginChildBoundaryState {
+    return {
+      error: error instanceof Error ? `${error.name}: ${error.message}` : String(error ?? "Unknown child render error"),
+    };
+  }
+
+  public componentDidCatch(error: unknown, info: React.ErrorInfo): void {
+    const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error ?? "Unknown child render error");
+    document.body.dataset.postLoginChildError = this.props.label;
+    console.error(`[Areloria PostLogin Child Error] ${this.props.label}`, error, info.componentStack);
+    window.dispatchEvent(new CustomEvent("wasd:post-login-child-error", {
+      detail: {
+        label: this.props.label,
+        message,
+        componentStack: info.componentStack,
+      },
+    }));
+  }
+
+  public render(): React.ReactNode {
+    if (!this.state.error) return this.props.children;
+
+    return (
+      <section
+        className="post-login-child-error"
+        data-testid="post-login-child-error"
+        data-child-label={this.props.label}
+        role="alert"
+      >
+        <strong>Post-login module failed: {this.props.label}</strong>
+        <code>{this.state.error}</code>
+      </section>
+    );
+  }
+}
+
 const ROLES: Role[] = ["Scavenger", "Trader", "Guardian", "Oracle", "Builder", "Warden"];
 const LOADOUTS: Record<Role, string[]> = {
   Scavenger: ["rusted_blade", "scrap_satchel", "echo_ration"],
@@ -70,6 +118,14 @@ function deriveIdentity(handleRaw: string): GateIdentity {
   };
 }
 
+function wrapPostLoginChildren(children: React.ReactNode): React.ReactNode {
+  return React.Children.map(children, (child, index) => (
+    <PostLoginChildBoundary label={`post-login-child-${index}`}>
+      {child}
+    </PostLoginChildBoundary>
+  ));
+}
+
 export function CyberZenLoginGate({ children }: Props): React.ReactElement {
   const [name, setName] = useState(() => localStorage.getItem("wasd:2d:name") ?? "Thomas");
   const [entered, setEntered] = useState(() => localStorage.getItem("wasd:2d:entered") === "1");
@@ -79,7 +135,7 @@ export function CyberZenLoginGate({ children }: Props): React.ReactElement {
     document.body.dataset.postLoginShell = "entered-rendering-children";
     return (
       <div data-testid="post-login-children-root" className="post-login-children-root">
-        {children}
+        {wrapPostLoginChildren(children)}
       </div>
     );
   }
