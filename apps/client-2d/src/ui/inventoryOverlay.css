@@ -447,3 +447,107 @@
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+/* ─── Gathering Tools Section ──────────────────────────────────────────── */
+
+.gathering-tools-section {
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(80, 90, 110, 0.3);
+}
+
+.gathering-tools-section .section-title {
+  margin: 0 0 8px 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #6a7080;
+}
+
+.gathering-tools-section .subsection-title {
+  margin: 0 0 4px 0;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #5a6070;
+}
+
+.gathering-tools-section .equipped-tools,
+.gathering-tools-section .available-tools {
+  margin-bottom: 8px;
+}
+
+.gathering-tools-section .equipped-tools:last-child,
+.gathering-tools-section .available-tools:last-child {
+  margin-bottom: 0;
+}
+
+.gathering-tools-section .equipped-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gathering-tools-section .equipped-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: rgba(30, 40, 55, 0.6);
+  border: 1px solid rgba(80, 90, 110, 0.3);
+  border-radius: 3px;
+}
+
+.gathering-tools-section .slot-label {
+  font-size: 0.6rem;
+  color: #7a8090;
+  flex-shrink: 0;
+}
+
+.gathering-tools-section .item-name {
+  font-size: 0.65rem;
+  color: #b0c0d0;
+  font-weight: 500;
+}
+
+.gathering-tools-section .tools-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gathering-tools-section .tool-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(15, 20, 28, 0.95);
+  border: 2px solid rgba(80, 90, 110, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  font-size: 0.65rem;
+  color: #c8d0dc;
+  font-family: inherit;
+  text-align: left;
+}
+
+.gathering-tools-section .tool-button:hover {
+  background: rgba(30, 40, 55, 0.95);
+  border-color: rgba(120, 135, 160, 0.5);
+}
+
+.gathering-tools-section .tool-button:active {
+  transform: scale(0.98);
+}
+
+.gathering-tools-section .tool-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.gathering-tools-section .tool-name {
+  font-weight: 500;
+}

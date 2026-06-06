@@ -22,6 +22,7 @@ import { getSkillProgressionService } from "../skills/skillRuntime.js";
 import { gatheringService } from "../resources/GatheringService.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
 import { craftingService } from "../crafting/CraftingService.js";
+import { equipmentService } from "../equipment/equipmentRuntime.js";
 
 /**
  * Get current tick ID from WorldTick instance.
@@ -71,6 +72,9 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
     // Get crafting recipes
     const craftingRecipes = await craftingService.listRecipeSnapshots(identity.playerId);
 
+    // Get equipment state
+    const equipment = await equipmentService.getPlayerEquipment(identity.playerId);
+
     const snapshot = createGameplaySnapshot({
       serverTick,
       quests: questState.quests,
@@ -80,6 +84,7 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
       crafting: {
         recipes: craftingRecipes,
       },
+      equipment,
       guild: null,
       factions: [],
       map: {},

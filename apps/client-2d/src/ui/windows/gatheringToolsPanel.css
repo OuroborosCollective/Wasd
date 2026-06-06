@@ -1,0 +1,118 @@
+/**
+ * Gathering Tools Panel CSS
+ * Simple panel for crafted gathering tools.
+ */
+
+.gathering-tools-panel {
+  min-width: 180px;
+  max-width: 240px;
+  padding: 10px;
+  background: linear-gradient(180deg, #0a0d12 0%, #060810 100%);
+  border: 2px solid rgba(180, 160, 100, 0.3);
+}
+
+.gathering-tools-panel .panel-title {
+  margin: 0 0 8px 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #6a7080;
+  text-align: center;
+}
+
+.gathering-tools-panel .gathering-section {
+  margin-bottom: 10px;
+}
+
+.gathering-tools-panel .gathering-section:last-child {
+  margin-bottom: 0;
+}
+
+.gathering-tools-panel .section-title {
+  margin: 0 0 4px 0;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #5a6070;
+}
+
+.gathering-tools-panel .empty-text {
+  margin: 0;
+  font-size: 0.65rem;
+  color: #4a5060;
+  font-style: italic;
+}
+
+.gathering-tools-panel .equipped-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gathering-tools-panel .equipped-slot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: rgba(30, 40, 55, 0.6);
+  border: 1px solid rgba(80, 90, 110, 0.3);
+  border-radius: 3px;
+  margin-bottom: 4px;
+  font-size: 0.65rem;
+}
+
+.gathering-tools-panel .equipped-slot:last-child {
+  margin-bottom: 0;
+}
+
+.gathering-tools-panel .slot-label {
+  color: #7a8090;
+  flex-shrink: 0;
+}
+
+.gathering-tools-panel .item-name {
+  color: #b0c0d0;
+  font-weight: 500;
+}
+
+.gathering-tools-panel .tools-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gathering-tools-panel .tool-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(15, 20, 28, 0.95);
+  border: 2px solid rgba(80, 90, 110, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  font-size: 0.65rem;
+  color: #c8d0dc;
+  font-family: inherit;
+  text-align: left;
+}
+
+.gathering-tools-panel .tool-button:hover {
+  background: rgba(30, 40, 55, 0.95);
+  border-color: rgba(120, 135, 160, 0.5);
+}
+
+.gathering-tools-panel .tool-button:active {
+  transform: scale(0.98);
+}
+
+.gathering-tools-panel .tool-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.gathering-tools-panel .tool-name {
+  font-weight: 500;
+}

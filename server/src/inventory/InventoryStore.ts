@@ -115,7 +115,9 @@ export class InventoryStore {
         slots: [
           ...state.slots,
           {
-            slotId: `slot_${definition.id}`,
+            slotId: definition.stackable
+              ? `slot_${definition.id}`
+              : `slot_${definition.id}_${String(state.slots.filter(s => s.itemId === definition.id).length + 1).padStart(3, "0")}`,
             itemId: definition.id,
             name: definition.name,
             quantity,

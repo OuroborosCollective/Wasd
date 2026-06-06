@@ -11,7 +11,10 @@ export type InventoryItemId =
   | "raw_fish"
   | "wood_plank"
   | "copper_ingot"
-  | "cooked_fish";
+  | "cooked_fish"
+  | "wooden_axe"
+  | "copper_pickaxe"
+  | "simple_fishing_rod";
 
 export interface InventoryItemDefinition {
   id: InventoryItemId;
@@ -100,6 +103,27 @@ export const ITEM_DEFINITIONS: Record<InventoryItemId, InventoryItemDefinition> 
     stackable: true,
     maxStack: 999,
     category: "consumable",
+  },
+  wooden_axe: {
+    id: "wooden_axe",
+    name: "Wooden Axe",
+    stackable: false,
+    maxStack: 1,
+    category: "equipment",
+  },
+  copper_pickaxe: {
+    id: "copper_pickaxe",
+    name: "Copper Pickaxe",
+    stackable: false,
+    maxStack: 1,
+    category: "equipment",
+  },
+  simple_fishing_rod: {
+    id: "simple_fishing_rod",
+    name: "Simple Fishing Rod",
+    stackable: false,
+    maxStack: 1,
+    category: "equipment",
   },
 };
 
