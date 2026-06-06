@@ -148,6 +148,11 @@ else
   echo "  Review the output above for details."
 fi
 
+echo ""
+echo "═══════════════════════════════════════════════════════════════"
+echo "  NOTE: HTML checks cannot prove React panel visibility."
+echo "  Run Playwright E2E to verify gameplay panels:"
+echo "  pnpm run test:e2e -- e2e/client-2d-gameplay-panels-visible.spec.ts"
 echo "═══════════════════════════════════════════════════════════════"
 
 exit $FAILURES
