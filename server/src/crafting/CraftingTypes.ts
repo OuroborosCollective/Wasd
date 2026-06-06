@@ -10,7 +10,10 @@ import type { InventoryItemId } from "../inventory/InventoryTypes.js";
 export type RecipeId =
   | "craft_wood_plank"
   | "smelt_copper_ingot"
-  | "cook_raw_fish";
+  | "cook_raw_fish"
+  | "craft_wooden_axe"
+  | "craft_copper_pickaxe"
+  | "craft_simple_fishing_rod";
 
 export interface RecipeIngredient {
   itemId: InventoryItemId;

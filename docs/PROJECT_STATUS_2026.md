@@ -134,9 +134,9 @@ Gather starter resource node
 | Skill Progression | Partial | MVP skills and XP persistence exist |
 | Resource Gathering | Partial | Static starter nodes only |
 | Inventory | Partial | Resource/crafted items only |
-| Crafting | **Partial** | **Deterministic starter recipes only** |
+| Crafting | **Partial** | **Deterministic starter recipes, includes tool recipes** |
 | Guild/Faction | Partial | Snapshot visible, data not fully wired |
-| Equipment | Partial | Panel exists, not fully connected |
+| Equipment | **Partial** | **Basic gathering tools: wooden_axe, copper_pickaxe, simple_fishing_rod** |
 
 ### Crafting System Details (MVP)
 
@@ -144,6 +144,9 @@ Recipes:
 - `craft_wood_plank`: 2× wood_log → 1× wood_plank (+20 XP)
 - `smelt_copper_ingot`: 3× copper_ore → 1× copper_ingot (+30 XP)
 - `cook_raw_fish`: 1× raw_fish → 1× cooked_fish (+15 XP)
+- `craft_wooden_axe`: 2× wood_plank + 1× copper_ingot → 1× wooden_axe (+35 XP)
+- `craft_copper_pickaxe`: 1× wood_plank + 2× copper_ingot → 1× copper_pickaxe (+40 XP)
+- `craft_simple_fishing_rod`: 1× wood_plank + 1× raw_fish → 1× simple_fishing_rod (+25 XP)
 
 Features:
 - Server-authoritative crafting flow
@@ -152,12 +155,31 @@ Features:
 - LiveGameplaySnapshot visibility
 - 2D Crafting Window (press B)
 
+### Equipment System (Gathering Tools MVP)
+
+Equippable Tools:
+- `wooden_axe`: +10% woodcutting XP, equipped in woodcutting_tool slot
+- `copper_pickaxe`: +10% mining XP, equipped in mining_tool slot
+- `simple_fishing_rod`: +10% fishing XP, equipped in fishing_tool slot
+
+Features:
+- Server-authoritative equipment state
+- Inventory ownership validation before equip
+- JSON/Postgres persistence
+- Equipment appears in LiveGameplaySnapshot
+- 2D Inventory Panel with tool equip buttons
+- Deterministic XP bonus applied during gathering
+
 ### Not Yet Complete
 
 - Procedural resource placement
 - Crafting stations
-- Tool requirements
-- Equipment system (full)
+- Tool durability
+- Tool tiers beyond starter
+- Combat equipment
+- Armor
+- Equipment trading
+- Visual paperdoll
 - Trading
 - NPC economy
 - Item pricing

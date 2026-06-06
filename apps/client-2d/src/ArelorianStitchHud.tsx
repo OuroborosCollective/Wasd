@@ -444,7 +444,7 @@ function StitchPanel({
         </header>
         {panel === "inventory" && (
           <>
-            <InventorySnapshotPanel inventory={liveGameplay.inventory} />
+            <InventorySnapshotPanel inventory={liveGameplay.inventory} equipment={liveGameplay.equipment} />
             <InventoryPanel items={inventoryItems} equippedWeaponId={equippedWeaponId} onEquipWeapon={(item) => onEquipWeapon?.(item)} />
           </>
         )}

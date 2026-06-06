@@ -17,6 +17,8 @@ import type { ResourceNodeStore } from "./ResourceNodeStore.js";
 import { resourceNodeStore } from "./ResourceNodeStore.js";
 import type { GatherResourceResult } from "./ResourceTypes.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
+import { equipmentService } from "../equipment/equipmentRuntime.js";
+import { applyPermille, getGatheringToolBonus } from "../equipment/EquipmentBonus.js";
 
 /**
  * Get player skill level for a specific skill.
@@ -70,12 +72,22 @@ export class GatheringService {
       return result;
     }
 
+    // Get equipped tool bonus for the skill
+    const equipment = await equipmentService.getPlayerEquipment(playerId);
+    const bonus = getGatheringToolBonus({
+      equipment,
+      skillId: result.skillId,
+    });
+
+    // Apply XP multiplier from equipped tool
+    const xpReward = applyPermille(result.xpReward, bonus.xpMultiplierPermille);
+
     // Apply skill XP reward
     await skillService.applyEvent({
       type: "skill_xp_gain",
       playerId,
       skillId: result.skillId,
-      amount: result.xpReward,
+      amount: xpReward,
       source: "resource_gather",
     });
 

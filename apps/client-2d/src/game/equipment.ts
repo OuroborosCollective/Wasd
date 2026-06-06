@@ -69,3 +69,49 @@ export function applyEquipmentEvent(
 
   return equipment;
 }
+
+// ─── Gathering Tools API ──────────────────────────────────────────────────────
+
+/**
+ * Equip a gathering tool from inventory.
+ * Server validates inventory ownership.
+ */
+export async function equipGatheringTool(itemId: string): Promise<{
+  ok: boolean;
+  result?: {
+    ok: boolean;
+    playerId: string;
+    itemId: string;
+    reason?: string;
+  };
+}> {
+  const response = await fetch("/api/equipment/equip", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ itemId }),
+  });
+
+  return response.json();
+}
+
+/**
+ * Get current player equipment state from server.
+ */
+export async function fetchEquipmentState(): Promise<{
+  ok: boolean;
+  playerId: string;
+  equipment?: {
+    playerId: string;
+    schemaVersion: number;
+    slots: Array<{
+      slotId: string;
+      itemId: string;
+      title: string;
+    }>;
+  };
+}> {
+  const response = await fetch("/api/equipment/state");
+  return response.json();
+}

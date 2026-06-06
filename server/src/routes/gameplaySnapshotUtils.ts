@@ -160,7 +160,25 @@ export interface CraftingSnapshot {
 }
 
 /**
- * Live Gameplay Snapshot shape (includes skills, resources, inventory, and crafting)
+ * Equipped Slot Snapshot shape
+ */
+export interface EquippedSlotSnapshot {
+  slotId: "woodcutting_tool" | "mining_tool" | "fishing_tool";
+  itemId: string;
+  title: string;
+}
+
+/**
+ * Player Equipment Snapshot shape
+ */
+export interface PlayerEquipmentSnapshot {
+  playerId: string;
+  schemaVersion: 1;
+  slots: EquippedSlotSnapshot[];
+}
+
+/**
+ * Live Gameplay Snapshot shape (includes skills, resources, inventory, crafting, and equipment)
  */
 export interface LiveGameplaySnapshot {
   status: "live";
@@ -170,13 +188,14 @@ export interface LiveGameplaySnapshot {
   resources: ResourceNodeSnapshot[];
   inventory: PlayerInventorySnapshot;
   crafting: CraftingSnapshot;
+  equipment: PlayerEquipmentSnapshot | null;
   guild: GuildSnapshot;
   factions: FactionStandingSnapshot[];
   map: MapSnapshot;
 }
 
 /**
- * Input for creating a gameplay snapshot (includes skills, resources, inventory, and crafting)
+ * Input for creating a gameplay snapshot (includes skills, resources, inventory, crafting, and equipment)
  */
 export interface GameplaySnapshotInput {
   serverTick: number;
@@ -185,6 +204,7 @@ export interface GameplaySnapshotInput {
   resources?: ResourceNodeSnapshot[];
   inventory?: PlayerInventorySnapshot | null;
   crafting?: CraftingSnapshot | null;
+  equipment?: PlayerEquipmentSnapshot | null;
   guild?: GuildSnapshot | null;
   factions?: FactionStandingSnapshot[];
   map?: Partial<MapSnapshot>;
@@ -222,6 +242,7 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGamepl
     crafting: {
       recipes: sortedRecipes,
     },
+    equipment: input.equipment ?? null,
     guild: input.guild ?? {
       id: null,
       name: null,

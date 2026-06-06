@@ -37,6 +37,7 @@ import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.j
 import { registerSelfHealingDashboard } from "../selfhealing/SelfHealingDashboard.js";
 import { createSelfHealWorkshopRouter } from "../routes/selfHealWorkshopRoute.js";
 import { default as craftingRouter } from "../routes/craftingRoute.js";
+import { default as equipmentRouter } from "../routes/equipmentRoute.js";
 import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
 import { PlaytesterMonitorStream } from "../modules/playtester/PlaytesterMonitorStream.js";
 import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRTCSignaling.js";
@@ -198,6 +199,7 @@ export class ServerBootstrap {
     app.use("/api/resource", resourceGatherRouter);
     app.use("/api/inventory", inventoryRouter);
     app.use("/api/crafting", craftingRouter);
+    app.use("/api/equipment", equipmentRouter);
     app.use("/api/self-healing", createSelfHealWorkshopRouter());
     app.use("/api/manifest", createManifestResyncRouter(tick));
     app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());

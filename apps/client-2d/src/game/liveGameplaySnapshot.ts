@@ -134,6 +134,24 @@ export interface CraftingSnapshot {
   recipes: CraftingRecipeSnapshot[];
 }
 
+/**
+ * Equipped Slot Snapshot shape
+ */
+export interface EquippedSlotSnapshot {
+  slotId: "woodcutting_tool" | "mining_tool" | "fishing_tool";
+  itemId: string;
+  title: string;
+}
+
+/**
+ * Player Equipment Snapshot shape
+ */
+export interface PlayerEquipmentSnapshot {
+  playerId: string;
+  schemaVersion: 1;
+  slots: EquippedSlotSnapshot[];
+}
+
 export interface LiveGameplaySnapshot {
   status: LiveDataStatus;
   serverTick: number | null;
@@ -142,6 +160,7 @@ export interface LiveGameplaySnapshot {
   resources: ResourceNodeSnapshot[];
   inventory: PlayerInventorySnapshot;
   crafting: CraftingSnapshot;
+  equipment: PlayerEquipmentSnapshot | null;
   guild: GuildSnapshot;
   factions: FactionStandingSnapshot[];
   map: MapSnapshot;
@@ -163,6 +182,7 @@ export const EMPTY_LIVE_GAMEPLAY_SNAPSHOT: LiveGameplaySnapshot = {
   crafting: {
     recipes: [],
   },
+  equipment: null,
   guild: {
     id: null,
     name: null,
@@ -197,6 +217,7 @@ export function normalizeLiveGameplaySnapshot(
       resources: normalizeResources(input.resources),
       inventory: normalizeInventory(input.inventory),
       crafting: normalizeCrafting(input.crafting),
+      equipment: normalizeEquipment(input.equipment),
       guild: {
         id: input.guild?.id ?? null,
         name: input.guild?.name ?? null,
@@ -381,5 +402,30 @@ export function normalizeCrafting(input: unknown): CraftingSnapshot {
           : [],
       }))
       .sort((a, b) => a.id.localeCompare(b.id)),
+  };
+}
+
+/**
+ * Normalize equipment snapshots from server.
+ * Pure function - no mutation of input.
+ */
+export function normalizeEquipment(input: unknown): PlayerEquipmentSnapshot | null {
+  if (!input || typeof input !== "object") return null;
+
+  const raw = input as any;
+
+  return {
+    playerId: String(raw.playerId ?? "unknown"),
+    schemaVersion: 1,
+    slots: Array.isArray(raw.slots)
+      ? raw.slots
+          .filter((slot: any) => slot && typeof slot === "object")
+          .map((slot: any) => ({
+            slotId: slot.slotId,
+            itemId: String(slot.itemId ?? ""),
+            title: String(slot.title ?? slot.itemId ?? "Unknown Tool"),
+          }))
+          .sort((a, b) => String(a.slotId).localeCompare(String(b.slotId)))
+      : [],
   };
 }

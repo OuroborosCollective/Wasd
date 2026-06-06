@@ -65,6 +65,48 @@ export const STARTER_CRAFTING_RECIPES: readonly CraftingRecipe[] = [
       },
     ],
   },
+  {
+    id: "craft_wooden_axe",
+    title: "Craft Wooden Axe",
+    requiredLevel: 1,
+    craftingXpReward: 35,
+    craftTicks: 8,
+    ingredients: [
+      { itemId: "wood_plank", quantity: 2 },
+      { itemId: "copper_ingot", quantity: 1 },
+    ],
+    outputs: [
+      { itemId: "wooden_axe", quantity: 1 },
+    ],
+  },
+  {
+    id: "craft_copper_pickaxe",
+    title: "Craft Copper Pickaxe",
+    requiredLevel: 1,
+    craftingXpReward: 40,
+    craftTicks: 10,
+    ingredients: [
+      { itemId: "wood_plank", quantity: 1 },
+      { itemId: "copper_ingot", quantity: 2 },
+    ],
+    outputs: [
+      { itemId: "copper_pickaxe", quantity: 1 },
+    ],
+  },
+  {
+    id: "craft_simple_fishing_rod",
+    title: "Craft Simple Fishing Rod",
+    requiredLevel: 1,
+    craftingXpReward: 25,
+    craftTicks: 6,
+    ingredients: [
+      { itemId: "wood_plank", quantity: 1 },
+      { itemId: "raw_fish", quantity: 1 },
+    ],
+    outputs: [
+      { itemId: "simple_fishing_rod", quantity: 1 },
+    ],
+  },
 ] as const;
 
 export function getRecipeIds(): string[] {
