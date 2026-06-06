@@ -23,6 +23,8 @@ body,
 
 .az-touch-pad {
   touch-action: none;
+  z-index: 120 !important;
+  pointer-events: auto !important;
 }
 
 .az-touch-pad button,

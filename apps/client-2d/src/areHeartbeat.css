@@ -148,36 +148,42 @@
   vertical-align: middle;
 }
 
+/* Hide noisy debug overlays in the public mobile play surface. */
+.stitch-debug,
+.stitch-are-heartbeat {
+  display: none !important;
+}
+
 /* ─── Quest Preview & Journal ─────────────────────────────────────────────── */
 .quest-preview-panel {
   position: absolute;
-  left: 14px;
-  top: 112px;
-  z-index: 88;
+  right: calc(env(safe-area-inset-right, 0px) + 14px);
+  top: calc(env(safe-area-inset-top, 0px) + 102px);
+  z-index: 74;
   display: grid;
-  gap: 8px;
-  width: min(330px, calc(100vw - 28px));
-  padding: 12px 14px;
-  border: 1px solid rgba(255, 215, 106, 0.34);
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(4, 8, 14, 0.82), rgba(21, 18, 8, 0.58));
-  box-shadow: 0 0 26px rgba(255, 215, 106, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  gap: 6px;
+  width: min(240px, calc(100vw - 28px));
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 215, 106, 0.28);
+  border-radius: 14px;
+  background: rgba(4, 8, 14, 0.48);
+  box-shadow: 0 0 18px rgba(255, 215, 106, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   color: var(--cz-text);
   pointer-events: auto;
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(10px);
 }
 
 .quest-preview-panel header {
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .quest-preview-panel small,
 .quest-journal-card small {
   color: var(--st-gold);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 950;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
@@ -186,12 +192,16 @@
   color: #fff6d7;
 }
 
+.quest-preview-panel strong {
+  font-size: 12px;
+}
+
 .quest-preview-objective,
 .quest-journal-objective {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   color: rgba(244, 247, 255, 0.82);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .quest-preview-objective b,
@@ -203,7 +213,7 @@
 .quest-preview-objective i,
 .quest-journal-objective i {
   display: block;
-  height: 7px;
+  height: 6px;
   overflow: hidden;
   border: 1px solid rgba(0, 229, 255, 0.24);
   border-radius: 999px;
@@ -223,12 +233,12 @@
   justify-self: start;
   border: 1px solid rgba(0, 229, 255, 0.34);
   border-radius: 999px;
-  padding: 8px 11px;
+  padding: 6px 9px;
   color: #05060b;
   background: linear-gradient(135deg, var(--st-aether), var(--st-gold));
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 950;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
@@ -278,19 +288,25 @@
 
 /* Mobile */
 @media (max-width: 760px) {
+  .stitch-mobile-toggles,
+  .stitch-fullscreen-toggle {
+    display: none !important;
+  }
+
   .quest-preview-panel {
-    top: auto;
-    left: 10px;
-    right: 10px;
-    bottom: 234px;
-    width: auto;
-    padding: 10px 11px;
-    border-radius: 16px;
+    top: calc(env(safe-area-inset-top, 0px) + 96px);
+    right: calc(env(safe-area-inset-right, 0px) + 10px);
+    left: auto;
+    bottom: auto;
+    width: min(210px, 48vw);
+    padding: 8px 9px;
+    border-radius: 13px;
+    opacity: 0.88;
   }
 
   .quest-preview-panel button {
-    min-height: 42px;
-    padding-inline: 14px;
+    min-height: 34px;
+    padding-inline: 10px;
   }
 }
 

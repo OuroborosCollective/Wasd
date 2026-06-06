@@ -11,7 +11,11 @@
  */
 
 import React, { useState } from "react";
-import { fetchGameplaySnapshot, liveGameplayStore } from "../../game/liveGameplayStore";
+import {
+  DEFAULT_GAMEPLAY_PLAYER_ID,
+  fetchGameplaySnapshot,
+  liveGameplayStore,
+} from "../../game/liveGameplayStore";
 
 const START_PATHS = [
   "wanderer",
@@ -163,12 +167,15 @@ export function CharacterSelectPanel({ onCreated }: Props) {
           setStatus("Creating character...");
 
           try {
-            const response = await fetch("/api/character/create", {
+            const playerId = DEFAULT_GAMEPLAY_PLAYER_ID;
+            const response = await fetch(`/api/character/create?playerId=${encodeURIComponent(playerId)}`, {
               method: "POST",
               headers: {
                 "content-type": "application/json",
+                "x-player-id": playerId,
               },
               body: JSON.stringify({
+                playerId,
                 displayName: displayName.trim(),
                 archetype: startPath,
                 currentTick: 0,
@@ -182,7 +189,7 @@ export function CharacterSelectPanel({ onCreated }: Props) {
 
             if (result.ok) {
               setStatus("Character created. Syncing world snapshot...");
-              const snapshot = await fetchGameplaySnapshot();
+              const snapshot = await fetchGameplaySnapshot(playerId);
               if (snapshot) {
                 liveGameplayStore.setSnapshot(snapshot);
               }
