@@ -409,4 +409,3 @@ export class OuroborosEngine {
     this.npcBrainRunner?.reset();
   }
 }
-}
