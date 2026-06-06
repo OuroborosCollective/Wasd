@@ -10,6 +10,7 @@ import {
   createPersistedCharacterProfile,
   type CharacterPersistenceAdapter,
 } from "./CharacterPersistence.js";
+import { applyStartPathStarterKit } from "./StartPathStarterKits.js";
 import type {
   CharacterArchetype,
   CharacterCreateResult,
@@ -43,6 +44,11 @@ export class CharacterService {
       await this.persistence.saveCharacterProfile(
         createPersistedCharacterProfile(input.playerId, result.profile),
       );
+
+      await applyStartPathStarterKit({
+        playerId: input.playerId,
+        archetype: result.profile.archetype,
+      });
     }
 
     return result;
