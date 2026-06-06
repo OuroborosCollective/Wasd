@@ -27,6 +27,7 @@ import { equipmentService } from "../equipment/equipmentRuntime.js";
 import { characterService } from "../character/characterRuntime.js";
 import { toCharacterProfileSnapshot } from "../character/CharacterTypes.js";
 import { createPaperdollSnapshot } from "../character/PaperdollTypes.js";
+import { createStartPathQuestSnapshot } from "../character/StartPathQuestLine.js";
 
 /**
  * Get current tick ID from WorldTick instance.
@@ -82,6 +83,10 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
     // Get character profile
     const character = await characterService.getCharacterProfile(identity.playerId);
     const characterSnapshot = toCharacterProfileSnapshot(character);
+    const startPathQuest = createStartPathQuestSnapshot({
+      character: characterSnapshot,
+      inventory,
+    });
 
     // Create paperdoll snapshot from character and equipment
     const paperdoll = createPaperdollSnapshot({
@@ -93,7 +98,9 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
       serverTick,
       character: characterSnapshot,
       paperdoll,
-      quests: questState.quests,
+      quests: startPathQuest
+        ? [...questState.quests, startPathQuest]
+        : questState.quests,
       skills: skillState.skills,
       resources,
       inventory,
