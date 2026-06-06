@@ -219,8 +219,12 @@ export function normalizeNPCGoal(goal: string | NPCGoal, npcId: string, tick: nu
  * Returns negative if a < b, positive if a > b, 0 if equal
  */
 export function compareNPCGoals(a: NPCLongTermGoal, b: NPCLongTermGoal): number {
-  const goalA = typeof a === 'string' ? { priority: 50 } : a;
-  const goalB = typeof b === 'string' ? { priority: 50 } : b;
+  const goalA = typeof a === 'string' 
+    ? { priority: 50, type: 'idle' as const, id: a } 
+    : { priority: a.priority, type: a.type, id: a.id };
+  const goalB = typeof b === 'string' 
+    ? { priority: 50, type: 'idle' as const, id: b } 
+    : { priority: b.priority, type: b.type, id: b.id };
   
   // Primary: priority descending
   if (goalA.priority !== goalB.priority) {
@@ -355,7 +359,6 @@ export function decideNPCState(
       case 'explore':
         return 'wandering';
       case 'rest':
-      case 'sleep':
         return 'sleeping';
       case 'flee':
         return 'idle'; // Try to escape, idle movement
@@ -465,4 +468,4 @@ export interface NPC {
 }
 
 // Re-export for convenience
-export { NPCState as NpcStateEnum };
+export type { NPCState as NpcStateEnum };

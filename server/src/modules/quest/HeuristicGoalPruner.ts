@@ -13,19 +13,16 @@ import type {
   NPCGoalType,
   NPCMemoryEvent,
   NPCRelation,
-  filterGoalsByType,
-  getTopGoal,
 } from "../../types/npc.types.js";
 
 import {
-  NPCState as NpcStateType,
-  NPCGoalType as GoalType,
   filterGoalsByType,
   getTopGoal,
 } from "../../types/npc.types.js";
 
-export { NPCState as NpcStateType } from "../../types/npc.types.js";
-export { NPCGoalType as GoalType } from "../../types/npc.types.js";
+// Re-export types for consumers
+export type { NPCState as NpcStateType, NPCGoalType as GoalType } from "../../types/npc.types.js";
+export { NPCState as NpcStateType, NPCGoalType as GoalType } from "../../types/npc.types.js";
 
 export enum EchoZoneType {
   COMBAT = 'COMBAT',
@@ -87,12 +84,12 @@ const TICK_RATE_MS = 100;
 /**
  * Map EchoZoneType to allowed goal types for filtering
  */
-const ECHO_ZONE_GOAL_TYPES: Record<EchoZoneType, GoalType[]> = {
-  [EchoZoneType.COMBAT]: [GoalType.COMBAT, GoalType.SURVIVE, GoalType.DEFEND],
-  [EchoZoneType.COLLECT]: [GoalType.COLLECT, GoalType.GATHER],
-  [EchoZoneType.QUEST]: [GoalType.QUEST_MAIN, GoalType.QUEST_SIDE],
-  [EchoZoneType.TRADE]: [GoalType.TRADE],
-  [EchoZoneType.SOCIAL]: [GoalType.SOCIAL],
+const ECHO_ZONE_GOAL_TYPES: Record<EchoZoneType, NPCGoalType[]> = {
+  [EchoZoneType.COMBAT]: ['combat', 'survive', 'defend'],
+  [EchoZoneType.COLLECT]: ['collect', 'gather'],
+  [EchoZoneType.QUEST]: ['quest_main', 'quest_side'],
+  [EchoZoneType.TRADE]: ['trade'],
+  [EchoZoneType.SOCIAL]: ['social'],
 };
 
 /**
@@ -133,7 +130,7 @@ function filterRelevantGoals(goals: NPCLongTermGoal[], zoneType: EchoZoneType): 
   const allowedTypes = ECHO_ZONE_GOAL_TYPES[zoneType];
   if (!allowedTypes) {
     // Fallback: keep high priority goals
-    return filterGoalsByType(goals, [GoalType.COMBAT, GoalType.SURVIVE, GoalType.DEFEND, GoalType.TRADE]);
+    return filterGoalsByType(goals, ['combat', 'survive', 'defend', 'trade']);
   }
   return filterGoalsByType(goals, allowedTypes);
 }

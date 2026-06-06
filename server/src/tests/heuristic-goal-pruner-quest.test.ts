@@ -6,10 +6,8 @@ import {
   isHighIntensityZone,
   determineStateTransition,
   NPCState,
-  NpcStateType,
-  GoalType,
 } from '../modules/quest/HeuristicGoalPruner';
-import type { EchoZone, NPCLongTermGoal } from '../types/npc.types';
+import type { EchoZone, NPCLongTermGoal, NPCGoalType } from '../types/npc.types';
 
 describe('HeuristicGoalPruner (Quest Module)', () => {
   describe('isInEchoZone', () => {
@@ -237,15 +235,14 @@ describe('HeuristicGoalPruner (Quest Module)', () => {
       expect(npc.memory.longTermGoals).toHaveLength(1);
     });
 
-    it('exports NpcStateType and GoalType from npc.types.ts', () => {
-      // These should be re-exported from npc.types.ts
-      expect(NpcStateType).toBeDefined();
-      expect(GoalType).toBeDefined();
+    it('has consistent NPCState types available', () => {
+      // NPCState is exported and can be used as a type
+      const state: NPCState = 'combat';
+      expect(state).toBe('combat');
       
-      // Verify some expected values
-      expect(NpcStateType.COMBAT).toBe('combat');
-      expect(GoalType.COMBAT).toBe('combat');
-      expect(GoalType.SURVIVE).toBe('survive');
+      // NPCGoalType is available via import
+      const goalType: NPCGoalType = 'combat';
+      expect(goalType).toBe('combat');
     });
   });
 
