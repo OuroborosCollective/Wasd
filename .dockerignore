@@ -29,7 +29,7 @@ tmp
 # Docker / local artifacts
 *.tar
 *.tar.gz
-*.tgz
+wasd-client-2d-dist-*.tgz
 *.zip
 !asset-packs/2d/weapons/wasd-2d-weapon-pool.zip
 *.7z
@@ -37,6 +37,16 @@ tmp
 image.tar
 image.tar.gz
 docker-cache
+
+# Huge persistent VPS asset inbox
+.asset-inbox
+.tmp
+tmp
+logs
+
+# Runtime data
+data
+private-assets
 
 # Logs
 **/*.log

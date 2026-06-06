@@ -51,14 +51,14 @@ RUN --mount=type=cache,id=wasd-vps-pnpm-store,target=/pnpm/store \
       '  - engine' \
       '  - portal' \
       '  - backend' \
-      '  - apps/client-2d' \
       '  - packages/core-logic' \
       '  - packages/shared' \
       'allowBuilds: true' \
       > pnpm-workspace.yaml && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py && \
-    pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/engine... --filter @wasd/portal... --filter @wasd/client-2d... --filter @wasd/core-logic... --filter @wasd/shared... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only && \
-    pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/engine... --filter @wasd/portal... --filter @wasd/client-2d... --filter @wasd/core-logic... --filter @wasd/shared... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
+    # Exclude client-2d - it's prebuilt on GitHub Actions
+    pnpm --filter @wasd/server... --filter @wasd/engine... --filter @wasd/core-logic... --filter @wasd/shared... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only && \
+    pnpm --filter @wasd/server... --filter @wasd/engine... --filter @wasd/core-logic... --filter @wasd/shared... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
 
 COPY . .
 RUN rm -rf packages/sdk-examples || true && \
@@ -69,7 +69,6 @@ RUN rm -rf packages/sdk-examples || true && \
       '  - engine' \
       '  - portal' \
       '  - backend' \
-      '  - apps/client-2d' \
       '  - packages/core-logic' \
       '  - packages/shared' \
       'allowBuilds: true' \
@@ -119,22 +118,19 @@ RUN pnpm --filter @wasd/client --if-present build || \
 
 RUN rm -rf /tmp/wasd-3d-dist && mkdir -p /tmp/wasd-3d-dist && cp -a client/dist/. /tmp/wasd-3d-dist/
 
-RUN rm -rf apps/client-2d/dist && \
-    pnpm --filter @wasd/client-2d --if-present build && \
-    test -f apps/client-2d/dist/index.html && \
+# Client-2D is prebuilt on GitHub Actions and extracted on VPS before docker build.
+# Only copy and verify the prebuilt dist - don't rebuild.
+RUN test -f apps/client-2d/dist/index.html && \
     grep -q "$CLIENT_2D_MARKER" apps/client-2d/dist/index.html && \
-    echo "Copying public assets for client-2d" && \
-    mkdir -p apps/client-2d/dist/assets && \
-    cp -a apps/client-2d/public/assets/. apps/client-2d/dist/assets/ && \
-    cp -a apps/client-2d/public/manifest.webmanifest apps/client-2d/dist/manifest.webmanifest && \
-    cp -a apps/client-2d/public/service-worker.js apps/client-2d/dist/service-worker.js && \
-    node -e "const fs=require('node:fs'); const sha=process.env.CLIENT_2D_BUILD_SHA||'docker-local'; const marker=process.env.CLIENT_2D_MARKER||'REAL_PIXI_CLIENT'; fs.writeFileSync('apps/client-2d/dist/build-stamp.json', JSON.stringify({ok:true,app:'client-2d',commit:sha,marker,generatedBy:'Dockerfile.vps'}, null, 2));" && \
     test -f apps/client-2d/dist/build-stamp.json && \
     grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json && \
-    test -f apps/client-2d/dist/assets/cozy-spring/manifest.json && \
+    test -d apps/client-2d/dist/assets && \
     test -f apps/client-2d/dist/manifest.webmanifest && \
     test -f apps/client-2d/dist/service-worker.js && \
-    node -e "const m=require('./apps/client-2d/dist/assets/cozy-spring/manifest.json'); if(m.version!==3||m.importPolicy!=='tilesets-as-tiles-props-as-extracted-objects'||!m.props||Object.keys(m.props).length===0){console.error('Invalid Cozy manifest in client-2d dist', {version:m.version, policy:m.importPolicy, props:m.props&&Object.keys(m.props).length}); process.exit(1)}; console.log('Cozy manifest in dist OK', {version:m.version, props:Object.keys(m.props).length})"
+    test -f apps/client-2d/dist/assets/cozy-spring/manifest.json && \
+    echo "Using prebuilt client-2d dist for ${CLIENT_2D_BUILD_SHA}" && \
+    node -e "const m=require('./apps/client-2d/dist/assets/cozy-spring/manifest.json'); if(m.version!==3||m.importPolicy!=='tilesets-as-tiles-props-as-extracted-objects'||!m.props||Object.keys(m.props).length===0){console.error('Invalid Cozy manifest in client-2d dist', {version:m.version, policy:m.importPolicy, props:m.props&&Object.keys(m.props).length}); process.exit(1)}; console.log('Cozy manifest in prebuilt dist OK', {version:m.version, props:Object.keys(m.props).length})" || \
+    (echo "ERROR: prebuilt apps/client-2d/dist missing or invalid. VPS deploy must upload client-2d artifact before docker build." && exit 1)
 
 RUN VITE_BASE_PATH=/portal/ pnpm --filter @wasd/portal --if-present build || \
     (mkdir -p portal/dist && printf '%s\n' '<!doctype html><html><body><main id="application-canvas">Areloria portal unavailable</main></body></html>' > portal/dist/index.html)

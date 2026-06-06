@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Diagnostics trap for OOM/Killed failures
+trap 'echo "=== deploy failed diagnostics ==="; free -h || true; df -h / /var/lib/docker 2>/dev/null || true; docker system df 2>/dev/null || true; dmesg -T 2>/dev/null | tail -80 || true; docker ps -a 2>/dev/null || true; docker logs --tail=80 arelorian-engine 2>/dev/null || true' ERR
+
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ARELORIAN_PORT="${ARELORIAN_PORT:-3001}"
