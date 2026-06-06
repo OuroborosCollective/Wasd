@@ -13,6 +13,7 @@ import {
   normalizePlayerInventoryState,
   normalizeQuantity,
   type InventoryAddResult,
+  type InventoryRemoveResult,
   type InventoryItemId,
   type PlayerInventoryState,
 } from "./InventoryTypes.js";
@@ -141,6 +142,87 @@ export class InventoryStore {
 
   replacePlayerInventory(playerId: string, state: PlayerInventoryState): void {
     this.inventories.set(playerId, normalizePlayerInventoryState(state, playerId));
+  }
+
+  removeItem(input: {
+    playerId: string;
+    itemId: InventoryItemId | string;
+    quantity: number;
+  }): InventoryRemoveResult {
+    if (!isInventoryItemId(input.itemId)) {
+      return {
+        ok: false,
+        playerId: input.playerId,
+        itemId: "wood_log",
+        quantity: 0,
+        reason: "invalid_item",
+      };
+    }
+
+    const quantity = normalizeQuantity(input.quantity);
+    if (quantity <= 0) {
+      return {
+        ok: false,
+        playerId: input.playerId,
+        itemId: input.itemId,
+        quantity: 0,
+        reason: "invalid_quantity",
+      };
+    }
+
+    const state = this.getPlayerInventory(input.playerId);
+    const existing = state.slots.find((slot) => slot.itemId === input.itemId);
+
+    if (!existing || existing.quantity < quantity) {
+      return {
+        ok: false,
+        playerId: input.playerId,
+        itemId: input.itemId,
+        quantity,
+        reason: "not_enough_items",
+        state,
+      };
+    }
+
+    const nextSlots =
+      existing.quantity === quantity
+        ? state.slots.filter((slot) => slot.itemId !== input.itemId)
+        : state.slots.map((slot) =>
+            slot.itemId === input.itemId
+              ? { ...slot, quantity: slot.quantity - quantity }
+              : slot,
+          );
+
+    const nextState = normalizePlayerInventoryState(
+      {
+        ...state,
+        slots: nextSlots,
+      },
+      input.playerId,
+    );
+
+    this.inventories.set(input.playerId, nextState);
+
+    return {
+      ok: true,
+      playerId: input.playerId,
+      itemId: input.itemId,
+      quantity,
+      reason: "removed",
+      state: nextState,
+    };
+  }
+
+  hasItems(input: {
+    playerId: string;
+    items: Array<{ itemId: InventoryItemId; quantity: number }>;
+  }): boolean {
+    const state = this.getPlayerInventory(input.playerId);
+
+    return input.items.every((required) => {
+      const slot = state.slots.find((candidate) => candidate.itemId === required.itemId);
+      return Boolean(slot && slot.quantity >= required.quantity);
+    });
   }
 
   clearForTests(): void {

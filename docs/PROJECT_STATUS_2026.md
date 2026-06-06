@@ -102,3 +102,70 @@ When runtime behavior changes, update this file together with:
 - `README.md`
 - `docs/ROADMAP_TO_RELEASE.md` (if release scope changed)
 - Relevant subsystem docs under `docs/`
+
+## Gameplay Vertical Slice Status (June 2026)
+
+### Complete Foundations
+
+- Quest persistence and production ops are merged.
+- Auth-bound player identity is active.
+- Quest, skill and inventory state support persistence paths.
+- Resource gathering connects world interaction to skills and inventory.
+- **Crafting loop complete**: Gather → Inventory → Craft → XP → Snapshot/UI
+
+### Current Live Gameplay Loop
+
+```
+Gather starter resource node
+→ Gain skill XP
+→ Receive persistent resource item
+→ Craft starter recipe
+→ Consume resource item
+→ Receive persistent crafted item
+→ Gain Crafting XP
+→ See updated state in LiveGameplaySnapshot and 2D panels
+```
+
+### Partial Systems
+
+| System | Status | Notes |
+|--------|--------|-------|
+| Quest Persistence | Foundation complete | Production ops and backup policy present |
+| Skill Progression | Partial | MVP skills and XP persistence exist |
+| Resource Gathering | Partial | Static starter nodes only |
+| Inventory | Partial | Resource/crafted items only |
+| Crafting | **Partial** | **Deterministic starter recipes only** |
+| Guild/Faction | Partial | Snapshot visible, data not fully wired |
+| Equipment | Partial | Panel exists, not fully connected |
+
+### Crafting System Details (MVP)
+
+Recipes:
+- `craft_wood_plank`: 2× wood_log → 1× wood_plank (+20 XP)
+- `smelt_copper_ingot`: 3× copper_ore → 1× copper_ingot (+30 XP)
+- `cook_raw_fish`: 1× raw_fish → 1× cooked_fish (+15 XP)
+
+Features:
+- Server-authoritative crafting flow
+- Persistent inventory consumption
+- Crafting XP grants to player skills
+- LiveGameplaySnapshot visibility
+- 2D Crafting Window (press B)
+
+### Not Yet Complete
+
+- Procedural resource placement
+- Crafting stations
+- Tool requirements
+- Equipment system (full)
+- Trading
+- NPC economy
+- Item pricing
+- Player-to-player exchange
+- Crafting animations
+
+### Next Real Block
+
+`feat(equipment): craft and equip basic gathering tools`
+
+Then Crafting becomes progression, not just inventory management.

@@ -8,7 +8,10 @@
 export type InventoryItemId =
   | "wood_log"
   | "copper_ore"
-  | "raw_fish";
+  | "raw_fish"
+  | "wood_plank"
+  | "copper_ingot"
+  | "cooked_fish";
 
 export interface InventoryItemDefinition {
   id: InventoryItemId;
@@ -44,6 +47,15 @@ export interface InventoryAddResult {
   state?: PlayerInventoryState;
 }
 
+export interface InventoryRemoveResult {
+  ok: boolean;
+  playerId: string;
+  itemId: InventoryItemId;
+  quantity: number;
+  reason?: "removed" | "invalid_item" | "invalid_quantity" | "not_enough_items";
+  state?: PlayerInventoryState;
+}
+
 export const INVENTORY_CAPACITY = 32;
 
 export const ITEM_DEFINITIONS: Record<InventoryItemId, InventoryItemDefinition> = {
@@ -67,6 +79,27 @@ export const ITEM_DEFINITIONS: Record<InventoryItemId, InventoryItemDefinition> 
     stackable: true,
     maxStack: 999,
     category: "resource",
+  },
+  wood_plank: {
+    id: "wood_plank",
+    name: "Wood Plank",
+    stackable: true,
+    maxStack: 999,
+    category: "resource",
+  },
+  copper_ingot: {
+    id: "copper_ingot",
+    name: "Copper Ingot",
+    stackable: true,
+    maxStack: 999,
+    category: "resource",
+  },
+  cooked_fish: {
+    id: "cooked_fish",
+    name: "Cooked Fish",
+    stackable: true,
+    maxStack: 999,
+    category: "consumable",
   },
 };
 

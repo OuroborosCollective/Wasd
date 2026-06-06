@@ -122,7 +122,45 @@ export interface PlayerInventorySnapshot {
 }
 
 /**
- * Live Gameplay Snapshot shape (includes skills, resources, and inventory)
+ * Crafting Recipe Ingredient Snapshot shape
+ */
+export interface CraftingRecipeIngredientSnapshot {
+  itemId: string;
+  quantity: number;
+}
+
+/**
+ * Crafting Recipe Output Snapshot shape
+ */
+export interface CraftingRecipeOutputSnapshot {
+  itemId: string;
+  quantity: number;
+}
+
+/**
+ * Crafting Recipe Snapshot shape
+ */
+export interface CraftingRecipeSnapshot {
+  id: string;
+  title: string;
+  requiredLevel: number;
+  craftingXpReward: number;
+  ingredients: CraftingRecipeIngredientSnapshot[];
+  outputs: CraftingRecipeOutputSnapshot[];
+  craftTicks: number;
+  craftable: boolean;
+  blockedReason?: "level_too_low" | "missing_ingredients";
+}
+
+/**
+ * Crafting Snapshot shape
+ */
+export interface CraftingSnapshot {
+  recipes: CraftingRecipeSnapshot[];
+}
+
+/**
+ * Live Gameplay Snapshot shape (includes skills, resources, inventory, and crafting)
  */
 export interface LiveGameplaySnapshot {
   status: "live";
@@ -131,13 +169,14 @@ export interface LiveGameplaySnapshot {
   skills: SkillSnapshot[];
   resources: ResourceNodeSnapshot[];
   inventory: PlayerInventorySnapshot;
+  crafting: CraftingSnapshot;
   guild: GuildSnapshot;
   factions: FactionStandingSnapshot[];
   map: MapSnapshot;
 }
 
 /**
- * Input for creating a gameplay snapshot (includes skills, resources, and inventory)
+ * Input for creating a gameplay snapshot (includes skills, resources, inventory, and crafting)
  */
 export interface GameplaySnapshotInput {
   serverTick: number;
@@ -145,6 +184,7 @@ export interface GameplaySnapshotInput {
   skills?: SkillSnapshot[];
   resources?: ResourceNodeSnapshot[];
   inventory?: PlayerInventorySnapshot | null;
+  crafting?: CraftingSnapshot | null;
   guild?: GuildSnapshot | null;
   factions?: FactionStandingSnapshot[];
   map?: Partial<MapSnapshot>;
@@ -164,6 +204,9 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGamepl
   // Sort inventory slots by itemId for deterministic output
   const sortedSlots = [...(input.inventory?.slots ?? [])].sort((a, b) => a.itemId.localeCompare(b.itemId));
 
+  // Sort crafting recipes by id for deterministic output
+  const sortedRecipes = [...(input.crafting?.recipes ?? [])].sort((a, b) => a.id.localeCompare(b.id));
+
   return {
     status: "live",
     serverTick: input.serverTick,
@@ -175,6 +218,9 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGamepl
       schemaVersion: 1,
       slots: sortedSlots,
       capacity: 32,
+    },
+    crafting: {
+      recipes: sortedRecipes,
     },
     guild: input.guild ?? {
       id: null,
@@ -206,6 +252,7 @@ export function createEmptyGameplaySnapshot(serverTick: number): LiveGameplaySna
     quests: [],
     skills: [],
     inventory: null,
+    crafting: null,
     guild: null,
     factions: [],
     map: {},

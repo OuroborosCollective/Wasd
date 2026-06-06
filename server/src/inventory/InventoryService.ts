@@ -12,6 +12,7 @@ import {
 } from "./InventoryPersistence.js";
 import type {
   InventoryAddResult,
+  InventoryRemoveResult,
   InventoryItemId,
   PlayerInventoryState,
 } from "./InventoryTypes.js";
@@ -45,6 +46,32 @@ export class InventoryService {
     }
 
     return result;
+  }
+
+  async removeItem(input: {
+    playerId: string;
+    itemId: InventoryItemId | string;
+    quantity: number;
+  }): Promise<InventoryRemoveResult> {
+    await this.hydratePlayer(input.playerId);
+
+    const result = this.store.removeItem(input);
+
+    if (result.ok && result.state) {
+      await this.persistence.savePlayerInventory(
+        createPersistedPlayerInventoryState(input.playerId, result.state),
+      );
+    }
+
+    return result;
+  }
+
+  async hasItems(input: {
+    playerId: string;
+    items: Array<{ itemId: InventoryItemId; quantity: number }>;
+  }): Promise<boolean> {
+    await this.hydratePlayer(input.playerId);
+    return this.store.hasItems(input);
   }
 
   async hydratePlayer(playerId: string): Promise<void> {

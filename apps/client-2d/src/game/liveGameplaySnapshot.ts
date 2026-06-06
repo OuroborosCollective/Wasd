@@ -96,6 +96,44 @@ export interface PlayerInventorySnapshot {
   capacity: number;
 }
 
+/**
+ * Crafting Recipe Ingredient Snapshot shape
+ */
+export interface CraftingRecipeIngredientSnapshot {
+  itemId: string;
+  quantity: number;
+}
+
+/**
+ * Crafting Recipe Output Snapshot shape
+ */
+export interface CraftingRecipeOutputSnapshot {
+  itemId: string;
+  quantity: number;
+}
+
+/**
+ * Crafting Recipe Snapshot shape
+ */
+export interface CraftingRecipeSnapshot {
+  id: string;
+  title: string;
+  requiredLevel: number;
+  craftingXpReward: number;
+  ingredients: CraftingRecipeIngredientSnapshot[];
+  outputs: CraftingRecipeOutputSnapshot[];
+  craftTicks: number;
+  craftable: boolean;
+  blockedReason?: "level_too_low" | "missing_ingredients";
+}
+
+/**
+ * Crafting Snapshot shape
+ */
+export interface CraftingSnapshot {
+  recipes: CraftingRecipeSnapshot[];
+}
+
 export interface LiveGameplaySnapshot {
   status: LiveDataStatus;
   serverTick: number | null;
@@ -103,6 +141,7 @@ export interface LiveGameplaySnapshot {
   skills: SkillSnapshot[];
   resources: ResourceNodeSnapshot[];
   inventory: PlayerInventorySnapshot;
+  crafting: CraftingSnapshot;
   guild: GuildSnapshot;
   factions: FactionStandingSnapshot[];
   map: MapSnapshot;
@@ -120,6 +159,9 @@ export const EMPTY_LIVE_GAMEPLAY_SNAPSHOT: LiveGameplaySnapshot = {
     schemaVersion: 1,
     slots: [],
     capacity: 32,
+  },
+  crafting: {
+    recipes: [],
   },
   guild: {
     id: null,
@@ -152,6 +194,7 @@ export function normalizeLiveGameplaySnapshot(
     skills: normalizeSkills(input.skills),
     resources: normalizeResources(input.resources),
     inventory: normalizeInventory(input.inventory),
+    crafting: normalizeCrafting(input.crafting),
     guild: {
       id: input.guild?.id ?? null,
       name: input.guild?.name ?? null,
@@ -291,5 +334,45 @@ export function normalizeInventory(input: unknown): PlayerInventorySnapshot {
     schemaVersion: 1,
     capacity: Math.max(0, Math.floor(Number(raw.capacity ?? 32))),
     slots,
+  };
+}
+
+/**
+ * Normalize crafting snapshots from server.
+ * Pure function - no mutation of input.
+ */
+export function normalizeCrafting(input: unknown): CraftingSnapshot {
+  const raw = input && typeof input === "object" ? (input as any) : {};
+  const recipes = Array.isArray(raw.recipes) ? raw.recipes : [];
+
+  return {
+    recipes: recipes
+      .filter((recipe: any) =>
+        recipe &&
+        typeof recipe === "object" &&
+        typeof recipe.id === "string",
+      )
+      .map((recipe: any) => ({
+        id: String(recipe.id),
+        title: String(recipe.title ?? recipe.id),
+        requiredLevel: Math.max(1, Math.floor(Number(recipe.requiredLevel ?? 1))),
+        craftingXpReward: Math.max(0, Math.floor(Number(recipe.craftingXpReward ?? 0))),
+        craftTicks: Math.max(0, Math.floor(Number(recipe.craftTicks ?? 0))),
+        craftable: Boolean(recipe.craftable),
+        blockedReason: recipe.blockedReason,
+        ingredients: Array.isArray(recipe.ingredients)
+          ? recipe.ingredients.map((item: any) => ({
+              itemId: String(item.itemId),
+              quantity: Math.max(1, Math.floor(Number(item.quantity ?? 1))),
+            }))
+          : [],
+        outputs: Array.isArray(recipe.outputs)
+          ? recipe.outputs.map((item: any) => ({
+              itemId: String(item.itemId),
+              quantity: Math.max(1, Math.floor(Number(item.quantity ?? 1))),
+            }))
+          : [],
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id)),
   };
 }
