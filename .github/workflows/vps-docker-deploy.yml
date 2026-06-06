@@ -47,7 +47,6 @@ jobs:
       CLIENT_2D_ARCHIVE: wasd-client-2d-dist-${{ github.sha }}.tgz
       CLIENT_2D_MARKER: REAL_PIXI_CLIENT
       CLIENT_2D_BUILD_SHA: ${{ github.sha }}
-      PLAYWRIGHT_VERSION: 1.56.1
 
     steps:
       - name: Checkout repository
@@ -72,7 +71,7 @@ jobs:
           grep -q 'liveWatchdogSensors' server/src/core/installWorldTickWatchdogBridge.ts
           grep -q 'world.sensor.frame' server/src/core/watchdog-live-sensors.ts
           grep -q 'installDeterministicWatchdogRuntime' server/src/index.ts
-          echo "Strict source gate OK: current checkout contains live watchdog deploy logic."
+          echo "Strict source gate OK."
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -204,7 +203,6 @@ jobs:
           REPO_URL="https://github.com/${{ github.repository }}.git"
           mkdir -p "$APP_DIR"
           cd "$APP_DIR"
-
           if [ ! -d .git ]; then
             git clone --branch "$BRANCH" "$REPO_URL" .
           else
@@ -213,7 +211,6 @@ jobs:
             git reset --hard "origin/$BRANCH"
             git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e "$CLIENT_2D_ARCHIVE" -e apps/client-2d/dist/ -e .asset-inbox/ || true
           fi
-
           echo "Remote HEAD=$(git rev-parse HEAD)"
           echo "Expected HEAD=$GITHUB_SHA_EXPECTED"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA_EXPECTED"
@@ -227,7 +224,6 @@ jobs:
           grep -q 'world.sensor.frame' server/src/core/watchdog-live-sensors.ts
           grep -q 'installDeterministicWatchdogRuntime' server/src/index.ts
           echo "Remote strict source gate OK."
-
           if [ -n "${CLIENT_2D_ARCHIVE:-}" ] && [ -f "$APP_DIR/$CLIENT_2D_ARCHIVE" ]; then
             rm -rf apps/client-2d/dist
             mkdir -p apps/client-2d
@@ -239,7 +235,6 @@ jobs:
           else
             echo "WARN: no prebuilt client-2d archive found; Dockerfile must build it."
           fi
-
           chmod +x scripts/deploy-vps-docker.sh scripts/vps-docker-inline-deploy.sh 2>/dev/null || true
           ARELORIAN_PORT="${ARELORIAN_PORT:-3001}" \
           ARELORIAN_DOCKER_NETWORK="${ARELORIAN_DOCKER_NETWORK:-areloria_arelorian-network}" \
@@ -278,14 +273,7 @@ jobs:
           set -euo pipefail
           BASE_URL=https://arelorian.de EXPECTED_SHA="${GITHUB_SHA}" bash scripts/verify-client-2d-live-bundle.sh
 
-      - name: Install Playwright production-smoke dependencies
-        run: |
-          set -euo pipefail
-          pnpm add -Dw "@playwright/test@${PLAYWRIGHT_VERSION}" --no-frozen-lockfile --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
-          pnpm exec playwright --version
-          pnpm exec playwright install --with-deps chromium
-
       - name: Production post-login 2D browser smoke
         run: |
           set -euo pipefail
-          BASE_URL=https://arelorian.de E2E_SKIP_WEBSERVER=1 E2E_BASE_URL=https://arelorian.de pnpm exec playwright test e2e/client-2d-production-post-login.spec.ts --project=chromium --config=playwright.config.ts
+          BASE_URL=https://arelorian.de node scripts/production-post-login-smoke.mjs
