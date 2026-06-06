@@ -8,7 +8,7 @@
  * - NPC behavior debugging
  */
 
-import { stableHash32 } from "../../../core/determinism/AREDeterminism.js";
+import { stableHash32, deterministicNow } from "../../../core/determinism/AREDeterminism.js";
 import type {
   NPCMemoryV3,
   NPCDecision,
@@ -17,6 +17,19 @@ import type {
   NPCEpisodicMemory,
   NPCBrainDebugSnapshot,
 } from "./NPCMemoryV3.js";
+
+// ============================================================================
+// Stable Sorting (deterministic replacement for localeCompare)
+// ============================================================================
+
+/**
+ * Compare strings deterministically without localeCompare
+ */
+function stableStringCompare(a: string, b: string): number {
+  const hashA = stableHash32(a);
+  const hashB = stableHash32(b);
+  return hashA - hashB;
+}
 
 // ============================================================================
 // Debug Snapshot Generation
@@ -85,7 +98,7 @@ function getTopGoal(memory: NPCMemoryV3): NPCGoal | undefined {
   return [...memory.goals]
     .sort((a, b) => {
       if (b.priority !== a.priority) return b.priority - a.priority;
-      return a.id.localeCompare(b.id);
+      return stableStringCompare(a.id, b.id);
     })[0];
 }
 
@@ -127,12 +140,12 @@ function calculateMemoryHash(memory: NPCMemoryV3): string {
     Object.keys(memory.relations).length,
     JSON.stringify(
       Object.entries(memory.learning.actionScores)
-        .sort((a, b) => a[0].localeCompare(b[0]))
+        .sort((a, b) => stableStringCompare(a[0], b[0]))
         .slice(0, 10)
     ),
     JSON.stringify(
       Object.entries(memory.learning.contextScores)
-        .sort((a, b) => a[0].localeCompare(b[0]))
+        .sort((a, b) => stableStringCompare(a[0], b[0]))
         .slice(0, 10)
     ),
   ];
@@ -345,7 +358,7 @@ export function exportDebugState(
   snapshot: NPCBrainDebugSnapshot
 ): ExportedDebugState {
   return {
-    timestamp: Date.now(),
+    timestamp: deterministicNow(`export:${tick}`),
     tick,
     npcId: memory.identity.npcId,
     snapshot,

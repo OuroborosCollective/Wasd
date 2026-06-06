@@ -280,8 +280,9 @@ export interface SchedulerStats {
 
 /**
  * Get scheduler statistics
+ * Note: Uses tick parameter for deterministic duration calculation
  */
-export function getSchedulerStats(): SchedulerStats {
+export function getSchedulerStats(currentTick: number = 0): SchedulerStats {
   let activeDecisionNPCs = 0;
   let activePlanningNPCs = 0;
   let idleNPCs = 0;
@@ -296,7 +297,8 @@ export function getSchedulerStats(): SchedulerStats {
       activeDecisionNPCs++;
     }
 
-    totalActionDuration += Date.now() - state.actionStartTick;
+    // Use current tick for deterministic duration calculation
+    totalActionDuration += currentTick - state.actionStartTick;
   }
 
   return {

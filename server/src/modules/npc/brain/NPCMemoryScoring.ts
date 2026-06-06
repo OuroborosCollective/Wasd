@@ -22,6 +22,13 @@ import type {
   WorldMemoryEventType,
 } from "./NPCMemoryV3.js";
 
+/**
+ * Stable string comparison using hash (deterministic replacement for localeCompare)
+ */
+function stableStringCompare(a: string, b: string): number {
+  return stableHash32(a) - stableHash32(b);
+}
+
 // ============================================================================
 // Score Calculation Constants
 // ============================================================================
@@ -507,7 +514,7 @@ export function calculateMemoryFingerprint(memory: NPCMemoryV3): string {
     Object.keys(memory.relations).length,
     JSON.stringify(
       Object.entries(memory.learning.actionScores)
-        .sort((a, b) => a[0].localeCompare(b[0]))
+        .sort((a, b) => stableStringCompare(a[0], b[0]))
         .slice(0, 10)
     ),
   ];
