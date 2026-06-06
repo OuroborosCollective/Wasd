@@ -178,11 +178,41 @@ export interface PlayerEquipmentSnapshot {
 }
 
 /**
- * Live Gameplay Snapshot shape (includes skills, resources, inventory, crafting, and equipment)
+ * Character Profile Snapshot shape
+ */
+export interface CharacterProfileSnapshot {
+  playerId: string;
+  characterId: string;
+  displayName: string;
+  archetype: "wanderer" | "forager" | "miner" | "angler" | "artisan";
+  selected: boolean;
+}
+
+/**
+ * Paperdoll Slot Snapshot shape
+ */
+export interface PaperdollSlotSnapshot {
+  slotId: string;
+  itemId: string | null;
+  title: string;
+}
+
+/**
+ * Paperdoll Snapshot shape
+ */
+export interface PaperdollSnapshot {
+  character: CharacterProfileSnapshot | null;
+  slots: PaperdollSlotSnapshot[];
+}
+
+/**
+ * Live Gameplay Snapshot shape (includes skills, resources, inventory, crafting, equipment, character and paperdoll)
  */
 export interface LiveGameplaySnapshot {
   status: "live";
   serverTick: number;
+  character: CharacterProfileSnapshot | null;
+  paperdoll: PaperdollSnapshot;
   quests: QuestSnapshot[];
   skills: SkillSnapshot[];
   resources: ResourceNodeSnapshot[];
@@ -195,10 +225,12 @@ export interface LiveGameplaySnapshot {
 }
 
 /**
- * Input for creating a gameplay snapshot (includes skills, resources, inventory, crafting, and equipment)
+ * Input for creating a gameplay snapshot (includes skills, resources, inventory, crafting, equipment, character and paperdoll)
  */
 export interface GameplaySnapshotInput {
   serverTick: number;
+  character?: CharacterProfileSnapshot | null;
+  paperdoll?: PaperdollSnapshot | null;
   quests?: QuestSnapshot[];
   skills?: SkillSnapshot[];
   resources?: ResourceNodeSnapshot[];
@@ -227,9 +259,17 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGamepl
   // Sort crafting recipes by id for deterministic output
   const sortedRecipes = [...(input.crafting?.recipes ?? [])].sort((a, b) => a.id.localeCompare(b.id));
 
+  // Sort paperdoll slots by slotId for deterministic output
+  const sortedPaperdollSlots = [...(input.paperdoll?.slots ?? [])].sort((a, b) => a.slotId.localeCompare(b.slotId));
+
   return {
     status: "live",
     serverTick: input.serverTick,
+    character: input.character ?? null,
+    paperdoll: input.paperdoll ?? {
+      character: null,
+      slots: sortedPaperdollSlots,
+    },
     quests: sortedQuests,
     skills: sortedSkills,
     resources: sortedResources,

@@ -996,3 +996,186 @@ canvas {
   color: var(--ouro-text-dim);
   font-size: 0.78rem;
 }
+
+/* ─── Paperdoll Panel Styles ───────────────────────────────────────────────── */
+
+.paperdoll-panel {
+  padding: 16px;
+  width: 100%;
+  max-width: 380px;
+}
+
+.paperdoll-panel h2 {
+  margin: 0 0 16px 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ouro-text-strong);
+}
+
+.paperdoll-panel h3 {
+  margin: 16px 0 10px 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ouro-text-dim);
+}
+
+.paperdoll-character {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--ouro-bg-2);
+  border: 2px solid var(--ouro-border-gold);
+}
+
+.paperdoll-character strong {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ouro-text-strong);
+}
+
+.paperdoll-archetype {
+  padding: 4px 10px;
+  background: rgba(0, 112, 221, 0.2);
+  border: 1px solid rgba(0, 112, 221, 0.5);
+  color: var(--ouro-blue);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  letter-spacing: 0.05em;
+}
+
+.paperdoll-empty {
+  padding: 12px;
+  background: var(--ouro-bg-1);
+  border: 1px solid var(--ouro-border-muted);
+  color: var(--ouro-text-dim);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.paperdoll-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.paperdoll-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--ouro-bg-1);
+  border: 1px solid var(--ouro-border-muted);
+}
+
+.paperdoll-slot-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ouro-text-muted);
+  letter-spacing: 0.05em;
+}
+
+.paperdoll-slot-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ouro-text-strong);
+}
+
+/* ─── Character Select Panel Styles ───────────────────────────────────────── */
+
+.character-select-panel {
+  padding: 20px;
+  width: 100%;
+  max-width: 400px;
+  background: var(--ouro-bg-2);
+  border: 2px solid var(--ouro-border-gold);
+}
+
+.character-select-panel h2 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ouro-text-strong);
+}
+
+.character-select-panel > p {
+  margin: 0 0 20px 0;
+  font-size: 0.85rem;
+  color: var(--ouro-text-muted);
+}
+
+.character-form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ouro-text-muted);
+  letter-spacing: 0.05em;
+}
+
+.character-form-input,
+.character-form-select {
+  padding: 10px 12px;
+  background: var(--ouro-bg-1);
+  border: 1px solid var(--ouro-border-soft);
+  color: var(--ouro-text-main);
+  font-size: 0.9rem;
+  transition: border-color var(--ouro-transition-fast);
+}
+
+.character-form-input:focus,
+.character-form-select:focus {
+  outline: none;
+  border-color: var(--ouro-gold);
+}
+
+.character-form-input::placeholder {
+  color: var(--ouro-text-dim);
+}
+
+.character-form-select {
+  cursor: pointer;
+}
+
+.character-form-button {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(30, 255, 0, 0.15);
+  border: 2px solid rgba(30, 255, 0, 0.5);
+  color: var(--ouro-green);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background var(--ouro-transition-fast),
+    border-color var(--ouro-transition-fast),
+    box-shadow var(--ouro-transition-fast);
+}
+
+.character-form-button:hover {
+  background: rgba(30, 255, 0, 0.3);
+  box-shadow: 0 0 8px rgba(30, 255, 0, 0.4);
+}
+
+.character-form-button:active {
+  transform: scale(0.98);
+}
+
+.character-form-status {
+  margin: 16px 0 0 0;
+  padding: 10px 12px;
+  background: var(--ouro-bg-1);
+  border: 1px solid var(--ouro-border-muted);
+  color: var(--ouro-text-muted);
+  font-size: 0.82rem;
+  text-align: center;
+}

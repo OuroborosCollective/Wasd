@@ -58,6 +58,27 @@ export const ARELORIA_MODULE_REGISTRY: readonly AreloriaModuleRegistryEntry[] = 
     notes: "LIVE: AREHeartbeatPanel.tsx verbindet mit /api/are/heartbeat. Zeigt tickId, kappa=1000, observerCount, replayHash mit LIVE-Status.",
   },
   {
+    id: "character-paperdoll",
+    title: "Character Profile + Paperdoll",
+    runtimeSurface: "server",
+    status: "partial",
+    deterministic: true,
+    serverAuthoritative: true,
+    visibleInClient: true,
+    hasE2ETest: true,
+    entrypoints: [
+      "/api/character/profile",
+      "/api/character/create",
+      "/api/gameplay/snapshot",
+      "server/src/character/CharacterService.ts",
+      "server/src/character/PaperdollTypes.ts",
+      "apps/client-2d/src/ui/windows/PaperdollPanel.tsx",
+      "apps/client-2d/src/ui/windows/CharacterSelectPanel.tsx",
+    ],
+    notes:
+      "Persistent one-character profile and paperdoll snapshot for equipped gathering tools. MVP only; no roster, appearance editor, armor, combat weapons or drag/drop yet.",
+  },
+  {
     id: "client-2d",
     title: "2D Client (PixiJS + React)",
     runtimeSurface: "client-2d",

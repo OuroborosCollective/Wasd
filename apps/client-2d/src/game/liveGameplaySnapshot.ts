@@ -1,5 +1,5 @@
 // Shared Live Gameplay Snapshot Types
-// Server-authoritative display-only data for Quest/Skills/Guild/Faction/Map panels
+// Server-authoritative display-only data for Quest/Skills/Guild/Faction/Map/Character panels
 // Determinism: No Date.now(), no Math.random(), no generated fake data
 
 export type LiveDataStatus =
@@ -152,9 +152,39 @@ export interface PlayerEquipmentSnapshot {
   slots: EquippedSlotSnapshot[];
 }
 
+/**
+ * Character Profile Snapshot shape
+ */
+export interface CharacterProfileSnapshot {
+  playerId: string;
+  characterId: string;
+  displayName: string;
+  archetype: "wanderer" | "forager" | "miner" | "angler" | "artisan";
+  selected: boolean;
+}
+
+/**
+ * Paperdoll Slot Snapshot shape
+ */
+export interface PaperdollSlotSnapshot {
+  slotId: string;
+  itemId: string | null;
+  title: string;
+}
+
+/**
+ * Paperdoll Snapshot shape
+ */
+export interface PaperdollSnapshot {
+  character: CharacterProfileSnapshot | null;
+  slots: PaperdollSlotSnapshot[];
+}
+
 export interface LiveGameplaySnapshot {
   status: LiveDataStatus;
   serverTick: number | null;
+  character: CharacterProfileSnapshot | null;
+  paperdoll: PaperdollSnapshot;
   quests: QuestSnapshot[];
   skills: SkillSnapshot[];
   resources: ResourceNodeSnapshot[];
@@ -170,6 +200,11 @@ export interface LiveGameplaySnapshot {
 export const EMPTY_LIVE_GAMEPLAY_SNAPSHOT: LiveGameplaySnapshot = {
   status: "waiting",
   serverTick: null,
+  character: null,
+  paperdoll: {
+    character: null,
+    slots: [],
+  },
   quests: [],
   skills: [],
   resources: [],
@@ -212,6 +247,8 @@ export function normalizeLiveGameplaySnapshot(
     return {
       status: (input.status && typeof input.status === "string") ? input.status : "waiting",
       serverTick: typeof input.serverTick === "number" ? input.serverTick : null,
+      character: normalizeCharacter(input.character),
+      paperdoll: normalizePaperdoll(input.paperdoll),
       quests: Array.isArray(input.quests) ? input.quests : [],
       skills: normalizeSkills(input.skills),
       resources: normalizeResources(input.resources),
@@ -426,6 +463,46 @@ export function normalizeEquipment(input: unknown): PlayerEquipmentSnapshot | nu
             title: String(slot.title ?? slot.itemId ?? "Unknown Tool"),
           }))
           .sort((a, b) => String(a.slotId).localeCompare(String(b.slotId)))
+      : [],
+  };
+}
+
+/**
+ * Normalize character profile snapshots from server.
+ * Pure function - no mutation of input.
+ */
+export function normalizeCharacter(input: unknown): CharacterProfileSnapshot | null {
+  if (!input || typeof input !== "object") return null;
+  const raw = input as any;
+
+  return {
+    playerId: String(raw.playerId ?? "unknown"),
+    characterId: String(raw.characterId ?? "unknown"),
+    displayName: String(raw.displayName ?? "Wanderer"),
+    archetype: ["wanderer", "forager", "miner", "angler", "artisan"].includes(raw.archetype)
+      ? raw.archetype
+      : "wanderer",
+    selected: Boolean(raw.selected ?? true),
+  };
+}
+
+/**
+ * Normalize paperdoll snapshots from server.
+ * Pure function - no mutation of input.
+ */
+export function normalizePaperdoll(input: unknown): PaperdollSnapshot {
+  const raw = input && typeof input === "object" ? (input as any) : {};
+
+  return {
+    character: normalizeCharacter(raw.character),
+    slots: Array.isArray(raw.slots)
+      ? raw.slots.map((slot: any) => ({
+          slotId: String(slot.slotId ?? "unknown_slot"),
+          itemId: slot.itemId === null || slot.itemId === undefined
+            ? null
+            : String(slot.itemId),
+          title: String(slot.title ?? "Empty"),
+        })).sort((a, b) => a.slotId.localeCompare(b.slotId))
       : [],
   };
 }

@@ -40,7 +40,14 @@ export class LiveGameplayStore {
           (payload?.serverTick as number) ??
           (payload?.tickId as number) ??
           null,
+        character: payload?.character as LiveGameplaySnapshot["character"],
+        paperdoll: payload?.paperdoll as LiveGameplaySnapshot["paperdoll"],
         quests: (payload?.quests as LiveGameplaySnapshot["quests"]) ?? [],
+        skills: (payload?.skills as LiveGameplaySnapshot["skills"]) ?? [],
+        resources: (payload?.resources as LiveGameplaySnapshot["resources"]) ?? [],
+        inventory: payload?.inventory as LiveGameplaySnapshot["inventory"],
+        crafting: payload?.crafting as LiveGameplaySnapshot["crafting"],
+        equipment: payload?.equipment as LiveGameplaySnapshot["equipment"],
         guild: payload?.guild as LiveGameplaySnapshot["guild"],
         factions: (payload?.factions as LiveGameplaySnapshot["factions"]) ?? [],
         map: payload?.map as LiveGameplaySnapshot["map"],
