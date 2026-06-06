@@ -9,6 +9,9 @@ import { FactionStandingPanel } from "./ui/windows/FactionStandingPanel";
 import { MapStatusPanel } from "./ui/windows/MapStatusPanel";
 import { ResourceNodePanel } from "./ui/windows/ResourceNodePanel";
 import { useLiveGameplaySnapshot } from "./game/useLiveGameplaySnapshot";
+import { GameplayWindowDock } from "./ui/GameplayWindowDock";
+import { GameplayWindowsLayer } from "./ui/GameplayWindowsLayer";
+import { useGameplayPanels } from "./ui/useGameplayPanels";
 import "./areHeartbeat.css";
 
 type Msg = { from: string; txt: string };
@@ -399,6 +402,9 @@ export function ArelorianStitchHud({
           liveGameplay={liveGameplay}
         />
       )}
+
+      {/* Gameplay Windows Dock & Layer - visible panel toggles */}
+      <GameplayWindowsLayerWithSnapshot liveGameplay={liveGameplay} />
     </div>
   );
 }
@@ -486,4 +492,16 @@ function CombatPreview({ equippedWeaponId }: { equippedWeaponId?: string | null 
 }
 function Info({ label, value }: { label: string; value: string }) {
   return <article className="stitch-info"><small>{label}</small><b>{value}</b></article>;
+}
+
+// Gameplay Windows Layer with snapshot - wraps hook and layer
+function GameplayWindowsLayerWithSnapshot({ liveGameplay }: { liveGameplay: ReturnType<typeof useLiveGameplaySnapshot> }) {
+  const { openPanels, togglePanel } = useGameplayPanels();
+
+  return (
+    <>
+      <GameplayWindowsLayer snapshot={liveGameplay} openPanels={openPanels} />
+      <GameplayWindowDock openPanels={openPanels} onToggle={togglePanel} />
+    </>
+  );
 }

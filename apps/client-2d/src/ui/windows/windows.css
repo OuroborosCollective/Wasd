@@ -1179,3 +1179,143 @@ canvas {
   font-size: 0.82rem;
   text-align: center;
 }
+
+/* ─── Gameplay Window Dock Styles ───────────────────────────────────────── */
+
+.gameplay-window-dock {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 80;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: calc(100vw - 24px);
+  padding: 8px;
+  border: 1px solid rgba(0, 229, 255, 0.28);
+  border-radius: 14px;
+  background: rgba(5, 6, 6, 0.88);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 28px rgba(0, 229, 255, 0.12);
+}
+
+.gameplay-window-dock__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid rgba(147, 164, 170, 0.35);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #effcff;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background var(--ouro-transition-fast),
+    border-color var(--ouro-transition-fast),
+    box-shadow var(--ouro-transition-fast);
+}
+
+.gameplay-window-dock__button:hover {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: rgba(0, 229, 255, 0.5);
+}
+
+.gameplay-window-dock__button.is-active {
+  border-color: rgba(0, 229, 255, 0.85);
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.22);
+  background: rgba(0, 229, 255, 0.1);
+}
+
+.gameplay-window-dock__button kbd {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(255, 122, 0, 0.22);
+  color: #ffb86b;
+  font-size: 0.75rem;
+  font-family: var(--ouro-font-mono);
+}
+
+@media (max-width: 768px) {
+  .gameplay-window-dock {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    max-height: 30vh;
+    overflow: auto;
+    justify-content: center;
+  }
+
+  .gameplay-window-dock__button {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-width: 60px;
+  }
+}
+
+/* ─── Gameplay Windows Layer Styles ────────────────────────────────────── */
+
+.gameplay-windows-layer {
+  position: fixed;
+  top: 72px;
+  right: 12px;
+  z-index: 70;
+  display: grid;
+  gap: 10px;
+  width: min(460px, calc(100vw - 24px));
+  max-height: calc(100vh - 150px);
+  overflow: auto;
+  pointer-events: none;
+}
+
+.gameplay-window {
+  pointer-events: auto;
+  border: 1px solid rgba(0, 229, 255, 0.28);
+  border-radius: 16px;
+  background: rgba(5, 6, 6, 0.92);
+  color: #effcff;
+  box-shadow: 0 0 32px rgba(0, 229, 255, 0.12);
+  overflow: hidden;
+}
+
+.gameplay-window__header {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(147, 164, 170, 0.24);
+  background: rgba(0, 229, 255, 0.06);
+}
+
+.gameplay-window__header strong {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #effcff;
+}
+
+.gameplay-window__body {
+  padding: 12px;
+}
+
+@media (max-width: 768px) {
+  .gameplay-windows-layer {
+    top: 56px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-height: calc(100vh - 180px);
+  }
+
+  .gameplay-window {
+    max-height: calc(100vh - 190px);
+    overflow: auto;
+  }
+}
+
+/* ─── Character Paperdoll Root ─────────────────────────────────────────── */
+
+.character-paperdoll-root {
+  width: 100%;
+}
