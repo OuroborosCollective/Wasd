@@ -7,7 +7,11 @@ import {
 
 export type { DeterministicGoalPruneContext, DeterministicGoalPruneResult, GoalLike };
 
-export class HeuristicGoalPruner extends LiveHeuristicGoalPruner {
+// Note: This class does NOT extend LiveHeuristicGoalPruner because TypeScript
+// does not allow overriding static methods with incompatible signatures.
+// We delegate to the live implementation for pruneGoals while providing
+// a compatibility no-op for pruneByEchoIntensity.
+export class HeuristicGoalPruner {
   /**
    * Compatibility wrapper for legacy NPCEngine calls.
    * The legacy code passes (npcId: string, cache: NPCMemoryCache) but the base class
@@ -17,6 +21,13 @@ export class HeuristicGoalPruner extends LiveHeuristicGoalPruner {
   static pruneByEchoIntensity(npcId: string, cache: unknown): void {
     void npcId;
     void cache;
+  }
+
+  static pruneGoals<TGoal extends GoalLike>(
+    goals: readonly TGoal[] | null | undefined,
+    context: DeterministicGoalPruneContext,
+  ): DeterministicGoalPruneResult<TGoal> {
+    return LiveHeuristicGoalPruner.pruneGoals(goals, context);
   }
 }
 
