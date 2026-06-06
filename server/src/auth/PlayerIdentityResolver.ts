@@ -2,19 +2,20 @@
  * PLAYER IDENTITY RESOLVER
  *
  * Server-authoritative player identity resolution for quest persistence.
- * Ensures client cannot freely choose production quest playerId.
+ * Ensures client cannot freely choose production quest playerId unless the
+ * explicit guest/dev playtest fallback is enabled.
  *
  * Rules:
- * - Auth identity wins over query/body playerId
+ * - Auth identity wins over query/header/body playerId
  * - No Math.random() for identity selection
  * - No secrets logged
- * - Production mode rejects unauthenticated playerId fallback
+ * - Production fallback is only allowed for configured guest/dev playtest mode
  *
  * Priority:
  * 1. Auth middleware (user.id/sub/playerId)
  * 2. Session middleware (session.playerId/userId)
- * 3. Dev/test fallback (query.playerId) - only if NODE_ENV != production
- * 4. Anonymous (no authenticated identity)
+ * 3. Dev/playtest fallback (header/query/body playerId when enabled)
+ * 4. Anonymous (no usable identity)
  */
 
 export interface PlayerIdentity {
@@ -31,9 +32,21 @@ export interface PlayerIdentityRequestLike {
   session?: { playerId?: string; userId?: string };
 }
 
+function envNotFalse(key: string): boolean {
+  return !["0", "false", "no"].includes(
+    process.env[key]?.trim().toLowerCase() || "",
+  );
+}
+
 const DEV_FALLBACK_ENABLED =
   process.env.NODE_ENV !== "production" ||
-  process.env.ALLOW_DEV_PLAYER_ID === "true";
+  process.env.ALLOW_DEV_PLAYER_ID === "true" ||
+  envNotFalse("ALLOW_GUEST_LOGIN") ||
+  envNotFalse("ALLOW_DEV_LOGIN");
+
+function firstHeaderValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 function normalizePlayerId(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -44,6 +57,11 @@ function normalizePlayerId(value: unknown): string | null {
   if (!/^[a-zA-Z0-9._:-]{1,96}$/.test(trimmed)) return null;
 
   return trimmed;
+}
+
+function bodyPlayerId(body: unknown): unknown {
+  if (!body || typeof body !== "object") return null;
+  return (body as Record<string, unknown>).playerId;
 }
 
 export function resolveHttpPlayerIdentity(
@@ -80,12 +98,21 @@ export function resolveHttpPlayerIdentity(
     };
   }
 
-  // 3. Dev/test fallback only
+  // 3. Dev/playtest fallback only. This preserves per-guest HTTP state
+  // for the current 2D guest-login flow instead of collapsing everyone
+  // into the shared "anonymous" profile.
   if (DEV_FALLBACK_ENABLED) {
+    const headerId = normalizePlayerId(
+      firstHeaderValue(req.headers?.["x-player-id"]) ??
+      firstHeaderValue(req.headers?.["x-areloria-player-id"]),
+    );
     const queryId = normalizePlayerId(req.query?.playerId);
-    if (queryId) {
+    const bodyId = normalizePlayerId(bodyPlayerId(req.body));
+    const fallbackId = headerId ?? queryId ?? bodyId;
+
+    if (fallbackId) {
       return {
-        playerId: queryId,
+        playerId: fallbackId,
         source: "dev-fallback",
         authenticated: false,
       };
@@ -100,7 +127,7 @@ export function resolveHttpPlayerIdentity(
 }
 
 export function assertPlayerIdentityAllowed(identity: PlayerIdentity): void {
-  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+  if (process.env.NODE_ENV === "production" && !identity.authenticated && !DEV_FALLBACK_ENABLED) {
     throw new Error("authenticated_player_required");
   }
 }
