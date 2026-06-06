@@ -25,6 +25,7 @@
  * - All updates are derived from server events only
  */
 
+import { useSyncExternalStore } from "react";
 import type { InventoryItem } from "../ui/InventoryPanel";
 
 // -----------------------------------------------------------------------------
@@ -169,26 +170,26 @@ class PlayerVitalStateManager {
   private lastServerTick: number = 0;
   private listeners = new Set<() => void>();
 
-  getState(): PlayerVitalState {
+  getState = (): PlayerVitalState => {
     return this.state;
-  }
+  };
 
-  getVitals(): PlayerVitals {
+  getVitals = (): PlayerVitals => {
     return this.state.vitals;
-  }
+  };
 
-  getInventory(): InventorySlot[] {
+  getInventory = (): InventorySlot[] => {
     return this.state.inventory;
-  }
+  };
 
-  getEquipment(): EquipmentSlots {
+  getEquipment = (): EquipmentSlots => {
     return this.state.equipment;
-  }
+  };
 
-  subscribe(listener: () => void): () => void {
+  subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
-  }
+  };
 
   private notify(): void {
     this.listeners.forEach((l) => l());
@@ -344,8 +345,6 @@ export const playerVitalState = new PlayerVitalStateManager();
 // -----------------------------------------------------------------------------
 // React Hook (Deterministic - uses useSyncExternalStore)
 // -----------------------------------------------------------------------------
-
-import { useSyncExternalStore } from "react";
 
 export function usePlayerVitalState(): PlayerVitalState {
   return useSyncExternalStore(
