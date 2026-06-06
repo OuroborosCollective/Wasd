@@ -307,7 +307,7 @@ export class AIService implements IAIService {
           heal: {
             code: "AI_DEGRADED_FALLBACK",
             message: input.error,
-            severity: "warn",
+            severity: "warn" as const,
           },
           facts: [],
           risks: ["ai-failure", "recovered-by-fallback"],
