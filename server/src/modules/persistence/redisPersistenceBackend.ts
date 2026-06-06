@@ -24,7 +24,7 @@ export class RedisPersistenceBackend implements IPersistenceBackend {
     }
   }
 
-  async save(data: Record<string, any>): Promise<void> {
+  async save(data: Readonly<Record<string, unknown>>): Promise<void> {
     const client = getRedisClient();
     if (!client || !isRedisAvailable()) {
       console.warn("[Persistence] Redis save skipped (Redis not available).");
@@ -50,13 +50,13 @@ export class RedisPersistenceBackend implements IPersistenceBackend {
     }
   }
 
-  async load(): Promise<Record<string, any>> {
+  async load(): Promise<Record<string, unknown>> {
     const client = getRedisClient();
     if (!client || !isRedisAvailable()) return {};
 
     try {
       const all = await client.hgetall(this.PLAYER_KEY);
-      const out: Record<string, any> = {};
+      const out: Record<string, unknown> = {};
       for (const id in all) {
         try {
           out[id] = JSON.parse(all[id]);
@@ -72,7 +72,9 @@ export class RedisPersistenceBackend implements IPersistenceBackend {
     }
   }
 
-  async saveWorldObjects(objects: any[]): Promise<void> {
+  async saveWorldObjects(
+    objects: readonly Readonly<Record<string, unknown>>[],
+  ): Promise<void> {
     const client = getRedisClient();
     if (!client || !isRedisAvailable()) {
       console.warn("[Persistence] Redis saveWorldObjects skipped (Redis not available).");
@@ -94,7 +96,7 @@ export class RedisPersistenceBackend implements IPersistenceBackend {
     }
   }
 
-  async loadWorldObjects(): Promise<any[]> {
+  async loadWorldObjects(): Promise<Record<string, unknown>[]> {
     const client = getRedisClient();
     if (!client || !isRedisAvailable()) return [];
     try {
@@ -105,7 +107,7 @@ export class RedisPersistenceBackend implements IPersistenceBackend {
         } catch {
           return null;
         }
-      }).filter(Boolean);
+      }).filter(Boolean) as Record<string, unknown>[];
     } catch (err) {
       console.error("[Persistence] Failed to load world objects from Redis:", err);
       return [];
