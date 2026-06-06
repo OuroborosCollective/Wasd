@@ -2,10 +2,14 @@
 // Live snapshot-based quest display for ArelorianStitchHud
 // Server-authoritative, display-only
 
-import type { LiveGameplaySnapshot } from "../../game/liveGameplaySnapshot";
+import type { LiveGameplaySnapshot, QuestObjectiveSnapshot } from "../../game/liveGameplaySnapshot";
 
 interface QuestJournalPanelProps {
   snapshot: LiveGameplaySnapshot;
+}
+
+function objectiveProgressPercent(objective: QuestObjectiveSnapshot): number {
+  return Math.max(0, Math.min(100, Math.round((objective.current / objective.required) * 100)));
 }
 
 export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
@@ -32,18 +36,28 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
   }
 
   return (
-    <div className="stitch-grid-panel" data-testid="quest-panel-live">
+    <div className="quest-journal-panel" data-testid="quest-panel-live">
       {snapshot.quests.map((quest) => (
-        <article key={quest.id} className="stitch-info">
-          <small>{quest.status}</small>
-          <b>{quest.title}</b>
-          <span>{quest.description}</span>
-          {quest.objectives.map((objective) => (
-            <span key={objective.id}>
-              {objective.label}: {objective.current}/{objective.required}
-              {objective.completed && " ✓"}
-            </span>
-          ))}
+        <article key={quest.id} className={`quest-journal-card quest-journal-card--${quest.status}`}>
+          <header>
+            <small>{quest.status}</small>
+            <b>{quest.title}</b>
+          </header>
+
+          {quest.description && <p>{quest.description}</p>}
+
+          <div className="quest-journal-objectives">
+            {quest.objectives.map((objective) => {
+              const progress = objectiveProgressPercent(objective);
+              return (
+                <div key={objective.id} className="quest-journal-objective">
+                  <span>{objective.label}</span>
+                  <b>{objective.current}/{objective.required}{objective.completed ? " ✓" : ""}</b>
+                  <i aria-hidden="true"><em style={{ width: `${progress}%` }} /></i>
+                </div>
+              );
+            })}
+          </div>
         </article>
       ))}
     </div>
