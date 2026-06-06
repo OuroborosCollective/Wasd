@@ -7,11 +7,12 @@
  * Determinism rule:
  * - Character creation uses validated input only.
  * - Server determines success/failure.
+ * - The start path is not a class; it only selects starter kit/tutorial focus.
  */
 
 import React, { useState } from "react";
 
-const ARCHETYPES = [
+const START_PATHS = [
   "wanderer",
   "forager",
   "miner",
@@ -19,19 +20,32 @@ const ARCHETYPES = [
   "artisan",
 ] as const;
 
+type StartPath = (typeof START_PATHS)[number];
+
+const START_PATH_LABELS: Record<StartPath, string> = {
+  wanderer: "Wanderer — neutraler Start",
+  forager: "Forager — Sammeln-Tutorial",
+  miner: "Miner — Erz & Spitzhacke",
+  angler: "Angler — Wasser & Angel",
+  artisan: "Artisan — Werkbank & Crafting",
+};
+
 interface Props {
   onCreated?: () => void;
 }
 
 export function CharacterSelectPanel({ onCreated }: Props) {
   const [displayName, setDisplayName] = useState("");
-  const [archetype, setArchetype] = useState<(typeof ARCHETYPES)[number]>("wanderer");
+  const [startPath, setStartPath] = useState<StartPath>("wanderer");
   const [status, setStatus] = useState<string>("");
 
   return (
     <section data-testid="character-select" className="are-window character-select-panel">
-      <h2>Character Selection</h2>
-      <p>Create your first Areloria character.</p>
+      <h2>Character Creation</h2>
+      <p>
+        Erstelle deinen ersten Areloria-Charakter. Areloria ist klassenlos: Skills wachsen durch Nutzung,
+        nicht durch eine feste Klasse.
+      </p>
 
       <label className="character-form-label">
         Name
@@ -47,19 +61,24 @@ export function CharacterSelectPanel({ onCreated }: Props) {
       </label>
 
       <label className="character-form-label">
-        Archetype
+        Startpfad
         <select
-          value={archetype}
-          onChange={(event) => setArchetype(event.target.value as (typeof ARCHETYPES)[number])}
+          value={startPath}
+          onChange={(event) => setStartPath(event.target.value as StartPath)}
           className="character-form-select"
         >
-          {ARCHETYPES.map((id) => (
+          {START_PATHS.map((id) => (
             <option key={id} value={id}>
-              {id}
+              {START_PATH_LABELS[id]}
             </option>
           ))}
         </select>
       </label>
+
+      <p className="character-form-hint">
+        Keine Klasse, keine Sperren: Der Startpfad bestimmt nur Startausrüstung und Tutorial-Fokus.
+        Danach kannst du alle Skills frei trainieren.
+      </p>
 
       <button
         type="button"
@@ -80,12 +99,15 @@ export function CharacterSelectPanel({ onCreated }: Props) {
               },
               body: JSON.stringify({
                 displayName: displayName.trim(),
-                archetype,
+                archetype: startPath,
                 currentTick: 0,
               }),
             });
 
-            const result = await response.json();
+            const contentType = response.headers.get("content-type") ?? "";
+            const result = contentType.includes("application/json")
+              ? await response.json()
+              : { ok: false, error: `Server returned non-JSON response (${response.status})` };
 
             if (result.ok) {
               setStatus("Character created.");
