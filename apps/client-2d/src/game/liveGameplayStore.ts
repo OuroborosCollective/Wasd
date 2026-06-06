@@ -69,11 +69,12 @@ export class LiveGameplayStore {
 
 export const liveGameplayStore = new LiveGameplayStore();
 
-// HTTP fallback fetch for when WebSocket hasn't delivered data yet
-const DEFAULT_PLAYER_ID = "guest";
+// HTTP fallback fetch for when WebSocket hasn't delivered data yet.
+// This ID intentionally matches the guest/playtest HTTP fallback path.
+export const DEFAULT_GAMEPLAY_PLAYER_ID = "guest";
 
 export async function fetchGameplaySnapshot(
-  playerId: string = DEFAULT_PLAYER_ID
+  playerId: string = DEFAULT_GAMEPLAY_PLAYER_ID
 ): Promise<LiveGameplaySnapshot | null> {
   try {
     const encodedPlayerId = encodeURIComponent(playerId);
@@ -81,6 +82,9 @@ export async function fetchGameplaySnapshot(
       `/api/gameplay/snapshot?playerId=${encodedPlayerId}`,
       {
         cache: "no-store",
+        headers: {
+          "x-player-id": playerId,
+        },
       }
     );
     if (!response.ok) return null;
