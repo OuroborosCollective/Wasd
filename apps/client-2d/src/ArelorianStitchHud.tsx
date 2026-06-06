@@ -226,7 +226,7 @@ export function ArelorianStitchHud({
   }
 
   return (
-    <div className={hudClasses} aria-label="Arelorian Science MMO HUD">
+    <div className={hudClasses} data-testid="arelorian-stitch-hud" aria-label="Arelorian Science MMO HUD">
       <div className="stitch-scanlines" aria-hidden="true" />
 
       <header className="stitch-topbar" role="banner">

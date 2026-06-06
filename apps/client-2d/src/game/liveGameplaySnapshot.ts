@@ -182,45 +182,52 @@ export const EMPTY_LIVE_GAMEPLAY_SNAPSHOT: LiveGameplaySnapshot = {
 };
 
 // Normalization helper - pure function, no mutation
+// Returns EMPTY_LIVE_GAMEPLAY_SNAPSHOT on any error to prevent crashes
 export function normalizeLiveGameplaySnapshot(
   input: Partial<LiveGameplaySnapshot> | null | undefined
 ): LiveGameplaySnapshot {
-  if (!input) return EMPTY_LIVE_GAMEPLAY_SNAPSHOT;
+  try {
+    if (!input) return EMPTY_LIVE_GAMEPLAY_SNAPSHOT;
 
-  return {
-    status: input.status ?? "waiting",
-    serverTick: typeof input.serverTick === "number" ? input.serverTick : null,
-    quests: Array.isArray(input.quests) ? input.quests : [],
-    skills: normalizeSkills(input.skills),
-    resources: normalizeResources(input.resources),
-    inventory: normalizeInventory(input.inventory),
-    crafting: normalizeCrafting(input.crafting),
-    guild: {
-      id: input.guild?.id ?? null,
-      name: input.guild?.name ?? null,
-      memberCount:
-        typeof input.guild?.memberCount === "number"
-          ? input.guild.memberCount
-          : 0,
-      rank: input.guild?.rank ?? null,
-      villageEligible: Boolean(input.guild?.villageEligible),
-      treasury:
-        typeof input.guild?.treasury === "number" ? input.guild.treasury : null,
-    },
-    factions: Array.isArray(input.factions) ? input.factions : [],
-    map: {
-      regionName: input.map?.regionName ?? "unknown",
-      chunkX:
-        typeof input.map?.chunkX === "number" ? input.map.chunkX : null,
-      chunkZ:
-        typeof input.map?.chunkZ === "number" ? input.map.chunkZ : null,
-      visibleChunks:
-        typeof input.map?.visibleChunks === "number"
-          ? input.map.visibleChunks
-          : null,
-      biome: input.map?.biome ?? null,
-    },
-  };
+    return {
+      status: (input.status && typeof input.status === "string") ? input.status : "waiting",
+      serverTick: typeof input.serverTick === "number" ? input.serverTick : null,
+      quests: Array.isArray(input.quests) ? input.quests : [],
+      skills: normalizeSkills(input.skills),
+      resources: normalizeResources(input.resources),
+      inventory: normalizeInventory(input.inventory),
+      crafting: normalizeCrafting(input.crafting),
+      guild: {
+        id: input.guild?.id ?? null,
+        name: input.guild?.name ?? null,
+        memberCount:
+          typeof input.guild?.memberCount === "number"
+            ? input.guild.memberCount
+            : 0,
+        rank: input.guild?.rank ?? null,
+        villageEligible: Boolean(input.guild?.villageEligible),
+        treasury:
+          typeof input.guild?.treasury === "number" ? input.guild.treasury : null,
+      },
+      factions: Array.isArray(input.factions) ? input.factions : [],
+      map: {
+        regionName: input.map?.regionName ?? "unknown",
+        chunkX:
+          typeof input.map?.chunkX === "number" ? input.map.chunkX : null,
+        chunkZ:
+          typeof input.map?.chunkZ === "number" ? input.map.chunkZ : null,
+        visibleChunks:
+          typeof input.map?.visibleChunks === "number"
+            ? input.map.visibleChunks
+            : null,
+        biome: input.map?.biome ?? null,
+      },
+    };
+  } catch (error) {
+    // Never crash the client - return empty snapshot on normalization error
+    console.error("[LiveGameplaySnapshot] normalize failed:", error);
+    return EMPTY_LIVE_GAMEPLAY_SNAPSHOT;
+  }
 }
 
 /**

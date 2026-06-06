@@ -37,6 +37,7 @@ installViewportRuntime();
 
 /**
  * Fatal boot error display - prevents endless black screens
+ * Shows visible error overlay when React fails to mount
  */
 function showFatalBootError(error: unknown): void {
   const root = document.getElementById("root");
@@ -44,45 +45,71 @@ function showFatalBootError(error: unknown): void {
   const message =
     error instanceof Error
       ? `${error.name}: ${error.message}`
-      : String(error);
+      : String(error ?? "Unknown boot error");
+
+  const stack =
+    error instanceof Error && error.stack
+      ? error.stack
+      : "";
 
   console.error("[Areloria Boot Fatal]", error);
 
   if (!root) {
-    document.body.innerHTML = `<pre style="color:white;background:#070711;padding:24px;">${message}</pre>`;
+    document.body.innerHTML = `<pre style="color:white;background:#070711;padding:24px;">${message}\n\n${stack}</pre>`;
     return;
   }
 
+  // Escape HTML to prevent XSS in error display
+  const escapeHtml = (s: string) =>
+    s.replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
   root.innerHTML = `
-    <div style="
-      min-height:100dvh;
-      display:grid;
-      place-items:center;
-      padding:24px;
-      background:#070711;
-      color:#f5f7ff;
-      font-family:system-ui,sans-serif;
-    ">
-      <div style="
-        max-width:520px;
-        border:1px solid rgba(255,65,108,.4);
+    <main
+      data-testid="boot-fatal-overlay"
+      style="
+        min-height:100dvh;
+        display:grid;
+        place-items:center;
+        padding:24px;
+        padding-top:calc(24px + env(safe-area-inset-top, 0px));
+        padding-bottom:calc(24px + env(safe-area-inset-bottom, 0px));
+        background:#070711;
+        color:#f5f7ff;
+        font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      "
+    >
+      <section style="
+        max-width:560px;
+        width:100%;
+        border:1px solid rgba(255,65,108,.5);
         border-radius:20px;
-        padding:22px;
-        background:rgba(255,65,108,.08);
+        padding:24px;
+        background:rgba(255,65,108,.1);
+        box-shadow:0 0 48px rgba(255,65,108,.22);
       ">
-        <h1 style="font-size:20px;margin-bottom:10px;">Areloria Boot Error</h1>
-        <p style="opacity:.72;line-height:1.5;">
-          Der REAL_PIXI_CLIENT konnte nicht starten.
+        <h1 style="margin:0 0 8px;color:#ff416c;font-size:22px;">⚠️ Areloria Boot Fehler</h1>
+        <p style="margin:0 0 16px;color:rgba(245,247,255,.72);line-height:1.5;">
+          Der REAL_PIXI_CLIENT ist beim Starten abgestürzt.
         </p>
         <pre style="
-          margin-top:16px;
           overflow:auto;
-          white-space:pre-wrap;
+          max-height:40vh;
+          padding:16px;
+          border-radius:12px;
+          background:#000;
+          color:#ff9f7a;
           font-size:12px;
-          opacity:.86;
-        ">${message}</pre>
-      </div>
-    </div>
+          line-height:1.5;
+        ">${escapeHtml(message)}${stack ? "\n\n" + escapeHtml(stack) : ""}</pre>
+        <p style="margin:16px 0 0;color:rgba(245,247,255,.5);font-size:11px;">
+          Bitte Page neu laden oder Browser-Cache leeren.
+        </p>
+      </section>
+    </main>
   `;
 }
 
@@ -100,17 +127,28 @@ function registerServiceWorker(): void {
 }
 
 /**
- * Setup global error handlers
+ * Setup global error handlers to catch boot-time crashes
+ * Ensures any runtime error shows visible fatal overlay
  */
 function setupGlobalErrorHandlers(): void {
-  // Window error handler
+  // Window error handler - catch runtime errors
   window.addEventListener("error", (event) => {
-    console.error("[Areloria Window Error]", event.error ?? event.message);
+    const err = event.error ?? event.message;
+    console.error("[Areloria Window Error]", err);
+    // Show overlay if React hasn't mounted yet
+    if (!document.body.dataset.areloriaBoot || document.body.dataset.areloriaBoot === "cold") {
+      showFatalBootError(err);
+    }
   });
 
   // Unhandled promise rejection handler
   window.addEventListener("unhandledrejection", (event) => {
-    console.error("[Areloria Promise Rejection]", event.reason);
+    const reason = event.reason;
+    console.error("[Areloria Promise Rejection]", reason);
+    // Show overlay if React hasn't mounted yet
+    if (!document.body.dataset.areloriaBoot || document.body.dataset.areloriaBoot === "cold") {
+      showFatalBootError(reason);
+    }
   });
 }
 
@@ -270,6 +308,7 @@ function UIOverlayLayer() {
 }
 
 async function main(): Promise<void> {
+  // Mark boot start for E2E testing
   document.body.dataset.areloriaBoot = "mounting";
 
   const rootElement = document.getElementById("root");
@@ -278,28 +317,42 @@ async function main(): Promise<void> {
     throw new Error("Missing #root element");
   }
 
-  // Setup before rendering
+  // Setup error handlers BEFORE any code runs
   setupGlobalErrorHandlers();
   registerServiceWorker();
 
-  // Render app
-  ReactDOM.createRoot(rootElement).render(
-    <React.StrictMode>
-      <CyberZenLoginGate>
-        <DeterministicWorldIsoApp />
-        <LiveRealityBridge />
-        <WorldHeartMonitor />
-        <PixiModuleInspector />
-        <MobileMovePad />
-        <KenneyUiLiveSkinBadge />
-        <InteractionOverlayRoot />
-        <UIOverlayLayer />
-        <LiveGameplayNetworkBridge />
-      </CyberZenLoginGate>
-    </React.StrictMode>
-  );
+  // Remove the boot screen fallback once React mounts
+  const bootScreen = document.getElementById("boot-screen");
+  if (bootScreen) {
+    bootScreen.remove();
+  }
 
-  document.body.dataset.areloriaBoot = "mounted";
+  // Render app with full error capture
+  try {
+    ReactDOM.createRoot(rootElement).render(
+      <React.StrictMode>
+        <CyberZenLoginGate>
+          <DeterministicWorldIsoApp />
+          <LiveRealityBridge />
+          <WorldHeartMonitor />
+          <PixiModuleInspector />
+          <MobileMovePad />
+          <KenneyUiLiveSkinBadge />
+          <InteractionOverlayRoot />
+          <UIOverlayLayer />
+          <LiveGameplayNetworkBridge />
+        </CyberZenLoginGate>
+      </React.StrictMode>
+    );
+
+    // Success marker for E2E
+    document.body.dataset.areloriaBoot = "mounted";
+    document.body.dataset.client2dBoot = "ok";
+  } catch (error) {
+    document.body.dataset.areloriaBoot = "failed";
+    document.body.dataset.client2dBoot = "failed";
+    showFatalBootError(error);
+  }
 }
 
 main().catch(showFatalBootError);
