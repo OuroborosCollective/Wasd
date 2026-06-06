@@ -8,17 +8,8 @@ import {
 export type { DeterministicGoalPruneContext, DeterministicGoalPruneResult, GoalLike };
 
 export class HeuristicGoalPruner extends LiveHeuristicGoalPruner {
-  static pruneByEchoIntensity(npcId: string, cache: unknown): void {
-    void npcId;
-    void cache;
-  }
-
-  static pruneGoals<TGoal extends GoalLike>(
-    goals: readonly TGoal[] | null | undefined,
-    context: DeterministicGoalPruneContext,
-  ): DeterministicGoalPruneResult<TGoal> {
-    return LiveHeuristicGoalPruner.pruneGoals(goals, context);
-  }
+  // Inherit all methods including pruneByEchoIntensity from base class
+  // Override not needed - base class implementation is sufficient
 }
 
 export default HeuristicGoalPruner;
