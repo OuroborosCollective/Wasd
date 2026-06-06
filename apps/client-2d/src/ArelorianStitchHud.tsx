@@ -4,6 +4,7 @@ import { InventoryPanel as InventorySnapshotPanel } from "./ui/windows/Inventory
 import { EquipmentPanel } from "./ui/windows/EquipmentPanel";
 import { AREHeartbeatPanel, DEFAULT_ARE_HEARTBEAT, type AREHeartbeatSnapshot } from "./AREHeartbeatPanel";
 import { QuestJournalPanel } from "./ui/windows/QuestJournalPanel";
+import { QuestPreviewPanel } from "./ui/windows/QuestPreviewPanel";
 import { GuildStatusPanel } from "./ui/windows/GuildStatusPanel";
 import { FactionStandingPanel } from "./ui/windows/FactionStandingPanel";
 import { MapStatusPanel } from "./ui/windows/MapStatusPanel";
@@ -209,6 +210,11 @@ export function ArelorianStitchHud({
     setActivePanel((current) => (current === panel ? null : panel));
   }
 
+  function openQuestJournal() {
+    setIsInventoryOpen(false);
+    setActivePanel("quests");
+  }
+
   function closePanel() {
     setActivePanel(null);
     setIsInventoryOpen(false);
@@ -274,6 +280,8 @@ export function ArelorianStitchHud({
         <Gauge label="STA" value={staminaPercent} tone="emerald" />
         <Gauge label="XP" value={xpPercent} tone="gold" />
       </aside>
+
+      <QuestPreviewPanel snapshot={liveGameplay} onOpenJournal={openQuestJournal} />
 
       {/* DEBUG HUD: Player Position & Chunk Visibility */}
       <aside className="stitch-debug" aria-label="Debug: Player Position & Chunk Tracking">
@@ -475,7 +483,7 @@ function panelTitle(panel: Exclude<HudPanel, null>) {
     map: "Arelorian Highlands",
     guild: "Guild Console",
     factions: "Faction Reputation",
-    quests: "Quest Log",
+    quests: "Quest Journal",
     resources: "Resource Nodes",
   } as const)[panel];
 }
