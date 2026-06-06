@@ -6,6 +6,7 @@ import type { GameplayPanelId } from "./GameplayPanelRegistry";
 import type { LiveGameplaySnapshot } from "../game/liveGameplaySnapshot";
 
 import { CharacterPaperdollRoot } from "./windows/CharacterPaperdollRoot";
+import { QuestJournalPanel } from "./windows/QuestJournalPanel";
 import { SkillProgressionPanel } from "./windows/SkillProgressionPanel";
 import { ResourceNodePanel } from "./windows/ResourceNodePanel";
 import { InventoryPanel } from "./windows/InventoryPanel";
@@ -48,6 +49,12 @@ export function GameplayWindowsLayer({ snapshot, openPanels }: Props) {
       {openPanels.has("character") && (
         <WindowFrame id="character" title="Character">
           <CharacterPaperdollRoot snapshot={snapshot} defaultOpen />
+        </WindowFrame>
+      )}
+
+      {openPanels.has("quests") && (
+        <WindowFrame id="quests" title="Quest Journal">
+          <QuestJournalPanel snapshot={snapshot} />
         </WindowFrame>
       )}
 
