@@ -27,9 +27,16 @@ body,
   pointer-events: auto !important;
 }
 
+/* The bottom gameplay dock replaces the legacy side menu/diagnostic overlays. */
+.stitch-side-menu,
+.pixi-module-inspector,
+.live-reality-bridge {
+  display: none !important;
+}
+
 .az-touch-pad button,
 .stitch-skillbar button,
-.stitch-side-menu button {
+.gameplay-window-dock button {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
@@ -74,10 +81,6 @@ body,
     min-width: 74px;
     min-height: 56px;
   }
-
-  .stitch-side-menu {
-    right: calc(env(safe-area-inset-right, 0px) + 10px);
-  }
 }
 
 @media (max-width: 520px) {
@@ -116,11 +119,6 @@ body,
   .stitch-skillbar button {
     min-width: 72px;
     min-height: 56px;
-  }
-
-  .pixi-module-inspector,
-  .live-reality-bridge {
-    display: none;
   }
 }
 
