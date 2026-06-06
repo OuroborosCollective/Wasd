@@ -67,7 +67,7 @@ export function pruneNPCGoalsForTick(npc: NPC, tick: number): NPCGoalPruningRunt
 
 export function pruneAllNPCGoalsForTick(npcs: readonly NPC[], tick: number): NPCGoalPruningRuntimeReport[] {
   return [...npcs]
-    .sort((a, b) => String(a.id).localeCompare(String(b.id)))
+    .sort((a, b) => String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0)
     .map((npc) => pruneNPCGoalsForTick(npc, tick))
     .filter((entry): entry is NPCGoalPruningRuntimeReport => entry !== null);
 }
