@@ -218,23 +218,122 @@
   </noscript>
 
   <div id="root">
-    <div id="boot-screen" aria-hidden="true">
-      <div class="boot-card">
-        <div class="boot-title">Areloria</div>
-        <div class="boot-subtitle">
-          Initialisiere REAL_PIXI_CLIENT · 10Hz Logic Engine · Ouroboros Loop
+    <!-- Boot fallback - visible if React fails to mount -->
+    <!-- React removes this element on successful mount -->
+    <div
+      id="boot-screen"
+      data-testid="areloria-boot-fallback"
+      aria-hidden="true"
+      style="
+        position:fixed;
+        inset:0;
+        display:grid;
+        place-items:center;
+        padding:24px;
+        background:#070711;
+        z-index:999;
+      "
+    >
+      <div
+        style="
+          max-width:420px;
+          width:100%;
+          border:1px solid rgba(0,229,255,.3);
+          border-radius:22px;
+          padding:22px;
+          background:rgba(7,7,17,.9);
+          box-shadow:0 0 42px rgba(0,229,255,.12);
+          text-align:center;
+          font-family:system-ui,sans-serif;
+          color:#f5f7ff;
+        "
+      >
+        <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;">
+          Areloria
+        </h1>
+        <p style="margin:0 0 16px;color:rgba(245,247,255,.6);font-size:13px;line-height:1.5;">
+          Lade REAL_PIXI_CLIENT · 10Hz · Ouroboros
+        </p>
+        <div style="
+          height:8px;
+          border-radius:999px;
+          background:rgba(255,255,255,.08);
+          overflow:hidden;
+          margin-bottom:14px;
+        ">
+          <div style="
+            height:100%;
+            width:42%;
+            border-radius:inherit;
+            background:linear-gradient(90deg,#00e5ff,#39ff14,#ff7a00);
+            animation:boot-pulse 1.4s ease-in-out infinite;
+          "></div>
         </div>
-        <div class="boot-bar"></div>
-        <div class="boot-meta">
-          <span>PIXI</span>
-          <span>ARE</span>
-          <span>10HZ</span>
-        </div>
+        <p style="margin:0;color:rgba(245,247,255,.4);font-size:11px;letter-spacing:.08em;">
+          PIXI · ARE · 10HZ
+        </p>
+        <noscript>
+          <p style="margin-top:12px;color:#ff416c;">
+            ⚠️ JavaScript erforderlich für Areloria.
+          </p>
+        </noscript>
+        <p
+          id="boot-fallback-warning"
+          style="display:none;margin-top:12px;color:#ff7a00;font-size:12px;"
+        >
+          ⚠️ Boot fehlgeschlagen. Bitte neu laden.
+        </p>
       </div>
     </div>
   </div>
 
   <script type="module" src="/src/main.tsx"></script>
+
+  <!-- Boot timeout fallback - shows warning if React doesn't mount within 10s -->
+  <script>
+    (function() {
+      var BOOT_TIMEOUT_MS = 10000;
+      var checkInterval = null;
+
+      function showBootWarning() {
+        var warning = document.getElementById('boot-fallback-warning');
+        if (warning) {
+          warning.style.display = 'block';
+        }
+        console.warn('[Areloria] Boot timeout - React may have failed to mount');
+      }
+
+      function checkBootStatus() {
+        var bootAttr = document.body.dataset.areloriaBoot;
+        var bootOk = document.body.dataset.client2dBoot;
+
+        // If mounted successfully, stop checking
+        if (bootAttr === 'mounted' || bootOk === 'ok') {
+          clearInterval(checkInterval);
+          return;
+        }
+
+        // If boot failed, clear interval
+        if (bootAttr === 'failed' || bootOk === 'failed') {
+          clearInterval(checkInterval);
+          return;
+        }
+      }
+
+      // Start checking after initial load
+      setTimeout(function() {
+        checkBootStatus();
+        // If still not mounted after timeout, show warning
+        checkInterval = setInterval(function() {
+          var bootAttr = document.body.dataset.areloriaBoot;
+          if (bootAttr !== 'mounted' && bootAttr !== 'failed') {
+            showBootWarning();
+            clearInterval(checkInterval);
+          }
+        }, 2000);
+      }, BOOT_TIMEOUT_MS);
+    })();
+  </script>
 
   <!-- REAL_PIXI_CLIENT -->
 </body>

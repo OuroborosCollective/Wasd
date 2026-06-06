@@ -89,7 +89,7 @@ export function CyberZenLoginGate({ children }: Props): React.ReactElement {
   }
 
   return (
-    <main className="cz-login-root">
+    <main className="cz-login-root" data-testid="cyber-zen-login-gate">
       <section className="cz-login-card">
         <div className="cz-eyebrow">ARELORIA WASD · SOVEREIGN 10HZ GATE</div>
         <h1>Cyber-Zen Gateway</h1>

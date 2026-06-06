@@ -49,6 +49,39 @@
   border-radius: 0;
 }
 
+/* ─── are-window base class ──────────────────────────────────────────────── */
+/* Applied to all panel windows to ensure visibility above canvas */
+
+.are-window {
+  position: relative;
+  z-index: 50;
+}
+
+/* ─── z-index guarantees for UI layers ───────────────────────────────────── */
+
+[data-testid="cyber-zen-login-gate"],
+[data-testid="character-select"],
+[data-testid="arelorian-stitch-hud"],
+.az-shell {
+  position: relative;
+  z-index: 50;
+}
+
+canvas {
+  z-index: 1;
+}
+
+/* Mobile viewport safety */
+@media (max-width: 768px) {
+  .are-window,
+  [data-testid="cyber-zen-login-gate"],
+  [data-testid="arelorian-stitch-hud"] {
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    overflow: auto;
+  }
+}
+
 .char-content,
 .skill-content,
 .guild-content {

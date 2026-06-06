@@ -1180,7 +1180,7 @@ chunkManager.init({
   }
 
   return (
-    <div className="az-shell">
+    <div className="az-shell" data-testid="deterministic-world-root">
       {/* Zero-Trust Divergence Alert - Military Panzerschrank Design */}
       {diverged && (
         <DivergenceAlert
