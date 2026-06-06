@@ -1,6 +1,6 @@
 /**
  * E2E Tests for Real Post-Login World and HUD Boot Path
- * 
+ *
  * Verifies:
  * - Login Gate visible before click
  * - After click: deterministic-world-root visible
@@ -10,133 +10,161 @@
  * - No boot-fatal-overlay in normal flow
  */
 
-import { test, expect, devices } from "@playwright/test";
+import { test, expect, devices, type Page } from "@playwright/test";
+
+const ENTER_STORAGE_KEY = "wasd:2d:entered";
+
+const SELECTORS = {
+  loginGate: "cyber-zen-login-gate",
+  postLoginRoot: "post-login-children-root",
+  worldRoot: "deterministic-world-root",
+  hud: "arelorian-stitch-hud",
+  dock: "gameplay-window-dock",
+  fatalOverlay: "boot-fatal-overlay",
+  bootStatus: "world-boot-status",
+  characterSurface:
+    '[data-testid="character-paperdoll-root"], [data-testid="character-select"], [data-testid="paperdoll-panel-live"]',
+} as const;
+
+function isCriticalError(message: string): boolean {
+  const ignored = [
+    "Warning",
+    "DevTools",
+    "net::ERR_ABORTED",
+    "net::ERR_FAILED",
+    "favicon",
+    "ResizeObserver loop",
+    "Failed to load resource",
+  ];
+
+  return !ignored.some((entry) => message.includes(entry));
+}
+
+async function prepareCleanBoot(page: Page): Promise<string[]> {
+  const errors: string[] = [];
+
+  page.on("pageerror", (error) => {
+    errors.push(error.message);
+  });
+
+  page.on("console", (msg) => {
+    if (msg.type() === "error") {
+      errors.push(msg.text());
+    }
+  });
+
+  await page.addInitScript((storageKey) => {
+    window.localStorage.removeItem(storageKey);
+    document.body.dataset.e2eBootPrepared = "1";
+  }, ENTER_STORAGE_KEY);
+
+  return errors;
+}
+
+async function goto2d(page: Page, marker: string): Promise<void> {
+  await page.goto(`/2d/?e2e=${marker}`, {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
+}
+
+async function enterCollective(page: Page): Promise<void> {
+  await expect(page.getByTestId(SELECTORS.loginGate)).toBeVisible({
+    timeout: 30_000,
+  });
+
+  await page.getByRole("button", { name: /collective betreten/i }).click();
+
+  await page.waitForFunction(() => {
+    return document.body.dataset.postLoginShell === "entered-rendering-children";
+  }, null, {
+    timeout: 10_000,
+  });
+}
+
+async function expectNormalWorldShell(page: Page): Promise<void> {
+  await expect(page.getByTestId(SELECTORS.postLoginRoot)).toBeVisible({
+    timeout: 10_000,
+  });
+
+  await expect(page.getByTestId(SELECTORS.worldRoot)).toBeVisible({
+    timeout: 10_000,
+  });
+
+  await expect(page.getByTestId(SELECTORS.hud)).toBeVisible({
+    timeout: 10_000,
+  });
+
+  await expect(page.getByTestId(SELECTORS.dock)).toBeVisible({
+    timeout: 10_000,
+  });
+
+  await expect(page.locator(SELECTORS.characterSurface)).toBeVisible({
+    timeout: 10_000,
+  });
+
+  await expect(page.getByTestId(SELECTORS.fatalOverlay)).toHaveCount(0);
+}
 
 test.describe("Real Post-Login World Boot Path", () => {
   test("real post-login flow shows world root, hud, dock and character surface", async ({ page }) => {
-    const errors: string[] = [];
+    const errors = await prepareCleanBoot(page);
 
-    page.on("pageerror", (error) => {
-      errors.push(error.message);
-    });
+    await goto2d(page, "real-post-login");
+    await enterCollective(page);
+    await expectNormalWorldShell(page);
 
-    page.on("console", (msg) => {
-      if (msg.type() === "error") {
-        errors.push(msg.text());
-      }
-    });
+    const criticalErrors = errors.filter(isCriticalError);
 
-    await page.goto("/2d/?e2e=real-post-login", {
-      waitUntil: "domcontentloaded",
-      timeout: 60_000,
-    });
-
-    // Clear any previous session
-    await page.evaluate(() => {
-      localStorage.removeItem("wasd:2d:entered");
-    });
-
-    await page.reload({ waitUntil: "domcontentloaded" });
-
-    // Step 1: Login Gate must be visible
-    await expect(page.getByTestId("cyber-zen-login-gate")).toBeVisible({
-      timeout: 30_000,
-    });
-
-    // Step 2: Click "Collective betreten" button
-    await page.getByRole("button", { name: /collective betreten/i }).click();
-
-    // Step 3: Post-login children root should be visible
-    await expect(page.getByTestId("post-login-children-root")).toBeVisible({
-      timeout: 10_000,
-    });
-
-    // Step 4: Deterministic world root must be visible
-    await expect(page.getByTestId("deterministic-world-root")).toBeVisible({
-      timeout: 10_000,
-    });
-
-    // Step 5: HUD must be visible
-    await expect(page.getByTestId("arelorian-stitch-hud")).toBeVisible({
-      timeout: 10_000,
-    });
-
-    // Step 6: Gameplay dock must be visible
-    await expect(page.getByTestId("gameplay-window-dock")).toBeVisible({
-      timeout: 10_000,
-    });
-
-    // Step 7: Character select or paperdoll must be visible
-    await expect(
-      page.locator(
-        '[data-testid="character-paperdoll-root"], [data-testid="character-select"], [data-testid="paperdoll-panel-live"]',
-      ),
-    ).toBeVisible({
-      timeout: 10_000,
-    });
-
-    // Step 8: No fatal overlay should appear in normal flow
-    await expect(page.getByTestId("boot-fatal-overlay")).toHaveCount(0);
-
-    // Log any errors for debugging (but don't fail on warnings)
-    const criticalErrors = errors.filter(e => 
-      !e.includes("Warning") && 
-      !e.includes("DevTools") &&
-      !e.includes("net::ERR")
-    );
-    
-    expect(criticalErrors, `Critical errors: ${criticalErrors.join("\n")}`).toEqual([]);
+    expect(
+      criticalErrors,
+      `Critical errors:\n${criticalErrors.join("\n")}`,
+    ).toEqual([]);
   });
 
   test("world boot status shows during initialization", async ({ page }) => {
-    await page.goto("/2d/?e2e=boot-status", {
-      waitUntil: "domcontentloaded",
+    await prepareCleanBoot(page);
+
+    await goto2d(page, "boot-status");
+    await enterCollective(page);
+
+    const bootStatus = page.getByTestId(SELECTORS.bootStatus);
+
+    await expect(bootStatus).toBeVisible({
+      timeout: 10_000,
+    });
+
+    await expect(bootStatus).toContainText(/Areloria World/i, {
       timeout: 60_000,
     });
 
-    // Clear session
-    await page.evaluate(() => {
-      localStorage.removeItem("wasd:2d:entered");
-    });
-
-    await page.reload({ waitUntil: "domcontentloaded" });
-
-    // Click to enter
-    await page.getByRole("button", { name: /collective betreten/i }).click();
-
-    // World boot status should be visible
-    const bootStatus = page.getByTestId("world-boot-status");
-    await expect(bootStatus).toBeVisible({ timeout: 10_000 });
-
-    // Eventually should reach world_ready state
-    await expect(bootStatus).toContainText(/Areloria World/, { timeout: 60_000 });
+    await expect(page.getByTestId(SELECTORS.fatalOverlay)).toHaveCount(0);
   });
 
   test("post-login shell markers are set correctly", async ({ page }) => {
-    await page.goto("/2d/?e2e=post-login-markers", {
-      waitUntil: "domcontentloaded",
-      timeout: 60_000,
-    });
+    await prepareCleanBoot(page);
 
-    // Clear session
-    await page.evaluate(() => {
-      localStorage.removeItem("wasd:2d:entered");
-    });
+    await goto2d(page, "post-login-markers");
 
-    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect
+      .poll(async () => {
+        return page.evaluate(() => document.body.dataset.postLoginShell);
+      }, {
+        timeout: 10_000,
+      })
+      .toBe("waiting-for-entry");
 
-    // Before click - should be waiting
-    const beforeMarker = await page.evaluate(() => document.body.dataset.postLoginShell);
-    expect(beforeMarker).toBe("waiting-for-entry");
-
-    // Click to enter
     await page.getByRole("button", { name: /collective betreten/i }).click();
 
-    // After click - should show entered
-    await expect(page).toHaveURL(/.*/, { timeout: 10_000 });
+    await expect
+      .poll(async () => {
+        return page.evaluate(() => document.body.dataset.postLoginShell);
+      }, {
+        timeout: 10_000,
+      })
+      .toBe("entered-rendering-children");
 
-    const afterMarker = await page.evaluate(() => document.body.dataset.postLoginShell);
-    expect(afterMarker).toBe("entered-rendering-children");
+    await expect(page.getByTestId(SELECTORS.fatalOverlay)).toHaveCount(0);
   });
 });
 
@@ -144,34 +172,34 @@ test.describe("Mobile Real Post-Login Flow", () => {
   test.use({ ...devices["Pixel 5"] });
 
   test("mobile real post-login flow shows dock and character surface", async ({ page }) => {
-    await page.goto("/2d/?e2e=real-mobile-post-login", {
-      waitUntil: "domcontentloaded",
-      timeout: 60_000,
+    const errors = await prepareCleanBoot(page);
+
+    await goto2d(page, "real-mobile-post-login");
+    await enterCollective(page);
+
+    await expect(page.getByTestId(SELECTORS.worldRoot)).toBeVisible({
+      timeout: 10_000,
     });
 
-    // Clear session
-    await page.evaluate(() => {
-      localStorage.removeItem("wasd:2d:entered");
+    await expect(page.getByTestId(SELECTORS.hud)).toBeVisible({
+      timeout: 10_000,
     });
 
-    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId(SELECTORS.dock)).toBeVisible({
+      timeout: 10_000,
+    });
 
-    // Login gate visible
-    await expect(page.getByTestId("cyber-zen-login-gate")).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(SELECTORS.characterSurface)).toBeVisible({
+      timeout: 10_000,
+    });
 
-    // Click to enter
-    await page.getByRole("button", { name: /collective betreten/i }).click();
+    await expect(page.getByTestId(SELECTORS.fatalOverlay)).toHaveCount(0);
 
-    // World root visible
-    await expect(page.getByTestId("deterministic-world-root")).toBeVisible({ timeout: 10_000 });
+    const criticalErrors = errors.filter(isCriticalError);
 
-    // HUD visible
-    await expect(page.getByTestId("arelorian-stitch-hud")).toBeVisible({ timeout: 10_000 });
-
-    // Dock visible
-    await expect(page.getByTestId("gameplay-window-dock")).toBeVisible({ timeout: 10_000 });
-
-    // No fatal overlay
-    await expect(page.getByTestId("boot-fatal-overlay")).toHaveCount(0);
+    expect(
+      criticalErrors,
+      `Critical mobile errors:\n${criticalErrors.join("\n")}`,
+    ).toEqual([]);
   });
 });
