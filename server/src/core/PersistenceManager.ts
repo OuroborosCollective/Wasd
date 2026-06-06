@@ -36,15 +36,15 @@ export interface JsonObject {
 
 export interface WorldObjectSnapshot {
   readonly id: string;
-  readonly type: string; // Required to match WorldObject
-  readonly name?: string;
-  readonly position?: { x: number; y: number };
+  readonly type: string;
+  readonly name: string; // Required to match WorldObject
+  readonly position: { x: number; y: number }; // Required to match WorldObject
   readonly rotation?: number;
   readonly scale?: number;
   readonly glbPath?: string;
   readonly logicalIndex?: number;
   readonly updatedAtTick?: number;
-  readonly [key: string]: unknown; // Index signature for dynamic properties
+  readonly [key: string]: unknown;
 }
 
 
@@ -320,7 +320,7 @@ export class PersistenceManager {
    * 2. type
    * 3. id
    */
-  public async saveWorldObjects<T extends { id: string; [key: string]: unknown }>(
+  public async saveWorldObjects<T extends Record<string, unknown>>(
     objects: readonly T[],
     logicalIndex = 0,
   ): Promise<void> {
@@ -376,7 +376,7 @@ export class PersistenceManager {
 
 
   public async loadWorldObjects<
-    T extends { id: string; [key: string]: unknown } = WorldObjectSnapshot,
+    T extends Record<string, unknown> = WorldObjectSnapshot,
   >(): Promise<readonly Readonly<T>[]> {
     const result = await this.executeWithRetry("loadWorldObjects", async () => {
       await this.ensureInitialized();
@@ -448,7 +448,7 @@ export class PersistenceManager {
    * Wichtig:
    * Fehler werden intern gespeichert und über getHealth() sichtbar.
    */
-  public persistWorldObjectsAsync<T extends { id: string; [key: string]: unknown }>(
+  public persistWorldObjectsAsync<T extends Record<string, unknown>>(
     objects: readonly T[],
     logicalIndex: number,
   ): void {
@@ -789,8 +789,8 @@ export class PersistenceManager {
 
 
   private static compareWorldObjects(
-    a: { id: string; logicalIndex?: number; type?: string; [key: string]: unknown },
-    b: { id: string; logicalIndex?: number; type?: string; [key: string]: unknown },
+    a: Record<string, unknown>,
+    b: Record<string, unknown>,
   ): number {
     const ai = PersistenceManager.safeSortNumber(a.logicalIndex);
     const bi = PersistenceManager.safeSortNumber(b.logicalIndex);
@@ -806,7 +806,7 @@ export class PersistenceManager {
     if (at !== bt) return at.localeCompare(bt, "en");
 
 
-    return a.id.localeCompare(b.id, "en");
+    return String(a.id ?? "").localeCompare(String(b.id ?? ""));
   }
 
 
