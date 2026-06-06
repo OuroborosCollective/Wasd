@@ -5,7 +5,7 @@
  * Touch-safe drag & drop for equipping/unequipping items.
  */
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useSyncExternalStore } from "react";
 import { useDnD } from "../dnd/DnDContext";
 import { type DragItem, type DragItemType } from "../dnd/DnDContext";
@@ -185,73 +185,67 @@ function EquipSlotComponent({ config, item, isBlocked, onEquip, onUnequip }: Equ
   );
 }
 
-// ─── Main Component ────────────────────────────────────────────────────────────
+// ─── Main Panel ─────────────────────────────────────────────────────────────
 
 interface EquipmentPanelProps {
   isOpen?: boolean;
   onClose?: () => void;
+  playerId?: string;
 }
 
-export function EquipmentPanel({ isOpen = true, onClose }: EquipmentPanelProps) {
-  const equipment = useEquipment();
-  const { dragState, startDrag, updateGhostPosition, endDrag, setHoveredTarget } = useDnD();
+export function EquipmentPanel({ isOpen = true, onClose, playerId = "guest" }: EquipmentPanelProps) {
+  const equipmentState = useEquipment();
+  const [blockedSlots] = useState<Set<EquipSlotId>>(new Set());
+  const [paperdollVisible, setPaperdollVisible] = useState(true);
 
-  useEffect(() => {
-    const handleNetworkPacket = (event: Event) => {
-      const detail = (event as CustomEvent).detail;
-      if (detail?.event === "inventory_snapshot") {
-        const payload = detail.payload;
-        if (payload?.equipment) equipmentStore.setEquipment(payload.equipment, payload.playerId || "");
-      }
-    };
-    window.addEventListener("wasd:network-packet", handleNetworkPacket);
-    return () => window.removeEventListener("wasd:network-packet", handleNetworkPacket);
+  const equipment = equipmentState?.equipment || {};
+
+  const handleEquip = useCallback((slot: EquipSlotId, item: DragItem) => {
+    console.log("Equipment intent:", { slot, item });
+    // TODO: Send to server: POST /api/equipment/equip
+    // For now, optimistic UI only after server validation in future PR
   }, []);
 
-  const handleEquip = useCallback((targetSlot: EquipSlotId, item: DragItem) => {
-    window.dispatchEvent(new CustomEvent("wasd:client-action", {
-      detail: { action: "inventory_intent", payload: { intent: "equip", inventorySlotIndex: parseInt(item.slot, 10), targetEquipSlot: targetSlot } },
-    }));
-    equipmentStore.optimisticEquip(targetSlot as EquipSlot, { id: item.itemId, rarity: item.rarity, name: item.name } as ModularItem);
-  }, []);
-
-  const handleUnequip = useCallback((sourceSlot: EquipSlotId) => {
-    window.dispatchEvent(new CustomEvent("wasd:client-action", {
-      detail: { action: "inventory_intent", payload: { intent: "unequip", equipSlot: sourceSlot, targetInventorySlotIndex: 0 } },
-    }));
-    equipmentStore.optimisticEquip(sourceSlot as EquipSlot, null);
+  const handleUnequip = useCallback((slot: EquipSlotId) => {
+    console.log("Unequip intent:", { slot });
+    // TODO: Send to server: POST /api/equipment/unequip
   }, []);
 
   if (!isOpen) return null;
 
   return (
-    <div className="equipment-panel" role="region" aria-label="Equipment">
-      <h3 className="panel-title">Equipment</h3>
-      <div className="paper-doll">
-        <div className="slot-row head-row">
-          <EquipSlotComponent config={EQUIP_SLOTS_CONFIG[0]} item={equipment?.equipment.HEAD ?? null} isBlocked={false} onEquip={handleEquip} onUnequip={handleUnequip} />
+    <div className="equipment-panel wow-panel">
+      <div className="equipment-header">
+        <h2>Equipment</h2>
+        {onClose && <button onClick={onClose} className="close-btn">×</button>}
+      </div>
+
+      <div className="equipment-layout">
+        {/* Paper Doll Silhouette */}
+        <div className="paperdoll-container">
+          <div className="paperdoll-title">Paper Doll</div>
+          <div className="paperdoll-silhouette">
+            <div className="silhouette-head" />
+            <div className="silhouette-torso" />
+            <div className="silhouette-arms" />
+            <div className="silhouette-legs" />
+          </div>
         </div>
-        <div className="slot-row chest-row">
-          <EquipSlotComponent config={EQUIP_SLOTS_CONFIG[2]} item={equipment?.equipment.GLOVES ?? null} isBlocked={false} onEquip={handleEquip} onUnequip={handleUnequip} />
-          <EquipSlotComponent config={EQUIP_SLOTS_CONFIG[1]} item={equipment?.equipment.CHEST ?? null} isBlocked={false} onEquip={handleEquip} onUnequip={handleUnequip} />
-          <div className="slot-spacer" />
-        </div>
-        <div className="slot-row weapons-row">
-          <EquipSlotComponent config={EQUIP_SLOTS_CONFIG[3]} item={equipment?.equipment.MAIN_HAND ?? null} isBlocked={false} onEquip={handleEquip} onUnequip={handleUnequip} />
-          <div className="slot-spacer" />
-          <EquipSlotComponent config={EQUIP_SLOTS_CONFIG[4]} item={equipment?.equipment.OFF_HAND ?? null} isBlocked={false} onEquip={handleEquip} onUnequip={handleUnequip} />
-        </div>
-        <div className="slot-row rings-row">
-          <EquipSlotComponent config={EQUIP_SLOTS_CONFIG[5]} item={equipment?.equipment.RING_1 ?? null} isBlocked={false} onEquip={handleEquip} onUnequip={handleUnequip} />
-          <div className="slot-spacer" />
-          <EquipSlotComponent config={EQUIP_SLOTS_CONFIG[6]} item={equipment?.equipment.RING_2 ?? null} isBlocked={false} onEquip={handleEquip} onUnequip={handleUnequip} />
-        </div>
-        <div className="slot-row boots-row">
-          <EquipSlotComponent config={EQUIP_SLOTS_CONFIG[7]} item={equipment?.equipment.BOOTS ?? null} isBlocked={false} onEquip={handleEquip} onUnequip={handleUnequip} />
+
+        {/* Equipment Slots */}
+        <div className="equipment-slots">
+          {EQUIP_SLOTS_CONFIG.map((config) => (
+            <EquipSlotComponent
+              key={config.id}
+              config={config}
+              item={equipment[config.id as EquipSlot] || null}
+              isBlocked={blockedSlots.has(config.id)}
+              onEquip={handleEquip}
+              onUnequip={handleUnequip}
+            />
+          ))}
         </div>
       </div>
     </div>
   );
 }
-
-export default EquipmentPanel;
