@@ -8,6 +8,7 @@ import { PixiModuleInspector } from "./PixiModuleInspector";
 import { WorldHeartMonitor } from "./WorldHeartMonitor";
 import { KenneyUiLiveSkinBadge } from "./KenneyUiLiveSkinBadge";
 import { InteractionOverlayRoot } from "./ui/InteractionOverlayRoot";
+import { DnDProvider } from "./ui/dnd/DnDContext";
 import { LootFeed } from "./ui/LootFeed";
 import { ToastStack, type ClientToast } from "./ui/ToastStack";
 import { NpcDialoguePanel } from "./ui/NpcDialoguePanel";
@@ -333,17 +334,19 @@ async function main(): Promise<void> {
   try {
     ReactDOM.createRoot(rootElement).render(
       <React.StrictMode>
-        <CyberZenLoginGate>
-          <DeterministicWorldIsoApp />
-          <LiveRealityBridge />
-          <WorldHeartMonitor />
-          <PixiModuleInspector />
-          <MobileMovePad />
-          <KenneyUiLiveSkinBadge />
-          <InteractionOverlayRoot />
-          <UIOverlayLayer />
-          <LiveGameplayNetworkBridge />
-        </CyberZenLoginGate>
+        <DnDProvider>
+          <CyberZenLoginGate>
+            <DeterministicWorldIsoApp />
+            <LiveRealityBridge />
+            <WorldHeartMonitor />
+            <PixiModuleInspector />
+            <MobileMovePad />
+            <KenneyUiLiveSkinBadge />
+            <InteractionOverlayRoot />
+            <UIOverlayLayer />
+            <LiveGameplayNetworkBridge />
+          </CyberZenLoginGate>
+        </DnDProvider>
       </React.StrictMode>
     );
 

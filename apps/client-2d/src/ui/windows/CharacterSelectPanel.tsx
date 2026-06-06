@@ -7,11 +7,12 @@
  * Determinism rule:
  * - Character creation uses validated input only.
  * - Server determines success/failure.
+ * - The start path is not a class; it only selects starter kit/tutorial focus.
  */
 
 import React, { useState } from "react";
 
-const ARCHETYPES = [
+const START_PATHS = [
   "wanderer",
   "forager",
   "miner",
@@ -19,19 +20,77 @@ const ARCHETYPES = [
   "artisan",
 ] as const;
 
+type StartPath = (typeof START_PATHS)[number];
+
+interface StartPathInfo {
+  readonly label: string;
+  readonly shortLabel: string;
+  readonly starterKit: readonly string[];
+  readonly tutorialFocus: string;
+  readonly firstResourceSpot: string;
+  readonly firstGoal: string;
+}
+
+const START_PATH_INFO: Record<StartPath, StartPathInfo> = {
+  wanderer: {
+    label: "Wanderer — neutraler Start",
+    shortLabel: "Wanderer",
+    starterKit: ["Reiseration", "Trainingsspeer", "Wegmarke"],
+    tutorialFocus: "Bewegen, NPC ansprechen, erste Quest, erster Kampf.",
+    firstResourceSpot: "Dorfplatz, Übungsfeld und erster NPC am Wegstein.",
+    firstGoal: "Sprich mit dem ersten NPC und sichere den Außenposten.",
+  },
+  forager: {
+    label: "Forager — Sammeln-Tutorial",
+    shortLabel: "Forager",
+    starterKit: ["Sammelbeutel", "Kräutermesser", "Feldnotiz"],
+    tutorialFocus: "Kräuter, Beeren, Pilze und einfache Naturmaterialien finden.",
+    firstResourceSpot: "Kräuterwiese am Waldrand mit Foraging-Knoten.",
+    firstGoal: "Sammle 3 Kräuter und bringe sie zur Vorratskiste.",
+  },
+  miner: {
+    label: "Miner — Erz & Spitzhacke",
+    shortLabel: "Miner",
+    starterKit: ["Einfache Spitzhacke", "Erzbeutel", "Kupfermarke"],
+    tutorialFocus: "Stein, Kupfer, Erzadern und robuste Materialien abbauen.",
+    firstResourceSpot: "Felsnase nördlich des Starts mit Stein- und Kupferadern.",
+    firstGoal: "Baue 3 Kupfererz ab und prüfe den ersten Schmelzauftrag.",
+  },
+  angler: {
+    label: "Angler — Wasser & Angel",
+    shortLabel: "Angler",
+    starterKit: ["Einfache Angel", "Köderbeutel", "Kleines Netz"],
+    tutorialFocus: "Fishing-Spots erkennen, Fisch fangen und später Kochen lernen.",
+    firstResourceSpot: "Ufersteg am nahen Wasser mit markiertem Fishing-Spot.",
+    firstGoal: "Fange 3 Fische und bereite den ersten Kochauftrag vor.",
+  },
+  artisan: {
+    label: "Artisan — Werkbank & Crafting",
+    shortLabel: "Artisan",
+    starterKit: ["Werkzeugrolle", "Holzplanke", "Rezeptkarte"],
+    tutorialFocus: "Werkbank, erste Rezepte, einfache Verarbeitung und Reparatur.",
+    firstResourceSpot: "Werkbank-Zelt beim Startlager mit Crafting-Auftrag.",
+    firstGoal: "Fertige eine Holzplanke oder repariere ein einfaches Werkzeug.",
+  },
+};
+
 interface Props {
   onCreated?: () => void;
 }
 
 export function CharacterSelectPanel({ onCreated }: Props) {
   const [displayName, setDisplayName] = useState("");
-  const [archetype, setArchetype] = useState<(typeof ARCHETYPES)[number]>("wanderer");
+  const [startPath, setStartPath] = useState<StartPath>("wanderer");
   const [status, setStatus] = useState<string>("");
+  const selectedPath = START_PATH_INFO[startPath];
 
   return (
     <section data-testid="character-select" className="are-window character-select-panel">
-      <h2>Character Selection</h2>
-      <p>Create your first Areloria character.</p>
+      <h2>Character Creation</h2>
+      <p>
+        Erstelle deinen ersten Areloria-Charakter. Areloria ist klassenlos: Skills wachsen durch Nutzung,
+        nicht durch eine feste Klasse.
+      </p>
 
       <label className="character-form-label">
         Name
@@ -47,19 +106,49 @@ export function CharacterSelectPanel({ onCreated }: Props) {
       </label>
 
       <label className="character-form-label">
-        Archetype
+        Startpfad
         <select
-          value={archetype}
-          onChange={(event) => setArchetype(event.target.value as (typeof ARCHETYPES)[number])}
+          value={startPath}
+          onChange={(event) => setStartPath(event.target.value as StartPath)}
           className="character-form-select"
         >
-          {ARCHETYPES.map((id) => (
+          {START_PATHS.map((id) => (
             <option key={id} value={id}>
-              {id}
+              {START_PATH_INFO[id].label}
             </option>
           ))}
         </select>
       </label>
+
+      <article className="character-start-path-card" data-testid="character-start-path-card">
+        <header>
+          <strong>{selectedPath.shortLabel}</strong>
+          <span>Startpfad · keine Klasse</span>
+        </header>
+        <dl>
+          <div>
+            <dt>Starter-Kit</dt>
+            <dd>{selectedPath.starterKit.join(" · ")}</dd>
+          </div>
+          <div>
+            <dt>Tutorial-Fokus</dt>
+            <dd>{selectedPath.tutorialFocus}</dd>
+          </div>
+          <div>
+            <dt>Erster Ressourcen-Spot</dt>
+            <dd>{selectedPath.firstResourceSpot}</dd>
+          </div>
+          <div>
+            <dt>Erstes Ziel</dt>
+            <dd>{selectedPath.firstGoal}</dd>
+          </div>
+        </dl>
+      </article>
+
+      <p className="character-form-hint">
+        Keine Klasse, keine Sperren: Der Startpfad bestimmt nur Startausrüstung, Tutorial-Fokus und den ersten
+        Ressourcen-Spot. Danach kannst du alle Skills frei trainieren.
+      </p>
 
       <button
         type="button"
@@ -80,12 +169,15 @@ export function CharacterSelectPanel({ onCreated }: Props) {
               },
               body: JSON.stringify({
                 displayName: displayName.trim(),
-                archetype,
+                archetype: startPath,
                 currentTick: 0,
               }),
             });
 
-            const result = await response.json();
+            const contentType = response.headers.get("content-type") ?? "";
+            const result = contentType.includes("application/json")
+              ? await response.json()
+              : { ok: false, error: `Server returned non-JSON response (${response.status})` };
 
             if (result.ok) {
               setStatus("Character created.");
