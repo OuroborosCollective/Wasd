@@ -11,7 +11,7 @@
  * - All values come from real server state
  * - Empty/null states are honest and allowed
  * - status="empty" means server reachable but no gameplay data yet
- * - Server determines playerId from auth/session, not client
+ * - Server determines playerId from auth/session, not client unless guest/dev fallback is enabled
  */
 
 import express from "express";
@@ -38,6 +38,20 @@ function getCurrentTickId(tick: WorldTick | null): number {
   return (tick as any).tickCount ?? 0;
 }
 
+function isGuestHttpAllowed(): boolean {
+  const allowGuest = !["0", "false", "no"].includes(
+    process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase() || "",
+  );
+  const allowDev = !["0", "false", "no"].includes(
+    process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || "",
+  );
+  return allowGuest || allowDev || process.env.ALLOW_DEV_PLAYER_ID === "true";
+}
+
+function rejectUnauthenticatedInLockedProduction(identity: { authenticated: boolean }): boolean {
+  return process.env.NODE_ENV === "production" && !identity.authenticated && !isGuestHttpAllowed();
+}
+
 /**
  * Create gameplay snapshot router.
  * Requires WorldTick instance for server tick.
@@ -48,7 +62,7 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
   router.get("/snapshot", async (req, res) => {
     const identity = resolveHttpPlayerIdentity(req as Parameters<typeof resolveHttpPlayerIdentity>[0]);
 
-    if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+    if (rejectUnauthenticatedInLockedProduction(identity)) {
       res.status(401).json({
         ok: false,
         error: "authenticated_player_required",
