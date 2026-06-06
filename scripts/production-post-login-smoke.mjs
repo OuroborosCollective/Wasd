@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 
 const baseUrl = process.env.BASE_URL || 'https://arelorian.de';
 const targetUrl = `${baseUrl.replace(/\/$/, '')}/2d/?cdp-smoke=${Date.now()}`;
@@ -18,13 +19,7 @@ function findChrome() {
     '/usr/bin/chromium',
     '/usr/bin/chromium-browser',
   ].filter(Boolean);
-  return candidates.find((path) => {
-    try {
-      return path && require('node:fs').existsSync(path);
-    } catch {
-      return false;
-    }
-  });
+  return candidates.find((path) => path && existsSync(path));
 }
 
 async function waitForJson(url, deadline) {
