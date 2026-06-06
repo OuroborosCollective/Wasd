@@ -8,6 +8,7 @@ import {
 import { CharacterWindow } from "./windows/CharacterWindow.js";
 import { SkillWindow } from "./windows/SkillWindow.js";
 import { GuildWindow } from "./windows/GuildWindow.js";
+import { CraftingWindow } from "./windows/CraftingWindow.js";
 import type { StorageSnapshot } from "./StorageOverlay.js";
 import "./windows/windows.css";
 
@@ -35,6 +36,7 @@ export type ActiveOverlay =
   | { readonly type: "INVENTORY" }
   | { readonly type: "CHARACTER" }
   | { readonly type: "SKILLS" }
+  | { readonly type: "CRAFTING" }
   | { readonly type: "GUILD" }
   | {
       readonly type: "STORAGE";
@@ -114,6 +116,10 @@ class InteractionUIManager {
     this.setState({ type: "SKILLS" });
   }
 
+  public openCrafting(): void {
+    this.setState({ type: "CRAFTING" });
+  }
+
   public openGuild(): void {
     this.setState({ type: "GUILD" });
   }
@@ -166,6 +172,15 @@ class InteractionUIManager {
     }
 
     this.openSkills();
+  }
+
+  public toggleCrafting(): void {
+    if (this.state.type === "CRAFTING") {
+      this.closeUI();
+      return;
+    }
+
+    this.openCrafting();
   }
 
   public toggleGuild(): void {
@@ -226,6 +241,16 @@ export function useOverlayRenderer(): {
           );
         };
 
+      case "CRAFTING":
+        return function CraftingOverlayComponent() {
+          return (
+            <CraftingWindow
+              isOpen={true}
+              onClose={() => interactionUI.closeUI()}
+            />
+          );
+        };
+
       case "GUILD":
         return function GuildOverlayComponent() {
           return (
@@ -278,6 +303,11 @@ function handleInteractionShortcut(event: KeyboardEvent): void {
     case "k":
       event.preventDefault();
       interactionUI.toggleSkills();
+      return;
+
+    case "b":
+      event.preventDefault();
+      interactionUI.toggleCrafting();
       return;
 
     case "g":

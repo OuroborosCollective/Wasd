@@ -832,3 +832,134 @@
 .resource-row__status--depleted {
   color: var(--ouro-orange);
 }
+
+/* ─── Crafting Window Styles ───────────────────────────────────────────────── */
+
+.crafting-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(180, 160, 100, 0.5) rgba(0, 0, 0, 0.35);
+}
+
+.crafting-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.crafting-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.35);
+  border-left: 1px solid rgba(80, 90, 110, 0.25);
+}
+
+.crafting-list::-webkit-scrollbar-thumb {
+  background: rgba(180, 160, 100, 0.45);
+  border: 1px solid rgba(220, 200, 140, 0.25);
+}
+
+.crafting-row {
+  background: var(--ouro-bg-1);
+  border: 1px solid var(--ouro-border-muted);
+  padding: 12px;
+  transition: border-color var(--ouro-transition-fast);
+}
+
+.crafting-row:hover {
+  border-color: var(--ouro-border-gold);
+}
+
+.crafting-row__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.crafting-row__header strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ouro-text-strong);
+}
+
+.crafting-row__xp {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ouro-gold);
+}
+
+.crafting-row__meta {
+  font-size: 0.72rem;
+  color: var(--ouro-text-dim);
+  margin-bottom: 8px;
+}
+
+.crafting-row__items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: var(--ouro-text-muted);
+  margin-bottom: 10px;
+}
+
+.crafting-row__label {
+  color: var(--ouro-text-dim);
+  margin-right: 4px;
+}
+
+.crafting-row__button {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(30, 255, 0, 0.15);
+  border: 2px solid rgba(30, 255, 0, 0.5);
+  color: var(--ouro-green);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background var(--ouro-transition-fast),
+    border-color var(--ouro-transition-fast),
+    box-shadow var(--ouro-transition-fast);
+}
+
+.crafting-row__button:hover:not(:disabled) {
+  background: rgba(30, 255, 0, 0.3);
+  box-shadow: 0 0 8px rgba(30, 255, 0, 0.4);
+}
+
+.crafting-row__button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.crafting-row__button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: rgba(80, 90, 110, 0.15);
+  border-color: rgba(80, 90, 110, 0.3);
+  color: var(--ouro-text-dim);
+  box-shadow: none;
+}
+
+.crafting-row__button:disabled:hover {
+  background: rgba(80, 90, 110, 0.15);
+  box-shadow: none;
+}
+
+.crafting-empty {
+  padding: 20px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--ouro-text-muted);
+}
+
+.crafting-empty p {
+  margin: 0 0 8px 0;
+}
+
+.crafting-empty .are-text-muted {
+  color: var(--ouro-text-dim);
+  font-size: 0.78rem;
+}

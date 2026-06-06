@@ -50,4 +50,4 @@ export function getInventoryStore(): InventoryStore {
 
 // Re-export for convenience
 export { InventoryStore } from "./InventoryStore.js";
-export type { InventoryItemId, PlayerInventoryState, InventoryAddResult } from "./InventoryTypes.js";
+export type { InventoryItemId, PlayerInventoryState, InventoryAddResult, InventoryRemoveResult } from "./InventoryTypes.js";

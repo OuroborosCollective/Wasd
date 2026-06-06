@@ -82,6 +82,26 @@ export const ARELORIA_MODULE_REGISTRY: readonly AreloriaModuleRegistryEntry[] = 
     notes: "Separater Pfad - nicht Hauptclient. 3D kommt später.",
   },
   {
+    id: "crafting-system",
+    title: "Crafting System",
+    runtimeSurface: "server",
+    status: "partial",
+    deterministic: true,
+    serverAuthoritative: true,
+    visibleInClient: true,
+    hasE2ETest: true,
+    entrypoints: [
+      "/api/crafting/recipes",
+      "/api/crafting/craft",
+      "/api/gameplay/snapshot",
+      "server/src/crafting/CraftingService.ts",
+      "server/src/crafting/StarterRecipes.ts",
+      "apps/client-2d/src/ui/windows/CraftingWindow.tsx",
+    ],
+    notes:
+      "Deterministic starter recipe system consuming persistent inventory resources and granting crafting XP. MVP recipes only; crafting stations, tools, queueing, failure chances, economy and equipment outputs pending.",
+  },
+  {
     id: "deterministic-world-iso-app",
     title: "DeterministicWorldIsoApp",
     runtimeSurface: "client-2d",
