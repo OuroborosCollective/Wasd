@@ -16,6 +16,14 @@
  */
 
 import { stableHash32 } from "../../../core/determinism/AREDeterminism.js";
+
+/**
+ * Stable string comparison using hash (deterministic replacement for localeCompare)
+ */
+function stableStringCompare(a: string, b: string): number {
+  return stableHash32(a) - stableHash32(b);
+}
+
 import type {
   NPCDecisionInput,
   NPCDecision,
@@ -231,7 +239,7 @@ export class NPCBrainRunner {
       Object.keys(memory.relations).length,
       JSON.stringify(
         Object.entries(memory.learning.actionScores)
-          .sort((a, b) => a[0].localeCompare(b[0]))
+          .sort((a, b) => stableStringCompare(a[0], b[0]))
           .slice(0, 10)
       ),
     ];

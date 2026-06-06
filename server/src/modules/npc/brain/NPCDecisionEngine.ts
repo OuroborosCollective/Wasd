@@ -23,6 +23,13 @@ import type {
 } from "./NPCMemoryV3.js";
 import { calculateRelationScore, calculateThreatLevel } from "./NPCMemoryScoring.js";
 
+/**
+ * Stable string comparison using hash (deterministic replacement for localeCompare)
+ */
+function stableStringCompare(a: string, b: string): number {
+  return stableHash32(a) - stableHash32(b);
+}
+
 // ============================================================================
 // Decision Constants
 // ============================================================================
@@ -130,7 +137,7 @@ function getTopGoal(memory: NPCMemoryV3): NPCGoal | undefined {
   return [...memory.goals]
     .sort((a, b) => {
       if (b.priority !== a.priority) return b.priority - a.priority;
-      return a.id.localeCompare(b.id);
+      return stableStringCompare(a.id, b.id);
     })[0];
 }
 
@@ -618,7 +625,7 @@ export function decideNPCAction(input: NPCDecisionInput): NPCDecision {
   // Sort by score (descending), then by action name (ascending) for determinism
   candidates.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
-    return a.action.localeCompare(b.action);
+    return stableStringCompare(a.action, b.action);
   });
 
   // Return highest scoring action
