@@ -124,7 +124,10 @@ export class WorldObjectSystem {
   private async save() {
     // 1. Save to persistence backend if available
     if (this.persistence) {
-      await this.persistence.saveWorldObjects(this.getAllObjects());
+      // Cast to Record<string, unknown> for compatibility
+      await this.persistence.saveWorldObjects(
+        this.getAllObjects() as unknown as readonly Record<string, unknown>[]
+      );
     }
 
     // 2. Always save to local file as backup/local dev

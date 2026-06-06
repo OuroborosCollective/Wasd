@@ -799,14 +799,19 @@ export class PersistenceManager {
     if (ai !== bi) return ai - bi;
 
 
-    const at = a.type ?? "";
-    const bt = b.type ?? "";
+    const at = String(a.type ?? "");
+    const bt = String(b.type ?? "");
 
 
-    if (at !== bt) return at.localeCompare(bt, "en");
+    if (at !== bt) return at.localeCompare(bt);
 
 
-    return String(a.id ?? "").localeCompare(String(b.id ?? ""));
+    const aid = a.id;
+    const bid = b.id;
+    if (typeof aid === "string" && typeof bid === "string") {
+      return aid.localeCompare(bid);
+    }
+    return 0;
   }
 
 
