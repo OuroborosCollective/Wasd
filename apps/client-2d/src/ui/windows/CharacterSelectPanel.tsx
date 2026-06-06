@@ -22,12 +22,56 @@ const START_PATHS = [
 
 type StartPath = (typeof START_PATHS)[number];
 
-const START_PATH_LABELS: Record<StartPath, string> = {
-  wanderer: "Wanderer — neutraler Start",
-  forager: "Forager — Sammeln-Tutorial",
-  miner: "Miner — Erz & Spitzhacke",
-  angler: "Angler — Wasser & Angel",
-  artisan: "Artisan — Werkbank & Crafting",
+interface StartPathInfo {
+  readonly label: string;
+  readonly shortLabel: string;
+  readonly starterKit: readonly string[];
+  readonly tutorialFocus: string;
+  readonly firstResourceSpot: string;
+  readonly firstGoal: string;
+}
+
+const START_PATH_INFO: Record<StartPath, StartPathInfo> = {
+  wanderer: {
+    label: "Wanderer — neutraler Start",
+    shortLabel: "Wanderer",
+    starterKit: ["Reiseration", "Trainingsspeer", "Wegmarke"],
+    tutorialFocus: "Bewegen, NPC ansprechen, erste Quest, erster Kampf.",
+    firstResourceSpot: "Dorfplatz, Übungsfeld und erster NPC am Wegstein.",
+    firstGoal: "Sprich mit dem ersten NPC und sichere den Außenposten.",
+  },
+  forager: {
+    label: "Forager — Sammeln-Tutorial",
+    shortLabel: "Forager",
+    starterKit: ["Sammelbeutel", "Kräutermesser", "Feldnotiz"],
+    tutorialFocus: "Kräuter, Beeren, Pilze und einfache Naturmaterialien finden.",
+    firstResourceSpot: "Kräuterwiese am Waldrand mit Foraging-Knoten.",
+    firstGoal: "Sammle 3 Kräuter und bringe sie zur Vorratskiste.",
+  },
+  miner: {
+    label: "Miner — Erz & Spitzhacke",
+    shortLabel: "Miner",
+    starterKit: ["Einfache Spitzhacke", "Erzbeutel", "Kupfermarke"],
+    tutorialFocus: "Stein, Kupfer, Erzadern und robuste Materialien abbauen.",
+    firstResourceSpot: "Felsnase nördlich des Starts mit Stein- und Kupferadern.",
+    firstGoal: "Baue 3 Kupfererz ab und prüfe den ersten Schmelzauftrag.",
+  },
+  angler: {
+    label: "Angler — Wasser & Angel",
+    shortLabel: "Angler",
+    starterKit: ["Einfache Angel", "Köderbeutel", "Kleines Netz"],
+    tutorialFocus: "Fishing-Spots erkennen, Fisch fangen und später Kochen lernen.",
+    firstResourceSpot: "Ufersteg am nahen Wasser mit markiertem Fishing-Spot.",
+    firstGoal: "Fange 3 Fische und bereite den ersten Kochauftrag vor.",
+  },
+  artisan: {
+    label: "Artisan — Werkbank & Crafting",
+    shortLabel: "Artisan",
+    starterKit: ["Werkzeugrolle", "Holzplanke", "Rezeptkarte"],
+    tutorialFocus: "Werkbank, erste Rezepte, einfache Verarbeitung und Reparatur.",
+    firstResourceSpot: "Werkbank-Zelt beim Startlager mit Crafting-Auftrag.",
+    firstGoal: "Fertige eine Holzplanke oder repariere ein einfaches Werkzeug.",
+  },
 };
 
 interface Props {
@@ -38,6 +82,7 @@ export function CharacterSelectPanel({ onCreated }: Props) {
   const [displayName, setDisplayName] = useState("");
   const [startPath, setStartPath] = useState<StartPath>("wanderer");
   const [status, setStatus] = useState<string>("");
+  const selectedPath = START_PATH_INFO[startPath];
 
   return (
     <section data-testid="character-select" className="are-window character-select-panel">
@@ -69,15 +114,40 @@ export function CharacterSelectPanel({ onCreated }: Props) {
         >
           {START_PATHS.map((id) => (
             <option key={id} value={id}>
-              {START_PATH_LABELS[id]}
+              {START_PATH_INFO[id].label}
             </option>
           ))}
         </select>
       </label>
 
+      <article className="character-start-path-card" data-testid="character-start-path-card">
+        <header>
+          <strong>{selectedPath.shortLabel}</strong>
+          <span>Startpfad · keine Klasse</span>
+        </header>
+        <dl>
+          <div>
+            <dt>Starter-Kit</dt>
+            <dd>{selectedPath.starterKit.join(" · ")}</dd>
+          </div>
+          <div>
+            <dt>Tutorial-Fokus</dt>
+            <dd>{selectedPath.tutorialFocus}</dd>
+          </div>
+          <div>
+            <dt>Erster Ressourcen-Spot</dt>
+            <dd>{selectedPath.firstResourceSpot}</dd>
+          </div>
+          <div>
+            <dt>Erstes Ziel</dt>
+            <dd>{selectedPath.firstGoal}</dd>
+          </div>
+        </dl>
+      </article>
+
       <p className="character-form-hint">
-        Keine Klasse, keine Sperren: Der Startpfad bestimmt nur Startausrüstung und Tutorial-Fokus.
-        Danach kannst du alle Skills frei trainieren.
+        Keine Klasse, keine Sperren: Der Startpfad bestimmt nur Startausrüstung, Tutorial-Fokus und den ersten
+        Ressourcen-Spot. Danach kannst du alle Skills frei trainieren.
       </p>
 
       <button
