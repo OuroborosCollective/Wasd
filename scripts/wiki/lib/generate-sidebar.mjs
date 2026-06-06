@@ -106,12 +106,12 @@ export function generateSidebar(options = {}) {
   // Add any custom sections
   const allSections = [...sections, ...customSections];
   
-  let output = `## ${projectName} Codex
+  let output = `# ${projectName} Codex
 
 `;
   
   for (const section of allSections) {
-    output += `### ${section.title}\n\n`;
+    output += `## ${section.title}\n\n`;
     
     for (const item of section.items) {
       // Format: [[Display Text|Page-Name]] or [[Page-Name]] if no display text
