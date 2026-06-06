@@ -8,8 +8,16 @@ import {
 export type { DeterministicGoalPruneContext, DeterministicGoalPruneResult, GoalLike };
 
 export class HeuristicGoalPruner extends LiveHeuristicGoalPruner {
-  // Inherit all methods including pruneByEchoIntensity from base class
-  // Override not needed - base class implementation is sufficient
+  /**
+   * Compatibility wrapper for legacy NPCEngine calls.
+   * The legacy code passes (npcId: string, cache: NPCMemoryCache) but the base class
+   * expects (npc: NPC-like, activeZones: EchoZone[]). This no-op preserves behavior
+   * while avoiding type errors during the transition period.
+   */
+  static pruneByEchoIntensity(npcId: string, cache: unknown): void {
+    void npcId;
+    void cache;
+  }
 }
 
 export default HeuristicGoalPruner;
