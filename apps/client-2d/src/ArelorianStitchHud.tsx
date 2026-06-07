@@ -403,6 +403,14 @@ export function ArelorianStitchHud({
         <button onClick={toggleInventory} aria-pressed={isInventoryOpen}>BAG</button>
         <button onClick={onToggleAutoMove}>AUTO</button>
         <button onClick={onInteract}>INTERACT</button>
+        <button
+          type="button"
+          data-testid="mobile-chat-toggle"
+          onClick={() => toggleOverlay("chat")}
+          aria-pressed={openOverlays.chat}
+        >
+          CHAT
+        </button>
       </section>
 
       {activePanel && (activePanel !== "inventory" || isInventoryOpen) && (

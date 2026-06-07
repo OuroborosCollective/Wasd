@@ -995,22 +995,36 @@ export function DeterministicWorldIsoApp() {
     });
     c.on("dialogue", (event: any) => {
       const payload = event.payload ?? event;
-      const source = String(payload.source ?? payload.npcName ?? "NPC");
-      const text = String(payload.text ?? payload.dialogueText ?? "");
-      if (!text) return;
+      const source = String(payload.source ?? payload.npcName ?? payload.targetId ?? "NPC");
+      const text = String(
+        payload.text ??
+        payload.dialogueText ??
+        payload.message ??
+        payload.payload?.dialogueText ??
+        ""
+      );
+      // Always show something — even if server sends empty text, show the intent
+      const displayText = text || `[Dialogue with ${source}]`;
       setMessages((items) => [
         ...items.slice(-12),
-        { from: source, txt: text }
+        { from: source, txt: displayText }
       ]);
     });
     c.on("INTERACTION_ACCEPTED", (event: any) => {
       const payload = event.payload ?? event;
       const source = String(payload.source ?? payload.targetId ?? "NPC");
-      const text = String(payload.dialogueText ?? payload.payload?.dialogueText ?? "");
-      if (!text) return;
+      const text = String(
+        payload.dialogueText ??
+        payload.message ??
+        payload.payload?.dialogueText ??
+        payload.payload?.message ??
+        ""
+      );
+      // Always show something when interaction is accepted
+      const displayText = text || `[Interaction accepted with ${source}]`;
       setMessages((items) => [
         ...items.slice(-12),
-        { from: source, txt: text }
+        { from: source, txt: displayText }
       ]);
     });
     /**
