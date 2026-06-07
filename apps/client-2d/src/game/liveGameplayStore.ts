@@ -109,10 +109,7 @@ function pickSnapshotPayload(data: unknown): unknown {
   if (raw.snapshot && typeof raw.snapshot === "object") {
     const snapshot = raw.snapshot as Record<string, unknown>;
     if (snapshot.schemaVersion === "live-gameplay-snapshot.v1") {
-      return {
-        ...snapshot,
-        status: "live",
-      };
+      return projectComposerSnapshot(snapshot);
     }
     return snapshot;
   }
