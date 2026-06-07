@@ -36,8 +36,59 @@ export interface LiveGameplayResourceNode {
   readonly available: boolean;
 }
 
+// Phase 3: Extended types for v2 snapshot
+export interface LiveGameplayCooldownView {
+  readonly id: string;
+  readonly remainingTicks: number;
+  readonly totalTicks: number;
+}
+
+export interface LiveGameplayCombatView {
+  readonly hp: number;
+  readonly maxHp: number;
+  readonly stamina: number;
+  readonly maxStamina: number;
+  readonly targetId: string | null;
+  readonly cooldowns: readonly LiveGameplayCooldownView[];
+}
+
+export interface LiveGameplayCraftingRecipeView {
+  readonly recipeId: string;
+  readonly outputItemId: string;
+  readonly known: boolean;
+}
+
+export interface LiveGameplayCraftingJobView {
+  readonly jobId: string;
+  readonly recipeId: string;
+  readonly startedAtTick: number;
+  readonly completesAtTick: number;
+}
+
+export interface LiveGameplayCraftingView {
+  readonly knownRecipes: readonly LiveGameplayCraftingRecipeView[];
+  readonly activeCraft: LiveGameplayCraftingJobView | null;
+}
+
+export interface LiveGameplayReputationView {
+  readonly factionId: string;
+  readonly value: number;
+}
+
+export interface LiveGameplayFactionView {
+  readonly guildId: string | null;
+  readonly factionId: string | null;
+  readonly reputation: readonly LiveGameplayReputationView[];
+}
+
+export interface LiveGameplayWorldView {
+  readonly chunkId: string;
+  readonly biomeId: string;
+  readonly safeZone: boolean;
+}
+
 export interface LiveGameplaySnapshot {
-  readonly schemaVersion: "live-gameplay-snapshot.v1";
+  readonly schemaVersion: "live-gameplay-snapshot.v2";
   readonly playerId: string;
   readonly logicalIndex: number;
   readonly tickRateHz: 10;
@@ -46,6 +97,10 @@ export interface LiveGameplaySnapshot {
   readonly equipment: readonly LiveGameplayEquipmentSlot[];
   readonly skills: readonly LiveGameplaySkillState[];
   readonly resourceNodes: readonly LiveGameplayResourceNode[];
+  readonly combat: LiveGameplayCombatView;
+  readonly crafting: LiveGameplayCraftingView;
+  readonly faction: LiveGameplayFactionView;
+  readonly world: LiveGameplayWorldView;
 }
 
 export interface GatherResult {
