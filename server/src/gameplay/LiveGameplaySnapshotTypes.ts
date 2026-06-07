@@ -50,6 +50,41 @@ export interface LiveGameplayWorldPoi {
   readonly chunkZ: number;
 }
 
+/**
+ * Vendor stock entry for snapshot.
+ */
+export interface LiveGameplayVendorStockItem {
+  readonly itemId: string;
+  readonly quantity: number;
+}
+
+/**
+ * Vendor price info for snapshot.
+ */
+export interface LiveGameplayVendorPriceItem {
+  readonly itemId: string;
+  readonly unitPrice: number;
+  readonly basePrice: number;
+  readonly demandBand: "normal" | "stocked" | "oversupplied";
+}
+
+/**
+ * Individual vendor economy info for snapshot.
+ */
+export interface LiveGameplayVendorEconomy {
+  readonly id: string;
+  readonly name: string;
+  readonly stock: readonly LiveGameplayVendorStockItem[];
+  readonly prices: readonly LiveGameplayVendorPriceItem[];
+}
+
+/**
+ * Vendor economy snapshot containing all vendor stock and pricing info.
+ */
+export interface LiveGameplayVendorEconomySnapshot {
+  readonly vendors: readonly LiveGameplayVendorEconomy[];
+}
+
 export interface LiveGameplaySnapshot {
   readonly schemaVersion: "live-gameplay-snapshot.v1";
   readonly playerId: string;
@@ -62,6 +97,7 @@ export interface LiveGameplaySnapshot {
   readonly resourceNodes: readonly LiveGameplayResourceNode[];
   readonly wallet: LiveGameplayWallet;
   readonly worldPois: readonly LiveGameplayWorldPoi[];
+  readonly vendorEconomy: LiveGameplayVendorEconomySnapshot;
 }
 
 export interface GatherResult {

@@ -8,13 +8,16 @@
 
 import { InventoryService } from "../inventory/InventoryService.js";
 import { WalletService } from "./WalletService.js";
-import { getSellPrice, isSellable } from "./ResourceSellPrices.js";
+import { VendorStockService } from "./VendorStockService.js";
+import { isSellable } from "./ResourceSellPrices.js";
+import { calculateDynamicPrice } from "./DemandPricing.js";
 import {
   getVillageResourceVendor,
   checkVendorProximity,
   type VendorDefinition,
 } from "./VillageVendors.js";
 import type { InventoryItemId } from "../inventory/InventoryTypes.js";
+import type { DemandBand } from "./VendorStockTypes.js";
 
 export interface SellResourceInput {
   playerId: string;
@@ -29,8 +32,12 @@ export interface SellResourceResult {
   itemId: string;
   quantitySold: number;
   unitPrice: number;
+  basePrice: number;
   totalCoins: number;
   newBalance: number;
+  stockBefore: number;
+  stockAfter: number;
+  demandBand: DemandBand;
   reason?:
     | "sold"
     | "invalid_player"
@@ -57,7 +64,11 @@ export interface SellAllResourcesResult {
     itemId: string;
     quantitySold: number;
     unitPrice: number;
+    basePrice: number;
     totalCoins: number;
+    stockBefore: number;
+    stockAfter: number;
+    demandBand: DemandBand;
   }>;
   totalCoins: number;
   newBalance: number;
@@ -76,6 +87,7 @@ export class EconomyService {
   constructor(
     private readonly inventoryService: InventoryService,
     private readonly walletService: WalletService,
+    private readonly vendorStockService: VendorStockService,
   ) {}
 
   async sellResource(input: SellResourceInput): Promise<SellResourceResult> {
@@ -86,8 +98,12 @@ export class EconomyService {
         itemId: String(input.itemId),
         quantitySold: 0,
         unitPrice: 0,
+        basePrice: 0,
         totalCoins: 0,
         newBalance: 0,
+        stockBefore: 0,
+        stockAfter: 0,
+        demandBand: "normal",
         reason: "invalid_player",
       };
     }
@@ -100,22 +116,29 @@ export class EconomyService {
         itemId: String(input.itemId),
         quantitySold: 0,
         unitPrice: 0,
+        basePrice: 0,
         totalCoins: 0,
         newBalance: 0,
+        stockBefore: 0,
+        stockAfter: 0,
+        demandBand: "normal",
         reason: "invalid_quantity",
       };
     }
 
     // Check if item is sellable
-    const priceResult = getSellPrice(input.itemId);
-    if (!priceResult.sellable) {
+    if (!isSellable(input.itemId)) {
       return {
         ok: false,
         itemId: String(input.itemId),
         quantitySold: 0,
         unitPrice: 0,
+        basePrice: 0,
         totalCoins: 0,
         newBalance: 0,
+        stockBefore: 0,
+        stockAfter: 0,
+        demandBand: "normal",
         reason: "not_sellable",
       };
     }
@@ -125,13 +148,22 @@ export class EconomyService {
     const slot = inventory.slots.find((s) => s.itemId === input.itemId);
 
     if (!slot || slot.quantity < quantity) {
+      // Get current price info even for failure
+      const vendorId = input.vendorId ?? "village_trader_001";
+      const currentStock = await this.vendorStockService.getItemQuantity(vendorId, input.itemId);
+      const priceInfo = calculateDynamicPrice(input.itemId, currentStock);
+
       return {
         ok: false,
         itemId: String(input.itemId),
         quantitySold: 0,
-        unitPrice: priceResult.price,
+        unitPrice: priceInfo.unitPrice,
+        basePrice: priceInfo.basePrice,
         totalCoins: 0,
         newBalance: 0,
+        stockBefore: currentStock,
+        stockAfter: currentStock,
+        demandBand: priceInfo.demandBand,
         reason: "insufficient_quantity",
       };
     }
@@ -140,18 +172,31 @@ export class EconomyService {
     const vendorProximityResult = this.validateVendorProximity(input);
     if (!vendorProximityResult.valid) {
       const failureReason = vendorProximityResult.reason ?? "vendor_too_far";
+      const vendorId = input.vendorId ?? "village_trader_001";
+      const currentStock = await this.vendorStockService.getItemQuantity(vendorId, input.itemId);
+      const priceInfo = calculateDynamicPrice(input.itemId, currentStock);
+
       return {
         ok: false,
         itemId: String(input.itemId),
         quantitySold: 0,
-        unitPrice: priceResult.price,
+        unitPrice: priceInfo.unitPrice,
+        basePrice: priceInfo.basePrice,
         totalCoins: 0,
         newBalance: 0,
+        stockBefore: currentStock,
+        stockAfter: currentStock,
+        demandBand: priceInfo.demandBand,
         reason: failureReason,
       };
     }
 
     // All validations passed - perform the transaction
+    // Get dynamic price based on current vendor stock
+    const vendorId = input.vendorId ?? "village_trader_001";
+    const stockBefore = await this.vendorStockService.getItemQuantity(vendorId, input.itemId);
+    const priceInfo = calculateDynamicPrice(input.itemId, stockBefore);
+
     // Remove items from inventory
     const removeResult = await this.inventoryService.removeItem({
       playerId: input.playerId,
@@ -165,27 +210,38 @@ export class EconomyService {
         ok: false,
         itemId: String(input.itemId),
         quantitySold: 0,
-        unitPrice: priceResult.price,
+        unitPrice: priceInfo.unitPrice,
+        basePrice: priceInfo.basePrice,
         totalCoins: 0,
         newBalance: 0,
+        stockBefore,
+        stockAfter: stockBefore,
+        demandBand: priceInfo.demandBand,
         reason: "insufficient_quantity",
       };
     }
 
     // Add coins to wallet
-    const totalCoins = quantity * priceResult.price;
+    const totalCoins = quantity * priceInfo.unitPrice;
     const updatedWallet = await this.walletService.addCoins({
       playerId: input.playerId,
       amount: totalCoins,
     });
 
+    // Update vendor stock
+    const stockAfter = await this.vendorStockService.addItems(vendorId, input.itemId, quantity);
+
     return {
       ok: true,
       itemId: String(input.itemId),
       quantitySold: quantity,
-      unitPrice: priceResult.price,
+      unitPrice: priceInfo.unitPrice,
+      basePrice: priceInfo.basePrice,
       totalCoins,
       newBalance: updatedWallet.balances.coin,
+      stockBefore,
+      stockAfter: stockAfter.items[input.itemId] ?? stockBefore + quantity,
+      demandBand: priceInfo.demandBand,
       reason: "sold",
     };
   }
@@ -231,27 +287,41 @@ export class EconomyService {
       };
     }
 
-    // Calculate what can be sold
+    const vendorId = input.vendorId ?? "village_trader_001";
+
+    // Calculate what can be sold with dynamic prices
+    // Sort by itemId for deterministic ordering
+    const sortedSlots = [...sellableSlots].sort((a, b) => a.itemId.localeCompare(b.itemId));
+
     const sellOps: Array<{
       itemId: string;
       quantity: number;
-      price: number;
+      unitPrice: number;
+      basePrice: number;
       totalCoins: number;
+      stockBefore: number;
+      stockAfter: number;
+      demandBand: DemandBand;
     }> = [];
 
     let totalCoins = 0;
 
-    for (const slot of sellableSlots) {
-      const priceResult = getSellPrice(slot.itemId);
-      if (!priceResult.sellable) continue;
+    for (const slot of sortedSlots) {
+      // Get current stock at the moment of this item
+      const stockBefore = await this.vendorStockService.getItemQuantity(vendorId, slot.itemId);
+      const priceInfo = calculateDynamicPrice(slot.itemId, stockBefore);
 
-      const slotTotal = slot.quantity * priceResult.price;
+      const slotTotal = slot.quantity * priceInfo.unitPrice;
       totalCoins += slotTotal;
       sellOps.push({
         itemId: slot.itemId,
         quantity: slot.quantity,
-        price: priceResult.price,
+        unitPrice: priceInfo.unitPrice,
+        basePrice: priceInfo.basePrice,
         totalCoins: slotTotal,
+        stockBefore,
+        stockAfter: stockBefore + slot.quantity, // Predicted after add
+        demandBand: priceInfo.demandBand,
       });
     }
 
@@ -279,13 +349,22 @@ export class EconomyService {
       amount: totalCoins,
     });
 
+    // Update vendor stock for each item
+    for (const op of sellOps) {
+      await this.vendorStockService.addItems(vendorId, op.itemId, op.quantity);
+    }
+
     return {
       ok: true,
       sold: sellOps.map((op) => ({
         itemId: op.itemId,
         quantitySold: op.quantity,
-        unitPrice: op.price,
+        unitPrice: op.unitPrice,
+        basePrice: op.basePrice,
         totalCoins: op.totalCoins,
+        stockBefore: op.stockBefore,
+        stockAfter: op.stockAfter,
+        demandBand: op.demandBand,
       })),
       totalCoins,
       newBalance: updatedWallet.balances.coin,

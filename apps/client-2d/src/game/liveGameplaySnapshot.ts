@@ -200,6 +200,41 @@ export interface WorldPoiSnapshot {
   chunkZ: number;
 }
 
+/**
+ * Vendor stock item snapshot
+ */
+export interface VendorStockItemSnapshot {
+  itemId: string;
+  quantity: number;
+}
+
+/**
+ * Vendor price item snapshot
+ */
+export interface VendorPriceItemSnapshot {
+  itemId: string;
+  unitPrice: number;
+  basePrice: number;
+  demandBand: "normal" | "stocked" | "oversupplied";
+}
+
+/**
+ * Individual vendor economy snapshot
+ */
+export interface VendorEconomySnapshot {
+  id: string;
+  name: string;
+  stock: VendorStockItemSnapshot[];
+  prices: VendorPriceItemSnapshot[];
+}
+
+/**
+ * Vendor economy container snapshot
+ */
+export interface VendorEconomyContainerSnapshot {
+  vendors: VendorEconomySnapshot[];
+}
+
 export interface LiveGameplaySnapshot {
   status: LiveDataStatus;
   serverTick: number | null;
@@ -216,6 +251,7 @@ export interface LiveGameplaySnapshot {
   map: MapSnapshot;
   wallet: WalletSnapshot;
   worldPois: WorldPoiSnapshot[];
+  vendorEconomy: VendorEconomyContainerSnapshot;
 }
 
 // Default empty snapshot - honest waiting state
@@ -260,6 +296,9 @@ export const EMPTY_LIVE_GAMEPLAY_SNAPSHOT: LiveGameplaySnapshot = {
     coin: 0,
   },
   worldPois: [],
+  vendorEconomy: {
+    vendors: [],
+  },
 };
 
 // Normalization helper - pure function, no mutation
@@ -310,6 +349,7 @@ export function normalizeLiveGameplaySnapshot(
         coin: typeof input.wallet?.coin === "number" ? Math.max(0, Math.floor(input.wallet.coin)) : 0,
       },
       worldPois: normalizeWorldPois(input.worldPois),
+      vendorEconomy: normalizeVendorEconomy(input.vendorEconomy),
     };
   } catch (error) {
     // Never crash the client - return empty snapshot on normalization error
@@ -562,4 +602,86 @@ export function normalizePaperdoll(input: unknown): PaperdollSnapshot {
         })).sort((a, b) => a.slotId.localeCompare(b.slotId))
       : [],
   };
+}
+
+/**
+ * Normalize vendor stock item from server.
+ * Pure function - no mutation of input.
+ */
+function normalizeVendorStockItem(input: unknown): VendorStockItemSnapshot | null {
+  if (!input || typeof input !== "object") return null;
+  const raw = input as any;
+
+  return {
+    itemId: String(raw.itemId ?? ""),
+    quantity: Math.max(0, Math.floor(Number(raw.quantity ?? 0))),
+  };
+}
+
+/**
+ * Normalize vendor price item from server.
+ * Pure function - no mutation of input.
+ */
+function normalizeVendorPriceItem(input: unknown): VendorPriceItemSnapshot | null {
+  if (!input || typeof input !== "object") return null;
+  const raw = input as any;
+
+  const validBands = ["normal", "stocked", "oversupplied"];
+  const demandBand = validBands.includes(raw.demandBand) ? raw.demandBand : "normal";
+
+  return {
+    itemId: String(raw.itemId ?? ""),
+    unitPrice: Math.max(0, Math.floor(Number(raw.unitPrice ?? 0))),
+    basePrice: Math.max(0, Math.floor(Number(raw.basePrice ?? 0))),
+    demandBand,
+  };
+}
+
+/**
+ * Normalize vendor economy snapshot from server.
+ * Pure function - no mutation of input.
+ */
+function normalizeVendorEconomy(input: unknown): VendorEconomyContainerSnapshot {
+  if (!input || typeof input !== "object") {
+    return { vendors: [] };
+  }
+
+  const raw = input as any;
+  const vendors = Array.isArray(raw.vendors) ? raw.vendors : [];
+
+  return {
+    vendors: vendors
+      .filter((v: any) => v && typeof v === "object" && typeof v.id === "string")
+      .map((v: any) => ({
+        id: String(v.id),
+        name: String(v.name ?? v.id),
+        stock: Array.isArray(v.stock)
+          ? v.stock
+              .map(normalizeVendorStockItem)
+              .filter((s): s is VendorStockItemSnapshot => s !== null)
+              .sort((a, b) => a.itemId.localeCompare(b.itemId))
+          : [],
+        prices: Array.isArray(v.prices)
+          ? v.prices
+              .map(normalizeVendorPriceItem)
+              .filter((p): p is VendorPriceItemSnapshot => p !== null)
+              .sort((a, b) => a.itemId.localeCompare(b.itemId))
+          : [],
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id)),
+  };
+}
+
+/**
+ * Get price info for an item from vendor economy snapshot.
+ * Returns undefined if vendor economy is not available.
+ */
+export function getVendorPriceForItem(
+  vendorEconomy: VendorEconomyContainerSnapshot,
+  vendorId: string,
+  itemId: string,
+): VendorPriceItemSnapshot | undefined {
+  const vendor = vendorEconomy.vendors.find((v) => v.id === vendorId);
+  if (!vendor) return undefined;
+  return vendor.prices.find((p) => p.itemId === itemId);
 }

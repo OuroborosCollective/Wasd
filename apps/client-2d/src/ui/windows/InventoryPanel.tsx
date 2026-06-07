@@ -5,6 +5,7 @@
  * Shows gathered resource items with quantities.
  * Includes Gathering Tools section for equipped tools.
  * Supports selling resources to the vendor.
+ * Shows dynamic vendor prices based on stock/demand.
  *
  * Rules:
  * - No Math.random() for display
@@ -15,12 +16,15 @@
  * - After sell, refetches snapshot to update inventory and wallet
  */
 
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import type {
   PlayerInventorySnapshot,
   PlayerEquipmentSnapshot,
   WalletSnapshot,
+  VendorEconomyContainerSnapshot,
+  VendorPriceItemSnapshot,
 } from "../../game/liveGameplaySnapshot";
+import { getVendorPriceForItem } from "../../game/liveGameplaySnapshot";
 import { equipGatheringTool } from "../../game/equipment";
 import { fetchGameplaySnapshot, liveGameplayStore, DEFAULT_GAMEPLAY_PLAYER_ID } from "../../game/liveGameplayStore";
 import { getGatheringToolIcon, isGatheringTool } from "../utils/ItemIconMapper";
@@ -31,6 +35,7 @@ interface Props {
   inventory: PlayerInventorySnapshot;
   equipment?: PlayerEquipmentSnapshot | null;
   wallet?: WalletSnapshot;
+  vendorEconomy?: VendorEconomyContainerSnapshot;
 }
 
 // Tool item IDs for gathering
@@ -78,10 +83,8 @@ const SELLABLE_RESOURCE_IDS = new Set([
   "cooked_fish",
 ]);
 
-// Sell prices for resources (in coins)
-// Raw materials: lower prices
-// Processed materials: premium prices for better economy loop
-const RESOURCE_SELL_PRICES: Record<string, number> = {
+// Default sell prices for fallback display (when no snapshot available)
+const DEFAULT_SELL_PRICES: Record<string, number> = {
   // Raw gathered resources
   wood_log: 1,
   copper_ore: 3,
@@ -92,11 +95,50 @@ const RESOURCE_SELL_PRICES: Record<string, number> = {
   cooked_fish: 4,
 };
 
-export function InventoryPanel({ inventory, equipment, wallet }: Props) {
+const VENDOR_ID = "village_trader_001";
+
+export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy }: Props) {
   const slots = inventory?.slots ?? [];
   const equipped = equipment?.slots ?? [];
   const tools = slots.filter((slot) => GATHERING_TOOL_IDS.has(slot.itemId));
   const resources = slots.filter((slot) => SELLABLE_RESOURCE_IDS.has(slot.itemId));
+
+  /**
+   * Get price info for an item, using snapshot if available.
+   */
+  const getPriceInfo = useCallback(
+    (itemId: string): VendorPriceItemSnapshot | null => {
+      if (!vendorEconomy) return null;
+      return getVendorPriceForItem(vendorEconomy, VENDOR_ID, itemId) ?? null;
+    },
+    [vendorEconomy],
+  );
+
+  /**
+   * Get effective price for an item (snapshot price or default).
+   */
+  const getEffectivePrice = useCallback(
+    (itemId: string): number => {
+      const priceInfo = getPriceInfo(itemId);
+      if (priceInfo) return priceInfo.unitPrice;
+      return DEFAULT_SELL_PRICES[itemId] ?? 0;
+    },
+    [getPriceInfo],
+  );
+
+  /**
+   * Get demand band display text.
+   */
+  const getDemandBandText = useCallback(
+    (itemId: string): string | null => {
+      const priceInfo = getPriceInfo(itemId);
+      if (!priceInfo) return null;
+      if (priceInfo.demandBand === "stocked") return "Price down: stocked";
+      if (priceInfo.demandBand === "oversupplied") return "Price down: oversupplied";
+      return null;
+    },
+    [getPriceInfo],
+  );
 
   const handleEquip = useCallback(
     async (itemId: string) => {
@@ -136,7 +178,7 @@ export function InventoryPanel({ inventory, equipment, wallet }: Props) {
       const result = await dispatchSellResource({ itemId, quantity });
 
       if (result.ok && result.result) {
-        const price = RESOURCE_SELL_PRICES[itemId] ?? 0;
+        const price = getEffectivePrice(itemId);
         window.dispatchEvent(
           new CustomEvent("wasd:toast", {
             detail: {
@@ -163,7 +205,7 @@ export function InventoryPanel({ inventory, equipment, wallet }: Props) {
         );
       }
     },
-    [],
+    [getEffectivePrice],
   );
 
   const handleSellAll = useCallback(
@@ -301,7 +343,9 @@ export function InventoryPanel({ inventory, equipment, wallet }: Props) {
           const iconPath = getGatheringToolIcon(slot.itemId);
           const rarity = TOOL_RARITY[slot.itemId] ?? slot.category;
           const isSellable = SELLABLE_RESOURCE_IDS.has(slot.itemId);
-          const sellPrice = RESOURCE_SELL_PRICES[slot.itemId];
+          const sellPrice = getEffectivePrice(slot.itemId);
+          const demandBandText = getDemandBandText(slot.itemId);
+          const totalValue = sellPrice * slot.quantity;
 
           return (
             <article key={slot.slotId} className={`inventory-slot rarity-${rarity}`}>
@@ -318,8 +362,11 @@ export function InventoryPanel({ inventory, equipment, wallet }: Props) {
                   x{slot.quantity}
                 </span>
                 <small className="inventory-slot__category">{slot.category}</small>
-                {isSellable && sellPrice !== undefined && (
-                  <small className="inventory-slot__price">{sellPrice} coin(s) each</small>
+                {isSellable && (
+                  <small className="inventory-slot__price" data-testid="vendor-price">
+                    {sellPrice}c each
+                    {demandBandText && <span className="demand-band-hint"> ({demandBandText})</span>}
+                  </small>
                 )}
               </div>
               {isSellable && (
@@ -328,9 +375,9 @@ export function InventoryPanel({ inventory, equipment, wallet }: Props) {
                   className="sell-button"
                   onClick={() => handleSell(slot.itemId, slot.quantity)}
                   data-testid="sell-resource-button"
-                  title={`Sell ${slot.name} for ${sellPrice * slot.quantity} coins`}
+                  title={`Sell ${slot.name} for ${totalValue} coins`}
                 >
-                  SELL
+                  SELL {totalValue}c
                 </button>
               )}
             </article>

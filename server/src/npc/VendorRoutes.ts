@@ -13,6 +13,8 @@
 import express, { Router } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { getVillageResourceVendor, getVendorById } from "../economy/VillageVendors.js";
+import { getDemandHint } from "../economy/DemandPricing.js";
+import { getVendorStockService } from "../economy/economyRuntime.js";
 
 const router = Router();
 
@@ -36,6 +38,17 @@ router.get("/vendor/:vendorId", async (req, res) => {
     return;
   }
 
+  // Get stock info for dialogue hints
+  let dialogue = getVendorDialogue(vendor.id);
+  try {
+    const vendorStockService = await getVendorStockService();
+    const stockEntries = await vendorStockService.getStockEntries(vendor.id);
+    const demandHint = getDemandHint(stockEntries);
+    dialogue = demandHint.message;
+  } catch {
+    // Use default dialogue if stock service unavailable
+  }
+
   // Return vendor info with dialogue
   res.status(200).json({
     ok: true,
@@ -48,7 +61,7 @@ router.get("/vendor/:vendorId", async (req, res) => {
         position: vendor.position,
         interactionRadius: vendor.interactionRadius,
       },
-      dialogue: getVendorDialogue(vendor.id),
+      dialogue,
     },
   });
 });
@@ -72,15 +85,65 @@ router.post("/vendor/:vendorId/interact", async (req, res) => {
     return;
   }
 
+  // Get stock-based dialogue
+  let message = getVendorDialogue(vendor.id);
+  try {
+    const vendorStockService = await getVendorStockService();
+    const stockEntries = await vendorStockService.getStockEntries(vendor.id);
+    const demandHint = getDemandHint(stockEntries);
+    message = demandHint.message;
+  } catch {
+    // Use default dialogue if stock service unavailable
+  }
+
   res.status(200).json({
     ok: true,
     result: {
       vendorId: vendor.id,
       vendorName: vendor.name,
-      message: getVendorDialogue(vendor.id),
+      message,
       interactionType: "trade",
     },
   });
+});
+
+/**
+ * GET /api/npc/vendor/:vendorId/stock
+ *
+ * Get vendor stock summary for admin/debug purposes.
+ */
+router.get("/vendor/:vendorId/stock", async (req, res) => {
+  const vendorId = req.params.vendorId;
+
+  const vendor = getVendorById(vendorId);
+  if (!vendor) {
+    res.status(404).json({
+      ok: false,
+      error: "vendor_not_found",
+    });
+    return;
+  }
+
+  try {
+    const vendorStockService = await getVendorStockService();
+    const stockEntries = await vendorStockService.getStockEntries(vendor.id);
+
+    res.status(200).json({
+      ok: true,
+      result: {
+        vendorId: vendor.id,
+        vendorName: vendor.name,
+        stock: stockEntries,
+        demandHint: getDemandHint(stockEntries),
+      },
+    });
+  } catch (error) {
+    console.error("[vendor-stock] Failed to get stock:", error);
+    res.status(500).json({
+      ok: false,
+      error: "internal_error",
+    });
+  }
 });
 
 /**
@@ -90,7 +153,7 @@ router.post("/vendor/:vendorId/interact", async (req, res) => {
 function getVendorDialogue(vendorId: string): string {
   switch (vendorId) {
     case "village_trader_001":
-      return "I buy wood, ore, and fish. Bring me what you gather. I pay more for planks, ingots, and cooked fish.";
+      return "I buy wood, ore, and fish. Bring me what you gather. Processed goods pay best.";
     default:
       return "Welcome, traveler.";
   }
