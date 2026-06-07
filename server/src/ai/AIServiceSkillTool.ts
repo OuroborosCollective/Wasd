@@ -320,7 +320,7 @@ export class AIServiceSkillTool {
 
     return Object.freeze({
       ok: false,
-      mode: "system",
+      mode: "system" as const,
       agentId: this.defaultAgentId,
       traceId,
       createdAt: startedAt,
@@ -334,16 +334,16 @@ export class AIServiceSkillTool {
         input: safeInput,
         normalizedInput: safeInput,
         decision: {
-          action: "heal_request",
+          action: "heal_request" as const,
           confidence: 1,
           intent: "skill_tool_safe_degraded_fallback",
           response: output,
           heal: {
             code: "AI_SKILL_TOOL_DEGRADED_FALLBACK",
             message: error,
-            severity: "warn",
+            severity: "warn" as const,
           },
-          facts: [],
+          facts: [] as string[],
           risks: ["skill-tool-input-rejected", "recovered-by-fallback"],
         },
         output,
@@ -353,7 +353,7 @@ export class AIServiceSkillTool {
           "ARE-KAPPA-INVARIANT",
           "DEGRADED-FALLBACK",
         ],
-        learningHints: [],
+        learningHints: [] as string[],
       },
       error,
       warnings: ["AI skill tool entered degraded fallback mode."],
