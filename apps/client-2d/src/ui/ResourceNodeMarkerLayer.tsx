@@ -16,6 +16,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useLiveGameplaySnapshot } from "../game/useLiveGameplaySnapshot";
 import { dispatchGather, type GameplayWorldPosition } from "../game/gameplayActions";
 import { DEFAULT_GAMEPLAY_PLAYER_ID } from "../game/liveGameplayStore";
+import { readPlayerPositionBridge } from "../game/PlayerPositionBridge";
 
 interface ResourceMarkerProps {
   nodeId: string;
@@ -136,7 +137,7 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
   const resources = snapshot.resources ?? [];
 
   const handleGather = useCallback(async (nodeId: string) => {
-    const playerPosition = getPlayerPosition?.() ?? null;
+    const playerPosition = getPlayerPosition?.() ?? readPlayerPositionBridge();
     const result = await dispatchGather({
       playerId: DEFAULT_GAMEPLAY_PLAYER_ID,
       nodeId,
