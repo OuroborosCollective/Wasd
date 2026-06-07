@@ -25,7 +25,8 @@
     "guard:monorepo:frozen": "MONOREPO_GUARD_RUN_PNPM=1 node scripts/monorepo-guard.mjs",
     "guard:architecture": "node scripts/arelorian-architecture-lint.mjs",
     "guard:worldtick": "pnpm --filter @wasd/server guard:worldtick",
-    "guard:all": "pnpm guard:monorepo && pnpm guard:architecture && pnpm guard:worldtick",
+    "guard:entrypoints": "node scripts/verify-client-entrypoints.mjs",
+    "guard:all": "pnpm guard:monorepo && pnpm guard:architecture && pnpm guard:worldtick && pnpm guard:entrypoints",
     "clean": "pnpm -r exec rm -rf dist node_modules"
   },
   "engines": {
