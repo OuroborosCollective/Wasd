@@ -14,6 +14,7 @@ export const STARTER_CRAFTING_RECIPES: readonly CraftingRecipe[] = [
     requiredLevel: 1,
     craftingXpReward: 20,
     craftTicks: 5,
+    stationType: "workbench",
     ingredients: [
       {
         itemId: "wood_log",
@@ -33,6 +34,7 @@ export const STARTER_CRAFTING_RECIPES: readonly CraftingRecipe[] = [
     requiredLevel: 1,
     craftingXpReward: 30,
     craftTicks: 8,
+    stationType: "furnace",
     ingredients: [
       {
         itemId: "copper_ore",
@@ -52,6 +54,7 @@ export const STARTER_CRAFTING_RECIPES: readonly CraftingRecipe[] = [
     requiredLevel: 1,
     craftingXpReward: 15,
     craftTicks: 4,
+    stationType: "campfire",
     ingredients: [
       {
         itemId: "raw_fish",
@@ -71,6 +74,7 @@ export const STARTER_CRAFTING_RECIPES: readonly CraftingRecipe[] = [
     requiredLevel: 1,
     craftingXpReward: 35,
     craftTicks: 8,
+    stationType: "workbench",
     ingredients: [
       { itemId: "wood_plank", quantity: 2 },
       { itemId: "copper_ingot", quantity: 1 },
@@ -85,6 +89,7 @@ export const STARTER_CRAFTING_RECIPES: readonly CraftingRecipe[] = [
     requiredLevel: 1,
     craftingXpReward: 40,
     craftTicks: 10,
+    stationType: "workbench",
     ingredients: [
       { itemId: "wood_plank", quantity: 1 },
       { itemId: "copper_ingot", quantity: 2 },
@@ -99,6 +104,7 @@ export const STARTER_CRAFTING_RECIPES: readonly CraftingRecipe[] = [
     requiredLevel: 1,
     craftingXpReward: 25,
     craftTicks: 6,
+    stationType: "workbench",
     ingredients: [
       { itemId: "wood_plank", quantity: 1 },
       { itemId: "raw_fish", quantity: 1 },

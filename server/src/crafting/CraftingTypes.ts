@@ -6,6 +6,7 @@
  */
 
 import type { InventoryItemId } from "../inventory/InventoryTypes.js";
+import type { ProcessingStationType } from "./ProcessingStations.js";
 
 export type RecipeId =
   | "craft_wood_plank"
@@ -33,19 +34,26 @@ export interface CraftingRecipe {
   ingredients: RecipeIngredient[];
   outputs: RecipeOutput[];
   craftTicks: number;
+  stationType?: ProcessingStationType;
 }
+
+export type CraftingFailureReason =
+  | "crafted"
+  | "recipe_not_found"
+  | "level_too_low"
+  | "missing_ingredients"
+  | "inventory_full"
+  | "invalid_player"
+  | "missing_player_position"
+  | "invalid_player_position"
+  | "station_too_far"
+  | "station_type_mismatch";
 
 export interface CraftingResult {
   ok: boolean;
   playerId: string;
   recipeId: RecipeId | string;
-  reason?:
-    | "crafted"
-    | "recipe_not_found"
-    | "level_too_low"
-    | "missing_ingredients"
-    | "inventory_full"
-    | "invalid_player";
+  reason?: CraftingFailureReason;
   consumed?: RecipeIngredient[];
   outputs?: RecipeOutput[];
   craftingXpReward?: number;
@@ -59,6 +67,7 @@ export interface CraftingRecipeSnapshot {
   ingredients: RecipeIngredient[];
   outputs: RecipeOutput[];
   craftTicks: number;
+  stationType?: ProcessingStationType;
   craftable: boolean;
-  blockedReason?: "level_too_low" | "missing_ingredients";
+  blockedReason?: "level_too_low" | "missing_ingredients" | "station_too_far" | "missing_player_position";
 }

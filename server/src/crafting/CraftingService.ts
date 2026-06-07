@@ -3,12 +3,17 @@
  *
  * Server-authoritative crafting service.
  * Deterministic: No Math.random(), no Date.now(), stable recipe ordering.
+ * Station proximity required for recipes with stationType.
  */
 
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
 import { getSkillProgressionService } from "../skills/skillRuntime.js";
 import type { SkillSnapshot } from "../skills/SkillTypes.js";
 import { STARTER_CRAFTING_RECIPES } from "./StarterRecipes.js";
+import {
+  isWithinAnyStationOfType,
+  getProcessingStationById,
+} from "./ProcessingStations.js";
 import type {
   CraftingRecipe,
   CraftingRecipeSnapshot,
@@ -66,6 +71,8 @@ export class CraftingService {
   async craft(input: {
     playerId: string;
     recipeId: string;
+    playerPosition?: { x: number; y: number };
+    stationId?: string;
   }): Promise<CraftingResult> {
     if (!input.playerId || input.playerId === "anonymous") {
       return {
@@ -84,6 +91,74 @@ export class CraftingService {
         recipeId: input.recipeId,
         reason: "recipe_not_found",
       };
+    }
+
+    // Station proximity check for recipes that require a station
+    if (recipe.stationType) {
+      // Player position is required for station-bound recipes
+      if (!input.playerPosition) {
+        return {
+          ok: false,
+          playerId: input.playerId,
+          recipeId: recipe.id,
+          reason: "missing_player_position",
+        };
+      }
+
+      // Validate player position is finite
+      if (
+        !Number.isFinite(input.playerPosition.x) ||
+        !Number.isFinite(input.playerPosition.y)
+      ) {
+        return {
+          ok: false,
+          playerId: input.playerId,
+          recipeId: recipe.id,
+          reason: "invalid_player_position",
+        };
+      }
+
+      // If stationId provided, verify it matches the required station type
+      if (input.stationId) {
+        const station = getProcessingStationById(input.stationId);
+        if (!station) {
+          return {
+            ok: false,
+            playerId: input.playerId,
+            recipeId: recipe.id,
+            reason: "station_too_far",
+          };
+        }
+        if (station.type !== recipe.stationType) {
+          return {
+            ok: false,
+            playerId: input.playerId,
+            recipeId: recipe.id,
+            reason: "station_type_mismatch",
+          };
+        }
+        // Check if player is within this station's radius
+        const distanceResult = isWithinAnyStationOfType(input.playerPosition, recipe.stationType);
+        if (!distanceResult.withinRange || distanceResult.station?.id !== input.stationId) {
+          return {
+            ok: false,
+            playerId: input.playerId,
+            recipeId: recipe.id,
+            reason: "station_too_far",
+          };
+        }
+      } else {
+        // No stationId provided - find nearest station of required type
+        const distanceResult = isWithinAnyStationOfType(input.playerPosition, recipe.stationType);
+        if (!distanceResult.withinRange) {
+          return {
+            ok: false,
+            playerId: input.playerId,
+            recipeId: recipe.id,
+            reason: "station_too_far",
+          };
+        }
+      }
     }
 
     const skillService = await getSkillProgressionService();
