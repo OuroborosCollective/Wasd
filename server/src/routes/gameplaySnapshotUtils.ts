@@ -148,8 +148,9 @@ export interface CraftingRecipeSnapshot {
   ingredients: CraftingRecipeIngredientSnapshot[];
   outputs: CraftingRecipeOutputSnapshot[];
   craftTicks: number;
+  stationType?: "campfire" | "furnace" | "workbench";
   craftable: boolean;
-  blockedReason?: "level_too_low" | "missing_ingredients";
+  blockedReason?: "level_too_low" | "missing_ingredients" | "station_too_far" | "missing_player_position";
 }
 
 /**
