@@ -2,6 +2,38 @@ import { cellToKappa, KAPPA_STANDARD, toKappa, type KappaInt } from "./KappaMath
 import { SeededARERng } from "./SeededARERng";
 import type { BiomeId, BiomePlan, TerrainCellPlan } from "./ScenePlanTypes";
 
+/**
+ * Derive deterministic biome from chunk coordinates.
+ * Uses FNV-1a hashing for deterministic biome assignment.
+ *
+ * @param chunkX - Chunk X coordinate
+ * @param chunkZ - Chunk Z coordinate
+ * @param worldSeed - World seed for additional entropy
+ * @returns BiomeId - Deterministic biome for this chunk
+ */
+export function deriveChunkBiome(chunkX: number, chunkZ: number, worldSeed?: string): BiomeId {
+  const seed = worldSeed ?? "areloria:earth_1_1";
+  const hashInput = `${seed}|biome|${chunkX}|${chunkZ}`;
+  const hash = SeededARERng.hashSeed(hashInput);
+  const rng = new SeededARERng(hash as unknown as string);
+
+  // Deterministic roll using the hash-derived RNG
+  const roll = rng.intInclusive(0, 999);
+
+  // Biome distribution (deterministic based on chunk coordinates):
+  // 0-450 (45%): forest - forested areas
+  if (roll < 450) return "forest";
+
+  // 450-650 (20%): plains - open grasslands
+  if (roll < 650) return "plains";
+
+  // 650-850 (20%): mountain - rocky/hilly areas
+  if (roll < 850) return "mountain";
+
+  // 850-1000 (15%): forest_village - rare village chunks
+  return "forest_village";
+}
+
 export function generateBiomePlan(biomeId: BiomeId, rng: SeededARERng): BiomePlan {
   if (biomeId === "forest_village") {
     return {

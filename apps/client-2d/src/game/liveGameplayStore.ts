@@ -7,6 +7,7 @@ import {
   normalizeLiveGameplaySnapshot,
   type LiveGameplaySnapshot,
 } from "./liveGameplaySnapshot";
+import { readPlayerPositionBridge } from "./PlayerPositionBridge";
 
 type Listener = () => void;
 
@@ -201,8 +202,21 @@ export async function fetchGameplaySnapshot(
 ): Promise<LiveGameplaySnapshot | null> {
   try {
     const encodedPlayerId = encodeURIComponent(playerId);
+
+    // Build query params, including player position if available
+    // Position is needed for server to register visible procedural chunks
+    const position = readPlayerPositionBridge();
+    const queryParams = new URLSearchParams({ playerId: encodedPlayerId });
+
+    // Include player position in kappa units if available
+    // The bridge stores position in kappa (e.g., 460000 = 460 tiles)
+    if (position) {
+      queryParams.set("px", String(Math.round(position.x)));
+      queryParams.set("py", String(Math.round(position.z ?? position.y ?? position.x)));
+    }
+
     const response = await fetch(
-      `/api/gameplay/snapshot?playerId=${encodedPlayerId}`,
+      `/api/gameplay/snapshot?${queryParams.toString()}`,
       {
         cache: "no-store",
         headers: {

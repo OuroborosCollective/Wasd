@@ -50,8 +50,42 @@ export interface GatherInput {
   onItemReward?: (item: { id: string; name: string; quantity: number }) => void;
 }
 
+/**
+ * Options for listing resource snapshots with procedural nodes.
+ */
+export interface ListSnapshotsOptions {
+  /** Current server tick for depletion calculation */
+  currentTick: number;
+  /** Optional player position to register visible chunks (kappa units) */
+  playerPosition?: { x: number; y: number };
+}
+
 export class GatheringService {
   constructor(private readonly nodes: ResourceNodeStore = resourceNodeStore) {}
+
+  /**
+   * Register visible chunks for a player based on their position.
+   * This ensures procedural resource nodes are available for gathering.
+   *
+   * @param playerPosition - Player position in kappa units { x, y }
+   */
+  registerVisibleChunks(playerPosition: { x: number; y: number }): void {
+    this.nodes.registerVisibleChunks(playerPosition);
+  }
+
+  /**
+   * Get count of registered chunks.
+   */
+  getRegisteredChunkCount(): number {
+    return this.nodes.getRegisteredChunkCount();
+  }
+
+  /**
+   * Get count of total registered nodes.
+   */
+  getTotalNodeCount(): number {
+    return this.nodes.getTotalNodeCount();
+  }
 
   /**
    * Attempt to gather from a resource node.
@@ -163,8 +197,15 @@ export class GatheringService {
   /**
    * Get all resource node snapshots for the current tick.
    * Used for LiveGameplaySnapshot.
+   *
+   * @param currentTick - Current server tick
+   * @param playerPosition - Optional player position in kappa units to register visible chunks
    */
-  listResourceSnapshots(currentTick: number) {
+  listResourceSnapshots(currentTick: number, playerPosition?: { x: number; y: number }) {
+    // Register visible chunks if player position is provided
+    if (playerPosition) {
+      this.registerVisibleChunks(playerPosition);
+    }
     return this.nodes.listSnapshots(currentTick);
   }
 }
