@@ -278,3 +278,34 @@ node scripts/wiki/push-wiki.mjs --dir .wiki-build --dry-run true
 - `Changelog.md` - Recent commits
 - `Roadmap.md` - From docs/ROADMAP_TO_RELEASE.md
 - `Status.md` - Current system status
+
+### MiniMax-M2.7 Autonomous Agent
+
+Der MiniMax-M2.7 Agent ist für autonome System-Gesundheit, Bug-Fixing und ARELogic-Determinismus verantwortlich.
+
+**GitHub Secrets (erforderlich):**
+| Secret | Wert | Beschreibung |
+|--------|------|--------------|
+| `MINIMAX_API_KEY` | Dein API Key | MiniMax API Key |
+| `MINIMAX_ENABLED` | `true` | Aktiviert den Agenten |
+| `AUTONOMOUS_AUTO_FIX` | `true` | Erlaubt automatische Fixes |
+
+**Files:**
+- `server/src/ai/MiniMaxClient.ts` - MiniMax API Client
+- `server/src/ai/MiniMax.types.ts` - Type Definitions
+- `server/src/ai/AutonomousBugfixAgent.ts` - Autonomous Agent
+- `.github/workflows/minimax-autonomous-agent.yml` - GitHub Actions Workflow
+
+**Agent Responsibilities:**
+- System Health Monitoring
+- ARELogic Determinism Verification
+- NPC Civilization Health
+- UI/UX Optimization
+- Autonomous Bug Fixing via PR
+- Error Reporting and Analysis
+
+**Workflow:** `.github/workflows/minimax-autonomous-agent.yml`
+- Schedules: Alle 15 Minuten
+- Manual triggers: system_health, npc_health, ui_optimization, full_analysis, fix_issue
+
+**Mehr Info:** `docs/MiniMax-Autonomous-Agent.md`
