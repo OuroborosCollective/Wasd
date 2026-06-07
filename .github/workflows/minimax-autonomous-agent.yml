@@ -2,7 +2,7 @@ name: MiniMax Autonomous Agent
 
 on:
   schedule:
-    # Run every 15 minutes
+    # Run every 15 minutes (analysis only, no auto-fix)
     - cron: '*/15 * * * *'
   
   workflow_dispatch:
@@ -25,6 +25,10 @@ on:
   pull_request:
     branches:
       - main
+
+  repository_dispatch:
+    types:
+      - trigger-autonomous-fix
 
 permissions:
   contents: write
@@ -55,15 +59,14 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - name: Install Dependencies
         run: pnpm install --no-frozen-lockfile
 
       - name: Run System Health Analysis via MiniMax
+        id: system-health
         run: |
-          node << 'EOF'
+          node << 'EOF' > minimax-response.json
           const { MiniMaxClient } = require('./server/src/ai/MiniMaxClient.js');
           
           const enabled = process.env.MINIMAX_ENABLED === 'true';
@@ -79,7 +82,7 @@ jobs:
           
           async function run() {
             const response = await minimax.requestSystemAnalysis();
-            console.log('MiniMax Analysis:', JSON.stringify(response, null, 2));
+            console.log(JSON.stringify(response, null, 2));
           }
           
           run().catch(console.error);
@@ -88,6 +91,12 @@ jobs:
         env:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           MINIMAX_ENABLED: ${{ secrets.MINIMAX_ENABLED }}
+
+      - name: Execute Autonomous Fix
+        if: github.event.inputs.task == 'fix_issue' || github.event_name == 'repository_dispatch'
+        run: node scripts/ai/autonomous-fix-executor.mjs minimax-response.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   npc-civilization-health:
     name: NPC Civilization Health
@@ -107,15 +116,14 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - name: Install Dependencies
         run: pnpm install --no-frozen-lockfile
 
       - name: Analyze NPC Civilization Health
+        id: npc-health
         run: |
-          node << 'EOF'
+          node << 'EOF' > npc-health-response.json
           const { MiniMaxClient } = require('./server/src/ai/MiniMaxClient.js');
           
           const enabled = process.env.MINIMAX_ENABLED === 'true';
@@ -131,7 +139,7 @@ jobs:
           
           async function run() {
             const response = await minimax.requestNPCHealthCheck('all');
-            console.log('NPC Analysis:', JSON.stringify(response, null, 2));
+            console.log(JSON.stringify(response, null, 2));
           }
           
           run().catch(console.error);
@@ -140,6 +148,12 @@ jobs:
         env:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           MINIMAX_ENABLED: ${{ secrets.MINIMAX_ENABLED }}
+
+      - name: Execute Autonomous Fix
+        if: github.event.inputs.task == 'fix_issue'
+        run: node scripts/ai/autonomous-fix-executor.mjs npc-health-response.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   ui-optimization:
     name: UI/UX Optimization
@@ -159,15 +173,14 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - name: Install Dependencies
         run: pnpm install --no-frozen-lockfile
 
       - name: Analyze UI/UX
+        id: ui-optimization
         run: |
-          node << 'EOF'
+          node << 'EOF' > ui-optimization-response.json
           const { MiniMaxClient } = require('./server/src/ai/MiniMaxClient.js');
           
           const enabled = process.env.MINIMAX_ENABLED === 'true';
@@ -183,7 +196,7 @@ jobs:
           
           async function run() {
             const response = await minimax.requestUIOptimization();
-            console.log('UI Analysis:', JSON.stringify(response, null, 2));
+            console.log(JSON.stringify(response, null, 2));
           }
           
           run().catch(console.error);
@@ -192,6 +205,12 @@ jobs:
         env:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           MINIMAX_ENABLED: ${{ secrets.MINIMAX_ENABLED }}
+
+      - name: Execute Autonomous Fix
+        if: github.event.inputs.task == 'fix_issue'
+        run: node scripts/ai/autonomous-fix-executor.mjs ui-optimization-response.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   arelogic-determinism-audit:
     name: ARELogic Determinism Audit
@@ -211,15 +230,14 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - name: Install Dependencies
         run: pnpm install --no-frozen-lockfile
 
       - name: Run Determinism Audit
+        id: arelogic-audit
         run: |
-          node << 'EOF'
+          node << 'EOF' > arelogic-response.json
           const { MiniMaxClient } = require('./server/src/ai/MiniMaxClient.js');
           const fs = require('fs');
           const path = require('path');
@@ -261,9 +279,10 @@ jobs:
             console.log('Found violations:', JSON.stringify(violations, null, 2));
             
             if (violations.length > 0) {
-              await minimax.reportDeterminismViolation('ai_core', `${violations.length} ARELogic violations detected`, { violations });
+              const response = await minimax.requestAutonomousFix('arelogic', `${violations.length} ARELogic violations detected`, { violations });
+              console.log(JSON.stringify(response, null, 2));
             } else {
-              console.log('No violations detected - system is healthy');
+              console.log(JSON.stringify({ ok: true, result: 'No violations detected - system is healthy', commands: [] }));
             }
           }
           
@@ -273,6 +292,12 @@ jobs:
         env:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           MINIMAX_ENABLED: ${{ secrets.MINIMAX_ENABLED }}
+
+      - name: Execute Autonomous Fix
+        if: github.event.inputs.task == 'fix_issue'
+        run: node scripts/ai/autonomous-fix-executor.mjs arelogic-response.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   generate-report:
     name: Generate Health Report
