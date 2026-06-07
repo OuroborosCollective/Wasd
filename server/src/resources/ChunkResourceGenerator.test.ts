@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { generateChunkResourceNodes, getVisibleChunkCoords, isStarterChunk, getChunkBiome, CHUNK_RESOURCE_CONSTANTS } from "../../resources/ChunkResourceGenerator";
+import { generateChunkResourceNodes, getVisibleChunkCoords, isStarterChunk, getChunkBiome, CHUNK_RESOURCE_CONSTANTS } from "./ChunkResourceGenerator.js";
 
 const WORLD_SEED = "areloria:earth_1_1";
 

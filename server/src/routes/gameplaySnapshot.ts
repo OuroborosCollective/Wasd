@@ -109,6 +109,7 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
     const derivedStartPathQuest = createStartPathQuestSnapshot({
       character: characterSnapshot,
       inventory,
+      equipment,
     });
 
     const persistedStartPathQuest = derivedStartPathQuest

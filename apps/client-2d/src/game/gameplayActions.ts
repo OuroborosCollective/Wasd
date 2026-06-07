@@ -160,6 +160,56 @@ export async function dispatchEquip(input: {
   }
 }
 
+export interface ClaimStarterToolsResult {
+  ok: boolean;
+  result?: {
+    changed: boolean;
+    tools: string[];
+    equipped: string[];
+    reason?: string;
+  };
+  error?: string;
+}
+
+/**
+ * Dispatch claim starter tools action and refresh the live snapshot.
+ * Idempotent: calling multiple times does not duplicate tools.
+ */
+export async function dispatchClaimStarterTools(playerId?: string): Promise<ClaimStarterToolsResult> {
+  const pid = playerId ?? DEFAULT_GAMEPLAY_PLAYER_ID;
+
+  try {
+    const response = await fetch("/api/onboarding/claim-starter-tools", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-player-id": pid,
+      },
+      body: JSON.stringify({ playerId: pid }),
+    });
+
+    const json = await response.json().catch(() => null);
+
+    if (!response.ok || !json?.ok) {
+      return { ok: false, error: String(json?.error ?? "claim_failed") };
+    }
+
+    // Refetch snapshot to update inventory, equipment, and quest progress
+    const next = await fetchGameplaySnapshot(pid);
+    if (next) {
+      liveGameplayStore.setSnapshot(next);
+    }
+
+    return {
+      ok: true,
+      result: json.result,
+    };
+  } catch (error) {
+    console.error("[dispatchClaimStarterTools] failed:", error);
+    return { ok: false, error: "network_error" };
+  }
+}
+
 /**
  * Refresh the live gameplay snapshot from the server.
  * Use after any action or when needing to sync UI state.
