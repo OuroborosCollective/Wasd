@@ -34,7 +34,7 @@ const KAPPA_PER_TILE = 1000;
 const RESOURCE_RADIUS = 24;
 
 /** Biome IDs for resource spawn rules */
-type ChunkBiomeId = "forest_village" | "forest" | "plains" | "mountain";
+export type ChunkBiomeId = "forest_village" | "forest" | "plains" | "mountain";
 
 interface ChunkResourceInput {
   worldSeed: string;
