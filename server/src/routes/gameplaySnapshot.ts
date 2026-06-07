@@ -28,6 +28,7 @@ import { characterService } from "../character/characterRuntime.js";
 import { toCharacterProfileSnapshot } from "../character/CharacterTypes.js";
 import { createPaperdollSnapshot } from "../character/PaperdollTypes.js";
 import { createStartPathQuestSnapshot } from "../character/StartPathQuestLine.js";
+import { composeLiveGameplaySnapshotFromLegacy } from "../gameplay/composeLiveGameplaySnapshotFromLegacy.js";
 
 /**
  * Get current tick ID from WorldTick instance.
@@ -141,12 +142,22 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
       map: {},
     });
 
+    const liveGameplaySnapshot = await composeLiveGameplaySnapshotFromLegacy({
+      playerId: identity.playerId,
+      logicalIndex: serverTick,
+      inventory,
+      equipment,
+      skills: skillState.skills,
+      resourceNodes: resources,
+    });
+
     res.json({
       ok: true,
       playerId: identity.playerId,
       playerIdentitySource: identity.source,
       authenticated: identity.authenticated,
       snapshot,
+      liveGameplaySnapshot,
     });
   });
 

@@ -92,10 +92,42 @@ function projectComposerSnapshot(input: Record<string, unknown>): Partial<LiveGa
   };
 }
 
+function mergeComposerIntoLegacy(
+  legacy: Record<string, unknown>,
+  composer: Record<string, unknown>,
+): unknown {
+  const projected = projectComposerSnapshot(composer) as Record<string, unknown>;
+
+  return {
+    ...legacy,
+    status: projected.status ?? legacy.status,
+    serverTick: projected.serverTick ?? legacy.serverTick,
+    skills: projected.skills ?? legacy.skills,
+    resources: projected.resources ?? legacy.resources,
+    inventory: projected.inventory ?? legacy.inventory,
+    equipment: projected.equipment ?? legacy.equipment,
+  };
+}
+
 function pickSnapshotPayload(data: unknown): unknown {
   const raw = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
 
-  // Preferred post-#1762 contract.
+  // Existing route wrapper contract with post-#1762 sibling composer data.
+  // Keep legacy as the base so Quest Journal, Character, Paperdoll, Crafting,
+  // Guild/Faction and Map data are not lost.
+  if (
+    raw.snapshot &&
+    typeof raw.snapshot === "object" &&
+    raw.liveGameplaySnapshot &&
+    typeof raw.liveGameplaySnapshot === "object"
+  ) {
+    return mergeComposerIntoLegacy(
+      raw.snapshot as Record<string, unknown>,
+      raw.liveGameplaySnapshot as Record<string, unknown>,
+    );
+  }
+
+  // Preferred post-#1762 contract when it is the only available payload.
   if (raw.liveGameplaySnapshot && typeof raw.liveGameplaySnapshot === "object") {
     return projectComposerSnapshot(raw.liveGameplaySnapshot as Record<string, unknown>);
   }
