@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Resource Node - Tree (Woodcutting) -->
+  <defs>
+    <filter id="treeGlow">
+      <feGaussianBlur stdDeviation="1" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background diamond -->
+  <polygon points="24,4 44,24 24,44 4,24" fill="#101419" stroke="#39ff14" stroke-width="1.5" stroke-opacity="0.6"/>
+  
+  <!-- Tree icon -->
+  <g filter="url(#treeGlow)">
+    <rect x="22" y="30" width="4" height="10" rx="1" fill="#8B4513"/>
+    <polygon points="24,12 34,24 30,24 36,32 12,32 18,24 14,24" fill="#39ff14" opacity="0.8"/>
+  </g>
+</svg>

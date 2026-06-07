@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Resource Node - Ore (Mining) -->
+  <defs>
+    <filter id="oreGlow">
+      <feGaussianBlur stdDeviation="1" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background diamond -->
+  <polygon points="24,4 44,24 24,44 4,24" fill="#101419" stroke="#f5c842" stroke-width="1.5" stroke-opacity="0.6"/>
+  
+  <!-- Crystal/ore icon -->
+  <g filter="url(#oreGlow)">
+    <polygon points="24,14 32,22 28,34 20,34 16,22" fill="#f5c842" opacity="0.8"/>
+    <polygon points="24,14 28,20 24,18 20,20" fill="#fff8dc" opacity="0.5"/>
+    <!-- Small ore chunks -->
+    <polygon points="14,30 18,28 20,32 16,34" fill="#cd7f32" opacity="0.6"/>
+    <polygon points="34,30 38,28 40,32 36,34" fill="#cd7f32" opacity="0.6"/>
+  </g>
+</svg>

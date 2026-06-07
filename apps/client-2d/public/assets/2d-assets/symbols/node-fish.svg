@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Resource Node - Fish Spot (Fishing) -->
+  <defs>
+    <filter id="fishSpotGlow">
+      <feGaussianBlur stdDeviation="1" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background diamond -->
+  <polygon points="24,4 44,24 24,44 4,24" fill="#101419" stroke="#00e5ff" stroke-width="1.5" stroke-opacity="0.6"/>
+  
+  <!-- Fish icon -->
+  <g filter="url(#fishSpotGlow)">
+    <ellipse cx="24" cy="24" rx="10" ry="6" fill="#00e5ff" opacity="0.8"/>
+    <polygon points="34,24 42,18 42,30" fill="#00e5ff" opacity="0.8"/>
+    <circle cx="18" cy="23" r="2" fill="#101419"/>
+    <!-- Water ripples -->
+    <path d="M12,32 Q16,30 20,32" stroke="#00e5ff" stroke-width="1" fill="none" opacity="0.5"/>
+    <path d="M28,34 Q32,32 36,34" stroke="#00e5ff" stroke-width="1" fill="none" opacity="0.5"/>
+  </g>
+</svg>

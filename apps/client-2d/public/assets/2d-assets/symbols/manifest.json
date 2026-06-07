@@ -1,0 +1,54 @@
+{
+  "version": "1.0.0",
+  "symbols": {
+    "camp-woodcutter": {
+      "file": "camp-woodcutter.svg",
+      "type": "camp",
+      "poiType": "logging_camp",
+      "color": "#39ff14",
+      "description": "Woodcutter camp marker - Neon Green"
+    },
+    "camp-miner": {
+      "file": "camp-miner.svg",
+      "type": "camp",
+      "poiType": "mining_camp",
+      "color": "#f5c842",
+      "description": "Mining camp marker - Gold"
+    },
+    "camp-fisher": {
+      "file": "camp-fisher.svg",
+      "type": "camp",
+      "poiType": "fishing_camp",
+      "color": "#00e5ff",
+      "description": "Fishing camp marker - Mana Cyan"
+    },
+    "camp-undiscovered": {
+      "file": "camp-undiscovered.svg",
+      "type": "camp",
+      "poiType": "undiscovered",
+      "color": "#6a6a8a",
+      "description": "Undiscovered camp - Fog of War"
+    },
+    "node-tree": {
+      "file": "node-tree.svg",
+      "type": "resource_node",
+      "skill": "woodcutting",
+      "color": "#39ff14",
+      "description": "Tree resource node for woodcutting"
+    },
+    "node-ore": {
+      "file": "node-ore.svg",
+      "type": "resource_node",
+      "skill": "mining",
+      "color": "#f5c842",
+      "description": "Ore deposit for mining"
+    },
+    "node-fish": {
+      "file": "node-fish.svg",
+      "type": "resource_node",
+      "skill": "fishing",
+      "color": "#00e5ff",
+      "description": "Fish spot for fishing"
+    }
+  }
+}
