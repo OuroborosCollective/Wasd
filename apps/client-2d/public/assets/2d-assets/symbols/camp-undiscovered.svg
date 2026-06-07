@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Undiscovered Camp POI Symbol - Fog of War -->
+  <defs>
+    <filter id="fogGlow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background circle - dimmed -->
+  <circle cx="32" cy="32" r="28" fill="#1a1a2e" stroke="#4a4a6a" stroke-width="2" stroke-opacity="0.5"/>
+  
+  <!-- Question mark icon -->
+  <g filter="url(#fogGlow)" opacity="0.4">
+    <text x="32" y="40" font-family="Inter, sans-serif" font-size="28" font-weight="bold" fill="#6a6a8a" text-anchor="middle">?</text>
+  </g>
+</svg>

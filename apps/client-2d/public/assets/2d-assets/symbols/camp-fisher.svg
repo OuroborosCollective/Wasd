@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Camp Fisher POI Symbol - Mana Cyan -->
+  <defs>
+    <filter id="fishGlow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="28" fill="#101419" stroke="#00e5ff" stroke-width="2.5"/>
+  
+  <!-- Fish icon -->
+  <g filter="url(#fishGlow)">
+    <!-- Fish body -->
+    <ellipse cx="32" cy="32" rx="16" ry="10" fill="#00e5ff"/>
+    <!-- Tail -->
+    <polygon points="48,32 58,24 58,40" fill="#00e5ff"/>
+    <!-- Eye -->
+    <circle cx="22" cy="30" r="3" fill="#101419"/>
+    <circle cx="21" cy="29" r="1" fill="#fff"/>
+    <!-- Fin -->
+    <polygon points="32,22 36,14 40,22" fill="#00b8cc"/>
+    <!-- Scales pattern -->
+    <path d="M28,28 Q32,26 36,28" stroke="#00b8cc" stroke-width="1" fill="none"/>
+    <path d="M26,32 Q32,30 38,32" stroke="#00b8cc" stroke-width="1" fill="none"/>
+  </g>
+</svg>
