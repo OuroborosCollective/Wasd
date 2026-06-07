@@ -93,6 +93,7 @@ export type MiniMaxAction =
   | "create_pr"
   | "create_issue"
   | "run_tests"
+  | "analyze"
   | "analyze_logs"
   | "monitor_system";
 

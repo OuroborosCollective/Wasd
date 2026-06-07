@@ -77,7 +77,7 @@ export class MiniMaxClient {
         subsystem: "unknown",
         areDeterminismLevel: Math.round(status.determinismScore * 4),
       },
-      data: status,
+      data: status as unknown as Record<string, unknown>,
       affectedComponents: Object.entries(status.subsystems)
         .filter(([, s]) => s.status !== "ok")
         .map(([name]) => name),
@@ -116,7 +116,7 @@ export class MiniMaxClient {
         subsystem: "npc_brain",
         areDeterminismLevel: 2,
       },
-      data: report,
+      data: report as unknown as Record<string, unknown>,
       affectedComponents: [`npc:${report.npcId}`, `civ:${report.civilizationId}`],
       suggestedFix: report.suggestedFixes.join("; "),
     });
@@ -145,7 +145,7 @@ export class MiniMaxClient {
         subsystem: "ui_rendering",
         areDeterminismLevel: 3,
       },
-      data: report,
+      data: report as unknown as Record<string, unknown>,
       affectedComponents: [report.component],
       suggestedFix: report.suggestedOptimizations.join("; "),
     });
