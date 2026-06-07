@@ -56,6 +56,8 @@ export interface CampNpcSnapshot {
 export interface CampStockEntry {
   readonly itemId: string;
   readonly quantity: number;
+  /** Buy price in coins, null if not buyable */
+  readonly buyPrice?: number | null;
 }
 
 /**
@@ -144,21 +146,24 @@ export const ACTIVITY_MESSAGES: Record<CampNpcType, Record<CampNpcActivity, stri
 /**
  * Interaction dialogue lines for camp NPCs.
  */
-export const NPC_DIALOGUE: Record<CampNpcType, { greeting: string; gathering: string; depositing: string }> = {
+export const NPC_DIALOGUE: Record<CampNpcType, { greeting: string; gathering: string; depositing: string; trading: string }> = {
   camp_woodcutter: {
     greeting: "Trees are thick here. Better axes bring better yield.",
     gathering: "I'm working now.",
     depositing: "We have some stock at camp.",
+    trading: "I can sell you spare logs from the camp stock.",
   },
   camp_miner: {
     greeting: "Ore runs deep in this camp. Bring a stronger pickaxe.",
     gathering: "I'm working now.",
     depositing: "We have some stock at camp.",
+    trading: "We have ore stock if you can pay.",
   },
   camp_fisher: {
     greeting: "Fish bite better near calm water.",
     gathering: "I'm working now.",
     depositing: "We have some stock at camp.",
+    trading: "Fresh fish from the camp, if you have coin.",
   },
 };
 

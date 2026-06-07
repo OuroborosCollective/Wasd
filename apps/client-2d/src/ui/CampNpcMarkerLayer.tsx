@@ -3,6 +3,7 @@
  *
  * Renders camp NPC markers on top of the 2D world canvas.
  * NPCs appear at discovered gathering camp POIs.
+ * Shows trade panel when clicking on a camp NPC.
  *
  * Rules:
  * - No Math.random() for marker positioning
@@ -12,7 +13,8 @@
 
 import React, { useCallback, useRef, useState } from "react";
 import { useLiveGameplaySnapshot } from "../game/useLiveGameplaySnapshot";
-import type { CampNpcSnapshot } from "../game/liveGameplaySnapshot";
+import type { CampNpcSnapshot, CampStockSnapshot } from "../game/liveGameplaySnapshot";
+import { CampTradePanel } from "./windows/CampTradePanel";
 
 const NPC_EMOJI: Record<string, string> = {
   camp_woodcutter: "🪓",
@@ -28,23 +30,18 @@ const NPC_COLORS: Record<string, string> = {
 
 interface CampNpcMarkerProps {
   npc: CampNpcSnapshot;
+  campStock: CampStockSnapshot | undefined;
   x: number;
   y: number;
+  onTradeClick: (npc: CampNpcSnapshot, campStock: CampStockSnapshot | undefined) => void;
 }
 
-function CampNpcMarker({ npc, x, y }: CampNpcMarkerProps) {
+function CampNpcMarker({ npc, campStock, x, y, onTradeClick }: CampNpcMarkerProps) {
   const [hovered, setHovered] = useState(false);
 
   const handleClick = useCallback(() => {
-    window.dispatchEvent(
-      new CustomEvent("wasd:toast", {
-        detail: {
-          type: "info",
-          message: `${npc.name} - ${npc.activityMessage}`,
-        },
-      }),
-    );
-  }, [npc]);
+    onTradeClick(npc, campStock);
+  }, [npc, campStock, onTradeClick]);
 
   const emoji = NPC_EMOJI[npc.type] ?? "👤";
   const color = NPC_COLORS[npc.type] ?? "#fff";
@@ -84,12 +81,19 @@ function CampNpcMarker({ npc, x, y }: CampNpcMarkerProps) {
       onClick={handleClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      title={`${npc.name} - ${npc.role}`}
+      title={`${npc.name} - ${npc.role} (Click to trade)`}
       aria-label={`${npc.name} camp worker, ${npc.activity}`}
     >
       <span style={{ fontSize: "16px", lineHeight: 1 }}>{emoji}</span>
       <span style={{ fontSize: "8px", opacity: 0.8, maxWidth: "50px", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis" }}>
         {npc.activity}
+      </span>
+      <span style={{
+        fontSize: "7px",
+        color: color,
+        marginTop: "2px",
+      }}>
+        TRADE
       </span>
     </button>
   );
@@ -99,6 +103,8 @@ export function CampNpcMarkerLayer() {
   const snapshot = useLiveGameplaySnapshot();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [activeTradeNpc, setActiveTradeNpc] = useState<CampNpcSnapshot | null>(null);
+  const [activeTradeStock, setActiveTradeStock] = useState<CampStockSnapshot | undefined>(undefined);
 
   // Track container size for coordinate mapping
   React.useEffect(() => {
@@ -119,6 +125,19 @@ export function CampNpcMarkerLayer() {
   }, []);
 
   const campNpcs = snapshot.campNpcs ?? [];
+  const campStocks = snapshot.campStocks ?? [];
+
+  // Handle NPC click to open trade panel
+  const handleTradeClick = useCallback((npc: CampNpcSnapshot, campStock: CampStockSnapshot | undefined) => {
+    setActiveTradeNpc(npc);
+    setActiveTradeStock(campStock);
+  }, []);
+
+  // Close trade panel
+  const handleCloseTrade = useCallback(() => {
+    setActiveTradeNpc(null);
+    setActiveTradeStock(undefined);
+  }, []);
 
   // Map world coordinates to screen coordinates
   // Uses same projection as WorldPoiMarkerLayer
@@ -140,33 +159,47 @@ export function CampNpcMarkerLayer() {
     return { screenX, screenY };
   }
 
-  if (campNpcs.length === 0) {
+  if (campNpcs.length === 0 && !activeTradeNpc) {
     return null;
   }
 
   return (
-    <div
-      ref={containerRef}
-      data-testid="camp-npc-marker-layer"
-      style={{
-        position: "absolute",
-        inset: 0,
-        pointerEvents: "none",
-        zIndex: 45,
-      }}
-    >
-      {campNpcs.map((npc) => {
-        const { screenX, screenY } = worldToScreen(npc.position.x, npc.position.y);
-        return (
-          <div key={npc.id} style={{ pointerEvents: "auto" }}>
-            <CampNpcMarker
-              npc={npc}
-              x={screenX}
-              y={screenY}
-            />
-          </div>
-        );
-      })}
-    </div>
+    <>
+      <div
+        ref={containerRef}
+        data-testid="camp-npc-marker-layer"
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          zIndex: 45,
+        }}
+      >
+        {campNpcs.map((npc) => {
+          const { screenX, screenY } = worldToScreen(npc.position.x, npc.position.y);
+          const campStock = campStocks.find((s) => s.poiId === npc.poiId);
+          return (
+            <div key={npc.id} style={{ pointerEvents: "auto" }}>
+              <CampNpcMarker
+                npc={npc}
+                campStock={campStock}
+                x={screenX}
+                y={screenY}
+                onTradeClick={handleTradeClick}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Trade Panel */}
+      {activeTradeNpc && (
+        <CampTradePanel
+          npc={activeTradeNpc}
+          campStock={activeTradeStock}
+          onClose={handleCloseTrade}
+        />
+      )}
+    </>
   );
 }

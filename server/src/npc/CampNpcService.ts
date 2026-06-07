@@ -23,8 +23,10 @@ import {
   ACTIVITY_MESSAGES,
   CAMP_OUTPUT_ITEM,
   isGatheringCamp,
+  NPC_DIALOGUE,
 } from "./CampNpcTypes.js";
 import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
+import { getCampStockBuyPrice, isCampStockBuyable } from "../economy/CampStockPrices.js";
 
 /**
  * Maximum stock quantity per item in camp stock.
@@ -172,6 +174,7 @@ export class CampNpcService {
 
   /**
    * Get camp stock snapshots for discovered gathering camp POIs.
+   * Includes buyPrice for buyable items.
    */
   getCampStockSnapshots(
     pois: readonly WorldPoiSnapshot[],
@@ -193,12 +196,13 @@ export class CampNpcService {
         continue;
       }
 
-      // Convert items record to array sorted by itemId
+      // Convert items record to array sorted by itemId, include buyPrice if buyable
       const items: CampStockEntry[] = Object.entries(stockState.items)
         .filter(([, qty]) => qty > 0)
         .map(([itemId, quantity]) => ({
           itemId,
           quantity,
+          buyPrice: isCampStockBuyable(itemId) ? getCampStockBuyPrice(itemId) : null,
         }))
         .sort((a, b) => a.itemId.localeCompare(b.itemId));
 
@@ -210,6 +214,71 @@ export class CampNpcService {
     }
 
     return snapshots.sort((a, b) => a.poiId.localeCompare(b.poiId));
+  }
+
+  /**
+   * Buy stock from a camp NPC.
+   * Validates all conditions before mutating any state.
+   * Returns error string on failure, null on success.
+   */
+  buyStock(input: {
+    poiId: string;
+    itemId: string;
+    quantity: number;
+  }): { ok: true; unitPrice: number; totalCost: number; remainingStock: number } | { ok: false; error: string } {
+    const { poiId, itemId, quantity } = input;
+
+    // Validate quantity
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      return { ok: false, error: "invalid_quantity" };
+    }
+
+    // Check camp stock exists
+    const stockState = this.campStocks.get(poiId);
+    if (!stockState) {
+      return { ok: false, error: "invalid_camp" };
+    }
+
+    // Check item is in camp stock
+    const currentQty = stockState.items[itemId];
+    if (!currentQty || currentQty <= 0) {
+      return { ok: false, error: "insufficient_camp_stock" };
+    }
+
+    // Check sufficient stock
+    if (currentQty < quantity) {
+      return { ok: false, error: "insufficient_camp_stock" };
+    }
+
+    // Check item is buyable and get price
+    const unitPrice = getCampStockBuyPrice(itemId);
+    if (unitPrice === null) {
+      return { ok: false, error: "invalid_item" };
+    }
+
+    const totalCost = unitPrice * quantity;
+
+    // Mutate camp stock
+    const newQty = currentQty - quantity;
+    if (newQty <= 0) {
+      delete stockState.items[itemId];
+    } else {
+      stockState.items[itemId] = newQty;
+    }
+
+    return {
+      ok: true,
+      unitPrice,
+      totalCost,
+      remainingStock: newQty,
+    };
+  }
+
+  /**
+   * Get trading dialogue for a camp NPC type.
+   */
+  getTradingDialogue(npcType: CampNpcType): string {
+    return NPC_DIALOGUE[npcType]?.trading ?? "No stock available.";
   }
 
   /**
