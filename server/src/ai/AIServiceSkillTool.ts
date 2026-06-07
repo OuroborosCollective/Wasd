@@ -82,6 +82,10 @@ function normalizeToken(value: unknown, fallback: string): string {
 }
 
 function stableValue(value: unknown): unknown {
+  if (typeof value === "bigint") {
+    return `${value.toString()}n`;
+  }
+
   if (Array.isArray(value)) {
     return value.map((entry) => stableValue(entry));
   }
@@ -283,14 +287,20 @@ export class AIServiceSkillTool {
   }
 
   private createTraceId(prompt: string, options: AIProcessOptions): string {
-    const optionSeed = JSON.stringify(stableValue({
-      agentId: options.agentId ?? this.defaultAgentId,
-      logicalIndex: options.logicalIndex ?? ARE_CONSTANTS.DEFAULT_LOGICAL_INDEX,
-      memoryScope: options.memoryScope ?? this.defaultMemoryScope,
-      mode: "system",
-      kappa: ARE_CONSTANTS.KAPPA_INVARIANT,
-      metadata: options.metadata ?? {},
-    }));
+    let optionSeed = "safe-default-options";
+
+    try {
+      optionSeed = JSON.stringify(stableValue({
+        agentId: options.agentId ?? this.defaultAgentId,
+        logicalIndex: options.logicalIndex ?? ARE_CONSTANTS.DEFAULT_LOGICAL_INDEX,
+        memoryScope: options.memoryScope ?? this.defaultMemoryScope,
+        mode: "system",
+        kappa: ARE_CONSTANTS.KAPPA_INVARIANT,
+        metadata: options.metadata ?? {},
+      }));
+    } catch (error) {
+      optionSeed = `unserializable-options:${stableHash(this.errorToString(error))}`;
+    }
 
     return `are-ai-tool-${stableHash(`${prompt}|${optionSeed}`)}`;
   }
