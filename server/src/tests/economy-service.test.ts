@@ -360,19 +360,20 @@ describe("EconomyService", () => {
   });
 
   describe("price table", () => {
+    // Define prices in outer scope so both tests can reference it
+    const prices: Record<string, number> = {
+      // Raw gathered resources
+      wood_log: 1,
+      copper_ore: 3,
+      raw_fish: 2,
+      // Processed resources (premium values)
+      wood_plank: 3,
+      copper_ingot: 8,
+      cooked_fish: 4,
+    };
+
     it("should have correct prices for all resources", async () => {
       // Premium pricing: processed items are worth more than raw inputs
-      const prices: Record<string, number> = {
-        // Raw gathered resources
-        wood_log: 1,
-        copper_ore: 3,
-        raw_fish: 2,
-        // Processed resources (premium values)
-        wood_plank: 3,
-        copper_ingot: 8,
-        cooked_fish: 4,
-      };
-
       for (const [itemId, expectedPrice] of Object.entries(prices)) {
         await inventoryService.addItem({ playerId: "player1", itemId, quantity: 1 });
         const result = await economyService.sellResource({
