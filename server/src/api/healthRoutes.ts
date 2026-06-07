@@ -1,9 +1,11 @@
 import { Router, type Request, type Response } from 'express';
+import path from 'node:path';
 import type { WorldTick } from '../core/WorldTick.js';
 import { getDeterministicWatchdogStatus } from '../core/installDeterministicWatchdog.js';
 import { checkQuestPersistenceWritable } from './questPersistenceHealth.js';
 import { checkSkillPersistenceWritable } from './skillPersistenceHealth.js';
 import { checkInventoryPersistenceWritable } from './inventoryPersistenceHealth.js';
+import { buildClientEntrypointHealth } from '../core/ClientEntrypointHealth.js';
 
 export type HealthRouteOptions = {
   getTick: () => WorldTick | undefined;
@@ -21,6 +23,12 @@ function safe<T>(fn: () => T, fallback: T): T {
 
 function noStore(res: Response): void {
   res.setHeader('Cache-Control', 'no-store');
+}
+
+function resolveClientRoot(): string {
+  const fromEnv = process.env.CLIENT_ROOT_DIR?.trim();
+  if (fromEnv) return path.isAbsolute(fromEnv) ? fromEnv : path.resolve(process.cwd(), fromEnv);
+  return path.resolve(process.cwd(), 'client');
 }
 
 export function healthRoutes(options: HealthRouteOptions): Router {
@@ -43,6 +51,19 @@ export function healthRoutes(options: HealthRouteOptions): Router {
       uptimeSeconds: Math.round(process.uptime()),
       port: options.getPort(),
       watchdog,
+    });
+  });
+
+  router.get('/client-entrypoints', (_req: Request, res: Response) => {
+    noStore(res);
+    const clientRoot = resolveClientRoot();
+    const clientDistPath = path.join(clientRoot, 'dist');
+    res.status(200).json({
+      ok: true,
+      clientEntrypoints: buildClientEntrypointHealth({
+        clientRoot,
+        clientDistPath,
+      }),
     });
   });
 
