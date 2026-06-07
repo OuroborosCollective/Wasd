@@ -3,6 +3,7 @@
  *
  * Renders camp NPC markers on top of the 2D world canvas.
  * NPCs appear at discovered gathering camp POIs.
+ * Shows buy options when camp stock is available.
  *
  * Rules:
  * - No Math.random() for marker positioning
@@ -12,7 +13,8 @@
 
 import React, { useCallback, useRef, useState } from "react";
 import { useLiveGameplaySnapshot } from "../game/useLiveGameplaySnapshot";
-import type { CampNpcSnapshot } from "../game/liveGameplaySnapshot";
+import type { CampNpcSnapshot, CampStockSnapshot } from "../game/liveGameplaySnapshot";
+import { dispatchBuyCampStock } from "../game/gameplayActions";
 
 const NPC_EMOJI: Record<string, string> = {
   camp_woodcutter: "🪓",
@@ -26,16 +28,33 @@ const NPC_COLORS: Record<string, string> = {
   camp_fisher: "var(--st-aether, #00e5ff)",
 };
 
+/** Map camp NPC type to the item they sell */
+const NPC_SELL_ITEM: Record<string, string> = {
+  camp_woodcutter: "wood_log",
+  camp_miner: "copper_ore",
+  camp_fisher: "raw_fish",
+};
+
+/** Display name for items */
+const ITEM_NAMES: Record<string, string> = {
+  wood_log: "Log",
+  copper_ore: "Ore",
+  raw_fish: "Fish",
+};
+
 interface CampNpcMarkerProps {
   npc: CampNpcSnapshot;
+  campStock: CampStockSnapshot | undefined;
   x: number;
   y: number;
 }
 
-function CampNpcMarker({ npc, x, y }: CampNpcMarkerProps) {
+function CampNpcMarker({ npc, campStock, x, y }: CampNpcMarkerProps) {
   const [hovered, setHovered] = useState(false);
+  const [buying, setBuying] = useState(false);
 
   const handleClick = useCallback(() => {
+    // Show current activity message
     window.dispatchEvent(
       new CustomEvent("wasd:toast", {
         detail: {
@@ -46,8 +65,76 @@ function CampNpcMarker({ npc, x, y }: CampNpcMarkerProps) {
     );
   }, [npc]);
 
+  const handleBuy = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!campStock || buying) return;
+
+    const sellItemId = NPC_SELL_ITEM[npc.type];
+    const stockItem = campStock.items.find((i) => i.itemId === sellItemId);
+
+    if (!stockItem || stockItem.quantity <= 0) {
+      window.dispatchEvent(
+        new CustomEvent("wasd:toast", {
+          detail: {
+            type: "warning",
+            message: "Camp stock empty",
+          },
+        }),
+      );
+      return;
+    }
+
+    setBuying(true);
+    try {
+      const result = await dispatchBuyCampStock({
+        npcId: npc.id,
+        itemId: sellItemId,
+        quantity: 1,
+      });
+
+      if (result.ok) {
+        const itemName = ITEM_NAMES[sellItemId] ?? sellItemId;
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "success",
+              message: `Bought 1 ${itemName}`,
+            },
+          }),
+        );
+      } else {
+        // Show error toast based on error type
+        const errorMsg = result.error === "insufficient_coins"
+          ? "Not enough coins"
+          : result.error === "camp_too_far"
+          ? "Move closer to the camp worker"
+          : result.error === "insufficient_camp_stock"
+          ? "Camp stock empty"
+          : "Purchase failed";
+
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "error",
+              message: errorMsg,
+            },
+          }),
+        );
+      }
+    } finally {
+      setBuying(false);
+    }
+  }, [npc, campStock, buying]);
+
   const emoji = NPC_EMOJI[npc.type] ?? "👤";
   const color = NPC_COLORS[npc.type] ?? "#fff";
+
+  // Check if there's stock available to buy
+  const sellItemId = NPC_SELL_ITEM[npc.type];
+  const stockItem = campStock?.items.find((i) => i.itemId === sellItemId);
+  const hasStock = stockItem && stockItem.quantity > 0 && stockItem.buyPrice != null;
+  const buyPrice = stockItem?.buyPrice ?? 0;
 
   return (
     <button
@@ -91,6 +178,24 @@ function CampNpcMarker({ npc, x, y }: CampNpcMarkerProps) {
       <span style={{ fontSize: "8px", opacity: 0.8, maxWidth: "50px", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis" }}>
         {npc.activity}
       </span>
+      {hasStock && (
+        <span
+          data-testid="camp-trade-buy-button"
+          onClick={handleBuy}
+          style={{
+            fontSize: "8px",
+            background: color,
+            color: "#000",
+            padding: "2px 4px",
+            borderRadius: "4px",
+            cursor: buying ? "wait" : "pointer",
+            marginTop: "2px",
+          }}
+          title={`Buy 1 ${ITEM_NAMES[sellItemId]} (${buyPrice}c)`}
+        >
+          {buying ? "..." : `BUY (${buyPrice}c)`}
+        </span>
+      )}
     </button>
   );
 }
@@ -119,6 +224,7 @@ export function CampNpcMarkerLayer() {
   }, []);
 
   const campNpcs = snapshot.campNpcs ?? [];
+  const campStocks = snapshot.campStocks ?? [];
 
   // Map world coordinates to screen coordinates
   // Uses same projection as WorldPoiMarkerLayer
@@ -157,10 +263,12 @@ export function CampNpcMarkerLayer() {
     >
       {campNpcs.map((npc) => {
         const { screenX, screenY } = worldToScreen(npc.position.x, npc.position.y);
+        const campStock = campStocks.find((s) => s.poiId === npc.poiId);
         return (
           <div key={npc.id} style={{ pointerEvents: "auto" }}>
             <CampNpcMarker
               npc={npc}
+              campStock={campStock}
               x={screenX}
               y={screenY}
             />

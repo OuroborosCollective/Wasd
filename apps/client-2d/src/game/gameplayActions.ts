@@ -341,3 +341,66 @@ export async function dispatchSellAllResources(playerId?: string): Promise<SellA
     return { ok: false, error: "network_error" };
   }
 }
+
+export interface BuyCampStockResult {
+  ok: boolean;
+  result?: {
+    npcId: string;
+    poiId: string;
+    itemId: string;
+    quantityBought: number;
+    unitPrice: number;
+    totalCoins: number;
+    newCoinBalance: number;
+    remainingCampStock: number;
+  };
+  error?: string;
+}
+
+/**
+ * Dispatch buy camp stock action and refresh the live snapshot.
+ * Includes player position for camp proximity validation.
+ */
+export async function dispatchBuyCampStock(input: {
+  playerId?: string;
+  npcId: string;
+  itemId: string;
+  quantity: number;
+}): Promise<BuyCampStockResult> {
+  const pid = input.playerId ?? DEFAULT_GAMEPLAY_PLAYER_ID;
+  const playerPosition = readPlayerPositionBridge();
+
+  try {
+    const response = await fetch(`/api/npc/camp/${input.npcId}/buy-stock`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-player-id": pid,
+      },
+      body: JSON.stringify({
+        playerId: pid,
+        itemId: input.itemId,
+        quantity: input.quantity,
+        playerPosition: playerPosition ?? undefined,
+      }),
+    });
+
+    const json = await response.json().catch(() => null);
+
+    if (!response.ok || !json?.ok) {
+      const reason = json?.error ?? "buy_failed";
+      return { ok: false, error: String(reason) };
+    }
+
+    // Refetch snapshot to update inventory, wallet, and camp stock
+    const next = await fetchGameplaySnapshot(pid);
+    if (next) {
+      liveGameplayStore.setSnapshot(next);
+    }
+
+    return { ok: true, result: json.result };
+  } catch (error) {
+    console.error("[dispatchBuyCampStock] failed:", error);
+    return { ok: false, error: "network_error" };
+  }
+}

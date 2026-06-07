@@ -149,6 +149,8 @@ export interface LiveGameplayCampNpc {
 export interface LiveGameplayCampStockItem {
   readonly itemId: string;
   readonly quantity: number;
+  /** Buy price in coins, null if not buyable from camp */
+  readonly buyPrice?: number | null;
 }
 
 /**

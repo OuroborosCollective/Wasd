@@ -301,6 +301,8 @@ export interface CampNpcSnapshot {
 export interface CampStockItemSnapshot {
   itemId: string;
   quantity: number;
+  /** Buy price in coins, null if not buyable from camp */
+  buyPrice?: number | null;
 }
 
 /**
@@ -830,6 +832,7 @@ function normalizeCampStockItem(input: unknown): CampStockItemSnapshot | null {
   return {
     itemId: String(raw.itemId ?? ""),
     quantity: Math.max(0, Math.floor(Number(raw.quantity ?? 0))),
+    buyPrice: raw.buyPrice != null ? Math.max(0, Math.floor(Number(raw.buyPrice))) : null,
   };
 }
 
