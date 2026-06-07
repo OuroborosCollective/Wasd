@@ -159,9 +159,16 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
     // Process discovery if player has a position
     let recentDiscoveries: readonly { poiId: string; title: string; type: string }[] = [];
     if (playerPosition && worldPois.length > 0) {
+      // Convert player position from tiles to kappa units for distance comparison
+      // Player position from bridge is in tiles (e.g., 460), POIs are in kappa (e.g., 460000)
+      const playerPositionKappa = {
+        x: playerPosition.x * 1000,
+        y: playerPosition.y * 1000,
+      };
+      
       const newDiscoveries = worldDiscoveryService.processDiscovery(
         identity.playerId,
-        playerPosition,
+        playerPositionKappa,
         worldPois,
       );
       

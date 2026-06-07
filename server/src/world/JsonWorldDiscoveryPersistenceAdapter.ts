@@ -57,8 +57,34 @@ export function resolveWorldDiscoveryStateFilePath(): string {
     : path.resolve(process.cwd(), "data", "world-discovery-state.json");
 }
 
+/**
+ * Simple write queue to serialize concurrent saves.
+ * Uses a promise chain to ensure only one write happens at a time.
+ */
+class WriteQueue {
+  private lastWrite: Promise<void> = Promise.resolve();
+
+  async enqueue(fn: () => Promise<void>): Promise<void> {
+    const waitForPrevious = this.lastWrite;
+    let currentWriteComplete: Promise<void>;
+    this.lastWrite = new Promise((resolve) => {
+      currentWriteComplete = fn().then(() => {
+        resolve();
+        return undefined as void;
+      });
+    });
+    await waitForPrevious;
+    await currentWriteComplete;
+  }
+}
+
 export class JsonWorldDiscoveryPersistenceAdapter {
-  constructor(private readonly filePath = resolveWorldDiscoveryStateFilePath()) {}
+  private readonly filePath: string;
+  private readonly writeQueue = new WriteQueue();
+
+  constructor(filePath = resolveWorldDiscoveryStateFilePath()) {
+    this.filePath = filePath;
+  }
 
   async loadDiscovery(playerId: string): Promise<WorldDiscoveryState | null> {
     const file = await this.readFileSafe();
@@ -74,16 +100,18 @@ export class JsonWorldDiscoveryPersistenceAdapter {
   }
 
   async saveDiscovery(state: WorldDiscoveryState, autoSeededStarter: boolean = false): Promise<void> {
-    const file = await this.readFileSafe();
-    const normalized: PersistedDiscoveryState = {
-      playerId: state.playerId,
-      schemaVersion: 1,
-      discoveredPoiIds: [...state.discoveredPoiIds],
-      discoveredChunks: [...state.discoveredChunks],
-      autoSeededStarter,
-    };
-    const withoutPlayer = file.players.filter((p) => p.playerId !== normalized.playerId);
-    await this.writeFileAtomic(stableFile([...withoutPlayer, normalized]));
+    await this.writeQueue.enqueue(async () => {
+      const file = await this.readFileSafe();
+      const normalized: PersistedDiscoveryState = {
+        playerId: state.playerId,
+        schemaVersion: 1,
+        discoveredPoiIds: [...state.discoveredPoiIds],
+        discoveredChunks: [...state.discoveredChunks],
+        autoSeededStarter,
+      };
+      const withoutPlayer = file.players.filter((p) => p.playerId !== normalized.playerId);
+      await this.writeFileAtomic(stableFile([...withoutPlayer, normalized]));
+    });
   }
 
   async health(): Promise<{ ok: boolean; driver: string; error?: string }> {
@@ -132,7 +160,9 @@ export class JsonWorldDiscoveryPersistenceAdapter {
     await mkdir(path.dirname(this.filePath), { recursive: true });
 
     const tmp = `${this.filePath}.tmp`;
-    await writeFile(tmp, `${JSON.stringify(file, null, 2)}\n`, "utf8");
-    await rename(tmp, this.filePath);
+    const timestamp = Date.now();
+    const tmpWithTimestamp = `${this.filePath}.${timestamp}.tmp`;
+    await writeFile(tmpWithTimestamp, `${JSON.stringify(file, null, 2)}\n`, "utf8");
+    await rename(tmpWithTimestamp, this.filePath);
   }
 }

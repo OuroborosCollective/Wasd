@@ -407,6 +407,7 @@ export function normalizeWorldPois(input: unknown): WorldPoiSnapshot[] {
       y: Number(poi.y ?? 0),
       chunkX: Number(poi.chunkX ?? 0),
       chunkZ: Number(poi.chunkZ ?? 0),
+      discovered: poi.discovered ?? true, // Preserve discovery state, default to true for backward compat
     }))
     .sort((a, b) => a.poiId.localeCompare(b.poiId));
 }
