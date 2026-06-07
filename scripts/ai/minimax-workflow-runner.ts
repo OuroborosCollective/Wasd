@@ -13,10 +13,33 @@ function isEnabled(): boolean {
   return process.env.MINIMAX_ENABLED === "true";
 }
 
+function hasApiKey(): boolean {
+  return Boolean(process.env.MINIMAX_API_KEY?.trim());
+}
+
+function skipped(task: Task, reason: string): Record<string, unknown> {
+  return {
+    ok: true,
+    skipped: true,
+    task,
+    reason,
+  };
+}
+
+function degraded(task: Task, reason: string, details: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ok: true,
+    degraded: true,
+    task,
+    reason,
+    ...details,
+  };
+}
+
 function createClient(): MiniMaxClient {
   return new MiniMaxClient({
     apiKey: process.env.MINIMAX_API_KEY,
-    enabled: isEnabled(),
+    enabled: isEnabled() && hasApiKey(),
   });
 }
 
@@ -53,32 +76,28 @@ function scanMathRandomViolations(): Array<{ type: string; file: string; count: 
 
 async function runTask(task: Task): Promise<unknown> {
   if (!isEnabled()) {
-    return {
-      ok: true,
-      skipped: true,
-      task,
-      reason: "minimax_disabled",
-    };
+    return skipped(task, "minimax_disabled");
+  }
+
+  if (!hasApiKey()) {
+    return skipped(task, "minimax_api_key_missing");
   }
 
   const client = createClient();
 
   if (task === "system_health") {
     const response = await client.requestSystemAnalysis();
-    if (!response) throw new Error("minimax_system_health_returned_null");
-    return response;
+    return response ?? degraded(task, "minimax_system_health_returned_null");
   }
 
   if (task === "npc_health") {
     const response = await client.requestNPCHealthCheck("all");
-    if (!response) throw new Error("minimax_npc_health_returned_null");
-    return response;
+    return response ?? degraded(task, "minimax_npc_health_returned_null");
   }
 
   if (task === "ui_optimization") {
     const response = await client.requestUIOptimization();
-    if (!response) throw new Error("minimax_ui_optimization_returned_null");
-    return response;
+    return response ?? degraded(task, "minimax_ui_optimization_returned_null");
   }
 
   const violations = scanMathRandomViolations();
@@ -98,14 +117,14 @@ async function runTask(task: Task): Promise<unknown> {
     { violations },
   );
 
-  if (!response) throw new Error("minimax_arelogic_fix_returned_null");
-
-  return {
-    ok: Boolean(response.ok),
-    task,
-    violations,
-    response,
-  };
+  return response
+    ? {
+        ok: Boolean(response.ok),
+        task,
+        violations,
+        response,
+      }
+    : degraded(task, "minimax_arelogic_fix_returned_null", { violations });
 }
 
 async function main(): Promise<void> {
