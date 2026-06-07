@@ -90,7 +90,7 @@ export interface WorldPoiSnapshot {
   position: { x: number; y: number };
   chunk: { x: number; z: number };
   interactionRadius: number;
-  tags: string[];
+  tags: readonly string[];
 }
 
 /**
@@ -278,7 +278,10 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGamepl
   const sortedPaperdollSlots = [...(input.paperdoll?.slots ?? [])].sort((a, b) => a.slotId.localeCompare(b.slotId));
 
   // Sort world POIs by id for deterministic output
-  const sortedWorldPois = [...(input.map?.worldPois ?? [])].sort((a, b) => a.id.localeCompare(b.id));
+  const sortedWorldPois: WorldPoiSnapshot[] = [...(input.map?.worldPois ?? [])].sort((a, b) => a.id.localeCompare(b.id)).map(poi => ({
+    ...poi,
+    tags: [...poi.tags] as readonly string[],
+  }));
 
   return {
     status: "live",
