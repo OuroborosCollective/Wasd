@@ -180,6 +180,13 @@ export interface PaperdollSnapshot {
   slots: PaperdollSlotSnapshot[];
 }
 
+/**
+ * Wallet Snapshot shape (coin balance)
+ */
+export interface WalletSnapshot {
+  coin: number;
+}
+
 export interface LiveGameplaySnapshot {
   status: LiveDataStatus;
   serverTick: number | null;
@@ -194,6 +201,7 @@ export interface LiveGameplaySnapshot {
   guild: GuildSnapshot;
   factions: FactionStandingSnapshot[];
   map: MapSnapshot;
+  wallet: WalletSnapshot;
 }
 
 // Default empty snapshot - honest waiting state
@@ -233,6 +241,9 @@ export const EMPTY_LIVE_GAMEPLAY_SNAPSHOT: LiveGameplaySnapshot = {
     chunkZ: null,
     visibleChunks: null,
     biome: null,
+  },
+  wallet: {
+    coin: 0,
   },
 };
 
@@ -279,6 +290,9 @@ export function normalizeLiveGameplaySnapshot(
             ? input.map.visibleChunks
             : null,
         biome: input.map?.biome ?? null,
+      },
+      wallet: {
+        coin: typeof input.wallet?.coin === "number" ? Math.max(0, Math.floor(input.wallet.coin)) : 0,
       },
     };
   } catch (error) {

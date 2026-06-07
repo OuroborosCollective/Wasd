@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { LiveGameplaySnapshotComposer } from "./LiveGameplaySnapshotComposer.js";
+import { LiveGameplaySnapshotComposer } from "../gameplay/LiveGameplaySnapshotComposer.js";
 
 describe("LiveGameplaySnapshotComposer", () => {
   it("composes deterministic sorted snapshot", async () => {
@@ -31,6 +31,7 @@ describe("LiveGameplaySnapshotComposer", () => {
       getResourceNodes: () => [
         { nodeId: "node_tree_001", resourceId: "tree", skillId: "woodcutting", x: 10, y: 20, available: true },
       ],
+      getWallet: () => ({ coin: 0 }),
     });
 
     const snapshot = await composer.compose("player_test", 42);
@@ -53,6 +54,7 @@ describe("LiveGameplaySnapshotComposer", () => {
       getEquipmentSlots: () => [],
       getSkillStates: () => [],
       getResourceNodes: () => [],
+      getWallet: () => ({ coin: 0 }),
     });
 
     const snapshot = await composer.compose("player_test", -1);
@@ -65,6 +67,7 @@ describe("LiveGameplaySnapshotComposer", () => {
       getEquipmentSlots: () => [],
       getSkillStates: () => [],
       getResourceNodes: () => [],
+      getWallet: () => ({ coin: 0 }),
     });
 
     const snapshot = await composer.compose("player_test", Infinity);
@@ -77,6 +80,7 @@ describe("LiveGameplaySnapshotComposer", () => {
       getEquipmentSlots: () => [],
       getSkillStates: () => [],
       getResourceNodes: () => [],
+      getWallet: () => ({ coin: 0 }),
     });
 
     const snapshot = await composer.compose("player_empty", 0);
@@ -85,6 +89,7 @@ describe("LiveGameplaySnapshotComposer", () => {
     expect(snapshot.equipment).toEqual([]);
     expect(snapshot.skills).toEqual([]);
     expect(snapshot.resourceNodes).toEqual([]);
+    expect(snapshot.wallet.coin).toBe(0);
   });
 
   it("returns frozen snapshot object", async () => {
@@ -93,6 +98,7 @@ describe("LiveGameplaySnapshotComposer", () => {
       getEquipmentSlots: () => [],
       getSkillStates: () => [],
       getResourceNodes: () => [],
+      getWallet: () => ({ coin: 42 }),
     });
 
     const snapshot = await composer.compose("player_test", 0);
@@ -102,6 +108,8 @@ describe("LiveGameplaySnapshotComposer", () => {
     expect(Object.isFrozen(snapshot.equipment)).toBe(true);
     expect(Object.isFrozen(snapshot.skills)).toBe(true);
     expect(Object.isFrozen(snapshot.resourceNodes)).toBe(true);
+    expect(Object.isFrozen(snapshot.wallet)).toBe(true);
+    expect(snapshot.wallet.coin).toBe(42);
   });
 
   it("sorts multiple inventory items by itemId", async () => {
@@ -114,6 +122,7 @@ describe("LiveGameplaySnapshotComposer", () => {
       getEquipmentSlots: () => [],
       getSkillStates: () => [],
       getResourceNodes: () => [],
+      getWallet: () => ({ coin: 0 }),
     });
 
     const snapshot = await composer.compose("player_test", 0);
@@ -127,6 +136,7 @@ describe("LiveGameplaySnapshotComposer", () => {
       getEquipmentSlots: async () => [{ slot: "tool", itemId: "axe" }],
       getSkillStates: async () => [{ skillId: "woodcutting", xp: 100, level: 2 }],
       getResourceNodes: async () => [{ nodeId: "node_1", resourceId: "tree", skillId: "woodcutting", x: 0, y: 0, available: true }],
+      getWallet: async () => ({ coin: 100 }),
     });
 
     const snapshot = await composer.compose("async_player", 10);
@@ -134,5 +144,6 @@ describe("LiveGameplaySnapshotComposer", () => {
     expect(snapshot.inventory).toHaveLength(1);
     expect(snapshot.inventory[0].itemId).toBe("async_item");
     expect(snapshot.skills[0].skillId).toBe("woodcutting");
+    expect(snapshot.wallet.coin).toBe(100);
   });
 });

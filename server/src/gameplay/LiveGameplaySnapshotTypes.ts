@@ -36,6 +36,10 @@ export interface LiveGameplayResourceNode {
   readonly available: boolean;
 }
 
+export interface LiveGameplayWallet {
+  readonly coin: number;
+}
+
 export interface LiveGameplaySnapshot {
   readonly schemaVersion: "live-gameplay-snapshot.v1";
   readonly playerId: string;
@@ -46,6 +50,7 @@ export interface LiveGameplaySnapshot {
   readonly equipment: readonly LiveGameplayEquipmentSlot[];
   readonly skills: readonly LiveGameplaySkillState[];
   readonly resourceNodes: readonly LiveGameplayResourceNode[];
+  readonly wallet: LiveGameplayWallet;
 }
 
 export interface GatherResult {

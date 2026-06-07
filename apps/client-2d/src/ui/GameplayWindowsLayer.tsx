@@ -72,7 +72,10 @@ export function GameplayWindowsLayer({ snapshot, openPanels }: Props) {
 
       {openPanels.has("inventory") && (
         <WindowFrame id="inventory" title="Inventory">
-          <InventoryPanel inventory={snapshot.inventory ?? null} />
+          <InventoryPanel
+            inventory={snapshot.inventory ?? null}
+            wallet={snapshot.wallet}
+          />
         </WindowFrame>
       )}
 
