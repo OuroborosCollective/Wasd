@@ -32,6 +32,7 @@ import { createStartPathQuestSnapshot } from "../character/StartPathQuestLine.js
 import { composeLiveGameplaySnapshotFromLegacy } from "../gameplay/composeLiveGameplaySnapshotFromLegacy.js";
 import { generateVisibleChunkPois, getStarterVillagePois, deriveChunkBiome, generateChunkPois } from "../world/WorldPoiGenerator.js";
 import { getVisibleChunkCoords } from "../resources/ChunkResourceGenerator.js";
+import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 
 /**
  * Get current tick ID from WorldTick instance.
@@ -152,6 +153,42 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
       worldPois = [...starterPois, ...generatedPois].sort((a, b) => a.id.localeCompare(b.id));
     }
 
+    // Hydrate and process discovery state
+    await worldDiscoveryService.hydratePlayer(identity.playerId);
+    
+    // Process discovery if player has a position
+    let recentDiscoveries: readonly { poiId: string; title: string; type: string }[] = [];
+    if (playerPosition && worldPois.length > 0) {
+      // Convert player position from tiles to kappa units for distance comparison
+      // Player position from bridge is in tiles (e.g., 460), POIs are in kappa (e.g., 460000)
+      const playerPositionKappa = {
+        x: playerPosition.x * 1000,
+        y: playerPosition.y * 1000,
+      };
+      
+      const newDiscoveries = worldDiscoveryService.processDiscovery(
+        identity.playerId,
+        playerPositionKappa,
+        worldPois,
+      );
+      
+      // Build recent discoveries list for client feedback
+      if (newDiscoveries.length > 0) {
+        recentDiscoveries = newDiscoveries.map((poiId) => {
+          const poi = worldPois.find((p) => p.id === poiId);
+          return {
+            poiId,
+            title: poi?.title ?? poiId,
+            type: poi?.type ?? "unknown",
+          };
+        });
+      }
+    }
+    
+    // Get discovery stats and discovered POI IDs
+    const discoveryStats = worldDiscoveryService.getStats(identity.playerId);
+    const discoveredPoiIds = worldDiscoveryService.getDiscoveredPoiIds(identity.playerId);
+
     const snapshot = createGameplaySnapshot({
       serverTick,
       character: characterSnapshot,
@@ -173,7 +210,7 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
       },
     });
 
-    // Convert POIs to live gameplay format
+    // Convert POIs to live gameplay format with discovery info
     const liveWorldPois = worldPois.map((poi) => ({
       poiId: poi.id,
       type: poi.type,
@@ -182,6 +219,7 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
       y: poi.position.y,
       chunkX: poi.chunk.x,
       chunkZ: poi.chunk.z,
+      discovered: discoveredPoiIds.includes(poi.id),
     }));
 
     const liveGameplaySnapshot = await composeLiveGameplaySnapshotFromLegacy({
@@ -192,6 +230,13 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
       skills: skillState.skills,
       resourceNodes: resources,
       worldPois: liveWorldPois,
+      discoveryStats,
+      recentDiscoveries,
+    });
+
+    // Persist discovery state (non-blocking)
+    worldDiscoveryService.persistPlayer(identity.playerId).catch((err) => {
+      console.error("[Discovery] Failed to persist:", err);
     });
 
     res.json({

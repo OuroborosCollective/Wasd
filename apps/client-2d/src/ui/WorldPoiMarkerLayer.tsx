@@ -40,13 +40,25 @@ interface PoiMarkerProps {
   title: string;
   x: number;
   y: number;
+  discovered?: boolean;
 }
 
-function PoiMarker({ poiId, type, title, x, y }: PoiMarkerProps) {
+function PoiMarker({ poiId, type, title, x, y, discovered = true }: PoiMarkerProps) {
   const [hovered, setHovered] = useState(false);
   const markerRef = useRef<HTMLButtonElement>(null);
 
   const handleClick = useCallback(() => {
+    if (!discovered) {
+      window.dispatchEvent(
+        new CustomEvent("wasd:toast", {
+          detail: {
+            type: "info",
+            message: "Unknown location — Explore to discover",
+          },
+        }),
+      );
+      return;
+    }
     window.dispatchEvent(
       new CustomEvent("wasd:toast", {
         detail: {
@@ -55,24 +67,27 @@ function PoiMarker({ poiId, type, title, x, y }: PoiMarkerProps) {
         },
       }),
     );
-  }, [title, type]);
+  }, [title, type, discovered]);
 
-  const emoji = POI_EMOJI[type] ?? "📍";
-  const color = POI_COLORS[type] ?? "#fff";
+  // For undiscovered POIs, show generic marker
+  const emoji = discovered ? (POI_EMOJI[type] ?? "📍") : "?";
+  const color = discovered ? (POI_COLORS[type] ?? "#fff") : "#666";
+  const displayTitle = discovered ? title : "Unknown Location";
 
   return (
     <button
       ref={markerRef}
       type="button"
       data-testid="world-poi-marker"
-      data-poi-type={type}
+      data-poi-type={discovered ? type : "unknown"}
+      data-discovered={discovered}
       className="world-poi-marker"
       style={{
         position: "absolute",
         left: `${x}px`,
         top: `${y}px`,
         transform: "translate(-50%, -50%)",
-        background: "rgba(4, 8, 14, 0.85)",
+        background: discovered ? "rgba(4, 8, 14, 0.85)" : "rgba(40, 40, 40, 0.85)",
         border: `2px solid ${color}`,
         borderRadius: "16px",
         padding: "6px 10px",
@@ -95,12 +110,12 @@ function PoiMarker({ poiId, type, title, x, y }: PoiMarkerProps) {
       onClick={handleClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      title={`${title} — Tap for details`}
-      aria-label={`${title} world POI, ${type}`}
+      title={discovered ? `${title} — Tap for details` : "Unknown location — Explore to discover"}
+      aria-label={discovered ? `${title} world POI, ${type}` : "Unknown world POI"}
     >
       <span style={{ fontSize: "20px", lineHeight: 1 }}>{emoji}</span>
       <span style={{ fontSize: "9px", opacity: 0.8, maxWidth: "60px", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis" }}>
-        {title}
+        {displayTitle}
       </span>
     </button>
   );
@@ -131,6 +146,7 @@ export function WorldPoiMarkerLayer() {
   const snapshot = useLiveGameplaySnapshot();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const previousDiscoveriesRef = useRef<Set<string>>(new Set());
 
   // Track container size for coordinate mapping
   useEffect(() => {
@@ -149,6 +165,27 @@ export function WorldPoiMarkerLayer() {
     observer.observe(container);
     return () => observer.disconnect();
   }, []);
+
+  // Handle discovery toasts - show notification when new POIs are discovered
+  useEffect(() => {
+    const recentDiscoveries = snapshot.recentDiscoveries ?? [];
+    if (recentDiscoveries.length === 0) return;
+
+    for (const discovery of recentDiscoveries) {
+      if (previousDiscoveriesRef.current.has(discovery.poiId)) continue;
+      previousDiscoveriesRef.current.add(discovery.poiId);
+
+      // Show toast notification for new discovery
+      window.dispatchEvent(
+        new CustomEvent("wasd:toast", {
+          detail: {
+            type: "success",
+            message: `Discovered: ${discovery.title}`,
+          },
+        }),
+      );
+    }
+  }, [snapshot.recentDiscoveries]);
 
   const worldPois = snapshot.worldPois ?? [];
 
@@ -201,6 +238,7 @@ export function WorldPoiMarkerLayer() {
               title={poi.title}
               x={screenX}
               y={screenY}
+              discovered={poi.discovered ?? true}
             />
           </div>
         );
