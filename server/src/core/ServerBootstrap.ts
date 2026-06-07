@@ -50,6 +50,60 @@ const currentDir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(f
 type HealthContentSummary = { mode: "published" | "pack_dir" | "legacy" | "unknown"; root: string | null };
 type HealthSupabaseSummary = ReturnType<typeof getSupabaseSummary> | { status: "unknown" };
 
+export interface ClientEntrypointHealth {
+  readonly source: {
+    readonly client2d: string;
+    readonly client3d: string;
+    readonly portal: string;
+  };
+  readonly runtime: {
+    readonly root: string;
+    readonly client2d: string;
+    readonly client3d: string;
+    readonly portal: string;
+  };
+  readonly route: {
+    readonly client2d: "/2d";
+    readonly client3d: "/3d";
+    readonly portal: "/portal";
+  };
+  readonly available: {
+    readonly client2d: boolean;
+    readonly client3d: boolean;
+    readonly portal: boolean;
+  };
+}
+
+export function buildClientEntrypointHealth(clientRoot: string, clientDistPath: string): ClientEntrypointHealth {
+  const client2dRuntime = path.join(clientDistPath, "2d", "index.html");
+  const client3dRuntime = path.join(clientDistPath, "3d", "index.html");
+  const portalRuntime = path.join(clientDistPath, "portal", "index.html");
+
+  return Object.freeze({
+    source: Object.freeze({
+      client2d: "apps/client-2d",
+      client3d: "client",
+      portal: "portal",
+    }),
+    runtime: Object.freeze({
+      root: clientDistPath,
+      client2d: client2dRuntime,
+      client3d: client3dRuntime,
+      portal: portalRuntime,
+    }),
+    route: Object.freeze({
+      client2d: "/2d" as const,
+      client3d: "/3d" as const,
+      portal: "/portal" as const,
+    }),
+    available: Object.freeze({
+      client2d: existsSync(client2dRuntime),
+      client3d: existsSync(client3dRuntime),
+      portal: existsSync(portalRuntime),
+    }),
+  });
+}
+
 function resolveClientRoot(): string {
   const fromEnv = process.env.CLIENT_ROOT_DIR?.trim();
   if (fromEnv) return path.isAbsolute(fromEnv) ? fromEnv : path.resolve(process.cwd(), fromEnv);
@@ -144,6 +198,9 @@ export class ServerBootstrap {
     app.get("/health", (_req, res) => {
       const tick = (this as any)._tick as WorldTick | undefined;
       const selfHealingStatus = safeHealthValue(() => selfHealingRuntime.getStatus(), { active: false, config: {}, totalErrors: 0, totalHealed: 0, healingRate: 0, featuresProtected: 0 } as any);
+      const clientRoot = resolveClientRoot();
+      const clientPath = path.join(clientRoot, "dist");
+      const clientEntrypoints = buildClientEntrypointHealth(clientRoot, clientPath);
       res.status(this.initializing ? 503 : 200).json({
         ok: !this.initializing,
         status: this.initializing ? "initializing" : "ok",
@@ -151,6 +208,7 @@ export class ServerBootstrap {
         version: "0.2.0",
         uptimeSeconds: Math.round(process.uptime()),
         port: Number(process.env.PORT || 3000),
+        clientEntrypoints,
         persistence: safeHealthValue(() => tick?.getPersistenceStats?.() ?? { status: "unknown" }, { status: "unknown" }),
         content: safeHealthValue<HealthContentSummary>(() => { const content = getContentDataSourceLabel(); return { mode: content.mode, root: content.root }; }, { mode: "unknown", root: null }),
         supabase: safeHealthValue<HealthSupabaseSummary>(() => getSupabaseSummary(), { status: "unknown" }),
