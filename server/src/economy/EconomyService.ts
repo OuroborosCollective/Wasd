@@ -139,6 +139,7 @@ export class EconomyService {
     // Validate vendor proximity
     const vendorProximityResult = this.validateVendorProximity(input);
     if (!vendorProximityResult.valid) {
+      const failureReason = vendorProximityResult.reason ?? "vendor_too_far";
       return {
         ok: false,
         itemId: String(input.itemId),
@@ -146,7 +147,7 @@ export class EconomyService {
         unitPrice: priceResult.price,
         totalCoins: 0,
         newBalance: 0,
-        reason: vendorProximityResult.reason,
+        reason: failureReason,
       };
     }
 
@@ -220,12 +221,13 @@ export class EconomyService {
     // Validate vendor proximity
     const vendorProximityResult = this.validateVendorProximity(input);
     if (!vendorProximityResult.valid) {
+      const failureReason = vendorProximityResult.reason ?? "vendor_too_far";
       return {
         ok: false,
         sold: [],
         totalCoins: 0,
         newBalance: 0,
-        reason: vendorProximityResult.reason,
+        reason: failureReason,
       };
     }
 
@@ -299,7 +301,15 @@ export class EconomyService {
   private validateVendorProximity(input: {
     playerPosition?: { x: number; y: number };
     vendorId?: string;
-  }): { valid: boolean; reason?: string } {
+  }): {
+    valid: boolean;
+    reason?:
+      | "missing_vendor"
+      | "invalid_vendor"
+      | "missing_player_position"
+      | "invalid_player_position"
+      | "vendor_too_far";
+  } {
     // Default vendor is the village trader
     const vendorId = input.vendorId ?? "village_trader_001";
 
@@ -316,10 +326,7 @@ export class EconomyService {
 
     // Validate player position is finite
     const pos = input.playerPosition;
-    if (
-      !Number.isFinite(pos.x) ||
-      !Number.isFinite(pos.y)
-    ) {
+    if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y)) {
       return { valid: false, reason: "invalid_player_position" };
     }
 
