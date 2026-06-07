@@ -261,6 +261,7 @@ export function ArelorianStitchHud({
           <button
             key={overlay.id}
             type="button"
+            data-testid={overlay.id === "chat" ? "mobile-chat-toggle" : undefined}
             className={openOverlays[overlay.id] ? "active" : ""}
             onClick={() => toggleOverlay(overlay.id)}
             aria-pressed={openOverlays[overlay.id]}
