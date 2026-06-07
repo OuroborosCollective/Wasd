@@ -116,3 +116,55 @@
 .gathering-tools-panel .tool-name {
   font-weight: 500;
 }
+
+/* Claim Starter Tools Section */
+.gathering-tools-panel .claim-section {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(80, 90, 110, 0.3);
+}
+
+.gathering-tools-panel .claim-description {
+  margin: 0 0 8px 0;
+  font-size: 0.6rem;
+  color: #5a6070;
+  line-height: 1.4;
+}
+
+.gathering-tools-panel .claim-starter-tools-button {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, #2a3a50 0%, #1a2535 100%);
+  border: 2px solid rgba(100, 140, 200, 0.4);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #a0c0e8;
+  font-family: inherit;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+.gathering-tools-panel .claim-starter-tools-button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #3a4a60 0%, #2a3545 100%);
+  border-color: rgba(120, 160, 220, 0.6);
+  color: #c0d8f0;
+}
+
+.gathering-tools-panel .claim-starter-tools-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.gathering-tools-panel .claim-starter-tools-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.gathering-tools-panel .claim-error {
+  margin: 6px 0 0 0;
+  font-size: 0.6rem;
+  color: #e06060;
+}
