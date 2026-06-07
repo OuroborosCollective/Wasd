@@ -13,6 +13,7 @@ import { useLiveGameplaySnapshot } from "./game/useLiveGameplaySnapshot";
 import { GameplayWindowDock } from "./ui/GameplayWindowDock";
 import { GameplayWindowsLayer } from "./ui/GameplayWindowsLayer";
 import { useGameplayPanels } from "./ui/useGameplayPanels";
+import { publishPlayerPositionBridge } from "./game/PlayerPositionBridge";
 import "./areHeartbeat.css";
 
 type Msg = { from: string; txt: string };
@@ -136,6 +137,11 @@ export function ArelorianStitchHud({
   // Live gameplay snapshot from server (display-only, no game logic)
   const liveGameplay = useLiveGameplaySnapshot();
 
+  // Publish player position to PlayerPositionBridge so ResourceNodeMarkerLayer can read it
+  useEffect(() => {
+    publishPlayerPositionBridge(debugPlayerPos);
+  }, [debugPlayerPos?.x, debugPlayerPos?.z]);
+
   // Deterministic vitals from server (no Math.random, no Date.now)
   const hpPercent = vitals ? Math.round((vitals.hp / vitals.maxHp) * 100) : 86;
   const manaPercent = vitals ? Math.round((vitals.mana / vitals.maxMana) * 100) : 64;
@@ -255,6 +261,7 @@ export function ArelorianStitchHud({
           <button
             key={overlay.id}
             type="button"
+            data-testid={overlay.id === "chat" ? "mobile-chat-toggle" : undefined}
             className={openOverlays[overlay.id] ? "active" : ""}
             onClick={() => toggleOverlay(overlay.id)}
             aria-pressed={openOverlays[overlay.id]}
