@@ -14,7 +14,7 @@ export interface WorldDiscoveryState {
   readonly playerId: string;
   readonly schemaVersion: 1;
   readonly discoveredPoiIds: readonly string[];
-  readonly discoveredChunks: readonly string[];
+  readonly discoveredChunks: readonly ChunkKey[];
 }
 
 /**

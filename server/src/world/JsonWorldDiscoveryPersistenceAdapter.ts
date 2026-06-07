@@ -39,9 +39,10 @@ function normalizePoiIds(ids: unknown): string[] {
 
 function normalizeChunkKeys(keys: unknown): ChunkKey[] {
   if (!Array.isArray(keys)) return [];
-  return [...new Set(keys.filter((k) => typeof k === "string" && k.includes(":"))).map((k) => k as ChunkKey)].sort((a, b) =>
-    a.localeCompare(b),
-  );
+  const validKeys = keys
+    .filter((k): k is string => typeof k === "string" && k.includes(":"))
+    .map((k) => k as ChunkKey);
+  return [...new Set(validKeys)].sort((a, b) => a.localeCompare(b));
 }
 
 function stableFile(players: PersistedDiscoveryState[]): DiscoveryFile {

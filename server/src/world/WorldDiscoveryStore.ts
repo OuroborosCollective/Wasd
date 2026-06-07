@@ -131,11 +131,12 @@ export class WorldDiscoveryStore {
   /**
    * Get discovery stats for a player.
    */
-  getStats(playerId: string): { discoveredPoiCount: number; discoveredChunkCount: number } {
+  getStats(playerId: string): { discoveredPoiCount: number; discoveredChunkCount: number; visiblePoiCount: number } {
     const state = this.getState(playerId);
     return {
       discoveredPoiCount: state.discoveredPoiIds.length,
       discoveredChunkCount: state.discoveredChunks.length,
+      visiblePoiCount: state.discoveredPoiIds.length, // For MVP, visible = discovered
     };
   }
 

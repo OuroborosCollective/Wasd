@@ -151,7 +151,7 @@ export class WorldDiscoveryService {
   /**
    * Get discovery stats for a player.
    */
-  getStats(playerId: string): { discoveredPoiCount: number; discoveredChunkCount: number } {
+  getStats(playerId: string): { discoveredPoiCount: number; discoveredChunkCount: number; visiblePoiCount: number } {
     return this.store.getStats(playerId);
   }
 

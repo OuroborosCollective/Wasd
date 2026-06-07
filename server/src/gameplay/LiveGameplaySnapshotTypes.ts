@@ -48,8 +48,8 @@ export interface LiveGameplayWorldPoi {
   readonly y: number;
   readonly chunkX: number;
   readonly chunkZ: number;
-  /** Whether this POI has been discovered by the player */
-  readonly discovered: boolean;
+  /** Whether this POI has been discovered by the player (defaults to true for backward compat) */
+  readonly discovered?: boolean;
 }
 
 /**
