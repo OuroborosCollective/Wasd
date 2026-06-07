@@ -64,7 +64,7 @@ jobs:
 
       - name: Run System Health Analysis via MiniMax
         id: system-health
-        run: pnpm exec tsx scripts/ai/minimax-workflow-runner.ts system_health > minimax-response.json
+        run: pnpm exec tsx scripts/ai/minimax-workflow-runner.ts system_health | tee minimax-response.json
         env:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           MINIMAX_ENABLED: ${{ secrets.MINIMAX_ENABLED }}
@@ -99,7 +99,7 @@ jobs:
 
       - name: Analyze NPC Civilization Health
         id: npc-health
-        run: pnpm exec tsx scripts/ai/minimax-workflow-runner.ts npc_health > npc-health-response.json
+        run: pnpm exec tsx scripts/ai/minimax-workflow-runner.ts npc_health | tee npc-health-response.json
         env:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           MINIMAX_ENABLED: ${{ secrets.MINIMAX_ENABLED }}
@@ -134,7 +134,7 @@ jobs:
 
       - name: Analyze UI/UX
         id: ui-optimization
-        run: pnpm exec tsx scripts/ai/minimax-workflow-runner.ts ui_optimization > ui-optimization-response.json
+        run: pnpm exec tsx scripts/ai/minimax-workflow-runner.ts ui_optimization | tee ui-optimization-response.json
         env:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           MINIMAX_ENABLED: ${{ secrets.MINIMAX_ENABLED }}
@@ -169,7 +169,7 @@ jobs:
 
       - name: Run Determinism Audit
         id: arelogic-audit
-        run: pnpm exec tsx scripts/ai/minimax-workflow-runner.ts arelogic > arelogic-response.json
+        run: pnpm exec tsx scripts/ai/minimax-workflow-runner.ts arelogic | tee arelogic-response.json
         env:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           MINIMAX_ENABLED: ${{ secrets.MINIMAX_ENABLED }}
