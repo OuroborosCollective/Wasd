@@ -41,6 +41,7 @@ import { default as equipmentRouter } from "../routes/equipmentRoute.js";
 import { default as onboardingRouter } from "../routes/onboardingRoute.js";
 import { default as characterRouter } from "../character/characterRoute.js";
 import { default as economyRouter } from "../economy/economyRoute.js";
+import { default as vendorRouter } from "../npc/VendorRoutes.js";
 import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
 import { PlaytesterMonitorStream } from "../modules/playtester/PlaytesterMonitorStream.js";
 import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRTCSignaling.js";
@@ -206,6 +207,7 @@ export class ServerBootstrap {
     app.use("/api/character", characterRouter);
     app.use("/api/onboarding", onboardingRouter);
     app.use("/api/economy", economyRouter);
+    app.use("/api/npc", vendorRouter);
     app.use("/api/self-healing", createSelfHealWorkshopRouter());
     app.use("/api/manifest", createManifestResyncRouter(tick));
     app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());

@@ -9,12 +9,19 @@
 import { InventoryService } from "../inventory/InventoryService.js";
 import { WalletService } from "./WalletService.js";
 import { getSellPrice, isSellable } from "./ResourceSellPrices.js";
+import {
+  getVillageResourceVendor,
+  checkVendorProximity,
+  type VendorDefinition,
+} from "./VillageVendors.js";
 import type { InventoryItemId } from "../inventory/InventoryTypes.js";
 
 export interface SellResourceInput {
   playerId: string;
   itemId: InventoryItemId | string;
   quantity: number;
+  playerPosition?: { x: number; y: number };
+  vendorId?: string;
 }
 
 export interface SellResourceResult {
@@ -30,11 +37,18 @@ export interface SellResourceResult {
     | "invalid_item"
     | "invalid_quantity"
     | "not_sellable"
-    | "insufficient_quantity";
+    | "insufficient_quantity"
+    | "missing_player_position"
+    | "invalid_player_position"
+    | "vendor_too_far"
+    | "missing_vendor"
+    | "invalid_vendor";
 }
 
 export interface SellAllResourcesInput {
   playerId: string;
+  playerPosition?: { x: number; y: number };
+  vendorId?: string;
 }
 
 export interface SellAllResourcesResult {
@@ -47,7 +61,15 @@ export interface SellAllResourcesResult {
   }>;
   totalCoins: number;
   newBalance: number;
-  reason?: "sold" | "nothing_to_sell" | "invalid_player";
+  reason?:
+    | "sold"
+    | "nothing_to_sell"
+    | "invalid_player"
+    | "missing_player_position"
+    | "invalid_player_position"
+    | "vendor_too_far"
+    | "missing_vendor"
+    | "invalid_vendor";
 }
 
 export class EconomyService {
@@ -111,6 +133,21 @@ export class EconomyService {
         totalCoins: 0,
         newBalance: 0,
         reason: "insufficient_quantity",
+      };
+    }
+
+    // Validate vendor proximity
+    const vendorProximityResult = this.validateVendorProximity(input);
+    if (!vendorProximityResult.valid) {
+      const failureReason = vendorProximityResult.reason ?? "vendor_too_far";
+      return {
+        ok: false,
+        itemId: String(input.itemId),
+        quantitySold: 0,
+        unitPrice: priceResult.price,
+        totalCoins: 0,
+        newBalance: 0,
+        reason: failureReason,
       };
     }
 
@@ -181,6 +218,19 @@ export class EconomyService {
       };
     }
 
+    // Validate vendor proximity
+    const vendorProximityResult = this.validateVendorProximity(input);
+    if (!vendorProximityResult.valid) {
+      const failureReason = vendorProximityResult.reason ?? "vendor_too_far";
+      return {
+        ok: false,
+        sold: [],
+        totalCoins: 0,
+        newBalance: 0,
+        reason: failureReason,
+      };
+    }
+
     // Calculate what can be sold
     const sellOps: Array<{
       itemId: string;
@@ -241,5 +291,51 @@ export class EconomyService {
       newBalance: updatedWallet.balances.coin,
       reason: "sold",
     };
+  }
+
+  /**
+   * Validate that player is near a valid vendor.
+   * Returns { valid: true } if vendor is valid and player is in range.
+   * Returns { valid: false, reason: string } with failure reason.
+   */
+  private validateVendorProximity(input: {
+    playerPosition?: { x: number; y: number };
+    vendorId?: string;
+  }): {
+    valid: boolean;
+    reason?:
+      | "missing_vendor"
+      | "invalid_vendor"
+      | "missing_player_position"
+      | "invalid_player_position"
+      | "vendor_too_far";
+  } {
+    // Default vendor is the village trader
+    const vendorId = input.vendorId ?? "village_trader_001";
+
+    // Check if vendor exists
+    const vendor = getVillageResourceVendor();
+    if (vendor.id !== vendorId) {
+      return { valid: false, reason: "invalid_vendor" };
+    }
+
+    // Player position is required for selling
+    if (!input.playerPosition) {
+      return { valid: false, reason: "missing_player_position" };
+    }
+
+    // Validate player position is finite
+    const pos = input.playerPosition;
+    if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y)) {
+      return { valid: false, reason: "invalid_player_position" };
+    }
+
+    // Check proximity
+    const proximity = checkVendorProximity(pos, vendor);
+    if (!proximity.withinRange) {
+      return { valid: false, reason: "vendor_too_far" };
+    }
+
+    return { valid: true };
   }
 }

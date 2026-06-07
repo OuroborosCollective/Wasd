@@ -4,6 +4,7 @@
  * Server-authoritative resource selling contract tests.
  * Tests sell-resource and sell-all-resources operations.
  * Ensures fail-does-not-mutate behavior.
+ * Tests vendor proximity requirements.
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -11,6 +12,7 @@ import { EconomyService } from "../economy/EconomyService.js";
 import { WalletStore } from "../economy/WalletStore.js";
 import { InventoryStore } from "../inventory/InventoryStore.js";
 import { InventoryService } from "../inventory/InventoryService.js";
+import { VILLAGE_TRADER } from "../economy/VillageVendors.js";
 
 // Mock persistence adapter
 const mockPersistence = {
@@ -19,6 +21,16 @@ const mockPersistence = {
   async loadPlayerInventory() { return null; },
   async savePlayerInventory() {},
 };
+
+// Helper to create a position near the vendor (within interaction radius)
+function nearVendorPosition() {
+  return { x: VILLAGE_TRADER.position.x, y: VILLAGE_TRADER.position.y };
+}
+
+// Helper to create a position far from the vendor
+function farVendorPosition() {
+  return { x: VILLAGE_TRADER.position.x + 100, y: VILLAGE_TRADER.position.y + 100 };
+}
 
 describe("EconomyService", () => {
   let economyService: EconomyService;
@@ -43,7 +55,7 @@ describe("EconomyService", () => {
   });
 
   describe("sellResource", () => {
-    it("should sell resource successfully", async () => {
+    it("should sell resource successfully when near vendor", async () => {
       // Add wood_log to inventory
       await inventoryService.addItem({ playerId: "player1", itemId: "wood_log", quantity: 5 });
 
@@ -51,6 +63,7 @@ describe("EconomyService", () => {
         playerId: "player1",
         itemId: "wood_log",
         quantity: 3,
+        playerPosition: nearVendorPosition(),
       });
 
       expect(result.ok).toBe(true);
@@ -71,6 +84,7 @@ describe("EconomyService", () => {
         playerId: "",
         itemId: "wood_log",
         quantity: 1,
+        playerPosition: nearVendorPosition(),
       });
 
       expect(result.ok).toBe(false);
@@ -82,6 +96,7 @@ describe("EconomyService", () => {
         playerId: "player1",
         itemId: "wood_log",
         quantity: 0,
+        playerPosition: nearVendorPosition(),
       });
 
       expect(result.ok).toBe(false);
@@ -96,6 +111,7 @@ describe("EconomyService", () => {
         playerId: "player1",
         itemId: "wooden_axe",
         quantity: 1,
+        playerPosition: nearVendorPosition(),
       });
 
       expect(result.ok).toBe(false);
@@ -110,6 +126,7 @@ describe("EconomyService", () => {
         playerId: "player1",
         itemId: "wood_log",
         quantity: 5,
+        playerPosition: nearVendorPosition(),
       });
 
       expect(result.ok).toBe(false);
@@ -125,6 +142,7 @@ describe("EconomyService", () => {
         playerId: "player1",
         itemId: "wood_log",
         quantity: 5,
+        playerPosition: nearVendorPosition(),
       });
 
       expect(result.ok).toBe(false);
@@ -137,7 +155,7 @@ describe("EconomyService", () => {
   });
 
   describe("sellAllResources", () => {
-    it("should sell all resources successfully", async () => {
+    it("should sell all resources successfully when near vendor", async () => {
       // Add multiple resource types
       await inventoryService.addItem({ playerId: "player1", itemId: "wood_log", quantity: 5 });
       await inventoryService.addItem({ playerId: "player1", itemId: "copper_ore", quantity: 2 });
@@ -145,6 +163,7 @@ describe("EconomyService", () => {
 
       const result = await economyService.sellAllResources({
         playerId: "player1",
+        playerPosition: nearVendorPosition(),
       });
 
       expect(result.ok).toBe(true);
@@ -161,6 +180,7 @@ describe("EconomyService", () => {
     it("should fail for nothing_to_sell", async () => {
       const result = await economyService.sellAllResources({
         playerId: "player1",
+        playerPosition: nearVendorPosition(),
       });
 
       expect(result.ok).toBe(false);
@@ -174,6 +194,7 @@ describe("EconomyService", () => {
 
       const result = await economyService.sellAllResources({
         playerId: "player1",
+        playerPosition: nearVendorPosition(),
       });
 
       expect(result.ok).toBe(true);
@@ -191,9 +212,10 @@ describe("EconomyService", () => {
       // Add some resources
       await inventoryService.addItem({ playerId: "player1", itemId: "wood_log", quantity: 5 });
 
-      // Create another service instance and try to sell from non-existent player
+      // Try to sell from non-existent player
       const result = await economyService.sellAllResources({
         playerId: "nonexistent",
+        playerPosition: nearVendorPosition(),
       });
 
       expect(result.ok).toBe(false);
@@ -202,6 +224,138 @@ describe("EconomyService", () => {
       const inventory = await inventoryService.getPlayerInventory("player1");
       const woodSlot = inventory.slots.find((s) => s.itemId === "wood_log");
       expect(woodSlot?.quantity).toBe(5);
+    });
+  });
+
+  describe("vendor proximity", () => {
+    it("should fail when player is too far from vendor", async () => {
+      // Add resources
+      await inventoryService.addItem({ playerId: "player1", itemId: "wood_log", quantity: 5 });
+
+      // Try to sell from far away
+      const result = await economyService.sellResource({
+        playerId: "player1",
+        itemId: "wood_log",
+        quantity: 3,
+        playerPosition: farVendorPosition(),
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("vendor_too_far");
+
+      // Verify inventory is unchanged
+      const inventory = await inventoryService.getPlayerInventory("player1");
+      const woodSlot = inventory.slots.find((s) => s.itemId === "wood_log");
+      expect(woodSlot?.quantity).toBe(5);
+    });
+
+    it("should fail sellAll when player is too far from vendor", async () => {
+      // Add resources
+      await inventoryService.addItem({ playerId: "player1", itemId: "wood_log", quantity: 5 });
+      await inventoryService.addItem({ playerId: "player1", itemId: "copper_ore", quantity: 2 });
+
+      // Try to sell all from far away
+      const result = await economyService.sellAllResources({
+        playerId: "player1",
+        playerPosition: farVendorPosition(),
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("vendor_too_far");
+
+      // Verify inventory is unchanged
+      const inventory = await inventoryService.getPlayerInventory("player1");
+      expect(inventory.slots.length).toBe(2);
+    });
+
+    it("should fail when player position is missing", async () => {
+      // Add resources
+      await inventoryService.addItem({ playerId: "player1", itemId: "wood_log", quantity: 5 });
+
+      // Try to sell without position
+      const result = await economyService.sellResource({
+        playerId: "player1",
+        itemId: "wood_log",
+        quantity: 3,
+        // No playerPosition
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("missing_player_position");
+
+      // Verify inventory is unchanged
+      const inventory = await inventoryService.getPlayerInventory("player1");
+      const woodSlot = inventory.slots.find((s) => s.itemId === "wood_log");
+      expect(woodSlot?.quantity).toBe(5);
+    });
+
+    it("should fail when player position is invalid", async () => {
+      // Add resources
+      await inventoryService.addItem({ playerId: "player1", itemId: "wood_log", quantity: 5 });
+
+      // Try to sell with invalid position (Infinity)
+      const result = await economyService.sellResource({
+        playerId: "player1",
+        itemId: "wood_log",
+        quantity: 3,
+        playerPosition: { x: Infinity, y: 0 },
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("invalid_player_position");
+
+      // Verify inventory is unchanged
+      const inventory = await inventoryService.getPlayerInventory("player1");
+      const woodSlot = inventory.slots.find((s) => s.itemId === "wood_log");
+      expect(woodSlot?.quantity).toBe(5);
+    });
+
+    it("should fail for invalid vendor ID", async () => {
+      // Add resources
+      await inventoryService.addItem({ playerId: "player1", itemId: "wood_log", quantity: 5 });
+
+      // Try to sell with non-existent vendor
+      const result = await economyService.sellResource({
+        playerId: "player1",
+        itemId: "wood_log",
+        quantity: 3,
+        playerPosition: nearVendorPosition(),
+        vendorId: "nonexistent_vendor",
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.reason).toBe("invalid_vendor");
+
+      // Verify inventory is unchanged
+      const inventory = await inventoryService.getPlayerInventory("player1");
+      const woodSlot = inventory.slots.find((s) => s.itemId === "wood_log");
+      expect(woodSlot?.quantity).toBe(5);
+    });
+
+    it("should succeed at edge of vendor interaction radius", async () => {
+      // Add resources
+      await inventoryService.addItem({ playerId: "player1", itemId: "wood_log", quantity: 5 });
+
+      // Position exactly at edge of interaction radius (32 units)
+      const edgePosition = {
+        x: VILLAGE_TRADER.position.x + 31,
+        y: VILLAGE_TRADER.position.y,
+      };
+
+      const result = await economyService.sellResource({
+        playerId: "player1",
+        itemId: "wood_log",
+        quantity: 3,
+        playerPosition: edgePosition,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.reason).toBe("sold");
+
+      // Verify inventory was reduced
+      const inventory = await inventoryService.getPlayerInventory("player1");
+      const woodSlot = inventory.slots.find((s) => s.itemId === "wood_log");
+      expect(woodSlot?.quantity).toBe(2);
     });
   });
 
