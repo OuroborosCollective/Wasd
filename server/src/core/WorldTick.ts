@@ -45,6 +45,8 @@ import { PersistentPlaytesterNPC, type PlaytesterWorldPort, type PlaytesterNpcSp
 import { PlaytesterJsonlLogger } from "../modules/playtester/PlaytesterJsonlLogger.js";
 import { handleGameplayQuestEvent } from "../quests/QuestGameplayEventBridge.js";
 import { gatheringService } from "../resources/GatheringService.js";
+import type { CraftingPort, SkillPort, PlacementPort } from "./ports/GameplayPorts.js";
+import { NullCraftingPort, NullSkillPort, NullPlacementPort } from "./ports/NullGameplayPorts.js";
 
 // Phase 5: Gameplay Contract imports
 import { 
@@ -332,6 +334,7 @@ export class WorldTick {
     return persistenceDirector.getStats(); 
   }
   public placementEngine: any = {};
+  public readonly placementEnginePort: PlacementPort = new NullPlacementPort();
   public listActiveVoteBanners(): any { return []; }
   public handleVoteProviderCallback(data: any): any { return { ok: true }; }
   public getAdminVoteBanners(): any { return []; }
@@ -340,8 +343,8 @@ export class WorldTick {
   public setVoteBannerOrder(data: any): any { return { ok: true }; }
   public getVoteAdminDiagnostics(): any { return {}; }
   public debouncedSave(): void {}
-  public craftingSystem: any = {};
-  public skillSystem: any = {};
+  public readonly craftingSystem: CraftingPort = new NullCraftingPort();
+  public readonly skillSystem: SkillPort = new NullSkillPort();
   public worldState: any = { customDialogues: {} };
   public createNPC(id: any, name: any, x: any, y: any): void {}
   public playerToSocket: Map<string, string> = new Map();
