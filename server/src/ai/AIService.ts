@@ -8,6 +8,7 @@
  * - Stable hash generation (FNV-1a)
  * - ARE invariant enforcement (kappa=1000, no direct world mutation)
  * - AutoHeal integration for failures, safety blocks, and heal requests
+ * - MiniMax integration for autonomous system health monitoring
  * - Degraded fallback instead of fatal crashes
  * - Legacy API backward compatibility (process, generateResponse)
  * - New structured API (processStructured with AREEnvelope output)
@@ -20,6 +21,7 @@ import type { IAutoHealBridge } from "../selfheal/AutoHeal.types.js";
 import { AIReasoningCore } from "./AIReasoningCore.js";
 import { AISafetyFilter } from "./AISafetyFilter.js";
 import { AIHealBridge } from "./AIHealBridge.js";
+import { MiniMaxClient } from "./MiniMaxClient.js";
 import {
   AILocalLearningStore,
   type IAILocalLearningStore,
@@ -38,12 +40,17 @@ export class AIService implements IAIService {
   private readonly safety = new AISafetyFilter();
   private readonly reasoning = new AIReasoningCore();
   private readonly healBridge: AIHealBridge;
+  private readonly miniMax: MiniMaxClient;
 
   constructor(
     private readonly learningStore: IAILocalLearningStore = new AILocalLearningStore(),
     autoHeal: IAutoHealBridge = new AutoHealBridge()
   ) {
     this.healBridge = new AIHealBridge(autoHeal);
+    this.miniMax = new MiniMaxClient({
+      apiKey: process.env.MINIMAX_API_KEY ?? "",
+      enabled: process.env.MINIMAX_ENABLED === "true",
+    });
   }
 
   /**
@@ -140,6 +147,15 @@ export class AIService implements IAIService {
         });
 
         await this.healBridge.reportSafetyBlock(result);
+        
+        // Report to MiniMax for autonomous analysis
+        await this.miniMax.reportBug(
+          "AI_SAFETY_BLOCK",
+          safety.reason,
+          "ai_core",
+          { blockedTerms: safety.blockedTerms, rulesApplied: safety.rulesApplied }
+        );
+        
         return result;
       }
 
@@ -199,6 +215,15 @@ export class AIService implements IAIService {
 
       if (decision.action === "heal_request") {
         await this.healBridge.reportHealRequest(result);
+        
+        // Report heal request to MiniMax for autonomous recovery
+        const heal = decision.heal;
+        await this.miniMax.reportBug(
+          heal?.code ?? "AI_HEAL_REQUEST",
+          heal?.message ?? "AI requested AutoHeal",
+          "ai_core",
+          { intent: decision.intent, confidence: decision.confidence, risks: decision.risks }
+        );
       }
 
       if (options.allowLearning) {
@@ -237,6 +262,7 @@ export class AIService implements IAIService {
     } catch (error) {
       const safeInput = normalizedInput || this.safeString(input).slice(0, 512);
       const inputHash = this.stableHash(safeInput);
+      const errorMessage = this.errorToString(error);
 
       const result = this.createFailureResult({
         mode,
@@ -248,7 +274,7 @@ export class AIService implements IAIService {
         resonance,
         normalizedInput: safeInput,
         inputHash,
-        error: this.errorToString(error),
+        error: errorMessage,
         warnings: ["AI core entered degraded fallback mode."],
         rulesApplied: ["ERROR-ENVELOPE", "AUTOHEAL-ON-FAULT", "DEGRADED-FALLBACK"],
         metadata: {
@@ -260,6 +286,16 @@ export class AIService implements IAIService {
       });
 
       await this.healBridge.reportFailure(result);
+      
+      // Report to MiniMax for autonomous analysis and potential fix
+      await this.miniMax.reportBug(
+        "AI_PROCESS_FAILED",
+        errorMessage,
+        "ai_core",
+        { mode, agentId, traceId, logicalIndex },
+        error instanceof Error ? error.stack : undefined
+      );
+      
       return result;
     }
   }

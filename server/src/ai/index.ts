@@ -29,3 +29,17 @@ export {
   type AIServiceSkillToolInput,
   type AIServiceSkillToolOutput,
 } from "./AIServiceSkillTool.js";
+
+// MiniMax Integration
+export {
+  MiniMaxClient,
+  MiniMaxError,
+} from "./MiniMaxClient.js";
+export * from "./MiniMax.types.js";
+
+// Autonomous Agent
+export {
+  AutonomousBugfixAgent,
+  type AutonomousAgentConfig,
+  type HealthCheckResult,
+} from "./AutonomousBugfixAgent.js";
