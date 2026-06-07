@@ -5,6 +5,8 @@
  * Server-authoritative: client cannot create or consume items.
  */
 
+import { readPlayerPositionBridge } from "./PlayerPositionBridge";
+
 export interface CraftingApiResponse {
   ok: boolean;
   result: {
@@ -21,14 +23,20 @@ export interface CraftingApiResponse {
 /**
  * Craft a recipe.
  * Server-authoritative: consumes ingredients, adds outputs, grants XP.
+ * Requires player position for station-bound recipes.
  */
 export async function craftRecipe(recipeId: string): Promise<CraftingApiResponse> {
+  const playerPosition = readPlayerPositionBridge();
+
   const response = await fetch("/api/crafting/craft", {
     method: "POST",
     headers: {
       "content-type": "application/json",
     },
-    body: JSON.stringify({ recipeId }),
+    body: JSON.stringify({
+      recipeId,
+      playerPosition: playerPosition ?? undefined,
+    }),
   });
 
   return response.json();

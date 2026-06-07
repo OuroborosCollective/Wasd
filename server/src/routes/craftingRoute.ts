@@ -3,6 +3,7 @@
  *
  * Server-authoritative crafting API.
  * No Date.now(), no Math.random(), stable recipe ordering.
+ * Requires station proximity for recipes with stationType.
  */
 
 import express, { Router } from "express";
@@ -17,6 +18,21 @@ function parseRecipeId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!/^[a-zA-Z0-9_-]{1,96}$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+function parsePlayerPosition(value: unknown): { x: number; y: number } | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const pos = value as { x?: unknown; y?: unknown };
+  if (typeof pos.x !== "number" || typeof pos.y !== "number") return undefined;
+  if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return undefined;
+  return { x: pos.x, y: pos.y };
+}
+
+function parseStationId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
   return trimmed;
 }
 
@@ -58,6 +74,7 @@ router.get("/recipes", async (req, res) => {
  *
  * Attempt to craft a recipe.
  * Consumes ingredients, adds outputs, grants crafting XP.
+ * Requires playerPosition and stationId for station-bound recipes.
  */
 router.post("/craft", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
@@ -80,10 +97,15 @@ router.post("/craft", async (req, res) => {
     return;
   }
 
+  const playerPosition = parsePlayerPosition(req.body?.playerPosition);
+  const stationId = parseStationId(req.body?.stationId);
+
   try {
     const result = await craftingService.craft({
       playerId: identity.playerId,
       recipeId,
+      playerPosition,
+      stationId,
     });
 
     res.status(result.ok ? 200 : 409).json({
