@@ -56,6 +56,15 @@ export interface ComposeLiveGameplaySnapshotFromLegacyInput {
   readonly equipment: LegacyEquipmentSnapshot | null;
   readonly skills: readonly LegacySkillSnapshot[];
   readonly resourceNodes: readonly LegacyResourceNodeSnapshot[];
+  readonly worldPois?: readonly {
+    readonly poiId: string;
+    readonly type: string;
+    readonly title: string;
+    readonly x: number;
+    readonly y: number;
+    readonly chunkX: number;
+    readonly chunkZ: number;
+  }[];
 }
 
 export function composeLiveGameplaySnapshotFromLegacy(
@@ -87,6 +96,7 @@ export function composeLiveGameplaySnapshotFromLegacy(
       const wallet = await walletService.getWallet(playerId);
       return { coin: wallet.balances.coin };
     },
+    getWorldPois: () => input.worldPois ?? [],
   });
 
   return composer.compose(input.playerId, input.logicalIndex);

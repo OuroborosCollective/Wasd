@@ -77,6 +77,20 @@ export interface MapSnapshot {
   chunkZ: number | null;
   visibleChunks: number | null;
   biome: string | null;
+  worldPois: WorldPoiSnapshot[];
+}
+
+/**
+ * World POI shape
+ */
+export interface WorldPoiSnapshot {
+  id: string;
+  type: "logging_camp" | "mining_camp" | "fishing_camp" | "campfire" | "furnace" | "workbench" | "village_trader";
+  title: string;
+  position: { x: number; y: number };
+  chunk: { x: number; z: number };
+  interactionRadius: number;
+  tags: string[];
 }
 
 /**
@@ -263,6 +277,9 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGamepl
   // Sort paperdoll slots by slotId for deterministic output
   const sortedPaperdollSlots = [...(input.paperdoll?.slots ?? [])].sort((a, b) => a.slotId.localeCompare(b.slotId));
 
+  // Sort world POIs by id for deterministic output
+  const sortedWorldPois = [...(input.map?.worldPois ?? [])].sort((a, b) => a.id.localeCompare(b.id));
+
   return {
     status: "live",
     serverTick: input.serverTick,
@@ -299,6 +316,7 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGamepl
       chunkZ: input.map?.chunkZ ?? null,
       visibleChunks: input.map?.visibleChunks ?? null,
       biome: input.map?.biome ?? null,
+      worldPois: sortedWorldPois,
     },
   };
 }
