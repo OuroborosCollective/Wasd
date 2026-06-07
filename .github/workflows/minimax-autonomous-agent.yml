@@ -2,9 +2,8 @@ name: MiniMax Autonomous Agent
 
 on:
   schedule:
-    # Run every 15 minutes (analysis only, no auto-fix)
     - cron: '*/15 * * * *'
-  
+
   workflow_dispatch:
     inputs:
       task:
@@ -44,7 +43,7 @@ jobs:
     name: System Health Analysis
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -65,29 +64,7 @@ jobs:
 
       - name: Run System Health Analysis via MiniMax
         id: system-health
-        run: |
-          node << 'EOF' > minimax-response.json
-          const { MiniMaxClient } = require('./server/src/ai/MiniMaxClient.js');
-          
-          const enabled = process.env.MINIMAX_ENABLED === 'true';
-          if (!enabled) {
-            console.log('MiniMax disabled - skipping health check');
-            process.exit(0);
-          }
-          
-          const minimax = new MiniMaxClient({
-            apiKey: process.env.MINIMAX_API_KEY,
-            enabled: true,
-          });
-          
-          async function run() {
-            const response = await minimax.requestSystemAnalysis();
-            console.log(JSON.stringify(response, null, 2));
-          }
-          
-          run().catch(console.error);
-          EOF
-        continue-on-error: true
+        run: pnpm --filter @wasd/server exec tsx ../scripts/ai/minimax-workflow-runner.ts system_health > minimax-response.json
         env:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           MINIMAX_ENABLED: ${{ secrets.MINIMAX_ENABLED }}
@@ -102,7 +79,7 @@ jobs:
     name: NPC Civilization Health
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -122,29 +99,7 @@ jobs:
 
       - name: Analyze NPC Civilization Health
         id: npc-health
-        run: |
-          node << 'EOF' > npc-health-response.json
-          const { MiniMaxClient } = require('./server/src/ai/MiniMaxClient.js');
-          
-          const enabled = process.env.MINIMAX_ENABLED === 'true';
-          if (!enabled) {
-            console.log('MiniMax disabled - skipping NPC health check');
-            process.exit(0);
-          }
-          
-          const minimax = new MiniMaxClient({
-            apiKey: process.env.MINIMAX_API_KEY,
-            enabled: true,
-          });
-          
-          async function run() {
-            const response = await minimax.requestNPCHealthCheck('all');
-            console.log(JSON.stringify(response, null, 2));
-          }
-          
-          run().catch(console.error);
-          EOF
-        continue-on-error: true
+        run: pnpm --filter @wasd/server exec tsx ../scripts/ai/minimax-workflow-runner.ts npc_health > npc-health-response.json
         env:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           MINIMAX_ENABLED: ${{ secrets.MINIMAX_ENABLED }}
@@ -159,7 +114,7 @@ jobs:
     name: UI/UX Optimization
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -179,29 +134,7 @@ jobs:
 
       - name: Analyze UI/UX
         id: ui-optimization
-        run: |
-          node << 'EOF' > ui-optimization-response.json
-          const { MiniMaxClient } = require('./server/src/ai/MiniMaxClient.js');
-          
-          const enabled = process.env.MINIMAX_ENABLED === 'true';
-          if (!enabled) {
-            console.log('MiniMax disabled - skipping UI optimization');
-            process.exit(0);
-          }
-          
-          const minimax = new MiniMaxClient({
-            apiKey: process.env.MINIMAX_API_KEY,
-            enabled: true,
-          });
-          
-          async function run() {
-            const response = await minimax.requestUIOptimization();
-            console.log(JSON.stringify(response, null, 2));
-          }
-          
-          run().catch(console.error);
-          EOF
-        continue-on-error: true
+        run: pnpm --filter @wasd/server exec tsx ../scripts/ai/minimax-workflow-runner.ts ui_optimization > ui-optimization-response.json
         env:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           MINIMAX_ENABLED: ${{ secrets.MINIMAX_ENABLED }}
@@ -216,7 +149,7 @@ jobs:
     name: ARELogic Determinism Audit
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -236,59 +169,7 @@ jobs:
 
       - name: Run Determinism Audit
         id: arelogic-audit
-        run: |
-          node << 'EOF' > arelogic-response.json
-          const { MiniMaxClient } = require('./server/src/ai/MiniMaxClient.js');
-          const fs = require('fs');
-          const path = require('path');
-          
-          const enabled = process.env.MINIMAX_ENABLED === 'true';
-          if (!enabled) {
-            console.log('MiniMax disabled - skipping determinism audit');
-            process.exit(0);
-          }
-          
-          const minimax = new MiniMaxClient({
-            apiKey: process.env.MINIMAX_API_KEY,
-            enabled: true,
-          });
-          
-          async function run() {
-            const violations = [];
-            const srcDir = path.join(__dirname, 'server/src');
-            scanDirectory(srcDir, /\bMath\.random\s*\(/g, 'unseeded_random');
-            
-            function scanDirectory(dir, pattern, type) {
-              const files = fs.readdirSync(dir);
-              for (const file of files) {
-                const fullPath = path.join(dir, file);
-                if (fs.statSync(fullPath).isDirectory()) {
-                  if (!file.includes('node_modules') && !file.includes('.git')) {
-                    scanDirectory(fullPath, pattern, type);
-                  }
-                } else if (file.endsWith('.ts') || file.endsWith('.js')) {
-                  const content = fs.readFileSync(fullPath, 'utf8');
-                  const matches = content.match(pattern);
-                  if (matches) {
-                    violations.push({ type, file: fullPath, count: matches.length });
-                  }
-                }
-              }
-            }
-            
-            console.log('Found violations:', JSON.stringify(violations, null, 2));
-            
-            if (violations.length > 0) {
-              const response = await minimax.requestAutonomousFix('arelogic', `${violations.length} ARELogic violations detected`, { violations });
-              console.log(JSON.stringify(response, null, 2));
-            } else {
-              console.log(JSON.stringify({ ok: true, result: 'No violations detected - system is healthy', commands: [] }));
-            }
-          }
-          
-          run().catch(console.error);
-          EOF
-        continue-on-error: true
+        run: pnpm --filter @wasd/server exec tsx ../scripts/ai/minimax-workflow-runner.ts arelogic > arelogic-response.json
         env:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           MINIMAX_ENABLED: ${{ secrets.MINIMAX_ENABLED }}
@@ -304,7 +185,7 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     timeout-minutes: 5
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
