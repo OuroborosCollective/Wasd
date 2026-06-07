@@ -18,6 +18,7 @@ import { ChunkManager } from "./world/ChunkManager";
 import { InterpolatedSpriteManager } from "./math/InterpolatedSpriteManager";
 import { FacingDirection, inputToFacing, serverPosToKappa, getFacingEntity, type TargetableEntity } from "./input/Targeting";
 import { ResourceNodeMarkerLayer } from "./ui/ResourceNodeMarkerLayer";
+import { WorldPoiMarkerLayer } from "./ui/WorldPoiMarkerLayer";
 
 // Zero-Trust Manifest System with Input Lockdown
 import { useZeroTrustManifest, DivergenceAlert, isInputLocked } from "./manifest";
@@ -1276,6 +1277,7 @@ export function DeterministicWorldIsoApp() {
       <div className="az-world-glow" />
       <div ref={host} className="az-pixi" data-testid="pixi-host" />
       <ResourceNodeMarkerLayer />
+      <WorldPoiMarkerLayer />
       <ArelorianStitchHud
         connected={connected}
         assetStatus={assetStatus}

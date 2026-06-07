@@ -17,6 +17,7 @@
 import express from "express";
 import type { WorldTick } from "../core/WorldTick.js";
 import { createGameplaySnapshot } from "./gameplaySnapshotUtils.js";
+import type { WorldPoiSnapshot } from "./gameplaySnapshotUtils.js";
 import { questProgressionStore } from "../quests/QuestProgressionStore.js";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { getSkillProgressionService } from "../skills/skillRuntime.js";
@@ -29,6 +30,8 @@ import { toCharacterProfileSnapshot } from "../character/CharacterTypes.js";
 import { createPaperdollSnapshot } from "../character/PaperdollTypes.js";
 import { createStartPathQuestSnapshot } from "../character/StartPathQuestLine.js";
 import { composeLiveGameplaySnapshotFromLegacy } from "../gameplay/composeLiveGameplaySnapshotFromLegacy.js";
+import { generateVisibleChunkPois, getStarterVillagePois, deriveChunkBiome, generateChunkPois } from "../world/WorldPoiGenerator.js";
+import { getVisibleChunkCoords } from "../resources/ChunkResourceGenerator.js";
 
 /**
  * Get current tick ID from WorldTick instance.
@@ -132,6 +135,23 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
       equipment,
     });
 
+    // Generate world POIs for visible chunks
+    let worldPois: WorldPoiSnapshot[] = [];
+    if (playerPosition) {
+      // Calculate tile position from kappa position
+      const tileX = Math.floor(playerPosition.x / 1000);
+      const tileZ = Math.floor(playerPosition.y / 1000);
+      const visibleChunks = getVisibleChunkCoords(tileX, tileZ);
+      
+      // Generate POIs for visible chunks
+      const generatedPois = generateVisibleChunkPois(visibleChunks);
+      
+      // Add starter village POIs (they're not generated for chunk 0,0)
+      const starterPois = getStarterVillagePois();
+      
+      worldPois = [...starterPois, ...generatedPois].sort((a, b) => a.id.localeCompare(b.id));
+    }
+
     const snapshot = createGameplaySnapshot({
       serverTick,
       character: characterSnapshot,
@@ -148,8 +168,21 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
       equipment,
       guild: null,
       factions: [],
-      map: {},
+      map: {
+        worldPois,
+      },
     });
+
+    // Convert POIs to live gameplay format
+    const liveWorldPois = worldPois.map((poi) => ({
+      poiId: poi.id,
+      type: poi.type,
+      title: poi.title,
+      x: poi.position.x,
+      y: poi.position.y,
+      chunkX: poi.chunk.x,
+      chunkZ: poi.chunk.z,
+    }));
 
     const liveGameplaySnapshot = await composeLiveGameplaySnapshotFromLegacy({
       playerId: identity.playerId,
@@ -158,6 +191,7 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
       equipment,
       skills: skillState.skills,
       resourceNodes: resources,
+      worldPois: liveWorldPois,
     });
 
     res.json({

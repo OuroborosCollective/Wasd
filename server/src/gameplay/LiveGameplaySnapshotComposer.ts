@@ -17,6 +17,7 @@ import type {
   LiveGameplayEquipmentSlot,
   LiveGameplaySkillState,
   LiveGameplayResourceNode,
+  LiveGameplayWorldPoi,
 } from "./LiveGameplaySnapshotTypes.js";
 
 export interface LiveGameplaySnapshotComposerDeps {
@@ -25,6 +26,7 @@ export interface LiveGameplaySnapshotComposerDeps {
   readonly getSkillStates: (playerId: string) => readonly LiveGameplaySkillState[] | Promise<readonly LiveGameplaySkillState[]>;
   readonly getResourceNodes: (playerId: string) => readonly LiveGameplayResourceNode[] | Promise<readonly LiveGameplayResourceNode[]>;
   readonly getWallet: (playerId: string) => { readonly coin: number } | Promise<{ readonly coin: number }>;
+  readonly getWorldPois?: (playerId: string) => readonly LiveGameplayWorldPoi[] | Promise<readonly LiveGameplayWorldPoi[]>;
 }
 
 export class LiveGameplaySnapshotComposer {
@@ -39,6 +41,11 @@ export class LiveGameplaySnapshotComposer {
     ]);
 
     const wallet = await this.deps.getWallet(playerId);
+    
+    // Get world POIs if available, default to empty array
+    const worldPois = this.deps.getWorldPois
+      ? await this.deps.getWorldPois(playerId)
+      : [];
 
     return Object.freeze({
       schemaVersion: "live-gameplay-snapshot.v1" as const,
@@ -51,6 +58,7 @@ export class LiveGameplaySnapshotComposer {
       skills: Object.freeze([...skills].sort((a, b) => a.skillId.localeCompare(b.skillId))),
       resourceNodes: Object.freeze([...resourceNodes].sort((a, b) => a.nodeId.localeCompare(b.nodeId))),
       wallet: Object.freeze(wallet),
+      worldPois: Object.freeze([...worldPois].sort((a, b) => a.poiId.localeCompare(b.poiId))),
     });
   }
 

@@ -40,6 +40,16 @@ export interface LiveGameplayWallet {
   readonly coin: number;
 }
 
+export interface LiveGameplayWorldPoi {
+  readonly poiId: string;
+  readonly type: string;
+  readonly title: string;
+  readonly x: number;
+  readonly y: number;
+  readonly chunkX: number;
+  readonly chunkZ: number;
+}
+
 export interface LiveGameplaySnapshot {
   readonly schemaVersion: "live-gameplay-snapshot.v1";
   readonly playerId: string;
@@ -51,6 +61,7 @@ export interface LiveGameplaySnapshot {
   readonly skills: readonly LiveGameplaySkillState[];
   readonly resourceNodes: readonly LiveGameplayResourceNode[];
   readonly wallet: LiveGameplayWallet;
+  readonly worldPois: readonly LiveGameplayWorldPoi[];
 }
 
 export interface GatherResult {

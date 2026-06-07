@@ -187,6 +187,19 @@ export interface WalletSnapshot {
   coin: number;
 }
 
+/**
+ * World POI shape
+ */
+export interface WorldPoiSnapshot {
+  poiId: string;
+  type: string;
+  title: string;
+  x: number;
+  y: number;
+  chunkX: number;
+  chunkZ: number;
+}
+
 export interface LiveGameplaySnapshot {
   status: LiveDataStatus;
   serverTick: number | null;
@@ -202,6 +215,7 @@ export interface LiveGameplaySnapshot {
   factions: FactionStandingSnapshot[];
   map: MapSnapshot;
   wallet: WalletSnapshot;
+  worldPois: WorldPoiSnapshot[];
 }
 
 // Default empty snapshot - honest waiting state
@@ -245,6 +259,7 @@ export const EMPTY_LIVE_GAMEPLAY_SNAPSHOT: LiveGameplaySnapshot = {
   wallet: {
     coin: 0,
   },
+  worldPois: [],
 };
 
 // Normalization helper - pure function, no mutation
@@ -294,12 +309,40 @@ export function normalizeLiveGameplaySnapshot(
       wallet: {
         coin: typeof input.wallet?.coin === "number" ? Math.max(0, Math.floor(input.wallet.coin)) : 0,
       },
+      worldPois: normalizeWorldPois(input.worldPois),
     };
   } catch (error) {
     // Never crash the client - return empty snapshot on normalization error
     console.error("[LiveGameplaySnapshot] normalize failed:", error);
     return EMPTY_LIVE_GAMEPLAY_SNAPSHOT;
   }
+}
+
+/**
+ * Normalize world POI snapshots from server.
+ * Pure function - no mutation of input.
+ */
+export function normalizeWorldPois(input: unknown): WorldPoiSnapshot[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .filter((poi): poi is WorldPoiSnapshot =>
+      poi &&
+      typeof poi === "object" &&
+      typeof (poi as any).poiId === "string" &&
+      typeof (poi as any).type === "string" &&
+      typeof (poi as any).title === "string"
+    )
+    .map((poi: any) => ({
+      poiId: String(poi.poiId),
+      type: String(poi.type),
+      title: String(poi.title),
+      x: Number(poi.x ?? 0),
+      y: Number(poi.y ?? 0),
+      chunkX: Number(poi.chunkX ?? 0),
+      chunkZ: Number(poi.chunkZ ?? 0),
+    }))
+    .sort((a, b) => a.poiId.localeCompare(b.poiId));
 }
 
 /**

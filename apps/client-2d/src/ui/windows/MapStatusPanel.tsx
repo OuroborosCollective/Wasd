@@ -25,6 +25,9 @@ export function MapStatusPanel({ snapshot, activeChunkCount, worldSeed = "arelor
   // Resource count from snapshot
   const resourceCount = snapshot.resources?.length ?? 0;
 
+  // POI count from snapshot
+  const poiCount = snapshot.worldPois?.length ?? 0;
+
   return (
     <div className="stitch-grid-panel" data-testid="map-panel-live">
       <article className="stitch-info">
@@ -46,6 +49,10 @@ export function MapStatusPanel({ snapshot, activeChunkCount, worldSeed = "arelor
       <article className="stitch-info">
         <small>Resources</small>
         <b>{resourceCount}</b>
+      </article>
+      <article className="stitch-info">
+        <small>POIs</small>
+        <b>{poiCount}</b>
       </article>
       <article className="stitch-info">
         <small>Biome</small>
