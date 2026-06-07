@@ -1,9 +1,15 @@
 /**
  * RESOURCE SELL PRICES
  *
- * Deterministic sell prices for gathered resources.
+ * Deterministic sell prices for gathered and processed resources.
  * No Math.random(), no Date.now(), no dynamic market prices.
  * Prices are stable integers in coins.
+ * 
+ * Premium pricing: Processed items are worth more than raw inputs.
+ * This creates the resource processing economy loop:
+ * - wood_log x2 (2 coins) → wood_plank (3 coins) = +1 profit
+ * - copper_ore x2 (6 coins) → copper_ingot (8 coins) = +2 profit
+ * - raw_fish (2 coins) → cooked_fish (4 coins) = +2 profit
  */
 
 import type { InventoryItemId } from "../inventory/InventoryTypes.js";
@@ -11,14 +17,19 @@ import type { InventoryItemId } from "../inventory/InventoryTypes.js";
 /**
  * Sell price in coins per unit.
  * Only resource items are sellable; equipment and quest items are not.
+ * 
+ * Raw materials: wood_log, copper_ore, raw_fish
+ * Processed materials (premium): wood_plank, copper_ingot, cooked_fish
  */
 export const RESOURCE_SELL_PRICES: Record<string, number> = {
+  // Raw gathered resources
   wood_log: 1,
   copper_ore: 3,
   raw_fish: 2,
-  wood_plank: 1,
-  copper_ingot: 5,
-  cooked_fish: 3,
+  // Processed resources (premium values)
+  wood_plank: 3,
+  copper_ingot: 8,
+  cooked_fish: 4,
 } as const;
 
 export interface SellPriceResult {

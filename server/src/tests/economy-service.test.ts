@@ -360,26 +360,63 @@ describe("EconomyService", () => {
   });
 
   describe("price table", () => {
-    it("should have correct prices for all resources", async () => {
-      const prices: Record<string, number> = {
-        wood_log: 1,
-        copper_ore: 3,
-        raw_fish: 2,
-        wood_plank: 1,
-        copper_ingot: 5,
-        cooked_fish: 3,
-      };
+    // Define prices in outer scope so both tests can reference it
+    const prices: Record<string, number> = {
+      // Raw gathered resources
+      wood_log: 1,
+      copper_ore: 3,
+      raw_fish: 2,
+      // Processed resources (premium values)
+      wood_plank: 3,
+      copper_ingot: 8,
+      cooked_fish: 4,
+    };
 
+    it("should have correct prices for all resources", async () => {
+      // Premium pricing: processed items are worth more than raw inputs
       for (const [itemId, expectedPrice] of Object.entries(prices)) {
         await inventoryService.addItem({ playerId: "player1", itemId, quantity: 1 });
         const result = await economyService.sellResource({
           playerId: "player1",
           itemId,
           quantity: 1,
+          playerPosition: nearVendorPosition(),
         });
         expect(result.unitPrice).toBe(expectedPrice);
         expect(result.totalCoins).toBe(expectedPrice);
       }
+    });
+
+    it("should have processed items worth more than raw inputs", async () => {
+      // Test the economy loop: processing should be profitable
+      // wood_log x2 = 2 coins raw, wood_plank = 3 coins processed (+1)
+      // copper_ore x2 = 6 coins raw, copper_ingot = 8 coins processed (+2)
+      // raw_fish x1 = 2 coins raw, cooked_fish = 4 coins processed (+2)
+
+      // Sell raw copper_ore x2
+      await inventoryService.addItem({ playerId: "player1", itemId: "copper_ore", quantity: 2 });
+      const rawResult = await economyService.sellResource({
+        playerId: "player1",
+        itemId: "copper_ore",
+        quantity: 2,
+        playerPosition: nearVendorPosition(),
+      });
+      expect(rawResult.totalCoins).toBe(6); // 2 ore x 3 coins
+
+      // Sell raw wood_log x2
+      await inventoryService.addItem({ playerId: "player1", itemId: "wood_log", quantity: 2 });
+      const woodResult = await economyService.sellResource({
+        playerId: "player1",
+        itemId: "wood_log",
+        quantity: 2,
+        playerPosition: nearVendorPosition(),
+      });
+      expect(woodResult.totalCoins).toBe(2); // 2 logs x 1 coin
+
+      // Processed items should be worth more per unit than raw
+      expect(prices.wood_plank).toBeGreaterThan(prices.wood_log);
+      expect(prices.copper_ingot).toBeGreaterThan(prices.copper_ore);
+      expect(prices.cooked_fish).toBeGreaterThan(prices.raw_fish);
     });
   });
 });

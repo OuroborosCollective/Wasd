@@ -90,7 +90,7 @@ router.post("/vendor/:vendorId/interact", async (req, res) => {
 function getVendorDialogue(vendorId: string): string {
   switch (vendorId) {
     case "village_trader_001":
-      return "I buy wood, ore, and fish. Bring me what you gather.";
+      return "I buy wood, ore, and fish. Bring me what you gather. I pay more for planks, ingots, and cooked fish.";
     default:
       return "Welcome, traveler.";
   }
