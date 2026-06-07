@@ -70,6 +70,7 @@ export class EquipmentStore {
             slotId: definition.slotId,
             itemId: definition.itemId,
             title: definition.title,
+            tier: definition.tier,
           },
         ],
       },

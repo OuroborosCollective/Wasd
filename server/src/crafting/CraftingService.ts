@@ -9,7 +9,7 @@
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
 import { getSkillProgressionService } from "../skills/skillRuntime.js";
 import type { SkillSnapshot } from "../skills/SkillTypes.js";
-import { STARTER_CRAFTING_RECIPES } from "./StarterRecipes.js";
+import { ALL_CRAFTING_RECIPES } from "./StarterRecipes.js";
 import {
   isWithinAnyStationOfType,
   getProcessingStationById,
@@ -28,7 +28,7 @@ function craftingLevelFromSkills(skills: SkillSnapshot[]): number {
 export class CraftingService {
   private readonly recipes = new Map<string, CraftingRecipe>();
 
-  constructor(recipes: readonly CraftingRecipe[] = STARTER_CRAFTING_RECIPES) {
+  constructor(recipes: readonly CraftingRecipe[] = ALL_CRAFTING_RECIPES) {
     for (const recipe of recipes) {
       this.recipes.set(recipe.id, recipe);
     }

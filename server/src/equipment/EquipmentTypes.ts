@@ -16,6 +16,8 @@ export interface EquipmentItemDefinition {
   itemId: InventoryItemId;
   slotId: EquipmentSlotId;
   title: string;
+  /** Tool tier for gathering bonus calculations. Tier 1 = starter, Tier 2 = upgrade. */
+  tier: number;
   skillBonus: {
     skillId: "woodcutting" | "mining" | "fishing";
     xpMultiplierPermille: number;
@@ -27,6 +29,7 @@ export interface EquippedSlot {
   slotId: EquipmentSlotId;
   itemId: InventoryItemId;
   title: string;
+  tier: number;
 }
 
 export interface PlayerEquipmentState {
@@ -53,6 +56,7 @@ export const EQUIPMENT_DEFINITIONS: Record<string, EquipmentItemDefinition> = {
     itemId: "wooden_axe",
     slotId: "woodcutting_tool",
     title: "Wooden Axe",
+    tier: 1,
     skillBonus: {
       skillId: "woodcutting",
       xpMultiplierPermille: 1100,
@@ -63,6 +67,7 @@ export const EQUIPMENT_DEFINITIONS: Record<string, EquipmentItemDefinition> = {
     itemId: "copper_pickaxe",
     slotId: "mining_tool",
     title: "Copper Pickaxe",
+    tier: 1,
     skillBonus: {
       skillId: "mining",
       xpMultiplierPermille: 1100,
@@ -73,10 +78,45 @@ export const EQUIPMENT_DEFINITIONS: Record<string, EquipmentItemDefinition> = {
     itemId: "simple_fishing_rod",
     slotId: "fishing_tool",
     title: "Simple Fishing Rod",
+    tier: 1,
     skillBonus: {
       skillId: "fishing",
       xpMultiplierPermille: 1100,
       gatherRespawnReductionTicks: 2,
+    },
+  },
+  // Upgrade tools (Tier 2) - crafted from starter tools
+  copper_axe: {
+    itemId: "copper_axe",
+    slotId: "woodcutting_tool",
+    title: "Copper Axe",
+    tier: 2,
+    skillBonus: {
+      skillId: "woodcutting",
+      xpMultiplierPermille: 1200,
+      gatherRespawnReductionTicks: 3,
+    },
+  },
+  reinforced_pickaxe: {
+    itemId: "reinforced_pickaxe",
+    slotId: "mining_tool",
+    title: "Reinforced Pickaxe",
+    tier: 2,
+    skillBonus: {
+      skillId: "mining",
+      xpMultiplierPermille: 1200,
+      gatherRespawnReductionTicks: 3,
+    },
+  },
+  reinforced_fishing_rod: {
+    itemId: "reinforced_fishing_rod",
+    slotId: "fishing_tool",
+    title: "Reinforced Fishing Rod",
+    tier: 2,
+    skillBonus: {
+      skillId: "fishing",
+      xpMultiplierPermille: 1200,
+      gatherRespawnReductionTicks: 3,
     },
   },
 };
@@ -109,6 +149,7 @@ export function normalizeEquipmentState(
       slotId: definition.slotId,
       itemId: definition.itemId,
       title: definition.title,
+      tier: definition.tier,
     });
   }
 

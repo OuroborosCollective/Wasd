@@ -14,7 +14,10 @@ export type RecipeId =
   | "cook_raw_fish"
   | "craft_wooden_axe"
   | "craft_copper_pickaxe"
-  | "craft_simple_fishing_rod";
+  | "craft_simple_fishing_rod"
+  | "craft_copper_axe"
+  | "craft_reinforced_pickaxe"
+  | "craft_reinforced_fishing_rod";
 
 export interface RecipeIngredient {
   itemId: InventoryItemId;

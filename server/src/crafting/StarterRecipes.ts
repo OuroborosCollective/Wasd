@@ -6,6 +6,7 @@
  */
 
 import type { CraftingRecipe } from "./CraftingTypes.js";
+import { UPGRADE_CRAFTING_RECIPES } from "./UpgradeRecipes.js";
 
 export const STARTER_CRAFTING_RECIPES: readonly CraftingRecipe[] = [
   {
@@ -115,6 +116,15 @@ export const STARTER_CRAFTING_RECIPES: readonly CraftingRecipe[] = [
   },
 ] as const;
 
+/**
+ * Combined crafting recipes: starter recipes + upgrade recipes.
+ * Used by CraftingService to load all available recipes.
+ */
+export const ALL_CRAFTING_RECIPES: readonly CraftingRecipe[] = [
+  ...STARTER_CRAFTING_RECIPES,
+  ...UPGRADE_CRAFTING_RECIPES,
+];
+
 export function getRecipeIds(): string[] {
-  return STARTER_CRAFTING_RECIPES.map((recipe) => recipe.id).sort();
+  return ALL_CRAFTING_RECIPES.map((recipe) => recipe.id).sort();
 }

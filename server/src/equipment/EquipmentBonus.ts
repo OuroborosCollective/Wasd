@@ -16,6 +16,7 @@ export function getGatheringToolBonus(input: {
 }): {
   xpMultiplierPermille: number;
   gatherRespawnReductionTicks: number;
+  tier: number;
 } {
   const equippedDefinitions = input.equipment.slots
     .map((slot) => EQUIPMENT_DEFINITIONS[slot.itemId])
@@ -28,6 +29,7 @@ export function getGatheringToolBonus(input: {
   return {
     xpMultiplierPermille: matching?.skillBonus.xpMultiplierPermille ?? 1000,
     gatherRespawnReductionTicks: matching?.skillBonus.gatherRespawnReductionTicks ?? 0,
+    tier: matching?.tier ?? 1,
   };
 }
 

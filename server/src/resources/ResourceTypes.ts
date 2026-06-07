@@ -83,6 +83,10 @@ export interface GatherResourceResult {
   xpReward?: number;
   itemRewardId?: string;
   itemRewardName?: string;
+  /** Bonus yield from Tier 2 tool (+1 quantity when applicable) */
+  bonusYield?: number;
+  /** Tier of the equipped tool that provided the bonus (2 if bonusYield > 0) */
+  toolTier?: number;
   /** Whether the item was successfully added to player inventory */
   inventoryAdded?: boolean;
   /** Quantity added to inventory (0 if failed) */

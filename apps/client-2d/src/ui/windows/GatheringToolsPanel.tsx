@@ -17,11 +17,14 @@ import type {
 import { equipGatheringTool } from "../../game/equipment";
 import { dispatchClaimStarterTools } from "../../game/gameplayActions";
 
-// Tool item IDs
+// Tool item IDs (both Tier 1 starter and Tier 2 upgrade tools)
 const GATHERING_TOOL_IDS = new Set([
   "wooden_axe",
   "copper_pickaxe",
   "simple_fishing_rod",
+  "copper_axe",
+  "reinforced_pickaxe",
+  "reinforced_fishing_rod",
 ]);
 
 // Required tool slot IDs for complete tool setup
@@ -197,6 +200,9 @@ export function GatheringToolsPanel({ equipment, inventory, onEquip }: Props) {
               <li key={slot.slotId} className="equipped-slot">
                 <span className="slot-label">{SLOT_LABELS[slot.slotId] ?? slot.slotId}:</span>
                 <span className="item-name">{slot.title}</span>
+                {slot.tier > 1 && (
+                  <span className="tier-badge" title={`Tier ${slot.tier} tool`}>T{slot.tier}</span>
+                )}
               </li>
             ))}
           </ul>
@@ -218,9 +224,9 @@ export function GatheringToolsPanel({ equipment, inventory, onEquip }: Props) {
                 title={`Equip ${slot.name}`}
               >
                 <span className="tool-icon">
-                  {slot.itemId === "wooden_axe"
+                  {slot.itemId === "wooden_axe" || slot.itemId === "copper_axe"
                     ? "🪓"
-                    : slot.itemId === "copper_pickaxe"
+                    : slot.itemId === "copper_pickaxe" || slot.itemId === "reinforced_pickaxe"
                     ? "⛏️"
                     : "🎣"}
                 </span>
