@@ -4,11 +4,13 @@
  * Shows player crafting recipes from LiveGameplaySnapshot.
  * Server-authoritative display only - client cannot craft directly.
  * Uses LiveGameplaySnapshot for reactive updates.
+ * After crafting, refetches snapshot to update inventory and quest progress.
  */
 
-import { useEffect, useCallback } from "react";
+import { useCallback } from "react";
 import { useLiveGameplaySnapshot } from "../../game/useLiveGameplaySnapshot";
 import { craftRecipe } from "../../game/crafting";
+import { fetchGameplaySnapshot, liveGameplayStore, DEFAULT_GAMEPLAY_PLAYER_ID } from "../../game/liveGameplayStore";
 import type { CraftingSnapshot } from "../../game/liveGameplaySnapshot";
 
 interface CraftingWindowProps {
@@ -23,16 +25,32 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
 
   const handleCraft = useCallback(async (recipeId: string) => {
     const result = await craftRecipe(recipeId);
-    window.dispatchEvent(
-      new CustomEvent("wasd:toast", {
-        detail: {
-          type: result.ok && result.result.ok ? "success" : "error",
-          message: result.ok && result.result.ok
-            ? "Crafted item successfully!"
-            : `Craft failed: ${result.result?.reason ?? "unknown"}`,
-        },
-      })
-    );
+
+    if (result.ok && result.result?.ok) {
+      window.dispatchEvent(
+        new CustomEvent("wasd:toast", {
+          detail: {
+            type: "success",
+            message: `Crafted ${result.result.outputs?.[0]?.itemId ?? "item"}!`,
+          },
+        }),
+      );
+
+      // Refetch snapshot to update inventory, crafting state, and quest progress
+      const next = await fetchGameplaySnapshot(DEFAULT_GAMEPLAY_PLAYER_ID);
+      if (next) {
+        liveGameplayStore.setSnapshot(next);
+      }
+    } else {
+      window.dispatchEvent(
+        new CustomEvent("wasd:toast", {
+          detail: {
+            type: "error",
+            message: `Craft failed: ${result.result?.reason ?? "unknown"}`,
+          },
+        }),
+      );
+    }
   }, []);
 
   if (!isOpen) return null;
