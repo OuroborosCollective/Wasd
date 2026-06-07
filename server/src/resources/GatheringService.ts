@@ -15,10 +15,23 @@ import { getSkillProgressionService } from "../skills/skillRuntime.js";
 import type { PlayerSkillState, SkillSnapshot } from "../skills/SkillTypes.js";
 import type { ResourceNodeStore } from "./ResourceNodeStore.js";
 import { resourceNodeStore } from "./ResourceNodeStore.js";
-import type { GatherResourceResult } from "./ResourceTypes.js";
+import type { GatherResourceResult, RequiredToolSlot } from "./ResourceTypes.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
 import { equipmentService } from "../equipment/equipmentRuntime.js";
 import { applyPermille, getGatheringToolBonus } from "../equipment/EquipmentBonus.js";
+
+/**
+ * Check if player has the required tool equipped.
+ * Returns the required slot ID if missing, null if equipped.
+ */
+function getMissingToolSlot(
+  equipmentSlots: Array<{ slotId: string; itemId: string }>,
+  requiredTool?: RequiredToolSlot,
+): RequiredToolSlot | null {
+  if (!requiredTool) return null;
+  const hasTool = equipmentSlots.some((slot) => slot.slotId === requiredTool);
+  return hasTool ? null : requiredTool;
+}
 
 /**
  * Get player skill level for a specific skill.
@@ -44,6 +57,12 @@ export class GatheringService {
    * Attempt to gather from a resource node.
    * Server-authoritative: resolves skill level, applies XP, triggers rewards.
    * Persists gathered items to player inventory.
+   *
+   * Tool requirement check:
+   * - Nodes with requiredTool must have that equipment slot equipped
+   * - starter_tree_001 has no requiredTool (hand gather allowed for MVP first tree)
+   * - All ore nodes require mining_tool
+   * - All fish spots require fishing_tool
    */
   async gather(input: GatherInput): Promise<GatherResourceResult> {
     const { playerId, nodeId, playerPosition, currentTick, onItemReward } = input;
@@ -57,6 +76,24 @@ export class GatheringService {
     const playerSkillLevel = nodeSnapshot
       ? getSkillLevel(skillState.skills, nodeSnapshot.skillId)
       : 1;
+
+    // Get player equipment for tool check
+    const equipment = await equipmentService.getPlayerEquipment(playerId);
+
+    // Check if required tool is equipped
+    const requiredTool = nodeSnapshot?.requiredTool;
+    const missingTool = getMissingToolSlot(equipment.slots, requiredTool);
+    if (missingTool) {
+      const snapshot = this.nodes.getSnapshot(nodeId, currentTick);
+      return {
+        ok: false,
+        playerId,
+        nodeId,
+        reason: "missing_tool",
+        requiredTool: missingTool,
+        snapshot,
+      };
+    }
 
     // Attempt gather in the node store
     const result = this.nodes.gather({
@@ -72,14 +109,12 @@ export class GatheringService {
       return result;
     }
 
-    // Get equipped tool bonus for the skill
-    const equipment = await equipmentService.getPlayerEquipment(playerId);
+    // Apply XP multiplier from equipped tool (already fetched above)
     const bonus = getGatheringToolBonus({
       equipment,
       skillId: result.skillId,
     });
 
-    // Apply XP multiplier from equipped tool
     const xpReward = applyPermille(result.xpReward, bonus.xpMultiplierPermille);
 
     // Apply skill XP reward
