@@ -36,7 +36,7 @@ export const STARTER_CRAFTING_RECIPES: readonly CraftingRecipe[] = [
     ingredients: [
       {
         itemId: "copper_ore",
-        quantity: 3,
+        quantity: 2,
       },
     ],
     outputs: [

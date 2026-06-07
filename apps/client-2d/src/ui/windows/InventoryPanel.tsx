@@ -79,13 +79,17 @@ const SELLABLE_RESOURCE_IDS = new Set([
 ]);
 
 // Sell prices for resources (in coins)
+// Raw materials: lower prices
+// Processed materials: premium prices for better economy loop
 const RESOURCE_SELL_PRICES: Record<string, number> = {
+  // Raw gathered resources
   wood_log: 1,
   copper_ore: 3,
   raw_fish: 2,
-  wood_plank: 1,
-  copper_ingot: 5,
-  cooked_fish: 3,
+  // Processed resources (premium)
+  wood_plank: 3,
+  copper_ingot: 8,
+  cooked_fish: 4,
 };
 
 export function InventoryPanel({ inventory, equipment, wallet }: Props) {
