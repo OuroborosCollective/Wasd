@@ -99,8 +99,16 @@ router.post("/gather", async (req, res) => {
     return;
   }
 
-  // Parse player position (may be omitted for WebSocket path)
-  const playerPosition = parsePosition(req.body?.playerPosition) ?? { x: 0, y: 0 };
+  // Player position is required. Do not silently use node position or {0,0}.
+  const playerPosition = parsePosition(req.body?.playerPosition);
+  if (!playerPosition) {
+    res.status(400).json({
+      ok: false,
+      error: "invalid_player_position",
+      detail: "playerPosition is required and must contain finite x/y coordinates",
+    });
+    return;
+  }
 
   // Parse and validate currentTick (defaults to 0)
   const rawTick = Number(req.body?.currentTick ?? 0);

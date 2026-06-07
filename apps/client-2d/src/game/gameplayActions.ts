@@ -12,6 +12,7 @@
  */
 
 import { fetchGameplaySnapshot, liveGameplayStore, DEFAULT_GAMEPLAY_PLAYER_ID } from "./liveGameplayStore";
+import { createResourceGatherIntent } from "./ResourceGatherIntentAdapter";
 
 export interface ActionResult {
   ok: boolean;
@@ -33,20 +34,25 @@ export async function dispatchGather(input: {
   playerPosition?: GameplayWorldPosition;
 }): Promise<ActionResult> {
   const playerId = input.playerId ?? DEFAULT_GAMEPLAY_PLAYER_ID;
+  const adapterResult = createResourceGatherIntent({
+    playerId,
+    nodeId: input.nodeId,
+    currentTick: input.currentTick,
+    playerPosition: input.playerPosition,
+  });
+
+  if (!adapterResult.ok) {
+    return { ok: false, error: adapterResult.reason };
+  }
 
   try {
     const response = await fetch("/api/resource/gather", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-player-id": playerId,
+        "x-player-id": adapterResult.intent.playerId,
       },
-      body: JSON.stringify({
-        playerId,
-        nodeId: input.nodeId,
-        playerPosition: input.playerPosition,
-        currentTick: input.currentTick,
-      }),
+      body: JSON.stringify(adapterResult.intent),
     });
 
     const json = await response.json().catch(() => null);
@@ -56,7 +62,7 @@ export async function dispatchGather(input: {
     }
 
     // Refetch snapshot to update all UI panels
-    const next = await fetchGameplaySnapshot(playerId);
+    const next = await fetchGameplaySnapshot(adapterResult.intent.playerId);
     if (next) {
       liveGameplayStore.setSnapshot(next);
     }
