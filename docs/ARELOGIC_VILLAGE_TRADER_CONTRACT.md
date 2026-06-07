@@ -272,6 +272,7 @@ Player interacts with vendor.
 4. **No dynamic market**: Prices don't vary based on supply/demand
 5. **No travel trade**: Cannot sell at remote vendors
 6. **No reputation pricing**: All players get same prices
+7. **Client-provided position**: Player position is currently provided by the client in sell requests. A malicious client could send a fake position to bypass proximity checks. Server-side position tracking (via WebSocket/entity system) would make this fully server-authoritative. This is an acceptable MVP limitation given the existing codebase architecture where `resourceGatherRoute` also accepts client-provided position.
 
 ---
 

@@ -266,7 +266,9 @@ export async function dispatchSellResource(input: {
     const json = await response.json().catch(() => null);
 
     if (!response.ok || !json?.ok) {
-      return { ok: false, error: String(json?.error ?? "sell_failed") };
+      // Read reason from nested result structure
+      const reason = json?.result?.reason ?? json?.error ?? "sell_failed";
+      return { ok: false, error: String(reason) };
     }
 
     // Refetch snapshot to update inventory and wallet
@@ -322,7 +324,9 @@ export async function dispatchSellAllResources(playerId?: string): Promise<SellA
     const json = await response.json().catch(() => null);
 
     if (!response.ok || !json?.ok) {
-      return { ok: false, error: String(json?.error ?? "sell_all_failed") };
+      // Read reason from nested result structure
+      const reason = json?.result?.reason ?? json?.error ?? "sell_all_failed";
+      return { ok: false, error: String(reason) };
     }
 
     // Refetch snapshot to update inventory and wallet

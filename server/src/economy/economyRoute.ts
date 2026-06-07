@@ -27,12 +27,19 @@ function parseQuantity(value: unknown): number {
   return n;
 }
 
+// Maximum allowed player position values (prevent overflow/exploit)
+const MAX_POSITION = 100_000;
+const MIN_POSITION = -100_000;
+
 function parsePosition(value: unknown): { x: number; y: number } | null {
   if (!value || typeof value !== "object") return null;
   const pos = value as { x?: unknown; y?: unknown };
   const x = Number(pos.x);
   const y = Number(pos.y);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  // Validate bounds to prevent overflow/exploit
+  if (x < MIN_POSITION || x > MAX_POSITION) return null;
+  if (y < MIN_POSITION || y > MAX_POSITION) return null;
   return { x, y };
 }
 
