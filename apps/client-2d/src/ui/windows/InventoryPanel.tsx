@@ -10,6 +10,7 @@
  * - No Date.now() for state
  * - Shows server-provided values only
  * - Client cannot set inventory directly
+ * - After equip, refetches snapshot to update equipment/paperdoll display
  */
 
 import React, { useCallback } from "react";
@@ -18,6 +19,7 @@ import type {
   PlayerEquipmentSnapshot,
 } from "../../game/liveGameplaySnapshot";
 import { equipGatheringTool } from "../../game/equipment";
+import { fetchGameplaySnapshot, liveGameplayStore, DEFAULT_GAMEPLAY_PLAYER_ID } from "../../game/liveGameplayStore";
 import { getGatheringToolIcon, isGatheringTool } from "../utils/ItemIconMapper";
 
 interface Props {
@@ -69,17 +71,31 @@ export function InventoryPanel({ inventory, equipment }: Props) {
     async (itemId: string) => {
       const result = await equipGatheringTool(itemId);
 
-      // Show toast notification
-      window.dispatchEvent(
-        new CustomEvent("wasd:toast", {
-          detail: {
-            type: result.ok ? "success" : "error",
-            message: result.ok
-              ? "Tool equipped"
-              : `Equip failed: ${result.result?.reason ?? "unknown"}`,
-          },
-        }),
-      );
+      if (result.ok && result.result?.ok) {
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "success",
+              message: "Tool equipped",
+            },
+          }),
+        );
+
+        // Refetch snapshot to update equipment/paperdoll display
+        const next = await fetchGameplaySnapshot(DEFAULT_GAMEPLAY_PLAYER_ID);
+        if (next) {
+          liveGameplayStore.setSnapshot(next);
+        }
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "error",
+              message: `Equip failed: ${result.result?.reason ?? "unknown"}`,
+            },
+          }),
+        );
+      }
     },
     [],
   );
