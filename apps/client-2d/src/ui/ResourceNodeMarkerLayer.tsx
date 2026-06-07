@@ -112,7 +112,7 @@ interface Props {
 }
 
 /** Map server reason codes to human-readable messages for mobile players. */
-function humanReadableGatherError(reason?: string): string {
+function humanReadableGatherError(reason?: string, requiredTool?: string): string {
   switch (reason) {
     case "missing_player_position":
       return "Move closer — waiting for position sync";
@@ -126,6 +126,11 @@ function humanReadableGatherError(reason?: string): string {
       return "Resource depleted";
     case "level_too_low":
       return "Skill level too low";
+    case "missing_tool":
+      if (requiredTool === "mining_tool") return "Missing required tool: Pickaxe";
+      if (requiredTool === "fishing_tool") return "Missing required tool: Fishing Rod";
+      if (requiredTool === "woodcutting_tool") return "Missing required tool: Axe";
+      return "Missing required tool";
     case "inventory_full":
       return "Inventory full";
     default:
@@ -169,7 +174,7 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
     });
 
     if (!result.ok) {
-      const msg = humanReadableGatherError(result.error);
+      const msg = humanReadableGatherError(result.error, result.requiredTool);
       setLastError(msg);
       window.dispatchEvent(
         new CustomEvent("wasd:toast", {

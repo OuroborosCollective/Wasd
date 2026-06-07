@@ -79,6 +79,7 @@ export class ResourceNodeStore {
       status,
       depletedUntilTick: status === "depleted" ? state.depletedUntilTick : null,
       remainingTicks,
+      requiredTool: definition.requiredTool,
     };
   }
 

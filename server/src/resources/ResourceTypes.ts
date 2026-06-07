@@ -19,8 +19,11 @@ export type ResourceGatherReason =
   | "node_depleted"
   | "too_far"
   | "level_too_low"
+  | "missing_tool"
   | "invalid_player"
   | "gathered";
+
+export type RequiredToolSlot = "woodcutting_tool" | "mining_tool" | "fishing_tool";
 
 export interface ResourceNodeDefinition {
   id: string;
@@ -37,6 +40,8 @@ export interface ResourceNodeDefinition {
     y: number;
   };
   radius: number;
+  /** Equipment slot ID that must be equipped to gather this node. */
+  requiredTool?: RequiredToolSlot;
 }
 
 export interface ResourceNodeRuntimeState {
@@ -63,6 +68,8 @@ export interface ResourceNodeSnapshot {
   status: ResourceNodeStatus;
   depletedUntilTick: number | null;
   remainingTicks: number;
+  /** Equipment slot required to gather this node (undefined = no tool required). */
+  requiredTool?: RequiredToolSlot;
 }
 
 export interface GatherResourceResult {
@@ -70,6 +77,8 @@ export interface GatherResourceResult {
   playerId: string;
   nodeId: string;
   reason?: ResourceGatherReason;
+  /** Which tool slot is required (only set when reason is missing_tool) */
+  requiredTool?: RequiredToolSlot;
   skillId?: ResourceNodeDefinition["skillId"];
   xpReward?: number;
   itemRewardId?: string;

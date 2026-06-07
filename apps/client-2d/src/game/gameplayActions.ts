@@ -17,6 +17,8 @@ import { createResourceGatherIntent } from "./ResourceGatherIntentAdapter";
 export interface ActionResult {
   ok: boolean;
   error?: string;
+  /** Required tool slot ID when reason is missing_tool */
+  requiredTool?: string;
 }
 
 export interface GameplayWorldPosition {
@@ -58,7 +60,9 @@ export async function dispatchGather(input: {
     const json = await response.json().catch(() => null);
 
     if (!response.ok || !json?.ok) {
-      return { ok: false, error: String(json?.result?.reason ?? json?.error ?? "gather_failed") };
+      const reason = String(json?.result?.reason ?? json?.error ?? "gather_failed");
+      const requiredTool = json?.result?.requiredTool;
+      return { ok: false, error: reason, requiredTool };
     }
 
     // Refetch snapshot to update all UI panels

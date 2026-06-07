@@ -31,6 +31,10 @@ export const STARTER_RESOURCE_NODES: readonly ResourceNodeDefinition[] = [
     respawnTicks: 30,
     position: { x: 460, y: 500 },
     radius: 24,
+    // MVP: Young Pine can be gathered bare-handed (hand gather allowed for first tree)
+    // All other trees require woodcutting_tool (axe).
+    // Documented as intentional MVP relaxation — see ARELOGIC_RESOURCE_NODE_CONTRACT_V2.md
+    requiredTool: undefined,
   },
   {
     id: "starter_ore_001",
@@ -44,6 +48,7 @@ export const STARTER_RESOURCE_NODES: readonly ResourceNodeDefinition[] = [
     respawnTicks: 40,
     position: { x: 540, y: 520 },
     radius: 24,
+    requiredTool: "mining_tool",
   },
   {
     id: "starter_fish_001",
@@ -57,6 +62,7 @@ export const STARTER_RESOURCE_NODES: readonly ResourceNodeDefinition[] = [
     respawnTicks: 25,
     position: { x: 500, y: 580 },
     radius: 28,
+    requiredTool: "fishing_tool",
   },
 ] as const;
 
