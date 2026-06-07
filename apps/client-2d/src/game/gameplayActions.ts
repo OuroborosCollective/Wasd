@@ -221,3 +221,108 @@ export async function refreshSnapshot(playerId?: string): Promise<void> {
     liveGameplayStore.setSnapshot(next);
   }
 }
+
+export interface SellResourceResult {
+  ok: boolean;
+  result?: {
+    itemId: string;
+    quantitySold: number;
+    unitPrice: number;
+    totalCoins: number;
+    newBalance: number;
+  };
+  error?: string;
+}
+
+/**
+ * Dispatch sell resource action and refresh the live snapshot.
+ */
+export async function dispatchSellResource(input: {
+  playerId?: string;
+  itemId: string;
+  quantity: number;
+}): Promise<SellResourceResult> {
+  const pid = input.playerId ?? DEFAULT_GAMEPLAY_PLAYER_ID;
+
+  try {
+    const response = await fetch("/api/economy/sell-resource", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-player-id": pid,
+      },
+      body: JSON.stringify({
+        playerId: pid,
+        itemId: input.itemId,
+        quantity: input.quantity,
+      }),
+    });
+
+    const json = await response.json().catch(() => null);
+
+    if (!response.ok || !json?.ok) {
+      return { ok: false, error: String(json?.error ?? "sell_failed") };
+    }
+
+    // Refetch snapshot to update inventory and wallet
+    const next = await fetchGameplaySnapshot(pid);
+    if (next) {
+      liveGameplayStore.setSnapshot(next);
+    }
+
+    return { ok: true, result: json.result };
+  } catch (error) {
+    console.error("[dispatchSellResource] failed:", error);
+    return { ok: false, error: "network_error" };
+  }
+}
+
+export interface SellAllResourcesResult {
+  ok: boolean;
+  result?: {
+    sold: Array<{
+      itemId: string;
+      quantitySold: number;
+      unitPrice: number;
+      totalCoins: number;
+    }>;
+    totalCoins: number;
+    newBalance: number;
+  };
+  error?: string;
+}
+
+/**
+ * Dispatch sell all resources action and refresh the live snapshot.
+ */
+export async function dispatchSellAllResources(playerId?: string): Promise<SellAllResourcesResult> {
+  const pid = playerId ?? DEFAULT_GAMEPLAY_PLAYER_ID;
+
+  try {
+    const response = await fetch("/api/economy/sell-all-resources", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-player-id": pid,
+      },
+      body: JSON.stringify({ playerId: pid }),
+    });
+
+    const json = await response.json().catch(() => null);
+
+    if (!response.ok || !json?.ok) {
+      return { ok: false, error: String(json?.error ?? "sell_all_failed") };
+    }
+
+    // Refetch snapshot to update inventory and wallet
+    const next = await fetchGameplaySnapshot(pid);
+    if (next) {
+      liveGameplayStore.setSnapshot(next);
+    }
+
+    return { ok: true, result: json.result };
+  } catch (error) {
+    console.error("[dispatchSellAllResources] failed:", error);
+    return { ok: false, error: "network_error" };
+  }
+}

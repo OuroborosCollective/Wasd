@@ -4,6 +4,7 @@
  * Displays server-authoritative player inventory from LiveGameplaySnapshot.
  * Shows gathered resource items with quantities.
  * Includes Gathering Tools section for equipped tools.
+ * Supports selling resources to the vendor.
  *
  * Rules:
  * - No Math.random() for display
@@ -11,20 +12,24 @@
  * - Shows server-provided values only
  * - Client cannot set inventory directly
  * - After equip, refetches snapshot to update equipment/paperdoll display
+ * - After sell, refetches snapshot to update inventory and wallet
  */
 
 import React, { useCallback } from "react";
 import type {
   PlayerInventorySnapshot,
   PlayerEquipmentSnapshot,
+  WalletSnapshot,
 } from "../../game/liveGameplaySnapshot";
 import { equipGatheringTool } from "../../game/equipment";
 import { fetchGameplaySnapshot, liveGameplayStore, DEFAULT_GAMEPLAY_PLAYER_ID } from "../../game/liveGameplayStore";
 import { getGatheringToolIcon, isGatheringTool } from "../utils/ItemIconMapper";
+import { dispatchSellResource, dispatchSellAllResources } from "../../game/gameplayActions";
 
 interface Props {
   inventory: PlayerInventorySnapshot;
   equipment?: PlayerEquipmentSnapshot | null;
+  wallet?: WalletSnapshot;
 }
 
 // Tool item IDs for gathering
@@ -62,10 +67,31 @@ const categoryIcons: Record<string, string> = {
   equipment: "⚔️",
 };
 
-export function InventoryPanel({ inventory, equipment }: Props) {
+// Resource item IDs that are sellable
+const SELLABLE_RESOURCE_IDS = new Set([
+  "wood_log",
+  "copper_ore",
+  "raw_fish",
+  "wood_plank",
+  "copper_ingot",
+  "cooked_fish",
+]);
+
+// Sell prices for resources (in coins)
+const RESOURCE_SELL_PRICES: Record<string, number> = {
+  wood_log: 1,
+  copper_ore: 3,
+  raw_fish: 2,
+  wood_plank: 1,
+  copper_ingot: 5,
+  cooked_fish: 3,
+};
+
+export function InventoryPanel({ inventory, equipment, wallet }: Props) {
   const slots = inventory?.slots ?? [];
   const equipped = equipment?.slots ?? [];
   const tools = slots.filter((slot) => GATHERING_TOOL_IDS.has(slot.itemId));
+  const resources = slots.filter((slot) => SELLABLE_RESOURCE_IDS.has(slot.itemId));
 
   const handleEquip = useCallback(
     async (itemId: string) => {
@@ -100,6 +126,61 @@ export function InventoryPanel({ inventory, equipment }: Props) {
     [],
   );
 
+  const handleSell = useCallback(
+    async (itemId: string, quantity: number) => {
+      const result = await dispatchSellResource({ itemId, quantity });
+
+      if (result.ok && result.result) {
+        const price = RESOURCE_SELL_PRICES[itemId] ?? 0;
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "success",
+              message: `Sold ${quantity} for ${result.result.totalCoins} coins`,
+            },
+          }),
+        );
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "error",
+              message: `Sell failed: ${result.error ?? "unknown"}`,
+            },
+          }),
+        );
+      }
+    },
+    [],
+  );
+
+  const handleSellAll = useCallback(
+    async () => {
+      const result = await dispatchSellAllResources();
+
+      if (result.ok && result.result) {
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "success",
+              message: `Sold all resources for ${result.result.totalCoins} coins`,
+            },
+          }),
+        );
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "error",
+              message: result.error ?? "Nothing to sell",
+            },
+          }),
+        );
+      }
+    },
+    [],
+  );
+
   if (!slots.length && !equipped.length) {
     return (
       <section data-testid="inventory-panel-empty" className="are-window">
@@ -115,6 +196,12 @@ export function InventoryPanel({ inventory, equipment }: Props) {
   return (
     <section data-testid="inventory-panel-live" className="are-window">
       <h2>Inventory</h2>
+
+      {/* Wallet Section */}
+      <div className="wallet-section" data-testid="wallet-balance">
+        <span className="wallet-label">💰 Coins:</span>
+        <span className="wallet-value">{wallet?.coin ?? 0}</span>
+      </div>
 
       {/* Gathering Tools Section */}
       <div className="gathering-tools-section">
@@ -170,10 +257,25 @@ export function InventoryPanel({ inventory, equipment }: Props) {
         {slots.length} / {inventory.capacity} slots used
       </p>
 
+      {/* Sell All Resources Button */}
+      {resources.length > 0 && (
+        <button
+          type="button"
+          className="sell-all-button"
+          onClick={handleSellAll}
+          data-testid="sell-all-resources-button"
+        >
+          Sell All Resources
+        </button>
+      )}
+
       <div className="inventory-grid">
         {slots.map((slot) => {
           const iconPath = getGatheringToolIcon(slot.itemId);
           const rarity = TOOL_RARITY[slot.itemId] ?? slot.category;
+          const isSellable = SELLABLE_RESOURCE_IDS.has(slot.itemId);
+          const sellPrice = RESOURCE_SELL_PRICES[slot.itemId];
+
           return (
             <article key={slot.slotId} className={`inventory-slot rarity-${rarity}`}>
               <div className="inventory-slot__icon">
@@ -189,7 +291,21 @@ export function InventoryPanel({ inventory, equipment }: Props) {
                   x{slot.quantity}
                 </span>
                 <small className="inventory-slot__category">{slot.category}</small>
+                {isSellable && sellPrice !== undefined && (
+                  <small className="inventory-slot__price">{sellPrice} coin(s) each</small>
+                )}
               </div>
+              {isSellable && (
+                <button
+                  type="button"
+                  className="sell-button"
+                  onClick={() => handleSell(slot.itemId, slot.quantity)}
+                  data-testid="sell-resource-button"
+                  title={`Sell ${slot.name} for ${sellPrice * slot.quantity} coins`}
+                >
+                  SELL
+                </button>
+              )}
             </article>
           );
         })}

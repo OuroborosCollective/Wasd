@@ -24,6 +24,7 @@ export interface LiveGameplaySnapshotComposerDeps {
   readonly getEquipmentSlots: (playerId: string) => readonly LiveGameplayEquipmentSlot[] | Promise<readonly LiveGameplayEquipmentSlot[]>;
   readonly getSkillStates: (playerId: string) => readonly LiveGameplaySkillState[] | Promise<readonly LiveGameplaySkillState[]>;
   readonly getResourceNodes: (playerId: string) => readonly LiveGameplayResourceNode[] | Promise<readonly LiveGameplayResourceNode[]>;
+  readonly getWallet: (playerId: string) => { readonly coin: number } | Promise<{ readonly coin: number }>;
 }
 
 export class LiveGameplaySnapshotComposer {
@@ -37,6 +38,8 @@ export class LiveGameplaySnapshotComposer {
       this.deps.getResourceNodes(playerId),
     ]);
 
+    const wallet = await this.deps.getWallet(playerId);
+
     return Object.freeze({
       schemaVersion: "live-gameplay-snapshot.v1" as const,
       playerId,
@@ -47,6 +50,7 @@ export class LiveGameplaySnapshotComposer {
       equipment: Object.freeze([...equipment].sort((a, b) => a.slot.localeCompare(b.slot))),
       skills: Object.freeze([...skills].sort((a, b) => a.skillId.localeCompare(b.skillId))),
       resourceNodes: Object.freeze([...resourceNodes].sort((a, b) => a.nodeId.localeCompare(b.nodeId))),
+      wallet: Object.freeze(wallet),
     });
   }
 

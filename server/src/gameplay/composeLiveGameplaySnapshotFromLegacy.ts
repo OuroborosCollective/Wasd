@@ -2,6 +2,7 @@ import { LiveGameplaySnapshotComposer } from "./LiveGameplaySnapshotComposer.js"
 import type { LiveGameplaySnapshot } from "./LiveGameplaySnapshotTypes.js";
 import { toLiveEquipmentSlots } from "./adapters/EquipmentSnapshotAdapter.js";
 import { toLiveInventoryItems } from "./adapters/InventorySnapshotAdapter.js";
+import { getWalletService } from "../economy/economyRuntime.js";
 
 interface LegacyInventorySlot {
   readonly itemId?: string;
@@ -81,6 +82,11 @@ export function composeLiveGameplaySnapshotFromLegacy(
       y: Number(node.y ?? node.position?.y ?? 0),
       available: node.available === true || node.status === "available",
     })),
+    getWallet: async (playerId: string) => {
+      const walletService = await getWalletService();
+      const wallet = await walletService.getWallet(playerId);
+      return { coin: wallet.balances.coin };
+    },
   });
 
   return composer.compose(input.playerId, input.logicalIndex);
