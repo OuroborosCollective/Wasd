@@ -10,6 +10,8 @@ import { getInventoryService } from "../inventory/inventoryRuntime.js";
 import { getSkillProgressionService } from "../skills/skillRuntime.js";
 import type { SkillSnapshot } from "../skills/SkillTypes.js";
 import { ALL_CRAFTING_RECIPES } from "./StarterRecipes.js";
+import { equipmentService } from "../equipment/equipmentRuntime.js";
+import { EQUIPMENT_DEFINITIONS } from "../equipment/EquipmentTypes.js";
 import {
   isWithinAnyStationOfType,
   getProcessingStationById,
@@ -223,6 +225,35 @@ export class CraftingService {
           recipeId: recipe.id,
           reason: "inventory_full",
         };
+      }
+    }
+
+    // Auto-equip upgrade tool if consumed tool was equipped
+    for (const ingredient of recipe.ingredients) {
+      const consumedDef = EQUIPMENT_DEFINITIONS[ingredient.itemId];
+      if (consumedDef) {
+        // Check if this tool was equipped
+        const equipment = await equipmentService.getPlayerEquipment(input.playerId);
+        const equippedSlot = equipment.slots.find((s) => s.itemId === ingredient.itemId);
+
+        if (equippedSlot) {
+          // Consume the equipped tool by unequipping it
+          await equipmentService.unequipItem({
+            playerId: input.playerId,
+            slotId: equippedSlot.slotId,
+          });
+        }
+      }
+    }
+
+    // Auto-equip output tool if it's an equipment item
+    for (const output of recipe.outputs) {
+      const outputDef = EQUIPMENT_DEFINITIONS[output.itemId];
+      if (outputDef) {
+        await equipmentService.equipItem({
+          playerId: input.playerId,
+          itemId: output.itemId,
+        });
       }
     }
 

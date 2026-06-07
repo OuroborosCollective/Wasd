@@ -11,6 +11,7 @@ import {
   isEquipmentItemId,
   normalizeEquipmentState,
   type EquipItemResult,
+  type UnequipItemResult,
   type PlayerEquipmentState,
 } from "./EquipmentTypes.js";
 
@@ -84,6 +85,51 @@ export class EquipmentStore {
       playerId: input.playerId,
       itemId: input.itemId,
       reason: "equipped",
+      equipment: nextState,
+    };
+  }
+
+  unequipItem(input: {
+    playerId: string;
+    slotId: string;
+  }): UnequipItemResult {
+    if (!input.playerId || input.playerId === "anonymous") {
+      return {
+        ok: false,
+        playerId: input.playerId,
+        slotId: input.slotId as any,
+        reason: "invalid_player",
+      };
+    }
+
+    const state = this.getPlayerEquipment(input.playerId);
+    const slotExists = state.slots.some((s) => s.slotId === input.slotId);
+
+    if (!slotExists) {
+      return {
+        ok: false,
+        playerId: input.playerId,
+        slotId: input.slotId as any,
+        reason: "slot_empty",
+      };
+    }
+
+    // Remove the slot
+    const nextState = normalizeEquipmentState(
+      {
+        ...state,
+        slots: state.slots.filter((s) => s.slotId !== input.slotId),
+      },
+      input.playerId,
+    );
+
+    this.equipmentByPlayer.set(input.playerId, nextState);
+
+    return {
+      ok: true,
+      playerId: input.playerId,
+      slotId: input.slotId as any,
+      reason: "unequipped",
       equipment: nextState,
     };
   }

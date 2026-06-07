@@ -51,6 +51,14 @@ export interface EquipItemResult {
   equipment?: PlayerEquipmentState;
 }
 
+export interface UnequipItemResult {
+  ok: boolean;
+  playerId: string;
+  slotId: EquipmentSlotId;
+  reason?: "unequipped" | "slot_empty" | "invalid_player";
+  equipment?: PlayerEquipmentState;
+}
+
 export const EQUIPMENT_DEFINITIONS: Record<string, EquipmentItemDefinition> = {
   wooden_axe: {
     itemId: "wooden_axe",
