@@ -1,9 +1,12 @@
 import { LiveGameplaySnapshotComposer, buildVendorEconomySnapshot, createEmptyVendorEconomySnapshot } from "./LiveGameplaySnapshotComposer.js";
-import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery } from "./LiveGameplaySnapshotTypes.js";
+import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery, LiveGameplayCampNpc, LiveGameplayCampStock } from "./LiveGameplaySnapshotTypes.js";
 import { toLiveEquipmentSlots } from "./adapters/EquipmentSnapshotAdapter.js";
 import { toLiveInventoryItems } from "./adapters/InventorySnapshotAdapter.js";
 import { getWalletService, getVendorStockService } from "../economy/economyRuntime.js";
 import { getVillageResourceVendor } from "../economy/VillageVendors.js";
+import { campNpcService } from "../npc/CampNpcService.js";
+import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
+import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
 
 interface LegacyInventorySlot {
   readonly itemId?: string;
@@ -128,5 +131,49 @@ export async function composeLiveGameplaySnapshotFromLegacy(
     getRecentDiscoveries: () => input.recentDiscoveries ?? [],
   });
 
-  return composer.compose(input.playerId, input.logicalIndex);
+  const baseSnapshot = await composer.compose(input.playerId, input.logicalIndex);
+
+  // Get camp NPCs and stocks for discovered gathering camp POIs
+  const currentTick = input.logicalIndex;
+  const discoveredPoiIds = worldDiscoveryService.getDiscoveredPoiIds(input.playerId);
+  
+  // Filter worldPois to only discovered gathering camps
+  const worldPois = input.worldPois ?? [];
+  const discoveredCamps = worldPois.filter(
+    (poi) => discoveredPoiIds.includes(poi.poiId) && isGatheringCampPoi(poi.type)
+  );
+
+  // Convert to WorldPoiSnapshot format for camp NPC service
+  const campPois: WorldPoiSnapshot[] = discoveredCamps.map((poi) => ({
+    id: poi.poiId,
+    type: poi.type as any,
+    title: poi.title,
+    position: { x: poi.x, y: poi.y },
+    chunk: { x: poi.chunkX, z: poi.chunkZ },
+    interactionRadius: 32,
+    tags: [],
+  }));
+
+  // Update camp stock
+  campNpcService.updateCampStock(campPois, currentTick);
+
+  // Generate camp NPCs
+  const campNpcs = campNpcService.generateCampNpcs(campPois, currentTick);
+
+  // Get camp stocks
+  const campStocks = campNpcService.getCampStockSnapshots(campPois, currentTick);
+
+  // Return snapshot with camp NPCs and stocks
+  return Object.freeze({
+    ...baseSnapshot,
+    campNpcs: Object.freeze(campNpcs),
+    campStocks: Object.freeze(campStocks),
+  });
+}
+
+/**
+ * Check if a POI type is a gathering camp.
+ */
+function isGatheringCampPoi(poiType: string): boolean {
+  return poiType === "logging_camp" || poiType === "mining_camp" || poiType === "fishing_camp";
 }
