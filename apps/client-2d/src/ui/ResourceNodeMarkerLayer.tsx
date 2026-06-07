@@ -14,7 +14,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useLiveGameplaySnapshot } from "../game/useLiveGameplaySnapshot";
-import { dispatchGather } from "../game/gameplayActions";
+import { dispatchGather, type GameplayWorldPosition } from "../game/gameplayActions";
 import { DEFAULT_GAMEPLAY_PLAYER_ID } from "../game/liveGameplayStore";
 
 interface ResourceMarkerProps {
@@ -106,9 +106,11 @@ function ResourceMarker({ nodeId, title, kind, x, y, status, onGather }: Resourc
 interface Props {
   /** Called when gather succeeds, to trigger snapshot refetch */
   onGatherSuccess?: () => void;
+  /** Optional bridge to the authoritative/self player world position. */
+  getPlayerPosition?: () => GameplayWorldPosition | null;
 }
 
-export function ResourceNodeMarkerLayer({ onGatherSuccess }: Props) {
+export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: Props) {
   const snapshot = useLiveGameplaySnapshot();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -134,12 +136,12 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess }: Props) {
   const resources = snapshot.resources ?? [];
 
   const handleGather = useCallback(async (nodeId: string) => {
-    const node = resources.find((item) => item.id === nodeId);
+    const playerPosition = getPlayerPosition?.() ?? null;
     const result = await dispatchGather({
       playerId: DEFAULT_GAMEPLAY_PLAYER_ID,
       nodeId,
       currentTick: snapshot.serverTick ?? 0,
-      playerPosition: node?.position,
+      playerPosition: playerPosition ?? undefined,
     });
 
     if (!result.ok) {
@@ -154,7 +156,7 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess }: Props) {
     } else {
       onGatherSuccess?.();
     }
-  }, [resources, snapshot.serverTick, onGatherSuccess]);
+  }, [getPlayerPosition, snapshot.serverTick, onGatherSuccess]);
 
   // Map world coordinates to screen coordinates
   // The world uses isometric projection, we approximate screen position
