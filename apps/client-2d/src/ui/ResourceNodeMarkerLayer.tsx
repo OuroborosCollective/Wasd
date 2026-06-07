@@ -28,6 +28,30 @@ interface ResourceMarkerProps {
   onGather: (nodeId: string) => Promise<void>;
 }
 
+/** Map server-side gather error codes to human-readable messages. */
+function humanReadableGatherError(error: string): string {
+  switch (error) {
+    case "missing_player_position":
+    case "invalid_player_position":
+      return "⚠ Move closer or wait for position sync";
+    case "too_far":
+      return "⚠ Too far from resource";
+    case "node_depleted":
+      return "⚠ Resource depleted — try again later";
+    case "node_not_found":
+    case "invalid_node_id":
+      return "⚠ Resource node not found";
+    case "level_too_low":
+      return "⚠ Skill level too low";
+    case "missing_tool":
+      return "⚠ Missing required tool";
+    case "cooldown":
+      return "⚠ Resource not ready yet";
+    default:
+      return `⚠ Gather failed: ${error}`;
+  }
+}
+
 const KIND_ICONS: Record<string, string> = {
   tree: "🌲",
   ore: "⛏️",
@@ -115,6 +139,7 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
   const snapshot = useLiveGameplaySnapshot();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [lastError, setLastError] = useState<string | null>(null);
 
   // Track container size for coordinate mapping
   useEffect(() => {
@@ -146,15 +171,19 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
     });
 
     if (!result.ok) {
+      const msg = humanReadableGatherError(result.error ?? "gather_failed");
+      setLastError(msg);
       window.dispatchEvent(
         new CustomEvent("wasd:toast", {
           detail: {
-            type: "error",
-            message: `Gather failed: ${result.error ?? "unknown"}`,
+            type: "toast",
+            message: msg,
+            severity: "warning",
           },
         }),
       );
     } else {
+      setLastError(null);
       onGatherSuccess?.();
     }
   }, [getPlayerPosition, snapshot.serverTick, onGatherSuccess]);
@@ -183,7 +212,7 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
     return { screenX, screenY };
   }
 
-  if (resources.length === 0) {
+  if (resources.length === 0 && !lastError) {
     return null;
   }
 
@@ -198,6 +227,30 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
         zIndex: 50,
       }}
     >
+      {lastError && (
+        <div
+          data-testid="resource-gather-feedback"
+          style={{
+            position: "fixed",
+            bottom: 80,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(4,8,14,0.88)",
+            border: "1px solid rgba(255,209,102,0.5)",
+            borderRadius: 10,
+            padding: "8px 16px",
+            color: "#f5f7ff",
+            font: "12px/1.4 ui-monospace, monospace",
+            backdropFilter: "blur(8px)",
+            pointerEvents: "none",
+            zIndex: 60,
+            maxWidth: "min(320px, calc(100vw - 32px))",
+            textAlign: "center",
+          }}
+        >
+          {lastError}
+        </div>
+      )}
       {resources.map((node) => {
         const { screenX, screenY } = worldToScreen(node.position.x, node.position.y);
         return (

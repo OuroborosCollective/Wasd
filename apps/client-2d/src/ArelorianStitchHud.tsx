@@ -10,6 +10,7 @@ import { FactionStandingPanel } from "./ui/windows/FactionStandingPanel";
 import { MapStatusPanel } from "./ui/windows/MapStatusPanel";
 import { ResourceNodePanel } from "./ui/windows/ResourceNodePanel";
 import { useLiveGameplaySnapshot } from "./game/useLiveGameplaySnapshot";
+import { publishPlayerPositionBridge } from "./game/PlayerPositionBridge";
 import { GameplayWindowDock } from "./ui/GameplayWindowDock";
 import { GameplayWindowsLayer } from "./ui/GameplayWindowsLayer";
 import { useGameplayPanels } from "./ui/useGameplayPanels";
@@ -135,6 +136,13 @@ export function ArelorianStitchHud({
   
   // Live gameplay snapshot from server (display-only, no game logic)
   const liveGameplay = useLiveGameplaySnapshot();
+
+  // Publish player position from server heartbeat → PlayerPositionBridge → ResourceNodeMarkerLayer
+  useEffect(() => {
+    if (debugPlayerPos) {
+      publishPlayerPositionBridge(debugPlayerPos);
+    }
+  }, [debugPlayerPos?.x, debugPlayerPos?.z]);
 
   // Deterministic vitals from server (no Math.random, no Date.now)
   const hpPercent = vitals ? Math.round((vitals.hp / vitals.maxHp) * 100) : 86;
@@ -396,6 +404,14 @@ export function ArelorianStitchHud({
         <button onClick={toggleInventory} aria-pressed={isInventoryOpen}>BAG</button>
         <button onClick={onToggleAutoMove}>AUTO</button>
         <button onClick={onInteract}>INTERACT</button>
+        <button
+          type="button"
+          data-testid="mobile-chat-toggle"
+          onClick={() => toggleOverlay("chat")}
+          aria-pressed={openOverlays.chat}
+        >
+          CHAT
+        </button>
       </section>
 
       {activePanel && (activePanel !== "inventory" || isInventoryOpen) && (

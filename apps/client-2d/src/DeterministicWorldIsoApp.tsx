@@ -995,9 +995,16 @@ export function DeterministicWorldIsoApp() {
     });
     c.on("dialogue", (event: any) => {
       const payload = event.payload ?? event;
-      const source = String(payload.source ?? payload.npcName ?? "NPC");
-      const text = String(payload.text ?? payload.dialogueText ?? "");
+      // Accept many payload forms: text, dialogueText, message, payload.dialogueText
+      const source = String(payload.source ?? payload.npcName ?? payload.sender ?? "NPC");
+      const text = String(
+        payload.text ?? payload.dialogueText ?? payload.message ?? payload.payload?.dialogueText ?? ""
+      );
       if (!text) return;
+      // Also dispatch npc_dialogue event so main.tsx can open the NpcDialoguePanel
+      window.dispatchEvent(new CustomEvent("wasd:network-packet", {
+        detail: { event: "npc_dialogue", payload: { npcName: source, text } },
+      }));
       setMessages((items) => [
         ...items.slice(-12),
         { from: source, txt: text }
@@ -1005,9 +1012,15 @@ export function DeterministicWorldIsoApp() {
     });
     c.on("INTERACTION_ACCEPTED", (event: any) => {
       const payload = event.payload ?? event;
-      const source = String(payload.source ?? payload.targetId ?? "NPC");
-      const text = String(payload.dialogueText ?? payload.payload?.dialogueText ?? "");
+      const source = String(payload.source ?? payload.targetId ?? payload.npcName ?? "NPC");
+      const text = String(
+        payload.dialogueText ?? payload.message ?? payload.payload?.dialogueText ?? ""
+      );
+      // If no text at all, don't silently drop — at minimum show the intent message
       if (!text) return;
+      window.dispatchEvent(new CustomEvent("wasd:network-packet", {
+        detail: { event: "npc_dialogue", payload: { npcName: source, text } },
+      }));
       setMessages((items) => [
         ...items.slice(-12),
         { from: source, txt: text }
