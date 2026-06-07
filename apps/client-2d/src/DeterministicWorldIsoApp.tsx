@@ -19,6 +19,7 @@ import { InterpolatedSpriteManager } from "./math/InterpolatedSpriteManager";
 import { FacingDirection, inputToFacing, serverPosToKappa, getFacingEntity, type TargetableEntity } from "./input/Targeting";
 import { ResourceNodeMarkerLayer } from "./ui/ResourceNodeMarkerLayer";
 import { WorldPoiMarkerLayer } from "./ui/WorldPoiMarkerLayer";
+import { CampNpcMarkerLayer } from "./ui/CampNpcMarkerLayer";
 
 // Zero-Trust Manifest System with Input Lockdown
 import { useZeroTrustManifest, DivergenceAlert, isInputLocked } from "./manifest";
@@ -1278,6 +1279,7 @@ export function DeterministicWorldIsoApp() {
       <div ref={host} className="az-pixi" data-testid="pixi-host" />
       <ResourceNodeMarkerLayer />
       <WorldPoiMarkerLayer />
+      <CampNpcMarkerLayer />
       <ArelorianStitchHud
         connected={connected}
         assetStatus={assetStatus}

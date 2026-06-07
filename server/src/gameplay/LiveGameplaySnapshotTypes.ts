@@ -105,6 +105,61 @@ export interface LiveGameplayVendorEconomySnapshot {
   readonly vendors: readonly LiveGameplayVendorEconomy[];
 }
 
+/**
+ * Camp NPC activity state.
+ */
+export type CampNpcActivity = "gathering" | "returning" | "depositing";
+
+/**
+ * Camp NPC state.
+ */
+export type CampNpcState = "idle" | "working" | "resting";
+
+/**
+ * Camp NPC position.
+ */
+export interface CampNpcPosition {
+  readonly x: number;
+  readonly y: number;
+}
+
+/**
+ * Camp NPC type.
+ */
+export type CampNpcType = "camp_woodcutter" | "camp_miner" | "camp_fisher";
+
+/**
+ * Camp NPC snapshot for server-authoritative display.
+ */
+export interface LiveGameplayCampNpc {
+  readonly id: string;
+  readonly type: CampNpcType;
+  readonly name: string;
+  readonly role: string;
+  readonly poiId: string;
+  readonly position: CampNpcPosition;
+  readonly state: CampNpcState;
+  readonly activity: CampNpcActivity;
+  readonly activityMessage: string;
+}
+
+/**
+ * Camp stock item entry.
+ */
+export interface LiveGameplayCampStockItem {
+  readonly itemId: string;
+  readonly quantity: number;
+}
+
+/**
+ * Camp stock snapshot for display.
+ */
+export interface LiveGameplayCampStock {
+  readonly poiId: string;
+  readonly items: readonly LiveGameplayCampStockItem[];
+  readonly lastUpdatedTick: number;
+}
+
 export interface LiveGameplaySnapshot {
   readonly schemaVersion: "live-gameplay-snapshot.v1";
   readonly playerId: string;
@@ -122,6 +177,10 @@ export interface LiveGameplaySnapshot {
   readonly discoveryStats: DiscoveryStats;
   /** Recently discovered POIs for client feedback */
   readonly recentDiscoveries: readonly RecentDiscovery[];
+  /** Camp NPCs at discovered gathering camp POIs */
+  readonly campNpcs: readonly LiveGameplayCampNpc[];
+  /** Camp stock at discovered gathering camp POIs */
+  readonly campStocks: readonly LiveGameplayCampStock[];
 }
 
 export interface GatherResult {

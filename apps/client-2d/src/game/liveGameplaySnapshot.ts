@@ -257,6 +257,61 @@ export interface VendorEconomyContainerSnapshot {
   vendors: VendorEconomySnapshot[];
 }
 
+/**
+ * Camp NPC activity state.
+ */
+export type CampNpcActivity = "gathering" | "returning" | "depositing";
+
+/**
+ * Camp NPC state.
+ */
+export type CampNpcState = "idle" | "working" | "resting";
+
+/**
+ * Camp NPC position.
+ */
+export interface CampNpcPosition {
+  x: number;
+  y: number;
+}
+
+/**
+ * Camp NPC type.
+ */
+export type CampNpcType = "camp_woodcutter" | "camp_miner" | "camp_fisher";
+
+/**
+ * Camp NPC snapshot for display.
+ */
+export interface CampNpcSnapshot {
+  id: string;
+  type: CampNpcType;
+  name: string;
+  role: string;
+  poiId: string;
+  position: CampNpcPosition;
+  state: CampNpcState;
+  activity: CampNpcActivity;
+  activityMessage: string;
+}
+
+/**
+ * Camp stock item entry.
+ */
+export interface CampStockItemSnapshot {
+  itemId: string;
+  quantity: number;
+}
+
+/**
+ * Camp stock snapshot for display.
+ */
+export interface CampStockSnapshot {
+  poiId: string;
+  items: CampStockItemSnapshot[];
+  lastUpdatedTick: number;
+}
+
 export interface LiveGameplaySnapshot {
   status: LiveDataStatus;
   serverTick: number | null;
@@ -278,6 +333,10 @@ export interface LiveGameplaySnapshot {
   discoveryStats?: DiscoveryStats;
   /** Recently discovered POIs for client feedback */
   recentDiscoveries?: RecentDiscovery[];
+  /** Camp NPCs at discovered gathering camp POIs */
+  campNpcs: CampNpcSnapshot[];
+  /** Camp stock at discovered gathering camp POIs */
+  campStocks: CampStockSnapshot[];
 }
 
 // Default empty snapshot - honest waiting state
@@ -325,6 +384,8 @@ export const EMPTY_LIVE_GAMEPLAY_SNAPSHOT: LiveGameplaySnapshot = {
   vendorEconomy: {
     vendors: [],
   },
+  campNpcs: [],
+  campStocks: [],
 };
 
 // Normalization helper - pure function, no mutation
@@ -376,6 +437,8 @@ export function normalizeLiveGameplaySnapshot(
       },
       worldPois: normalizeWorldPois(input.worldPois),
       vendorEconomy: normalizeVendorEconomy(input.vendorEconomy),
+      campNpcs: normalizeCampNpcs(input.campNpcs),
+      campStocks: normalizeCampStocks(input.campStocks),
     };
   } catch (error) {
     // Never crash the client - return empty snapshot on normalization error
@@ -713,4 +776,92 @@ export function getVendorPriceForItem(
   const vendor = vendorEconomy.vendors.find((v) => v.id === vendorId);
   if (!vendor) return undefined;
   return vendor.prices.find((p) => p.itemId === itemId);
+}
+
+/**
+ * Normalize camp NPC snapshot from server.
+ * Pure function - no mutation of input.
+ */
+function normalizeCampNpc(input: unknown): CampNpcSnapshot | null {
+  if (!input || typeof input !== "object") return null;
+  const raw = input as any;
+
+  const validTypes = ["camp_woodcutter", "camp_miner", "camp_fisher"];
+  const validStates = ["idle", "working", "resting"];
+  const validActivities = ["gathering", "returning", "depositing"];
+
+  return {
+    id: String(raw.id ?? ""),
+    type: validTypes.includes(raw.type) ? raw.type : "camp_woodcutter",
+    name: String(raw.name ?? "Unknown"),
+    role: String(raw.role ?? "Worker"),
+    poiId: String(raw.poiId ?? ""),
+    position: {
+      x: Number(raw.position?.x ?? 0),
+      y: Number(raw.position?.y ?? 0),
+    },
+    state: validStates.includes(raw.state) ? raw.state : "idle",
+    activity: validActivities.includes(raw.activity) ? raw.activity : "gathering",
+    activityMessage: String(raw.activityMessage ?? ""),
+  };
+}
+
+/**
+ * Normalize camp NPC snapshots from server.
+ * Pure function - no mutation of input.
+ */
+function normalizeCampNpcs(input: unknown): CampNpcSnapshot[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map(normalizeCampNpc)
+    .filter((npc): npc is CampNpcSnapshot => npc !== null && npc.id !== "")
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * Normalize camp stock item from server.
+ * Pure function - no mutation of input.
+ */
+function normalizeCampStockItem(input: unknown): CampStockItemSnapshot | null {
+  if (!input || typeof input !== "object") return null;
+  const raw = input as any;
+
+  return {
+    itemId: String(raw.itemId ?? ""),
+    quantity: Math.max(0, Math.floor(Number(raw.quantity ?? 0))),
+  };
+}
+
+/**
+ * Normalize camp stock snapshot from server.
+ * Pure function - no mutation of input.
+ */
+function normalizeCampStock(input: unknown): CampStockSnapshot | null {
+  if (!input || typeof input !== "object") return null;
+  const raw = input as any;
+
+  return {
+    poiId: String(raw.poiId ?? ""),
+    items: Array.isArray(raw.items)
+      ? raw.items
+          .map(normalizeCampStockItem)
+          .filter((item): item is CampStockItemSnapshot => item !== null && item.quantity > 0)
+          .sort((a, b) => a.itemId.localeCompare(b.itemId))
+      : [],
+    lastUpdatedTick: Math.max(0, Math.floor(Number(raw.lastUpdatedTick ?? 0))),
+  };
+}
+
+/**
+ * Normalize camp stock snapshots from server.
+ * Pure function - no mutation of input.
+ */
+function normalizeCampStocks(input: unknown): CampStockSnapshot[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map(normalizeCampStock)
+    .filter((stock): stock is CampStockSnapshot => stock !== null && stock.poiId !== "")
+    .sort((a, b) => a.poiId.localeCompare(b.poiId));
 }
