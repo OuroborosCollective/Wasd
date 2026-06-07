@@ -8,7 +8,7 @@
  * - No Math.random()
  * - No Date.now() for gameplay state
  * - Server resolves playerId from auth/session
- * - Auth guard applies in production
+ * - Auth guard applies in production unless guest/dev fallback is explicitly enabled
  * - Strict input validation
  */
 
@@ -24,6 +24,18 @@ router.use(express.json());
 // Maximum allowed player position values (prevent overflow)
 const MAX_POSITION = 100_000;
 const MIN_POSITION = -100_000;
+
+function envFlagEnabled(value: string | undefined): boolean {
+  return !["0", "false", "no"].includes(value?.trim().toLowerCase() || "");
+}
+
+function isGuestHttpAllowed(): boolean {
+  return (
+    envFlagEnabled(process.env.ALLOW_GUEST_LOGIN) ||
+    envFlagEnabled(process.env.ALLOW_DEV_LOGIN) ||
+    process.env.ALLOW_DEV_PLAYER_ID === "true"
+  );
+}
 
 /**
  * Validate and parse nodeId from request.
@@ -67,8 +79,8 @@ function parsePosition(value: unknown): { x: number; y: number } | null {
 router.post("/gather", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
 
-  // Production requires authenticated player
-  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+  // Production requires authenticated player unless configured guest/dev fallback is active.
+  if (process.env.NODE_ENV === "production" && !identity.authenticated && !isGuestHttpAllowed()) {
     res.status(401).json({
       ok: false,
       error: "authenticated_player_required",
