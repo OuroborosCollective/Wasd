@@ -75,6 +75,7 @@ export function GameplayWindowsLayer({ snapshot, openPanels }: Props) {
           <InventoryPanel
             inventory={snapshot.inventory ?? null}
             wallet={snapshot.wallet}
+            vendorEconomy={snapshot.vendorEconomy}
           />
         </WindowFrame>
       )}

@@ -1,8 +1,9 @@
-import { LiveGameplaySnapshotComposer } from "./LiveGameplaySnapshotComposer.js";
+import { LiveGameplaySnapshotComposer, buildVendorEconomySnapshot, createEmptyVendorEconomySnapshot } from "./LiveGameplaySnapshotComposer.js";
 import type { LiveGameplaySnapshot } from "./LiveGameplaySnapshotTypes.js";
 import { toLiveEquipmentSlots } from "./adapters/EquipmentSnapshotAdapter.js";
 import { toLiveInventoryItems } from "./adapters/InventorySnapshotAdapter.js";
-import { getWalletService } from "../economy/economyRuntime.js";
+import { getWalletService, getVendorStockService } from "../economy/economyRuntime.js";
+import { getVillageResourceVendor } from "../economy/VillageVendors.js";
 
 interface LegacyInventorySlot {
   readonly itemId?: string;
@@ -67,9 +68,11 @@ export interface ComposeLiveGameplaySnapshotFromLegacyInput {
   }[];
 }
 
-export function composeLiveGameplaySnapshotFromLegacy(
+export async function composeLiveGameplaySnapshotFromLegacy(
   input: ComposeLiveGameplaySnapshotFromLegacyInput,
 ): Promise<LiveGameplaySnapshot> {
+  const vendor = getVillageResourceVendor();
+
   const composer = new LiveGameplaySnapshotComposer({
     getInventoryItems: () => toLiveInventoryItems(input.inventory.slots ?? []),
     getEquipmentSlots: () => toLiveEquipmentSlots(
@@ -97,6 +100,15 @@ export function composeLiveGameplaySnapshotFromLegacy(
       return { coin: wallet.balances.coin };
     },
     getWorldPois: () => input.worldPois ?? [],
+    getVendorEconomy: async () => {
+      try {
+        const vendorStockService = await getVendorStockService();
+        const stockEntries = await vendorStockService.getStockEntries(vendor.id);
+        return buildVendorEconomySnapshot(vendor.id, vendor.name, stockEntries);
+      } catch {
+        return createEmptyVendorEconomySnapshot();
+      }
+    },
   });
 
   return composer.compose(input.playerId, input.logicalIndex);
