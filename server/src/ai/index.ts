@@ -15,7 +15,12 @@ export { AIDecisionRules } from "./AIDecisionRules.js";
 export { AISafetyFilter } from "./AISafetyFilter.js";
 
 // Learning
-export { AILocalLearningStore, type IAILocalLearningStore } from "./AILocalLearningStore.js";
+export {
+  AILocalLearningStore,
+  type AILearningSummary,
+  type AILocalLearningStoreSnapshot,
+  type IAILocalLearningStore,
+} from "./AILocalLearningStore.js";
 
 // Command mapping
 export { AICommandMapper, type AICommandQueueItem } from "./AICommandMapper.js";
@@ -26,7 +31,9 @@ export { AIHealBridge } from "./AIHealBridge.js";
 // Skill tool
 export {
   AIServiceSkillTool,
+  type AIServiceSkillToolConfig,
   type AIServiceSkillToolInput,
+  type AIServiceSkillToolMeta,
   type AIServiceSkillToolOutput,
 } from "./AIServiceSkillTool.js";
 
