@@ -10,6 +10,22 @@ import {
 
 type Listener = () => void;
 
+function pickSnapshotPayload(data: unknown): unknown {
+  const raw = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+
+  // Preferred post-#1762 contract.
+  if (raw.liveGameplaySnapshot && typeof raw.liveGameplaySnapshot === "object") {
+    return raw.liveGameplaySnapshot;
+  }
+
+  // Existing route wrapper contract.
+  if (raw.snapshot && typeof raw.snapshot === "object") {
+    return raw.snapshot;
+  }
+
+  return data;
+}
+
 export class LiveGameplayStore {
   private snapshot: LiveGameplaySnapshot = EMPTY_LIVE_GAMEPLAY_SNAPSHOT;
   private readonly listeners = new Set<Listener>();
@@ -18,8 +34,8 @@ export class LiveGameplayStore {
     return this.snapshot;
   }
 
-  setSnapshot(next: Partial<LiveGameplaySnapshot>): void {
-    this.snapshot = normalizeLiveGameplaySnapshot(next);
+  setSnapshot(next: unknown): void {
+    this.snapshot = normalizeLiveGameplaySnapshot(pickSnapshotPayload(next));
     this.emit();
   }
 
@@ -32,26 +48,10 @@ export class LiveGameplayStore {
       type === "gameplay_snapshot" ||
       type === "GAMEPLAY_SNAPSHOT" ||
       type === "world_snapshot" ||
-      type === "WORLD_SNAPSHOT"
+      type === "WORLD_SNAPSHOT" ||
+      (payload && typeof payload === "object" && (payload as Record<string, unknown>).schemaVersion === "live-gameplay-snapshot.v1")
     ) {
-      this.setSnapshot({
-        status: "live",
-        serverTick:
-          (payload?.serverTick as number) ??
-          (payload?.tickId as number) ??
-          null,
-        character: payload?.character as LiveGameplaySnapshot["character"],
-        paperdoll: payload?.paperdoll as LiveGameplaySnapshot["paperdoll"],
-        quests: (payload?.quests as LiveGameplaySnapshot["quests"]) ?? [],
-        skills: (payload?.skills as LiveGameplaySnapshot["skills"]) ?? [],
-        resources: (payload?.resources as LiveGameplaySnapshot["resources"]) ?? [],
-        inventory: payload?.inventory as LiveGameplaySnapshot["inventory"],
-        crafting: payload?.crafting as LiveGameplaySnapshot["crafting"],
-        equipment: payload?.equipment as LiveGameplaySnapshot["equipment"],
-        guild: payload?.guild as LiveGameplaySnapshot["guild"],
-        factions: (payload?.factions as LiveGameplaySnapshot["factions"]) ?? [],
-        map: payload?.map as LiveGameplaySnapshot["map"],
-      });
+      this.setSnapshot(payload);
     }
   }
 
@@ -88,11 +88,8 @@ export async function fetchGameplaySnapshot(
       }
     );
     if (!response.ok) return null;
-    const data = (await response.json()) as {
-      ok?: boolean;
-      snapshot?: Partial<LiveGameplaySnapshot>;
-    };
-    return normalizeLiveGameplaySnapshot(data.snapshot ?? data);
+    const data = await response.json();
+    return normalizeLiveGameplaySnapshot(pickSnapshotPayload(data));
   } catch {
     return null;
   }
