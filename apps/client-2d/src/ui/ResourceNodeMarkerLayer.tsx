@@ -134,10 +134,12 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess }: Props) {
   const resources = snapshot.resources ?? [];
 
   const handleGather = useCallback(async (nodeId: string) => {
+    const node = resources.find((item) => item.id === nodeId);
     const result = await dispatchGather({
       playerId: DEFAULT_GAMEPLAY_PLAYER_ID,
       nodeId,
       currentTick: snapshot.serverTick ?? 0,
+      playerPosition: node?.position,
     });
 
     if (!result.ok) {
@@ -152,7 +154,7 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess }: Props) {
     } else {
       onGatherSuccess?.();
     }
-  }, [snapshot.serverTick, onGatherSuccess]);
+  }, [resources, snapshot.serverTick, onGatherSuccess]);
 
   // Map world coordinates to screen coordinates
   // The world uses isometric projection, we approximate screen position
