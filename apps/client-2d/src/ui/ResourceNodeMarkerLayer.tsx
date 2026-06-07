@@ -111,10 +111,33 @@ interface Props {
   getPlayerPosition?: () => GameplayWorldPosition | null;
 }
 
+/** Map server reason codes to human-readable messages for mobile players. */
+function humanReadableGatherError(reason?: string): string {
+  switch (reason) {
+    case "missing_player_position":
+      return "Move closer — waiting for position sync";
+    case "invalid_player_position":
+      return "Position sync missing";
+    case "node_not_found":
+      return "Resource node not found";
+    case "too_far":
+      return "Too far from resource";
+    case "node_depleted":
+      return "Resource depleted";
+    case "level_too_low":
+      return "Skill level too low";
+    case "inventory_full":
+      return "Inventory full";
+    default:
+      return reason ? `Gather failed: ${reason}` : "Gather failed";
+  }
+}
+
 export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: Props) {
   const snapshot = useLiveGameplaySnapshot();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [lastError, setLastError] = useState<string | null>(null);
 
   // Track container size for coordinate mapping
   useEffect(() => {
@@ -146,15 +169,18 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
     });
 
     if (!result.ok) {
+      const msg = humanReadableGatherError(result.error);
+      setLastError(msg);
       window.dispatchEvent(
         new CustomEvent("wasd:toast", {
           detail: {
             type: "error",
-            message: `Gather failed: ${result.error ?? "unknown"}`,
+            message: msg,
           },
         }),
       );
     } else {
+      setLastError(null);
       onGatherSuccess?.();
     }
   }, [getPlayerPosition, snapshot.serverTick, onGatherSuccess]);
@@ -183,7 +209,7 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
     return { screenX, screenY };
   }
 
-  if (resources.length === 0) {
+  if (resources.length === 0 && !lastError) {
     return null;
   }
 
@@ -214,6 +240,31 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
           </div>
         );
       })}
+      {lastError && (
+        <div
+          data-testid="resource-gather-feedback"
+          style={{
+            position: "absolute",
+            bottom: 16,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(255,65,108,.24)",
+            border: "1px solid rgba(255,65,108,.4)",
+            borderRadius: 10,
+            padding: "8px 16px",
+            color: "#f5f7ff",
+            font: "12px/1.4 system-ui, sans-serif",
+            backdropFilter: "blur(10px)",
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+            maxWidth: "80vw",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {lastError}
+        </div>
+      )}
     </div>
   );
 }
