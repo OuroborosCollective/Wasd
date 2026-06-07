@@ -83,7 +83,15 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
     const skillState = await skillService.getPlayerSkillState(identity.playerId);
 
     // Get resource node snapshots
-    const resources = gatheringService.listResourceSnapshots(serverTick);
+    // Player position is optional - if provided (as query params px, py in kappa units),
+    // visible procedural chunks will be registered
+    const pxRaw = req.query.px;
+    const pyRaw = req.query.py;
+    const playerPosition = (typeof pxRaw === "string" && typeof pyRaw === "string")
+      ? { x: Number(pxRaw), y: Number(pyRaw) }
+      : undefined;
+
+    const resources = gatheringService.listResourceSnapshots(serverTick, playerPosition);
 
     // Get inventory state
     const inventoryService = await getInventoryService();

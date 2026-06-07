@@ -12,7 +12,7 @@
  */
 
 import { Container, Graphics, Sprite } from "pixi.js";
-import { generateChunkScenePlan, type ChunkScenePlan } from "@wasd/shared";
+import { generateChunkScenePlan, deriveChunkBiome, type ChunkScenePlan } from "@wasd/shared";
 import { createWorldPlanAssetBinder } from "./WorldPlanAssetBinder";
 import { iso3, TILE_W, TILE_H } from "../isometricProjection";
 import type { WorldPlanRenderContext, WorldPlanAssetBinder } from "./WorldPlanRenderTypes";
@@ -244,11 +244,13 @@ export class ChunkManager {
     if (!this.ctx) return null;
 
     // Generate deterministic chunk plan using shared logic
+    // Derive biome per chunk for deterministic variation outside starter village
+    const derivedBiome = deriveChunkBiome(chunkX, chunkZ, this.config.worldSeed);
     const plan = generateChunkScenePlan({
       worldSeed: this.config.worldSeed,
       chunkX,
       chunkZ,
-      biomeId: this.config.biomeId as any,
+      biomeId: derivedBiome as any,
       kappa: 1000,
       chunkTiles: this.config.chunkTiles,
     });
@@ -258,7 +260,7 @@ export class ChunkManager {
     const chunkMetadata = {
       chunkX,
       chunkZ,
-      biomeId: this.config.biomeId,
+      biomeId: derivedBiome,
     };
     const worldState = {
       worldTick: this.config.worldTick,
@@ -521,6 +523,29 @@ export class ChunkManager {
    */
   hasChunk(chunkX: number, chunkZ: number): boolean {
     return this.activeChunks.has(this.chunkKey(chunkX, chunkZ));
+  }
+
+  /**
+   * Get the biome ID for a specific chunk coordinate.
+   * Useful for debugging which biome a chunk has.
+   */
+  getChunkBiome(chunkX: number, chunkZ: number): string {
+    return deriveChunkBiome(chunkX, chunkZ, this.config.worldSeed);
+  }
+
+  /**
+   * Get the world seed used by this ChunkManager.
+   */
+  getWorldSeed(): string {
+    return this.config.worldSeed;
+  }
+
+  /**
+   * Get all active chunk keys as an array.
+   * Useful for debugging.
+   */
+  getActiveChunkKeys(): string[] {
+    return Array.from(this.activeChunks.keys());
   }
 
   /**
