@@ -16,6 +16,7 @@ import type {
 } from "../../game/liveGameplaySnapshot";
 import { equipGatheringTool } from "../../game/equipment";
 import { dispatchClaimStarterTools } from "../../game/gameplayActions";
+import { getGatheringToolIcon } from "../utils/ItemIconMapper";
 
 // Tool item IDs (both Tier 1 starter and Tier 2 upgrade tools)
 const GATHERING_TOOL_IDS = new Set([
@@ -224,11 +225,18 @@ export function GatheringToolsPanel({ equipment, inventory, onEquip }: Props) {
                 title={`Equip ${slot.name}`}
               >
                 <span className="tool-icon">
-                  {slot.itemId === "wooden_axe" || slot.itemId === "copper_axe"
-                    ? "🪓"
-                    : slot.itemId === "copper_pickaxe" || slot.itemId === "reinforced_pickaxe"
-                    ? "⛏️"
-                    : "🎣"}
+                  {(() => {
+                    const iconPath = getGatheringToolIcon(slot.itemId);
+                    return iconPath ? (
+                      <img 
+                        src={iconPath} 
+                        alt={slot.name}
+                        style={{ width: 32, height: 32, imageRendering: 'pixelated' }}
+                      />
+                    ) : (
+                      slot.itemId.includes("axe") ? "🪓" : slot.itemId.includes("pickaxe") ? "⛏️" : "🎣"
+                    );
+                  })()}
                 </span>
                 <span className="tool-name">{slot.name}</span>
               </button>

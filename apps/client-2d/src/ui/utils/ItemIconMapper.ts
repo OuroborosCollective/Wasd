@@ -91,6 +91,9 @@ const GATHERING_TOOL_ICON_MAP: Record<string, string> = {
   wooden_axe: "🪓",
   copper_pickaxe: "⛏️",
   simple_fishing_rod: "🎣",
+  copper_axe: "🪓",
+  reinforced_pickaxe: "⛏️",
+  reinforced_fishing_rod: "🎣",
 };
 
 const QUEST_ICON_MAP: Record<string, string> = {
@@ -259,14 +262,19 @@ export function getRuneElementName(runeId: string): string {
 }
 
 /**
- * Get SVG icon path for gathering tool items.
+ * Get PNG icon path for gathering tool items.
  * Returns null if itemId is not a gathering tool.
+ * Icons are 64x64 PNG with transparent background.
  */
 export function getGatheringToolIcon(itemId: string): string | null {
   const iconPaths: Record<string, string> = {
-    wooden_axe: "/2d-assets/symbols/gathering/wooden_axe.svg",
-    copper_pickaxe: "/2d-assets/symbols/gathering/copper_pickaxe.svg",
-    simple_fishing_rod: "/2d-assets/symbols/gathering/simple_fishing_rod.svg",
+    wooden_axe: "/2d-assets/symbols/gathering/wooden_axe.png",
+    copper_pickaxe: "/2d-assets/symbols/gathering/copper_pickaxe.png",
+    simple_fishing_rod: "/2d-assets/symbols/gathering/simple_fishing_rod.png",
+    // Tier 2 upgrade tools
+    copper_axe: "/2d-assets/symbols/gathering/copper_axe.png",
+    reinforced_pickaxe: "/2d-assets/symbols/gathering/reinforced_pickaxe.png",
+    reinforced_fishing_rod: "/2d-assets/symbols/gathering/reinforced_fishing_rod.png",
   };
   return iconPaths[itemId] ?? null;
 }
