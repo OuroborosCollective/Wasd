@@ -200,6 +200,26 @@ export interface WorldPoiSnapshot {
   y: number;
   chunkX: number;
   chunkZ: number;
+  /** Whether this POI has been discovered by the player */
+  discovered?: boolean;
+}
+
+/**
+ * Discovery stats for map display.
+ */
+export interface DiscoveryStats {
+  discoveredPoiCount: number;
+  discoveredChunkCount: number;
+  visiblePoiCount: number;
+}
+
+/**
+ * Recently discovered POI for client feedback.
+ */
+export interface RecentDiscovery {
+  poiId: string;
+  title: string;
+  type: string;
 }
 
 /**
@@ -254,6 +274,10 @@ export interface LiveGameplaySnapshot {
   wallet: WalletSnapshot;
   worldPois: WorldPoiSnapshot[];
   vendorEconomy: VendorEconomyContainerSnapshot;
+  /** Discovery stats for map display */
+  discoveryStats?: DiscoveryStats;
+  /** Recently discovered POIs for client feedback */
+  recentDiscoveries?: RecentDiscovery[];
 }
 
 // Default empty snapshot - honest waiting state

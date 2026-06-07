@@ -1,5 +1,5 @@
 import { LiveGameplaySnapshotComposer, buildVendorEconomySnapshot, createEmptyVendorEconomySnapshot } from "./LiveGameplaySnapshotComposer.js";
-import type { LiveGameplaySnapshot } from "./LiveGameplaySnapshotTypes.js";
+import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery } from "./LiveGameplaySnapshotTypes.js";
 import { toLiveEquipmentSlots } from "./adapters/EquipmentSnapshotAdapter.js";
 import { toLiveInventoryItems } from "./adapters/InventorySnapshotAdapter.js";
 import { getWalletService, getVendorStockService } from "../economy/economyRuntime.js";
@@ -65,6 +65,17 @@ export interface ComposeLiveGameplaySnapshotFromLegacyInput {
     readonly y: number;
     readonly chunkX: number;
     readonly chunkZ: number;
+    readonly discovered?: boolean;
+  }[];
+  readonly discoveryStats?: {
+    readonly discoveredPoiCount: number;
+    readonly discoveredChunkCount: number;
+    readonly visiblePoiCount: number;
+  };
+  readonly recentDiscoveries?: readonly {
+    readonly poiId: string;
+    readonly title: string;
+    readonly type: string;
   }[];
 }
 
@@ -109,6 +120,12 @@ export async function composeLiveGameplaySnapshotFromLegacy(
         return createEmptyVendorEconomySnapshot();
       }
     },
+    getDiscoveryStats: () => input.discoveryStats ?? {
+      discoveredPoiCount: 0,
+      discoveredChunkCount: 0,
+      visiblePoiCount: 0,
+    },
+    getRecentDiscoveries: () => input.recentDiscoveries ?? [],
   });
 
   return composer.compose(input.playerId, input.logicalIndex);

@@ -28,6 +28,12 @@ export function MapStatusPanel({ snapshot, activeChunkCount, worldSeed = "arelor
   // POI count from snapshot
   const poiCount = snapshot.worldPois?.length ?? 0;
 
+  // Discovery stats (optional, for map fog progression)
+  const discoveryStats = snapshot.discoveryStats;
+  const discoveredPoiCount = discoveryStats?.discoveredPoiCount ?? poiCount;
+  const discoveredChunkCount = discoveryStats?.discoveredChunkCount ?? 0;
+  const visiblePoiCount = discoveryStats?.visiblePoiCount ?? poiCount;
+
   return (
     <div className="stitch-grid-panel" data-testid="map-panel-live">
       <article className="stitch-info">
@@ -53,6 +59,14 @@ export function MapStatusPanel({ snapshot, activeChunkCount, worldSeed = "arelor
       <article className="stitch-info">
         <small>POIs</small>
         <b>{poiCount}</b>
+      </article>
+      <article className="stitch-info" data-testid="map-discovered-poi-count">
+        <small>Discovered</small>
+        <b>{discoveredPoiCount}</b>
+      </article>
+      <article className="stitch-info" data-testid="map-discovered-chunk-count">
+        <small>Chunks Explored</small>
+        <b>{discoveredChunkCount}</b>
       </article>
       <article className="stitch-info">
         <small>Biome</small>

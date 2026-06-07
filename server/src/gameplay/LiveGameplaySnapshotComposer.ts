@@ -19,6 +19,8 @@ import type {
   LiveGameplayResourceNode,
   LiveGameplayWorldPoi,
   LiveGameplayVendorEconomySnapshot,
+  DiscoveryStats,
+  RecentDiscovery,
 } from "./LiveGameplaySnapshotTypes.js";
 import { RESOURCE_SELL_PRICES } from "../economy/ResourceSellPrices.js";
 import { calculateDynamicPrice } from "../economy/DemandPricing.js";
@@ -31,6 +33,8 @@ export interface LiveGameplaySnapshotComposerDeps {
   readonly getWallet: (playerId: string) => { readonly coin: number } | Promise<{ readonly coin: number }>;
   readonly getWorldPois?: (playerId: string) => readonly LiveGameplayWorldPoi[] | Promise<readonly LiveGameplayWorldPoi[]>;
   readonly getVendorEconomy?: (playerId: string) => LiveGameplayVendorEconomySnapshot | Promise<LiveGameplayVendorEconomySnapshot>;
+  readonly getDiscoveryStats?: (playerId: string) => DiscoveryStats | Promise<DiscoveryStats>;
+  readonly getRecentDiscoveries?: (playerId: string) => readonly RecentDiscovery[] | Promise<readonly RecentDiscovery[]>;
 }
 
 export class LiveGameplaySnapshotComposer {
@@ -56,6 +60,16 @@ export class LiveGameplaySnapshotComposer {
       ? await this.deps.getVendorEconomy(playerId)
       : { vendors: [] };
 
+    // Get discovery stats if available
+    const discoveryStats = this.deps.getDiscoveryStats
+      ? await this.deps.getDiscoveryStats(playerId)
+      : { discoveredPoiCount: 0, discoveredChunkCount: 0, visiblePoiCount: 0 };
+
+    // Get recent discoveries if available
+    const recentDiscoveries = this.deps.getRecentDiscoveries
+      ? await this.deps.getRecentDiscoveries(playerId)
+      : [];
+
     return Object.freeze({
       schemaVersion: "live-gameplay-snapshot.v1" as const,
       playerId,
@@ -69,6 +83,8 @@ export class LiveGameplaySnapshotComposer {
       wallet: Object.freeze(wallet),
       worldPois: Object.freeze([...worldPois].sort((a, b) => a.poiId.localeCompare(b.poiId))),
       vendorEconomy: Object.freeze(vendorEconomy),
+      discoveryStats: Object.freeze(discoveryStats),
+      recentDiscoveries: Object.freeze([...recentDiscoveries]),
     });
   }
 

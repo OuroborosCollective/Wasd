@@ -48,6 +48,26 @@ export interface LiveGameplayWorldPoi {
   readonly y: number;
   readonly chunkX: number;
   readonly chunkZ: number;
+  /** Whether this POI has been discovered by the player */
+  readonly discovered: boolean;
+}
+
+/**
+ * Discovery stats for map display.
+ */
+export interface DiscoveryStats {
+  readonly discoveredPoiCount: number;
+  readonly discoveredChunkCount: number;
+  readonly visiblePoiCount: number;
+}
+
+/**
+ * Recently discovered POI for client feedback.
+ */
+export interface RecentDiscovery {
+  readonly poiId: string;
+  readonly title: string;
+  readonly type: string;
 }
 
 /**
@@ -98,6 +118,10 @@ export interface LiveGameplaySnapshot {
   readonly wallet: LiveGameplayWallet;
   readonly worldPois: readonly LiveGameplayWorldPoi[];
   readonly vendorEconomy: LiveGameplayVendorEconomySnapshot;
+  /** Discovery stats for map display */
+  readonly discoveryStats: DiscoveryStats;
+  /** Recently discovered POIs for client feedback */
+  readonly recentDiscoveries: readonly RecentDiscovery[];
 }
 
 export interface GatherResult {
