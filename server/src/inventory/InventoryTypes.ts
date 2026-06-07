@@ -14,7 +14,10 @@ export type InventoryItemId =
   | "cooked_fish"
   | "wooden_axe"
   | "copper_pickaxe"
-  | "simple_fishing_rod";
+  | "simple_fishing_rod"
+  | "copper_axe"
+  | "reinforced_pickaxe"
+  | "reinforced_fishing_rod";
 
 export interface InventoryItemDefinition {
   id: InventoryItemId;
@@ -121,6 +124,27 @@ export const ITEM_DEFINITIONS: Record<InventoryItemId, InventoryItemDefinition> 
   simple_fishing_rod: {
     id: "simple_fishing_rod",
     name: "Simple Fishing Rod",
+    stackable: false,
+    maxStack: 1,
+    category: "equipment",
+  },
+  copper_axe: {
+    id: "copper_axe",
+    name: "Copper Axe",
+    stackable: false,
+    maxStack: 1,
+    category: "equipment",
+  },
+  reinforced_pickaxe: {
+    id: "reinforced_pickaxe",
+    name: "Reinforced Pickaxe",
+    stackable: false,
+    maxStack: 1,
+    category: "equipment",
+  },
+  reinforced_fishing_rod: {
+    id: "reinforced_fishing_rod",
+    name: "Reinforced Fishing Rod",
     stackable: false,
     maxStack: 1,
     category: "equipment",

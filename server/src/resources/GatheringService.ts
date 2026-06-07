@@ -160,18 +160,24 @@ export class GatheringService {
       source: "resource_gather",
     });
 
+    // Tier 2 tools get +1 bonus yield
+    const bonusYield = bonus.tier >= 2 ? 1 : 0;
+
     // Persist item reward to player inventory
     if (result.itemRewardId) {
       const inventoryService = await getInventoryService();
+      const totalQuantity = 1 + bonusYield;
       const inventoryResult = await inventoryService.addItem({
         playerId,
         itemId: result.itemRewardId,
-        quantity: 1,
+        quantity: totalQuantity,
       });
 
-      // Extend result with inventory status
+      // Extend result with inventory status and bonus info
       (result as any).inventoryAdded = inventoryResult.ok;
       (result as any).inventoryQuantity = inventoryResult.ok ? inventoryResult.quantity : 0;
+      (result as any).bonusYield = bonusYield;
+      (result as any).toolTier = bonus.tier;
 
       // If inventory failed (full), log but still grant XP and deplete node
       // MVP: For stackable resources with 999 maxStack, inventory_full is rare
@@ -187,7 +193,7 @@ export class GatheringService {
       onItemReward({
         id: result.itemRewardId,
         name: result.itemRewardName,
-        quantity: 1,
+        quantity: 1 + bonusYield,
       });
     }
 

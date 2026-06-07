@@ -11,7 +11,15 @@ import {
   createPersistedPlayerEquipmentState,
   type EquipmentPersistenceAdapter,
 } from "./EquipmentPersistence.js";
-import type { EquipItemResult, PlayerEquipmentState } from "./EquipmentTypes.js";
+import type { EquipItemResult, PlayerEquipmentState, EquipmentSlotId } from "./EquipmentTypes.js";
+
+export interface UnequipItemResult {
+  ok: boolean;
+  playerId: string;
+  slotId: EquipmentSlotId;
+  reason?: "unequipped" | "slot_empty" | "invalid_player";
+  equipment?: PlayerEquipmentState;
+}
 
 export class EquipmentService {
   private readonly hydratedPlayers = new Set<string>();
@@ -42,6 +50,35 @@ export class EquipmentService {
       playerId: input.playerId,
       itemId: input.itemId,
       ownsItem,
+    });
+
+    if (result.ok && result.equipment) {
+      await this.persistence.savePlayerEquipment(
+        createPersistedPlayerEquipmentState(input.playerId, result.equipment),
+      );
+    }
+
+    return result;
+  }
+
+  async unequipItem(input: {
+    playerId: string;
+    slotId: EquipmentSlotId;
+  }): Promise<UnequipItemResult> {
+    await this.hydratePlayer(input.playerId);
+
+    if (!input.playerId || input.playerId === "anonymous") {
+      return {
+        ok: false,
+        playerId: input.playerId,
+        slotId: input.slotId,
+        reason: "invalid_player",
+      };
+    }
+
+    const result = this.store.unequipItem({
+      playerId: input.playerId,
+      slotId: input.slotId,
     });
 
     if (result.ok && result.equipment) {

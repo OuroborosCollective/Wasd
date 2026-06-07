@@ -123,8 +123,9 @@ export interface CraftingRecipeSnapshot {
   ingredients: CraftingRecipeIngredientSnapshot[];
   outputs: CraftingRecipeOutputSnapshot[];
   craftTicks: number;
+  stationType?: "campfire" | "furnace" | "workbench";
   craftable: boolean;
-  blockedReason?: "level_too_low" | "missing_ingredients";
+  blockedReason?: "level_too_low" | "missing_ingredients" | "station_too_far" | "missing_player_position";
 }
 
 /**
@@ -141,6 +142,7 @@ export interface EquippedSlotSnapshot {
   slotId: "woodcutting_tool" | "mining_tool" | "fishing_tool";
   itemId: string;
   title: string;
+  tier: number;
 }
 
 /**
@@ -520,6 +522,7 @@ export function normalizeCrafting(input: unknown): CraftingSnapshot {
         requiredLevel: Math.max(1, Math.floor(Number(recipe.requiredLevel ?? 1))),
         craftingXpReward: Math.max(0, Math.floor(Number(recipe.craftingXpReward ?? 0))),
         craftTicks: Math.max(0, Math.floor(Number(recipe.craftTicks ?? 0))),
+        stationType: recipe.stationType as CraftingRecipeSnapshot["stationType"],
         craftable: Boolean(recipe.craftable),
         blockedReason: recipe.blockedReason,
         ingredients: Array.isArray(recipe.ingredients)
@@ -558,6 +561,7 @@ export function normalizeEquipment(input: unknown): PlayerEquipmentSnapshot | nu
             slotId: slot.slotId,
             itemId: String(slot.itemId ?? ""),
             title: String(slot.title ?? slot.itemId ?? "Unknown Tool"),
+            tier: Math.max(1, Math.floor(Number(slot.tier ?? 1))),
           }))
           .sort((a, b) => String(a.slotId).localeCompare(String(b.slotId)))
       : [],
