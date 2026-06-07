@@ -13,6 +13,7 @@
 
 import { fetchGameplaySnapshot, liveGameplayStore, DEFAULT_GAMEPLAY_PLAYER_ID } from "./liveGameplayStore";
 import { createResourceGatherIntent } from "./ResourceGatherIntentAdapter";
+import { readPlayerPositionBridge } from "./PlayerPositionBridge";
 
 export interface ActionResult {
   ok: boolean;
@@ -236,6 +237,7 @@ export interface SellResourceResult {
 
 /**
  * Dispatch sell resource action and refresh the live snapshot.
+ * Includes player position for vendor proximity validation.
  */
 export async function dispatchSellResource(input: {
   playerId?: string;
@@ -243,6 +245,7 @@ export async function dispatchSellResource(input: {
   quantity: number;
 }): Promise<SellResourceResult> {
   const pid = input.playerId ?? DEFAULT_GAMEPLAY_PLAYER_ID;
+  const playerPosition = readPlayerPositionBridge();
 
   try {
     const response = await fetch("/api/economy/sell-resource", {
@@ -255,6 +258,8 @@ export async function dispatchSellResource(input: {
         playerId: pid,
         itemId: input.itemId,
         quantity: input.quantity,
+        playerPosition: playerPosition ?? undefined,
+        vendorId: "village_trader_001",
       }),
     });
 
@@ -294,9 +299,11 @@ export interface SellAllResourcesResult {
 
 /**
  * Dispatch sell all resources action and refresh the live snapshot.
+ * Includes player position for vendor proximity validation.
  */
 export async function dispatchSellAllResources(playerId?: string): Promise<SellAllResourcesResult> {
   const pid = playerId ?? DEFAULT_GAMEPLAY_PLAYER_ID;
+  const playerPosition = readPlayerPositionBridge();
 
   try {
     const response = await fetch("/api/economy/sell-all-resources", {
@@ -305,7 +312,11 @@ export async function dispatchSellAllResources(playerId?: string): Promise<SellA
         "Content-Type": "application/json",
         "x-player-id": pid,
       },
-      body: JSON.stringify({ playerId: pid }),
+      body: JSON.stringify({
+        playerId: pid,
+        playerPosition: playerPosition ?? undefined,
+        vendorId: "village_trader_001",
+      }),
     });
 
     const json = await response.json().catch(() => null);

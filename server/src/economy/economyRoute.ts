@@ -3,6 +3,7 @@
  *
  * Server-authoritative economy API for resource selling.
  * No Date.now(), no Math.random(), stable ordering.
+ * Requires vendor proximity for selling.
  */
 
 import express, { Router } from "express";
@@ -26,10 +27,27 @@ function parseQuantity(value: unknown): number {
   return n;
 }
 
+function parsePosition(value: unknown): { x: number; y: number } | null {
+  if (!value || typeof value !== "object") return null;
+  const pos = value as { x?: unknown; y?: unknown };
+  const x = Number(pos.x);
+  const y = Number(pos.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x, y };
+}
+
+function parseVendorId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!/^[a-zA-Z0-9_]{1,64}$/.test(trimmed)) return null;
+  return trimmed;
+}
+
 /**
  * POST /api/economy/sell-resource
  *
  * Sell a specific quantity of a resource item.
+ * Requires player to be near the village trader.
  * Consumes items from inventory, adds coins to wallet.
  */
 router.post("/sell-resource", async (req, res) => {
@@ -45,6 +63,8 @@ router.post("/sell-resource", async (req, res) => {
 
   const itemId = parseItemId(req.body?.itemId);
   const quantity = parseQuantity(req.body?.quantity);
+  const playerPosition = parsePosition(req.body?.playerPosition);
+  const vendorId = parseVendorId(req.body?.vendorId);
 
   if (!itemId) {
     res.status(400).json({
@@ -62,11 +82,22 @@ router.post("/sell-resource", async (req, res) => {
     return;
   }
 
+  // Validate player position if provided
+  if (req.body?.playerPosition !== undefined && !playerPosition) {
+    res.status(400).json({
+      ok: false,
+      error: "invalid_player_position",
+    });
+    return;
+  }
+
   try {
     const result = await economyService.sellResource({
       playerId: identity.playerId,
       itemId,
       quantity,
+      playerPosition: playerPosition ?? undefined,
+      vendorId: vendorId ?? undefined,
     });
 
     const statusCode = result.ok ? 200 : 400;
@@ -87,6 +118,7 @@ router.post("/sell-resource", async (req, res) => {
  * POST /api/economy/sell-all-resources
  *
  * Sell all sellable resource items in the player's inventory.
+ * Requires player to be near the village trader.
  * Consumes all resource items, adds coins to wallet.
  */
 router.post("/sell-all-resources", async (req, res) => {
@@ -100,9 +132,23 @@ router.post("/sell-all-resources", async (req, res) => {
     return;
   }
 
+  const playerPosition = parsePosition(req.body?.playerPosition);
+  const vendorId = parseVendorId(req.body?.vendorId);
+
+  // Validate player position if provided
+  if (req.body?.playerPosition !== undefined && !playerPosition) {
+    res.status(400).json({
+      ok: false,
+      error: "invalid_player_position",
+    });
+    return;
+  }
+
   try {
     const result = await economyService.sellAllResources({
       playerId: identity.playerId,
+      playerPosition: playerPosition ?? undefined,
+      vendorId: vendorId ?? undefined,
     });
 
     const statusCode = result.ok ? 200 : 400;

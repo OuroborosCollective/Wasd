@@ -39,11 +39,21 @@ export { store as walletStore };
 // Singleton economyService interface for route handlers
 // Uses lazy initialization to avoid circular dependency issues
 export const economyService = {
-  sellResource: async (input: { playerId: string; itemId: string; quantity: number }) => {
+  sellResource: async (input: {
+    playerId: string;
+    itemId: string;
+    quantity: number;
+    playerPosition?: { x: number; y: number };
+    vendorId?: string;
+  }) => {
     const service = await getEconomyService();
     return service.sellResource(input);
   },
-  sellAllResources: async (input: { playerId: string }) => {
+  sellAllResources: async (input: {
+    playerId: string;
+    playerPosition?: { x: number; y: number };
+    vendorId?: string;
+  }) => {
     const service = await getEconomyService();
     return service.sellAllResources(input);
   },

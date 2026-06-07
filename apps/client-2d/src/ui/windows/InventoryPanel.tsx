@@ -25,6 +25,7 @@ import { equipGatheringTool } from "../../game/equipment";
 import { fetchGameplaySnapshot, liveGameplayStore, DEFAULT_GAMEPLAY_PLAYER_ID } from "../../game/liveGameplayStore";
 import { getGatheringToolIcon, isGatheringTool } from "../utils/ItemIconMapper";
 import { dispatchSellResource, dispatchSellAllResources } from "../../game/gameplayActions";
+import { readPlayerPositionBridge } from "../../game/PlayerPositionBridge";
 
 interface Props {
   inventory: PlayerInventorySnapshot;
@@ -141,11 +142,18 @@ export function InventoryPanel({ inventory, equipment, wallet }: Props) {
           }),
         );
       } else {
+        // Provide user-friendly error message for vendor proximity issues
+        let errorMessage = result.error ?? "Sell failed";
+        if (result.error === "vendor_too_far") {
+          errorMessage = "Return to village trader to sell resources";
+        } else if (result.error === "missing_player_position") {
+          errorMessage = "Cannot determine position - try moving slightly";
+        }
         window.dispatchEvent(
           new CustomEvent("wasd:toast", {
             detail: {
               type: "error",
-              message: `Sell failed: ${result.error ?? "unknown"}`,
+              message: errorMessage,
             },
           }),
         );
@@ -168,11 +176,18 @@ export function InventoryPanel({ inventory, equipment, wallet }: Props) {
           }),
         );
       } else {
+        // Provide user-friendly error message for vendor proximity issues
+        let errorMessage = result.error ?? "Nothing to sell";
+        if (result.error === "vendor_too_far") {
+          errorMessage = "Return to village trader to sell resources";
+        } else if (result.error === "missing_player_position") {
+          errorMessage = "Cannot determine position - try moving slightly";
+        }
         window.dispatchEvent(
           new CustomEvent("wasd:toast", {
             detail: {
               type: "error",
-              message: result.error ?? "Nothing to sell",
+              message: errorMessage,
             },
           }),
         );
@@ -256,6 +271,14 @@ export function InventoryPanel({ inventory, equipment, wallet }: Props) {
       <p className="inventory-summary">
         {slots.length} / {inventory.capacity} slots used
       </p>
+
+      {/* Vendor proximity hint */}
+      {resources.length > 0 && (
+        <div className="vendor-sell-hint" data-testid="vendor-sell-hint">
+          <span className="vendor-hint-icon">🏪</span>
+          <span>Sell at Village Trader</span>
+        </div>
+      )}
 
       {/* Sell All Resources Button */}
       {resources.length > 0 && (
