@@ -6,6 +6,7 @@ type Role = "Scavenger" | "Trader" | "Guardian" | "Oracle" | "Builder" | "Warden
 
 interface GateIdentity {
   handle: string;
+  displayName: string;
   publicKey: string;
   role: Role;
   tick: number;
@@ -13,6 +14,17 @@ interface GateIdentity {
   spawn: { chunkX: number; chunkY: number; x: number; y: number };
   loadout: string[];
   identityHash: string;
+}
+
+interface PersistedCharacterV1 {
+  readonly schema: "areloria.character.v1";
+  readonly name: string;
+  readonly handle: string;
+  readonly publicKey: string;
+  readonly role: Role;
+  readonly identityHash: string;
+  readonly spawn: GateIdentity["spawn"];
+  readonly loadout: readonly string[];
 }
 
 interface PostLoginChildBoundaryProps {
@@ -75,6 +87,11 @@ const LOADOUTS: Record<Role, string[]> = {
   Warden: ["sentinel_key", "ward_torch", "civic_badge"],
 };
 
+const CHARACTER_STORAGE_KEY = "wasd:2d:character.v1";
+const LEGACY_NAME_KEY = "wasd:2d:name";
+const LEGACY_ENTERED_KEY = "wasd:2d:entered";
+const DEFAULT_CHARACTER_NAME = "Wanderer";
+
 function stableHash(parts: Array<string | number>): string {
   let h1 = 0x811c9dc5;
   let h2 = 0x9e3779b9;
@@ -95,8 +112,62 @@ function hashInt(hash: string, offset: number, modulo: number): number {
   return Number.parseInt(hash.slice(offset, offset + 8).padEnd(8, "0"), 16) % modulo;
 }
 
+function normalizeDisplayName(raw: string): string {
+  const trimmed = raw.trim().replace(/\s+/g, " ").slice(0, 48);
+  return trimmed || DEFAULT_CHARACTER_NAME;
+}
+
+function normalizeHandle(raw: string): string {
+  return normalizeDisplayName(raw).replace(/\s+/g, "-").toLowerCase();
+}
+
+function readPersistedCharacter(): PersistedCharacterV1 | null {
+  try {
+    const raw = localStorage.getItem(CHARACTER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PersistedCharacterV1>;
+    if (parsed.schema !== "areloria.character.v1") return null;
+    if (typeof parsed.name !== "string" || parsed.name.trim().length === 0) return null;
+    if (typeof parsed.handle !== "string" || parsed.handle.trim().length === 0) return null;
+    if (typeof parsed.publicKey !== "string" || parsed.publicKey.trim().length === 0) return null;
+    if (!ROLES.includes(parsed.role as Role)) return null;
+    if (typeof parsed.identityHash !== "string" || parsed.identityHash.length !== 64) return null;
+    if (!parsed.spawn || typeof parsed.spawn !== "object") return null;
+    if (!Array.isArray(parsed.loadout)) return null;
+    return parsed as PersistedCharacterV1;
+  } catch {
+    return null;
+  }
+}
+
+function persistIdentity(identity: GateIdentity): PersistedCharacterV1 {
+  const character: PersistedCharacterV1 = Object.freeze({
+    schema: "areloria.character.v1",
+    name: identity.displayName,
+    handle: identity.handle,
+    publicKey: identity.publicKey,
+    role: identity.role,
+    identityHash: identity.identityHash,
+    spawn: identity.spawn,
+    loadout: identity.loadout,
+  });
+
+  localStorage.setItem(CHARACTER_STORAGE_KEY, JSON.stringify(character));
+  localStorage.setItem(LEGACY_NAME_KEY, character.name);
+  localStorage.setItem("wasd:2d:handle", character.handle);
+  localStorage.setItem("wasd:2d:publicKey", character.publicKey);
+  localStorage.setItem("wasd:2d:role", character.role);
+  localStorage.setItem("wasd:2d:identityHash", character.identityHash);
+  localStorage.setItem("wasd:2d:spawn", JSON.stringify(character.spawn));
+  localStorage.setItem("wasd:2d:loadout", JSON.stringify(character.loadout));
+  localStorage.setItem(LEGACY_ENTERED_KEY, "1");
+
+  return character;
+}
+
 function deriveIdentity(handleRaw: string): GateIdentity {
-  const handle = (handleRaw || "architect").trim().replace(/\s+/g, "-").toLowerCase().slice(0, 48) || "architect";
+  const displayName = normalizeDisplayName(handleRaw);
+  const handle = normalizeHandle(displayName);
   const tick = Math.floor(performance.now() / 100);
   const phase = tick % 10;
   const kappa = 1000;
@@ -105,6 +176,7 @@ function deriveIdentity(handleRaw: string): GateIdentity {
   const role = ROLES[hashInt(identityHash, 0, ROLES.length)];
   return {
     handle,
+    displayName,
     publicKey: `are-${identityHash.slice(0, 8)}-${identityHash.slice(8, 16)}-${phase}`,
     role,
     tick,
@@ -129,8 +201,9 @@ function wrapPostLoginChildren(children: React.ReactNode): React.ReactNode {
 }
 
 export function CyberZenLoginGate({ children }: Props): React.ReactElement {
-  const [name, setName] = useState(() => localStorage.getItem("wasd:2d:name") ?? "Thomas");
-  const [entered, setEntered] = useState(() => localStorage.getItem("wasd:2d:entered") === "1");
+  const persistedCharacter = readPersistedCharacter();
+  const [name, setName] = useState(() => persistedCharacter?.name ?? localStorage.getItem(LEGACY_NAME_KEY) ?? "");
+  const [entered, setEntered] = useState(() => Boolean(persistedCharacter) || localStorage.getItem(LEGACY_ENTERED_KEY) === "1");
   const identity = useMemo(() => deriveIdentity(name), [name]);
 
   if (entered) {
@@ -143,16 +216,11 @@ export function CyberZenLoginGate({ children }: Props): React.ReactElement {
   }
 
   function enter(): void {
-    localStorage.setItem("wasd:2d:name", identity.handle);
-    localStorage.setItem("wasd:2d:publicKey", identity.publicKey);
-    localStorage.setItem("wasd:2d:role", identity.role);
-    localStorage.setItem("wasd:2d:identityHash", identity.identityHash);
-    localStorage.setItem("wasd:2d:spawn", JSON.stringify(identity.spawn));
-    localStorage.setItem("wasd:2d:loadout", JSON.stringify(identity.loadout));
-    localStorage.setItem("wasd:2d:entered", "1");
+    persistIdentity(identity);
 
     document.body.dataset.postLoginShell = "enter-clicked";
 
+    setName(identity.displayName);
     setEntered(true);
   }
 
@@ -167,9 +235,10 @@ export function CyberZenLoginGate({ children }: Props): React.ReactElement {
         </p>
         <label className="cz-field">
           <span>Architect Handle</span>
-          <input value={name} onChange={(event) => setName(event.target.value)} autoComplete="nickname" />
+          <input value={name} onChange={(event) => setName(event.target.value)} autoComplete="nickname" placeholder={DEFAULT_CHARACTER_NAME} />
         </label>
         <div className="cz-keybox"><span>Public-Key</span><strong>{identity.publicKey}</strong></div>
+        <div className="cz-keybox"><span>Name</span><strong>{identity.displayName}</strong></div>
         <div className="cz-keybox"><span>Role</span><strong>{identity.role}</strong></div>
         <div className="cz-keybox"><span>10-Hz Tick</span><strong>{identity.tick} · phase {identity.phase}/9</strong></div>
         <div className="cz-keybox"><span>Spawn</span><strong>{identity.spawn.chunkX}:{identity.spawn.chunkY} · {identity.spawn.x},{identity.spawn.y}</strong></div>
