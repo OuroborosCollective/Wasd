@@ -335,9 +335,10 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
   });
 
   if (!buyResult.ok) {
+    const buyError = buyResult as { ok: false; error: string };
     res.status(400).json({
       ok: false,
-      error: buyResult.error,
+      error: buyError.error,
     });
     return;
   }
