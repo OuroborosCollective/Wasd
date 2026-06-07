@@ -18,6 +18,11 @@ export interface ActionResult {
   error?: string;
 }
 
+export interface GameplayWorldPosition {
+  x: number;
+  y: number;
+}
+
 /**
  * Dispatch a gather action and refresh the live snapshot.
  */
@@ -25,6 +30,7 @@ export async function dispatchGather(input: {
   playerId?: string;
   nodeId: string;
   currentTick: number;
+  playerPosition?: GameplayWorldPosition;
 }): Promise<ActionResult> {
   const playerId = input.playerId ?? DEFAULT_GAMEPLAY_PLAYER_ID;
 
@@ -38,7 +44,7 @@ export async function dispatchGather(input: {
       body: JSON.stringify({
         playerId,
         nodeId: input.nodeId,
-        playerPosition: { x: 0, y: 0 },
+        playerPosition: input.playerPosition,
         currentTick: input.currentTick,
       }),
     });
@@ -46,7 +52,7 @@ export async function dispatchGather(input: {
     const json = await response.json().catch(() => null);
 
     if (!response.ok || !json?.ok) {
-      return { ok: false, error: String(json?.error ?? "gather_failed") };
+      return { ok: false, error: String(json?.result?.reason ?? json?.error ?? "gather_failed") };
     }
 
     // Refetch snapshot to update all UI panels
