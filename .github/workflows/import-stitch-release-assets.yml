@@ -86,35 +86,98 @@ jobs:
           if (!m.assets || m.assets.length < 1) throw new Error('No Stitch assets imported');
           const byCategory = {};
           const byKind = {};
+          const semantic = {
+            weapons: 0,
+            armor: 0,
+            items: 0,
+            decoration: 0,
+            ui: 0,
+            buildings: 0,
+            characters: 0,
+            effects: 0,
+            audio: 0,
+            metadata: 0,
+            unknown: 0
+          };
+          const samples = {};
+          const rules = [
+            ['weapons', /\b(sword|axe|bow|staff|shield|weapon|dagger|mace|spear|katana|blade|wand)\b/],
+            ['armor', /\b(armor|helmet|boots|gloves|pants|robe|tunic|chainmail|plate|leather|shirt)\b/],
+            ['decoration', /\b(decor|decoration|prop|barrel|crate|chair|table|plant|statue|lamp|banner|rug)\b/],
+            ['buildings', /\b(building|house|wall|castle|tower|gate|door|bridge|city|village|kingdom|fort|dungeon)\b/],
+            ['characters', /\b(character|hero|player|npc|villager|guard|warrior|mage|rogue|samurai|knight|archer|enemy|monster|boss)\b/],
+            ['effects', /\b(effect|fx|particle|spell|magic|slash|impact|fire|ice|lightning|explosion|aura|hit|spark|smoke)\b/],
+            ['ui', /\b(ui|icon|symbol|button|hud|panel|frame|cursor|menu|slot|inventory|paperdoll|loot)\b/],
+            ['audio', /\b(audio|music|sound|sfx|ambient|footstep|attack)\b/],
+            ['metadata', /\b(json|atlas|xml|meta|metadata)\b/],
+            ['items', /\b(item|loot|coin|gem|potion|scroll|resource|ore|wood|fish|food|material)\b/]
+          ];
           for (const a of m.assets) {
             byCategory[a.category || 'unknown'] = (byCategory[a.category || 'unknown'] || 0) + 1;
             byKind[a.kind || 'unknown'] = (byKind[a.kind || 'unknown'] || 0) + 1;
+            const hay = [a.id, a.category, a.kind, a.culture, a.sourcePath, ...(a.tokens || [])].filter(Boolean).join(' ').toLowerCase();
+            let bucket = null;
+            for (const [name, re] of rules) {
+              if (re.test(hay)) { bucket = name; break; }
+            }
+            bucket ||= a.category === 'equipment' ? 'items' : a.category === 'unknown' ? 'unknown' : a.category;
+            if (!Object.hasOwn(semantic, bucket)) bucket = 'unknown';
+            semantic[bucket] += 1;
+            samples[bucket] ||= [];
+            if (samples[bucket].length < 12) samples[bucket].push({ id: a.id, sourcePath: a.sourcePath, category: a.category, kind: a.kind, cropped: a.cropped });
           }
+          const details = {
+            releaseTag: process.env.RELEASE_TAG,
+            importedAssets: m.assets.length,
+            croppedImages: m.stats?.croppedImages ?? 0,
+            warnings: m.stats?.warnings ?? 0,
+            byCategory,
+            byKind,
+            semanticBuckets: semantic,
+            samples
+          };
+          fs.writeFileSync('STITCH_IMPORT_DETAILS.json', JSON.stringify(details, null, 2) + '\n');
           fs.appendFileSync(process.env.GITHUB_ENV, `STITCH_IMPORTED_COUNT=${m.assets.length}\n`);
           fs.appendFileSync(process.env.GITHUB_ENV, `STITCH_CROPPED_COUNT=${m.stats?.croppedImages ?? 0}\n`);
           fs.appendFileSync(process.env.GITHUB_ENV, `STITCH_WARNING_COUNT=${m.stats?.warnings ?? 0}\n`);
-          console.log('STITCH_IMPORT_SUMMARY');
-          console.log('Imported assets:', m.assets.length);
-          console.log('Cropped images:', m.stats?.croppedImages ?? 0);
-          console.log('Warnings:', m.stats?.warnings ?? 0);
-          console.log('By category:', JSON.stringify(byCategory, null, 2));
-          console.log('By kind:', JSON.stringify(byKind, null, 2));
+          console.log('STITCH_IMPORT_DETAILS');
+          console.log(JSON.stringify(details, null, 2));
           NODE
 
       - name: Write import summary
         run: |
           set -euo pipefail
-          cat > STITCH_IMPORT_SUMMARY.md <<EOF
-          # Stitch Import Summary
-
-          - Release tag: $RELEASE_TAG
-          - ZIP files: ${STITCH_ZIP_COUNT:-0}
-          - Extracted files: ${STITCH_EXTRACTED_COUNT:-0}
-          - Imported assets: ${STITCH_IMPORTED_COUNT:-0}
-          - Cropped images: ${STITCH_CROPPED_COUNT:-0}
-          - Warnings: ${STITCH_WARNING_COUNT:-0}
-          EOF
-          cat STITCH_IMPORT_SUMMARY.md
+          node <<'NODE'
+          const fs = require('node:fs');
+          const d = JSON.parse(fs.readFileSync('STITCH_IMPORT_DETAILS.json', 'utf8'));
+          const lines = [];
+          lines.push('# Stitch Import Summary');
+          lines.push('');
+          lines.push(`- Release tag: ${process.env.RELEASE_TAG}`);
+          lines.push(`- ZIP files: ${process.env.STITCH_ZIP_COUNT || 0}`);
+          lines.push(`- Extracted files: ${process.env.STITCH_EXTRACTED_COUNT || 0}`);
+          lines.push(`- Imported assets: ${d.importedAssets}`);
+          lines.push(`- Cropped images: ${d.croppedImages}`);
+          lines.push(`- Warnings: ${d.warnings}`);
+          lines.push('');
+          lines.push('## Semantic buckets');
+          for (const [k, v] of Object.entries(d.semanticBuckets).sort()) lines.push(`- ${k}: ${v}`);
+          lines.push('');
+          lines.push('## By category');
+          for (const [k, v] of Object.entries(d.byCategory).sort()) lines.push(`- ${k}: ${v}`);
+          lines.push('');
+          lines.push('## By kind');
+          for (const [k, v] of Object.entries(d.byKind).sort()) lines.push(`- ${k}: ${v}`);
+          lines.push('');
+          lines.push('## Samples');
+          for (const [bucket, entries] of Object.entries(d.samples).sort()) {
+            lines.push(`### ${bucket}`);
+            for (const e of entries) lines.push(`- ${e.id} | ${e.sourcePath} | ${e.category}/${e.kind} | cropped=${e.cropped}`);
+            lines.push('');
+          }
+          fs.writeFileSync('STITCH_IMPORT_SUMMARY.md', lines.join('\n') + '\n');
+          console.log(fs.readFileSync('STITCH_IMPORT_SUMMARY.md', 'utf8'));
+          NODE
 
       - name: Commit generated assets
         run: |
@@ -122,7 +185,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -B "$OUTPUT_BRANCH"
-          git add "$OUT_DIR" apps/client-2d/public/2d-assets/manifest.json STITCH_IMPORT_SUMMARY.md
+          git add "$OUT_DIR" apps/client-2d/public/2d-assets/manifest.json STITCH_IMPORT_SUMMARY.md STITCH_IMPORT_DETAILS.json
           if git diff --cached --quiet; then
             echo "No asset changes to commit."
             exit 0
