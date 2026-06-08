@@ -275,6 +275,13 @@ export class CampNpcService {
   }
 
   /**
+   * Get raw stock state for a POI. Used for rollback on validation failure.
+   */
+  getStockState(poiId: string): CampStockState | undefined {
+    return this.campStocks.get(poiId);
+  }
+
+  /**
    * Get trading dialogue for a camp NPC type.
    */
   getTradingDialogue(npcType: CampNpcType): string {

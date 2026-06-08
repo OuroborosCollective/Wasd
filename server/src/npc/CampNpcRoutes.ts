@@ -17,6 +17,7 @@ import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
 import { isGatheringCamp } from "./CampNpcTypes.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import { generateVisibleChunkPois, getStarterVillagePois } from "../world/WorldPoiGenerator.js";
+import { getVisibleChunkCoords } from "../resources/ChunkResourceGenerator.js";
 import { getWalletService } from "../economy/economyRuntime.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
 
@@ -153,9 +154,10 @@ router.get("/camp/:npcId/stock", async (req, res) => {
 
   const poiId = match[1];
 
-  // Get the POI to find its type
+  // Get the POI to find its type — starter village + chunk 0,0
   const starterPois = getStarterVillagePois();
-  const allPois: WorldPoiSnapshot[] = [...starterPois];
+  const chunk0Pois = generateVisibleChunkPois([{ chunkX: 0, chunkZ: 0 }]);
+  const allPois: WorldPoiSnapshot[] = [...starterPois, ...chunk0Pois];
 
   // Find the POI
   const poi = allPois.find((p) => p.id === poiId);
@@ -292,9 +294,14 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
     return;
   }
 
-  // Get POI to check proximity
+  // Get POI to check proximity — use visible POIs (starter + generated camps)
+  const tileX = Math.floor(playerPosition.x / 1000);
+  const tileZ = Math.floor(playerPosition.y / 1000);
+  const visibleChunks = getVisibleChunkCoords(tileX, tileZ);
   const starterPois = getStarterVillagePois();
-  const poi = starterPois.find((p) => p.id === poiId);
+  const generatedPois = generateVisibleChunkPois(visibleChunks);
+  const allPois: WorldPoiSnapshot[] = [...starterPois, ...generatedPois].sort((a, b) => a.id.localeCompare(b.id));
+  const poi = allPois.find((p) => p.id === poiId);
   if (!poi) {
     res.status(404).json({
       ok: false,
@@ -316,7 +323,11 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
     return;
   }
 
-  // Try to buy stock from camp
+  // Validate coins BEFORE mutating camp stock
+  const walletService = await getWalletService();
+  const wallet = await walletService.getWallet(playerId);
+
+  // Try to buy stock from camp (mutates stock on success)
   const buyResult = campNpcService.buyStock({
     poiId,
     itemId,
@@ -324,18 +335,21 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
   });
 
   if (!buyResult.ok) {
+    const buyError = buyResult as { ok: false; error: string };
     res.status(400).json({
       ok: false,
-      error: buyResult.error,
+      error: buyError.error,
     });
     return;
   }
 
-  // Get wallet and validate coins
-  const walletService = await getWalletService();
-  const wallet = await walletService.getWallet(playerId);
-
+  // Now check coins after stock mutation succeeded
   if (wallet.balances.coin < buyResult.totalCost) {
+    // Stock already decremented — need to restore it
+    const stockState = campNpcService.getStockState(poiId);
+    if (stockState) {
+      stockState.items[itemId] = (stockState.items[itemId] || 0) + quantity;
+    }
     res.status(400).json({
       ok: false,
       error: "insufficient_coins",
@@ -344,9 +358,9 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
   }
 
   // All validations passed - mutation order:
-  // 1. subtract coins
-  // 2. add player inventory
-  // (camp stock already mutated in buyStock)
+  // 1. camp stock already mutated in buyStock
+  // 2. subtract coins
+  // 3. add player inventory
 
   await walletService.addCoins({
     playerId,
