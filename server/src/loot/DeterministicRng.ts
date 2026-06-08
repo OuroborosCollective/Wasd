@@ -1,12 +1,12 @@
 'use strict';
 
-const crypto = require('node:crypto');
+import { createHash } from 'node:crypto';
 
 class DeterministicRng {
   private state: number;
 
   constructor(seed: string) {
-    const hash = crypto.createHash('sha256').update(String(seed)).digest();
+    const hash = createHash('sha256').update(String(seed)).digest();
     this.state = hash.readUInt32LE(0) || 0x9e3779b9;
   }
 
