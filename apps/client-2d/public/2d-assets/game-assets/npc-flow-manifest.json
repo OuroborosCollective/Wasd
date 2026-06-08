@@ -1,0 +1,689 @@
+{
+  "version": 1,
+  "generatedAt": "2026-06-08T00:22:23.736Z",
+  "source": "Stitch-generated NPC sprites",
+  "processedAt": "2026-06-08T00:22:23.736Z",
+  "sprites": [
+    {
+      "id": "archer_dwarf_male_e_idle",
+      "original": "/2d-assets/game-assets/models/characters/archer_dwarf_male_e_idle.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/archer_dwarf_male_e_idle_flow.png",
+      "name": "archer_dwarf_male_e_idle",
+      "bounds": {
+        "minX": 0,
+        "minY": 0,
+        "maxX": 511,
+        "maxY": 511,
+        "bgColor": {
+          "r": 100,
+          "g": 100,
+          "b": 100
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 512
+      }
+    },
+    {
+      "id": "bard_gnome_male_e_idle",
+      "original": "/2d-assets/game-assets/models/characters/bard_gnome_male_e_idle.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/bard_gnome_male_e_idle_flow.png",
+      "name": "bard_gnome_male_e_idle",
+      "bounds": {
+        "minX": 120,
+        "minY": 72,
+        "maxX": 407,
+        "maxY": 456,
+        "bgColor": {
+          "r": 244,
+          "g": 245,
+          "b": 245
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 110,
+        "top": 62,
+        "width": 307,
+        "height": 404
+      }
+    },
+    {
+      "id": "berserker_human_male_e_idle",
+      "original": "/2d-assets/game-assets/models/characters/berserker_human_male_e_idle.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/berserker_human_male_e_idle_flow.png",
+      "name": "berserker_human_male_e_idle",
+      "bounds": {
+        "minX": 0,
+        "minY": 0,
+        "maxX": 511,
+        "maxY": 511,
+        "bgColor": {
+          "r": 148,
+          "g": 145,
+          "b": 145
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 512
+      }
+    },
+    {
+      "id": "cleric_human_male_e_idle",
+      "original": "/2d-assets/game-assets/models/characters/cleric_human_male_e_idle.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/cleric_human_male_e_idle_flow.png",
+      "name": "cleric_human_male_e_idle",
+      "bounds": {
+        "minX": 0,
+        "minY": 0,
+        "maxX": 511,
+        "maxY": 511,
+        "bgColor": {
+          "r": 208,
+          "g": 207,
+          "b": 207
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 512
+      }
+    },
+    {
+      "id": "mage_elf_female_e_idle",
+      "original": "/2d-assets/game-assets/models/characters/mage_elf_female_e_idle.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/mage_elf_female_e_idle_flow.png",
+      "name": "mage_elf_female_e_idle",
+      "bounds": {
+        "minX": 120,
+        "minY": 40,
+        "maxX": 391,
+        "maxY": 473,
+        "bgColor": {
+          "r": 247,
+          "g": 247,
+          "b": 247
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 110,
+        "top": 30,
+        "width": 291,
+        "height": 453
+      }
+    },
+    {
+      "id": "models_a_professional_sprite_atlas_sheet_for_a_vdmz",
+      "original": "/2d-assets/game-assets/models/characters/models_a_professional_sprite_atlas_sheet_for_a_vdmz.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/models_a_professional_sprite_atlas_sheet_for_a_vdmz_flow.png",
+      "name": "models_a_professional_sprite_atlas_sheet_for_a_vdmz",
+      "bounds": {
+        "minX": 8,
+        "minY": 9,
+        "maxX": 504,
+        "maxY": 500,
+        "bgColor": {
+          "r": 224,
+          "g": 209,
+          "b": 176
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 511
+      }
+    },
+    {
+      "id": "necromancer_darkelf_female_e_idle",
+      "original": "/2d-assets/game-assets/models/characters/necromancer_darkelf_female_e_idle.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/necromancer_darkelf_female_e_idle_flow.png",
+      "name": "necromancer_darkelf_female_e_idle",
+      "bounds": {
+        "minX": 105,
+        "minY": 22,
+        "maxX": 428,
+        "maxY": 484,
+        "bgColor": {
+          "r": 247,
+          "g": 247,
+          "b": 247
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 95,
+        "top": 12,
+        "width": 343,
+        "height": 482
+      }
+    },
+    {
+      "id": "paladin_human_male_e_idle",
+      "original": "/2d-assets/game-assets/models/characters/paladin_human_male_e_idle.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/paladin_human_male_e_idle_flow.png",
+      "name": "paladin_human_male_e_idle",
+      "bounds": {
+        "minX": 0,
+        "minY": 143,
+        "maxX": 511,
+        "maxY": 511,
+        "bgColor": {
+          "r": 248,
+          "g": 247,
+          "b": 247
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 133,
+        "width": 512,
+        "height": 379
+      }
+    },
+    {
+      "id": "ranger_woodelf_female_e_idle",
+      "original": "/2d-assets/game-assets/models/characters/ranger_woodelf_female_e_idle.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/ranger_woodelf_female_e_idle_flow.png",
+      "name": "ranger_woodelf_female_e_idle",
+      "bounds": {
+        "minX": 48,
+        "minY": 24,
+        "maxX": 483,
+        "maxY": 487,
+        "bgColor": {
+          "r": 241,
+          "g": 241,
+          "b": 241
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 38,
+        "top": 14,
+        "width": 455,
+        "height": 483
+      }
+    },
+    {
+      "id": "rogue_halfling_female_e_idle",
+      "original": "/2d-assets/game-assets/models/characters/rogue_halfling_female_e_idle.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/rogue_halfling_female_e_idle_flow.png",
+      "name": "rogue_halfling_female_e_idle",
+      "bounds": {
+        "minX": 50,
+        "minY": 58,
+        "maxX": 466,
+        "maxY": 464,
+        "bgColor": {
+          "r": 245,
+          "g": 245,
+          "b": 245
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 40,
+        "top": 48,
+        "width": 436,
+        "height": 426
+      }
+    },
+    {
+      "id": "stitch_age",
+      "original": "/2d-assets/game-assets/models/characters/stitch_age.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/stitch_age_flow.png",
+      "name": "stitch_age",
+      "bounds": {
+        "minX": 8,
+        "minY": 9,
+        "maxX": 504,
+        "maxY": 500,
+        "bgColor": {
+          "r": 227,
+          "g": 210,
+          "b": 179
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 511
+      }
+    },
+    {
+      "id": "stitch_age_xpanded",
+      "original": "/2d-assets/game-assets/models/characters/stitch_age_xpanded.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/stitch_age_xpanded_flow.png",
+      "name": "stitch_age_xpanded",
+      "bounds": {
+        "minX": 8,
+        "minY": 9,
+        "maxX": 504,
+        "maxY": 500,
+        "bgColor": {
+          "r": 227,
+          "g": 210,
+          "b": 178
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 511
+      }
+    },
+    {
+      "id": "stitch_aladin_lt",
+      "original": "/2d-assets/game-assets/models/characters/stitch_aladin_lt.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/stitch_aladin_lt_flow.png",
+      "name": "stitch_aladin_lt",
+      "bounds": {
+        "minX": 8,
+        "minY": 9,
+        "maxX": 504,
+        "maxY": 500,
+        "bgColor": {
+          "r": 224,
+          "g": 209,
+          "b": 177
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 511
+      }
+    },
+    {
+      "id": "stitch_anger",
+      "original": "/2d-assets/game-assets/models/characters/stitch_anger.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/stitch_anger_flow.png",
+      "name": "stitch_anger",
+      "bounds": {
+        "minX": 8,
+        "minY": 9,
+        "maxX": 504,
+        "maxY": 500,
+        "bgColor": {
+          "r": 225,
+          "g": 210,
+          "b": 177
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 511
+      }
+    },
+    {
+      "id": "stitch_ard",
+      "original": "/2d-assets/game-assets/models/characters/stitch_ard.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/stitch_ard_flow.png",
+      "name": "stitch_ard",
+      "bounds": {
+        "minX": 8,
+        "minY": 10,
+        "maxX": 504,
+        "maxY": 503,
+        "bgColor": {
+          "r": 225,
+          "g": 210,
+          "b": 177
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 512
+      }
+    },
+    {
+      "id": "stitch_arrior",
+      "original": "/2d-assets/game-assets/models/characters/stitch_arrior.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/stitch_arrior_flow.png",
+      "name": "stitch_arrior",
+      "bounds": {
+        "minX": 8,
+        "minY": 9,
+        "maxX": 504,
+        "maxY": 500,
+        "bgColor": {
+          "r": 229,
+          "g": 211,
+          "b": 180
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 511
+      }
+    },
+    {
+      "id": "stitch_ecromancer",
+      "original": "/2d-assets/game-assets/models/characters/stitch_ecromancer.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/stitch_ecromancer_flow.png",
+      "name": "stitch_ecromancer",
+      "bounds": {
+        "minX": 8,
+        "minY": 9,
+        "maxX": 504,
+        "maxY": 500,
+        "bgColor": {
+          "r": 225,
+          "g": 209,
+          "b": 177
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 511
+      }
+    },
+    {
+      "id": "stitch_erserker",
+      "original": "/2d-assets/game-assets/models/characters/stitch_erserker.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/stitch_erserker_flow.png",
+      "name": "stitch_erserker",
+      "bounds": {
+        "minX": 8,
+        "minY": 9,
+        "maxX": 504,
+        "maxY": 500,
+        "bgColor": {
+          "r": 224,
+          "g": 208,
+          "b": 175
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 511
+      }
+    },
+    {
+      "id": "stitch_erserker_review",
+      "original": "/2d-assets/game-assets/models/characters/stitch_erserker_review.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/stitch_erserker_review_flow.png",
+      "name": "stitch_erserker_review",
+      "bounds": {
+        "minX": 0,
+        "minY": 0,
+        "maxX": 511,
+        "maxY": 409,
+        "bgColor": {
+          "r": 44,
+          "g": 40,
+          "b": 33
+        },
+        "width": 512,
+        "height": 410
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 410
+      }
+    },
+    {
+      "id": "stitch_leric",
+      "original": "/2d-assets/game-assets/models/characters/stitch_leric.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/stitch_leric_flow.png",
+      "name": "stitch_leric",
+      "bounds": {
+        "minX": 8,
+        "minY": 9,
+        "maxX": 504,
+        "maxY": 500,
+        "bgColor": {
+          "r": 225,
+          "g": 210,
+          "b": 177
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 511
+      }
+    },
+    {
+      "id": "stitch_leric_lt",
+      "original": "/2d-assets/game-assets/models/characters/stitch_leric_lt.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/stitch_leric_lt_flow.png",
+      "name": "stitch_leric_lt",
+      "bounds": {
+        "minX": 8,
+        "minY": 9,
+        "maxX": 504,
+        "maxY": 500,
+        "bgColor": {
+          "r": 224,
+          "g": 209,
+          "b": 177
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 511
+      }
+    },
+    {
+      "id": "stitch_ogue",
+      "original": "/2d-assets/game-assets/models/characters/stitch_ogue.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/stitch_ogue_flow.png",
+      "name": "stitch_ogue",
+      "bounds": {
+        "minX": 8,
+        "minY": 9,
+        "maxX": 504,
+        "maxY": 500,
+        "bgColor": {
+          "r": 224,
+          "g": 209,
+          "b": 176
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 511
+      }
+    },
+    {
+      "id": "stitch_rcher",
+      "original": "/2d-assets/game-assets/models/characters/stitch_rcher.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/stitch_rcher_flow.png",
+      "name": "stitch_rcher",
+      "bounds": {
+        "minX": 8,
+        "minY": 8,
+        "maxX": 504,
+        "maxY": 499,
+        "bgColor": {
+          "r": 224,
+          "g": 210,
+          "b": 177
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 511
+      }
+    },
+    {
+      "id": "stitch_rcher_lt",
+      "original": "/2d-assets/game-assets/models/characters/stitch_rcher_lt.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/stitch_rcher_lt_flow.png",
+      "name": "stitch_rcher_lt",
+      "bounds": {
+        "minX": 8,
+        "minY": 9,
+        "maxX": 504,
+        "maxY": 500,
+        "bgColor": {
+          "r": 224,
+          "g": 209,
+          "b": 177
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 511
+      }
+    },
+    {
+      "id": "warrior_human_male_e_idle",
+      "original": "/2d-assets/game-assets/models/characters/warrior_human_male_e_idle.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/warrior_human_male_e_idle_flow.png",
+      "name": "warrior_human_male_e_idle",
+      "bounds": {
+        "minX": 44,
+        "minY": 59,
+        "maxX": 393,
+        "maxY": 467,
+        "bgColor": {
+          "r": 244,
+          "g": 244,
+          "b": 244
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 34,
+        "top": 49,
+        "width": 369,
+        "height": 428
+      }
+    },
+    {
+      "id": "warrior_human_male_full_atlas",
+      "original": "/2d-assets/game-assets/models/characters/warrior_human_male_full_atlas.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/warrior_human_male_full_atlas_flow.png",
+      "name": "warrior_human_male_full_atlas",
+      "bounds": {
+        "minX": 0,
+        "minY": 0,
+        "maxX": 285,
+        "maxY": 511,
+        "bgColor": {
+          "r": 148,
+          "g": 147,
+          "b": 147
+        },
+        "width": 286,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 286,
+        "height": 512
+      }
+    },
+    {
+      "id": "warrior_human_male_sprite_atlas",
+      "original": "/2d-assets/game-assets/models/characters/warrior_human_male_sprite_atlas.png",
+      "flow": "/2d-assets/game-assets/models/npc-flow/warrior_human_male_sprite_atlas_flow.png",
+      "name": "warrior_human_male_sprite_atlas",
+      "bounds": {
+        "minX": 0,
+        "minY": 0,
+        "maxX": 511,
+        "maxY": 511,
+        "bgColor": {
+          "r": 102,
+          "g": 98,
+          "b": 98
+        },
+        "width": 512,
+        "height": 512
+      },
+      "crop": {
+        "left": 0,
+        "top": 0,
+        "width": 512,
+        "height": 512
+      }
+    }
+  ],
+  "stats": {
+    "total": 27,
+    "processed": 27,
+    "skipped": 0,
+    "errors": 0
+  }
+}

@@ -9,7 +9,8 @@
     "effects",
     "biomes",
     "symbols",
-    "weather"
+    "weather",
+    "npc-flow"
   ],
   "notes": [
     "Stitch-generated game assets for Arelorian 2D client.",
@@ -353,6 +354,710 @@
     "effects": {},
     "biomes": {},
     "symbols": {},
-    "weather": {}
+    "weather": {},
+    "npc-flow": {
+      "archer_dwarf_male_e_idle": {
+        "src": "/2d-assets/game-assets/models/npc-flow/archer_dwarf_male_e_idle_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/archer_dwarf_male_e_idle.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 512
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 512
+        }
+      },
+      "bard_gnome_male_e_idle": {
+        "src": "/2d-assets/game-assets/models/npc-flow/bard_gnome_male_e_idle_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/bard_gnome_male_e_idle.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 307,
+            "h": 404
+          }
+        },
+        "crop": {
+          "left": 110,
+          "top": 62,
+          "width": 307,
+          "height": 404
+        }
+      },
+      "berserker_human_male_e_idle": {
+        "src": "/2d-assets/game-assets/models/npc-flow/berserker_human_male_e_idle_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/berserker_human_male_e_idle.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 512
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 512
+        }
+      },
+      "cleric_human_male_e_idle": {
+        "src": "/2d-assets/game-assets/models/npc-flow/cleric_human_male_e_idle_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/cleric_human_male_e_idle.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 512
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 512
+        }
+      },
+      "mage_elf_female_e_idle": {
+        "src": "/2d-assets/game-assets/models/npc-flow/mage_elf_female_e_idle_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/mage_elf_female_e_idle.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 291,
+            "h": 453
+          }
+        },
+        "crop": {
+          "left": 110,
+          "top": 30,
+          "width": 291,
+          "height": 453
+        }
+      },
+      "models_a_professional_sprite_atlas_sheet_for_a_vdmz": {
+        "src": "/2d-assets/game-assets/models/npc-flow/models_a_professional_sprite_atlas_sheet_for_a_vdmz_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/models_a_professional_sprite_atlas_sheet_for_a_vdmz.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 511
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 511
+        }
+      },
+      "necromancer_darkelf_female_e_idle": {
+        "src": "/2d-assets/game-assets/models/npc-flow/necromancer_darkelf_female_e_idle_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/necromancer_darkelf_female_e_idle.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 343,
+            "h": 482
+          }
+        },
+        "crop": {
+          "left": 95,
+          "top": 12,
+          "width": 343,
+          "height": 482
+        }
+      },
+      "paladin_human_male_e_idle": {
+        "src": "/2d-assets/game-assets/models/npc-flow/paladin_human_male_e_idle_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/paladin_human_male_e_idle.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 379
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 133,
+          "width": 512,
+          "height": 379
+        }
+      },
+      "ranger_woodelf_female_e_idle": {
+        "src": "/2d-assets/game-assets/models/npc-flow/ranger_woodelf_female_e_idle_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/ranger_woodelf_female_e_idle.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 455,
+            "h": 483
+          }
+        },
+        "crop": {
+          "left": 38,
+          "top": 14,
+          "width": 455,
+          "height": 483
+        }
+      },
+      "rogue_halfling_female_e_idle": {
+        "src": "/2d-assets/game-assets/models/npc-flow/rogue_halfling_female_e_idle_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/rogue_halfling_female_e_idle.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 436,
+            "h": 426
+          }
+        },
+        "crop": {
+          "left": 40,
+          "top": 48,
+          "width": 436,
+          "height": 426
+        }
+      },
+      "stitch_age": {
+        "src": "/2d-assets/game-assets/models/npc-flow/stitch_age_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/stitch_age.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 511
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 511
+        }
+      },
+      "stitch_age_xpanded": {
+        "src": "/2d-assets/game-assets/models/npc-flow/stitch_age_xpanded_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/stitch_age_xpanded.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 511
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 511
+        }
+      },
+      "stitch_aladin_lt": {
+        "src": "/2d-assets/game-assets/models/npc-flow/stitch_aladin_lt_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/stitch_aladin_lt.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 511
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 511
+        }
+      },
+      "stitch_anger": {
+        "src": "/2d-assets/game-assets/models/npc-flow/stitch_anger_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/stitch_anger.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 511
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 511
+        }
+      },
+      "stitch_ard": {
+        "src": "/2d-assets/game-assets/models/npc-flow/stitch_ard_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/stitch_ard.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 512
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 512
+        }
+      },
+      "stitch_arrior": {
+        "src": "/2d-assets/game-assets/models/npc-flow/stitch_arrior_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/stitch_arrior.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 511
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 511
+        }
+      },
+      "stitch_ecromancer": {
+        "src": "/2d-assets/game-assets/models/npc-flow/stitch_ecromancer_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/stitch_ecromancer.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 511
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 511
+        }
+      },
+      "stitch_erserker": {
+        "src": "/2d-assets/game-assets/models/npc-flow/stitch_erserker_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/stitch_erserker.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 511
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 511
+        }
+      },
+      "stitch_erserker_review": {
+        "src": "/2d-assets/game-assets/models/npc-flow/stitch_erserker_review_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/stitch_erserker_review.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 410
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 410
+        }
+      },
+      "stitch_leric": {
+        "src": "/2d-assets/game-assets/models/npc-flow/stitch_leric_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/stitch_leric.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 511
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 511
+        }
+      },
+      "stitch_leric_lt": {
+        "src": "/2d-assets/game-assets/models/npc-flow/stitch_leric_lt_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/stitch_leric_lt.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 511
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 511
+        }
+      },
+      "stitch_ogue": {
+        "src": "/2d-assets/game-assets/models/npc-flow/stitch_ogue_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/stitch_ogue.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 511
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 511
+        }
+      },
+      "stitch_rcher": {
+        "src": "/2d-assets/game-assets/models/npc-flow/stitch_rcher_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/stitch_rcher.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 511
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 511
+        }
+      },
+      "stitch_rcher_lt": {
+        "src": "/2d-assets/game-assets/models/npc-flow/stitch_rcher_lt_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/stitch_rcher_lt.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 511
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 511
+        }
+      },
+      "warrior_human_male_e_idle": {
+        "src": "/2d-assets/game-assets/models/npc-flow/warrior_human_male_e_idle_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/warrior_human_male_e_idle.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 369,
+            "h": 428
+          }
+        },
+        "crop": {
+          "left": 34,
+          "top": 49,
+          "width": 369,
+          "height": 428
+        }
+      },
+      "warrior_human_male_full_atlas": {
+        "src": "/2d-assets/game-assets/models/npc-flow/warrior_human_male_full_atlas_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/warrior_human_male_full_atlas.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 286,
+            "h": 512
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 286,
+          "height": 512
+        }
+      },
+      "warrior_human_male_sprite_atlas": {
+        "src": "/2d-assets/game-assets/models/npc-flow/warrior_human_male_sprite_atlas_flow.png",
+        "original": "/2d-assets/game-assets/models/characters/warrior_human_male_sprite_atlas.png",
+        "source": "Stitch-generated NPC sprite",
+        "license": "Project-owned Stitch-generated asset.",
+        "kind": "npc-flow",
+        "tags": [
+          "stitch",
+          "npc",
+          "flow",
+          "cropped"
+        ],
+        "depth": {
+          "zHeight": 2,
+          "isoFootprint": {
+            "w": 512,
+            "h": 512
+          }
+        },
+        "crop": {
+          "left": 0,
+          "top": 0,
+          "width": 512,
+          "height": 512
+        }
+      }
+    }
   }
 }
