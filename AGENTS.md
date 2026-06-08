@@ -201,6 +201,7 @@ When working on specific topics, check the skills in `docs/ai-skills/`:
 - `wasd-client-2d-chunk-visibility.md` - Chunk loading troubleshooting & debug HUD
 - `wasd-client-2d-best-practices.md` - Client-2D best practices & patterns
 - `server-anti-ninja-loot.md` - Security patterns for loot
+- `wasd-are-loot-machine.md` - Deterministic loot generation (Diablo-2 style)
 - `wasd-asset-tagging.md` - Asset tagging workflow and patterns
 - `wasd-docs-best-practices.md` - Documentation standards
 - `wasd-stitch-mcp-integration.md` - Stitch MCP connection and UI screen integration

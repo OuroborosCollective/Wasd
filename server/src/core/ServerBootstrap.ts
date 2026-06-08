@@ -36,6 +36,7 @@ import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
 import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.js";
 import { registerSelfHealingDashboard } from "../selfhealing/SelfHealingDashboard.js";
 import { createSelfHealWorkshopRouter } from "../routes/selfHealWorkshopRoute.js";
+import { createLootRoutes } from "../routes/lootRoutes.js";
 import { default as craftingRouter } from "../routes/craftingRoute.js";
 import { default as equipmentRouter } from "../routes/equipmentRoute.js";
 import { default as onboardingRouter } from "../routes/onboardingRoute.js";
@@ -47,6 +48,7 @@ import { PlaytesterConfig } from "../config/PlaytesterConfig.js";
 import { PlaytesterMonitorStream } from "../modules/playtester/PlaytesterMonitorStream.js";
 import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRTCSignaling.js";
 import { initRedisClient } from "./RedisClient.js";
+import { installARELootIntegration } from "../modules/loot/installARELootIntegration.js";
 import { URL } from "node:url";
 
 const currentDir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
@@ -226,6 +228,8 @@ export class ServerBootstrap {
     if (publisherHtmlPath) app.get("/playtester-render-publisher.html", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.sendFile(publisherHtmlPath); });
     app.get("/api/playtester/debug-log", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.json({ ok: Boolean(tick.getPlaytesterDebugLogPath()), enabled: PlaytesterConfig.enabled, streamEnabled: PlaytesterConfig.streamEnabled, monitorMode: PlaytesterConfig.monitorMode, monitorPath: PlaytesterConfig.monitorPath, monitorSignalPath: PlaytesterConfig.monitorSignalPath, monitorPublisherPath: PlaytesterConfig.monitorPublisherPath, monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0, stream: { width: PlaytesterConfig.streamWidth, height: PlaytesterConfig.streamHeight, fps: PlaytesterConfig.streamFps, quality: PlaytesterConfig.streamQuality, shadows: PlaytesterConfig.streamShadows, particles: PlaytesterConfig.streamParticles, renderDistance: PlaytesterConfig.streamRenderDistance, iceServers: PlaytesterConfig.streamIceServers }, debugLogPath: tick.getPlaytesterDebugLogPath() }); });
     app.use("/api/admin/content", adminContentRouter(tick));
+    // ARE Infinite Loot Machine Admin Routes
+    createLootRoutes(app);
     app.use("/api/vote", voteRouter(tick));
     const clientRoot = resolveClientRoot();
     const clientPath = path.join(clientRoot, "dist");
@@ -294,6 +298,10 @@ export class ServerBootstrap {
     httpServer.listen(port, () => {
         console.log(`Arelorian server listening on ${port}`);
         tick.start();
+        
+        // Install ARE Infinite Loot Machine
+        installARELootIntegration(tick);
+        
         const shutdownHandler = async () => { 
           console.log("[Shutdown] Flushing data..."); 
           playtesterSignaling.stop(); 
