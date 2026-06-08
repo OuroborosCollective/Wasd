@@ -26,6 +26,7 @@ import type {
 } from "./LiveGameplaySnapshotTypes.js";
 import { RESOURCE_SELL_PRICES } from "../economy/ResourceSellPrices.js";
 import { calculateDynamicPrice } from "../economy/DemandPricing.js";
+import { createDefaultStatBlock } from "../equipment/EquipmentStatTypes.js";
 
 export interface LiveGameplaySnapshotComposerDeps {
   readonly getInventoryItems: (playerId: string) => readonly LiveGameplayInventoryItem[] | Promise<readonly LiveGameplayInventoryItem[]>;
@@ -39,6 +40,7 @@ export interface LiveGameplaySnapshotComposerDeps {
   readonly getRecentDiscoveries?: (playerId: string) => readonly RecentDiscovery[] | Promise<readonly RecentDiscovery[]>;
   readonly getCampNpcs?: () => readonly LiveGameplayCampNpc[] | Promise<readonly LiveGameplayCampNpc[]>;
   readonly getCampStocks?: () => readonly LiveGameplayCampStock[] | Promise<readonly LiveGameplayCampStock[]>;
+  readonly getEquipmentStats?: (playerId: string) => import("../equipment/EquipmentStatTypes.js").EquipmentStatBlock | Promise<import("../equipment/EquipmentStatTypes.js").EquipmentStatBlock>;
 }
 
 export class LiveGameplaySnapshotComposer {
@@ -82,6 +84,11 @@ export class LiveGameplaySnapshotComposer {
       ? await this.deps.getCampStocks()
       : [];
 
+    // Get equipment stats if available, default to zero block
+    const equipmentStats = this.deps.getEquipmentStats
+      ? await this.deps.getEquipmentStats(playerId)
+      : createDefaultStatBlock();
+
     return Object.freeze({
       schemaVersion: "live-gameplay-snapshot.v1" as const,
       playerId,
@@ -99,6 +106,7 @@ export class LiveGameplaySnapshotComposer {
       recentDiscoveries: Object.freeze([...recentDiscoveries]),
       campNpcs: Object.freeze([...campNpcs].sort((a, b) => a.id.localeCompare(b.id))),
       campStocks: Object.freeze([...campStocks].sort((a, b) => a.poiId.localeCompare(b.poiId))),
+      equipmentStats,
     });
   }
 

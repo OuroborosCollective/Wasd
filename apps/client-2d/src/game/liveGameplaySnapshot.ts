@@ -139,7 +139,7 @@ export interface CraftingSnapshot {
  * Equipped Slot Snapshot shape
  */
 export interface EquippedSlotSnapshot {
-  slotId: "woodcutting_tool" | "mining_tool" | "fishing_tool";
+  slotId: "woodcutting_tool" | "mining_tool" | "fishing_tool" | "weapon" | "armor" | "helmet" | "boots" | "ring" | "amulet";
   itemId: string;
   title: string;
   tier: number;

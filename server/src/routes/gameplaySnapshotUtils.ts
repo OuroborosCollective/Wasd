@@ -12,6 +12,8 @@
  * - Empty/null states are honest and allowed
  */
 
+import type { EquipmentSlotId } from "../equipment/EquipmentTypes.js";
+
 /**
  * Quest Objective shape
  */
@@ -178,7 +180,7 @@ export interface CraftingSnapshot {
  * Equipped Slot Snapshot shape
  */
 export interface EquippedSlotSnapshot {
-  slotId: "woodcutting_tool" | "mining_tool" | "fishing_tool";
+  slotId: EquipmentSlotId;
   itemId: string;
   title: string;
 }

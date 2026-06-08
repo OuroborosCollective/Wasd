@@ -1,7 +1,7 @@
 /**
  * EQUIPMENT TYPES
  *
- * Deterministic equipment types for gathering tools.
+ * Deterministic equipment types for gathering tools and combat loot.
  * No Date.now(), no Math.random(), stable slot IDs and ordering.
  */
 
@@ -10,7 +10,13 @@ import type { InventoryItemId } from "../inventory/InventoryTypes.js";
 export type EquipmentSlotId =
   | "woodcutting_tool"
   | "mining_tool"
-  | "fishing_tool";
+  | "fishing_tool"
+  | "weapon"
+  | "armor"
+  | "helmet"
+  | "boots"
+  | "ring"
+  | "amulet";
 
 export interface EquipmentItemDefinition {
   itemId: InventoryItemId;
@@ -30,6 +36,8 @@ export interface EquippedSlot {
   itemId: InventoryItemId;
   title: string;
   tier: number;
+  /** Optional stats for procedural loot items */
+  stats?: ReadonlyArray<{ key: string; value: number }>;
 }
 
 export interface PlayerEquipmentState {
