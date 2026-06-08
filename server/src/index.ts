@@ -9,6 +9,7 @@ import { installDeterministicWatchdogRuntime } from "./core/installDeterministic
 import { ServerBootstrap } from "./core/ServerBootstrap.js";
 import { installRuntimeChatRelay } from "./modules/chat/installRuntimeChatRelay.js";
 import "./modules/loot/installLootBridge.js";
+import { installARELootIntegration } from "./modules/loot/installARELootIntegration.js";
 
 /**
  * Validates the supabase authentication configuration.

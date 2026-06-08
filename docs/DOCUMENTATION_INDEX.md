@@ -16,6 +16,7 @@ Use this index to find current documentation quickly and avoid relying on histor
 | `deploy/.env.production.template` | Production env template |
 | `docs/API_ADMIN_AND_CHAT.md` | Admin content and chat API summary |
 | `docs/API_SURFACE.md` | Public route map and key endpoints |
+| `docs/ARELOGIC_INFINITE_LOOT_MACHINE.md` | Deterministic loot generation (Diablo-2 style) |
 
 ## Architecture and system references
 
