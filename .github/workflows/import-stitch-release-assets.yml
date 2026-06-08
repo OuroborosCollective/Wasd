@@ -1,0 +1,128 @@
+name: Import Stitch Release Assets
+
+run-name: Import Stitch Release Assets • ${{ inputs.release_tag }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "GitHub Release tag containing the Stitch ZIP asset"
+        required: true
+        default: "stitch-loot-ui-pack-v1"
+      output_branch:
+        description: "Branch to push imported assets to"
+        required: true
+        default: "assets/stitch-loot-ui-pack-v1-import"
+      create_pr:
+        description: "Open a pull request after importing"
+        required: true
+        default: "true"
+\permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: import-stitch-release-assets-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      OUTPUT_BRANCH: ${{ inputs.output_branch }}
+      STITCH_RELEASE_DIR: .asset-inbox/stitch/_release
+      STITCH_EXPANDED_DIR: .asset-inbox/stitch/_expanded
+      STITCH_OUT: apps/client-2d/public/2d-assets/game-assets
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install runtime tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          npm install --no-save sharp
+
+      - name: Download Stitch release ZIP
+        run: |
+          set -euo pipefail
+          rm -rf "$STITCH_RELEASE_DIR" "$STITCH_EXPANDED_DIR"
+          mkdir -p "$STITCH_RELEASE_DIR" "$STITCH_EXPANDED_DIR"
+          gh release download "$RELEASE_TAG" --repo "${GITHUB_REPOSITORY}" --pattern "*.zip" --dir "$STITCH_RELEASE_DIR"
+          ZIP_COUNT="$(find "$STITCH_RELEASE_DIR" -maxdepth 1 -type f -name '*.zip' | wc -l | tr -d ' ')"
+          test "$ZIP_COUNT" -gt 0
+          echo "Downloaded ZIP files: $ZIP_COUNT"
+          find "$STITCH_RELEASE_DIR" -maxdepth 1 -type f -name '*.zip' -print -exec ls -lh {} \; -exec sha256sum {} \;
+
+      - name: Expand Stitch ZIP deterministically
+        run: |
+          set -euo pipefail
+          while IFS= read -r zip_file; do
+            echo "Expanding: $zip_file"
+            unzip -o "$zip_file" -d "$STITCH_EXPANDED_DIR"
+          done < <(find "$STITCH_RELEASE_DIR" -maxdepth 1 -type f -name '*.zip' | sort)
+          EXTRACTED_COUNT="$(find "$STITCH_EXPANDED_DIR" -type f | wc -l | tr -d ' ')"
+          test "$EXTRACTED_COUNT" -gt 0
+          echo "Extracted files: $EXTRACTED_COUNT"
+          find "$STITCH_EXPANDED_DIR" -type f | sort | sed 's#^#expanded: #' | head -200
+
+      - name: Run Cozy/Stitch cropper import
+        run: |
+          set -euo pipefail
+          mkdir -p "$STITCH_OUT"
+          node scripts/stitch-game-assets-importer.mjs \
+            --local-inbox="$STITCH_EXPANDED_DIR" \
+            --output="$STITCH_OUT"
+          test -f "$STITCH_OUT/manifest.json"
+          test -f "apps/client-2d/public/2d-assets/manifest.json"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const manifest = JSON.parse(fs.readFileSync('apps/client-2d/public/2d-assets/game-assets/manifest.json', 'utf8'));
+          if (!manifest.assets || manifest.assets.length < 1) throw new Error('No Stitch assets imported');
+          console.log('Imported Stitch assets:', manifest.assets.length);
+          console.log('Cropped images:', manifest.stats?.croppedImages ?? 0);
+          console.log('Warnings:', manifest.stats?.warnings ?? 0);
+          NODE
+
+      - name: Commit imported assets
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$OUTPUT_BRANCH"
+          git add "$STITCH_OUT" apps/client-2d/public/2d-assets/manifest.json
+          if git diff --cached --quiet; then
+            echo "No imported asset changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(assets): import Stitch release assets from ${RELEASE_TAG}"
+          git push --force-with-lease origin "$OUTPUT_BRANCH"
+
+      - name: Open pull request
+        if: ${{ inputs.create_pr == 'true' }}
+        run: |
+          set -euo pipefail
+          if gh pr view "$OUTPUT_BRANCH" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "PR already exists for $OUTPUT_BRANCH"
+            exit 0
+          fi
+          gh pr create \
+            --repo "${GITHUB_REPOSITORY}" \
+            --base main \
+            --head "$OUTPUT_BRANCH" \
+            --title "chore(assets): import Stitch release assets" \
+            --body "Imports Stitch assets from release tag \`$RELEASE_TAG\` by downloading the ZIP, logging SHA256, expanding it deterministically, running the Cozy/Stitch cropper importer, and committing generated game assets plus manifests.\n\nCloses #1815"
