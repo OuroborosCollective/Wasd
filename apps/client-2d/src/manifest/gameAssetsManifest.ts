@@ -33,6 +33,8 @@ export interface CharacterSpriteInfo {
   frameCount: number;
   animations: AnimationType[];
   availableDirections: Direction[];
+  /** Optional flow/cropped sprite path for UI usage */
+  flowPath?: string;
 }
 
 export interface SpriteFrameInfo {
@@ -47,6 +49,120 @@ export interface AnimationSequence {
   direction: Direction;
   frames: SpriteFrameInfo[];
   totalDuration: number;
+}
+
+/**
+ * NPC Flow Sprite Info - Processed Stitch sprites with transparent backgrounds
+ */
+export interface NpcFlowSpriteInfo {
+  id: string;
+  originalPath: string;
+  flowPath: string;
+  cropWidth: number;
+  cropHeight: number;
+  cropLeft: number;
+  cropTop: number;
+}
+
+// NPC Flow Sprites - Processed from Stitch with transparent backgrounds
+export const NPC_FLOW_SPRITES: Record<string, NpcFlowSpriteInfo> = {
+  warrior_human_male_e_idle: {
+    id: 'warrior_human_male_e_idle',
+    originalPath: '/2d-assets/game-assets/models/characters/warrior_human_male_e_idle.png',
+    flowPath: '/2d-assets/game-assets/models/npc-flow/warrior_human_male_e_idle_flow.png',
+    cropWidth: 369,
+    cropHeight: 428,
+    cropLeft: 34,
+    cropTop: 49
+  },
+  mage_elf_female_e_idle: {
+    id: 'mage_elf_female_e_idle',
+    originalPath: '/2d-assets/game-assets/models/characters/mage_elf_female_e_idle.png',
+    flowPath: '/2d-assets/game-assets/models/npc-flow/mage_elf_female_e_idle_flow.png',
+    cropWidth: 291,
+    cropHeight: 453,
+    cropLeft: 110,
+    cropTop: 30
+  },
+  archer_dwarf_male_e_idle: {
+    id: 'archer_dwarf_male_e_idle',
+    originalPath: '/2d-assets/game-assets/models/characters/archer_dwarf_male_e_idle.png',
+    flowPath: '/2d-assets/game-assets/models/npc-flow/archer_dwarf_male_e_idle_flow.png',
+    cropWidth: 512,
+    cropHeight: 512,
+    cropLeft: 0,
+    cropTop: 0
+  },
+  rogue_halfling_female_e_idle: {
+    id: 'rogue_halfling_female_e_idle',
+    originalPath: '/2d-assets/game-assets/models/characters/rogue_halfling_female_e_idle.png',
+    flowPath: '/2d-assets/game-assets/models/npc-flow/rogue_halfling_female_e_idle_flow.png',
+    cropWidth: 436,
+    cropHeight: 426,
+    cropLeft: 40,
+    cropTop: 48
+  },
+  cleric_human_male_e_idle: {
+    id: 'cleric_human_male_e_idle',
+    originalPath: '/2d-assets/game-assets/models/characters/cleric_human_male_e_idle.png',
+    flowPath: '/2d-assets/game-assets/models/npc-flow/cleric_human_male_e_idle_flow.png',
+    cropWidth: 512,
+    cropHeight: 512,
+    cropLeft: 0,
+    cropTop: 0
+  },
+  ranger_woodelf_female_e_idle: {
+    id: 'ranger_woodelf_female_e_idle',
+    originalPath: '/2d-assets/game-assets/models/characters/ranger_woodelf_female_e_idle.png',
+    flowPath: '/2d-assets/game-assets/models/npc-flow/ranger_woodelf_female_e_idle_flow.png',
+    cropWidth: 455,
+    cropHeight: 483,
+    cropLeft: 38,
+    cropTop: 14
+  },
+  paladin_human_male_e_idle: {
+    id: 'paladin_human_male_e_idle',
+    originalPath: '/2d-assets/game-assets/models/characters/paladin_human_male_e_idle.png',
+    flowPath: '/2d-assets/game-assets/models/npc-flow/paladin_human_male_e_idle_flow.png',
+    cropWidth: 512,
+    cropHeight: 379,
+    cropLeft: 0,
+    cropTop: 133
+  },
+  necromancer_darkelf_female_e_idle: {
+    id: 'necromancer_darkelf_female_e_idle',
+    originalPath: '/2d-assets/game-assets/models/characters/necromancer_darkelf_female_e_idle.png',
+    flowPath: '/2d-assets/game-assets/models/npc-flow/necromancer_darkelf_female_e_idle_flow.png',
+    cropWidth: 343,
+    cropHeight: 482,
+    cropLeft: 95,
+    cropTop: 12
+  },
+  berserker_human_male_e_idle: {
+    id: 'berserker_human_male_e_idle',
+    originalPath: '/2d-assets/game-assets/models/characters/berserker_human_male_e_idle.png',
+    flowPath: '/2d-assets/game-assets/models/npc-flow/berserker_human_male_e_idle_flow.png',
+    cropWidth: 512,
+    cropHeight: 512,
+    cropLeft: 0,
+    cropTop: 0
+  },
+  bard_gnome_male_e_idle: {
+    id: 'bard_gnome_male_e_idle',
+    originalPath: '/2d-assets/game-assets/models/characters/bard_gnome_male_e_idle.png',
+    flowPath: '/2d-assets/game-assets/models/npc-flow/bard_gnome_male_e_idle_flow.png',
+    cropWidth: 307,
+    cropHeight: 404,
+    cropLeft: 110,
+    cropTop: 62
+  }
+};
+
+/**
+ * Get NPC flow sprite info by character ID
+ */
+export function getNpcFlowSprite(characterId: string): NpcFlowSpriteInfo | undefined {
+  return NPC_FLOW_SPRITES[characterId];
 }
 
 /**
@@ -111,7 +227,8 @@ export const CHARACTER_ROSTER: Record<string, CharacterSpriteInfo> = {
     spriteSize: 256,
     frameCount: 30,
     animations: ['idle', 'walk', 'run', 'attack', 'defend', 'talk', 'sleep', 'die'],
-    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
+    flowPath: 'models/npc-flow/warrior_human_male_e_idle_flow.png'
   },
   mage: {
     id: 'mage',
@@ -122,7 +239,8 @@ export const CHARACTER_ROSTER: Record<string, CharacterSpriteInfo> = {
     spriteSize: 256,
     frameCount: 30,
     animations: ['idle', 'walk', 'run', 'attack', 'defend', 'talk', 'sleep', 'die'],
-    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
+    flowPath: 'models/npc-flow/mage_elf_female_e_idle_flow.png'
   },
   archer: {
     id: 'archer',
@@ -133,7 +251,8 @@ export const CHARACTER_ROSTER: Record<string, CharacterSpriteInfo> = {
     spriteSize: 256,
     frameCount: 30,
     animations: ['idle', 'walk', 'run', 'attack', 'defend', 'talk', 'sleep', 'die'],
-    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
+    flowPath: 'models/npc-flow/archer_dwarf_male_e_idle_flow.png'
   },
   rogue: {
     id: 'rogue',
@@ -144,7 +263,8 @@ export const CHARACTER_ROSTER: Record<string, CharacterSpriteInfo> = {
     spriteSize: 256,
     frameCount: 30,
     animations: ['idle', 'walk', 'run', 'attack', 'defend', 'talk', 'sleep', 'die'],
-    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
+    flowPath: 'models/npc-flow/rogue_halfling_female_e_idle_flow.png'
   },
   cleric: {
     id: 'cleric',
@@ -155,7 +275,8 @@ export const CHARACTER_ROSTER: Record<string, CharacterSpriteInfo> = {
     spriteSize: 256,
     frameCount: 30,
     animations: ['idle', 'walk', 'run', 'attack', 'defend', 'talk', 'sleep', 'die'],
-    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
+    flowPath: 'models/npc-flow/cleric_human_male_e_idle_flow.png'
   },
   ranger: {
     id: 'ranger',
@@ -166,7 +287,8 @@ export const CHARACTER_ROSTER: Record<string, CharacterSpriteInfo> = {
     spriteSize: 256,
     frameCount: 30,
     animations: ['idle', 'walk', 'run', 'attack', 'defend', 'talk', 'sleep', 'die'],
-    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
+    flowPath: 'models/npc-flow/ranger_woodelf_female_e_idle_flow.png'
   },
   paladin: {
     id: 'paladin',
@@ -177,7 +299,8 @@ export const CHARACTER_ROSTER: Record<string, CharacterSpriteInfo> = {
     spriteSize: 256,
     frameCount: 30,
     animations: ['idle', 'walk', 'run', 'attack', 'defend', 'talk', 'sleep', 'die'],
-    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
+    flowPath: 'models/npc-flow/paladin_human_male_e_idle_flow.png'
   },
   necromancer: {
     id: 'necromancer',
@@ -188,7 +311,8 @@ export const CHARACTER_ROSTER: Record<string, CharacterSpriteInfo> = {
     spriteSize: 256,
     frameCount: 30,
     animations: ['idle', 'walk', 'run', 'attack', 'defend', 'talk', 'sleep', 'die'],
-    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
+    flowPath: 'models/npc-flow/necromancer_darkelf_female_e_idle_flow.png'
   },
   berserker: {
     id: 'berserker',
@@ -199,7 +323,8 @@ export const CHARACTER_ROSTER: Record<string, CharacterSpriteInfo> = {
     spriteSize: 256,
     frameCount: 30,
     animations: ['idle', 'walk', 'run', 'attack', 'defend', 'talk', 'sleep', 'die'],
-    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
+    flowPath: 'models/npc-flow/berserker_human_male_e_idle_flow.png'
   },
   bard: {
     id: 'bard',
@@ -210,13 +335,14 @@ export const CHARACTER_ROSTER: Record<string, CharacterSpriteInfo> = {
     spriteSize: 256,
     frameCount: 30,
     animations: ['idle', 'walk', 'run', 'attack', 'defend', 'talk', 'sleep', 'die'],
-    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+    availableDirections: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
+    flowPath: 'models/npc-flow/bard_gnome_male_e_idle_flow.png'
   }
 };
 
 // Asset manifest for the Stitch importer
 export const ASSET_MANIFEST = {
-  version: '1.0.0',
+  version: '2.0.0',
   generatedAt: new Date().toISOString(),
   projectId: '15403920134461014850',
   designSystemId: '395d7882b73a41c2b789f06cdb3ae868',
@@ -232,6 +358,18 @@ export const ASSET_MANIFEST = {
     className: char.className,
     race: char.race,
     gender: char.gender,
-    spritePathPattern: `${char.basePath}/${char.id}_{race}_{gender}_{direction}_{animation}.png`
+    spritePathPattern: `${char.basePath}/${char.id}_{race}_{gender}_{direction}_{animation}.png`,
+    flowPath: char.flowPath ? `/2d-assets/game-assets/${char.flowPath}` : null
+  })),
+  npcFlowSprites: Object.values(NPC_FLOW_SPRITES).map(sprite => ({
+    id: sprite.id,
+    originalPath: sprite.originalPath,
+    flowPath: sprite.flowPath,
+    dimensions: {
+      width: sprite.cropWidth,
+      height: sprite.cropHeight,
+      offsetX: sprite.cropLeft,
+      offsetY: sprite.cropTop
+    }
   }))
 };
