@@ -1,8 +1,12 @@
 'use strict';
 
 import { getLootDirector } from '../bootLootSystem.js';
+import express from 'express';
 
 export function createLootRoutes(app: any): void {
+  // Ensure JSON parsing is available for POST body
+  app.use(express.json());
+
   app.get('/admin/loot/status', (_req: any, res: any) => {
     const lootDirector = getLootDirector();
 
@@ -32,7 +36,7 @@ export function createLootRoutes(app: any): void {
     }
 
     try {
-      const ctx = req.body;
+      const ctx = req.body || {};
       const { ProceduralLootMachine } = await import('../loot/ProceduralLootMachine.js');
       const db = (global as any).__db || {};
       const machine = new ProceduralLootMachine(db);
