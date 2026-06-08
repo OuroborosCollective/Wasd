@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_grit_steel_modeler_code_nosize_b0965bfb8bbd",
+  "hash": "b0965bfb8bbd",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/grit_steel_modeler/code.html",
+  "sizeBytes": 23809,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_grit_steel_modeler_code_nosize_b0965bfb8bbd/auto_ui_neutral_binary_grit_steel_modeler_code_nosize_b0965bfb8bbd.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_grit_steel_modeler_code_nosize_b0965bfb8bbd/auto_ui_neutral_binary_grit_steel_modeler_code_nosize_b0965bfb8bbd.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "grit",
+    "steel",
+    "modeler",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.162Z"
+}

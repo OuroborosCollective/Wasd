@@ -1,0 +1,60 @@
+{
+  "id": "auto_equipment_neutral_image_and_magic_weapon_screen_1024x1024_537452d4ed67",
+  "hash": "537452d4ed67",
+  "kind": "image",
+  "category": "equipment",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/a_modular_2d_game_asset_design_sheet_for_procedural_ranged_and_magic_weapon/screen.png",
+  "sizeBytes": 1556543,
+  "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_and_magic_weapon_screen_1024x1024_537452d4ed67/auto_equipment_neutral_image_and_magic_weapon_screen_1024x1024_537452d4ed67.png",
+  "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_and_magic_weapon_screen_1024x1024_537452d4ed67/auto_equipment_neutral_image_and_magic_weapon_screen_1024x1024_537452d4ed67.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "a",
+    "modular",
+    "2d",
+    "game",
+    "asset",
+    "design",
+    "sheet",
+    "for",
+    "procedural",
+    "ranged",
+    "and",
+    "magic",
+    "weapon",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1024,
+    "height": 1024,
+    "format": "png",
+    "hasAlpha": false,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 1,
+    "readabilityScore": 100,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "equipment",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:26.569Z"
+}

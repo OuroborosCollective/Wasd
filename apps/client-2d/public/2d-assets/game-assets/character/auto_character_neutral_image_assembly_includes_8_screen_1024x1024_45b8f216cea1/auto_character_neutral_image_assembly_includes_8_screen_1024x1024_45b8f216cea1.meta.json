@@ -1,0 +1,60 @@
+{
+  "id": "auto_character_neutral_image_assembly_includes_8_screen_1024x1024_45b8f216cea1",
+  "hash": "45b8f216cea1",
+  "kind": "image",
+  "category": "character",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/a_modular_2d_game_asset_design_sheet_for_procedural_npc_assembly._includes_8/screen.png",
+  "sizeBytes": 2176048,
+  "src": "/2d-assets/auto-assets/character/auto_character_neutral_image_assembly_includes_8_screen_1024x1024_45b8f216cea1/auto_character_neutral_image_assembly_includes_8_screen_1024x1024_45b8f216cea1.png",
+  "originalSrc": "/2d-assets/auto-assets/character/auto_character_neutral_image_assembly_includes_8_screen_1024x1024_45b8f216cea1/auto_character_neutral_image_assembly_includes_8_screen_1024x1024_45b8f216cea1.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "a",
+    "modular",
+    "2d",
+    "game",
+    "asset",
+    "design",
+    "sheet",
+    "for",
+    "procedural",
+    "npc",
+    "assembly",
+    "includes",
+    "8",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1024,
+    "height": 1024,
+    "format": "png",
+    "hasAlpha": false,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 0.9963,
+    "readabilityScore": 99.83,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "character",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:26.491Z"
+}

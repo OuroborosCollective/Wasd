@@ -1,0 +1,51 @@
+{
+  "id": "auto_ui_neutral_image_being_monster_icon_screen_200x200_e743edcd8dc7",
+  "hash": "e743edcd8dc7",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/ai_being_monster_icon/screen.png",
+  "sizeBytes": 8013,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_being_monster_icon_screen_200x200_e743edcd8dc7/auto_ui_neutral_image_being_monster_icon_screen_200x200_e743edcd8dc7.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_being_monster_icon_screen_200x200_e743edcd8dc7/auto_ui_neutral_image_being_monster_icon_screen_200x200_e743edcd8dc7.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "ai",
+    "being",
+    "monster",
+    "icon",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 200,
+    "height": 200,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 4,
+      "y": 4,
+      "width": 192,
+      "height": 192
+    },
+    "alphaCoverage": 0.7298,
+    "contrastScore": 0.6425,
+    "readabilityScore": 79.54,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:17:26.892Z"
+}

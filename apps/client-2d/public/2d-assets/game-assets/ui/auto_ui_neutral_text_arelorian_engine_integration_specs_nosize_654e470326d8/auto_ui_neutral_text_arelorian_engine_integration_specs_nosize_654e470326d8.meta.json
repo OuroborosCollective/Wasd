@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_text_arelorian_engine_integration_specs_nosize_654e470326d8",
+  "hash": "654e470326d8",
+  "kind": "text",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".md",
+  "sourcePath": "stitch_arelorian_loot_ui_system/arelorian_engine_integration_specs.md",
+  "sizeBytes": 3094,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_text_arelorian_engine_integration_specs_nosize_654e470326d8/auto_ui_neutral_text_arelorian_engine_integration_specs_nosize_654e470326d8.md",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_text_arelorian_engine_integration_specs_nosize_654e470326d8/auto_ui_neutral_text_arelorian_engine_integration_specs_nosize_654e470326d8.md",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "arelorian",
+    "engine",
+    "integration",
+    "specs"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "text",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:26.940Z"
+}

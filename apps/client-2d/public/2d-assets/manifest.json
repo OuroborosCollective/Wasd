@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-04T13:58:58.560Z",
+  "generatedAt": "2026-06-08T06:17:26.022Z",
   "source": "active starter subset from uploaded Pipoya ZIP packs",
   "basePath": "/2d-assets",
   "notes": [
@@ -1368,5 +1368,2829 @@
   "effects": {},
   "biomes": {},
   "symbols": {},
-  "weather": {}
+  "weather": {},
+  "autoAssets": {
+    "auto_character_medieval_image_armored_knight_4_screen_1024x1024_0df2fd30c52b": {
+      "id": "auto_character_medieval_image_armored_knight_4_screen_1024x1024_0df2fd30c52b",
+      "kind": "image",
+      "category": "character",
+      "culture": "medieval",
+      "src": "/2d-assets/auto-assets/character/auto_character_medieval_image_armored_knight_4_screen_1024x1024_0df2fd30c52b/auto_character_medieval_image_armored_knight_4_screen_1024x1024_0df2fd30c52b.png",
+      "originalSrc": "/2d-assets/auto-assets/character/auto_character_medieval_image_armored_knight_4_screen_1024x1024_0df2fd30c52b/auto_character_medieval_image_armored_knight_4_screen_1024x1024_0df2fd30c52b.png",
+      "cropped": false,
+      "readabilityScore": 94.28,
+      "tags": [
+        "auto",
+        "image",
+        "character",
+        "medieval",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_modular_pet_mechanical_screen_1024x1024_1fe3c04d9f10": {
+      "id": "auto_ui_neutral_image_modular_pet_mechanical_screen_1024x1024_1fe3c04d9f10",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_modular_pet_mechanical_screen_1024x1024_1fe3c04d9f10/auto_ui_neutral_image_modular_pet_mechanical_screen_1024x1024_1fe3c04d9f10.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_modular_pet_mechanical_screen_1024x1024_1fe3c04d9f10/auto_ui_neutral_image_modular_pet_mechanical_screen_1024x1024_1fe3c04d9f10.png",
+      "cropped": false,
+      "readabilityScore": 91.5,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_equipment_neutral_image_vfx_and_handling_screen_1024x1024_b98e4904428c": {
+      "id": "auto_equipment_neutral_image_vfx_and_handling_screen_1024x1024_b98e4904428c",
+      "kind": "image",
+      "category": "equipment",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_vfx_and_handling_screen_1024x1024_b98e4904428c/auto_equipment_neutral_image_vfx_and_handling_screen_1024x1024_b98e4904428c.png",
+      "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_vfx_and_handling_screen_1024x1024_b98e4904428c/auto_equipment_neutral_image_vfx_and_handling_screen_1024x1024_b98e4904428c.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "equipment",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_environmental_vfx_and_screen_1024x1024_95ae0e0dd7fc": {
+      "id": "auto_ui_neutral_image_environmental_vfx_and_screen_1024x1024_95ae0e0dd7fc",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_environmental_vfx_and_screen_1024x1024_95ae0e0dd7fc/auto_ui_neutral_image_environmental_vfx_and_screen_1024x1024_95ae0e0dd7fc.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_environmental_vfx_and_screen_1024x1024_95ae0e0dd7fc/auto_ui_neutral_image_environmental_vfx_and_screen_1024x1024_95ae0e0dd7fc.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_procedural_dungeon_assembly_screen_1024x1024_314d9ab4d176": {
+      "id": "auto_ui_neutral_image_procedural_dungeon_assembly_screen_1024x1024_314d9ab4d176",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_procedural_dungeon_assembly_screen_1024x1024_314d9ab4d176/auto_ui_neutral_image_procedural_dungeon_assembly_screen_1024x1024_314d9ab4d176.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_procedural_dungeon_assembly_screen_1024x1024_314d9ab4d176/auto_ui_neutral_image_procedural_dungeon_assembly_screen_1024x1024_314d9ab4d176.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_building_medieval_image_house_and_kingdom_screen_1024x1024_760e3677e9d6": {
+      "id": "auto_building_medieval_image_house_and_kingdom_screen_1024x1024_760e3677e9d6",
+      "kind": "image",
+      "category": "building",
+      "culture": "medieval",
+      "src": "/2d-assets/auto-assets/building/auto_building_medieval_image_house_and_kingdom_screen_1024x1024_760e3677e9d6/auto_building_medieval_image_house_and_kingdom_screen_1024x1024_760e3677e9d6.png",
+      "originalSrc": "/2d-assets/auto-assets/building/auto_building_medieval_image_house_and_kingdom_screen_1024x1024_760e3677e9d6/auto_building_medieval_image_house_and_kingdom_screen_1024x1024_760e3677e9d6.png",
+      "cropped": false,
+      "readabilityScore": 99.7,
+      "tags": [
+        "auto",
+        "image",
+        "building",
+        "medieval",
+        "original"
+      ]
+    },
+    "auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_05978d94e966": {
+      "id": "auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_05978d94e966",
+      "kind": "image",
+      "category": "equipment",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_05978d94e966/auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_05978d94e966.png",
+      "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_05978d94e966/auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_05978d94e966.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "equipment",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_equipment_neutral_image_body_armor_assembly_screen_1024x1024_def32fe29cef": {
+      "id": "auto_equipment_neutral_image_body_armor_assembly_screen_1024x1024_def32fe29cef",
+      "kind": "image",
+      "category": "equipment",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_body_armor_assembly_screen_1024x1024_def32fe29cef/auto_equipment_neutral_image_body_armor_assembly_screen_1024x1024_def32fe29cef.png",
+      "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_body_armor_assembly_screen_1024x1024_def32fe29cef/auto_equipment_neutral_image_body_armor_assembly_screen_1024x1024_def32fe29cef.png",
+      "cropped": false,
+      "readabilityScore": 99.97,
+      "tags": [
+        "auto",
+        "image",
+        "equipment",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_equipment_neutral_image_armor_and_gauntlets_screen_1024x1024_847e7f4f69cb": {
+      "id": "auto_equipment_neutral_image_armor_and_gauntlets_screen_1024x1024_847e7f4f69cb",
+      "kind": "image",
+      "category": "equipment",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_armor_and_gauntlets_screen_1024x1024_847e7f4f69cb/auto_equipment_neutral_image_armor_and_gauntlets_screen_1024x1024_847e7f4f69cb.png",
+      "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_armor_and_gauntlets_screen_1024x1024_847e7f4f69cb/auto_equipment_neutral_image_armor_and_gauntlets_screen_1024x1024_847e7f4f69cb.png",
+      "cropped": false,
+      "readabilityScore": 99.29,
+      "tags": [
+        "auto",
+        "image",
+        "equipment",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_loot_containers_and_screen_1024x1024_1dc70b26ef56": {
+      "id": "auto_ui_neutral_image_loot_containers_and_screen_1024x1024_1dc70b26ef56",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_loot_containers_and_screen_1024x1024_1dc70b26ef56/auto_ui_neutral_image_loot_containers_and_screen_1024x1024_1dc70b26ef56.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_loot_containers_and_screen_1024x1024_1dc70b26ef56/auto_ui_neutral_image_loot_containers_and_screen_1024x1024_1dc70b26ef56.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_mount_assembly_style_screen_1024x1024_74c42849b967": {
+      "id": "auto_ui_neutral_image_mount_assembly_style_screen_1024x1024_74c42849b967",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_mount_assembly_style_screen_1024x1024_74c42849b967/auto_ui_neutral_image_mount_assembly_style_screen_1024x1024_74c42849b967.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_mount_assembly_style_screen_1024x1024_74c42849b967/auto_ui_neutral_image_mount_assembly_style_screen_1024x1024_74c42849b967.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_character_neutral_image_assembly_includes_8_screen_1024x1024_45b8f216cea1": {
+      "id": "auto_character_neutral_image_assembly_includes_8_screen_1024x1024_45b8f216cea1",
+      "kind": "image",
+      "category": "character",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/character/auto_character_neutral_image_assembly_includes_8_screen_1024x1024_45b8f216cea1/auto_character_neutral_image_assembly_includes_8_screen_1024x1024_45b8f216cea1.png",
+      "originalSrc": "/2d-assets/auto-assets/character/auto_character_neutral_image_assembly_includes_8_screen_1024x1024_45b8f216cea1/auto_character_neutral_image_assembly_includes_8_screen_1024x1024_45b8f216cea1.png",
+      "cropped": false,
+      "readabilityScore": 99.83,
+      "tags": [
+        "auto",
+        "image",
+        "character",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_pet_assembly_style_screen_1024x1024_fbc5b5c92f97": {
+      "id": "auto_ui_neutral_image_pet_assembly_style_screen_1024x1024_fbc5b5c92f97",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_pet_assembly_style_screen_1024x1024_fbc5b5c92f97/auto_ui_neutral_image_pet_assembly_style_screen_1024x1024_fbc5b5c92f97.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_pet_assembly_style_screen_1024x1024_fbc5b5c92f97/auto_ui_neutral_image_pet_assembly_style_screen_1024x1024_fbc5b5c92f97.png",
+      "cropped": false,
+      "readabilityScore": 98.58,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_equipment_neutral_image_and_magic_weapon_screen_1024x1024_537452d4ed67": {
+      "id": "auto_equipment_neutral_image_and_magic_weapon_screen_1024x1024_537452d4ed67",
+      "kind": "image",
+      "category": "equipment",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_and_magic_weapon_screen_1024x1024_537452d4ed67/auto_equipment_neutral_image_and_magic_weapon_screen_1024x1024_537452d4ed67.png",
+      "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_and_magic_weapon_screen_1024x1024_537452d4ed67/auto_equipment_neutral_image_and_magic_weapon_screen_1024x1024_537452d4ed67.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "equipment",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_c6837f6c737a": {
+      "id": "auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_c6837f6c737a",
+      "kind": "image",
+      "category": "equipment",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_c6837f6c737a/auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_c6837f6c737a.png",
+      "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_c6837f6c737a/auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_c6837f6c737a.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "equipment",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_da3ebbb4246f": {
+      "id": "auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_da3ebbb4246f",
+      "kind": "image",
+      "category": "equipment",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_da3ebbb4246f/auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_da3ebbb4246f.png",
+      "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_da3ebbb4246f/auto_equipment_neutral_image_assembly_includes_8_screen_1024x1024_da3ebbb4246f.png",
+      "cropped": false,
+      "readabilityScore": 99.28,
+      "tags": [
+        "auto",
+        "image",
+        "equipment",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_equipment_neutral_image_weapon_assembly_gritty_screen_1024x1024_51a2152919d7": {
+      "id": "auto_equipment_neutral_image_weapon_assembly_gritty_screen_1024x1024_51a2152919d7",
+      "kind": "image",
+      "category": "equipment",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_weapon_assembly_gritty_screen_1024x1024_51a2152919d7/auto_equipment_neutral_image_weapon_assembly_gritty_screen_1024x1024_51a2152919d7.png",
+      "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_weapon_assembly_gritty_screen_1024x1024_51a2152919d7/auto_equipment_neutral_image_weapon_assembly_gritty_screen_1024x1024_51a2152919d7.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "equipment",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_equipment_neutral_image_chest_plate_dark_screen_1024x1024_78a56fdbe346": {
+      "id": "auto_equipment_neutral_image_chest_plate_dark_screen_1024x1024_78a56fdbe346",
+      "kind": "image",
+      "category": "equipment",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_chest_plate_dark_screen_1024x1024_78a56fdbe346/auto_equipment_neutral_image_chest_plate_dark_screen_1024x1024_78a56fdbe346.png",
+      "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_chest_plate_dark_screen_1024x1024_78a56fdbe346/auto_equipment_neutral_image_chest_plate_dark_screen_1024x1024_78a56fdbe346.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "equipment",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_a_procedural_arpg_screen_1024x1024_e978b0bab5e4": {
+      "id": "auto_ui_neutral_image_a_procedural_arpg_screen_1024x1024_e978b0bab5e4",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_a_procedural_arpg_screen_1024x1024_e978b0bab5e4/auto_ui_neutral_image_a_procedural_arpg_screen_1024x1024_e978b0bab5e4.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_a_procedural_arpg_screen_1024x1024_e978b0bab5e4/auto_ui_neutral_image_a_procedural_arpg_screen_1024x1024_e978b0bab5e4.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_equipment_neutral_image_iron_breastplate_sections_screen_1024x1024_0b19b5a2f7bb": {
+      "id": "auto_equipment_neutral_image_iron_breastplate_sections_screen_1024x1024_0b19b5a2f7bb",
+      "kind": "image",
+      "category": "equipment",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_iron_breastplate_sections_screen_1024x1024_0b19b5a2f7bb/auto_equipment_neutral_image_iron_breastplate_sections_screen_1024x1024_0b19b5a2f7bb.png",
+      "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_iron_breastplate_sections_screen_1024x1024_0b19b5a2f7bb/auto_equipment_neutral_image_iron_breastplate_sections_screen_1024x1024_0b19b5a2f7bb.png",
+      "cropped": false,
+      "readabilityScore": 99.94,
+      "tags": [
+        "auto",
+        "image",
+        "equipment",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_equipment_neutral_image_leather_carved_obsidian_screen_1024x1024_502c79a533bc": {
+      "id": "auto_equipment_neutral_image_leather_carved_obsidian_screen_1024x1024_502c79a533bc",
+      "kind": "image",
+      "category": "equipment",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_leather_carved_obsidian_screen_1024x1024_502c79a533bc/auto_equipment_neutral_image_leather_carved_obsidian_screen_1024x1024_502c79a533bc.png",
+      "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_leather_carved_obsidian_screen_1024x1024_502c79a533bc/auto_equipment_neutral_image_leather_carved_obsidian_screen_1024x1024_502c79a533bc.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "equipment",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_medieval_image_game_style_gritty_screen_1024x1024_015e044cf35b": {
+      "id": "auto_ui_medieval_image_game_style_gritty_screen_1024x1024_015e044cf35b",
+      "kind": "image",
+      "category": "ui",
+      "culture": "medieval",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_medieval_image_game_style_gritty_screen_1024x1024_015e044cf35b/auto_ui_medieval_image_game_style_gritty_screen_1024x1024_015e044cf35b.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_medieval_image_game_style_gritty_screen_1024x1024_015e044cf35b/auto_ui_medieval_image_game_style_gritty_screen_1024x1024_015e044cf35b.png",
+      "cropped": false,
+      "readabilityScore": 99.99,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "medieval",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_binary_abklingzeit_reduktion_icon_code_nosize_ee83d9c1ea24": {
+      "id": "auto_ui_neutral_binary_abklingzeit_reduktion_icon_code_nosize_ee83d9c1ea24",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_abklingzeit_reduktion_icon_code_nosize_ee83d9c1ea24/auto_ui_neutral_binary_abklingzeit_reduktion_icon_code_nosize_ee83d9c1ea24.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_abklingzeit_reduktion_icon_code_nosize_ee83d9c1ea24/auto_ui_neutral_binary_abklingzeit_reduktion_icon_code_nosize_ee83d9c1ea24.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_abklingzeit_reduktion_icon_screen_200x200_d06b80a93da4": {
+      "id": "auto_ui_neutral_image_abklingzeit_reduktion_icon_screen_200x200_d06b80a93da4",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_abklingzeit_reduktion_icon_screen_200x200_d06b80a93da4/auto_ui_neutral_image_abklingzeit_reduktion_icon_screen_200x200_d06b80a93da4.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_abklingzeit_reduktion_icon_screen_200x200_d06b80a93da4/auto_ui_neutral_image_abklingzeit_reduktion_icon_screen_200x200_d06b80a93da4.png",
+      "cropped": true,
+      "readabilityScore": 59.65,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_affix_icon_crit_code_nosize_17d497b480fa": {
+      "id": "auto_ui_neutral_binary_affix_icon_crit_code_nosize_17d497b480fa",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_affix_icon_crit_code_nosize_17d497b480fa/auto_ui_neutral_binary_affix_icon_crit_code_nosize_17d497b480fa.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_affix_icon_crit_code_nosize_17d497b480fa/auto_ui_neutral_binary_affix_icon_crit_code_nosize_17d497b480fa.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_affix_icon_crit_screen_200x200_e4e8a32b0bcb": {
+      "id": "auto_ui_neutral_image_affix_icon_crit_screen_200x200_e4e8a32b0bcb",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_affix_icon_crit_screen_200x200_e4e8a32b0bcb/auto_ui_neutral_image_affix_icon_crit_screen_200x200_e4e8a32b0bcb.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_affix_icon_crit_screen_200x200_e4e8a32b0bcb/auto_ui_neutral_image_affix_icon_crit_screen_200x200_e4e8a32b0bcb.png",
+      "cropped": true,
+      "readabilityScore": 61.47,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_affix_icon_mana_code_nosize_9f8e8f29dd64": {
+      "id": "auto_ui_neutral_binary_affix_icon_mana_code_nosize_9f8e8f29dd64",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_affix_icon_mana_code_nosize_9f8e8f29dd64/auto_ui_neutral_binary_affix_icon_mana_code_nosize_9f8e8f29dd64.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_affix_icon_mana_code_nosize_9f8e8f29dd64/auto_ui_neutral_binary_affix_icon_mana_code_nosize_9f8e8f29dd64.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_affix_icon_mana_screen_200x200_2f532f212cf3": {
+      "id": "auto_ui_neutral_image_affix_icon_mana_screen_200x200_2f532f212cf3",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_affix_icon_mana_screen_200x200_2f532f212cf3/auto_ui_neutral_image_affix_icon_mana_screen_200x200_2f532f212cf3.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_affix_icon_mana_screen_200x200_2f532f212cf3/auto_ui_neutral_image_affix_icon_mana_screen_200x200_2f532f212cf3.png",
+      "cropped": true,
+      "readabilityScore": 79.98,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_affix_icon_strength_code_nosize_7f44978bfa6a": {
+      "id": "auto_ui_neutral_binary_affix_icon_strength_code_nosize_7f44978bfa6a",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_affix_icon_strength_code_nosize_7f44978bfa6a/auto_ui_neutral_binary_affix_icon_strength_code_nosize_7f44978bfa6a.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_affix_icon_strength_code_nosize_7f44978bfa6a/auto_ui_neutral_binary_affix_icon_strength_code_nosize_7f44978bfa6a.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_affix_icon_strength_screen_200x200_60e65b5ef075": {
+      "id": "auto_ui_neutral_image_affix_icon_strength_screen_200x200_60e65b5ef075",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_affix_icon_strength_screen_200x200_60e65b5ef075/auto_ui_neutral_image_affix_icon_strength_screen_200x200_60e65b5ef075.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_affix_icon_strength_screen_200x200_60e65b5ef075/auto_ui_neutral_image_affix_icon_strength_screen_200x200_60e65b5ef075.png",
+      "cropped": true,
+      "readabilityScore": 53.34,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_agility_icon_1_code_nosize_5dff6dd1ed7e": {
+      "id": "auto_ui_neutral_binary_agility_icon_1_code_nosize_5dff6dd1ed7e",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_agility_icon_1_code_nosize_5dff6dd1ed7e/auto_ui_neutral_binary_agility_icon_1_code_nosize_5dff6dd1ed7e.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_agility_icon_1_code_nosize_5dff6dd1ed7e/auto_ui_neutral_binary_agility_icon_1_code_nosize_5dff6dd1ed7e.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_agility_icon_1_screen_200x200_1c2df851129e": {
+      "id": "auto_ui_neutral_image_agility_icon_1_screen_200x200_1c2df851129e",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_agility_icon_1_screen_200x200_1c2df851129e/auto_ui_neutral_image_agility_icon_1_screen_200x200_1c2df851129e.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_agility_icon_1_screen_200x200_1c2df851129e/auto_ui_neutral_image_agility_icon_1_screen_200x200_1c2df851129e.png",
+      "cropped": true,
+      "readabilityScore": 74.4,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_agility_icon_2_code_nosize_e25b77f7e791": {
+      "id": "auto_ui_neutral_binary_agility_icon_2_code_nosize_e25b77f7e791",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_agility_icon_2_code_nosize_e25b77f7e791/auto_ui_neutral_binary_agility_icon_2_code_nosize_e25b77f7e791.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_agility_icon_2_code_nosize_e25b77f7e791/auto_ui_neutral_binary_agility_icon_2_code_nosize_e25b77f7e791.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_agility_icon_2_screen_200x200_bb519c1531e3": {
+      "id": "auto_ui_neutral_image_agility_icon_2_screen_200x200_bb519c1531e3",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_agility_icon_2_screen_200x200_bb519c1531e3/auto_ui_neutral_image_agility_icon_2_screen_200x200_bb519c1531e3.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_agility_icon_2_screen_200x200_bb519c1531e3/auto_ui_neutral_image_agility_icon_2_screen_200x200_bb519c1531e3.png",
+      "cropped": true,
+      "readabilityScore": 65.42,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_being_monster_icon_code_nosize_f88b0a7ec308": {
+      "id": "auto_ui_neutral_binary_being_monster_icon_code_nosize_f88b0a7ec308",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_being_monster_icon_code_nosize_f88b0a7ec308/auto_ui_neutral_binary_being_monster_icon_code_nosize_f88b0a7ec308.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_being_monster_icon_code_nosize_f88b0a7ec308/auto_ui_neutral_binary_being_monster_icon_code_nosize_f88b0a7ec308.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_being_monster_icon_screen_200x200_e743edcd8dc7": {
+      "id": "auto_ui_neutral_image_being_monster_icon_screen_200x200_e743edcd8dc7",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_being_monster_icon_screen_200x200_e743edcd8dc7/auto_ui_neutral_image_being_monster_icon_screen_200x200_e743edcd8dc7.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_being_monster_icon_screen_200x200_e743edcd8dc7/auto_ui_neutral_image_being_monster_icon_screen_200x200_e743edcd8dc7.png",
+      "cropped": true,
+      "readabilityScore": 79.54,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_alien_monster_icon_code_nosize_b131e4004690": {
+      "id": "auto_ui_neutral_binary_alien_monster_icon_code_nosize_b131e4004690",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_alien_monster_icon_code_nosize_b131e4004690/auto_ui_neutral_binary_alien_monster_icon_code_nosize_b131e4004690.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_alien_monster_icon_code_nosize_b131e4004690/auto_ui_neutral_binary_alien_monster_icon_code_nosize_b131e4004690.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_alien_monster_icon_screen_200x200_ca93b1ba0e07": {
+      "id": "auto_ui_neutral_image_alien_monster_icon_screen_200x200_ca93b1ba0e07",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_alien_monster_icon_screen_200x200_ca93b1ba0e07/auto_ui_neutral_image_alien_monster_icon_screen_200x200_ca93b1ba0e07.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_alien_monster_icon_screen_200x200_ca93b1ba0e07/auto_ui_neutral_image_alien_monster_icon_screen_200x200_ca93b1ba0e07.png",
+      "cropped": true,
+      "readabilityScore": 80.85,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_amphibian_monster_icon_code_nosize_bec3abd25606": {
+      "id": "auto_ui_neutral_binary_amphibian_monster_icon_code_nosize_bec3abd25606",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_amphibian_monster_icon_code_nosize_bec3abd25606/auto_ui_neutral_binary_amphibian_monster_icon_code_nosize_bec3abd25606.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_amphibian_monster_icon_code_nosize_bec3abd25606/auto_ui_neutral_binary_amphibian_monster_icon_code_nosize_bec3abd25606.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_amphibian_monster_icon_screen_200x200_7a2d24990a05": {
+      "id": "auto_ui_neutral_image_amphibian_monster_icon_screen_200x200_7a2d24990a05",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_amphibian_monster_icon_screen_200x200_7a2d24990a05/auto_ui_neutral_image_amphibian_monster_icon_screen_200x200_7a2d24990a05.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_amphibian_monster_icon_screen_200x200_7a2d24990a05/auto_ui_neutral_image_amphibian_monster_icon_screen_200x200_7a2d24990a05.png",
+      "cropped": true,
+      "readabilityScore": 74.55,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_angel_monster_icon_code_nosize_abe53e67ae38": {
+      "id": "auto_ui_neutral_binary_angel_monster_icon_code_nosize_abe53e67ae38",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_angel_monster_icon_code_nosize_abe53e67ae38/auto_ui_neutral_binary_angel_monster_icon_code_nosize_abe53e67ae38.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_angel_monster_icon_code_nosize_abe53e67ae38/auto_ui_neutral_binary_angel_monster_icon_code_nosize_abe53e67ae38.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_angel_monster_icon_screen_200x200_4248d6bd75eb": {
+      "id": "auto_ui_neutral_image_angel_monster_icon_screen_200x200_4248d6bd75eb",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_angel_monster_icon_screen_200x200_4248d6bd75eb/auto_ui_neutral_image_angel_monster_icon_screen_200x200_4248d6bd75eb.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_angel_monster_icon_screen_200x200_4248d6bd75eb/auto_ui_neutral_image_angel_monster_icon_screen_200x200_4248d6bd75eb.png",
+      "cropped": true,
+      "readabilityScore": 95.63,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_effect_affix_icon_code_nosize_92cdffb55d94": {
+      "id": "auto_ui_neutral_binary_effect_affix_icon_code_nosize_92cdffb55d94",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_effect_affix_icon_code_nosize_92cdffb55d94/auto_ui_neutral_binary_effect_affix_icon_code_nosize_92cdffb55d94.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_effect_affix_icon_code_nosize_92cdffb55d94/auto_ui_neutral_binary_effect_affix_icon_code_nosize_92cdffb55d94.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_effect_affix_icon_screen_200x200_1cffa9b01e46": {
+      "id": "auto_ui_neutral_image_effect_affix_icon_screen_200x200_1cffa9b01e46",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_effect_affix_icon_screen_200x200_1cffa9b01e46/auto_ui_neutral_image_effect_affix_icon_screen_200x200_1cffa9b01e46.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_effect_affix_icon_screen_200x200_1cffa9b01e46/auto_ui_neutral_image_effect_affix_icon_screen_200x200_1cffa9b01e46.png",
+      "cropped": true,
+      "readabilityScore": 89.13,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_engine_authoritative_dashboard_code_nosize_37d7c2cd3893": {
+      "id": "auto_ui_neutral_binary_engine_authoritative_dashboard_code_nosize_37d7c2cd3893",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_engine_authoritative_dashboard_code_nosize_37d7c2cd3893/auto_ui_neutral_binary_engine_authoritative_dashboard_code_nosize_37d7c2cd3893.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_engine_authoritative_dashboard_code_nosize_37d7c2cd3893/auto_ui_neutral_binary_engine_authoritative_dashboard_code_nosize_37d7c2cd3893.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_engine_authoritative_dashboard_screen_1600x1280_b34200317455": {
+      "id": "auto_ui_neutral_image_engine_authoritative_dashboard_screen_1600x1280_b34200317455",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_engine_authoritative_dashboard_screen_1600x1280_b34200317455/auto_ui_neutral_image_engine_authoritative_dashboard_screen_1600x1280_b34200317455.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_engine_authoritative_dashboard_screen_1600x1280_b34200317455/auto_ui_neutral_image_engine_authoritative_dashboard_screen_1600x1280_b34200317455.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_binary_engine_editor_flow_code_nosize_2e9488599c72": {
+      "id": "auto_ui_neutral_binary_engine_editor_flow_code_nosize_2e9488599c72",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_engine_editor_flow_code_nosize_2e9488599c72/auto_ui_neutral_binary_engine_editor_flow_code_nosize_2e9488599c72.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_engine_editor_flow_code_nosize_2e9488599c72/auto_ui_neutral_binary_engine_editor_flow_code_nosize_2e9488599c72.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_text_arelorian_engine_integration_specs_nosize_654e470326d8": {
+      "id": "auto_ui_neutral_text_arelorian_engine_integration_specs_nosize_654e470326d8",
+      "kind": "text",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_text_arelorian_engine_integration_specs_nosize_654e470326d8/auto_ui_neutral_text_arelorian_engine_integration_specs_nosize_654e470326d8.md",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_text_arelorian_engine_integration_specs_nosize_654e470326d8/auto_ui_neutral_text_arelorian_engine_integration_specs_nosize_654e470326d8.md",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "text",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_binary_item_card_showcase_code_nosize_a070215228d4": {
+      "id": "auto_ui_neutral_binary_item_card_showcase_code_nosize_a070215228d4",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_item_card_showcase_code_nosize_a070215228d4/auto_ui_neutral_binary_item_card_showcase_code_nosize_a070215228d4.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_item_card_showcase_code_nosize_a070215228d4/auto_ui_neutral_binary_item_card_showcase_code_nosize_a070215228d4.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_item_card_showcase_screen_1600x1280_ef7f81b68e45": {
+      "id": "auto_ui_neutral_image_item_card_showcase_screen_1600x1280_ef7f81b68e45",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_item_card_showcase_screen_1600x1280_ef7f81b68e45/auto_ui_neutral_image_item_card_showcase_screen_1600x1280_ef7f81b68e45.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_item_card_showcase_screen_1600x1280_ef7f81b68e45/auto_ui_neutral_image_item_card_showcase_screen_1600x1280_ef7f81b68e45.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_binary_army_rank_1_code_nosize_fb18da60fc7a": {
+      "id": "auto_ui_neutral_binary_army_rank_1_code_nosize_fb18da60fc7a",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_army_rank_1_code_nosize_fb18da60fc7a/auto_ui_neutral_binary_army_rank_1_code_nosize_fb18da60fc7a.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_army_rank_1_code_nosize_fb18da60fc7a/auto_ui_neutral_binary_army_rank_1_code_nosize_fb18da60fc7a.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_army_rank_1_screen_200x200_14966a553271": {
+      "id": "auto_ui_neutral_image_army_rank_1_screen_200x200_14966a553271",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_army_rank_1_screen_200x200_14966a553271/auto_ui_neutral_image_army_rank_1_screen_200x200_14966a553271.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_army_rank_1_screen_200x200_14966a553271/auto_ui_neutral_image_army_rank_1_screen_200x200_14966a553271.png",
+      "cropped": true,
+      "readabilityScore": 73.29,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_army_rank_2_code_nosize_cd528d5a3e1b": {
+      "id": "auto_ui_neutral_binary_army_rank_2_code_nosize_cd528d5a3e1b",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_army_rank_2_code_nosize_cd528d5a3e1b/auto_ui_neutral_binary_army_rank_2_code_nosize_cd528d5a3e1b.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_army_rank_2_code_nosize_cd528d5a3e1b/auto_ui_neutral_binary_army_rank_2_code_nosize_cd528d5a3e1b.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_army_rank_2_screen_200x200_8ccb54719eb7": {
+      "id": "auto_ui_neutral_image_army_rank_2_screen_200x200_8ccb54719eb7",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_army_rank_2_screen_200x200_8ccb54719eb7/auto_ui_neutral_image_army_rank_2_screen_200x200_8ccb54719eb7.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_army_rank_2_screen_200x200_8ccb54719eb7/auto_ui_neutral_image_army_rank_2_screen_200x200_8ccb54719eb7.png",
+      "cropped": true,
+      "readabilityScore": 73.58,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_authoritative_forge_dashboard_code_nosize_cdc5d1ca38c4": {
+      "id": "auto_ui_neutral_binary_authoritative_forge_dashboard_code_nosize_cdc5d1ca38c4",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_authoritative_forge_dashboard_code_nosize_cdc5d1ca38c4/auto_ui_neutral_binary_authoritative_forge_dashboard_code_nosize_cdc5d1ca38c4.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_authoritative_forge_dashboard_code_nosize_cdc5d1ca38c4/auto_ui_neutral_binary_authoritative_forge_dashboard_code_nosize_cdc5d1ca38c4.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_authoritative_forge_dashboard_screen_1704x1408_76f139401c04": {
+      "id": "auto_ui_neutral_image_authoritative_forge_dashboard_screen_1704x1408_76f139401c04",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_authoritative_forge_dashboard_screen_1704x1408_76f139401c04/auto_ui_neutral_image_authoritative_forge_dashboard_screen_1704x1408_76f139401c04.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_authoritative_forge_dashboard_screen_1704x1408_76f139401c04/auto_ui_neutral_image_authoritative_forge_dashboard_screen_1704x1408_76f139401c04.png",
+      "cropped": false,
+      "readabilityScore": 99.21,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_binary_beast_monster_icon_code_nosize_03662df85d55": {
+      "id": "auto_ui_neutral_binary_beast_monster_icon_code_nosize_03662df85d55",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_beast_monster_icon_code_nosize_03662df85d55/auto_ui_neutral_binary_beast_monster_icon_code_nosize_03662df85d55.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_beast_monster_icon_code_nosize_03662df85d55/auto_ui_neutral_binary_beast_monster_icon_code_nosize_03662df85d55.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_beast_monster_icon_screen_200x200_14e43dc28e73": {
+      "id": "auto_ui_neutral_image_beast_monster_icon_screen_200x200_14e43dc28e73",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_beast_monster_icon_screen_200x200_14e43dc28e73/auto_ui_neutral_image_beast_monster_icon_screen_200x200_14e43dc28e73.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_beast_monster_icon_screen_200x200_14e43dc28e73/auto_ui_neutral_image_beast_monster_icon_screen_200x200_14e43dc28e73.png",
+      "cropped": true,
+      "readabilityScore": 84.6,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_block_chance_icon_code_nosize_9f358cc372d6": {
+      "id": "auto_ui_neutral_binary_block_chance_icon_code_nosize_9f358cc372d6",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_block_chance_icon_code_nosize_9f358cc372d6/auto_ui_neutral_binary_block_chance_icon_code_nosize_9f358cc372d6.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_block_chance_icon_code_nosize_9f358cc372d6/auto_ui_neutral_binary_block_chance_icon_code_nosize_9f358cc372d6.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_block_chance_icon_screen_200x200_b83efea024ee": {
+      "id": "auto_ui_neutral_image_block_chance_icon_screen_200x200_b83efea024ee",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_block_chance_icon_screen_200x200_b83efea024ee/auto_ui_neutral_image_block_chance_icon_screen_200x200_b83efea024ee.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_block_chance_icon_screen_200x200_b83efea024ee/auto_ui_neutral_image_block_chance_icon_screen_200x200_b83efea024ee.png",
+      "cropped": true,
+      "readabilityScore": 81.88,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_system_common_icon_code_nosize_70467ea129d1": {
+      "id": "auto_ui_neutral_binary_system_common_icon_code_nosize_70467ea129d1",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_common_icon_code_nosize_70467ea129d1/auto_ui_neutral_binary_system_common_icon_code_nosize_70467ea129d1.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_common_icon_code_nosize_70467ea129d1/auto_ui_neutral_binary_system_common_icon_code_nosize_70467ea129d1.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_system_common_icon_screen_200x200_372ad8f08aad": {
+      "id": "auto_ui_neutral_image_system_common_icon_screen_200x200_372ad8f08aad",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_common_icon_screen_200x200_372ad8f08aad/auto_ui_neutral_image_system_common_icon_screen_200x200_372ad8f08aad.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_common_icon_screen_200x200_372ad8f08aad/auto_ui_neutral_image_system_common_icon_screen_200x200_372ad8f08aad.png",
+      "cropped": true,
+      "readabilityScore": 80.45,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_damage_affix_icon_code_nosize_85cd8eea0763": {
+      "id": "auto_ui_neutral_binary_damage_affix_icon_code_nosize_85cd8eea0763",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_damage_affix_icon_code_nosize_85cd8eea0763/auto_ui_neutral_binary_damage_affix_icon_code_nosize_85cd8eea0763.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_damage_affix_icon_code_nosize_85cd8eea0763/auto_ui_neutral_binary_damage_affix_icon_code_nosize_85cd8eea0763.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_damage_affix_icon_screen_200x200_1bf923706bff": {
+      "id": "auto_ui_neutral_image_damage_affix_icon_screen_200x200_1bf923706bff",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_damage_affix_icon_screen_200x200_1bf923706bff/auto_ui_neutral_image_damage_affix_icon_screen_200x200_1bf923706bff.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_damage_affix_icon_screen_200x200_1bf923706bff/auto_ui_neutral_image_damage_affix_icon_screen_200x200_1bf923706bff.png",
+      "cropped": true,
+      "readabilityScore": 82.35,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_defense_affix_icon_code_nosize_5dba2ac7b13e": {
+      "id": "auto_ui_neutral_binary_defense_affix_icon_code_nosize_5dba2ac7b13e",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_defense_affix_icon_code_nosize_5dba2ac7b13e/auto_ui_neutral_binary_defense_affix_icon_code_nosize_5dba2ac7b13e.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_defense_affix_icon_code_nosize_5dba2ac7b13e/auto_ui_neutral_binary_defense_affix_icon_code_nosize_5dba2ac7b13e.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_defense_affix_icon_screen_200x200_867f5788677e": {
+      "id": "auto_ui_neutral_image_defense_affix_icon_screen_200x200_867f5788677e",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_defense_affix_icon_screen_200x200_867f5788677e/auto_ui_neutral_image_defense_affix_icon_screen_200x200_867f5788677e.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_defense_affix_icon_screen_200x200_867f5788677e/auto_ui_neutral_image_defense_affix_icon_screen_200x200_867f5788677e.png",
+      "cropped": true,
+      "readabilityScore": 77.07,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_demon_monster_icon_code_nosize_f9df92e99e68": {
+      "id": "auto_ui_neutral_binary_demon_monster_icon_code_nosize_f9df92e99e68",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_demon_monster_icon_code_nosize_f9df92e99e68/auto_ui_neutral_binary_demon_monster_icon_code_nosize_f9df92e99e68.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_demon_monster_icon_code_nosize_f9df92e99e68/auto_ui_neutral_binary_demon_monster_icon_code_nosize_f9df92e99e68.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_demon_monster_icon_screen_200x200_64b0c5d8b6d8": {
+      "id": "auto_ui_neutral_image_demon_monster_icon_screen_200x200_64b0c5d8b6d8",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_demon_monster_icon_screen_200x200_64b0c5d8b6d8/auto_ui_neutral_image_demon_monster_icon_screen_200x200_64b0c5d8b6d8.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_demon_monster_icon_screen_200x200_64b0c5d8b6d8/auto_ui_neutral_image_demon_monster_icon_screen_200x200_64b0c5d8b6d8.png",
+      "cropped": true,
+      "readabilityScore": 69.65,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_dodge_affix_icon_code_nosize_257680b67639": {
+      "id": "auto_ui_neutral_binary_dodge_affix_icon_code_nosize_257680b67639",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_dodge_affix_icon_code_nosize_257680b67639/auto_ui_neutral_binary_dodge_affix_icon_code_nosize_257680b67639.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_dodge_affix_icon_code_nosize_257680b67639/auto_ui_neutral_binary_dodge_affix_icon_code_nosize_257680b67639.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_dodge_affix_icon_screen_200x200_1ecac2bf1813": {
+      "id": "auto_ui_neutral_image_dodge_affix_icon_screen_200x200_1ecac2bf1813",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_dodge_affix_icon_screen_200x200_1ecac2bf1813/auto_ui_neutral_image_dodge_affix_icon_screen_200x200_1ecac2bf1813.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_dodge_affix_icon_screen_200x200_1ecac2bf1813/auto_ui_neutral_image_dodge_affix_icon_screen_200x200_1ecac2bf1813.png",
+      "cropped": true,
+      "readabilityScore": 69.28,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_cyber_binary_eldritch_archive_interface_code_nosize_2e9488599c72": {
+      "id": "auto_ui_cyber_binary_eldritch_archive_interface_code_nosize_2e9488599c72",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "cyber",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_cyber_binary_eldritch_archive_interface_code_nosize_2e9488599c72/auto_ui_cyber_binary_eldritch_archive_interface_code_nosize_2e9488599c72.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_cyber_binary_eldritch_archive_interface_code_nosize_2e9488599c72/auto_ui_cyber_binary_eldritch_archive_interface_code_nosize_2e9488599c72.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "cyber",
+        "original"
+      ]
+    },
+    "auto_ui_cyber_image_eldritch_archive_interface_screen_1600x1380_5d378524b6df": {
+      "id": "auto_ui_cyber_image_eldritch_archive_interface_screen_1600x1380_5d378524b6df",
+      "kind": "image",
+      "category": "ui",
+      "culture": "cyber",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_cyber_image_eldritch_archive_interface_screen_1600x1380_5d378524b6df/auto_ui_cyber_image_eldritch_archive_interface_screen_1600x1380_5d378524b6df.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_cyber_image_eldritch_archive_interface_screen_1600x1380_5d378524b6df/auto_ui_cyber_image_eldritch_archive_interface_screen_1600x1380_5d378524b6df.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "cyber",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_text_modular_gothic_system_documentation_nosize_079e647a9bd9": {
+      "id": "auto_ui_neutral_text_modular_gothic_system_documentation_nosize_079e647a9bd9",
+      "kind": "text",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_text_modular_gothic_system_documentation_nosize_079e647a9bd9/auto_ui_neutral_text_modular_gothic_system_documentation_nosize_079e647a9bd9.md",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_text_modular_gothic_system_documentation_nosize_079e647a9bd9/auto_ui_neutral_text_modular_gothic_system_documentation_nosize_079e647a9bd9.md",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "text",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_text_eldritch_modular_gothic_design_nosize_4194f5abdc18": {
+      "id": "auto_ui_neutral_text_eldritch_modular_gothic_design_nosize_4194f5abdc18",
+      "kind": "text",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_text_eldritch_modular_gothic_design_nosize_4194f5abdc18/auto_ui_neutral_text_eldritch_modular_gothic_design_nosize_4194f5abdc18.md",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_text_eldritch_modular_gothic_design_nosize_4194f5abdc18/auto_ui_neutral_text_eldritch_modular_gothic_design_nosize_4194f5abdc18.md",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "text",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_binary_elemental_monster_icon_code_nosize_8f93bc8ce55f": {
+      "id": "auto_ui_neutral_binary_elemental_monster_icon_code_nosize_8f93bc8ce55f",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_elemental_monster_icon_code_nosize_8f93bc8ce55f/auto_ui_neutral_binary_elemental_monster_icon_code_nosize_8f93bc8ce55f.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_elemental_monster_icon_code_nosize_8f93bc8ce55f/auto_ui_neutral_binary_elemental_monster_icon_code_nosize_8f93bc8ce55f.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_elemental_monster_icon_screen_200x200_805406396e30": {
+      "id": "auto_ui_neutral_image_elemental_monster_icon_screen_200x200_805406396e30",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_elemental_monster_icon_screen_200x200_805406396e30/auto_ui_neutral_image_elemental_monster_icon_screen_200x200_805406396e30.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_elemental_monster_icon_screen_200x200_805406396e30/auto_ui_neutral_image_elemental_monster_icon_screen_200x200_805406396e30.png",
+      "cropped": true,
+      "readabilityScore": 91.15,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_system_epic_icon_code_nosize_bd92f3e8f32d": {
+      "id": "auto_ui_neutral_binary_system_epic_icon_code_nosize_bd92f3e8f32d",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_epic_icon_code_nosize_bd92f3e8f32d/auto_ui_neutral_binary_system_epic_icon_code_nosize_bd92f3e8f32d.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_epic_icon_code_nosize_bd92f3e8f32d/auto_ui_neutral_binary_system_epic_icon_code_nosize_bd92f3e8f32d.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_system_epic_icon_screen_200x200_1cdf0a3c0efa": {
+      "id": "auto_ui_neutral_image_system_epic_icon_screen_200x200_1cdf0a3c0efa",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_epic_icon_screen_200x200_1cdf0a3c0efa/auto_ui_neutral_image_system_epic_icon_screen_200x200_1cdf0a3c0efa.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_epic_icon_screen_200x200_1cdf0a3c0efa/auto_ui_neutral_image_system_epic_icon_screen_200x200_1cdf0a3c0efa.png",
+      "cropped": false,
+      "readabilityScore": 91.35,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_binary_faction_icon_1_code_nosize_eeccdaa04483": {
+      "id": "auto_ui_neutral_binary_faction_icon_1_code_nosize_eeccdaa04483",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_faction_icon_1_code_nosize_eeccdaa04483/auto_ui_neutral_binary_faction_icon_1_code_nosize_eeccdaa04483.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_faction_icon_1_code_nosize_eeccdaa04483/auto_ui_neutral_binary_faction_icon_1_code_nosize_eeccdaa04483.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_faction_icon_1_screen_200x200_128da5506643": {
+      "id": "auto_ui_neutral_image_faction_icon_1_screen_200x200_128da5506643",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_faction_icon_1_screen_200x200_128da5506643/auto_ui_neutral_image_faction_icon_1_screen_200x200_128da5506643.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_faction_icon_1_screen_200x200_128da5506643/auto_ui_neutral_image_faction_icon_1_screen_200x200_128da5506643.png",
+      "cropped": true,
+      "readabilityScore": 84.6,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_faction_icon_2_code_nosize_cd3bd15c7339": {
+      "id": "auto_ui_neutral_binary_faction_icon_2_code_nosize_cd3bd15c7339",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_faction_icon_2_code_nosize_cd3bd15c7339/auto_ui_neutral_binary_faction_icon_2_code_nosize_cd3bd15c7339.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_faction_icon_2_code_nosize_cd3bd15c7339/auto_ui_neutral_binary_faction_icon_2_code_nosize_cd3bd15c7339.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_faction_icon_2_screen_200x200_6d04b88565d4": {
+      "id": "auto_ui_neutral_image_faction_icon_2_screen_200x200_6d04b88565d4",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_faction_icon_2_screen_200x200_6d04b88565d4/auto_ui_neutral_image_faction_icon_2_screen_200x200_6d04b88565d4.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_faction_icon_2_screen_200x200_6d04b88565d4/auto_ui_neutral_image_faction_icon_2_screen_200x200_6d04b88565d4.png",
+      "cropped": true,
+      "readabilityScore": 78.49,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_faction_icon_3_code_nosize_36d0b3a89a0f": {
+      "id": "auto_ui_neutral_binary_faction_icon_3_code_nosize_36d0b3a89a0f",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_faction_icon_3_code_nosize_36d0b3a89a0f/auto_ui_neutral_binary_faction_icon_3_code_nosize_36d0b3a89a0f.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_faction_icon_3_code_nosize_36d0b3a89a0f/auto_ui_neutral_binary_faction_icon_3_code_nosize_36d0b3a89a0f.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_faction_icon_3_screen_200x200_ae72b2e6cfbe": {
+      "id": "auto_ui_neutral_image_faction_icon_3_screen_200x200_ae72b2e6cfbe",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_faction_icon_3_screen_200x200_ae72b2e6cfbe/auto_ui_neutral_image_faction_icon_3_screen_200x200_ae72b2e6cfbe.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_faction_icon_3_screen_200x200_ae72b2e6cfbe/auto_ui_neutral_image_faction_icon_3_screen_200x200_ae72b2e6cfbe.png",
+      "cropped": true,
+      "readabilityScore": 87.82,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_fairy_monster_icon_code_nosize_eb40e6a027fe": {
+      "id": "auto_ui_neutral_binary_fairy_monster_icon_code_nosize_eb40e6a027fe",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_fairy_monster_icon_code_nosize_eb40e6a027fe/auto_ui_neutral_binary_fairy_monster_icon_code_nosize_eb40e6a027fe.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_fairy_monster_icon_code_nosize_eb40e6a027fe/auto_ui_neutral_binary_fairy_monster_icon_code_nosize_eb40e6a027fe.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_fairy_monster_icon_screen_200x200_9e0cc61f83b4": {
+      "id": "auto_ui_neutral_image_fairy_monster_icon_screen_200x200_9e0cc61f83b4",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_fairy_monster_icon_screen_200x200_9e0cc61f83b4/auto_ui_neutral_image_fairy_monster_icon_screen_200x200_9e0cc61f83b4.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_fairy_monster_icon_screen_200x200_9e0cc61f83b4/auto_ui_neutral_image_fairy_monster_icon_screen_200x200_9e0cc61f83b4.png",
+      "cropped": true,
+      "readabilityScore": 84.6,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_fire_resistance_icon_code_nosize_8b60e9a9a65e": {
+      "id": "auto_ui_neutral_binary_fire_resistance_icon_code_nosize_8b60e9a9a65e",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_fire_resistance_icon_code_nosize_8b60e9a9a65e/auto_ui_neutral_binary_fire_resistance_icon_code_nosize_8b60e9a9a65e.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_fire_resistance_icon_code_nosize_8b60e9a9a65e/auto_ui_neutral_binary_fire_resistance_icon_code_nosize_8b60e9a9a65e.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_fire_resistance_icon_screen_200x200_356aceb08533": {
+      "id": "auto_ui_neutral_image_fire_resistance_icon_screen_200x200_356aceb08533",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_fire_resistance_icon_screen_200x200_356aceb08533/auto_ui_neutral_image_fire_resistance_icon_screen_200x200_356aceb08533.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_fire_resistance_icon_screen_200x200_356aceb08533/auto_ui_neutral_image_fire_resistance_icon_screen_200x200_356aceb08533.png",
+      "cropped": true,
+      "readabilityScore": 64.65,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_goblin_monster_icon_code_nosize_1045e620e7f6": {
+      "id": "auto_ui_neutral_binary_goblin_monster_icon_code_nosize_1045e620e7f6",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_goblin_monster_icon_code_nosize_1045e620e7f6/auto_ui_neutral_binary_goblin_monster_icon_code_nosize_1045e620e7f6.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_goblin_monster_icon_code_nosize_1045e620e7f6/auto_ui_neutral_binary_goblin_monster_icon_code_nosize_1045e620e7f6.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_goblin_monster_icon_screen_200x200_b1848dca8c5a": {
+      "id": "auto_ui_neutral_image_goblin_monster_icon_screen_200x200_b1848dca8c5a",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_goblin_monster_icon_screen_200x200_b1848dca8c5a/auto_ui_neutral_image_goblin_monster_icon_screen_200x200_b1848dca8c5a.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_goblin_monster_icon_screen_200x200_b1848dca8c5a/auto_ui_neutral_image_goblin_monster_icon_screen_200x200_b1848dca8c5a.png",
+      "cropped": true,
+      "readabilityScore": 75.59,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_grit_steel_modeler_code_nosize_b0965bfb8bbd": {
+      "id": "auto_ui_neutral_binary_grit_steel_modeler_code_nosize_b0965bfb8bbd",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_grit_steel_modeler_code_nosize_b0965bfb8bbd/auto_ui_neutral_binary_grit_steel_modeler_code_nosize_b0965bfb8bbd.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_grit_steel_modeler_code_nosize_b0965bfb8bbd/auto_ui_neutral_binary_grit_steel_modeler_code_nosize_b0965bfb8bbd.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_grit_steel_modeler_screen_1600x1280_9648337797da": {
+      "id": "auto_ui_neutral_image_grit_steel_modeler_screen_1600x1280_9648337797da",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_grit_steel_modeler_screen_1600x1280_9648337797da/auto_ui_neutral_image_grit_steel_modeler_screen_1600x1280_9648337797da.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_grit_steel_modeler_screen_1600x1280_9648337797da/auto_ui_neutral_image_grit_steel_modeler_screen_1600x1280_9648337797da.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_binary_being_monster_icon_code_nosize_54423ab292c1": {
+      "id": "auto_ui_neutral_binary_being_monster_icon_code_nosize_54423ab292c1",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_being_monster_icon_code_nosize_54423ab292c1/auto_ui_neutral_binary_being_monster_icon_code_nosize_54423ab292c1.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_being_monster_icon_code_nosize_54423ab292c1/auto_ui_neutral_binary_being_monster_icon_code_nosize_54423ab292c1.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_being_monster_icon_screen_200x200_bd0da2822fbc": {
+      "id": "auto_ui_neutral_image_being_monster_icon_screen_200x200_bd0da2822fbc",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_being_monster_icon_screen_200x200_bd0da2822fbc/auto_ui_neutral_image_being_monster_icon_screen_200x200_bd0da2822fbc.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_being_monster_icon_screen_200x200_bd0da2822fbc/auto_ui_neutral_image_being_monster_icon_screen_200x200_bd0da2822fbc.png",
+      "cropped": true,
+      "readabilityScore": 74.55,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_humanoid_monster_icon_code_nosize_a390939020d4": {
+      "id": "auto_ui_neutral_binary_humanoid_monster_icon_code_nosize_a390939020d4",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_humanoid_monster_icon_code_nosize_a390939020d4/auto_ui_neutral_binary_humanoid_monster_icon_code_nosize_a390939020d4.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_humanoid_monster_icon_code_nosize_a390939020d4/auto_ui_neutral_binary_humanoid_monster_icon_code_nosize_a390939020d4.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_humanoid_monster_icon_screen_200x200_51538b92785f": {
+      "id": "auto_ui_neutral_image_humanoid_monster_icon_screen_200x200_51538b92785f",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_humanoid_monster_icon_screen_200x200_51538b92785f/auto_ui_neutral_image_humanoid_monster_icon_screen_200x200_51538b92785f.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_humanoid_monster_icon_screen_200x200_51538b92785f/auto_ui_neutral_image_humanoid_monster_icon_screen_200x200_51538b92785f.png",
+      "cropped": true,
+      "readabilityScore": 84.86,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_ice_resistance_icon_code_nosize_0e84e6d79823": {
+      "id": "auto_ui_neutral_binary_ice_resistance_icon_code_nosize_0e84e6d79823",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_ice_resistance_icon_code_nosize_0e84e6d79823/auto_ui_neutral_binary_ice_resistance_icon_code_nosize_0e84e6d79823.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_ice_resistance_icon_code_nosize_0e84e6d79823/auto_ui_neutral_binary_ice_resistance_icon_code_nosize_0e84e6d79823.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_ice_resistance_icon_screen_200x200_a10cef00d51c": {
+      "id": "auto_ui_neutral_image_ice_resistance_icon_screen_200x200_a10cef00d51c",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_ice_resistance_icon_screen_200x200_a10cef00d51c/auto_ui_neutral_image_ice_resistance_icon_screen_200x200_a10cef00d51c.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_ice_resistance_icon_screen_200x200_a10cef00d51c/auto_ui_neutral_image_ice_resistance_icon_screen_200x200_a10cef00d51c.png",
+      "cropped": true,
+      "readabilityScore": 74.97,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_system_intelligence_icon_code_nosize_40a0541d0951": {
+      "id": "auto_ui_neutral_binary_system_intelligence_icon_code_nosize_40a0541d0951",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_intelligence_icon_code_nosize_40a0541d0951/auto_ui_neutral_binary_system_intelligence_icon_code_nosize_40a0541d0951.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_intelligence_icon_code_nosize_40a0541d0951/auto_ui_neutral_binary_system_intelligence_icon_code_nosize_40a0541d0951.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_system_intelligence_icon_screen_200x200_501c16de6a43": {
+      "id": "auto_ui_neutral_image_system_intelligence_icon_screen_200x200_501c16de6a43",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_intelligence_icon_screen_200x200_501c16de6a43/auto_ui_neutral_image_system_intelligence_icon_screen_200x200_501c16de6a43.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_intelligence_icon_screen_200x200_501c16de6a43/auto_ui_neutral_image_system_intelligence_icon_screen_200x200_501c16de6a43.png",
+      "cropped": true,
+      "readabilityScore": 82.11,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_of_fallen_stars_code_nosize_ffaff4ec08c8": {
+      "id": "auto_ui_neutral_binary_of_fallen_stars_code_nosize_ffaff4ec08c8",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_of_fallen_stars_code_nosize_ffaff4ec08c8/auto_ui_neutral_binary_of_fallen_stars_code_nosize_ffaff4ec08c8.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_of_fallen_stars_code_nosize_ffaff4ec08c8/auto_ui_neutral_binary_of_fallen_stars_code_nosize_ffaff4ec08c8.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_of_fallen_stars_screen_400x400_224c17f8c4c5": {
+      "id": "auto_ui_neutral_image_of_fallen_stars_screen_400x400_224c17f8c4c5",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_of_fallen_stars_screen_400x400_224c17f8c4c5/auto_ui_neutral_image_of_fallen_stars_screen_400x400_224c17f8c4c5.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_of_fallen_stars_screen_400x400_224c17f8c4c5/auto_ui_neutral_image_of_fallen_stars_screen_400x400_224c17f8c4c5.png",
+      "cropped": true,
+      "readabilityScore": 71.07,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_the_eternal_eclipse_code_nosize_e73a6fa53546": {
+      "id": "auto_ui_neutral_binary_the_eternal_eclipse_code_nosize_e73a6fa53546",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_the_eternal_eclipse_code_nosize_e73a6fa53546/auto_ui_neutral_binary_the_eternal_eclipse_code_nosize_e73a6fa53546.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_the_eternal_eclipse_code_nosize_e73a6fa53546/auto_ui_neutral_binary_the_eternal_eclipse_code_nosize_e73a6fa53546.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_the_eternal_eclipse_screen_400x400_447ada4d2081": {
+      "id": "auto_ui_neutral_image_the_eternal_eclipse_screen_400x400_447ada4d2081",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_the_eternal_eclipse_screen_400x400_447ada4d2081/auto_ui_neutral_image_the_eternal_eclipse_screen_400x400_447ada4d2081.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_the_eternal_eclipse_screen_400x400_447ada4d2081/auto_ui_neutral_image_the_eternal_eclipse_screen_400x400_447ada4d2081.png",
+      "cropped": true,
+      "readabilityScore": 77.27,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_the_void_shard_code_nosize_1defe5e07dc8": {
+      "id": "auto_ui_neutral_binary_the_void_shard_code_nosize_1defe5e07dc8",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_the_void_shard_code_nosize_1defe5e07dc8/auto_ui_neutral_binary_the_void_shard_code_nosize_1defe5e07dc8.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_the_void_shard_code_nosize_1defe5e07dc8/auto_ui_neutral_binary_the_void_shard_code_nosize_1defe5e07dc8.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_the_void_shard_screen_400x400_5791de4e3c29": {
+      "id": "auto_ui_neutral_image_the_void_shard_screen_400x400_5791de4e3c29",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_the_void_shard_screen_400x400_5791de4e3c29/auto_ui_neutral_image_the_void_shard_screen_400x400_5791de4e3c29.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_the_void_shard_screen_400x400_5791de4e3c29/auto_ui_neutral_image_the_void_shard_screen_400x400_5791de4e3c29.png",
+      "cropped": true,
+      "readabilityScore": 80.18,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_medieval_binary_kingdom_crest_1_code_nosize_b26d9414b397": {
+      "id": "auto_ui_medieval_binary_kingdom_crest_1_code_nosize_b26d9414b397",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "medieval",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_medieval_binary_kingdom_crest_1_code_nosize_b26d9414b397/auto_ui_medieval_binary_kingdom_crest_1_code_nosize_b26d9414b397.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_medieval_binary_kingdom_crest_1_code_nosize_b26d9414b397/auto_ui_medieval_binary_kingdom_crest_1_code_nosize_b26d9414b397.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "medieval",
+        "original"
+      ]
+    },
+    "auto_ui_medieval_image_kingdom_crest_1_screen_200x200_3d4dbbccd192": {
+      "id": "auto_ui_medieval_image_kingdom_crest_1_screen_200x200_3d4dbbccd192",
+      "kind": "image",
+      "category": "ui",
+      "culture": "medieval",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_medieval_image_kingdom_crest_1_screen_200x200_3d4dbbccd192/auto_ui_medieval_image_kingdom_crest_1_screen_200x200_3d4dbbccd192.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_medieval_image_kingdom_crest_1_screen_200x200_3d4dbbccd192/auto_ui_medieval_image_kingdom_crest_1_screen_200x200_3d4dbbccd192.png",
+      "cropped": true,
+      "readabilityScore": 79.66,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "medieval",
+        "cropped"
+      ]
+    },
+    "auto_ui_medieval_binary_kingdom_crest_2_code_nosize_0371df73a6e5": {
+      "id": "auto_ui_medieval_binary_kingdom_crest_2_code_nosize_0371df73a6e5",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "medieval",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_medieval_binary_kingdom_crest_2_code_nosize_0371df73a6e5/auto_ui_medieval_binary_kingdom_crest_2_code_nosize_0371df73a6e5.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_medieval_binary_kingdom_crest_2_code_nosize_0371df73a6e5/auto_ui_medieval_binary_kingdom_crest_2_code_nosize_0371df73a6e5.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "medieval",
+        "original"
+      ]
+    },
+    "auto_ui_medieval_image_kingdom_crest_2_screen_200x200_26111310f1a7": {
+      "id": "auto_ui_medieval_image_kingdom_crest_2_screen_200x200_26111310f1a7",
+      "kind": "image",
+      "category": "ui",
+      "culture": "medieval",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_medieval_image_kingdom_crest_2_screen_200x200_26111310f1a7/auto_ui_medieval_image_kingdom_crest_2_screen_200x200_26111310f1a7.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_medieval_image_kingdom_crest_2_screen_200x200_26111310f1a7/auto_ui_medieval_image_kingdom_crest_2_screen_200x200_26111310f1a7.png",
+      "cropped": true,
+      "readabilityScore": 95.63,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "medieval",
+        "cropped"
+      ]
+    },
+    "auto_ui_medieval_binary_kingdom_crest_3_code_nosize_91657663f1de": {
+      "id": "auto_ui_medieval_binary_kingdom_crest_3_code_nosize_91657663f1de",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "medieval",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_medieval_binary_kingdom_crest_3_code_nosize_91657663f1de/auto_ui_medieval_binary_kingdom_crest_3_code_nosize_91657663f1de.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_medieval_binary_kingdom_crest_3_code_nosize_91657663f1de/auto_ui_medieval_binary_kingdom_crest_3_code_nosize_91657663f1de.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "medieval",
+        "original"
+      ]
+    },
+    "auto_ui_medieval_image_kingdom_crest_3_screen_200x200_554d86b91aaf": {
+      "id": "auto_ui_medieval_image_kingdom_crest_3_screen_200x200_554d86b91aaf",
+      "kind": "image",
+      "category": "ui",
+      "culture": "medieval",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_medieval_image_kingdom_crest_3_screen_200x200_554d86b91aaf/auto_ui_medieval_image_kingdom_crest_3_screen_200x200_554d86b91aaf.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_medieval_image_kingdom_crest_3_screen_200x200_554d86b91aaf/auto_ui_medieval_image_kingdom_crest_3_screen_200x200_554d86b91aaf.png",
+      "cropped": true,
+      "readabilityScore": 79.54,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "medieval",
+        "cropped"
+      ]
+    },
+    "auto_ui_forest_binary_land_symbol_1_code_nosize_74709fa23e7b": {
+      "id": "auto_ui_forest_binary_land_symbol_1_code_nosize_74709fa23e7b",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "forest",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_forest_binary_land_symbol_1_code_nosize_74709fa23e7b/auto_ui_forest_binary_land_symbol_1_code_nosize_74709fa23e7b.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_forest_binary_land_symbol_1_code_nosize_74709fa23e7b/auto_ui_forest_binary_land_symbol_1_code_nosize_74709fa23e7b.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "forest",
+        "original"
+      ]
+    },
+    "auto_ui_forest_image_land_symbol_1_screen_200x200_497c89bfb7bc": {
+      "id": "auto_ui_forest_image_land_symbol_1_screen_200x200_497c89bfb7bc",
+      "kind": "image",
+      "category": "ui",
+      "culture": "forest",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_forest_image_land_symbol_1_screen_200x200_497c89bfb7bc/auto_ui_forest_image_land_symbol_1_screen_200x200_497c89bfb7bc.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_forest_image_land_symbol_1_screen_200x200_497c89bfb7bc/auto_ui_forest_image_land_symbol_1_screen_200x200_497c89bfb7bc.png",
+      "cropped": true,
+      "readabilityScore": 79.54,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "forest",
+        "cropped"
+      ]
+    },
+    "auto_ui_forest_binary_land_symbol_2_code_nosize_84fef9b31425": {
+      "id": "auto_ui_forest_binary_land_symbol_2_code_nosize_84fef9b31425",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "forest",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_forest_binary_land_symbol_2_code_nosize_84fef9b31425/auto_ui_forest_binary_land_symbol_2_code_nosize_84fef9b31425.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_forest_binary_land_symbol_2_code_nosize_84fef9b31425/auto_ui_forest_binary_land_symbol_2_code_nosize_84fef9b31425.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "forest",
+        "original"
+      ]
+    },
+    "auto_ui_forest_image_land_symbol_2_screen_200x200_517b8d2047cb": {
+      "id": "auto_ui_forest_image_land_symbol_2_screen_200x200_517b8d2047cb",
+      "kind": "image",
+      "category": "ui",
+      "culture": "forest",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_forest_image_land_symbol_2_screen_200x200_517b8d2047cb/auto_ui_forest_image_land_symbol_2_screen_200x200_517b8d2047cb.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_forest_image_land_symbol_2_screen_200x200_517b8d2047cb/auto_ui_forest_image_land_symbol_2_screen_200x200_517b8d2047cb.png",
+      "cropped": true,
+      "readabilityScore": 84.6,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "forest",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_system_legendary_icon_code_nosize_2f556dda3768": {
+      "id": "auto_ui_neutral_binary_system_legendary_icon_code_nosize_2f556dda3768",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_legendary_icon_code_nosize_2f556dda3768/auto_ui_neutral_binary_system_legendary_icon_code_nosize_2f556dda3768.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_legendary_icon_code_nosize_2f556dda3768/auto_ui_neutral_binary_system_legendary_icon_code_nosize_2f556dda3768.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_system_legendary_icon_screen_200x200_42fb16d3f794": {
+      "id": "auto_ui_neutral_image_system_legendary_icon_screen_200x200_42fb16d3f794",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_legendary_icon_screen_200x200_42fb16d3f794/auto_ui_neutral_image_system_legendary_icon_screen_200x200_42fb16d3f794.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_legendary_icon_screen_200x200_42fb16d3f794/auto_ui_neutral_image_system_legendary_icon_screen_200x200_42fb16d3f794.png",
+      "cropped": false,
+      "readabilityScore": 81.94,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_binary_life_affix_icon_code_nosize_e741b2c3ba5e": {
+      "id": "auto_ui_neutral_binary_life_affix_icon_code_nosize_e741b2c3ba5e",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_life_affix_icon_code_nosize_e741b2c3ba5e/auto_ui_neutral_binary_life_affix_icon_code_nosize_e741b2c3ba5e.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_life_affix_icon_code_nosize_e741b2c3ba5e/auto_ui_neutral_binary_life_affix_icon_code_nosize_e741b2c3ba5e.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_life_affix_icon_screen_200x200_c2c68120a7ec": {
+      "id": "auto_ui_neutral_image_life_affix_icon_screen_200x200_c2c68120a7ec",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_life_affix_icon_screen_200x200_c2c68120a7ec/auto_ui_neutral_image_life_affix_icon_screen_200x200_c2c68120a7ec.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_life_affix_icon_screen_200x200_c2c68120a7ec/auto_ui_neutral_image_life_affix_icon_screen_200x200_c2c68120a7ec.png",
+      "cropped": true,
+      "readabilityScore": 72.39,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_lightning_resistance_icon_code_nosize_42d1ee279e21": {
+      "id": "auto_ui_neutral_binary_lightning_resistance_icon_code_nosize_42d1ee279e21",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_lightning_resistance_icon_code_nosize_42d1ee279e21/auto_ui_neutral_binary_lightning_resistance_icon_code_nosize_42d1ee279e21.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_lightning_resistance_icon_code_nosize_42d1ee279e21/auto_ui_neutral_binary_lightning_resistance_icon_code_nosize_42d1ee279e21.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_lightning_resistance_icon_screen_200x200_43852dff2362": {
+      "id": "auto_ui_neutral_image_lightning_resistance_icon_screen_200x200_43852dff2362",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_lightning_resistance_icon_screen_200x200_43852dff2362/auto_ui_neutral_image_lightning_resistance_icon_screen_200x200_43852dff2362.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_lightning_resistance_icon_screen_200x200_43852dff2362/auto_ui_neutral_image_lightning_resistance_icon_screen_200x200_43852dff2362.png",
+      "cropped": true,
+      "readabilityScore": 69.82,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_luck_affix_icon_code_nosize_17d505a479bb": {
+      "id": "auto_ui_neutral_binary_luck_affix_icon_code_nosize_17d505a479bb",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_luck_affix_icon_code_nosize_17d505a479bb/auto_ui_neutral_binary_luck_affix_icon_code_nosize_17d505a479bb.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_luck_affix_icon_code_nosize_17d505a479bb/auto_ui_neutral_binary_luck_affix_icon_code_nosize_17d505a479bb.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_luck_affix_icon_screen_200x200_c35710dd1a8a": {
+      "id": "auto_ui_neutral_image_luck_affix_icon_screen_200x200_c35710dd1a8a",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_luck_affix_icon_screen_200x200_c35710dd1a8a/auto_ui_neutral_image_luck_affix_icon_screen_200x200_c35710dd1a8a.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_luck_affix_icon_screen_200x200_c35710dd1a8a/auto_ui_neutral_image_luck_affix_icon_screen_200x200_c35710dd1a8a.png",
+      "cropped": true,
+      "readabilityScore": 75.34,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_being_monster_icon_code_nosize_3fd19dc58389": {
+      "id": "auto_ui_neutral_binary_being_monster_icon_code_nosize_3fd19dc58389",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_being_monster_icon_code_nosize_3fd19dc58389/auto_ui_neutral_binary_being_monster_icon_code_nosize_3fd19dc58389.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_being_monster_icon_code_nosize_3fd19dc58389/auto_ui_neutral_binary_being_monster_icon_code_nosize_3fd19dc58389.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_being_monster_icon_screen_200x200_1c4a2cefa238": {
+      "id": "auto_ui_neutral_image_being_monster_icon_screen_200x200_1c4a2cefa238",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_being_monster_icon_screen_200x200_1c4a2cefa238/auto_ui_neutral_image_being_monster_icon_screen_200x200_1c4a2cefa238.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_being_monster_icon_screen_200x200_1c4a2cefa238/auto_ui_neutral_image_being_monster_icon_screen_200x200_1c4a2cefa238.png",
+      "cropped": true,
+      "readabilityScore": 84.86,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_system_magic_icon_code_nosize_7379cc9bf37e": {
+      "id": "auto_ui_neutral_binary_system_magic_icon_code_nosize_7379cc9bf37e",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_magic_icon_code_nosize_7379cc9bf37e/auto_ui_neutral_binary_system_magic_icon_code_nosize_7379cc9bf37e.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_magic_icon_code_nosize_7379cc9bf37e/auto_ui_neutral_binary_system_magic_icon_code_nosize_7379cc9bf37e.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_system_magic_icon_screen_200x200_bf33d276b467": {
+      "id": "auto_ui_neutral_image_system_magic_icon_screen_200x200_bf33d276b467",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_magic_icon_screen_200x200_bf33d276b467/auto_ui_neutral_image_system_magic_icon_screen_200x200_bf33d276b467.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_magic_icon_screen_200x200_bf33d276b467/auto_ui_neutral_image_system_magic_icon_screen_200x200_bf33d276b467.png",
+      "cropped": true,
+      "readabilityScore": 84.78,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_mood_affix_angry_code_nosize_486878fb0491": {
+      "id": "auto_ui_neutral_binary_mood_affix_angry_code_nosize_486878fb0491",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_mood_affix_angry_code_nosize_486878fb0491/auto_ui_neutral_binary_mood_affix_angry_code_nosize_486878fb0491.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_mood_affix_angry_code_nosize_486878fb0491/auto_ui_neutral_binary_mood_affix_angry_code_nosize_486878fb0491.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_mood_affix_angry_screen_200x200_6ca111b321cc": {
+      "id": "auto_ui_neutral_image_mood_affix_angry_screen_200x200_6ca111b321cc",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_mood_affix_angry_screen_200x200_6ca111b321cc/auto_ui_neutral_image_mood_affix_angry_screen_200x200_6ca111b321cc.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_mood_affix_angry_screen_200x200_6ca111b321cc/auto_ui_neutral_image_mood_affix_angry_screen_200x200_6ca111b321cc.png",
+      "cropped": true,
+      "readabilityScore": 80.75,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_mood_affix_crazy_code_nosize_e314485caa73": {
+      "id": "auto_ui_neutral_binary_mood_affix_crazy_code_nosize_e314485caa73",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_mood_affix_crazy_code_nosize_e314485caa73/auto_ui_neutral_binary_mood_affix_crazy_code_nosize_e314485caa73.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_mood_affix_crazy_code_nosize_e314485caa73/auto_ui_neutral_binary_mood_affix_crazy_code_nosize_e314485caa73.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_mood_affix_crazy_screen_200x200_067c59a8150f": {
+      "id": "auto_ui_neutral_image_mood_affix_crazy_screen_200x200_067c59a8150f",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_mood_affix_crazy_screen_200x200_067c59a8150f/auto_ui_neutral_image_mood_affix_crazy_screen_200x200_067c59a8150f.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_mood_affix_crazy_screen_200x200_067c59a8150f/auto_ui_neutral_image_mood_affix_crazy_screen_200x200_067c59a8150f.png",
+      "cropped": true,
+      "readabilityScore": 95.63,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_mood_affix_happy_code_nosize_ad723262ed1d": {
+      "id": "auto_ui_neutral_binary_mood_affix_happy_code_nosize_ad723262ed1d",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_mood_affix_happy_code_nosize_ad723262ed1d/auto_ui_neutral_binary_mood_affix_happy_code_nosize_ad723262ed1d.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_mood_affix_happy_code_nosize_ad723262ed1d/auto_ui_neutral_binary_mood_affix_happy_code_nosize_ad723262ed1d.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_mood_affix_happy_screen_200x200_8457fc77377a": {
+      "id": "auto_ui_neutral_image_mood_affix_happy_screen_200x200_8457fc77377a",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_mood_affix_happy_screen_200x200_8457fc77377a/auto_ui_neutral_image_mood_affix_happy_screen_200x200_8457fc77377a.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_mood_affix_happy_screen_200x200_8457fc77377a/auto_ui_neutral_image_mood_affix_happy_screen_200x200_8457fc77377a.png",
+      "cropped": true,
+      "readabilityScore": 84.6,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_mood_affix_neutral_code_nosize_cc244d85dcae": {
+      "id": "auto_ui_neutral_binary_mood_affix_neutral_code_nosize_cc244d85dcae",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_mood_affix_neutral_code_nosize_cc244d85dcae/auto_ui_neutral_binary_mood_affix_neutral_code_nosize_cc244d85dcae.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_mood_affix_neutral_code_nosize_cc244d85dcae/auto_ui_neutral_binary_mood_affix_neutral_code_nosize_cc244d85dcae.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_mood_affix_neutral_screen_200x200_f3d5e3b5e0ea": {
+      "id": "auto_ui_neutral_image_mood_affix_neutral_screen_200x200_f3d5e3b5e0ea",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_mood_affix_neutral_screen_200x200_f3d5e3b5e0ea/auto_ui_neutral_image_mood_affix_neutral_screen_200x200_f3d5e3b5e0ea.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_mood_affix_neutral_screen_200x200_f3d5e3b5e0ea/auto_ui_neutral_image_mood_affix_neutral_screen_200x200_f3d5e3b5e0ea.png",
+      "cropped": true,
+      "readabilityScore": 84.86,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_mood_affix_sad_code_nosize_80db9d440a07": {
+      "id": "auto_ui_neutral_binary_mood_affix_sad_code_nosize_80db9d440a07",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_mood_affix_sad_code_nosize_80db9d440a07/auto_ui_neutral_binary_mood_affix_sad_code_nosize_80db9d440a07.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_mood_affix_sad_code_nosize_80db9d440a07/auto_ui_neutral_binary_mood_affix_sad_code_nosize_80db9d440a07.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_mood_affix_sad_screen_200x200_3dad329762a6": {
+      "id": "auto_ui_neutral_image_mood_affix_sad_screen_200x200_3dad329762a6",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_mood_affix_sad_screen_200x200_3dad329762a6/auto_ui_neutral_image_mood_affix_sad_screen_200x200_3dad329762a6.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_mood_affix_sad_screen_200x200_3dad329762a6/auto_ui_neutral_image_mood_affix_sad_screen_200x200_3dad329762a6.png",
+      "cropped": true,
+      "readabilityScore": 85.6,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_system_mythic_icon_code_nosize_8c889de9095c": {
+      "id": "auto_ui_neutral_binary_system_mythic_icon_code_nosize_8c889de9095c",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_mythic_icon_code_nosize_8c889de9095c/auto_ui_neutral_binary_system_mythic_icon_code_nosize_8c889de9095c.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_mythic_icon_code_nosize_8c889de9095c/auto_ui_neutral_binary_system_mythic_icon_code_nosize_8c889de9095c.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_system_mythic_icon_screen_200x200_50eb5676d1ae": {
+      "id": "auto_ui_neutral_image_system_mythic_icon_screen_200x200_50eb5676d1ae",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_mythic_icon_screen_200x200_50eb5676d1ae/auto_ui_neutral_image_system_mythic_icon_screen_200x200_50eb5676d1ae.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_mythic_icon_screen_200x200_50eb5676d1ae/auto_ui_neutral_image_system_mythic_icon_screen_200x200_50eb5676d1ae.png",
+      "cropped": false,
+      "readabilityScore": 89.73,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_character_neutral_binary_npc_army_rank_code_nosize_9468bd80b471": {
+      "id": "auto_character_neutral_binary_npc_army_rank_code_nosize_9468bd80b471",
+      "kind": "binary",
+      "category": "character",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/character/auto_character_neutral_binary_npc_army_rank_code_nosize_9468bd80b471/auto_character_neutral_binary_npc_army_rank_code_nosize_9468bd80b471.html",
+      "originalSrc": "/2d-assets/auto-assets/character/auto_character_neutral_binary_npc_army_rank_code_nosize_9468bd80b471/auto_character_neutral_binary_npc_army_rank_code_nosize_9468bd80b471.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "character",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_character_neutral_image_npc_army_rank_screen_200x200_45e2ebd50c8d": {
+      "id": "auto_character_neutral_image_npc_army_rank_screen_200x200_45e2ebd50c8d",
+      "kind": "image",
+      "category": "character",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/character/auto_character_neutral_image_npc_army_rank_screen_200x200_45e2ebd50c8d/auto_character_neutral_image_npc_army_rank_screen_200x200_45e2ebd50c8d.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/character/auto_character_neutral_image_npc_army_rank_screen_200x200_45e2ebd50c8d/auto_character_neutral_image_npc_army_rank_screen_200x200_45e2ebd50c8d.png",
+      "cropped": true,
+      "readabilityScore": 84.82,
+      "tags": [
+        "auto",
+        "image",
+        "character",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_trust_badge_icon_code_nosize_7b0d86a25f9b": {
+      "id": "auto_ui_neutral_binary_trust_badge_icon_code_nosize_7b0d86a25f9b",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_trust_badge_icon_code_nosize_7b0d86a25f9b/auto_ui_neutral_binary_trust_badge_icon_code_nosize_7b0d86a25f9b.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_trust_badge_icon_code_nosize_7b0d86a25f9b/auto_ui_neutral_binary_trust_badge_icon_code_nosize_7b0d86a25f9b.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_trust_badge_icon_screen_200x200_c7e2d7bbc9a7": {
+      "id": "auto_ui_neutral_image_trust_badge_icon_screen_200x200_c7e2d7bbc9a7",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_trust_badge_icon_screen_200x200_c7e2d7bbc9a7/auto_ui_neutral_image_trust_badge_icon_screen_200x200_c7e2d7bbc9a7.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_trust_badge_icon_screen_200x200_c7e2d7bbc9a7/auto_ui_neutral_image_trust_badge_icon_screen_200x200_c7e2d7bbc9a7.png",
+      "cropped": true,
+      "readabilityScore": 85.09,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_physics_monster_icon_code_nosize_52bfe409f52a": {
+      "id": "auto_ui_neutral_binary_physics_monster_icon_code_nosize_52bfe409f52a",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_physics_monster_icon_code_nosize_52bfe409f52a/auto_ui_neutral_binary_physics_monster_icon_code_nosize_52bfe409f52a.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_physics_monster_icon_code_nosize_52bfe409f52a/auto_ui_neutral_binary_physics_monster_icon_code_nosize_52bfe409f52a.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_physics_monster_icon_screen_200x200_80c2232187c6": {
+      "id": "auto_ui_neutral_image_physics_monster_icon_screen_200x200_80c2232187c6",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_physics_monster_icon_screen_200x200_80c2232187c6/auto_ui_neutral_image_physics_monster_icon_screen_200x200_80c2232187c6.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_physics_monster_icon_screen_200x200_80c2232187c6/auto_ui_neutral_image_physics_monster_icon_screen_200x200_80c2232187c6.png",
+      "cropped": true,
+      "readabilityScore": 84.6,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_poison_affix_icon_code_nosize_df2620d79a70": {
+      "id": "auto_ui_neutral_binary_poison_affix_icon_code_nosize_df2620d79a70",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_poison_affix_icon_code_nosize_df2620d79a70/auto_ui_neutral_binary_poison_affix_icon_code_nosize_df2620d79a70.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_poison_affix_icon_code_nosize_df2620d79a70/auto_ui_neutral_binary_poison_affix_icon_code_nosize_df2620d79a70.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_poison_affix_icon_screen_200x200_a54a1e978dfe": {
+      "id": "auto_ui_neutral_image_poison_affix_icon_screen_200x200_a54a1e978dfe",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_poison_affix_icon_screen_200x200_a54a1e978dfe/auto_ui_neutral_image_poison_affix_icon_screen_200x200_a54a1e978dfe.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_poison_affix_icon_screen_200x200_a54a1e978dfe/auto_ui_neutral_image_poison_affix_icon_screen_200x200_a54a1e978dfe.png",
+      "cropped": true,
+      "readabilityScore": 71.58,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_brain_monster_icon_code_nosize_f7ce16428ca3": {
+      "id": "auto_ui_neutral_binary_brain_monster_icon_code_nosize_f7ce16428ca3",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_brain_monster_icon_code_nosize_f7ce16428ca3/auto_ui_neutral_binary_brain_monster_icon_code_nosize_f7ce16428ca3.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_brain_monster_icon_code_nosize_f7ce16428ca3/auto_ui_neutral_binary_brain_monster_icon_code_nosize_f7ce16428ca3.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_brain_monster_icon_screen_200x200_716d87867575": {
+      "id": "auto_ui_neutral_image_brain_monster_icon_screen_200x200_716d87867575",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_brain_monster_icon_screen_200x200_716d87867575/auto_ui_neutral_image_brain_monster_icon_screen_200x200_716d87867575.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_brain_monster_icon_screen_200x200_716d87867575/auto_ui_neutral_image_brain_monster_icon_screen_200x200_716d87867575.png",
+      "cropped": true,
+      "readabilityScore": 84.6,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_system_rare_icon_code_nosize_0e39276b0e88": {
+      "id": "auto_ui_neutral_binary_system_rare_icon_code_nosize_0e39276b0e88",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_rare_icon_code_nosize_0e39276b0e88/auto_ui_neutral_binary_system_rare_icon_code_nosize_0e39276b0e88.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_rare_icon_code_nosize_0e39276b0e88/auto_ui_neutral_binary_system_rare_icon_code_nosize_0e39276b0e88.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_system_rare_icon_screen_200x200_9e787f51f1a9": {
+      "id": "auto_ui_neutral_image_system_rare_icon_screen_200x200_9e787f51f1a9",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_rare_icon_screen_200x200_9e787f51f1a9/auto_ui_neutral_image_system_rare_icon_screen_200x200_9e787f51f1a9.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_rare_icon_screen_200x200_9e787f51f1a9/auto_ui_neutral_image_system_rare_icon_screen_200x200_9e787f51f1a9.png",
+      "cropped": true,
+      "readabilityScore": 76.66,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_reptile_monster_icon_code_nosize_23cf51a68c31": {
+      "id": "auto_ui_neutral_binary_reptile_monster_icon_code_nosize_23cf51a68c31",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_reptile_monster_icon_code_nosize_23cf51a68c31/auto_ui_neutral_binary_reptile_monster_icon_code_nosize_23cf51a68c31.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_reptile_monster_icon_code_nosize_23cf51a68c31/auto_ui_neutral_binary_reptile_monster_icon_code_nosize_23cf51a68c31.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_reptile_monster_icon_screen_200x200_73b642044e6e": {
+      "id": "auto_ui_neutral_image_reptile_monster_icon_screen_200x200_73b642044e6e",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_reptile_monster_icon_screen_200x200_73b642044e6e/auto_ui_neutral_image_reptile_monster_icon_screen_200x200_73b642044e6e.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_reptile_monster_icon_screen_200x200_73b642044e6e/auto_ui_neutral_image_reptile_monster_icon_screen_200x200_73b642044e6e.png",
+      "cropped": true,
+      "readabilityScore": 79.54,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_system_schadensreflexion_icon_code_nosize_d19cfbef2d93": {
+      "id": "auto_ui_neutral_binary_system_schadensreflexion_icon_code_nosize_d19cfbef2d93",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_schadensreflexion_icon_code_nosize_d19cfbef2d93/auto_ui_neutral_binary_system_schadensreflexion_icon_code_nosize_d19cfbef2d93.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_schadensreflexion_icon_code_nosize_d19cfbef2d93/auto_ui_neutral_binary_system_schadensreflexion_icon_code_nosize_d19cfbef2d93.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_system_schadensreflexion_icon_screen_200x200_0b1fa86ce36c": {
+      "id": "auto_ui_neutral_image_system_schadensreflexion_icon_screen_200x200_0b1fa86ce36c",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_schadensreflexion_icon_screen_200x200_0b1fa86ce36c/auto_ui_neutral_image_system_schadensreflexion_icon_screen_200x200_0b1fa86ce36c.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_schadensreflexion_icon_screen_200x200_0b1fa86ce36c/auto_ui_neutral_image_system_schadensreflexion_icon_screen_200x200_0b1fa86ce36c.png",
+      "cropped": true,
+      "readabilityScore": 90.17,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_secretion_monster_icon_code_nosize_79445c4b254a": {
+      "id": "auto_ui_neutral_binary_secretion_monster_icon_code_nosize_79445c4b254a",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_secretion_monster_icon_code_nosize_79445c4b254a/auto_ui_neutral_binary_secretion_monster_icon_code_nosize_79445c4b254a.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_secretion_monster_icon_code_nosize_79445c4b254a/auto_ui_neutral_binary_secretion_monster_icon_code_nosize_79445c4b254a.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_secretion_monster_icon_screen_200x200_ce3564622662": {
+      "id": "auto_ui_neutral_image_secretion_monster_icon_screen_200x200_ce3564622662",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_secretion_monster_icon_screen_200x200_ce3564622662/auto_ui_neutral_image_secretion_monster_icon_screen_200x200_ce3564622662.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_secretion_monster_icon_screen_200x200_ce3564622662/auto_ui_neutral_image_secretion_monster_icon_screen_200x200_ce3564622662.png",
+      "cropped": true,
+      "readabilityScore": 79.54,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_speed_affix_icon_code_nosize_0e37e062944a": {
+      "id": "auto_ui_neutral_binary_speed_affix_icon_code_nosize_0e37e062944a",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_speed_affix_icon_code_nosize_0e37e062944a/auto_ui_neutral_binary_speed_affix_icon_code_nosize_0e37e062944a.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_speed_affix_icon_code_nosize_0e37e062944a/auto_ui_neutral_binary_speed_affix_icon_code_nosize_0e37e062944a.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_speed_affix_icon_screen_200x200_51f32c3908d0": {
+      "id": "auto_ui_neutral_image_speed_affix_icon_screen_200x200_51f32c3908d0",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_speed_affix_icon_screen_200x200_51f32c3908d0/auto_ui_neutral_image_speed_affix_icon_screen_200x200_51f32c3908d0.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_speed_affix_icon_screen_200x200_51f32c3908d0/auto_ui_neutral_image_speed_affix_icon_screen_200x200_51f32c3908d0.png",
+      "cropped": true,
+      "readabilityScore": 65.26,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_system_dokumentation_integrationsplan_code_nosize_44ec353d33e6": {
+      "id": "auto_ui_neutral_binary_system_dokumentation_integrationsplan_code_nosize_44ec353d33e6",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_dokumentation_integrationsplan_code_nosize_44ec353d33e6/auto_ui_neutral_binary_system_dokumentation_integrationsplan_code_nosize_44ec353d33e6.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_dokumentation_integrationsplan_code_nosize_44ec353d33e6/auto_ui_neutral_binary_system_dokumentation_integrationsplan_code_nosize_44ec353d33e6.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_system_dokumentation_integrationsplan_screen_1472x1600_f75170f3731d": {
+      "id": "auto_ui_neutral_image_system_dokumentation_integrationsplan_screen_1472x1600_f75170f3731d",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_dokumentation_integrationsplan_screen_1472x1600_f75170f3731d/auto_ui_neutral_image_system_dokumentation_integrationsplan_screen_1472x1600_f75170f3731d.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_dokumentation_integrationsplan_screen_1472x1600_f75170f3731d/auto_ui_neutral_image_system_dokumentation_integrationsplan_screen_1472x1600_f75170f3731d.png",
+      "cropped": false,
+      "readabilityScore": 100,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_binary_universal_npc_icon_code_nosize_94ce52141c10": {
+      "id": "auto_ui_neutral_binary_universal_npc_icon_code_nosize_94ce52141c10",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_universal_npc_icon_code_nosize_94ce52141c10/auto_ui_neutral_binary_universal_npc_icon_code_nosize_94ce52141c10.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_universal_npc_icon_code_nosize_94ce52141c10/auto_ui_neutral_binary_universal_npc_icon_code_nosize_94ce52141c10.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_universal_npc_icon_screen_200x200_4b00d0b32969": {
+      "id": "auto_ui_neutral_image_universal_npc_icon_screen_200x200_4b00d0b32969",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_universal_npc_icon_screen_200x200_4b00d0b32969/auto_ui_neutral_image_universal_npc_icon_screen_200x200_4b00d0b32969.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_universal_npc_icon_screen_200x200_4b00d0b32969/auto_ui_neutral_image_universal_npc_icon_screen_200x200_4b00d0b32969.png",
+      "cropped": true,
+      "readabilityScore": 95.63,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    },
+    "auto_ui_neutral_binary_system_vampirismus_icon_code_nosize_f613d0c5cfa7": {
+      "id": "auto_ui_neutral_binary_system_vampirismus_icon_code_nosize_f613d0c5cfa7",
+      "kind": "binary",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_vampirismus_icon_code_nosize_f613d0c5cfa7/auto_ui_neutral_binary_system_vampirismus_icon_code_nosize_f613d0c5cfa7.html",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_vampirismus_icon_code_nosize_f613d0c5cfa7/auto_ui_neutral_binary_system_vampirismus_icon_code_nosize_f613d0c5cfa7.html",
+      "cropped": false,
+      "readabilityScore": null,
+      "tags": [
+        "auto",
+        "binary",
+        "ui",
+        "neutral",
+        "original"
+      ]
+    },
+    "auto_ui_neutral_image_system_vampirismus_icon_screen_200x200_c4a090e3b1fd": {
+      "id": "auto_ui_neutral_image_system_vampirismus_icon_screen_200x200_c4a090e3b1fd",
+      "kind": "image",
+      "category": "ui",
+      "culture": "neutral",
+      "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_vampirismus_icon_screen_200x200_c4a090e3b1fd/auto_ui_neutral_image_system_vampirismus_icon_screen_200x200_c4a090e3b1fd.cropped.png",
+      "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_vampirismus_icon_screen_200x200_c4a090e3b1fd/auto_ui_neutral_image_system_vampirismus_icon_screen_200x200_c4a090e3b1fd.png",
+      "cropped": true,
+      "readabilityScore": 86.07,
+      "tags": [
+        "auto",
+        "image",
+        "ui",
+        "neutral",
+        "cropped"
+      ]
+    }
+  }
 }

@@ -1,0 +1,50 @@
+{
+  "id": "auto_ui_medieval_image_kingdom_crest_2_screen_200x200_26111310f1a7",
+  "hash": "26111310f1a7",
+  "kind": "image",
+  "category": "ui",
+  "culture": "medieval",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/kingdom_crest_2/screen.png",
+  "sizeBytes": 5189,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_medieval_image_kingdom_crest_2_screen_200x200_26111310f1a7/auto_ui_medieval_image_kingdom_crest_2_screen_200x200_26111310f1a7.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_medieval_image_kingdom_crest_2_screen_200x200_26111310f1a7/auto_ui_medieval_image_kingdom_crest_2_screen_200x200_26111310f1a7.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "kingdom",
+    "crest",
+    "2",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 200,
+    "height": 200,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 14,
+      "y": 26,
+      "width": 172,
+      "height": 171
+    },
+    "alphaCoverage": 0.6331,
+    "contrastScore": 1,
+    "readabilityScore": 95.63,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "medieval",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:17:27.239Z"
+}

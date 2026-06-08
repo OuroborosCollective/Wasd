@@ -1,0 +1,32 @@
+{
+  "id": "auto_ui_neutral_binary_system_epic_icon_code_nosize_bd92f3e8f32d",
+  "hash": "bd92f3e8f32d",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/epic_icon/code.html",
+  "sizeBytes": 563,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_epic_icon_code_nosize_bd92f3e8f32d/auto_ui_neutral_binary_system_epic_icon_code_nosize_bd92f3e8f32d.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_epic_icon_code_nosize_bd92f3e8f32d/auto_ui_neutral_binary_system_epic_icon_code_nosize_bd92f3e8f32d.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "epic",
+    "icon",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.132Z"
+}

@@ -1,0 +1,51 @@
+{
+  "id": "auto_ui_neutral_image_item_card_showcase_screen_1600x1280_ef7f81b68e45",
+  "hash": "ef7f81b68e45",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/arelorian_item_card_showcase/screen.png",
+  "sizeBytes": 743077,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_item_card_showcase_screen_1600x1280_ef7f81b68e45/auto_ui_neutral_image_item_card_showcase_screen_1600x1280_ef7f81b68e45.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_item_card_showcase_screen_1600x1280_ef7f81b68e45/auto_ui_neutral_image_item_card_showcase_screen_1600x1280_ef7f81b68e45.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "arelorian",
+    "item",
+    "card",
+    "showcase",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1600,
+    "height": 1280,
+    "format": "png",
+    "hasAlpha": false,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1600,
+      "height": 1280
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 1,
+    "readabilityScore": 100,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.001Z"
+}

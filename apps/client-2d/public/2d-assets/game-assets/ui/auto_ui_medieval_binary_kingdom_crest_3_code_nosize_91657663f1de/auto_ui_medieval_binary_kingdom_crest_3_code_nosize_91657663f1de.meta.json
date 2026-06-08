@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_medieval_binary_kingdom_crest_3_code_nosize_91657663f1de",
+  "hash": "91657663f1de",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "medieval",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/kingdom_crest_3/code.html",
+  "sizeBytes": 370,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_medieval_binary_kingdom_crest_3_code_nosize_91657663f1de/auto_ui_medieval_binary_kingdom_crest_3_code_nosize_91657663f1de.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_medieval_binary_kingdom_crest_3_code_nosize_91657663f1de/auto_ui_medieval_binary_kingdom_crest_3_code_nosize_91657663f1de.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "kingdom",
+    "crest",
+    "3",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "medieval",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.239Z"
+}

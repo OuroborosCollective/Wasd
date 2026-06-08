@@ -1,0 +1,36 @@
+{
+  "id": "auto_ui_neutral_binary_of_fallen_stars_code_nosize_ffaff4ec08c8",
+  "hash": "ffaff4ec08c8",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/jewelry_set_amulet_of_fallen_stars/code.html",
+  "sizeBytes": 721,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_of_fallen_stars_code_nosize_ffaff4ec08c8/auto_ui_neutral_binary_of_fallen_stars_code_nosize_ffaff4ec08c8.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_of_fallen_stars_code_nosize_ffaff4ec08c8/auto_ui_neutral_binary_of_fallen_stars_code_nosize_ffaff4ec08c8.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "jewelry",
+    "set",
+    "amulet",
+    "of",
+    "fallen",
+    "stars",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.210Z"
+}

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ARELORIAN-ENGINE - Asset Forge</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "secondary-container": "#e89300",
+                      "error": "#ffb4ab",
+                      "inverse-surface": "#dfe1f6",
+                      "surface-container": "#1b1f2e",
+                      "background": "#0f1321",
+                      "on-secondary-fixed": "#2b1700",
+                      "mana-glow": "#48E9FF",
+                      "on-surface-variant": "#c6c5d2",
+                      "tertiary-fixed-dim": "#94d3c1",
+                      "tertiary": "#94d3c1",
+                      "surface-container-low": "#171b2a",
+                      "on-surface": "#dfe1f6",
+                      "inverse-primary": "#4b5a9e",
+                      "secondary-fixed-dim": "#ffb961",
+                      "tertiary-container": "#00372d",
+                      "primary-fixed": "#dde1ff",
+                      "surface-tint": "#b9c3ff",
+                      "on-primary-fixed-variant": "#334284",
+                      "surface-container-highest": "#303444",
+                      "rarity-rare": "#f1c40f",
+                      "rarity-mythic": "#ff3355",
+                      "primary": "#b9c3ff",
+                      "on-primary-fixed": "#001356",
+                      "on-primary": "#1a2a6c",
+                      "rarity-epic": "#9b59b6",
+                      "secondary": "#ffb961",
+                      "outline-variant": "#454650",
+                      "on-tertiary": "#00382e",
+                      "secondary-fixed": "#ffddb9",
+                      "on-secondary-container": "#563400",
+                      "on-secondary": "#472a00",
+                      "rarity-common": "#9da1aa",
+                      "poison-glow": "#70FF9E",
+                      "on-tertiary-fixed": "#00201a",
+                      "on-tertiary-container": "#65a393",
+                      "on-error": "#690005",
+                      "surface-container-high": "#262939",
+                      "rarity-legendary": "#e67e22",
+                      "surface-dim": "#0f1321",
+                      "rarity-magic": "#3498db",
+                      "health-glow": "#ff3355",
+                      "surface-variant": "#303444",
+                      "primary-container": "#1a2a6c",
+                      "on-primary-container": "#8594dc",
+                      "on-error-container": "#ffdad6",
+                      "on-background": "#dfe1f6",
+                      "surface-bright": "#353849",
+                      "surface-container-lowest": "#0a0d1c",
+                      "primary-fixed-dim": "#b9c3ff",
+                      "on-tertiary-fixed-variant": "#065043",
+                      "on-secondary-fixed-variant": "#663e00",
+                      "tertiary-fixed": "#afefdd",
+                      "error-container": "#93000a",
+                      "surface": "#0f1321",
+                      "inverse-on-surface": "#2c303f",
+                      "outline": "#8f909b"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "margin-edge": "32px",
+                      "gutter": "16px",
+                      "slot-unit": "64px",
+                      "panel-padding": "24px"
+              },
+              "fontFamily": {
+                      "display-lg": [
+                              "Epilogue"
+                      ],
+                      "rarity-tag": [
+                              "JetBrains Mono"
+                      ],
+                      "label-caps": [
+                              "JetBrains Mono"
+                      ],
+                      "headline-lg": [
+                              "Epilogue"
+                      ],
+                      "headline-lg-mobile": [
+                              "Epilogue"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "rarity-tag": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "label-caps": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.1em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        .brutalist-border {
+            border: 2px solid #000;
+            box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+        }
+        .brutalist-heavy {
+            border: 4px solid #000;
+        }
+        .texture-stone {
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+        }
+        .slot-hover:hover {
+            box-shadow: 0 0 15px var(--tw-colors-secondary);
+            border-color: var(--tw-colors-secondary);
+        }
+        /* Hide scrollbar for clean UI */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f1321;
+            border-left: 2px solid #000;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #303444;
+            border: 1px solid #000;
+        }
+      </style>
+</head>
+<body class="bg-background text-on-surface font-body-md h-screen overflow-hidden flex flex-col selection:bg-secondary selection:text-on-secondary-fixed">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-margin-edge h-20 bg-surface-container-highest border-b-4 border-black z-50 shrink-0">
+<div class="flex items-center gap-8">
+<h1 class="font-display-lg text-headline-lg tracking-tighter text-secondary">ARELORIAN-ENGINE</h1>
+<nav class="hidden md:flex gap-6">
+<!-- Active: ASSETS based on page intent -->
+<a class="text-on-surface-variant font-medium font-label-caps text-label-caps hover:bg-primary-container hover:text-secondary-fixed transition-colors duration-200 px-2 py-1" href="#">FORGE</a>
+<a class="text-secondary font-bold border-b-2 border-secondary pb-1 font-label-caps text-label-caps hover:bg-primary-container hover:text-secondary-fixed transition-colors duration-200 px-2 py-1 translate-y-0.5 brightness-110" href="#">ASSETS</a>
+<a class="text-on-surface-variant font-medium font-label-caps text-label-caps hover:bg-primary-container hover:text-secondary-fixed transition-colors duration-200 px-2 py-1" href="#">LOGIC</a>
+<a class="text-on-surface-variant font-medium font-label-caps text-label-caps hover:bg-primary-container hover:text-secondary-fixed transition-colors duration-200 px-2 py-1" href="#">DEPLOY</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="bg-secondary text-on-secondary-fixed font-label-caps text-label-caps px-4 py-2 brutalist-border hover:shadow-[0_0_15px_rgba(255,185,97,0.6)] transition-all">
+                EXPORT MOD
+            </button>
+<button class="p-2 text-secondary hover:bg-primary-container transition-colors brutalist-border bg-surface-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings</span>
+</button>
+<button class="p-2 text-secondary hover:bg-primary-container transition-colors brutalist-border bg-surface-container relative">
+<span class="absolute top-1 right-1 w-2 h-2 bg-rarity-mythic rounded-full border border-black"></span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications_active</span>
+</button>
+</div>
+</header>
+<div class="flex flex-1 overflow-hidden relative">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-20 bottom-0 flex flex-col z-40 h-[calc(100vh-5rem)] w-64 border-r-4 border-black bg-surface-container shrink-0 overflow-y-auto hidden md:flex">
+<div class="p-6 border-b-4 border-black bg-surface-container-low flex flex-col items-center">
+<div class="w-16 h-16 bg-surface-container-highest brutalist-border mb-3 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-3xl">memory</span>
+</div>
+<h2 class="font-display-lg text-headline-lg-mobile text-secondary text-center tracking-tight">DREAD-FORGE</h2>
+<span class="font-label-caps text-label-caps text-on-surface-variant mt-1">V 4.0.2 STABLE</span>
+</div>
+<div class="p-4">
+<button class="w-full bg-secondary text-on-secondary-fixed font-label-caps text-label-caps py-3 brutalist-border hover:shadow-[0_0_15px_rgba(255,185,97,0.6)] transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">add</span>
+                    NEW ASSET
+                </button>
+</div>
+<nav class="flex-1 flex flex-col gap-1 p-2">
+<!-- WEAPONS (Active semantic match) -->
+<a class="flex items-center gap-4 bg-secondary-container text-on-secondary-container border-2 border-black m-2 p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-label-caps text-label-caps scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">swords</span>
+                    WEAPONS
+                </a>
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">shield</span>
+                    ARMOR
+                </a>
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">group</span>
+                    NPCS
+                </a>
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">pets</span>
+                    PETS
+                </a>
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">auto_fix_high</span>
+                    SPELLS
+                </a>
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">token</span>
+                    RUNES
+                </a>
+</nav>
+<div class="mt-auto border-t-4 border-black p-2 bg-surface-container-lowest">
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-1 hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+                    DOCS
+                </a>
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-1 hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">contact_support</span>
+                    SUPPORT
+                </a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 ml-0 md:ml-64 p-gutter md:p-margin-edge overflow-y-auto texture-stone bg-surface">
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-6 max-w-[1600px] mx-auto">
+<!-- Main Preview Pane -->
+<div class="xl:col-span-8 flex flex-col gap-6">
+<!-- Modular Assembly View -->
+<div class="bg-surface-container brutalist-heavy flex flex-col h-[600px] relative overflow-hidden">
+<!-- Header Strip -->
+<div class="bg-primary-container border-b-4 border-black p-4 flex justify-between items-center z-10 shrink-0">
+<h3 class="font-headline-lg text-headline-lg-mobile text-on-primary-container">ASSEMBLY: DOOMBRINGER</h3>
+<span class="bg-rarity-mythic text-white font-rarity-tag text-rarity-tag px-3 py-1 brutalist-border">MYTHIC TIER</span>
+</div>
+<!-- 3D/Image Canvas Area -->
+<div class="flex-1 relative bg-surface-dim flex items-center justify-center p-8">
+<!-- Background Grid Pattern -->
+<div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(var(--tw-colors-outline) 1px, transparent 1px); background-size: 32px 32px;"></div>
+<!-- Central Image -->
+<div class="relative z-10 w-full max-w-2xl h-full flex items-center justify-center filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)]">
+<img alt="Modular Weapon Assembly" class="object-contain w-full h-full max-h-[450px]" src="https://lh3.googleusercontent.com/aida/AP1WRLugCtJuX6PXoB9SPAmGVe1qM3gANQucU1msQ-tB26bxPxd_PUrrHRwPAzWUBgPtFM-cBc9qqBtn3uaPblWZkRJTT75cwwb-eYSgJY9lC3f3KEsXUDq_MbGcnFHUfvw8A0b7dodlz-uQdusDzx3SQ9G6HVLw6kFsisFs_S8pEeYqW4bd2k79EVlPzaNccwfEMrDvHH2e355bu_AfWy5gj2wuamC5r1PyQrukgteHtl0Il-aq_5uIxsIo2_M"/>
+</div>
+<!-- Overlay UI elements -->
+<div class="absolute bottom-4 left-4 flex gap-2 z-20">
+<button class="w-12 h-12 bg-surface-container-highest brutalist-border flex items-center justify-center text-on-surface hover:text-secondary transition-colors" title="Rotate Left">
+<span class="material-symbols-outlined">rotate_left</span>
+</button>
+<button class="w-12 h-12 bg-surface-container-highest brutalist-border flex items-center justify-center text-on-surface hover:text-secondary transition-colors" title="Rotate Right">
+<span class="material-symbols-outlined">rotate_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Material & Parts Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Armor Modules -->
+<div class="bg-surface-container brutalist-heavy flex flex-col">
+<div class="bg-surface-container-highest border-b-2 border-black p-3 shrink-0">
+<h4 class="font-label-caps text-label-caps text-secondary">ARMOR MODULES</h4>
+</div>
+<div class="p-4 grid grid-cols-4 gap-4">
+<!-- Inventory Slots -->
+<div class="w-16 h-16 bg-surface-container-low brutalist-border relative slot-hover cursor-pointer group">
+<img alt="Obsidian Gauntlet" class="w-full h-full object-cover p-1 opacity-80 group-hover:opacity-100 transition-opacity" src="https://lh3.googleusercontent.com/aida/AP1WRLu1NoK_XtVu591UpTGOCJNSFjdnriBzwnZJ120ePS_TAwW1V8dr5-oaSRAfw5yG_4eUXaGgFKtr7T95PTFKOBEMfvRMx9Z5c1efUFv11wCgj_KB51cZCo5VyN5CsmvPN89k3oXcbX-ckU2-DvawwX2VagDWV5qFvR4sue_PQlbWT9hC2XOeEAlFkUeP1fjjZN_1d5fHLs2R-fxzLQJA9QfrB-ixJridS6yiAxVb0daCqGcX05-KbUFj2sE"/>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-rarity-epic"></div>
+</div>
+<div class="w-16 h-16 bg-surface-container-low brutalist-border relative slot-hover cursor-pointer group">
+<img alt="Iron Greaves" class="w-full h-full object-cover p-1 opacity-80 group-hover:opacity-100 transition-opacity" src="https://lh3.googleusercontent.com/aida/AP1WRLu1NoK_XtVu591UpTGOCJNSFjdnriBzwnZJ120ePS_TAwW1V8dr5-oaSRAfw5yG_4eUXaGgFKtr7T95PTFKOBEMfvRMx9Z5c1efUFv11wCgj_KB51cZCo5VyN5CsmvPN89k3oXcbX-ckU2-DvawwX2VagDWV5qFvR4sue_PQlbWT9hC2XOeEAlFkUeP1fjjZN_1d5fHLs2R-fxzLQJA9QfrB-ixJridS6yiAxVb0daCqGcX05-KbUFj2sE" style="object-position: top left;"/>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-rarity-common"></div>
+</div>
+<div class="w-16 h-16 bg-surface-container-low brutalist-border relative slot-hover cursor-pointer group">
+<div class="w-full h-full flex items-center justify-center text-outline">
+<span class="material-symbols-outlined">lock</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-variant"></div>
+</div>
+<div class="w-16 h-16 bg-surface-container-low brutalist-border relative slot-hover cursor-pointer group">
+<div class="w-full h-full flex items-center justify-center text-outline">
+<span class="material-symbols-outlined">add</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-variant"></div>
+</div>
+</div>
+</div>
+<!-- Runes & Attachments -->
+<div class="bg-surface-container brutalist-heavy flex flex-col">
+<div class="bg-surface-container-highest border-b-2 border-black p-3 shrink-0">
+<h4 class="font-label-caps text-label-caps text-mana-glow">ACTIVE RUNES</h4>
+</div>
+<div class="p-4 grid grid-cols-4 gap-4">
+<div class="w-16 h-16 bg-surface-container-lowest border-2 border-mana-glow relative cursor-pointer shadow-[0_0_10px_rgba(72,233,255,0.2)] hover:shadow-[0_0_20px_rgba(72,233,255,0.6)] transition-shadow">
+<div class="w-full h-full flex items-center justify-center text-mana-glow">
+<span class="material-symbols-outlined text-3xl">bolt</span>
+</div>
+</div>
+<div class="w-16 h-16 bg-surface-container-lowest border-2 border-health-glow relative cursor-pointer shadow-[0_0_10px_rgba(255,51,85,0.2)] hover:shadow-[0_0_20px_rgba(255,51,85,0.6)] transition-shadow">
+<div class="w-full h-full flex items-center justify-center text-health-glow">
+<span class="material-symbols-outlined text-3xl">local_fire_department</span>
+</div>
+</div>
+<div class="w-16 h-16 bg-surface-container-low brutalist-border relative slot-hover cursor-pointer group border-dashed">
+<div class="w-full h-full flex items-center justify-center text-outline">
+<span class="material-symbols-outlined">add</span>
+</div>
+</div>
+<div class="w-16 h-16 bg-surface-container-low brutalist-border relative slot-hover cursor-pointer group border-dashed">
+<div class="w-full h-full flex items-center justify-center text-outline">
+<span class="material-symbols-outlined">add</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Sidebar / Stats Panel -->
+<div class="xl:col-span-4 flex flex-col gap-6">
+<!-- Stats Slab -->
+<div class="bg-surface-container brutalist-heavy">
+<div class="bg-surface-container-highest border-b-4 border-black p-4">
+<h3 class="font-headline-lg text-headline-lg-mobile text-on-surface">PROPERTIES</h3>
+</div>
+<div class="p-6 flex flex-col gap-4 font-rarity-tag text-rarity-tag">
+<div class="flex justify-between items-center border-b border-outline-variant pb-2">
+<span class="text-on-surface-variant">BASE DAMAGE</span>
+<span class="text-white text-lg">450 - 620</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant pb-2">
+<span class="text-on-surface-variant">ATTACK SPEED</span>
+<span class="text-white">1.2s</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant pb-2">
+<span class="text-on-surface-variant">DURABILITY</span>
+<div class="flex items-center gap-2">
+<div class="w-24 h-2 bg-surface-container-lowest border border-black">
+<div class="h-full bg-secondary w-[85%]"></div>
+</div>
+<span class="text-secondary">85/100</span>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t-2 border-black border-dashed flex flex-col gap-2">
+<h4 class="text-mana-glow mb-2">PASSIVE EFFECTS</h4>
+<div class="flex items-start gap-2 text-sm">
+<span class="material-symbols-outlined text-mana-glow text-base mt-0.5">ac_unit</span>
+<span class="text-on-surface">15% chance to freeze target for 2s.</span>
+</div>
+<div class="flex items-start gap-2 text-sm">
+<span class="material-symbols-outlined text-health-glow text-base mt-0.5">bloodtype</span>
+<span class="text-on-surface">Leech 5% health on critical strike.</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Output Config -->
+<div class="bg-surface-container brutalist-heavy mt-auto">
+<div class="bg-surface-container-highest border-b-2 border-black p-3">
+<h4 class="font-label-caps text-label-caps text-secondary">METADATA</h4>
+</div>
+<div class="p-4 flex flex-col gap-4">
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant">ASSET ID</label>
+<input class="bg-surface-container-lowest border border-tertiary-container text-on-surface font-rarity-tag p-2 focus:border-secondary focus:ring-0 focus:outline-none focus:shadow-[0_0_5px_rgba(255,185,97,0.5)] transition-all" readonly="" type="text" value="WP_MYTH_009_DOOM"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant">MATERIAL COST</label>
+<div class="flex gap-2">
+<span class="bg-surface-container-low border border-black px-2 py-1 text-xs flex items-center gap-1 text-on-surface"><span class="w-2 h-2 bg-slate-400 inline-block rounded-full"></span> 500 Iron</span>
+<span class="bg-surface-container-low border border-black px-2 py-1 text-xs flex items-center gap-1 text-on-surface"><span class="w-2 h-2 bg-rarity-epic inline-block rounded-full"></span> 12 Void Crystal</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="h-24"></div> <!-- Spacer for footer -->
+</main>
+</div>
+<!-- Footer -->
+<footer class="flex justify-between items-center px-margin-edge py-2 w-full z-50 bg-surface-container-lowest border-t-2 border-outline fixed bottom-0 left-0 md:pl-[18rem]">
+<div class="font-label-caps text-label-caps text-on-surface-variant">
+            © 892 ARCANUM - ARELORIAN ENGINE
+        </div>
+<div class="flex gap-6">
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-secondary transition-colors" href="#">EULA</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-secondary transition-colors" href="#">GITHUB</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-secondary transition-colors" href="#">API_DOCS</a>
+</div>
+</footer>
+</body></html>

@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_mood_affix_happy_code_nosize_ad723262ed1d",
+  "hash": "ad723262ed1d",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/mood_affix_happy/code.html",
+  "sizeBytes": 537,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_mood_affix_happy_code_nosize_ad723262ed1d/auto_ui_neutral_binary_mood_affix_happy_code_nosize_ad723262ed1d.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_mood_affix_happy_code_nosize_ad723262ed1d/auto_ui_neutral_binary_mood_affix_happy_code_nosize_ad723262ed1d.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "mood",
+    "affix",
+    "happy",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.285Z"
+}

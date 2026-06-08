@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Arelorian Engine - Authoritative Forge</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@700;800&amp;family=Inter:wght@400&amp;family=JetBrains+Mono:wght@600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@100..900&amp;family=Inter:wght@100..900&amp;family=JetBrains+Mono:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* Custom Scrollbar for Slabs */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f1321;
+            border-left: 2px solid #000;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #303444;
+            border: 1px solid #8f909b;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #454650;
+        }
+
+        .bg-stone-texture {
+            background-image: url('data:image/svg+xml,%3Csvg width="100" height="100" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noise"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100" height="100" fill="%230f1321"/%3E%3Crect width="100" height="100" filter="url(%23noise)" opacity="0.1"/%3E%3C/svg%3E');
+        }
+
+        .slab-panel {
+            box-shadow: inset 1px 1px 0px 0px rgba(255,255,255,0.1);
+        }
+        
+        .glow-hover:hover {
+            box-shadow: 0 0 15px #ffb961;
+        }
+
+        .rune-point {
+            animation: pulse-glow 2s infinite alternate;
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 5px #48E9FF, inset 0 0 5px #48E9FF; }
+            100% { box-shadow: 0 0 15px #48E9FF, inset 0 0 10px #48E9FF; }
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#e89300",
+                        "error": "#ffb4ab",
+                        "inverse-surface": "#dfe1f6",
+                        "surface-container": "#1b1f2e",
+                        "background": "#0f1321",
+                        "on-secondary-fixed": "#2b1700",
+                        "mana-glow": "#48E9FF",
+                        "on-surface-variant": "#c6c5d2",
+                        "tertiary-fixed-dim": "#94d3c1",
+                        "tertiary": "#94d3c1",
+                        "surface-container-low": "#171b2a",
+                        "on-surface": "#dfe1f6",
+                        "inverse-primary": "#4b5a9e",
+                        "secondary-fixed-dim": "#ffb961",
+                        "tertiary-container": "#00372d",
+                        "primary-fixed": "#dde1ff",
+                        "surface-tint": "#b9c3ff",
+                        "on-primary-fixed-variant": "#334284",
+                        "surface-container-highest": "#303444",
+                        "rarity-rare": "#f1c40f",
+                        "rarity-mythic": "#ff3355",
+                        "primary": "#b9c3ff",
+                        "on-primary-fixed": "#001356",
+                        "on-primary": "#1a2a6c",
+                        "rarity-epic": "#9b59b6",
+                        "secondary": "#ffb961",
+                        "outline-variant": "#454650",
+                        "on-tertiary": "#00382e",
+                        "secondary-fixed": "#ffddb9",
+                        "on-secondary-container": "#563400",
+                        "on-secondary": "#472a00",
+                        "rarity-common": "#9da1aa",
+                        "poison-glow": "#70FF9E",
+                        "on-tertiary-fixed": "#00201a",
+                        "on-tertiary-container": "#65a393",
+                        "on-error": "#690005",
+                        "surface-container-high": "#262939",
+                        "rarity-legendary": "#e67e22",
+                        "surface-dim": "#0f1321",
+                        "rarity-magic": "#3498db",
+                        "health-glow": "#ff3355",
+                        "surface-variant": "#303444",
+                        "primary-container": "#1a2a6c",
+                        "on-primary-container": "#8594dc",
+                        "on-error-container": "#ffdad6",
+                        "on-background": "#dfe1f6",
+                        "surface-bright": "#353849",
+                        "surface-container-lowest": "#0a0d1c",
+                        "primary-fixed-dim": "#b9c3ff",
+                        "on-tertiary-fixed-variant": "#065043",
+                        "on-secondary-fixed-variant": "#663e00",
+                        "tertiary-fixed": "#afefdd",
+                        "error-container": "#93000a",
+                        "surface": "#0f1321",
+                        "inverse-on-surface": "#2c303f",
+                        "outline": "#8f909b"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-edge": "32px",
+                        "gutter": "16px",
+                        "slot-unit": "64px",
+                        "panel-padding": "24px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Epilogue"],
+                        "rarity-tag": ["JetBrains Mono"],
+                        "label-caps": ["JetBrains Mono"],
+                        "headline-lg": ["Epilogue"],
+                        "headline-lg-mobile": ["Epilogue"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "rarity-tag": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md min-h-screen flex flex-col bg-stone-texture overflow-hidden selection:bg-secondary-container selection:text-on-secondary-container">
+<!-- TopAppBar -->
+<header class="docked full-width top-0 border-b-4 border-black bg-surface-container-highest dark:bg-surface-container-highest flex justify-between items-center w-full px-margin-edge h-20 z-50 shrink-0 slab-panel relative">
+<div class="flex items-center gap-8 h-full">
+<h1 class="font-display-lg text-headline-lg tracking-tighter text-secondary dark:text-secondary uppercase">
+                ARELORIAN-ENGINE
+            </h1>
+<!-- Navigation Links -->
+<nav class="hidden md:flex items-center h-full gap-2">
+<a class="h-full flex items-center px-4 text-secondary font-bold border-b-2 border-secondary pb-1 font-label-caps text-label-caps translate-y-0.5 brightness-110" href="#">
+                    FORGE
+                </a>
+<a class="h-full flex items-center px-4 text-on-surface-variant font-medium font-label-caps text-label-caps hover:bg-primary-container hover:text-secondary-fixed transition-colors duration-200" href="#">
+                    ASSETS
+                </a>
+<a class="h-full flex items-center px-4 text-on-surface-variant font-medium font-label-caps text-label-caps hover:bg-primary-container hover:text-secondary-fixed transition-colors duration-200" href="#">
+                    LOGIC
+                </a>
+<a class="h-full flex items-center px-4 text-on-surface-variant font-medium font-label-caps text-label-caps hover:bg-primary-container hover:text-secondary-fixed transition-colors duration-200" href="#">
+                    DEPLOY
+                </a>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<!-- Search Bar (on_right) -->
+<div class="relative hidden lg:block group">
+<input class="bg-surface-container-low border border-tertiary-container focus:border-secondary text-on-surface font-label-caps text-label-caps px-4 py-2 w-64 focus:outline-none focus:ring-0 transition-colors bg-stone-texture group-hover:border-outline" placeholder="QUERY ASSET DB..." type="text"/>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-secondary transition-colors" title="settings">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings</span>
+</button>
+<button class="text-on-surface-variant hover:text-secondary transition-colors" title="notifications_active">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">notifications_active</span>
+</button>
+</div>
+<!-- Trailing Primary Action -->
+<button class="bg-secondary text-on-secondary-fixed border-2 border-black font-label-caps text-label-caps px-6 py-2 uppercase font-bold hover:brightness-110 transition-all glow-hover slab-panel flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">outbox</span>
+                EXPORT MOD
+            </button>
+</div>
+</header>
+<div class="flex flex-1 overflow-hidden relative">
+<!-- SideNavBar -->
+<nav class="fixed md:relative left-0 top-20 bottom-0 flex flex-col z-40 bg-surface-container dark:bg-surface-container h-[calc(100vh-5rem)] w-64 border-r-4 border-black shrink-0 slab-panel overflow-y-auto">
+<div class="p-gutter border-b-2 border-black bg-surface-container-high flex items-center gap-4">
+<div class="w-12 h-12 bg-surface-container-lowest border-2 border-black flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-secondary text-[28px]" style="font-variation-settings: 'FILL' 1;">memory</span>
+</div>
+<div>
+<h2 class="font-display-lg text-headline-lg-mobile text-secondary uppercase leading-none tracking-tight">DREAD-FORGE</h2>
+<span class="font-label-caps text-label-caps text-on-surface-variant">V 4.0.2 STABLE</span>
+</div>
+</div>
+<div class="p-gutter">
+<button class="w-full bg-surface-container-lowest text-on-surface border-2 border-outline-variant border-dashed font-label-caps text-label-caps py-3 hover:border-secondary hover:text-secondary transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                    NEW ASSET
+                </button>
+</div>
+<div class="flex-1 py-2 flex flex-col gap-1">
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high font-label-caps text-label-caps hover:text-on-surface transition-colors border-2 border-transparent" href="#">
+<span class="material-symbols-outlined">swords</span>
+                    WEAPONS
+                </a>
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high font-label-caps text-label-caps hover:text-on-surface transition-colors border-2 border-transparent" href="#">
+<span class="material-symbols-outlined">shield</span>
+                    ARMOR
+                </a>
+<a class="flex items-center gap-4 bg-secondary-container text-on-secondary-container border-2 border-black m-2 p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-label-caps text-label-caps scale-95 transition-transform font-bold" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">group</span>
+                    NPCS
+                </a>
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high font-label-caps text-label-caps hover:text-on-surface transition-colors border-2 border-transparent" href="#">
+<span class="material-symbols-outlined">pets</span>
+                    PETS
+                </a>
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high font-label-caps text-label-caps hover:text-on-surface transition-colors border-2 border-transparent" href="#">
+<span class="material-symbols-outlined">auto_fix_high</span>
+                    SPELLS
+                </a>
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high font-label-caps text-label-caps hover:text-on-surface transition-colors border-2 border-transparent" href="#">
+<span class="material-symbols-outlined">token</span>
+                    RUNES
+                </a>
+</div>
+<div class="border-t-2 border-black mt-auto p-2 bg-surface-container-low">
+<a class="flex items-center gap-4 text-on-surface-variant p-2 hover:bg-surface-container-high font-label-caps text-label-caps hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">menu_book</span>
+                    DOCS
+                </a>
+<a class="flex items-center gap-4 text-on-surface-variant p-2 hover:bg-surface-container-high font-label-caps text-label-caps hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">contact_support</span>
+                    SUPPORT
+                </a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto p-margin-edge flex flex-col gap-gutter bg-surface-dim relative">
+<!-- Context Header -->
+<div class="flex justify-between items-end border-b-2 border-outline-variant pb-4 mb-4">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface uppercase mb-1">Combinatoric Assembly</h2>
+<p class="font-body-md text-on-surface-variant">Configure modular NPC and Armor components for procedural generation.</p>
+</div>
+<div class="flex gap-4">
+<div class="flex items-center gap-2 bg-surface-container-highest px-3 py-1 border-2 border-black slab-panel">
+<span class="w-2 h-2 rounded-full bg-poison-glow animate-pulse"></span>
+<span class="font-label-caps text-label-caps text-on-surface">AUTO-SNAP ACTIVE</span>
+</div>
+<div class="flex items-center gap-2 bg-surface-container-highest px-3 py-1 border-2 border-black slab-panel">
+<span class="material-symbols-outlined text-secondary text-[16px]">memory</span>
+<span class="font-label-caps text-label-caps text-secondary">BSE-1000 SIG</span>
+</div>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter h-full">
+<!-- Left Column: Source Assets (Slots) -->
+<div class="lg:col-span-4 flex flex-col gap-gutter">
+<!-- NPC Components Box -->
+<div class="bg-surface-container border-2 border-black slab-panel flex flex-col h-1/2">
+<div class="bg-primary-container text-on-primary-container p-3 border-b-2 border-black flex justify-between items-center">
+<span class="font-label-caps text-label-caps font-bold">NPC BASES (https://lh3.googleusercontent.com/aida/AP1WRLvXomv9ZNq3ufbzAspRPynxcaYeZTMUd_W0vzsCO3FAY-gFcQ8grHVjOLEhe5WWTQFUe7UmSXq1TLf9ldXJB1R__qHcricgyPnyA3yo7r4YDP8OaMLf_VWieSukMHyLimAiX0x2GronKLW9UC0MRuCtVK7hgptUWcqntE6uKScW7GLuStIZgyOAsyeuDSkCKxEsJ7V3eRG4X98S2dI0KzuoHf60RmjQ2AZL-5_8UDTQqEDIAWdDnFDuCa8)</span>
+<span class="material-symbols-outlined text-[18px]">grid_view</span>
+</div>
+<div class="p-4 flex-1 overflow-y-auto grid grid-cols-3 gap-2 bg-stone-texture">
+<!-- Generate slots -->
+<script>
+                                for(let i=0; i<9; i++) {
+                                    document.write(`
+                                        <div class="w-full aspect-square border-2 border-black bg-surface-container-lowest hover:border-secondary transition-colors cursor-pointer relative group flex items-center justify-center overflow-hidden">
+                                            <div class="absolute inset-0 opacity-20 group-hover:opacity-100 transition-opacity" style="background-image: url('https://lh3.googleusercontent.com/aida/AP1WRLvXomv9ZNq3ufbzAspRPynxcaYeZTMUd_W0vzsCO3FAY-gFcQ8grHVjOLEhe5WWTQFUe7UmSXq1TLf9ldXJB1R__qHcricgyPnyA3yo7r4YDP8OaMLf_VWieSukMHyLimAiX0x2GronKLW9UC0MRuCtVK7hgptUWcqntE6uKScW7GLuStIZgyOAsyeuDSkCKxEsJ7V3eRG4X98S2dI0KzuoHf60RmjQ2AZL-5_8UDTQqEDIAWdDnFDuCa8'); background-size: 300%; background-position: ${i%3 * 50}% ${Math.floor(i/3) * 50}%;"></div>
+                                            <div class="absolute bottom-0 left-0 right-0 h-1 bg-rarity-common group-hover:bg-rarity-rare transition-colors"></div>
+                                        </div>
+                                    `);
+                                }
+                            </script>
+</div>
+</div>
+<!-- Armor Components Box -->
+<div class="bg-surface-container border-2 border-black slab-panel flex flex-col h-1/2">
+<div class="bg-surface-container-high text-on-surface p-3 border-b-2 border-black flex justify-between items-center">
+<span class="font-label-caps text-label-caps font-bold">ARMOR PLATES (https://lh3.googleusercontent.com/aida/AP1WRLviQUrCcNpQ1Yyzf8t2Yep_msSSrKmqL7dF0EcfUEKc4vfU1K8fICqJ29xGJb9Zrq-3FLEPPRBM_UsfHzq_LBtAGx1FFL51ZMLKMTJ5qQveLVVCSs3TMh8Opx81QXFF3k1xjacWi3bYAy0BASYx3gPJsM2R9kMIqGxjYMYRjM9l-AHFe6nRRWcUrd95GFXKWbXCyUskIMQUfgPa8WB-uLv_JMVEbTt4B7MDlynPMIHsclcRScVDMx4jgTU)</span>
+<span class="material-symbols-outlined text-[18px]">shield</span>
+</div>
+<div class="p-4 flex-1 overflow-y-auto grid grid-cols-4 gap-2 bg-stone-texture">
+<script>
+                                for(let i=0; i<12; i++) {
+                                    document.write(`
+                                        <div class="w-full aspect-square border-2 border-black bg-surface-container-lowest hover:border-mana-glow transition-colors cursor-pointer relative group flex items-center justify-center overflow-hidden">
+                                            <div class="absolute inset-0 opacity-30 group-hover:opacity-100 transition-opacity" style="background-image: url('https://lh3.googleusercontent.com/aida/AP1WRLviQUrCcNpQ1Yyzf8t2Yep_msSSrKmqL7dF0EcfUEKc4vfU1K8fICqJ29xGJb9Zrq-3FLEPPRBM_UsfHzq_LBtAGx1FFL51ZMLKMTJ5qQveLVVCSs3TMh8Opx81QXFF3k1xjacWi3bYAy0BASYx3gPJsM2R9kMIqGxjYMYRjM9l-AHFe6nRRWcUrd95GFXKWbXCyUskIMQUfgPa8WB-uLv_JMVEbTt4B7MDlynPMIHsclcRScVDMx4jgTU'); background-size: 400%; background-position: ${i%4 * 33}% ${Math.floor(i/4) * 33}%;"></div>
+                                            <div class="absolute bottom-0 left-0 right-0 h-1 bg-rarity-epic group-hover:shadow-[0_0_8px_#9b59b6] transition-all"></div>
+                                        </div>
+                                    `);
+                                }
+                            </script>
+</div>
+</div>
+</div>
+<!-- Center Column: The Forge Canvas -->
+<div class="lg:col-span-5 bg-surface-container-lowest border-4 border-black slab-panel relative overflow-hidden flex flex-col">
+<div class="absolute inset-0 bg-stone-texture opacity-50 pointer-events-none"></div>
+<!-- Canvas Toolbar -->
+<div class="absolute top-4 left-4 right-4 flex justify-between items-start z-10 pointer-events-none">
+<div class="flex flex-col gap-2 pointer-events-auto">
+<button class="w-10 h-10 bg-surface-container border-2 border-black flex items-center justify-center text-on-surface hover:text-secondary hover:border-secondary transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+<span class="material-symbols-outlined">zoom_in</span>
+</button>
+<button class="w-10 h-10 bg-surface-container border-2 border-black flex items-center justify-center text-on-surface hover:text-secondary hover:border-secondary transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+<span class="material-symbols-outlined">zoom_out</span>
+</button>
+<button class="w-10 h-10 bg-surface-container border-2 border-black flex items-center justify-center text-on-surface hover:text-secondary hover:border-secondary transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+<span class="material-symbols-outlined">center_focus_strong</span>
+</button>
+</div>
+<div class="bg-surface-container border-2 border-black p-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] pointer-events-auto">
+<span class="font-rarity-tag text-rarity-tag text-rarity-legendary block text-right">ENTITY ID: x8F_99A</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant block text-right">MODULAR CLASS: KNIGHT_HVY</span>
+</div>
+</div>
+<!-- Canvas Assembly Area -->
+<div class="flex-1 flex items-center justify-center relative">
+<!-- Assembly Wireframe -->
+<div class="w-[300px] h-[500px] border border-outline-variant/30 relative flex flex-col items-center justify-center">
+<!-- Snap Points -->
+<div class="absolute top-[10%] w-16 h-16 border-2 border-dashed border-tertiary-container flex items-center justify-center hover:border-secondary transition-colors cursor-crosshair">
+<span class="w-2 h-2 rounded-full bg-tertiary rune-point"></span>
+</div>
+<div class="absolute top-[30%] w-32 h-40 border-2 border-secondary bg-secondary/10 flex items-center justify-center cursor-move relative">
+<!-- Example merged view -->
+<div class="absolute inset-2 bg-surface-container-lowest border border-black overflow-hidden">
+<div class="absolute inset-0" style="background-image: url('https://lh3.googleusercontent.com/aida/AP1WRLvXomv9ZNq3ufbzAspRPynxcaYeZTMUd_W0vzsCO3FAY-gFcQ8grHVjOLEhe5WWTQFUe7UmSXq1TLf9ldXJB1R__qHcricgyPnyA3yo7r4YDP8OaMLf_VWieSukMHyLimAiX0x2GronKLW9UC0MRuCtVK7hgptUWcqntE6uKScW7GLuStIZgyOAsyeuDSkCKxEsJ7V3eRG4X98S2dI0KzuoHf60RmjQ2AZL-5_8UDTQqEDIAWdDnFDuCa8'); background-size: 300%; background-position: 50% 50%;"></div>
+<div class="absolute inset-0 mix-blend-screen opacity-80" style="background-image: url('https://lh3.googleusercontent.com/aida/AP1WRLviQUrCcNpQ1Yyzf8t2Yep_msSSrKmqL7dF0EcfUEKc4vfU1K8fICqJ29xGJb9Zrq-3FLEPPRBM_UsfHzq_LBtAGx1FFL51ZMLKMTJ5qQveLVVCSs3TMh8Opx81QXFF3k1xjacWi3bYAy0BASYx3gPJsM2R9kMIqGxjYMYRjM9l-AHFe6nRRWcUrd95GFXKWbXCyUskIMQUfgPa8WB-uLv_JMVEbTt4B7MDlynPMIHsclcRScVDMx4jgTU'); background-size: 400%; background-position: 33% 33%;"></div>
+</div>
+<span class="absolute -right-2 top-1/2 w-4 h-4 bg-black border-2 border-secondary rotate-45"></span>
+</div>
+<div class="absolute bottom-[20%] w-24 h-32 border-2 border-dashed border-tertiary-container flex items-center justify-center hover:border-secondary transition-colors cursor-crosshair">
+<span class="w-2 h-2 rounded-full bg-tertiary rune-point"></span>
+</div>
+<!-- Connection Lines -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index:-1;">
+<line stroke="#454650" stroke-dasharray="4 4" stroke-width="2" x1="150" x2="150" y1="100" y2="150"></line>
+<line stroke="#454650" stroke-dasharray="4 4" stroke-width="2" x1="150" x2="150" y1="310" y2="400"></line>
+</svg>
+</div>
+</div>
+</div>
+<!-- Right Column: Data & Logic -->
+<div class="lg:col-span-3 flex flex-col gap-gutter">
+<!-- Stats Slab -->
+<div class="bg-surface-container border-2 border-black slab-panel p-4">
+<h3 class="font-label-caps text-label-caps text-on-surface mb-4 border-b-2 border-outline-variant pb-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">analytics</span>
+                            ASSEMBLY STATS
+                        </h3>
+<div class="flex flex-col gap-3">
+<div class="flex justify-between items-center">
+<span class="font-body-md text-on-surface-variant text-sm">Base Armor</span>
+<span class="font-rarity-tag text-rarity-tag text-rarity-rare">450</span>
+</div>
+<div class="w-full bg-surface-container-lowest h-2 border border-black">
+<div class="bg-rarity-rare h-full" style="width: 60%"></div>
+</div>
+<div class="flex justify-between items-center mt-2">
+<span class="font-body-md text-on-surface-variant text-sm">Eldritch Res</span>
+<span class="font-rarity-tag text-rarity-tag text-mana-glow">12%</span>
+</div>
+<div class="w-full bg-surface-container-lowest h-2 border border-black">
+<div class="bg-mana-glow h-full" style="width: 25%"></div>
+</div>
+<div class="flex justify-between items-center mt-2">
+<span class="font-body-md text-on-surface-variant text-sm">Weight Class</span>
+<span class="font-rarity-tag text-rarity-tag text-on-surface">HEAVY</span>
+</div>
+</div>
+</div>
+<!-- Logic Chain Slab -->
+<div class="bg-surface-container border-2 border-black slab-panel flex-1 flex flex-col">
+<h3 class="font-label-caps text-label-caps text-on-surface p-4 border-b-2 border-outline-variant flex items-center justify-between">
+<span class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">account_tree</span>
+                                ATTACHMENT LOGIC
+                            </span>
+<button class="text-secondary hover:text-secondary-container transition-colors">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+</h3>
+<div class="p-4 flex-1 overflow-y-auto bg-surface-container-low font-rarity-tag text-[12px] text-tertiary leading-relaxed">
+<div class="border-l-2 border-outline-variant pl-3 ml-2 mb-4 relative">
+<span class="absolute -left-[9px] top-1 w-4 h-4 bg-surface-container-highest border-2 border-outline-variant rounded-full"></span>
+<span class="text-on-surface-variant block mb-1">IF</span>
+<span class="text-secondary">ChestPlate.Slot == "HVY_IRON"</span>
+</div>
+<div class="border-l-2 border-outline-variant pl-3 ml-2 mb-4 relative">
+<span class="absolute -left-[9px] top-1 w-4 h-4 bg-surface-container-highest border-2 border-outline-variant rounded-full"></span>
+<span class="text-on-surface-variant block mb-1">AND</span>
+<span class="text-secondary">Cape.Type != "CLIPPED"</span>
+</div>
+<div class="border-l-2 border-mana-glow pl-3 ml-2 relative">
+<span class="absolute -left-[9px] top-1 w-4 h-4 bg-surface-container-highest border-2 border-mana-glow rounded-full"></span>
+<span class="text-mana-glow block mb-1">THEN EXECUTABLE</span>
+<span class="text-on-surface">ApplyMeshOffset(Z: -0.05)</span><br/>
+<span class="text-on-surface">Instantiate("FX_Dust_Drop")</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Footer -->
+<footer class="docked bottom-0 full-width border-t-2 border-outline bg-surface-container-lowest dark:bg-surface-container-lowest flex justify-between items-center px-margin-edge py-2 w-full z-50 shrink-0 slab-panel relative">
+<div class="font-label-caps text-label-caps text-on-surface-variant dark:text-on-surface-variant">
+            © 892 ARCANUM - ARELORIAN ENGINE
+        </div>
+<div class="flex gap-6">
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-secondary transition-colors" href="#">EULA</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-secondary transition-colors" href="#">GITHUB</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-secondary transition-colors" href="#">API_DOCS</a>
+</div>
+</footer>
+</body></html>

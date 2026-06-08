@@ -1,0 +1,33 @@
+{
+  "id": "auto_character_neutral_binary_npc_army_rank_code_nosize_9468bd80b471",
+  "hash": "9468bd80b471",
+  "kind": "binary",
+  "category": "character",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/npc_army_rank/code.html",
+  "sizeBytes": 338,
+  "src": "/2d-assets/auto-assets/character/auto_character_neutral_binary_npc_army_rank_code_nosize_9468bd80b471/auto_character_neutral_binary_npc_army_rank_code_nosize_9468bd80b471.html",
+  "originalSrc": "/2d-assets/auto-assets/character/auto_character_neutral_binary_npc_army_rank_code_nosize_9468bd80b471/auto_character_neutral_binary_npc_army_rank_code_nosize_9468bd80b471.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "npc",
+    "army",
+    "rank",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "character",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.301Z"
+}

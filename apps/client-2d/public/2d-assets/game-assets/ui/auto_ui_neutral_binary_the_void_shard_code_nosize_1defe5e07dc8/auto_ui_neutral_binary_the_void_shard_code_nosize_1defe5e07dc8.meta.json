@@ -1,0 +1,37 @@
+{
+  "id": "auto_ui_neutral_binary_the_void_shard_code_nosize_1defe5e07dc8",
+  "hash": "1defe5e07dc8",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/jewelry_set_talisman_of_the_void_shard/code.html",
+  "sizeBytes": 650,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_the_void_shard_code_nosize_1defe5e07dc8/auto_ui_neutral_binary_the_void_shard_code_nosize_1defe5e07dc8.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_the_void_shard_code_nosize_1defe5e07dc8/auto_ui_neutral_binary_the_void_shard_code_nosize_1defe5e07dc8.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "jewelry",
+    "set",
+    "talisman",
+    "of",
+    "the",
+    "void",
+    "shard",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.224Z"
+}

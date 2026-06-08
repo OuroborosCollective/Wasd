@@ -1,0 +1,60 @@
+{
+  "id": "auto_ui_neutral_image_environmental_vfx_and_screen_1024x1024_95ae0e0dd7fc",
+  "hash": "95ae0e0dd7fc",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/a_high_fidelity_2d_game_asset_sprite_sheet_for_procedural_environmental_vfx_and/screen.png",
+  "sizeBytes": 1596297,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_environmental_vfx_and_screen_1024x1024_95ae0e0dd7fc/auto_ui_neutral_image_environmental_vfx_and_screen_1024x1024_95ae0e0dd7fc.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_environmental_vfx_and_screen_1024x1024_95ae0e0dd7fc/auto_ui_neutral_image_environmental_vfx_and_screen_1024x1024_95ae0e0dd7fc.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "a",
+    "high",
+    "fidelity",
+    "2d",
+    "game",
+    "asset",
+    "sprite",
+    "sheet",
+    "for",
+    "procedural",
+    "environmental",
+    "vfx",
+    "and",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1024,
+    "height": 1024,
+    "format": "png",
+    "hasAlpha": false,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 1,
+    "readabilityScore": 100,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:26.186Z"
+}

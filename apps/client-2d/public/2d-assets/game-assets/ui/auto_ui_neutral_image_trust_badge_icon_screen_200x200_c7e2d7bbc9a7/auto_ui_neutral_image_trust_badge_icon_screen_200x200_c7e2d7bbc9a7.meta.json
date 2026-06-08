@@ -1,0 +1,51 @@
+{
+  "id": "auto_ui_neutral_image_trust_badge_icon_screen_200x200_c7e2d7bbc9a7",
+  "hash": "c7e2d7bbc9a7",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/npc_trust_badge_icon/screen.png",
+  "sizeBytes": 10983,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_trust_badge_icon_screen_200x200_c7e2d7bbc9a7/auto_ui_neutral_image_trust_badge_icon_screen_200x200_c7e2d7bbc9a7.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_trust_badge_icon_screen_200x200_c7e2d7bbc9a7/auto_ui_neutral_image_trust_badge_icon_screen_200x200_c7e2d7bbc9a7.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "npc",
+    "trust",
+    "badge",
+    "icon",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 200,
+    "height": 200,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 10,
+      "y": 10,
+      "width": 180,
+      "height": 180
+    },
+    "alphaCoverage": 0.6421,
+    "contrastScore": 0.7658,
+    "readabilityScore": 85.09,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:17:27.309Z"
+}

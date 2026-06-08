@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_lightning_resistance_icon_code_nosize_42d1ee279e21",
+  "hash": "42d1ee279e21",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/lightning_resistance_icon/code.html",
+  "sizeBytes": 352,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_lightning_resistance_icon_code_nosize_42d1ee279e21/auto_ui_neutral_binary_lightning_resistance_icon_code_nosize_42d1ee279e21.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_lightning_resistance_icon_code_nosize_42d1ee279e21/auto_ui_neutral_binary_lightning_resistance_icon_code_nosize_42d1ee279e21.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "lightning",
+    "resistance",
+    "icon",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.258Z"
+}

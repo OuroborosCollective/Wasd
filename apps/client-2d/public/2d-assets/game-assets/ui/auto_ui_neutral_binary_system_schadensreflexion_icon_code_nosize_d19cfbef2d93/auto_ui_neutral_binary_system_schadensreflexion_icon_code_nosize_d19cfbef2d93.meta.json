@@ -1,0 +1,32 @@
+{
+  "id": "auto_ui_neutral_binary_system_schadensreflexion_icon_code_nosize_d19cfbef2d93",
+  "hash": "d19cfbef2d93",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/schadensreflexion_icon/code.html",
+  "sizeBytes": 1024,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_schadensreflexion_icon_code_nosize_d19cfbef2d93/auto_ui_neutral_binary_system_schadensreflexion_icon_code_nosize_d19cfbef2d93.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_schadensreflexion_icon_code_nosize_d19cfbef2d93/auto_ui_neutral_binary_system_schadensreflexion_icon_code_nosize_d19cfbef2d93.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "schadensreflexion",
+    "icon",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.332Z"
+}

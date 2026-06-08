@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_abklingzeit_reduktion_icon_code_nosize_ee83d9c1ea24",
+  "hash": "ee83d9c1ea24",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/abklingzeit_reduktion_icon/code.html",
+  "sizeBytes": 811,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_abklingzeit_reduktion_icon_code_nosize_ee83d9c1ea24/auto_ui_neutral_binary_abklingzeit_reduktion_icon_code_nosize_ee83d9c1ea24.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_abklingzeit_reduktion_icon_code_nosize_ee83d9c1ea24/auto_ui_neutral_binary_abklingzeit_reduktion_icon_code_nosize_ee83d9c1ea24.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "abklingzeit",
+    "reduktion",
+    "icon",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:26.848Z"
+}

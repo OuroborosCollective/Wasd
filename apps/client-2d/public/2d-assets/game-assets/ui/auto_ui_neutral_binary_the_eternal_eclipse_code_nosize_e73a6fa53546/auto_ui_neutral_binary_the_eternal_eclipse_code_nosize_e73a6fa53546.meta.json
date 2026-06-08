@@ -1,0 +1,37 @@
+{
+  "id": "auto_ui_neutral_binary_the_eternal_eclipse_code_nosize_e73a6fa53546",
+  "hash": "e73a6fa53546",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/jewelry_set_ring_of_the_eternal_eclipse/code.html",
+  "sizeBytes": 684,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_the_eternal_eclipse_code_nosize_e73a6fa53546/auto_ui_neutral_binary_the_eternal_eclipse_code_nosize_e73a6fa53546.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_the_eternal_eclipse_code_nosize_e73a6fa53546/auto_ui_neutral_binary_the_eternal_eclipse_code_nosize_e73a6fa53546.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "jewelry",
+    "set",
+    "ring",
+    "of",
+    "the",
+    "eternal",
+    "eclipse",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.216Z"
+}

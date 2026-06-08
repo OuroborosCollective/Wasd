@@ -1,0 +1,50 @@
+{
+  "id": "auto_ui_forest_image_land_symbol_1_screen_200x200_497c89bfb7bc",
+  "hash": "497c89bfb7bc",
+  "kind": "image",
+  "category": "ui",
+  "culture": "forest",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/land_symbol_1/screen.png",
+  "sizeBytes": 2129,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_forest_image_land_symbol_1_screen_200x200_497c89bfb7bc/auto_ui_forest_image_land_symbol_1_screen_200x200_497c89bfb7bc.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_forest_image_land_symbol_1_screen_200x200_497c89bfb7bc/auto_ui_forest_image_land_symbol_1_screen_200x200_497c89bfb7bc.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "land",
+    "symbol",
+    "1",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 200,
+    "height": 200,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 24,
+      "y": 24,
+      "width": 152,
+      "height": 152
+    },
+    "alphaCoverage": 0.5731,
+    "contrastScore": 0.6425,
+    "readabilityScore": 79.54,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "forest",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:17:27.247Z"
+}

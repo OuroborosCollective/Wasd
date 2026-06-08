@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Eldritch Archive - Arelorian Engine</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@700;800&amp;family=Inter:wght@400&amp;family=JetBrains+Mono:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#e89300",
+                        "error": "#ffb4ab",
+                        "inverse-surface": "#dfe1f6",
+                        "surface-container": "#1b1f2e",
+                        "background": "#0f1321",
+                        "on-secondary-fixed": "#2b1700",
+                        "mana-glow": "#48E9FF",
+                        "on-surface-variant": "#c6c5d2",
+                        "tertiary-fixed-dim": "#94d3c1",
+                        "tertiary": "#94d3c1",
+                        "surface-container-low": "#171b2a",
+                        "on-surface": "#dfe1f6",
+                        "inverse-primary": "#4b5a9e",
+                        "secondary-fixed-dim": "#ffb961",
+                        "tertiary-container": "#00372d",
+                        "primary-fixed": "#dde1ff",
+                        "surface-tint": "#b9c3ff",
+                        "on-primary-fixed-variant": "#334284",
+                        "surface-container-highest": "#303444",
+                        "rarity-rare": "#f1c40f",
+                        "rarity-mythic": "#ff3355",
+                        "primary": "#b9c3ff",
+                        "on-primary-fixed": "#001356",
+                        "on-primary": "#1a2a6c",
+                        "rarity-epic": "#9b59b6",
+                        "secondary": "#ffb961",
+                        "outline-variant": "#454650",
+                        "on-tertiary": "#00382e",
+                        "secondary-fixed": "#ffddb9",
+                        "on-secondary-container": "#563400",
+                        "on-secondary": "#472a00",
+                        "rarity-common": "#9da1aa",
+                        "poison-glow": "#70FF9E",
+                        "on-tertiary-fixed": "#00201a",
+                        "on-tertiary-container": "#65a393",
+                        "on-error": "#690005",
+                        "surface-container-high": "#262939",
+                        "rarity-legendary": "#e67e22",
+                        "surface-dim": "#0f1321",
+                        "rarity-magic": "#3498db",
+                        "health-glow": "#ff3355",
+                        "surface-variant": "#303444",
+                        "primary-container": "#1a2a6c",
+                        "on-primary-container": "#8594dc",
+                        "on-error-container": "#ffdad6",
+                        "on-background": "#dfe1f6",
+                        "surface-bright": "#353849",
+                        "surface-container-lowest": "#0a0d1c",
+                        "primary-fixed-dim": "#b9c3ff",
+                        "on-tertiary-fixed-variant": "#065043",
+                        "on-secondary-fixed-variant": "#663e00",
+                        "tertiary-fixed": "#afefdd",
+                        "error-container": "#93000a",
+                        "surface": "#0f1321",
+                        "inverse-on-surface": "#2c303f",
+                        "outline": "#8f909b"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-edge": "32px",
+                        "gutter": "16px",
+                        "slot-unit": "64px",
+                        "panel-padding": "24px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Epilogue"],
+                        "rarity-tag": ["JetBrains Mono"],
+                        "label-caps": ["JetBrains Mono"],
+                        "headline-lg": ["Epilogue"],
+                        "headline-lg-mobile": ["Epilogue"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "rarity-tag": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            background-image: radial-gradient(circle at center, rgba(155, 89, 182, 0.05) 0%, transparent 70%),
+                              url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" opacity="0.02"><text x="10" y="50" font-family="serif" font-size="20">ᛟ</text><text x="60" y="20" font-family="serif" font-size="20">ᚨ</text><text x="40" y="80" font-family="serif" font-size="20">ᚢ</text></svg>');
+            color: theme('colors.on-background');
+        }
+        .gothic-border {
+            border: 2px solid #000;
+            box-shadow: inset 1px 1px 0 rgba(255,255,255,0.1), inset -1px -1px 0 rgba(0,0,0,0.5);
+        }
+        .magical-glow {
+            text-shadow: 0 0 10px theme('colors.rarity-epic');
+        }
+        .slot-glow:hover {
+            box-shadow: inset 0 0 15px theme('colors.rarity-epic');
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: theme('colors.surface-container');
+            border-left: 2px solid #000;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: theme('colors.outline-variant');
+            border: 1px solid #000;
+        }
+    </style>
+</head>
+<body class="font-body-md min-h-screen flex flex-col antialiased">
+<!-- TopAppBar -->
+<header class="bg-surface-container-highest dark:bg-surface-container-highest docked full-width top-0 border-b-4 border-black border-b-4 border-black bg-surface-container-highest flat no shadows flex justify-between items-center w-full px-margin-edge h-20 shrink-0 z-50">
+<div class="flex items-center gap-8">
+<div class="font-display-lg text-headline-lg tracking-tighter text-secondary dark:text-secondary">
+                ARELORIAN-ENGINE
+            </div>
+<nav class="hidden md:flex gap-6">
+<a class="text-on-surface-variant font-medium hover:bg-primary-container hover:text-secondary-fixed transition-colors duration-200 px-3 py-2 rounded" href="#">
+<span class="font-label-caps text-label-caps">FORGE</span>
+</a>
+<a class="text-secondary font-bold border-b-2 border-secondary pb-1 hover:bg-primary-container hover:text-secondary-fixed transition-colors duration-200 px-3 py-2 rounded" href="#">
+<span class="font-label-caps text-label-caps">ASSETS</span>
+</a>
+<a class="text-on-surface-variant font-medium hover:bg-primary-container hover:text-secondary-fixed transition-colors duration-200 px-3 py-2 rounded" href="#">
+<span class="font-label-caps text-label-caps">LOGIC</span>
+</a>
+<a class="text-on-surface-variant font-medium hover:bg-primary-container hover:text-secondary-fixed transition-colors duration-200 px-3 py-2 rounded" href="#">
+<span class="font-label-caps text-label-caps">DEPLOY</span>
+</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden lg:block gothic-border bg-surface-container p-1 w-64 rounded">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full bg-transparent border-none text-on-surface focus:ring-0 pl-8 font-label-caps text-label-caps placeholder:text-outline-variant" placeholder="Search..." type="text"/>
+</div>
+<button class="bg-secondary-container text-on-secondary-container font-label-caps text-label-caps px-4 py-2 gothic-border hover:brightness-110 transition-all uppercase">
+                EXPORT MOD
+            </button>
+<div class="flex gap-2 text-secondary dark:text-secondary">
+<button class="hover:text-secondary-fixed transition-colors p-2 rounded">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<button class="hover:text-secondary-fixed transition-colors p-2 rounded">
+<span class="material-symbols-outlined">notifications_active</span>
+</button>
+</div>
+</div>
+</header>
+<div class="flex flex-1 overflow-hidden">
+<!-- SideNavBar -->
+<aside class="bg-surface-container dark:bg-surface-container docked left-0 h-full w-64 border-r-4 border-black border-r-4 border-black bg-surface-container flat no shadows fixed left-0 top-20 bottom-0 flex flex-col z-40 shrink-0 hidden md:flex overflow-y-auto custom-scrollbar">
+<div class="p-4 border-b-2 border-black bg-surface-container-high flex flex-col items-center justify-center gap-2">
+<div class="w-16 h-16 rounded-full gothic-border bg-surface-container-lowest overflow-hidden flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-rarity-epic">api</span>
+</div>
+<div class="text-center">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-secondary">DREAD-FORGE</h2>
+<p class="font-label-caps text-label-caps text-on-surface-variant">V 4.0.2 STABLE</p>
+</div>
+<button class="mt-2 w-full bg-surface-container-highest border-2 border-outline-variant text-on-surface font-label-caps text-label-caps py-2 hover:border-secondary hover:text-secondary transition-colors uppercase">
+                    NEW ASSET
+                </button>
+</div>
+<nav class="flex-1 py-4 flex flex-col gap-1 px-2">
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high hover:bg-surface-container-high hover:text-on-surface" href="#">
+<span class="material-symbols-outlined">swords</span>
+<span class="font-label-caps text-label-caps">WEAPONS</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high hover:bg-surface-container-high hover:text-on-surface" href="#">
+<span class="material-symbols-outlined">shield</span>
+<span class="font-label-caps text-label-caps">ARMOR</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high hover:bg-surface-container-high hover:text-on-surface" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-label-caps text-label-caps">NPCS</span>
+</a>
+<a class="flex items-center gap-4 bg-secondary-container text-on-secondary-container border-2 border-black m-2 p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-surface-container-high hover:text-on-surface Active: scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">pets</span>
+<span class="font-label-caps text-label-caps">PETS</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high hover:bg-surface-container-high hover:text-on-surface" href="#">
+<span class="material-symbols-outlined">auto_fix_high</span>
+<span class="font-label-caps text-label-caps">SPELLS</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant p-3 m-2 hover:bg-surface-container-high hover:bg-surface-container-high hover:text-on-surface" href="#">
+<span class="material-symbols-outlined">token</span>
+<span class="font-label-caps text-label-caps">RUNES</span>
+</a>
+</nav>
+<div class="mt-auto border-t-2 border-black p-2 bg-surface-container-lowest">
+<a class="flex items-center gap-4 text-on-surface-variant p-2 hover:text-secondary transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">menu_book</span>
+<span class="font-label-caps text-label-caps">DOCS</span>
+</a>
+<a class="flex items-center gap-4 text-on-surface-variant p-2 hover:text-secondary transition-colors" href="#">
+<span class="material-symbols-outlined text-sm">contact_support</span>
+<span class="font-label-caps text-label-caps">SUPPORT</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 p-margin-edge overflow-y-auto custom-scrollbar relative">
+<div class="max-w-7xl mx-auto space-y-gutter">
+<!-- Soul-Forge Preview Section -->
+<section class="grid grid-cols-1 xl:grid-cols-3 gap-gutter">
+<!-- Preview Canvas -->
+<div class="xl:col-span-2 bg-surface-container border-4 border-black relative min-h-[500px] flex items-center justify-center overflow-hidden">
+<!-- Background texture -->
+<div class="absolute inset-0 opacity-20" style="background-image: repeating-linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000), repeating-linear-gradient(45deg, #000 25%, #1b1f2e 25%, #1b1f2e 75%, #000 75%, #000); background-position: 0 0, 10px 10px; background-size: 20px 20px;"></div>
+<div class="absolute top-4 left-4 bg-surface-container-highest border-2 border-black px-4 py-2 z-10">
+<h3 class="font-headline-lg-mobile text-headline-lg-mobile text-rarity-epic magical-glow uppercase">Soul-Forge Assembly</h3>
+<p class="font-label-caps text-label-caps text-on-surface-variant">Entity: Void Crawler [WIP]</p>
+</div>
+<!-- Central Composition Area -->
+<div class="relative z-10 w-full max-w-lg aspect-square flex items-center justify-center border border-dashed border-outline-variant/30 rounded-full">
+<!-- Placeholder for pet component assembly -->
+<img alt="Modular 2D pet asset components showing heads, bodies, and augmentations. Gritty dark fantasy style with glowing purple/green elements on dark background." class="object-contain h-full w-full opacity-80 mix-blend-screen" data-alt="A highly detailed 2D sprite sheet showcasing modular dark fantasy creature components. The image features separated skeletal heads with glowing green eyes, mechanical spider-like bodies forged from dark iron, and ethereal purple energy augmentations. Set against a deep, textured slate background, the art style is reminiscent of gothic action RPGs with sharp, brutalist outlines and saturated luminous accents. The layout is meticulously organized into a grid for procedural generation." src="https://lh3.googleusercontent.com/aida/AP1WRLv_lb_iHLaMqrvJs3e7Nr1wuPMzPsCf0kUJirFFP_a17TZtN2IErxijjP4XfIdCwtj4wH7BYH95gUakd3jY86FWrdWaJu--BNQzK9rS2p0zNxu-gFZelryAxqv_6eLN57SjDIaRzhNVtHbERG4dTjvlzZmN4VNrlww-uVwQ3GfyE7-8ojJ0jAmL1z0shMVKbAYred7Rdp0EsELus4yuJ7FDYMPaNe5jrI5GIXx9FlNc6GWA-OCX6rHt5Po"/>
+</div>
+<!-- Floating UI Elements over Canvas -->
+<div class="absolute right-4 top-4 flex flex-col gap-2 z-10">
+<button class="w-12 h-12 bg-surface-container-highest gothic-border flex items-center justify-center hover:bg-primary-container text-on-surface transition-colors" title="Toggle Grid">
+<span class="material-symbols-outlined">grid_on</span>
+</button>
+<button class="w-12 h-12 bg-surface-container-highest gothic-border flex items-center justify-center hover:bg-primary-container text-on-surface transition-colors" title="Snap to Node">
+<span class="material-symbols-outlined">hub</span>
+</button>
+</div>
+</div>
+<!-- Inspector / Details Panel -->
+<div class="bg-surface-container-high border-4 border-black p-panel-padding flex flex-col gap-6">
+<div class="border-b-2 border-black pb-4">
+<h2 class="font-headline-lg text-headline-lg text-secondary">Asset Properties</h2>
+<div class="flex gap-2 mt-2">
+<span class="bg-rarity-epic text-white font-rarity-tag text-rarity-tag px-2 py-1 rounded-sm uppercase">Epic</span>
+<span class="bg-surface-container-lowest text-on-surface font-rarity-tag text-rarity-tag px-2 py-1 rounded-sm border border-outline-variant uppercase">Construct</span>
+</div>
+</div>
+<!-- Stats Block -->
+<div class="space-y-4">
+<div class="flex justify-between items-center border-b border-outline-variant/50 pb-2">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Base Integrity</span>
+<span class="font-body-md text-body-md text-health-glow font-bold">450 / 450</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant/50 pb-2">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Aether Output</span>
+<span class="font-body-md text-body-md text-mana-glow font-bold">120 p/s</span>
+</div>
+</div>
+<!-- Component Slots -->
+<div class="mt-auto pt-4 space-y-2">
+<h4 class="font-label-caps text-label-caps text-secondary mb-2">Equipped Modules</h4>
+<div class="grid grid-cols-4 gap-2">
+<div class="w-slot-unit h-slot-unit bg-surface-container-lowest gothic-border slot-glow relative group cursor-pointer">
+<div class="absolute bottom-0 w-full h-1 bg-rarity-epic"></div>
+<span class="material-symbols-outlined absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-outline-variant group-hover:text-rarity-epic transition-colors">skull</span>
+</div>
+<div class="w-slot-unit h-slot-unit bg-surface-container-lowest gothic-border slot-glow relative group cursor-pointer">
+<div class="absolute bottom-0 w-full h-1 bg-rarity-rare"></div>
+<span class="material-symbols-outlined absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-outline-variant group-hover:text-rarity-rare transition-colors">bug_report</span>
+</div>
+<div class="w-slot-unit h-slot-unit bg-surface-container-lowest gothic-border slot-glow relative group cursor-pointer">
+<div class="absolute bottom-0 w-full h-1 bg-rarity-magic"></div>
+<span class="material-symbols-outlined absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-outline-variant group-hover:text-rarity-magic transition-colors">blinds</span>
+</div>
+<div class="w-slot-unit h-slot-unit bg-surface-container-lowest gothic-border slot-glow relative group cursor-pointer flex items-center justify-center">
+<span class="material-symbols-outlined text-outline-variant/30">add</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Asset Library Bento Grid -->
+<section class="mt-8">
+<h2 class="font-headline-lg text-headline-lg text-secondary mb-6 border-b-2 border-black pb-2 inline-block">Available Components</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+<!-- Magical Staffs Card -->
+<div class="bg-surface-container border-2 border-black overflow-hidden flex flex-col group">
+<div class="h-48 bg-surface-container-lowest relative overflow-hidden border-b-2 border-black">
+<img alt="Magical staffs and bows with glowing crystal heads on parchment background." class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" data-alt="A collection of beautifully illustrated magical staff heads and bow limbs arranged on a weathered parchment background. The weapons feature intricate, dark-iron gothic details encasing vibrant, glowing crystals in hues of amethyst purple and emerald green. The rendering style is reminiscent of high-fantasy concept art, with thick outlines and deep contrast that make the glowing magical elements pop against the muted background." src="https://lh3.googleusercontent.com/aida/AP1WRLsgktQYu_uIymZCgFSPZZHj4pr7OrUoYQ7TTK4F72ThfIvnMquruh2z5ZxFr5aTDNAmc5bO3UQEZk6gUSsKi-CBCBeHscdM9u-_NW010wOfui2e_s4OAcfPUPLjJX9s7eSeSF8yIaKs-vAZWcKgvh0G77EBVbrqkLGOn6P6GGhBOZvLO6UddPd8SVzbWMFVREJvhPCL86kWSHMcnkn4LANSz_36nBnG_g3KzKGTKW9Eu5fS6Nx39XgLR8I"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+<span class="absolute bottom-2 left-2 bg-rarity-rare text-black font-rarity-tag text-rarity-tag px-2 py-1 rounded-sm uppercase">Casting Implements</span>
+</div>
+<div class="p-4 flex-1">
+<h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface mb-2">Arcane Focuses</h3>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-2">Modular staff heads and wands imbued with raw aetheric energy. Features crystal nodes for element slotting.</p>
+</div>
+</div>
+<!-- Ornate Weapons Card -->
+<div class="bg-surface-container border-2 border-black overflow-hidden flex flex-col group lg:col-span-2">
+<div class="h-48 bg-surface-container-lowest relative overflow-hidden border-b-2 border-black flex items-center justify-center">
+<img alt="Modular sword hilts and pommels with gothic design." class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-300" src="https://lh3.googleusercontent.com/aida/AP1WRLsRlEIYbjSySGNchH59xJL3MaFCgo8Gc6YgPKBKNCObPpxLbaJQ2lJRIj8PkBe8x_v02acN5vvDebdJeRvobbETmr_NnPDofo1UWIUwd57veMqFqs6pswXr8p8MvcF9Hs16J2J3L2CH7qVUl8BnAwVCdv9Bp-sDlRzvCtxfwT7HNtC1MSBpRFyRFUAjVaPKnpZBt79er2AWV5lNIZXI3V3VehPEkAlD7_qQLgw2tnY7RT0vyOP6iI6bYIM"/>
+<div class="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors duration-300"></div>
+</div>
+<div class="p-4 flex justify-between items-end bg-surface-container-highest">
+<div>
+<h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface mb-1">Melee Assemblies</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Cross-guards, pommels, and grips forged in the dark depths. Compatible with the Arelorian melee rigging system.</p>
+</div>
+<button class="bg-primary-container text-on-primary-container p-2 border border-black hover:bg-secondary-container hover:text-on-secondary-container transition-colors">
+<span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+</div>
+<!-- Footer -->
+<footer class="bg-surface-container-lowest dark:bg-surface-container-lowest docked bottom-0 full-width border-t-2 border-outline border-t-2 border-outline flat no shadows flex justify-between items-center px-margin-edge py-2 w-full z-50 bg-surface-container-lowest shrink-0">
+<div class="font-label-caps text-label-caps text-secondary">
+            © 892 ARCANUM - ARELORIAN ENGINE
+        </div>
+<div class="flex gap-6">
+<a class="text-on-surface-variant font-label-caps text-label-caps hover:text-secondary transition-colors" href="#">EULA</a>
+<a class="text-on-surface-variant font-label-caps text-label-caps hover:text-secondary transition-colors" href="#">GITHUB</a>
+<a class="text-on-surface-variant font-label-caps text-label-caps hover:text-secondary transition-colors" href="#">API_DOCS</a>
+</div>
+</footer>
+</body></html>

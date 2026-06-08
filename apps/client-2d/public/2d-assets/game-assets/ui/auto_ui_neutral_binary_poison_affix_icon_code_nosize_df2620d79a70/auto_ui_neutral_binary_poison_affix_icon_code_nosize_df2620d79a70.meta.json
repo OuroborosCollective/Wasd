@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_poison_affix_icon_code_nosize_df2620d79a70",
+  "hash": "df2620d79a70",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/poison_affix_icon/code.html",
+  "sizeBytes": 466,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_poison_affix_icon_code_nosize_df2620d79a70/auto_ui_neutral_binary_poison_affix_icon_code_nosize_df2620d79a70.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_poison_affix_icon_code_nosize_df2620d79a70/auto_ui_neutral_binary_poison_affix_icon_code_nosize_df2620d79a70.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "poison",
+    "affix",
+    "icon",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.314Z"
+}

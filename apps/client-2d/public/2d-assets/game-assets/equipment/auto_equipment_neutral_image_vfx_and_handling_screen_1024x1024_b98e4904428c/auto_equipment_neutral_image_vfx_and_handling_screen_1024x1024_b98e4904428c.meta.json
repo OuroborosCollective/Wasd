@@ -1,0 +1,61 @@
+{
+  "id": "auto_equipment_neutral_image_vfx_and_handling_screen_1024x1024_b98e4904428c",
+  "hash": "b98e4904428c",
+  "kind": "image",
+  "category": "equipment",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/a_high_fidelity_2d_game_asset_sprite_sheet_for_modular_weapon_vfx_and_handling/screen.png",
+  "sizeBytes": 1135967,
+  "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_vfx_and_handling_screen_1024x1024_b98e4904428c/auto_equipment_neutral_image_vfx_and_handling_screen_1024x1024_b98e4904428c.png",
+  "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_vfx_and_handling_screen_1024x1024_b98e4904428c/auto_equipment_neutral_image_vfx_and_handling_screen_1024x1024_b98e4904428c.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "a",
+    "high",
+    "fidelity",
+    "2d",
+    "game",
+    "asset",
+    "sprite",
+    "sheet",
+    "for",
+    "modular",
+    "weapon",
+    "vfx",
+    "and",
+    "handling",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1024,
+    "height": 1024,
+    "format": "png",
+    "hasAlpha": false,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 1,
+    "readabilityScore": 100,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "equipment",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:26.146Z"
+}

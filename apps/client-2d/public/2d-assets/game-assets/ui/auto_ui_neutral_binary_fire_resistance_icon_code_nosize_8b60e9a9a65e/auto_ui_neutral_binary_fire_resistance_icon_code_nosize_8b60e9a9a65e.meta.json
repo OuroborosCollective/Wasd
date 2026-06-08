@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_fire_resistance_icon_code_nosize_8b60e9a9a65e",
+  "hash": "8b60e9a9a65e",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/fire_resistance_icon/code.html",
+  "sizeBytes": 434,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_fire_resistance_icon_code_nosize_8b60e9a9a65e/auto_ui_neutral_binary_fire_resistance_icon_code_nosize_8b60e9a9a65e.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_fire_resistance_icon_code_nosize_8b60e9a9a65e/auto_ui_neutral_binary_fire_resistance_icon_code_nosize_8b60e9a9a65e.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "fire",
+    "resistance",
+    "icon",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.153Z"
+}

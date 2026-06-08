@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_angel_monster_icon_code_nosize_abe53e67ae38",
+  "hash": "abe53e67ae38",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/angel_monster_icon/code.html",
+  "sizeBytes": 351,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_angel_monster_icon_code_nosize_abe53e67ae38/auto_ui_neutral_binary_angel_monster_icon_code_nosize_abe53e67ae38.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_angel_monster_icon_code_nosize_abe53e67ae38/auto_ui_neutral_binary_angel_monster_icon_code_nosize_abe53e67ae38.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "angel",
+    "monster",
+    "icon",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:26.902Z"
+}

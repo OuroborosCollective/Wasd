@@ -1,0 +1,50 @@
+{
+  "id": "auto_ui_neutral_image_agility_icon_1_screen_200x200_1c2df851129e",
+  "hash": "1c2df851129e",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/agility_icon_1/screen.png",
+  "sizeBytes": 3308,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_agility_icon_1_screen_200x200_1c2df851129e/auto_ui_neutral_image_agility_icon_1_screen_200x200_1c2df851129e.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_agility_icon_1_screen_200x200_1c2df851129e/auto_ui_neutral_image_agility_icon_1_screen_200x200_1c2df851129e.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "agility",
+    "icon",
+    "1",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 200,
+    "height": 200,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 35,
+      "y": 26,
+      "width": 129,
+      "height": 138
+    },
+    "alphaCoverage": 0.1789,
+    "contrastScore": 1,
+    "readabilityScore": 74.4,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:17:26.883Z"
+}

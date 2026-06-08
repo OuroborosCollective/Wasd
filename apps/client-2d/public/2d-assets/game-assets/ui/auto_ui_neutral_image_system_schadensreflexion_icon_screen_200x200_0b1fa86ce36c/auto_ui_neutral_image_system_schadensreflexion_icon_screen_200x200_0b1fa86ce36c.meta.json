@@ -1,0 +1,49 @@
+{
+  "id": "auto_ui_neutral_image_system_schadensreflexion_icon_screen_200x200_0b1fa86ce36c",
+  "hash": "0b1fa86ce36c",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/schadensreflexion_icon/screen.png",
+  "sizeBytes": 7105,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_schadensreflexion_icon_screen_200x200_0b1fa86ce36c/auto_ui_neutral_image_system_schadensreflexion_icon_screen_200x200_0b1fa86ce36c.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_system_schadensreflexion_icon_screen_200x200_0b1fa86ce36c/auto_ui_neutral_image_system_schadensreflexion_icon_screen_200x200_0b1fa86ce36c.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "schadensreflexion",
+    "icon",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 200,
+    "height": 200,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 14,
+      "y": 15,
+      "width": 172,
+      "height": 180
+    },
+    "alphaCoverage": 0.5565,
+    "contrastScore": 0.8789,
+    "readabilityScore": 90.17,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:17:27.336Z"
+}

@@ -1,0 +1,32 @@
+{
+  "id": "auto_ui_neutral_binary_system_rare_icon_code_nosize_0e39276b0e88",
+  "hash": "0e39276b0e88",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/rare_icon/code.html",
+  "sizeBytes": 569,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_rare_icon_code_nosize_0e39276b0e88/auto_ui_neutral_binary_system_rare_icon_code_nosize_0e39276b0e88.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_system_rare_icon_code_nosize_0e39276b0e88/auto_ui_neutral_binary_system_rare_icon_code_nosize_0e39276b0e88.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "rare",
+    "icon",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.323Z"
+}

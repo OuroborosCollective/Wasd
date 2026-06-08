@@ -1,0 +1,50 @@
+{
+  "id": "auto_ui_neutral_image_angel_monster_icon_screen_200x200_4248d6bd75eb",
+  "hash": "4248d6bd75eb",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/angel_monster_icon/screen.png",
+  "sizeBytes": 10310,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_angel_monster_icon_screen_200x200_4248d6bd75eb/auto_ui_neutral_image_angel_monster_icon_screen_200x200_4248d6bd75eb.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_angel_monster_icon_screen_200x200_4248d6bd75eb/auto_ui_neutral_image_angel_monster_icon_screen_200x200_4248d6bd75eb.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "angel",
+    "monster",
+    "icon",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 200,
+    "height": 200,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 4,
+      "y": 4,
+      "width": 192,
+      "height": 192
+    },
+    "alphaCoverage": 0.7298,
+    "contrastScore": 1,
+    "readabilityScore": 95.63,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:17:26.907Z"
+}

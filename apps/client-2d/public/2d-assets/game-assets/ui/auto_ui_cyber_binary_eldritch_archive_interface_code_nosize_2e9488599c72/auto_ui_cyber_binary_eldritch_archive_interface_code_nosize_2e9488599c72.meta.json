@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_cyber_binary_eldritch_archive_interface_code_nosize_2e9488599c72",
+  "hash": "2e9488599c72",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "cyber",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/eldritch_archive_interface/code.html",
+  "sizeBytes": 23322,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_cyber_binary_eldritch_archive_interface_code_nosize_2e9488599c72/auto_ui_cyber_binary_eldritch_archive_interface_code_nosize_2e9488599c72.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_cyber_binary_eldritch_archive_interface_code_nosize_2e9488599c72/auto_ui_cyber_binary_eldritch_archive_interface_code_nosize_2e9488599c72.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "eldritch",
+    "archive",
+    "interface",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "cyber",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:17:27.087Z"
+}
