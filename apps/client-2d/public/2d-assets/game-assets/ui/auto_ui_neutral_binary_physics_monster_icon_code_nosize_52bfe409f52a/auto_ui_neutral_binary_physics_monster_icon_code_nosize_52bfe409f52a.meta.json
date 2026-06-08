@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_physics_monster_icon_code_nosize_52bfe409f52a",
+  "hash": "52bfe409f52a",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/physics_monster_icon/code.html",
+  "sizeBytes": 448,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_physics_monster_icon_code_nosize_52bfe409f52a/auto_ui_neutral_binary_physics_monster_icon_code_nosize_52bfe409f52a.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_physics_monster_icon_code_nosize_52bfe409f52a/auto_ui_neutral_binary_physics_monster_icon_code_nosize_52bfe409f52a.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "physics",
+    "monster",
+    "icon",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:57.160Z"
+}

@@ -1,0 +1,50 @@
+{
+  "id": "auto_character_neutral_image_npc_army_rank_screen_200x200_45e2ebd50c8d",
+  "hash": "45e2ebd50c8d",
+  "kind": "image",
+  "category": "character",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/npc_army_rank/screen.png",
+  "sizeBytes": 5592,
+  "src": "/2d-assets/auto-assets/character/auto_character_neutral_image_npc_army_rank_screen_200x200_45e2ebd50c8d/auto_character_neutral_image_npc_army_rank_screen_200x200_45e2ebd50c8d.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/character/auto_character_neutral_image_npc_army_rank_screen_200x200_45e2ebd50c8d/auto_character_neutral_image_npc_army_rank_screen_200x200_45e2ebd50c8d.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "npc",
+    "army",
+    "rank",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 200,
+    "height": 200,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 6,
+      "y": 4,
+      "width": 188,
+      "height": 191
+    },
+    "alphaCoverage": 0.3142,
+    "contrastScore": 1,
+    "readabilityScore": 84.82,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "character",
+    "neutral",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:30:57.155Z"
+}

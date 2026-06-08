@@ -1,0 +1,50 @@
+{
+  "id": "auto_ui_cyber_image_eldritch_archive_interface_screen_1600x1380_5d378524b6df",
+  "hash": "5d378524b6df",
+  "kind": "image",
+  "category": "ui",
+  "culture": "cyber",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/eldritch_archive_interface/screen.png",
+  "sizeBytes": 1251617,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_cyber_image_eldritch_archive_interface_screen_1600x1380_5d378524b6df/auto_ui_cyber_image_eldritch_archive_interface_screen_1600x1380_5d378524b6df.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_cyber_image_eldritch_archive_interface_screen_1600x1380_5d378524b6df/auto_ui_cyber_image_eldritch_archive_interface_screen_1600x1380_5d378524b6df.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "eldritch",
+    "archive",
+    "interface",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1600,
+    "height": 1380,
+    "format": "png",
+    "hasAlpha": false,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1600,
+      "height": 1380
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 1,
+    "readabilityScore": 100,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "cyber",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.969Z"
+}

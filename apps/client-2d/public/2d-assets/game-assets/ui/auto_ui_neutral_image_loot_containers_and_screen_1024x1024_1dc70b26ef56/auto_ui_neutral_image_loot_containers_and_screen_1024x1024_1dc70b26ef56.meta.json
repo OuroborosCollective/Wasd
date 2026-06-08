@@ -1,0 +1,59 @@
+{
+  "id": "auto_ui_neutral_image_loot_containers_and_screen_1024x1024_1dc70b26ef56",
+  "hash": "1dc70b26ef56",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/a_modular_2d_game_asset_design_sheet_for_procedural_loot_containers_and/screen.png",
+  "sizeBytes": 1796589,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_loot_containers_and_screen_1024x1024_1dc70b26ef56/auto_ui_neutral_image_loot_containers_and_screen_1024x1024_1dc70b26ef56.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_loot_containers_and_screen_1024x1024_1dc70b26ef56/auto_ui_neutral_image_loot_containers_and_screen_1024x1024_1dc70b26ef56.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "a",
+    "modular",
+    "2d",
+    "game",
+    "asset",
+    "design",
+    "sheet",
+    "for",
+    "procedural",
+    "loot",
+    "containers",
+    "and",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1024,
+    "height": 1024,
+    "format": "png",
+    "hasAlpha": false,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 1,
+    "readabilityScore": 100,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.248Z"
+}

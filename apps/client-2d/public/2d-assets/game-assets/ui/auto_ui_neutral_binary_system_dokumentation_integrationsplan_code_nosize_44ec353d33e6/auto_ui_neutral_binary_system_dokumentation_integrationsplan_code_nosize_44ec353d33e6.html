@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="de"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@700;800&amp;family=Inter:wght@400;600&amp;family=JetBrains+Mono:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "rarity-mythic": "#ff3355",
+                        "rarity-magic": "#3498db",
+                        "on-tertiary": "#00382e",
+                        "tertiary-fixed": "#afefdd",
+                        "secondary-fixed": "#ffddb9",
+                        "rarity-rare": "#f1c40f",
+                        "outline": "#8f909b",
+                        "poison-glow": "#70FF9E",
+                        "on-primary-container": "#8594dc",
+                        "rarity-common": "#9da1aa",
+                        "surface-container": "#1b1f2e",
+                        "secondary-fixed-dim": "#ffb961",
+                        "primary-container": "#1a2a6c",
+                        "on-tertiary-fixed": "#00201a",
+                        "secondary-container": "#e89300",
+                        "primary-fixed": "#dde1ff",
+                        "primary-fixed-dim": "#b9c3ff",
+                        "on-secondary-fixed-variant": "#663e00",
+                        "error": "#ffb4ab",
+                        "rarity-epic": "#9b59b6",
+                        "on-secondary-container": "#563400",
+                        "surface-container-low": "#171b2a",
+                        "on-primary-fixed-variant": "#334284",
+                        "tertiary": "#94d3c1",
+                        "surface-variant": "#303444",
+                        "surface-container-highest": "#303444",
+                        "on-primary-fixed": "#001356",
+                        "tertiary-container": "#00372d",
+                        "on-background": "#dfe1f6",
+                        "surface-container-high": "#262939",
+                        "surface-container-lowest": "#0a0d1c",
+                        "mana-glow": "#48E9FF",
+                        "on-tertiary-container": "#65a393",
+                        "inverse-surface": "#dfe1f6",
+                        "surface": "#0f1321",
+                        "on-error": "#690005",
+                        "secondary": "#ffb961",
+                        "on-error-container": "#ffdad6",
+                        "on-surface-variant": "#c6c5d2",
+                        "rarity-legendary": "#e67e22",
+                        "on-tertiary-fixed-variant": "#065043",
+                        "on-secondary-fixed": "#2b1700",
+                        "inverse-primary": "#4b5a9e",
+                        "on-secondary": "#472a00",
+                        "surface-tint": "#b9c3ff",
+                        "surface-dim": "#0f1321",
+                        "surface-bright": "#353849",
+                        "inverse-on-surface": "#2c303f",
+                        "on-primary": "#1a2a6c",
+                        "outline-variant": "#454650",
+                        "primary": "#b9c3ff",
+                        "on-surface": "#dfe1f6",
+                        "health-glow": "#ff3355",
+                        "error-container": "#93000a",
+                        "tertiary-fixed-dim": "#94d3c1",
+                        "background": "#0f1321"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-edge": "32px",
+                        "slot-unit": "64px",
+                        "panel-padding": "24px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-lg-mobile": ["Epilogue"],
+                        "display-lg": ["Epilogue"],
+                        "rarity-tag": ["JetBrains Mono"],
+                        "headline-lg": ["Epilogue"],
+                        "body-md": ["Inter"],
+                        "label-caps": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "rarity-tag": ["14px", {"lineHeight": "20px", "fontWeight": "700"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .brutalist-border {
+            box-shadow: 1px 1px 0px 0px #ffffff40 inset, -1px -1px 0px 0px #000000;
+        }
+        .glow-gold {
+            text-shadow: 0 0 10px rgba(232, 147, 0, 0.4);
+        }
+        .stone-texture {
+            background-image: url("https://www.transparenttextures.com/patterns/dark-matter.png");
+        }
+        .code-panel {
+            scrollbar-width: thin;
+            scrollbar-color: #1a2a6c #0f1321;
+        }
+        .slab-panel {
+            border: 4px solid black;
+            position: relative;
+        }
+        .slab-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md stone-texture">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-gutter h-16 bg-surface-container-highest dark:bg-surface-container-highest border-b-4 border-black">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary cursor-pointer active:scale-95 duration-100" data-icon="menu">menu</span>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary tracking-tighter uppercase">Arelorian</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary cursor-pointer hover:bg-primary-container transition-colors p-2 rounded" data-icon="account_circle">account_circle</span>
+<span class="material-symbols-outlined text-primary cursor-pointer hover:bg-primary-container transition-colors p-2 rounded" data-icon="settings">settings</span>
+</div>
+</header>
+<!-- SideNavBar (Hidden on Mobile) -->
+<nav class="hidden md:flex fixed left-0 top-16 h-[calc(100vh-64px)] z-40 flex-col w-64 bg-surface-dim border-r-4 border-black">
+<div class="p-6 border-b-2 border-black/20 mb-4">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 bg-primary-container border-2 border-black overflow-hidden">
+<img alt="Hero Portrait" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCg2xwoCvFtXCaiPDAG5sxmpYl_an-xcoI62S0k613w-s3HCZNc9iKTTcx8BXxLWDrk2cezdi6W_wcDAYiZ2vI5CDQML-I4YPgU3meBiOiwNIUmhde6oRVVkM1D0jlRXdr9F35Aqy9zscCwVHtjxaqMjWldzMysbh4BFPXtLLkHSAxsE5UXzv-OOySjsKpqmjukpsI4HPwNT71ZK0Nw9L4_XdgZeu4X3F9a3witcfPxkZWhucOwkwEgqc6WKGPyfveuj17Q9WwrVAA"/>
+</div>
+<div>
+<h3 class="font-label-caps text-label-caps text-primary">Arelorian Warrior</h3>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest">Level 42</p>
+</div>
+</div>
+</div>
+<div class="flex flex-col flex-1">
+<a class="flex items-center gap-4 px-6 py-4 font-label-caps text-label-caps bg-primary-container text-primary border-l-4 border-secondary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span> Character
+            </a>
+<a class="flex items-center gap-4 px-6 py-4 font-label-caps text-label-caps text-on-surface-variant opacity-80 hover:bg-surface-container-high hover:text-on-surface transition-all active:translate-x-1 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="backpack">backpack</span> Inventory
+            </a>
+<a class="flex items-center gap-4 px-6 py-4 font-label-caps text-label-caps text-on-surface-variant opacity-80 hover:bg-surface-container-high hover:text-on-surface transition-all active:translate-x-1 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="auto_fix_high">auto_fix_high</span> Skills
+            </a>
+<a class="flex items-center gap-4 px-6 py-4 font-label-caps text-label-caps text-on-surface-variant opacity-80 hover:bg-surface-container-high hover:text-on-surface transition-all active:translate-x-1 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="scroll">school</span> Quests
+            </a>
+<a class="flex items-center gap-4 px-6 py-4 font-label-caps text-label-caps text-on-surface-variant opacity-80 hover:bg-surface-container-high hover:text-on-surface transition-all active:translate-x-1 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="map">map</span> Map
+            </a>
+</div>
+</nav>
+<!-- Main Content -->
+<main class="pt-24 pb-32 md:pl-72 px-gutter min-h-screen">
+<!-- Header Section -->
+<section class="mb-12">
+<h2 class="font-display-lg text-display-lg text-secondary mb-2 glow-gold">Iconography Docs</h2>
+<p class="max-w-2xl text-on-surface-variant font-body-md">
+                Visuelle Dokumentation der Symbol-Kategorien für das Arelorian UI-System. Diese Symbole werden in Echtzeit über Pixi.js gerendert und unterstützen dynamische Glow-Effekte basierend auf Rarity-Tokens.
+            </p>
+</section>
+<!-- Symbol Categories Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+<!-- Category: Raritäten -->
+<div class="slab-panel bg-surface-container-low p-6 flex flex-col items-center group hover:bg-surface-container transition-colors">
+<div class="w-32 h-32 mb-6 p-2 bg-black border-2 border-rarity-legendary shadow-[0_0_20px_rgba(230,126,34,0.3)] transition-transform group-hover:scale-105 duration-300">
+<img alt="Legendary rarity icon" class="w-full h-full object-contain" src="https://lh3.googleusercontent.com/aida/AP1WRLvoJLtJL-qQ6IBksut1OP6RnPX26-RLBiwvmCK2G_-6H8IKd03wF7YmoF_seGLXxP16wyNOfzwLj7bkISlRNk9NrGk4b0xpcjZqsa_nDmrfodv6z7JYQ9_h0zQLqkn8O0GKvkw8QlwhPGNbEMvo2Q_0cKIjHoA4Ljce9ADqqRDoxam5f7Zh5A6uTwG4nOWLRChhuIrE8rGA8mRPcm-ZD0BytbJtQVPXKhMkFs3RvxpwePL0bT4ELuGM0Q"/>
+</div>
+<div class="w-full">
+<span class="bg-rarity-legendary text-white px-2 py-1 font-rarity-tag text-rarity-tag mb-4 inline-block">LEGENDÄR</span>
+<h3 class="font-headline-lg text-headline-lg mb-2">Raritäten</h3>
+<p class="text-sm text-on-surface-variant">Farbcodierte Stufen zur Definition von Item-Wertigkeit und Drop-Chancen.</p>
+</div>
+</div>
+<!-- Category: Affixe -->
+<div class="slab-panel bg-surface-container-low p-6 flex flex-col items-center group hover:bg-surface-container transition-colors">
+<div class="w-32 h-32 mb-6 p-2 bg-black border-2 border-rarity-mythic shadow-[0_0_20px_rgba(255,51,85,0.3)] transition-transform group-hover:scale-105 duration-300">
+<img alt="Strength Affix Icon" class="w-full h-full object-contain" src="https://lh3.googleusercontent.com/aida/AP1WRLsgYSgrHSdby9oXbMMumHfGCCUk9DSbOHU2jQ03708EObacJKzZ65IQ25Z05ukNftj4AlyIFPhf2jQgb3ZyqCPm-C8HX5UKmxSaq0Hb_4ye2_3oBmdFDkGAqoaOmzc0Su7IUUyfsbKuivgBg1BexgkhJfUNukgMXHMbzKkoTCet8uwfTj3SokPmumU9lZ6XSYF2S38Q7A0DsBn9M6l0KCD0fe0MyliSpcEJ9wh5R4VHbg9I8XubjXqcNlI"/>
+</div>
+<div class="w-full">
+<span class="bg-rarity-mythic text-white px-2 py-1 font-rarity-tag text-rarity-tag mb-4 inline-block">MODIFIKATOR</span>
+<h3 class="font-headline-lg text-headline-lg mb-2">Affixe</h3>
+<p class="text-sm text-on-surface-variant">Attributs-Boni wie Stärke, Agilität oder kritische Trefferchance.</p>
+</div>
+</div>
+<!-- Category: Monster -->
+<div class="slab-panel bg-surface-container-low p-6 flex flex-col items-center group hover:bg-surface-container transition-colors">
+<div class="w-32 h-32 mb-6 p-2 bg-black border-2 border-error shadow-[0_0_20px_rgba(255,180,171,0.2)] transition-transform group-hover:scale-105 duration-300">
+<img alt="Demon Monster Icon" class="w-full h-full object-contain" src="https://lh3.googleusercontent.com/aida/AP1WRLt57ImpzWyJuHQco0q-Fny0oFyIgtWWwPvq8WYvKFxWWPQPmaasc4hdRS0wP60qoS-1IwABSJUQjWjW5MZRzlQomUhebU6GlxpUwefxPVwy5p9NsTdJSm5imZnwUEVu3Ag1veIqYxd-4T3klhYV84_ZqSrOPp01wCFDtrECBvsYB_F1qCk8zfCOe9EAI334EANNvqLskWhWu1ijBiI_jttHcRUTNFvUQ2Mnex5IChvmdilrve1i-OtHjYk"/>
+</div>
+<div class="w-full">
+<span class="bg-error text-on-error px-2 py-1 font-rarity-tag text-rarity-tag mb-4 inline-block">BESTIARIUM</span>
+<h3 class="font-headline-lg text-headline-lg mb-2">Entitäten</h3>
+<p class="text-sm text-on-surface-variant">Klassifizierung von Gegner-Typen, Schwächen und Loot-Tabellen.</p>
+</div>
+</div>
+<!-- Category: Fraktionen -->
+<div class="slab-panel bg-surface-container-low p-6 flex flex-col items-center group hover:bg-surface-container transition-colors">
+<div class="w-32 h-32 mb-6 p-2 bg-black border-2 border-secondary shadow-[0_0_20px_rgba(255,185,97,0.3)] transition-transform group-hover:scale-105 duration-300">
+<img alt="Handshake Icon" class="w-full h-full object-contain" src="https://lh3.googleusercontent.com/aida/AP1WRLsKHzZFmqwxyriTYZQfeCE2I5vYN2miCSaqs5FMU3U_HrwcFOtj3_T5-Z1fP1MSOoHStkkBa92nZzWZwyrgUmWxatJPGx13Ss7bg8ubfZuvUEoZn2ltkZirZnPH27Vr6gTqgSaOQd4WtOqp2JRPfwO2OJQB_knQxUyfJwAtJ9h8XRk519LZ_ZcR1ys79W3pT4anfEMizTfvQBNVCrpVbH6QaNE9xWjR5EFp-sbp3msZGSautAs3LzUASPg"/>
+</div>
+<div class="w-full">
+<span class="bg-secondary text-on-secondary px-2 py-1 font-rarity-tag text-rarity-tag mb-4 inline-block">DIPLOMATIE</span>
+<h3 class="font-headline-lg text-headline-lg mb-2">Fraktionen</h3>
+<p class="text-sm text-on-surface-variant">Ruf-Systeme und Pakt-Abzeichen der kriegführenden Mächte.</p>
+</div>
+</div>
+</div>
+<!-- Technical Panel: Pixi.js Integration -->
+<section class="slab-panel bg-surface-container-lowest overflow-hidden">
+<div class="bg-primary-container p-4 border-b-4 border-black flex justify-between items-center">
+<h3 class="font-label-caps text-label-caps text-primary flex items-center gap-2">
+<span class="material-symbols-outlined" data-icon="code">code</span>
+                    Integration Panel: SymbolRenderer.tsx
+                </h3>
+<div class="flex gap-2">
+<div class="w-3 h-3 rounded-full bg-error"></div>
+<div class="w-3 h-3 rounded-full bg-rarity-rare"></div>
+<div class="w-3 h-3 rounded-full bg-poison-glow"></div>
+</div>
+</div>
+<div class="p-0 flex flex-col md:flex-row">
+<!-- Code Snippet -->
+<div class="flex-1 p-6 code-panel overflow-x-auto bg-[#0a0d1c] font-rarity-tag text-[13px] leading-relaxed text-blue-300/80">
+<pre><code><span class="text-purple-400">import</span> { Container, Sprite, Graphics } <span class="text-purple-400">from</span> <span class="text-green-400">'pixi.js'</span>;
+<span class="text-purple-400">import</span> { IconData, RarityToken } <span class="text-purple-400">from</span> <span class="text-green-400">'@arelorian/core'</span>;
+
+<span class="text-gray-500">// Eldritch Modular Gothic Renderer</span>
+<span class="text-purple-400">export const</span> RenderArelorianIcon = (data: <span class="text-yellow-400">IconData</span>) =&gt; {
+  <span class="text-purple-400">const</span> container = <span class="text-purple-400">new</span> <span class="text-yellow-400">Container</span>();
+  
+  <span class="text-gray-500">// Apply Rarity Glow (Sunset Gold / Mythic Red)</span>
+  <span class="text-purple-400">const</span> glow = <span class="text-purple-400">new</span> <span class="text-yellow-400">Graphics</span>();
+  glow.beginFill(data.rarityColor, 0.4);
+  glow.drawCircle(32, 32, 28);
+  glow.filters = [new <span class="text-yellow-400">BlurFilter</span>(15)];
+  
+  <span class="text-purple-400">const</span> iconSprite = <span class="text-yellow-400">Sprite</span>.from(data.assetId);
+  iconSprite.anchor.set(0.5);
+  iconSprite.scale.set(0.8);
+
+  container.addChild(glow, iconSprite);
+  <span class="text-purple-400">return</span> container;
+};</code></pre>
+</div>
+<!-- Controls/Meta -->
+<div class="w-full md:w-80 bg-surface-container p-6 border-l-0 md:border-l-4 border-black">
+<h4 class="font-label-caps text-label-caps text-secondary mb-4">Properties</h4>
+<div class="space-y-4">
+<div class="flex justify-between items-center py-2 border-b border-white/10">
+<span class="text-xs font-label-caps opacity-60 uppercase">Asset Path</span>
+<span class="text-xs font-rarity-tag">/assets/icons/</span>
+</div>
+<div class="flex justify-between items-center py-2 border-b border-white/10">
+<span class="text-xs font-label-caps opacity-60 uppercase">Base Grid</span>
+<span class="text-xs font-rarity-tag">64px x 64px</span>
+</div>
+<div class="flex justify-between items-center py-2 border-b border-white/10">
+<span class="text-xs font-label-caps opacity-60 uppercase">Format</span>
+<span class="text-xs font-rarity-tag">SVG/PNG WebP</span>
+</div>
+</div>
+<button class="w-full mt-8 bg-secondary-container text-on-secondary-container font-label-caps p-3 border-2 border-black hover:scale-[1.02] active:scale-95 transition-transform flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="download">download</span> ASSETS EXPORTIEREN
+                    </button>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Only on Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 h-20 bg-surface-container border-t-4 border-black">
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-lg p-2 border-2 border-black shadow-[0_0_10px_rgba(232,147,0,0.4)]" href="#">
+<span class="material-symbols-outlined" data-icon="swords">swords</span>
+<span class="font-label-caps text-[10px]">Abilities</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 p-2 hover:opacity-100 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="category">category</span>
+<span class="font-label-caps text-[10px]">Items</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 p-2 hover:opacity-100 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="groups">groups</span>
+<span class="font-label-caps text-[10px]">Social</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 p-2 hover:opacity-100 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="storefront">storefront</span>
+<span class="font-label-caps text-[10px]">Shop</span>
+</a>
+</nav>
+<!-- Floating Action Button - Only for Primary Documentation View -->
+<button class="fixed bottom-24 right-8 w-14 h-14 bg-secondary-container text-on-secondary-container border-4 border-black shadow-[4px_4px_0px_0px_#000] flex items-center justify-center active:scale-90 transition-transform z-40">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+<script>
+        // Atmospheric flicker effect for the code panel gold buttons
+        const flickerBtn = document.querySelector('.bg-secondary-container');
+        setInterval(() => {
+            if(Math.random() > 0.95) {
+                flickerBtn.style.opacity = '0.7';
+                setTimeout(() => flickerBtn.style.opacity = '1', 50);
+            }
+        }, 500);
+    </script>
+</body></html>

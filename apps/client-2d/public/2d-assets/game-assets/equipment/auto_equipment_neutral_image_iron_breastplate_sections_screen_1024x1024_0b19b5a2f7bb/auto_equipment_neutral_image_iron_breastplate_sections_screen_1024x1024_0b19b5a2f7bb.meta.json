@@ -1,0 +1,59 @@
+{
+  "id": "auto_equipment_neutral_image_iron_breastplate_sections_screen_1024x1024_0b19b5a2f7bb",
+  "hash": "0b19b5a2f7bb",
+  "kind": "image",
+  "category": "equipment",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/a_set_of_modular_2d_armor_plating_components_heavy_iron_breastplate_sections/screen.png",
+  "sizeBytes": 1558664,
+  "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_iron_breastplate_sections_screen_1024x1024_0b19b5a2f7bb/auto_equipment_neutral_image_iron_breastplate_sections_screen_1024x1024_0b19b5a2f7bb.png",
+  "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_iron_breastplate_sections_screen_1024x1024_0b19b5a2f7bb/auto_equipment_neutral_image_iron_breastplate_sections_screen_1024x1024_0b19b5a2f7bb.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "a",
+    "set",
+    "of",
+    "modular",
+    "2d",
+    "armor",
+    "plating",
+    "components",
+    "heavy",
+    "iron",
+    "breastplate",
+    "sections",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1024,
+    "height": 1024,
+    "format": "png",
+    "hasAlpha": false,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 0.9986,
+    "readabilityScore": 99.94,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "equipment",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.604Z"
+}

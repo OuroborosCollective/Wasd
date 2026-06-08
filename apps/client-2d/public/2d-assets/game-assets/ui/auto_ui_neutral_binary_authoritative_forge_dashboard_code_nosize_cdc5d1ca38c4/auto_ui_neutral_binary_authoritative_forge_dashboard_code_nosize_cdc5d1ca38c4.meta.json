@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_authoritative_forge_dashboard_code_nosize_cdc5d1ca38c4",
+  "hash": "cdc5d1ca38c4",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/authoritative_forge_dashboard/code.html",
+  "sizeBytes": 28048,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_authoritative_forge_dashboard_code_nosize_cdc5d1ca38c4/auto_ui_neutral_binary_authoritative_forge_dashboard_code_nosize_cdc5d1ca38c4.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_authoritative_forge_dashboard_code_nosize_cdc5d1ca38c4/auto_ui_neutral_binary_authoritative_forge_dashboard_code_nosize_cdc5d1ca38c4.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "authoritative",
+    "forge",
+    "dashboard",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.815Z"
+}

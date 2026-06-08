@@ -1,0 +1,59 @@
+{
+  "id": "auto_equipment_neutral_image_body_armor_assembly_screen_1024x1024_def32fe29cef",
+  "hash": "def32fe29cef",
+  "kind": "image",
+  "category": "equipment",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/a_modular_2d_game_asset_design_sheet_for_procedural_body_armor_assembly./screen.png",
+  "sizeBytes": 1822290,
+  "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_body_armor_assembly_screen_1024x1024_def32fe29cef/auto_equipment_neutral_image_body_armor_assembly_screen_1024x1024_def32fe29cef.png",
+  "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_body_armor_assembly_screen_1024x1024_def32fe29cef/auto_equipment_neutral_image_body_armor_assembly_screen_1024x1024_def32fe29cef.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "a",
+    "modular",
+    "2d",
+    "game",
+    "asset",
+    "design",
+    "sheet",
+    "for",
+    "procedural",
+    "body",
+    "armor",
+    "assembly",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1024,
+    "height": 1024,
+    "format": "png",
+    "hasAlpha": false,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 0.9994,
+    "readabilityScore": 99.97,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "equipment",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.175Z"
+}

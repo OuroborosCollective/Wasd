@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_dodge_affix_icon_code_nosize_257680b67639",
+  "hash": "257680b67639",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/dodge_affix_icon/code.html",
+  "sizeBytes": 615,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_dodge_affix_icon_code_nosize_257680b67639/auto_ui_neutral_binary_dodge_affix_icon_code_nosize_257680b67639.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_dodge_affix_icon_code_nosize_257680b67639/auto_ui_neutral_binary_dodge_affix_icon_code_nosize_257680b67639.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "dodge",
+    "affix",
+    "icon",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.903Z"
+}

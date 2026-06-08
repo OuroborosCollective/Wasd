@@ -1,0 +1,62 @@
+{
+  "id": "auto_character_medieval_image_armored_knight_4_screen_1024x1024_0df2fd30c52b",
+  "hash": "0df2fd30c52b",
+  "kind": "image",
+  "category": "character",
+  "culture": "medieval",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/a_high_fidelity_2d_game_asset_sprite_sheet_for_a_modular_npc_armored_knight._4/screen.png",
+  "sizeBytes": 1591860,
+  "src": "/2d-assets/auto-assets/character/auto_character_medieval_image_armored_knight_4_screen_1024x1024_0df2fd30c52b/auto_character_medieval_image_armored_knight_4_screen_1024x1024_0df2fd30c52b.png",
+  "originalSrc": "/2d-assets/auto-assets/character/auto_character_medieval_image_armored_knight_4_screen_1024x1024_0df2fd30c52b/auto_character_medieval_image_armored_knight_4_screen_1024x1024_0df2fd30c52b.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "a",
+    "high",
+    "fidelity",
+    "2d",
+    "game",
+    "asset",
+    "sprite",
+    "sheet",
+    "for",
+    "a",
+    "modular",
+    "npc",
+    "armored",
+    "knight",
+    "4",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1024,
+    "height": 1024,
+    "format": "png",
+    "hasAlpha": false,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 0.8728,
+    "readabilityScore": 94.28,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "character",
+    "medieval",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:55.924Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_agility_icon_2_code_nosize_e25b77f7e791",
+  "hash": "e25b77f7e791",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/agility_icon_2/code.html",
+  "sizeBytes": 560,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_agility_icon_2_code_nosize_e25b77f7e791/auto_ui_neutral_binary_agility_icon_2_code_nosize_e25b77f7e791.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_agility_icon_2_code_nosize_e25b77f7e791/auto_ui_neutral_binary_agility_icon_2_code_nosize_e25b77f7e791.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "agility",
+    "icon",
+    "2",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.704Z"
+}

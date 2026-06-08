@@ -1,0 +1,61 @@
+{
+  "id": "auto_building_medieval_image_house_and_kingdom_screen_1024x1024_760e3677e9d6",
+  "hash": "760e3677e9d6",
+  "kind": "image",
+  "category": "building",
+  "culture": "medieval",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/a_modular_2d_2.5d_game_asset_design_sheet_for_procedural_house_and_kingdom/screen.png",
+  "sizeBytes": 1670026,
+  "src": "/2d-assets/auto-assets/building/auto_building_medieval_image_house_and_kingdom_screen_1024x1024_760e3677e9d6/auto_building_medieval_image_house_and_kingdom_screen_1024x1024_760e3677e9d6.png",
+  "originalSrc": "/2d-assets/auto-assets/building/auto_building_medieval_image_house_and_kingdom_screen_1024x1024_760e3677e9d6/auto_building_medieval_image_house_and_kingdom_screen_1024x1024_760e3677e9d6.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "a",
+    "modular",
+    "2d",
+    "2",
+    "5d",
+    "game",
+    "asset",
+    "design",
+    "sheet",
+    "for",
+    "procedural",
+    "house",
+    "and",
+    "kingdom",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1024,
+    "height": 1024,
+    "format": "png",
+    "hasAlpha": false,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 0.9932,
+    "readabilityScore": 99.7,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "building",
+    "medieval",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.103Z"
+}

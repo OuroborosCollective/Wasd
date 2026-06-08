@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_amphibian_monster_icon_code_nosize_bec3abd25606",
+  "hash": "bec3abd25606",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/amphibian_monster_icon/code.html",
+  "sizeBytes": 364,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_amphibian_monster_icon_code_nosize_bec3abd25606/auto_ui_neutral_binary_amphibian_monster_icon_code_nosize_bec3abd25606.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_amphibian_monster_icon_code_nosize_bec3abd25606/auto_ui_neutral_binary_amphibian_monster_icon_code_nosize_bec3abd25606.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "amphibian",
+    "monster",
+    "icon",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.718Z"
+}

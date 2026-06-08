@@ -1,0 +1,54 @@
+{
+  "id": "auto_ui_neutral_image_the_void_shard_screen_400x400_5791de4e3c29",
+  "hash": "5791de4e3c29",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/jewelry_set_talisman_of_the_void_shard/screen.png",
+  "sizeBytes": 10676,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_the_void_shard_screen_400x400_5791de4e3c29/auto_ui_neutral_image_the_void_shard_screen_400x400_5791de4e3c29.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_the_void_shard_screen_400x400_5791de4e3c29/auto_ui_neutral_image_the_void_shard_screen_400x400_5791de4e3c29.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "jewelry",
+    "set",
+    "talisman",
+    "of",
+    "the",
+    "void",
+    "shard",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 400,
+    "height": 400,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 51,
+      "y": 68,
+      "width": 297,
+      "height": 304
+    },
+    "alphaCoverage": 0.3404,
+    "contrastScore": 0.7549,
+    "readabilityScore": 80.18,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:30:57.079Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_fairy_monster_icon_code_nosize_eb40e6a027fe",
+  "hash": "eb40e6a027fe",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/fairy_monster_icon/code.html",
+  "sizeBytes": 397,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_fairy_monster_icon_code_nosize_eb40e6a027fe/auto_ui_neutral_binary_fairy_monster_icon_code_nosize_eb40e6a027fe.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_fairy_monster_icon_code_nosize_eb40e6a027fe/auto_ui_neutral_binary_fairy_monster_icon_code_nosize_eb40e6a027fe.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "fairy",
+    "monster",
+    "icon",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.995Z"
+}

@@ -1,0 +1,50 @@
+{
+  "id": "auto_ui_neutral_image_grit_steel_modeler_screen_1600x1280_9648337797da",
+  "hash": "9648337797da",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/grit_steel_modeler/screen.png",
+  "sizeBytes": 778151,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_grit_steel_modeler_screen_1600x1280_9648337797da/auto_ui_neutral_image_grit_steel_modeler_screen_1600x1280_9648337797da.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_grit_steel_modeler_screen_1600x1280_9648337797da/auto_ui_neutral_image_grit_steel_modeler_screen_1600x1280_9648337797da.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "grit",
+    "steel",
+    "modeler",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1600,
+    "height": 1280,
+    "format": "png",
+    "hasAlpha": false,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1600,
+      "height": 1280
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 1,
+    "readabilityScore": 100,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:57.042Z"
+}

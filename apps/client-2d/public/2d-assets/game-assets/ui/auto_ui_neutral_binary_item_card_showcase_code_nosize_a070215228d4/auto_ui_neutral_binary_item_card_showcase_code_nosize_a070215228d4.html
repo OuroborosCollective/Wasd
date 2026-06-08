@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Arelorian - Item Card</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@700;800&amp;family=Inter:wght@400&amp;family=JetBrains+Mono:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "primary-container": "#1a2a6c",
+                      "on-tertiary-fixed-variant": "#065043",
+                      "primary-fixed-dim": "#b9c3ff",
+                      "tertiary-fixed-dim": "#94d3c1",
+                      "on-secondary-fixed": "#2b1700",
+                      "error": "#ffb4ab",
+                      "surface-container-low": "#171b2a",
+                      "surface-container-highest": "#303444",
+                      "surface-variant": "#303444",
+                      "tertiary-container": "#00372d",
+                      "outline": "#8f909b",
+                      "surface-container-high": "#262939",
+                      "primary-fixed": "#dde1ff",
+                      "rarity-epic": "#9b59b6",
+                      "on-surface": "#dfe1f6",
+                      "rarity-magic": "#3498db",
+                      "on-surface-variant": "#c6c5d2",
+                      "surface-bright": "#353849",
+                      "on-secondary-container": "#563400",
+                      "mana-glow": "#48E9FF",
+                      "on-primary-fixed-variant": "#334284",
+                      "surface-dim": "#0f1321",
+                      "poison-glow": "#70FF9E",
+                      "surface-container": "#1b1f2e",
+                      "surface": "#0f1321",
+                      "on-error": "#690005",
+                      "on-background": "#dfe1f6",
+                      "inverse-surface": "#dfe1f6",
+                      "on-error-container": "#ffdad6",
+                      "secondary-container": "#e89300",
+                      "background": "#0f1321",
+                      "inverse-on-surface": "#2c303f",
+                      "health-glow": "#ff3355",
+                      "on-primary-container": "#8594dc",
+                      "on-tertiary-fixed": "#00201a",
+                      "on-secondary-fixed-variant": "#663e00",
+                      "rarity-rare": "#f1c40f",
+                      "on-secondary": "#472a00",
+                      "secondary-fixed-dim": "#ffb961",
+                      "secondary": "#ffb961",
+                      "on-primary": "#1a2a6c",
+                      "primary": "#b9c3ff",
+                      "error-container": "#93000a",
+                      "on-tertiary-container": "#65a393",
+                      "rarity-common": "#9da1aa",
+                      "on-tertiary": "#00382e",
+                      "surface-tint": "#b9c3ff",
+                      "tertiary-fixed": "#afefdd",
+                      "rarity-legendary": "#e67e22",
+                      "outline-variant": "#454650",
+                      "inverse-primary": "#4b5a9e",
+                      "rarity-mythic": "#ff3355",
+                      "on-primary-fixed": "#001356",
+                      "tertiary": "#94d3c1",
+                      "secondary-fixed": "#ffddb9",
+                      "surface-container-lowest": "#0a0d1c"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "16px",
+                      "slot-unit": "64px",
+                      "margin-edge": "32px",
+                      "panel-padding": "24px"
+              },
+              "fontFamily": {
+                      "headline-lg": [
+                              "Epilogue"
+                      ],
+                      "display-lg": [
+                              "Epilogue"
+                      ],
+                      "headline-lg-mobile": [
+                              "Epilogue"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "rarity-tag": [
+                              "JetBrains Mono"
+                      ],
+                      "label-caps": [
+                              "JetBrains Mono"
+                      ]
+              },
+              "fontSize": {
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "rarity-tag": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "label-caps": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.1em",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+            /* Textured background pattern overlay */
+            background-image: radial-gradient(circle at 50% 50%, rgba(26, 42, 108, 0.1) 0%, rgba(15, 19, 33, 1) 100%);
+        }
+        
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .slab-container {
+            box-shadow: inset 1px 1px 0 rgba(255,255,255,0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row antialiased selection:bg-secondary selection:text-on-secondary relative">
+<!-- Top Navigation (Mobile) -->
+<header class="md:hidden fixed top-0 w-full z-50 flex justify-between items-center px-gutter h-16 bg-surface-container-highest dark:bg-surface-container-highest border-b-4 border-black font-headline-lg-mobile text-headline-lg-mobile text-primary tracking-tighter uppercase">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-2 active:scale-95 duration-100">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<span class="font-headline-lg-mobile text-headline-lg-mobile text-primary tracking-tighter uppercase">Arelorian</span>
+<div class="flex items-center gap-2">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-2 active:scale-95 duration-100">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors p-2 active:scale-95 duration-100">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+</header>
+<!-- Side Navigation (Desktop) -->
+<nav class="hidden md:flex fixed left-0 top-0 h-full z-40 flex-col w-64 bg-surface-dim border-r-4 border-black pt-8 px-4 pb-4">
+<div class="mb-8 px-4 flex flex-col items-center border-b-2 border-black pb-6 border-opacity-50">
+<div class="w-20 h-20 rounded-full border-2 border-secondary bg-surface-container mb-3 overflow-hidden shadow-[0_0_15px_rgba(255,185,97,0.3)] flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-secondary" data-icon="face">face</span>
+</div>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-primary text-center">Arelorian Warrior</h2>
+<span class="font-label-caps text-label-caps text-secondary mt-1">Level 42</span>
+</div>
+<ul class="flex flex-col gap-2 flex-grow">
+<li>
+<a class="flex items-center gap-3 p-3 text-on-surface-variant opacity-80 font-label-caps text-label-caps hover:bg-surface-container-high hover:text-on-surface transition-all rounded-sm" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+                    Character
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-3 p-3 bg-primary-container text-primary border-l-4 border-secondary font-label-caps text-label-caps transition-all rounded-r-sm shadow-[inset_0_0_20px_rgba(26,42,108,0.5)]" href="#">
+<span class="material-symbols-outlined" data-icon="backpack" style="font-variation-settings: 'FILL' 1;">backpack</span>
+                    Inventory
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-3 p-3 text-on-surface-variant opacity-80 font-label-caps text-label-caps hover:bg-surface-container-high hover:text-on-surface transition-all rounded-sm" href="#">
+<span class="material-symbols-outlined" data-icon="auto_fix_high">auto_fix_high</span>
+                    Skills
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-3 p-3 text-on-surface-variant opacity-80 font-label-caps text-label-caps hover:bg-surface-container-high hover:text-on-surface transition-all rounded-sm" href="#">
+<span class="material-symbols-outlined" data-icon="scroll">school</span>
+                    Quests
+                </a>
+</li>
+<li>
+<a class="flex items-center gap-3 p-3 text-on-surface-variant opacity-80 font-label-caps text-label-caps hover:bg-surface-container-high hover:text-on-surface transition-all rounded-sm" href="#">
+<span class="material-symbols-outlined" data-icon="map">map</span>
+                    Map
+                </a>
+</li>
+</ul>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 mt-16 mb-20 md:mt-0 md:mb-0 md:ml-64 p-gutter md:p-margin-edge flex items-center justify-center relative overflow-hidden">
+<!-- Decorative Background Glows -->
+<div class="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-container opacity-20 blur-[100px] rounded-full pointer-events-none"></div>
+<div class="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-rarity-legendary opacity-10 blur-[120px] rounded-full pointer-events-none"></div>
+<!-- The Item Card Slabs -->
+<div class="relative w-full max-w-md mx-auto group perspective-1000">
+<!-- Glow Effect behind card -->
+<div class="absolute -inset-1 bg-gradient-to-br from-rarity-legendary to-transparent rounded-lg blur-md opacity-30 group-hover:opacity-60 transition duration-500"></div>
+<div class="relative flex flex-col bg-surface border-4 border-black rounded-sm slab-container overflow-hidden transition-transform duration-300 hover:scale-[1.01]">
+<!-- Card Header (Sunset Marine Blue Block) -->
+<div class="bg-primary-container border-b-2 border-black p-4 flex flex-col gap-2 relative overflow-hidden">
+<!-- Internal top highlight -->
+<div class="absolute top-0 left-0 w-full h-[1px] bg-white opacity-20 pointer-events-none"></div>
+<div class="absolute top-0 left-0 w-[1px] h-full bg-white opacity-20 pointer-events-none"></div>
+<div class="flex justify-between items-start">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-secondary drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">Cursed Blade</h1>
+<span class="material-symbols-outlined text-outline-variant hover:text-secondary cursor-pointer transition-colors" data-icon="info">info</span>
+</div>
+<!-- Rarity Tag -->
+<div class="inline-flex items-center gap-1 bg-rarity-legendary text-white font-rarity-tag text-rarity-tag px-2 py-0.5 border border-black shadow-[0_0_10px_rgba(230,126,34,0.5)] w-fit rounded-sm uppercase tracking-wider">
+<span class="material-symbols-outlined text-sm" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+                        LEGENDARY
+                    </div>
+</div>
+<!-- Image Slot -->
+<div class="bg-surface-container-lowest p-6 border-b-2 border-black flex justify-center items-center relative min-h-[200px] shadow-[inset_0_0_30px_rgba(0,0,0,0.8)]">
+<!-- Slot background texture / grid -->
+<div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+CjxyZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgZmlsbD0ibm9uZSI+PC9yZWN0Pgo8cGF0aCBkPSJNMjAgMEwwIDBaTTAgMjBMMjAgMjBaIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIvPgo8L3N2Zz4=')] opacity-50 pointer-events-none"></div>
+<img alt="Legendary Sword" class="w-full h-auto object-contain max-h-[160px] drop-shadow-[0_10px_15px_rgba(0,0,0,0.6)] filter brightness-110 contrast-125 z-10 transition-transform duration-500 hover:rotate-2" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBL6EwilJoA05-LYHqCu9zpUU0gZG4yrZdKufitI0v4YMZq_tv-PFtm727bC3pgNg_DgQfEN5JOsHfjCrB-ARmpWb5TR2VRrGDRqI_ouXekdiTIv83jDYBpX_CgbXIvDUFWcsPtWLMKAW38qD0TIACKW8imQlIrDV4ai_x7L_iHTUp57qwM_7Vo9VWNxxnR4q7X5NRjeBR5qHsdRt-5HJOE3GHNmyoKGfJ3ImbMY7ta-qdg8TkpG6y1tECHm44fVDDq2LSjfyYMWJ8"/>
+<!-- Rarity Glow Strip at bottom of slot -->
+<div class="absolute bottom-0 left-0 w-full h-1 bg-rarity-legendary shadow-[0_-5px_15px_rgba(230,126,34,0.6)]"></div>
+</div>
+<!-- Body (Stats) -->
+<div class="p-5 bg-surface flex flex-col gap-4 font-body-md text-body-md text-on-surface">
+<ul class="space-y-3">
+<li class="flex items-center gap-3 group">
+<div class="w-8 h-8 bg-surface-container-high border border-black rounded-sm flex items-center justify-center text-health-glow shadow-[inset_0_0_5px_rgba(255,51,85,0.2)] group-hover:bg-surface-bright transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="fitness_center" style="font-variation-settings: 'FILL' 1;">fitness_center</span>
+</div>
+<span class="flex-1">+25 Strength</span>
+</li>
+<li class="flex items-center gap-3 group">
+<div class="w-8 h-8 bg-surface-container-high border border-black rounded-sm flex items-center justify-center text-secondary shadow-[inset_0_0_5px_rgba(255,185,97,0.2)] group-hover:bg-surface-bright transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="bolt" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+<span class="flex-1">+10% Attack Speed</span>
+</li>
+<li class="flex items-center gap-3 group">
+<div class="w-8 h-8 bg-surface-container-high border border-black rounded-sm flex items-center justify-center text-poison-glow shadow-[inset_0_0_5px_rgba(112,255,158,0.2)] group-hover:bg-surface-bright transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="water_drop" style="font-variation-settings: 'FILL' 1;">water_drop</span>
+</div>
+<span class="flex-1 text-tertiary-fixed-dim">Applies 'Corrosion' on hit</span>
+</li>
+</ul>
+<div class="w-full h-[2px] bg-surface-container-high border-b border-black my-2"></div>
+<div class="flex gap-2 items-center text-on-surface-variant font-label-caps text-label-caps">
+<span class="material-symbols-outlined text-[16px]" data-icon="paid">paid</span>
+<span>Value: 1,450 Gold</span>
+</div>
+</div>
+<!-- Lore Text -->
+<div class="p-4 bg-surface-container border-t-2 border-black font-body-md text-body-md text-on-surface-variant italic opacity-80 relative overflow-hidden">
+<div class="absolute left-0 top-0 w-1 h-full bg-surface-bright"></div>
+<p class="pl-2 relative z-10 leading-relaxed text-[14px]">"Forged in the abyssal deeps, its edge thirsts for the light it can never touch. Wield it, and feel your own soul dull."</p>
+</div>
+<!-- Equip Button Action Area -->
+<div class="p-4 bg-surface border-t border-black">
+<button class="w-full bg-secondary text-on-secondary font-label-caps text-label-caps uppercase py-3 border-2 border-black rounded-sm shadow-[inset_0_0_10px_rgba(255,255,255,0.2)] hover:bg-secondary-fixed-dim hover:shadow-[0_0_15px_rgba(255,185,97,0.6)] transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]" data-icon="swords" style="font-variation-settings: 'FILL' 1;">swords</span>
+                         Equip Item
+                     </button>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation (Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 h-20 bg-surface-container border-t-4 border-black">
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 p-2 font-label-caps text-label-caps hover:opacity-100 transition-opacity active:scale-90" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="swords">swords</span>
+            Abilities
+        </a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-lg p-2 border-2 border-black shadow-[0_0_10px_rgba(232,147,0,0.4)] font-label-caps text-label-caps active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="category" style="font-variation-settings: 'FILL' 1;">category</span>
+            Items
+        </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 p-2 font-label-caps text-label-caps hover:opacity-100 transition-opacity active:scale-90" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="groups">groups</span>
+            Social
+        </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant opacity-60 p-2 font-label-caps text-label-caps hover:opacity-100 transition-opacity active:scale-90" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="storefront">storefront</span>
+            Shop
+        </a>
+</nav>
+</body></html>

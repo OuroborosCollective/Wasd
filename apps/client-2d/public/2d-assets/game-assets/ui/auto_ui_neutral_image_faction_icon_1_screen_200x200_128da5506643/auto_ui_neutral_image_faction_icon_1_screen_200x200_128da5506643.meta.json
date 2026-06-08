@@ -1,0 +1,50 @@
+{
+  "id": "auto_ui_neutral_image_faction_icon_1_screen_200x200_128da5506643",
+  "hash": "128da5506643",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/faction_icon_1/screen.png",
+  "sizeBytes": 9233,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_faction_icon_1_screen_200x200_128da5506643/auto_ui_neutral_image_faction_icon_1_screen_200x200_128da5506643.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_faction_icon_1_screen_200x200_128da5506643/auto_ui_neutral_image_faction_icon_1_screen_200x200_128da5506643.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "faction",
+    "icon",
+    "1",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 200,
+    "height": 200,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 4,
+      "y": 4,
+      "width": 192,
+      "height": 192
+    },
+    "alphaCoverage": 0.7298,
+    "contrastScore": 0.7549,
+    "readabilityScore": 84.6,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:30:56.985Z"
+}

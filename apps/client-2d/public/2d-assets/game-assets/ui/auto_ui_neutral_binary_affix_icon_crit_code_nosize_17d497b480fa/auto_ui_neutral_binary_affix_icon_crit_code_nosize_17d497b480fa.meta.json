@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_affix_icon_crit_code_nosize_17d497b480fa",
+  "hash": "17d497b480fa",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/affix_icon_crit/code.html",
+  "sizeBytes": 451,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_affix_icon_crit_code_nosize_17d497b480fa/auto_ui_neutral_binary_affix_icon_crit_code_nosize_17d497b480fa.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_affix_icon_crit_code_nosize_17d497b480fa/auto_ui_neutral_binary_affix_icon_crit_code_nosize_17d497b480fa.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "affix",
+    "icon",
+    "crit",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.671Z"
+}

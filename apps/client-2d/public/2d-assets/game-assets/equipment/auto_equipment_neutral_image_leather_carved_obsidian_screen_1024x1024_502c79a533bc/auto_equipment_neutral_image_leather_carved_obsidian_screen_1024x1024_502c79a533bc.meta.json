@@ -1,0 +1,60 @@
+{
+  "id": "auto_equipment_neutral_image_leather_carved_obsidian_screen_1024x1024_502c79a533bc",
+  "hash": "502c79a533bc",
+  "kind": "image",
+  "category": "equipment",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/a_set_of_modular_2d_weapon_handles_and_pommels_wrapped_leather_carved_obsidian/screen.png",
+  "sizeBytes": 1685043,
+  "src": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_leather_carved_obsidian_screen_1024x1024_502c79a533bc/auto_equipment_neutral_image_leather_carved_obsidian_screen_1024x1024_502c79a533bc.png",
+  "originalSrc": "/2d-assets/auto-assets/equipment/auto_equipment_neutral_image_leather_carved_obsidian_screen_1024x1024_502c79a533bc/auto_equipment_neutral_image_leather_carved_obsidian_screen_1024x1024_502c79a533bc.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "a",
+    "set",
+    "of",
+    "modular",
+    "2d",
+    "weapon",
+    "handles",
+    "and",
+    "pommels",
+    "wrapped",
+    "leather",
+    "carved",
+    "obsidian",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1024,
+    "height": 1024,
+    "format": "png",
+    "hasAlpha": false,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 1,
+    "readabilityScore": 100,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "equipment",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.641Z"
+}
