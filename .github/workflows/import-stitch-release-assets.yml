@@ -1,0 +1,200 @@
+name: Import Stitch Release Assets
+
+run-name: Import Stitch Release Assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag with Stitch ZIP"
+        required: true
+        default: "stitch-loot-ui-pack-v1"
+      output_branch:
+        description: "Branch for imported assets"
+        required: true
+        default: "assets/stitch-loot-ui-pack-v1-import"
+      create_pr:
+        description: "Create PR after import"
+        required: true
+        default: "true"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      OUTPUT_BRANCH: ${{ inputs.output_branch }}
+      RELEASE_DIR: .asset-inbox/stitch/_release
+      EXPANDED_DIR: .asset-inbox/stitch/_expanded
+      OUT_DIR: apps/client-2d/public/2d-assets/game-assets
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          npm install --no-save sharp
+
+      - name: Download release ZIP
+        run: |
+          set -euo pipefail
+          rm -rf "$RELEASE_DIR" "$EXPANDED_DIR"
+          mkdir -p "$RELEASE_DIR" "$EXPANDED_DIR"
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "*.zip" --dir "$RELEASE_DIR"
+          ZIP_COUNT=$(find "$RELEASE_DIR" -maxdepth 1 -type f -name '*.zip' | wc -l | tr -d ' ')
+          test "$ZIP_COUNT" -gt 0
+          echo "STITCH_ZIP_COUNT=$ZIP_COUNT" >> "$GITHUB_ENV"
+          find "$RELEASE_DIR" -maxdepth 1 -type f -name '*.zip' -print -exec ls -lh {} \; -exec sha256sum {} \;
+
+      - name: Expand ZIP files
+        run: |
+          set -euo pipefail
+          while IFS= read -r zip_file; do
+            echo "Expanding $zip_file"
+            unzip -o "$zip_file" -d "$EXPANDED_DIR"
+          done < <(find "$RELEASE_DIR" -maxdepth 1 -type f -name '*.zip' | sort)
+          EXTRACTED_COUNT=$(find "$EXPANDED_DIR" -type f | wc -l | tr -d ' ')
+          test "$EXTRACTED_COUNT" -gt 0
+          echo "STITCH_EXTRACTED_COUNT=$EXTRACTED_COUNT" >> "$GITHUB_ENV"
+          find "$EXPANDED_DIR" -type f | sort | head -200
+
+      - name: Run Stitch cropper importer
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT_DIR"
+          node scripts/stitch-game-assets-importer.mjs --local-inbox="$EXPANDED_DIR" --output="$OUT_DIR"
+          test -f "$OUT_DIR/manifest.json"
+          test -f apps/client-2d/public/2d-assets/manifest.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const m = JSON.parse(fs.readFileSync('apps/client-2d/public/2d-assets/game-assets/manifest.json', 'utf8'));
+          if (!m.assets || m.assets.length < 1) throw new Error('No Stitch assets imported');
+          const byCategory = {};
+          const byKind = {};
+          const semantic = {
+            weapons: 0,
+            armor: 0,
+            items: 0,
+            decoration: 0,
+            ui: 0,
+            buildings: 0,
+            characters: 0,
+            effects: 0,
+            audio: 0,
+            metadata: 0,
+            unknown: 0
+          };
+          const samples = {};
+          const rules = [
+            ['weapons', /\b(sword|axe|bow|staff|shield|weapon|dagger|mace|spear|katana|blade|wand)\b/],
+            ['armor', /\b(armor|helmet|boots|gloves|pants|robe|tunic|chainmail|plate|leather|shirt)\b/],
+            ['decoration', /\b(decor|decoration|prop|barrel|crate|chair|table|plant|statue|lamp|banner|rug)\b/],
+            ['buildings', /\b(building|house|wall|castle|tower|gate|door|bridge|city|village|kingdom|fort|dungeon)\b/],
+            ['characters', /\b(character|hero|player|npc|villager|guard|warrior|mage|rogue|samurai|knight|archer|enemy|monster|boss)\b/],
+            ['effects', /\b(effect|fx|particle|spell|magic|slash|impact|fire|ice|lightning|explosion|aura|hit|spark|smoke)\b/],
+            ['ui', /\b(ui|icon|symbol|button|hud|panel|frame|cursor|menu|slot|inventory|paperdoll|loot)\b/],
+            ['audio', /\b(audio|music|sound|sfx|ambient|footstep|attack)\b/],
+            ['metadata', /\b(json|atlas|xml|meta|metadata)\b/],
+            ['items', /\b(item|loot|coin|gem|potion|scroll|resource|ore|wood|fish|food|material)\b/]
+          ];
+          for (const a of m.assets) {
+            byCategory[a.category || 'unknown'] = (byCategory[a.category || 'unknown'] || 0) + 1;
+            byKind[a.kind || 'unknown'] = (byKind[a.kind || 'unknown'] || 0) + 1;
+            const hay = [a.id, a.category, a.kind, a.culture, a.sourcePath, ...(a.tokens || [])].filter(Boolean).join(' ').toLowerCase();
+            let bucket = null;
+            for (const [name, re] of rules) {
+              if (re.test(hay)) { bucket = name; break; }
+            }
+            bucket ||= a.category === 'equipment' ? 'items' : a.category === 'unknown' ? 'unknown' : a.category;
+            if (!Object.hasOwn(semantic, bucket)) bucket = 'unknown';
+            semantic[bucket] += 1;
+            samples[bucket] ||= [];
+            if (samples[bucket].length < 12) samples[bucket].push({ id: a.id, sourcePath: a.sourcePath, category: a.category, kind: a.kind, cropped: a.cropped });
+          }
+          const details = {
+            releaseTag: process.env.RELEASE_TAG,
+            importedAssets: m.assets.length,
+            croppedImages: m.stats?.croppedImages ?? 0,
+            warnings: m.stats?.warnings ?? 0,
+            byCategory,
+            byKind,
+            semanticBuckets: semantic,
+            samples
+          };
+          fs.writeFileSync('STITCH_IMPORT_DETAILS.json', JSON.stringify(details, null, 2) + '\n');
+          fs.appendFileSync(process.env.GITHUB_ENV, `STITCH_IMPORTED_COUNT=${m.assets.length}\n`);
+          fs.appendFileSync(process.env.GITHUB_ENV, `STITCH_CROPPED_COUNT=${m.stats?.croppedImages ?? 0}\n`);
+          fs.appendFileSync(process.env.GITHUB_ENV, `STITCH_WARNING_COUNT=${m.stats?.warnings ?? 0}\n`);
+          console.log('STITCH_IMPORT_DETAILS');
+          console.log(JSON.stringify(details, null, 2));
+          NODE
+
+      - name: Write import summary
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const d = JSON.parse(fs.readFileSync('STITCH_IMPORT_DETAILS.json', 'utf8'));
+          const lines = [];
+          lines.push('# Stitch Import Summary');
+          lines.push('');
+          lines.push(`- Release tag: ${process.env.RELEASE_TAG}`);
+          lines.push(`- ZIP files: ${process.env.STITCH_ZIP_COUNT || 0}`);
+          lines.push(`- Extracted files: ${process.env.STITCH_EXTRACTED_COUNT || 0}`);
+          lines.push(`- Imported assets: ${d.importedAssets}`);
+          lines.push(`- Cropped images: ${d.croppedImages}`);
+          lines.push(`- Warnings: ${d.warnings}`);
+          lines.push('');
+          lines.push('## Semantic buckets');
+          for (const [k, v] of Object.entries(d.semanticBuckets).sort()) lines.push(`- ${k}: ${v}`);
+          lines.push('');
+          lines.push('## By category');
+          for (const [k, v] of Object.entries(d.byCategory).sort()) lines.push(`- ${k}: ${v}`);
+          lines.push('');
+          lines.push('## By kind');
+          for (const [k, v] of Object.entries(d.byKind).sort()) lines.push(`- ${k}: ${v}`);
+          lines.push('');
+          lines.push('## Samples');
+          for (const [bucket, entries] of Object.entries(d.samples).sort()) {
+            lines.push(`### ${bucket}`);
+            for (const e of entries) lines.push(`- ${e.id} | ${e.sourcePath} | ${e.category}/${e.kind} | cropped=${e.cropped}`);
+            lines.push('');
+          }
+          fs.writeFileSync('STITCH_IMPORT_SUMMARY.md', lines.join('\n') + '\n');
+          console.log(fs.readFileSync('STITCH_IMPORT_SUMMARY.md', 'utf8'));
+          NODE
+
+      - name: Commit generated assets
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$OUTPUT_BRANCH"
+          git add "$OUT_DIR" apps/client-2d/public/2d-assets/manifest.json STITCH_IMPORT_SUMMARY.md STITCH_IMPORT_DETAILS.json
+          if git diff --cached --quiet; then
+            echo "No asset changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(assets): import Stitch release assets from ${RELEASE_TAG}"
+          git push --force-with-lease origin "$OUTPUT_BRANCH"
+
+      - name: Open PR
+        if: ${{ inputs.create_pr == 'true' }}
+        run: |
+          set -euo pipefail
+          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$OUTPUT_BRANCH" --title "chore(assets): import Stitch release assets" --body-file STITCH_IMPORT_SUMMARY.md || true
