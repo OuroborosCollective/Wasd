@@ -85,6 +85,17 @@ function isAllowedPackDocumentation(relative, extension) {
   );
 }
 
+function isAllowedStitchUiBlueprint(relative, extension) {
+  const basename = path.basename(relative).toLowerCase();
+  return (
+    relative.startsWith('game-assets/')
+    && (
+      (basename === 'code.html' && extension === '.html')
+      || extension === '.md'
+    )
+  );
+}
+
 function assertUrlDrift(pack, metadata, allowlist, errors) {
   if (!metadata) {
     errors.push(`Missing source metadata for pack ${pack.id}`);
@@ -149,7 +160,7 @@ async function main() {
       continue;
     }
 
-    if (isIgnoredStagingFile(relative) || isAllowedPackDocumentation(relative, extension)) {
+    if (isIgnoredStagingFile(relative) || isAllowedPackDocumentation(relative, extension) || isAllowedStitchUiBlueprint(relative, extension)) {
       continue;
     }
 
