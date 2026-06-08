@@ -105,6 +105,37 @@ async function findBounds(imageBuffer, width, height) {
   return { minX, minY, maxX, maxY, bgColor, width, height };
 }
 
+function isBackgroundPixel(x, y, width, height, r, g, b, bgColor) {
+  const isLightBg = bgColor.r > 180;
+  const diffFromBg = Math.abs(r - bgColor.r) + Math.abs(g - bgColor.g) + Math.abs(b - bgColor.b);
+  if (isLightBg) {
+    return diffFromBg < 30;
+  } else {
+    return diffFromBg < 20;
+  }
+}
+
+function createRgbaBuffer(rgbBuffer, width, height, bounds) {
+  const rgbaBuffer = Buffer.alloc(width * height * 4);
+  const { bgColor } = bounds;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const rgbIdx = (y * width + x) * 3;
+      const rgbaIdx = (y * width + x) * 4;
+      const r = rgbBuffer[rgbIdx];
+      const g = rgbBuffer[rgbIdx + 1];
+      const b = rgbBuffer[rgbIdx + 2];
+      const alpha = isBackgroundPixel(x, y, width, height, r, g, b, bgColor) ? 0 : 255;
+      rgbaBuffer[rgbaIdx] = r;
+      rgbaBuffer[rgbaIdx + 1] = g;
+      rgbaBuffer[rgbaIdx + 2] = b;
+      rgbaBuffer[rgbaIdx + 3] = alpha;
+    }
+  }
+  return rgbaBuffer;
+}
+
 async function processSprite(inputPath, outputPath, spriteName) {
   console.log(`Processing: ${spriteName}`);
   
@@ -132,18 +163,15 @@ async function processSprite(inputPath, outputPath, spriteName) {
     return { name: spriteName, bounds, crop: { left: cropLeft, top: cropTop, width: cropWidth, height: cropHeight } };
   }
   
-  // Extract the region and add alpha channel
-  // First make background transparent, then crop
-  const { data: processedBuffer } = await sharp(inputPath)
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  
-  // Create output with transparency based on background color
-  await sharp(processedBuffer, {
+  // Create RGBA buffer with alpha channel (background = transparent)
+  const rgbaBuffer = createRgbaBuffer(imageBuffer, info.width, info.height, bounds);
+
+  // Create output PNG with transparency
+  await sharp(rgbaBuffer, {
     raw: {
       width: info.width,
       height: info.height,
-      channels: 3
+      channels: 4
     }
   })
     .extract({ left: cropLeft, top: cropTop, width: cropWidth, height: cropHeight })
