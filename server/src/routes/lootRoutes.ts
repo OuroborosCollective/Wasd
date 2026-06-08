@@ -1,6 +1,6 @@
 'use strict';
 
-import { getLootDirector } from '../../bootLootSystem.js';
+import { getLootDirector } from '../bootLootSystem.js';
 
 export function createLootRoutes(app: any): void {
   app.get('/admin/loot/status', (_req: any, res: any) => {
@@ -33,7 +33,7 @@ export function createLootRoutes(app: any): void {
 
     try {
       const ctx = req.body;
-      const { ProceduralLootMachine } = await import('../../loot/ProceduralLootMachine.js');
+      const { ProceduralLootMachine } = await import('../loot/ProceduralLootMachine.js');
       const db = (global as any).__db || {};
       const machine = new ProceduralLootMachine(db);
 

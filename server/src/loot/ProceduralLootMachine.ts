@@ -55,7 +55,7 @@ class ProceduralLootMachine {
     this.rarityResolver = new RarityResolver(this.policy);
     this.affixEngine = new AffixEngine(db);
     this.socialMutation = new SocialStringMutationEngine();
-    this.governor = new LootGovernor(this.policy);
+    this.governor = new LootGovernor();
   }
 
   async generate(ctx: LootContext): Promise<{
