@@ -16,7 +16,8 @@ import { campNpcService } from "./CampNpcService.js";
 import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
 import { isGatheringCamp } from "./CampNpcTypes.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
-import { generateVisibleChunkPois } from "../world/WorldPoiGenerator.js";
+import { generateVisibleChunkPois, getStarterVillagePois } from "../world/WorldPoiGenerator.js";
+import { getVisibleChunkCoords } from "../resources/ChunkResourceGenerator.js";
 import { getWalletService } from "../economy/economyRuntime.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
 
@@ -153,9 +154,10 @@ router.get("/camp/:npcId/stock", async (req, res) => {
 
   const poiId = match[1];
 
-  // Get the POI to find its type
+  // Get the POI to find its type — starter village + chunk 0,0
   const starterPois = getStarterVillagePois();
-  const allPois: WorldPoiSnapshot[] = [...starterPois];
+  const chunk0Pois = generateVisibleChunkPois([{ chunkX: 0, chunkZ: 0 }]);
+  const allPois: WorldPoiSnapshot[] = [...starterPois, ...chunk0Pois];
 
   // Find the POI
   const poi = allPois.find((p) => p.id === poiId);
@@ -293,7 +295,12 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
   }
 
   // Get POI to check proximity — use visible POIs (starter + generated camps)
-  const allPois = generateVisibleChunkPois();
+  const tileX = Math.floor(playerPosition.x / 1000);
+  const tileZ = Math.floor(playerPosition.y / 1000);
+  const visibleChunks = getVisibleChunkCoords(tileX, tileZ);
+  const starterPois = getStarterVillagePois();
+  const generatedPois = generateVisibleChunkPois(visibleChunks);
+  const allPois: WorldPoiSnapshot[] = [...starterPois, ...generatedPois].sort((a, b) => a.id.localeCompare(b.id));
   const poi = allPois.find((p) => p.id === poiId);
   if (!poi) {
     res.status(404).json({
@@ -328,9 +335,10 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
   });
 
   if (!buyResult.ok) {
+    const buyError = buyResult as { ok: false; error: string };
     res.status(400).json({
       ok: false,
-      error: buyResult.error,
+      error: buyError.error,
     });
     return;
   }
