@@ -1,0 +1,53 @@
+name: Stitch Asset Inbox Import
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - stitch-assets
+    paths:
+      - ".asset-inbox/stitch/**"
+      - "scripts/scan-stitch-asset-inbox.mjs"
+      - "scripts/import-stitch-loot-ui.mjs"
+      - ".github/workflows/asset-inbox-stitch-import.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stitch-asset-inbox-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  import-stitch-assets:
+    name: Validate Stitch loot UI assets
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Ensure unzip is available
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      - name: Scan Stitch asset inbox
+        run: node scripts/scan-stitch-asset-inbox.mjs
+
+      - name: Import Stitch loot UI assets
+        run: node scripts/import-stitch-loot-ui.mjs
+
+      - name: Verify generated Stitch outputs
+        run: |
+          test -f client/public/assets/stitch-loot-ui/manifest.json
+          test -f client/public/assets/stitch-loot-ui/crop-manifest.json
+          test -f client/src/loot/ui/LootVisualRegistry.generated.ts
+          git status --short
