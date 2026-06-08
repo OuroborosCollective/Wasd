@@ -11,6 +11,8 @@
  * - All arrays sorted deterministically by id
  */
 
+import type { EquipmentStatBlock } from "../equipment/EquipmentStatTypes.js";
+
 export interface LiveGameplayInventoryItem {
   readonly itemId: string;
   readonly quantity: number;
@@ -183,6 +185,8 @@ export interface LiveGameplaySnapshot {
   readonly campNpcs: readonly LiveGameplayCampNpc[];
   /** Camp stock at discovered gathering camp POIs */
   readonly campStocks: readonly LiveGameplayCampStock[];
+  /** Aggregated equipment stats from all equipped items */
+  readonly equipmentStats: EquipmentStatBlock;
 }
 
 export interface GatherResult {
