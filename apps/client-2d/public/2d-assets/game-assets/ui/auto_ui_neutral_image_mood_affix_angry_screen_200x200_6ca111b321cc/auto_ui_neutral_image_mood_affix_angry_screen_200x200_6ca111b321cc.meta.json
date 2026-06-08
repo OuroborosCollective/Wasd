@@ -1,0 +1,50 @@
+{
+  "id": "auto_ui_neutral_image_mood_affix_angry_screen_200x200_6ca111b321cc",
+  "hash": "6ca111b321cc",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/mood_affix_angry/screen.png",
+  "sizeBytes": 8889,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_mood_affix_angry_screen_200x200_6ca111b321cc/auto_ui_neutral_image_mood_affix_angry_screen_200x200_6ca111b321cc.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_mood_affix_angry_screen_200x200_6ca111b321cc/auto_ui_neutral_image_mood_affix_angry_screen_200x200_6ca111b321cc.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "mood",
+    "affix",
+    "angry",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 200,
+    "height": 200,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 14,
+      "y": 14,
+      "width": 172,
+      "height": 172
+    },
+    "alphaCoverage": 0.5863,
+    "contrastScore": 0.6694,
+    "readabilityScore": 80.75,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:30:57.130Z"
+}

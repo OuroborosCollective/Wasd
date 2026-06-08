@@ -1,0 +1,61 @@
+{
+  "id": "auto_ui_neutral_image_a_procedural_arpg_screen_1024x1024_e978b0bab5e4",
+  "hash": "e978b0bab5e4",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/a_set_of_high_fidelity_modular_2d_game_item_components_for_a_procedural_arpg./screen.png",
+  "sizeBytes": 1333722,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_a_procedural_arpg_screen_1024x1024_e978b0bab5e4/auto_ui_neutral_image_a_procedural_arpg_screen_1024x1024_e978b0bab5e4.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_a_procedural_arpg_screen_1024x1024_e978b0bab5e4/auto_ui_neutral_image_a_procedural_arpg_screen_1024x1024_e978b0bab5e4.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "a",
+    "set",
+    "of",
+    "high",
+    "fidelity",
+    "modular",
+    "2d",
+    "game",
+    "item",
+    "components",
+    "for",
+    "a",
+    "procedural",
+    "arpg",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1024,
+    "height": 1024,
+    "format": "png",
+    "hasAlpha": false,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1024
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 1,
+    "readabilityScore": 100,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.570Z"
+}

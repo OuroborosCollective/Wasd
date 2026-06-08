@@ -1,0 +1,50 @@
+{
+  "id": "auto_ui_neutral_image_luck_affix_icon_screen_200x200_c35710dd1a8a",
+  "hash": "c35710dd1a8a",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/luck_affix_icon/screen.png",
+  "sizeBytes": 4981,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_luck_affix_icon_screen_200x200_c35710dd1a8a/auto_ui_neutral_image_luck_affix_icon_screen_200x200_c35710dd1a8a.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_luck_affix_icon_screen_200x200_c35710dd1a8a/auto_ui_neutral_image_luck_affix_icon_screen_200x200_c35710dd1a8a.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "luck",
+    "affix",
+    "icon",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 200,
+    "height": 200,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 26,
+      "y": 26,
+      "width": 148,
+      "height": 149
+    },
+    "alphaCoverage": 0.2783,
+    "contrastScore": 0.8508,
+    "readabilityScore": 75.34,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:30:57.115Z"
+}

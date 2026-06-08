@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_army_rank_2_code_nosize_cd528d5a3e1b",
+  "hash": "cd528d5a3e1b",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/army_rank_2/code.html",
+  "sizeBytes": 344,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_army_rank_2_code_nosize_cd528d5a3e1b/auto_ui_neutral_binary_army_rank_2_code_nosize_cd528d5a3e1b.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_army_rank_2_code_nosize_cd528d5a3e1b/auto_ui_neutral_binary_army_rank_2_code_nosize_cd528d5a3e1b.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "army",
+    "rank",
+    "2",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.811Z"
+}

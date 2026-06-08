@@ -1,0 +1,50 @@
+{
+  "id": "auto_ui_neutral_image_authoritative_forge_dashboard_screen_1704x1408_76f139401c04",
+  "hash": "76f139401c04",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/authoritative_forge_dashboard/screen.png",
+  "sizeBytes": 1708169,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_authoritative_forge_dashboard_screen_1704x1408_76f139401c04/auto_ui_neutral_image_authoritative_forge_dashboard_screen_1704x1408_76f139401c04.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_authoritative_forge_dashboard_screen_1704x1408_76f139401c04/auto_ui_neutral_image_authoritative_forge_dashboard_screen_1704x1408_76f139401c04.png",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "authoritative",
+    "forge",
+    "dashboard",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 1704,
+    "height": 1408,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 0,
+      "y": 0,
+      "width": 1704,
+      "height": 1408
+    },
+    "alphaCoverage": 1,
+    "contrastScore": 0.9825,
+    "readabilityScore": 99.21,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.873Z"
+}

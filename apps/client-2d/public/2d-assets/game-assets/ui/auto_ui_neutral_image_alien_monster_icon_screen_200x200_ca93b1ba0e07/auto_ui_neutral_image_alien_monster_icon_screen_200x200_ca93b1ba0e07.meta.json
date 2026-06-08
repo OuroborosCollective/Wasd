@@ -1,0 +1,50 @@
+{
+  "id": "auto_ui_neutral_image_alien_monster_icon_screen_200x200_ca93b1ba0e07",
+  "hash": "ca93b1ba0e07",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/alien_monster_icon/screen.png",
+  "sizeBytes": 9727,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_alien_monster_icon_screen_200x200_ca93b1ba0e07/auto_ui_neutral_image_alien_monster_icon_screen_200x200_ca93b1ba0e07.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_alien_monster_icon_screen_200x200_ca93b1ba0e07/auto_ui_neutral_image_alien_monster_icon_screen_200x200_ca93b1ba0e07.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "alien",
+    "monster",
+    "icon",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 200,
+    "height": 200,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 6,
+      "y": 6,
+      "width": 188,
+      "height": 188
+    },
+    "alphaCoverage": 0.6999,
+    "contrastScore": 0.6717,
+    "readabilityScore": 80.85,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:30:56.718Z"
+}

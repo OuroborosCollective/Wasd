@@ -1,0 +1,53 @@
+{
+  "id": "auto_ui_neutral_image_of_fallen_stars_screen_400x400_224c17f8c4c5",
+  "hash": "224c17f8c4c5",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/jewelry_set_amulet_of_fallen_stars/screen.png",
+  "sizeBytes": 15600,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_of_fallen_stars_screen_400x400_224c17f8c4c5/auto_ui_neutral_image_of_fallen_stars_screen_400x400_224c17f8c4c5.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_of_fallen_stars_screen_400x400_224c17f8c4c5/auto_ui_neutral_image_of_fallen_stars_screen_400x400_224c17f8c4c5.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "jewelry",
+    "set",
+    "amulet",
+    "of",
+    "fallen",
+    "stars",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 400,
+    "height": 400,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 88,
+      "y": 28,
+      "width": 224,
+      "height": 324
+    },
+    "alphaCoverage": 0.2185,
+    "contrastScore": 0.7608,
+    "readabilityScore": 71.07,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:30:57.066Z"
+}

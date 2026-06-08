@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_affix_icon_mana_code_nosize_9f8e8f29dd64",
+  "hash": "9f8e8f29dd64",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/affix_icon_mana/code.html",
+  "sizeBytes": 348,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_affix_icon_mana_code_nosize_9f8e8f29dd64/auto_ui_neutral_binary_affix_icon_mana_code_nosize_9f8e8f29dd64.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_affix_icon_mana_code_nosize_9f8e8f29dd64/auto_ui_neutral_binary_affix_icon_mana_code_nosize_9f8e8f29dd64.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "affix",
+    "icon",
+    "mana",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.680Z"
+}

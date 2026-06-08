@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_binary_luck_affix_icon_code_nosize_17d505a479bb",
+  "hash": "17d505a479bb",
+  "kind": "binary",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".html",
+  "sourcePath": "stitch_arelorian_loot_ui_system/luck_affix_icon/code.html",
+  "sizeBytes": 591,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_luck_affix_icon_code_nosize_17d505a479bb/auto_ui_neutral_binary_luck_affix_icon_code_nosize_17d505a479bb.html",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_binary_luck_affix_icon_code_nosize_17d505a479bb/auto_ui_neutral_binary_luck_affix_icon_code_nosize_17d505a479bb.html",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "luck",
+    "affix",
+    "icon",
+    "code"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "binary",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:57.112Z"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "auto_ui_neutral_text_eldritch_modular_gothic_design_nosize_4194f5abdc18",
+  "hash": "4194f5abdc18",
+  "kind": "text",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".md",
+  "sourcePath": "stitch_arelorian_loot_ui_system/eldritch_modular_gothic/DESIGN.md",
+  "sizeBytes": 7135,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_text_eldritch_modular_gothic_design_nosize_4194f5abdc18/auto_ui_neutral_text_eldritch_modular_gothic_design_nosize_4194f5abdc18.md",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_text_eldritch_modular_gothic_design_nosize_4194f5abdc18/auto_ui_neutral_text_eldritch_modular_gothic_design_nosize_4194f5abdc18.md",
+  "cropped": false,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "eldritch",
+    "modular",
+    "gothic",
+    "design"
+  ],
+  "analysis": null,
+  "tags": [
+    "auto",
+    "text",
+    "ui",
+    "neutral",
+    "original"
+  ],
+  "createdAt": "2026-06-08T06:30:56.970Z"
+}

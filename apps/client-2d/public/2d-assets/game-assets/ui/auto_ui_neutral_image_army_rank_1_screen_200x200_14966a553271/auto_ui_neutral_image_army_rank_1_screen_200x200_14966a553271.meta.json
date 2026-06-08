@@ -1,0 +1,50 @@
+{
+  "id": "auto_ui_neutral_image_army_rank_1_screen_200x200_14966a553271",
+  "hash": "14966a553271",
+  "kind": "image",
+  "category": "ui",
+  "culture": "neutral",
+  "ext": ".png",
+  "sourcePath": "stitch_arelorian_loot_ui_system/army_rank_1/screen.png",
+  "sizeBytes": 5284,
+  "src": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_army_rank_1_screen_200x200_14966a553271/auto_ui_neutral_image_army_rank_1_screen_200x200_14966a553271.cropped.png",
+  "originalSrc": "/2d-assets/auto-assets/ui/auto_ui_neutral_image_army_rank_1_screen_200x200_14966a553271/auto_ui_neutral_image_army_rank_1_screen_200x200_14966a553271.png",
+  "cropped": true,
+  "tokens": [
+    "stitch",
+    "arelorian",
+    "loot",
+    "ui",
+    "system",
+    "army",
+    "rank",
+    "1",
+    "screen"
+  ],
+  "analysis": {
+    "readable": true,
+    "tool": "sharp",
+    "width": 200,
+    "height": 200,
+    "format": "png",
+    "hasAlpha": true,
+    "cropBox": {
+      "x": 6,
+      "y": 4,
+      "width": 188,
+      "height": 191
+    },
+    "alphaCoverage": 0.3043,
+    "contrastScore": 0.7608,
+    "readabilityScore": 73.29,
+    "warnings": []
+  },
+  "tags": [
+    "auto",
+    "image",
+    "ui",
+    "neutral",
+    "cropped"
+  ],
+  "createdAt": "2026-06-08T06:30:56.811Z"
+}
