@@ -36,7 +36,7 @@ export function createLootRoutes(app: any): void {
     }
 
     try {
-      const ctx = req.body;
+      const ctx = req.body || {};
       const { ProceduralLootMachine } = await import('../loot/ProceduralLootMachine.js');
       const db = (global as any).__db || {};
       const machine = new ProceduralLootMachine(db);
