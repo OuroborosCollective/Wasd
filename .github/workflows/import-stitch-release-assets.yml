@@ -55,11 +55,24 @@ jobs:
           set -euo pipefail
           rm -rf "$RELEASE_DIR" "$EXPANDED_DIR"
           mkdir -p "$RELEASE_DIR" "$EXPANDED_DIR"
-          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "*.zip" --dir "$RELEASE_DIR"
-          ZIP_COUNT=$(find "$RELEASE_DIR" -maxdepth 1 -type f -name '*.zip' | wc -l | tr -d ' ')
-          test "$ZIP_COUNT" -gt 0
+          echo "Release assets for $RELEASE_TAG:"
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[]?.name' || true
+          ASSET_COUNT=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | length')
+          if [ "$ASSET_COUNT" -eq 0 ]; then
+            echo "ERROR: Release $RELEASE_TAG has no uploaded assets."
+            echo "Open the release page, edit the release, attach the 9 MB Stitch ZIP under Assets, save it, then rerun this workflow."
+            exit 1
+          fi
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir "$RELEASE_DIR"
+          ZIP_COUNT=$(find "$RELEASE_DIR" -maxdepth 1 -type f \( -iname '*.zip' -o -iname '*.z01' -o -iname '*.z02' -o -iname '*.z03' \) | wc -l | tr -d ' ')
+          if [ "$ZIP_COUNT" -eq 0 ]; then
+            echo "ERROR: Release assets downloaded, but no .zip/.z01/.z02/.z03 files were found."
+            echo "Downloaded files:"
+            find "$RELEASE_DIR" -maxdepth 1 -type f -print -exec ls -lh {} \;
+            exit 1
+          fi
           echo "STITCH_ZIP_COUNT=$ZIP_COUNT" >> "$GITHUB_ENV"
-          find "$RELEASE_DIR" -maxdepth 1 -type f -name '*.zip' -print -exec ls -lh {} \; -exec sha256sum {} \;
+          find "$RELEASE_DIR" -maxdepth 1 -type f \( -iname '*.zip' -o -iname '*.z01' -o -iname '*.z02' -o -iname '*.z03' \) -print -exec ls -lh {} \; -exec sha256sum {} \;
 
       - name: Expand ZIP files
         run: |
@@ -67,7 +80,7 @@ jobs:
           while IFS= read -r zip_file; do
             echo "Expanding $zip_file"
             unzip -o "$zip_file" -d "$EXPANDED_DIR"
-          done < <(find "$RELEASE_DIR" -maxdepth 1 -type f -name '*.zip' | sort)
+          done < <(find "$RELEASE_DIR" -maxdepth 1 -type f -iname '*.zip' | sort)
           EXTRACTED_COUNT=$(find "$EXPANDED_DIR" -type f | wc -l | tr -d ' ')
           test "$EXTRACTED_COUNT" -gt 0
           echo "STITCH_EXTRACTED_COUNT=$EXTRACTED_COUNT" >> "$GITHUB_ENV"
