@@ -106,6 +106,10 @@ export function installARELootIntegration(worldTick: WorldTick): void {
           // Bridge to WorldTick's lootEntities via any cast
           const lootEntities = wt.lootEntities;
           if (lootEntities?.set) {
+            // Ensure item has an 'id' field for InventorySystem.addItem compatibility
+            const lootItem = payload.item.kind === 'currency'
+              ? { ...payload.item, id: payload.item.currency }
+              : { ...payload.item, id: payload.item.baseId || payload.item.uid };
             lootEntities.set(payload.item.uid, {
               id: payload.item.uid,
               position: {
@@ -113,7 +117,7 @@ export function installARELootIntegration(worldTick: WorldTick): void {
                 y: payload.position?.y || 0,
                 z: payload.position?.z || 0
               },
-              item: payload.item,
+              item: lootItem,
               glbPath: null,
               visualType: 'loot_capsule',
               sourceNpcId: payload.item.meta?.dropSourceId,
