@@ -15,7 +15,7 @@ interface Affix {
 
 class AffixEngine {
   private db: any;
-  private fallbackAffixes: Affix[];
+  private readonly fallbackAffixes: readonly Affix[];
 
   constructor(db: any) {
     this.db = db;

@@ -1,10 +1,10 @@
 'use strict';
 
 interface GovernorPolicy {
-  maxSellValue: number;
-  maxAffixes: number;
-  maxSingleStatValue: number;
-  forbiddenStats: string[];
+  maxSellValue?: number;
+  maxAffixes?: number;
+  maxSingleStatValue?: number;
+  forbiddenStats?: string[];
 }
 
 interface InspectionResult {
@@ -13,15 +13,14 @@ interface InspectionResult {
 }
 
 class LootGovernor {
-  private policy: GovernorPolicy;
+  private policy: Required<GovernorPolicy>;
 
-  constructor(policy: Partial<GovernorPolicy> = {}) {
+  constructor(policy: GovernorPolicy = {}) {
     this.policy = {
-      maxSellValue: 1_000_000,
-      maxAffixes: 10,
-      maxSingleStatValue: 10_000,
-      forbiddenStats: ['adminPower', 'serverAuthority', 'realMoneyValue'],
-      ...policy
+      maxSellValue: policy.maxSellValue ?? 1_000_000,
+      maxAffixes: policy.maxAffixes ?? 10,
+      maxSingleStatValue: policy.maxSingleStatValue ?? 10_000,
+      forbiddenStats: policy.forbiddenStats ?? ['adminPower', 'serverAuthority', 'realMoneyValue'],
     };
   }
 

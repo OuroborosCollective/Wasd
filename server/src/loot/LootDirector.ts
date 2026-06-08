@@ -1,7 +1,7 @@
 'use strict';
 
-import { ProceduralLootMachine } from './ProceduralLootMachine.js';
-import { LootAxioms } from './LootAxioms.js';
+import { ProceduralLootMachine } from './ProceduralLootMachine';
+import { LootAxioms } from './LootAxioms';
 
 interface LootDirectorDeps {
   db: any;

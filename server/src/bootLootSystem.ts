@@ -1,7 +1,10 @@
 'use strict';
 
-import { GameEventBus } from '../core/events/GameEventBus.js';
+import { GameEventBus } from './core/events/GameEventBus.js';
 import { LootDirector } from './loot/LootDirector.js';
+
+// Re-export LootDirector type for type-only imports
+export type { LootDirector };
 
 let lootDirectorInstance: LootDirector | null = null;
 let eventBusInstance: GameEventBus | null = null;

@@ -10,8 +10,9 @@
  * NPC Decomposition → emitDeterministicLootEvent → LootDirector.handleNpcKilled → ProceduralLootMachine.generate
  */
 
-import { bootLootSystem, getLootEventBus, type LootDirector } from '../../bootLootSystem.js';
-import { WorldTick } from '../../core/WorldTick.js';
+import { bootLootSystem, getLootEventBus } from '../../bootLootSystem.js';
+import type { LootDirector } from '../../bootLootSystem.js';
+import { WorldTick } from '../../core/WorldTick';
 
 const INSTALLED_KEY = Symbol.for('areloria.areLootIntegrationRelay');
 const TICK_OFFSET_BASE = 1000000;
@@ -96,26 +97,30 @@ export function installARELootIntegration(worldTick: WorldTick): void {
   // Boot the loot system if not already done
   if (!integratedDirector) {
     const db = (global as any).__db || {};
+    const wt = worldTick as any;
     const result = bootLootSystem({
       db,
       inventoryService: null,
       worldDropService: {
         spawnItem: (payload: any) => {
-          // Bridge to WorldTick's lootEntities
-          worldTick.lootEntities?.set?.(payload.item.uid, {
-            id: payload.item.uid,
-            position: {
-              x: payload.position?.x || 0,
-              y: payload.position?.y || 0,
-              z: payload.position?.z || 0
-            },
-            item: payload.item,
-            glbPath: null,
-            visualType: 'loot_capsule',
-            sourceNpcId: payload.item.meta?.dropSourceId,
-            items: [payload.item],
-            gold: payload.item.kind === 'currency' ? payload.item.amount : 0
-          });
+          // Bridge to WorldTick's lootEntities via any cast
+          const lootEntities = wt.lootEntities;
+          if (lootEntities?.set) {
+            lootEntities.set(payload.item.uid, {
+              id: payload.item.uid,
+              position: {
+                x: payload.position?.x || 0,
+                y: payload.position?.y || 0,
+                z: payload.position?.z || 0
+              },
+              item: payload.item,
+              glbPath: null,
+              visualType: 'loot_capsule',
+              sourceNpcId: payload.item.meta?.dropSourceId,
+              items: [payload.item],
+              gold: payload.item.kind === 'currency' ? payload.item.amount : 0
+            });
+          }
         }
       },
       auditStore: null
@@ -127,19 +132,23 @@ export function installARELootIntegration(worldTick: WorldTick): void {
   // Listen for loot.generated events and broadcast to clients
   const eventBus = getLootEventBus();
   if (eventBus) {
-    eventBus.onSafe('loot.generated', (payload: any) => {
+    const wt = worldTick as any;
+    eventBus.onSafe('loot.generated', async (payload: any) => {
       // Forward to WebSocket clients
-      if (worldTick.ws?.broadcast) {
-        worldTick.ws.broadcast({
+      const ws = wt.ws;
+      if (ws?.broadcast) {
+        ws.broadcast({
           type: 'loot.generated',
           payload
         });
       }
     });
 
-    eventBus.onSafe('loot.telemetry', (payload: any) => {
-      if (worldTick.ws?.broadcast && worldTick.tickCount % 100 === 0) {
-        worldTick.ws.broadcast({
+    eventBus.onSafe('loot.telemetry', async (payload: any) => {
+      const ws = wt.ws;
+      const tickCount = wt.tickCount;
+      if (ws?.broadcast && tickCount % 100 === 0) {
+        ws.broadcast({
           type: 'loot.telemetry',
           payload
         });

@@ -1,12 +1,12 @@
 'use strict';
 
-import { DeterministicRng } from './DeterministicRng.js';
-import { LootAxioms } from './LootAxioms.js';
-import { TreasureClassRegistry } from './TreasureClassRegistry.js';
-import { RarityResolver } from './RarityResolver.js';
-import { AffixEngine } from './AffixEngine.js';
-import { SocialStringMutationEngine } from './SocialStringMutationEngine.js';
-import { LootGovernor } from './LootGovernor.js';
+import { DeterministicRng } from './DeterministicRng';
+import { LootAxioms } from './LootAxioms';
+import { TreasureClassRegistry } from './TreasureClassRegistry';
+import { RarityResolver } from './RarityResolver';
+import { AffixEngine } from './AffixEngine';
+import { SocialStringMutationEngine } from './SocialStringMutationEngine';
+import { LootGovernor } from './LootGovernor';
 
 interface LootContext {
   playerId: string;
@@ -61,7 +61,7 @@ class ProceduralLootMachine {
   async generate(ctx: LootContext): Promise<{
     seedHash: string;
     context: any;
-    items: any[];
+    items: readonly any[];
   }> {
     const context = this.normalizeContext(ctx);
     const seed = LootAxioms.makeSeed(context);
