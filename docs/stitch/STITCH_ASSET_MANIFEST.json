@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "sourceProject": "https://stitch.withgoogle.com/projects/5818376600012388808",
+  "rules": {
+    "excludeWebsiteShell": true,
+    "clientDisplayOnly": true,
+    "serverAuthoritativeGameplay": true,
+    "noClientInventoryMutation": true,
+    "noGameplayRandomness": true
+  },
+  "assets": [
+    {
+      "id": "npc_mira_quartermaster",
+      "kind": "npc_sprite_or_portrait",
+      "source": "stitch-export",
+      "targetPath": "apps/client-2d/public/assets/stitch/npc/mira-quartermaster.png",
+      "gameUse": "Village Trader / Mira dialogue, market panel and vendor marker",
+      "status": "candidate",
+      "notes": "Use only if exported asset exists; fallback remains existing emoji/text marker."
+    },
+    {
+      "id": "npc_camp_miner",
+      "kind": "npc_sprite_or_portrait",
+      "source": "stitch-export",
+      "targetPath": "apps/client-2d/public/assets/stitch/npc/camp-miner.png",
+      "gameUse": "Camp miner NPC marker from CampNpcMarkerLayer",
+      "status": "candidate",
+      "notes": "Display-only mapping by deterministic NPC type camp_miner."
+    },
+    {
+      "id": "npc_camp_fisher",
+      "kind": "npc_sprite_or_portrait",
+      "source": "stitch-export",
+      "targetPath": "apps/client-2d/public/assets/stitch/npc/camp-fisher.png",
+      "gameUse": "Camp fisher NPC marker from CampNpcMarkerLayer",
+      "status": "candidate",
+      "notes": "Display-only mapping by deterministic NPC type camp_fisher."
+    },
+    {
+      "id": "npc_camp_woodcutter",
+      "kind": "npc_sprite_or_portrait",
+      "source": "stitch-export",
+      "targetPath": "apps/client-2d/public/assets/stitch/npc/camp-woodcutter.png",
+      "gameUse": "Camp woodcutter NPC marker from CampNpcMarkerLayer",
+      "status": "candidate",
+      "notes": "Display-only mapping by deterministic NPC type camp_woodcutter."
+    },
+    {
+      "id": "mara_emporium_outpost_market",
+      "kind": "ui_background_or_panel",
+      "source": "stitch-export",
+      "targetPath": "apps/client-2d/public/assets/stitch/market/maras-emporium-outpost-trading-hub.png",
+      "gameUse": "Future market/vendor window background or outpost vendor scene",
+      "status": "candidate",
+      "notes": "Do not import as website. Crop/use as local UI art only."
+    },
+    {
+      "id": "auction_market_window",
+      "kind": "ui_reference",
+      "source": "stitch-export",
+      "targetPath": "docs/stitch/auction-market-window-reference.png",
+      "gameUse": "Future auction/market UI reference; not runtime until server trade contract exists",
+      "status": "candidate",
+      "notes": "Reference only until a server-authoritative market route exists."
+    },
+    {
+      "id": "diamond_glass_item_tooltip",
+      "kind": "ui_panel",
+      "source": "stitch-export",
+      "targetPath": "apps/client-2d/public/assets/stitch/ui/diamond-glass-item-tooltip.png",
+      "gameUse": "Loot item tooltip frame for generated ARELogic loot",
+      "status": "candidate",
+      "notes": "Render item strings as plain text only."
+    },
+    {
+      "id": "rarity_frame_common",
+      "kind": "rarity_frame",
+      "source": "stitch-export-or-generated-local",
+      "targetPath": "apps/client-2d/public/assets/stitch/loot/rarity-frame-common.png",
+      "gameUse": "COMMON loot item frame",
+      "status": "candidate",
+      "notes": "Color #9da1aa."
+    },
+    {
+      "id": "rarity_frame_magic",
+      "kind": "rarity_frame",
+      "source": "stitch-export-or-generated-local",
+      "targetPath": "apps/client-2d/public/assets/stitch/loot/rarity-frame-magic.png",
+      "gameUse": "MAGIC loot item frame",
+      "status": "candidate",
+      "notes": "Color #3498db."
+    },
+    {
+      "id": "rarity_frame_rare",
+      "kind": "rarity_frame",
+      "source": "stitch-export-or-generated-local",
+      "targetPath": "apps/client-2d/public/assets/stitch/loot/rarity-frame-rare.png",
+      "gameUse": "RARE loot item frame",
+      "status": "candidate",
+      "notes": "Color #f1c40f."
+    },
+    {
+      "id": "rarity_frame_epic",
+      "kind": "rarity_frame",
+      "source": "stitch-export-or-generated-local",
+      "targetPath": "apps/client-2d/public/assets/stitch/loot/rarity-frame-epic.png",
+      "gameUse": "EPIC loot item frame",
+      "status": "candidate",
+      "notes": "Color #9b59b6."
+    },
+    {
+      "id": "rarity_frame_legendary",
+      "kind": "rarity_frame",
+      "source": "stitch-export-or-generated-local",
+      "targetPath": "apps/client-2d/public/assets/stitch/loot/rarity-frame-legendary.png",
+      "gameUse": "LEGENDARY loot item frame",
+      "status": "candidate",
+      "notes": "Color #e67e22."
+    },
+    {
+      "id": "rarity_frame_mythic",
+      "kind": "rarity_frame",
+      "source": "stitch-export-or-generated-local",
+      "targetPath": "apps/client-2d/public/assets/stitch/loot/rarity-frame-mythic.png",
+      "gameUse": "MYTHIC loot item frame",
+      "status": "candidate",
+      "notes": "Color #ff3355."
+    }
+  ]
+}
