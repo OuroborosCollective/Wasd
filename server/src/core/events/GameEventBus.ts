@@ -7,7 +7,7 @@ class GameEventBus extends EventEmitter {
     this.emit(type, Object.freeze({
       type,
       payload: Object.freeze(payload || {}),
-      emittedAt: Date.now()
+      emittedAt: Date.now() // ARE-DETERMINISM-ALLOW: event metadata only, not world-state
     }));
   }
 
