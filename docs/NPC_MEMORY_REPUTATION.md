@@ -1,11 +1,106 @@
 # NPC Memory and Reputation System
 
 > Documentation Date: 2026-06-09
-> Branch: `feat/npc-resource-quest-loop`
+> Branch: `feat/npc-memory-persistence-rumors`
 
 ## Overview
 
-The NPC Memory and Reputation System provides deterministic, server-authoritative tracking of player-NPC relationships. It uses the Cyber-Zen design language from the Arelorian Stitch design system.
+The NPC Memory and Reputation System provides deterministic, server-authoritative tracking of player-NPC relationships with persistent memory and social rumor propagation. It uses the Cyber-Zen design language from the Arelorian Stitch design system.
+
+## Architecture
+
+### Core Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `NpcRumorTypes` | `server/src/npc/NpcRumorTypes.ts` | Type definitions for memory events, rumors, and persistence |
+| `NpcMemoryStore` | `server/src/npc/NpcMemoryStore.ts` | JSON file-based persistence for NPC memory and rumors |
+| `NpcMemoryService` | `server/src/npc/NpcMemoryService.ts` | Memory event recording and retrieval |
+| `NpcRumorService` | `server/src/npc/NpcRumorService.ts` | Rumor creation and deterministic propagation |
+| `NpcMemoryRoute` | `server/src/npc/NpcMemoryRoute.ts` | API routes for memory/rumor endpoints |
+
+### Data Flow
+
+```
+Quest Complete (accept/complete)
+  → NpcMemoryService.recordQuestCompleted()
+    → Persisted to NpcMemoryStore (JSON file)
+    → Triggers NpcRumorService.createRumorFromMemory()
+      → Creates helped_village rumor for Mira
+      → Rumor propagates to eligible NPCs (village_elder_001, outpost_guard_001)
+        → Updates LiveGameplaySnapshot via composer
+          → Client displays in NpcDialoguePanel
+```
+
+## Determinism Rules
+
+- **No** `Date.now()` for gameplay state
+- **No** `Math.random()` for gameplay IDs
+- **No** UUID for memory event IDs - uses deterministic format: `${npcId}:${playerId}:${kind}:${logicalIndex}:${sourceId}`
+- **No** client-authoritative memory writes
+- **No** duplicate event application
+- **No** partial mutation after failed persistence validation
+- Stable sorting by `logicalIndex`, `eventId`
+
+## Persistence Model
+
+### PersistedNpcMemoryState
+
+```typescript
+interface PersistedNpcMemoryState {
+  readonly schemaVersion: 1;
+  readonly playerId: string;
+  readonly npcId: string;
+  readonly reputation: number;
+  readonly trustTier: TrustTier;
+  readonly completedQuestIds: readonly string[];
+  readonly memoryEvents: readonly NpcMemoryEvent[];
+  readonly knownRumorIds: readonly string[];
+}
+```
+
+### NpcMemoryEvent
+
+```typescript
+interface NpcMemoryEvent {
+  readonly eventId: string;  // Format: ${npcId}:${playerId}:${kind}:${logicalIndex}:${sourceId}
+  readonly npcId: string;
+  readonly playerId: string;
+  readonly kind: "quest_accepted" | "quest_completed" | "sell_completed" | "trade_completed" | "gift_given" | "interaction_failed" | "hostile_action" | "rumor_heard";
+  readonly logicalIndex: number;
+  readonly sourceId: string;
+  readonly reputationDelta: number;
+  readonly note: string;
+}
+```
+
+### Persistence Backend
+
+Uses `NpcMemoryStore` with JSON file backend:
+- File location: `process.cwd()/data/npc-memory.json` (configurable via `NPC_MEMORY_FILE` env var)
+- Atomic writes via temp file + rename pattern
+- Stable sort for deterministic output
+- Corrupt JSON handling: returns empty state, doesn't crash server
+
+## Trust Tiers
+
+Trust tier is determined by reputation value and maps to visual states:
+
+| Reputation | Tier | CSS Class | Visual |
+|------------|------|-----------|--------|
+| ≥ 5 | HONORED | `trust-tier--honored` | Violet glow, premium feel |
+| ≥ 3 | TRUSTED | `trust-tier--trusted` | Green emphasis |
+| ≥ 1 | NEUTRAL | `trust-tier--neutral` | Cyan standard |
+| ≤ -1 | COLD | `trust-tier--cold` | Muted grey-blue |
+| ≤ -3 | HOSTILE | `trust-tier--hostile` | Ruby/fire danger |
+
+### Effective Trust Calculation
+
+```
+effectiveReputation = directReputation + Math.trunc(totalRumorWeight / 2)
+```
+
+Direct memory has strongest effect. Rumors contribute half their weight to effective reputation.
 
 ## Cyber-Zen Visual Source
 

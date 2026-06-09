@@ -67,6 +67,48 @@ export interface LiveGameplayNpcReputation {
   readonly completedQuestIds: readonly string[];
 }
 
+/**
+ * Trust tier for NPC-player relationship.
+ */
+export type LiveGameplayTrustTier = "hostile" | "cold" | "neutral" | "trusted" | "honored";
+
+/**
+ * Rumor kinds for NPC memory system.
+ */
+export type LiveGameplayNpcRumorKind =
+  | "helped_village"
+  | "reliable_supplier"
+  | "troublemaker"
+  | "hostile_actor"
+  | "trusted_worker";
+
+/**
+ * NPC memory snapshot for server-authoritative display.
+ * Exposes summary data without full raw history.
+ */
+export interface LiveGameplayNpcMemory {
+  readonly npcId: string;
+  readonly playerId: string;
+  readonly reputation: number;
+  readonly trustTier: LiveGameplayTrustTier;
+  readonly memoryEventCount: number;
+  readonly recentMemoryNotes: readonly string[];
+  readonly knownRumorCount: number;
+}
+
+/**
+ * NPC rumor snapshot for server-authoritative display.
+ */
+export interface LiveGameplayNpcRumor {
+  readonly rumorId: string;
+  readonly npcId: string;
+  readonly playerId: string;
+  readonly kind: LiveGameplayNpcRumorKind;
+  readonly weight: number;
+  readonly note: string;
+  readonly sourceNpcId: string;
+}
+
 export interface LiveGameplayInventoryItem {
   readonly itemId: string;
   readonly quantity: number;
@@ -265,6 +307,10 @@ export interface LiveGameplaySnapshot {
   readonly npcDialogues: readonly LiveGameplayNpcDialogue[];
   /** NPC reputations for the player */
   readonly npcReputations: readonly LiveGameplayNpcReputation[];
+  /** NPC memory snapshots for the player */
+  readonly npcMemories: readonly LiveGameplayNpcMemory[];
+  /** NPC rumor snapshots for the player */
+  readonly npcRumors: readonly LiveGameplayNpcRumor[];
 }
 
 export interface GatherResult {

@@ -1,5 +1,5 @@
 import { LiveGameplaySnapshotComposer, buildVendorEconomySnapshot, createEmptyVendorEconomySnapshot } from "./LiveGameplaySnapshotComposer.js";
-import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery, LiveGameplayCampNpc, LiveGameplayCampStock } from "./LiveGameplaySnapshotTypes.js";
+import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery, LiveGameplayCampNpc, LiveGameplayCampStock, LiveGameplayNpcMemory, LiveGameplayNpcRumor } from "./LiveGameplaySnapshotTypes.js";
 import { toLiveEquipmentSlots } from "./adapters/EquipmentSnapshotAdapter.js";
 import { toLiveInventoryItems } from "./adapters/InventorySnapshotAdapter.js";
 import { getWalletService, getVendorStockService } from "../economy/economyRuntime.js";
@@ -11,6 +11,8 @@ import { createDefaultStatBlock, statKeyToPropertyName, isEquipmentStatKey, capS
 import type { EquipmentStatBlock } from "../equipment/EquipmentStatTypes.js";
 import { getStarterProcessingStations } from "../crafting/ProcessingStations.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
+import { npcMemoryService } from "../npc/NpcMemoryService.js";
+import { npcRumorService } from "../npc/NpcRumorService.js";
 
 interface LegacyInventorySlot {
   readonly itemId?: string;
@@ -225,6 +227,30 @@ export async function composeLiveGameplaySnapshotFromLegacy(
     },
     getNpcReputations: (playerId: string) => {
       return npcQuestService.getAllNpcReputations(playerId);
+    },
+    getNpcMemories: async (playerId: string) => {
+      const snapshots = await npcMemoryService.getAllMemorySnapshots(playerId);
+      return snapshots.map((s): LiveGameplayNpcMemory => ({
+        npcId: s.npcId,
+        playerId: s.playerId,
+        reputation: s.reputation,
+        trustTier: s.trustTier,
+        memoryEventCount: s.memoryEventCount,
+        recentMemoryNotes: s.recentMemoryNotes,
+        knownRumorCount: s.knownRumorCount,
+      }));
+    },
+    getNpcRumors: async (playerId: string) => {
+      const rumors = await npcRumorService.getRumorSnapshots(playerId);
+      return rumors.map((r): LiveGameplayNpcRumor => ({
+        rumorId: r.rumorId,
+        npcId: r.npcId,
+        playerId: r.playerId,
+        kind: r.kind,
+        weight: r.weight,
+        note: r.note,
+        sourceNpcId: r.sourceNpcId,
+      }));
     },
   });
 
