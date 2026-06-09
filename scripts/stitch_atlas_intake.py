@@ -399,8 +399,11 @@ def process_png(
 ) -> dict:
     """Process a single PNG file. Returns report dict."""
     
-    # Use ZIP path for better classification and naming
+    # Use ZIP path for classification, naming, and sourcePath (stable across runs)
     classification_source = zip_path or png_path.name
+    
+    # Stable source path: prefer ZIP-internal path, fallback to filename
+    source_path = zip_path if zip_path else png_path.name
     
     if category_override:
         category = category_override
@@ -545,12 +548,89 @@ def process_png(
         alpha_cleanup_result["method"] = f"mode_{mode}_unsupported"
         warnings.append(f"Image mode {mode} may have issues")
     
-    # Calculate processed SHA
+    # Calculate processed SHA BEFORE quarantine check
+    # (needed for both accepted and quarantined assets)
     import io
     buf = io.BytesIO()
     processed_img.save(buf, format="PNG")
-    processed_data = buf.getvalue()
-    processed_sha = stable_hash(processed_data)
+    processed_sha = stable_hash(buf.getvalue())
+    
+    # ─── Strict quarantine validation ─────────────────────────────────────
+    # Validate after processing to catch issues before marking as "accepted"
+    
+    # 1. Check remaining checkerboard score (stricter threshold: 0.15)
+    checkerboard_score = alpha_cleanup_result.get("remainingCheckerboardScore", 0)
+    if checkerboard_score > 0.15:
+        warnings.append(f"High checkerboard residual: {checkerboard_score:.2f} (threshold: 0.15)")
+    
+    # 2. Check for suspicious uniform regions (potential blank/corrupt sheets)
+    pixels = processed_img.load()
+    w, h = processed_img.size
+    color_counts = {}
+    sample_step = max(1, min(w, h) // 32)
+    for y in range(0, h, sample_step):
+        for x in range(0, w, sample_step):
+            c = pixels[x, y]
+            if processed_img.mode == "RGBA":
+                c = c[:3]
+            color_counts[c] = color_counts.get(c, 0) + 1
+    max_color_pct = 0
+    if color_counts:
+        max_color_pct = max(color_counts.values()) / sum(color_counts.values())
+        if max_color_pct > 0.85:
+            warnings.append(f"Suspicious uniform color region: {max_color_pct:.1%} single color (threshold: 85%)")
+    
+    # 3. Check for category mismatch
+    if category == "unknown" and warnings:
+        warnings.append("Category is unknown with warnings - manual review recommended")
+    
+    # 4. Edge transparency check for RGBA images
+    if processed_img.mode == "RGBA":
+        edge_transparent = 0
+        edge_total = w * 2 + h * 2 - 4
+        for x in range(w):
+            if pixels[x, 0][3] < 128: edge_transparent += 1
+            if pixels[x, h-1][3] < 128: edge_transparent += 1
+        for y in range(1, h-1):
+            if pixels[0, y][3] < 128: edge_transparent += 1
+            if pixels[w-1, y][3] < 128: edge_transparent += 1
+        if edge_total > 0:
+            edge_transparent_pct = edge_transparent / edge_total
+            if edge_transparent_pct > 0.30 and edge_transparent_pct < 0.70:
+                warnings.append(f"Unusual edge transparency pattern: {edge_transparent_pct:.1%} transparent")
+    
+    # If warnings exceed threshold, quarantine instead of accepting
+    if len(warnings) >= 2:
+        quarantine_path = quarantine_dir / asset_id
+        quarantine_path.mkdir(parents=True, exist_ok=True)
+        processed_img.save(quarantine_path / "processed.png")
+        reason = {
+            "assetId": asset_id,
+            "sourcePath": source_path,
+            "reason": "validation_warnings",
+            "warnings": warnings,
+            "checkerboardScore": checkerboard_score,
+            "maxColorPct": max_color_pct,
+            "suggestedFix": "review_and_reprocess",
+        }
+        with open(quarantine_path / "reason.json", "w") as f:
+            json.dump(reason, f, indent=2)
+        
+        return create_source_report(
+            source_path=source_path,
+            asset_id=asset_id,
+            category=category,
+            width=width,
+            height=height,
+            mode=mode,
+            has_alpha=has_alpha,
+            detected_grid=grid,
+            alpha_cleanup=alpha_cleanup_result,
+            status="quarantined",
+            warnings=warnings,
+            source_sha=source_sha,
+            processed_sha=processed_sha,
+        )
     
     # Slice frames
     frames = slice_frames(
@@ -590,7 +670,7 @@ def process_png(
     preview.save(asset_dir / f"{asset_id}.preview.png")
     
     return create_source_report(
-        source_path=str(png_path),
+        source_path=source_path,
         asset_id=asset_id,
         category=category,
         width=width,
