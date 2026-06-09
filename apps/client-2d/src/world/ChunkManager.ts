@@ -311,6 +311,7 @@ export class ChunkManager {
     chunkContainer.y = originScreen.y;
 
     // Render terrain (no binding needed for simple tiles)
+    // Use screen position y-value for proper isometric depth sorting
     for (const cell of plan.terrain) {
       const tileGraphic = this.createTerrainTile(cell.terrainType);
       const screenPos = iso3({
@@ -324,11 +325,14 @@ export class ChunkManager {
       });
       tileGraphic.x = screenPos.x - originScreen.x;
       tileGraphic.y = screenPos.y - originScreen.y;
-      tileGraphic.zIndex = -1000 + cell.tileZ;
+      // Use screen position y for proper isometric depth sorting
+      // Subtract small offset to ensure terrain renders behind entities at same depth
+      tileGraphic.zIndex = Math.floor(screenPos.y - 1);
       terrain.addChild(tileGraphic);
     }
 
     // Render roads with context-aware binding
+    // Use screen position y-value for proper isometric depth sorting
     for (const [roadCell] of Object.entries(plan.roads.roadCells)) {
       const [xRaw, zRaw] = roadCell.split(":");
       const roadKey = `${xRaw}:${zRaw}`;
@@ -349,7 +353,8 @@ export class ChunkManager {
       });
       tileGraphic.x = screenPos.x - originScreen.x;
       tileGraphic.y = screenPos.y - originScreen.y;
-      tileGraphic.zIndex = -500 + Number(zRaw);
+      // Use screen position y for proper isometric depth sorting
+      tileGraphic.zIndex = Math.floor(screenPos.y);
       roads.addChild(tileGraphic);
     }
 

@@ -137,7 +137,7 @@ export class EmergentBrainKernel {
       OBSERVE: curiosity * 0.34 + input.playerDeltaDrift * 0.08 + input.energy * 0.08 - input.playerThreat * 0.06 - input.survivalBias * 0.08,
       HARVEST_RESOURCE: input.resourcePressure * 0.45 + energyDeficit * 0.22 + curiosity * 0.10 - input.playerThreat * 0.14 + input.survivalBias * 0.46,
       DEFEND_COLONY: input.colonyUtility * 0.36 + input.playerThreat * 0.30 + aggression * 0.30 + faith * 0.10 - input.survivalBias * 0.12,
-      WANDER: curiosity * 0.25 + input.colonyUtility * 0.15 + faith * 0.10 - input.playerThreat * 0.08 + energyDeficit * 0.05,
+      WANDER: curiosity * 0.40 + input.colonyUtility * 0.12 + faith * 0.15 - input.playerThreat * 0.05 + energyDeficit * 0.12 + input.energy * 0.08,
     };
   }
 
