@@ -24,6 +24,7 @@ import type {
   WalletSnapshot,
   VendorEconomyContainerSnapshot,
   VendorPriceItemSnapshot,
+  EquipmentStats,
 } from "../../game/liveGameplaySnapshot";
 import { getVendorPriceForItem } from "../../game/liveGameplaySnapshot";
 import { equipGatheringTool, unequipGatheringTool } from "../../game/equipment";
@@ -33,10 +34,11 @@ import { dispatchSellResource, dispatchSellAllResources } from "../../game/gamep
 import { readPlayerPositionBridge } from "../../game/PlayerPositionBridge";
 
 interface Props {
-  inventory: PlayerInventorySnapshot;
+  inventory: PlayerInventorySnapshot | null;
   equipment?: PlayerEquipmentSnapshot | null;
   wallet?: WalletSnapshot;
   vendorEconomy?: VendorEconomyContainerSnapshot;
+  equipmentStats?: EquipmentStats;
 }
 
 // Tool item IDs for gathering
@@ -98,11 +100,26 @@ const DEFAULT_SELL_PRICES: Record<string, number> = {
 
 const VENDOR_ID = "village_trader_001";
 
-export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy }: Props) {
+export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, equipmentStats }: Props) {
   const slots = inventory?.slots ?? [];
   const equipped = equipment?.slots ?? [];
   const tools = slots.filter((slot) => GATHERING_TOOL_IDS.has(slot.itemId));
   const resources = slots.filter((slot) => SELLABLE_RESOURCE_IDS.has(slot.itemId));
+  const stats = equipmentStats ?? {
+    attackPower: 0, defense: 0, maxHealth: 0, maxStamina: 0,
+    magicFind: 0, gatheringYield: 0, gatheringXp: 0,
+    lootQuality: 0, criticalChancePerMille: 0,
+  };
+
+  // Show empty state when no inventory loaded yet
+  if (!inventory) {
+    return (
+      <section data-testid="inventory-panel-empty" className="are-window">
+        <h2>Inventory</h2>
+        <p className="are-text-muted">Loading inventory…</p>
+      </section>
+    );
+  }
 
   /**
    * Get price info for an item, using snapshot if available.
@@ -300,6 +317,45 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy }: 
       <div className="wallet-section" data-testid="wallet-balance">
         <span className="wallet-label">💰 Coins:</span>
         <span className="wallet-value">{wallet?.coin ?? 0}</span>
+      </div>
+
+      {/* Equipment Stats Summary — server-authoritative */}
+      <div className="equipment-stats-summary" data-testid="equipment-stats-summary">
+        <h3 className="section-title">Equipment Stats</h3>
+        <div className="stats-grid">
+          <div className="stat-row" data-testid="equipment-stat-attack-power">
+            <span className="stat-label">Attack Power</span>
+            <span className="stat-value">{stats.attackPower}</span>
+          </div>
+          <div className="stat-row" data-testid="equipment-stat-defense">
+            <span className="stat-label">Defense</span>
+            <span className="stat-value">{stats.defense}</span>
+          </div>
+          <div className="stat-row" data-testid="equipment-stat-max-health">
+            <span className="stat-label">Max Health</span>
+            <span className="stat-value">{stats.maxHealth}</span>
+          </div>
+          <div className="stat-row" data-testid="equipment-stat-max-stamina">
+            <span className="stat-label">Max Stamina</span>
+            <span className="stat-value">{stats.maxStamina}</span>
+          </div>
+          <div className="stat-row" data-testid="equipment-stat-magic-find">
+            <span className="stat-label">Magic Find</span>
+            <span className="stat-value">{stats.magicFind}</span>
+          </div>
+          <div className="stat-row" data-testid="equipment-stat-gathering-yield">
+            <span className="stat-label">Gathering Yield</span>
+            <span className="stat-value">{stats.gatheringYield}</span>
+          </div>
+          <div className="stat-row" data-testid="equipment-stat-loot-quality">
+            <span className="stat-label">Loot Quality</span>
+            <span className="stat-value">{stats.lootQuality}</span>
+          </div>
+          <div className="stat-row" data-testid="equipment-stat-crit-chance">
+            <span className="stat-label">Crit Chance</span>
+            <span className="stat-value">{(stats.criticalChancePerMille / 10).toFixed(1)}%</span>
+          </div>
+        </div>
       </div>
 
       {/* Gathering Tools Section */}
