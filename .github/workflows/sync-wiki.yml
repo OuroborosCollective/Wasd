@@ -5,10 +5,18 @@ on:
     branches:
       - main
     paths:
-      - 'docs/wiki/**'
+      - 'README.md'
+      - 'package.json'
+      - 'docs/**'
       - 'scripts/sync-wiki.mjs'
+      - 'scripts/wiki/**'
       - '.github/workflows/sync-wiki.yml'
   workflow_dispatch:
+    inputs:
+      rebuild:
+        description: 'Rebuild generated wiki pages before sync'
+        required: false
+        default: 'true'
 
 concurrency:
   group: sync-wiki
@@ -20,7 +28,7 @@ permissions:
 jobs:
   sync-wiki:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -33,9 +41,26 @@ jobs:
         with:
           node-version: 22
 
+      - name: Build autonomous wiki
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          node scripts/wiki/build-autonomous-wiki.mjs \
+            --source docs/wiki \
+            --out .wiki-build \
+            --rebuild ${{ github.event.inputs.rebuild || 'true' }}
+
+      - name: Verify wiki build output
+        run: |
+          test -d .wiki-build
+          test -f .wiki-build/Home.md
+          echo "Generated wiki pages:"
+          find .wiki-build -maxdepth 1 -type f -name '*.md' -printf '%f\n' | sort
+
       - name: Sync Wiki Content
         env:
           GITHUB_TOKEN: ${{ secrets.WIKI_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SHA: ${{ github.sha }}
+          WIKI_SOURCE_DIR: .wiki-build
         run: node scripts/sync-wiki.mjs
