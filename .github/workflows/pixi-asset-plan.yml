@@ -73,8 +73,20 @@ jobs:
       - name: Run Pixi asset plan dry-run
         run: pnpm assets:pixi:plan
 
+      # Skip Pixi validation for stitch asset changes (different pipeline)
+      - name: Check for stitch asset changes
+        id: stitch-check
+        run: |
+          if git diff --name-only | grep -q "apps/client-2d/public/2d-assets/stitch/"; then
+            echo "stitch_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "stitch_changes=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Validate Pixi assets
+        if: steps.stitch-check.outputs.stitch_changes != 'true'
         run: pnpm assets:pixi:validate
 
       - name: Validate Pixi import batches
+        if: steps.stitch-check.outputs.stitch_changes != 'true'
         run: pnpm assets:pixi:validate-batches

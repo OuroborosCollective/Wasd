@@ -34,6 +34,22 @@ apps/client-2d/public/2d-assets/**/*.zip
 apps/client-2d/public/2d-assets/**/*.7z
 apps/client-2d/public/2d-assets/**/*.rar
 
+# Stitch 2.5D asset pipeline
+# Large processed assets - run intake to regenerate
+assets/
+apps/client-2d/public/2d-assets/stitch/boss/
+apps/client-2d/public/2d-assets/stitch/enemy/
+apps/client-2d/public/2d-assets/stitch/equipment_overlay/
+apps/client-2d/public/2d-assets/stitch/hero/
+apps/client-2d/public/2d-assets/stitch/prop/
+apps/client-2d/public/2d-assets/stitch/tile/
+apps/client-2d/public/2d-assets/stitch/vfx/
+# Exception: keep existing stitch atlas manifest and medieval/samurai/mongolian packs
+apps/client-2d/public/2d-assets/stitch/stitch-atlas-manifest.json
+apps/client-2d/public/2d-assets/stitch/stitch_medieval_*/
+apps/client-2d/public/2d-assets/stitch/stitch_mongolian_*/
+apps/client-2d/public/2d-assets/stitch/stitch_samurai_*/
+
 # Paid/private vendor asset packs: keep raw and extracted licensed art off the public repository.
 .asset-private/
 private-assets/
