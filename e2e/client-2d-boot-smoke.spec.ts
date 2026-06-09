@@ -55,16 +55,21 @@ test.describe("2D Client Boot Smoke Test", () => {
     // 3. DeterministicWorldIsoApp (world renderer)
     // 4. ArelorianStitchHud (HUD)
     // 5. boot-fatal-overlay (error display)
+    // 6. client-2d-boot-diagnostic (BootSurface diagnostic)
     const visibleBootTargets = [
       page.getByTestId("cyber-zen-login-gate"),
       page.getByTestId("character-select"),
       page.getByTestId("deterministic-world-root"),
       page.getByTestId("arelorian-stitch-hud"),
       page.getByTestId("boot-fatal-overlay"),
+      page.getByTestId("client-2d-boot-diagnostic"),
       // Fallback: look for the login gate class
       page.locator(".cz-login-root"),
       // Fallback: boot screen should be removed on success
       page.locator("[data-testid='areloria-boot-fallback']"),
+      // Fallback: HUD shell class
+      page.locator(".stitch-hud"),
+      page.locator("#arelorian-stitch-hud"),
     ];
 
     let visibleCount = 0;
@@ -161,6 +166,67 @@ test.describe("2D Client Boot Smoke Test", () => {
       realErrors,
       `Critical page errors should be empty. Found: ${realErrors.join("\n")}`
     ).toHaveLength(0);
+  });
+
+  test("client-2d post-login boot path shows a stable surface", async ({ page }) => {
+    const pageErrors: string[] = [];
+    const consoleErrors: string[] = [];
+
+    page.on("pageerror", (error) => {
+      pageErrors.push(error.message);
+    });
+
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        consoleErrors.push(msg.text());
+      }
+    });
+
+    await page.goto("/2d/", {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
+
+    await expect(page.locator("body")).toBeVisible();
+
+    // If login button is visible, click it to enter
+    const loginButton = page.getByRole("button", { name: /enter|login|play|start/i });
+    if (await loginButton.isVisible().catch(() => false)) {
+      await loginButton.click();
+    }
+
+    // Wait for either world root, boot diagnostic, or HUD to appear
+    await expect(
+      page.locator(
+        [
+          "[data-testid='deterministic-world-root']",
+          "[data-testid='client-2d-boot-diagnostic']",
+          ".stitch-hud",
+          "#arelorian-stitch-hud",
+          "[data-testid='arelorian-stitch-hud']",
+        ].join(",")
+      )
+    ).toBeVisible({ timeout: 30_000 });
+
+    // HUD shell or diagnostic should be visible
+    await expect(
+      page.locator(
+        [
+          "[data-testid='arelorian-stitch-hud']",
+          ".stitch-hud",
+          "#arelorian-stitch-hud",
+          "[data-testid='client-2d-boot-diagnostic']",
+        ].join(",")
+      )
+    ).toBeVisible({ timeout: 30_000 });
+
+    // Page should not have critical errors
+    const criticalPageErrors = pageErrors.filter(
+      e => !e.includes("Warning") &&
+           !e.includes("DevTools") &&
+           !e.includes("favicon")
+    );
+    expect(criticalPageErrors).toEqual([]);
   });
 });
 

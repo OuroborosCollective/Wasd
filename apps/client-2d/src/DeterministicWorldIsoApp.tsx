@@ -20,6 +20,7 @@ import { FacingDirection, inputToFacing, serverPosToKappa, getFacingEntity, type
 import { ResourceNodeMarkerLayer } from "./ui/ResourceNodeMarkerLayer";
 import { WorldPoiMarkerLayer } from "./ui/WorldPoiMarkerLayer";
 import { CampNpcMarkerLayer } from "./ui/CampNpcMarkerLayer";
+import { BootSurface, type BootState } from "./ui/BootSurface";
 
 // Zero-Trust Manifest System with Input Lockdown
 import { useZeroTrustManifest, DivergenceAlert, isInputLocked } from "./manifest";
@@ -275,6 +276,24 @@ export function DeterministicWorldIsoApp() {
   // World boot phase tracking for debugging
   const [worldBootPhase, setWorldBootPhase] = useState<"mounting" | "pixi_init" | "assets_loading" | "world_ready" | "failed">("mounting");
   const [worldBootError, setWorldBootError] = useState<string | null>(null);
+
+  // Map worldBootPhase to BootState for BootSurface
+  function toBootState(phase: typeof worldBootPhase): BootState {
+    switch (phase) {
+      case "mounting":
+        return "waiting";
+      case "pixi_init":
+      case "assets_loading":
+        return "initializing";
+      case "world_ready":
+        return "ready";
+      case "failed":
+        return "error";
+      default:
+        return "waiting";
+    }
+  }
+  const bootState: BootState = toBootState(worldBootPhase);
   
   // DEBUG: Player position & chunk visibility state
   const [debugHeartbeatReceived, setDebugHeartbeatReceived] = useState(false);
@@ -1246,69 +1265,79 @@ export function DeterministicWorldIsoApp() {
   }
 
   return (
-    <div className="az-shell" data-testid="deterministic-world-root">
-      {/* Zero-Trust Divergence Alert - Military Panzerschrank Design */}
-      {diverged && (
-        <DivergenceAlert
-          currentTick={currentTick}
-          lastStateHash={lastStateHash}
-          isResyncing={isResyncing}
-          errorMessage={resyncError ?? undefined}
-          retryCount={resyncAttempts}
-          maxRetries={3}
+    <BootSurface
+      bootState={bootState}
+      error={worldBootError}
+      diagnosticMessage={
+        worldBootPhase === "failed"
+          ? "The world renderer failed to initialize. The UI shell is still alive."
+          : undefined
+      }
+    >
+      <div className="az-shell" data-testid="deterministic-world-root" data-boot-state={bootState}>
+        {/* Zero-Trust Divergence Alert - Military Panzerschrank Design */}
+        {diverged && (
+          <DivergenceAlert
+            currentTick={currentTick}
+            lastStateHash={lastStateHash}
+            isResyncing={isResyncing}
+            errorMessage={resyncError ?? undefined}
+            retryCount={resyncAttempts}
+            maxRetries={3}
+          />
+        )}
+        
+        {/* World Boot Status - normal status while Pixi initializes */}
+        <div
+          data-testid="world-boot-status"
+          className={`world-boot-status world-boot-status--${worldBootPhase}`}
+        >
+          <strong>Areloria World</strong>
+          <span>
+            {worldBootPhase === "mounting" && "Mounting React world root…"}
+            {worldBootPhase === "pixi_init" && "Starting Pixi renderer…"}
+            {worldBootPhase === "assets_loading" && "Loading world assets…"}
+            {worldBootPhase === "world_ready" && "World ready"}
+            {worldBootPhase === "failed" && "World boot failed"}
+          </span>
+          {worldBootError && <code>{worldBootError}</code>}
+        </div>
+        
+        <div className="az-world-glow" />
+        <div ref={host} className="az-pixi" data-testid="pixi-host" />
+        <ResourceNodeMarkerLayer />
+        <WorldPoiMarkerLayer />
+        <CampNpcMarkerLayer />
+        <ArelorianStitchHud
+          connected={connected}
+          assetStatus={assetStatus}
+          weaponCount={weaponCount}
+          equippedWeaponId={equippedWeaponId}
+          inventoryItems={inventoryItems}
+          playerName={playerName}
+          messages={messages}
+          onSkill={sendSkill}
+          onChat={sendChat}
+          onInteract={interact}
+          onStrike={strikeAction}
+          onCycleWeapon={cycleEquippedWeapon}
+          onToggleAutoMove={() => setMessages((items) => [...items.slice(-12), { from: "Navigator", txt: "WorldDirector routes are generated; auto-route execution follows server validation." }])}
+          // Player vitals (Deterministic - server-authoritative)
+          vitals={vitalsData}
+          // DEBUG: Player position & chunk tracking
+          debugPlayerPos={debugPlayerPos ?? undefined}
+          debugChunkCoords={debugChunkCoords ?? undefined}
+          debugVisibleChunks={debugVisibleChunks ?? undefined}
+          debugHeartbeatReceived={debugHeartbeatReceived}
+          debugInitialized={hasInitializedVisibility.current}
+          // DEBUG: Additional runtime values
+          debugNetworkStatus={connected ? "connected" : "disconnected"}
+          debugServerTick={debugServerTick ?? undefined}
+          debugAckSeq={debugAckSeq ?? undefined}
+          debugIdentity={debugIdentity ?? undefined}
+          debugCharacter={debugCharacter ?? undefined}
         />
-      )}
-      
-      {/* World Boot Status - normal status while Pixi initializes */}
-      <div
-        data-testid="world-boot-status"
-        className={`world-boot-status world-boot-status--${worldBootPhase}`}
-      >
-        <strong>Areloria World</strong>
-        <span>
-          {worldBootPhase === "mounting" && "Mounting React world root…"}
-          {worldBootPhase === "pixi_init" && "Starting Pixi renderer…"}
-          {worldBootPhase === "assets_loading" && "Loading world assets…"}
-          {worldBootPhase === "world_ready" && "World ready"}
-          {worldBootPhase === "failed" && "World boot failed"}
-        </span>
-        {worldBootError && <code>{worldBootError}</code>}
       </div>
-      
-      <div className="az-world-glow" />
-      <div ref={host} className="az-pixi" data-testid="pixi-host" />
-      <ResourceNodeMarkerLayer />
-      <WorldPoiMarkerLayer />
-      <CampNpcMarkerLayer />
-      <ArelorianStitchHud
-        connected={connected}
-        assetStatus={assetStatus}
-        weaponCount={weaponCount}
-        equippedWeaponId={equippedWeaponId}
-        inventoryItems={inventoryItems}
-        playerName={playerName}
-        messages={messages}
-        onSkill={sendSkill}
-        onChat={sendChat}
-        onInteract={interact}
-        onStrike={strikeAction}
-        onCycleWeapon={cycleEquippedWeapon}
-        onToggleAutoMove={() => setMessages((items) => [...items.slice(-12), { from: "Navigator", txt: "WorldDirector routes are generated; auto-route execution follows server validation." }])}
-        // Player vitals (Deterministic - server-authoritative)
-        vitals={vitalsData}
-        // DEBUG: Player position & chunk tracking
-        debugPlayerPos={debugPlayerPos ?? undefined}
-        debugChunkCoords={debugChunkCoords ?? undefined}
-        debugVisibleChunks={debugVisibleChunks ?? undefined}
-        debugHeartbeatReceived={debugHeartbeatReceived}
-        debugInitialized={hasInitializedVisibility.current}
-        // DEBUG: Additional runtime values
-        debugNetworkStatus={connected ? "connected" : "disconnected"}
-        debugServerTick={debugServerTick ?? undefined}
-        debugAckSeq={debugAckSeq ?? undefined}
-        debugIdentity={debugIdentity ?? undefined}
-        debugCharacter={debugCharacter ?? undefined}
-      />
-    </div>
+    </BootSurface>
   );
 }
