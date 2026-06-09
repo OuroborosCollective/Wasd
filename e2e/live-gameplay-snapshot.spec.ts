@@ -30,6 +30,57 @@ test.describe("Live Gameplay Snapshot", () => {
     expect(Array.isArray(snapshot.resourceNodes)).toBeTruthy();
   });
 
+  test("snapshot exposes equipmentStats from server", async ({ request }) => {
+    const playerId = "e2e-equip-stats-player";
+    const res = await request.get("/api/gameplay/snapshot", {
+      params: { playerId },
+    });
+
+    expect(res.ok()).toBeTruthy();
+
+    const body = await res.json();
+    const snapshot = body.data?.snapshot ?? body.snapshot ?? body.data ?? body;
+
+    // equipmentStats must be present and contain all stat keys
+    expect(snapshot.equipmentStats).toBeDefined();
+    expect(typeof snapshot.equipmentStats.attackPower).toBe("number");
+    expect(typeof snapshot.equipmentStats.defense).toBe("number");
+    expect(typeof snapshot.equipmentStats.maxHealth).toBe("number");
+    expect(typeof snapshot.equipmentStats.maxStamina).toBe("number");
+    expect(typeof snapshot.equipmentStats.magicFind).toBe("number");
+    expect(typeof snapshot.equipmentStats.gatheringYield).toBe("number");
+    expect(typeof snapshot.equipmentStats.gatheringXp).toBe("number");
+    expect(typeof snapshot.equipmentStats.lootQuality).toBe("number");
+    expect(typeof snapshot.equipmentStats.criticalChancePerMille).toBe("number");
+
+    // Stats must be non-negative integers
+    expect(snapshot.equipmentStats.attackPower).toBeGreaterThanOrEqual(0);
+    expect(snapshot.equipmentStats.defense).toBeGreaterThanOrEqual(0);
+    expect(snapshot.equipmentStats.maxHealth).toBeGreaterThanOrEqual(0);
+    expect(Number.isInteger(snapshot.equipmentStats.attackPower)).toBe(true);
+    expect(Number.isInteger(snapshot.equipmentStats.defense)).toBe(true);
+  });
+
+  test("equipment stats are zero for unequipped player", async ({ request }) => {
+    const playerId = "e2e-unequipped-stats-player";
+    const res = await request.get("/api/gameplay/snapshot", {
+      params: { playerId },
+    });
+
+    expect(res.ok()).toBeTruthy();
+
+    const body = await res.json();
+    const snapshot = body.data?.snapshot ?? body.snapshot ?? body.data ?? body;
+
+    // Fresh player with no equipment should have zero stats
+    expect(snapshot.equipmentStats.attackPower).toBe(0);
+    expect(snapshot.equipmentStats.defense).toBe(0);
+    expect(snapshot.equipmentStats.maxHealth).toBe(0);
+    expect(snapshot.equipmentStats.maxStamina).toBe(0);
+    expect(snapshot.equipmentStats.magicFind).toBe(0);
+    expect(snapshot.equipmentStats.gatheringYield).toBe(0);
+  });
+
   test("gathering updates inventory and skills in snapshot", async ({ request }) => {
     const playerId = "e2e-gather-player";
 

@@ -12,6 +12,8 @@
 
 import { describe, expect, it } from "vitest";
 import { LiveGameplaySnapshotComposer } from "../gameplay/LiveGameplaySnapshotComposer.js";
+import { createDefaultStatBlock } from "../equipment/EquipmentStatTypes.js";
+import type { EquipmentStatBlock } from "../equipment/EquipmentStatTypes.js";
 
 describe("LiveGameplaySnapshotComposer", () => {
   it("composes deterministic sorted snapshot", async () => {
@@ -145,5 +147,74 @@ describe("LiveGameplaySnapshotComposer", () => {
     expect(snapshot.inventory[0].itemId).toBe("async_item");
     expect(snapshot.skills[0].skillId).toBe("woodcutting");
     expect(snapshot.wallet.coin).toBe(100);
+  });
+
+  it("returns zero stats when getEquipmentStats is not provided", async () => {
+    const composer = new LiveGameplaySnapshotComposer({
+      getInventoryItems: () => [],
+      getEquipmentSlots: () => [],
+      getSkillStates: () => [],
+      getResourceNodes: () => [],
+      getWallet: () => ({ coin: 0 }),
+    });
+
+    const snapshot = await composer.compose("player_no_stats", 0);
+    const defaults = createDefaultStatBlock();
+
+    expect(snapshot.equipmentStats.attackPower).toBe(defaults.attackPower);
+    expect(snapshot.equipmentStats.defense).toBe(defaults.defense);
+    expect(snapshot.equipmentStats.maxHealth).toBe(defaults.maxHealth);
+    expect(snapshot.equipmentStats.maxStamina).toBe(defaults.maxStamina);
+    expect(snapshot.equipmentStats.magicFind).toBe(0);
+    expect(snapshot.equipmentStats.gatheringYield).toBe(0);
+  });
+
+  it("returns custom equipmentStats when getEquipmentStats is provided", async () => {
+    const customStats: EquipmentStatBlock = Object.freeze({
+      attackPower: 12,
+      defense: 5,
+      maxHealth: 50,
+      maxStamina: 30,
+      magicFind: 20,
+      gatheringYield: 2,
+      gatheringXp: 100,
+      lootQuality: 15,
+      criticalChancePerMille: 75,
+    });
+
+    const composer = new LiveGameplaySnapshotComposer({
+      getInventoryItems: () => [],
+      getEquipmentSlots: () => [],
+      getSkillStates: () => [],
+      getResourceNodes: () => [],
+      getWallet: () => ({ coin: 0 }),
+      getEquipmentStats: () => customStats,
+    });
+
+    const snapshot = await composer.compose("player_with_stats", 0);
+
+    expect(snapshot.equipmentStats.attackPower).toBe(12);
+    expect(snapshot.equipmentStats.defense).toBe(5);
+    expect(snapshot.equipmentStats.maxHealth).toBe(50);
+    expect(snapshot.equipmentStats.maxStamina).toBe(30);
+    expect(snapshot.equipmentStats.magicFind).toBe(20);
+    expect(snapshot.equipmentStats.gatheringYield).toBe(2);
+    expect(snapshot.equipmentStats.gatheringXp).toBe(100);
+    expect(snapshot.equipmentStats.lootQuality).toBe(15);
+    expect(snapshot.equipmentStats.criticalChancePerMille).toBe(75);
+  });
+
+  it("returns frozen equipmentStats", async () => {
+    const composer = new LiveGameplaySnapshotComposer({
+      getInventoryItems: () => [],
+      getEquipmentSlots: () => [],
+      getSkillStates: () => [],
+      getResourceNodes: () => [],
+      getWallet: () => ({ coin: 0 }),
+      getEquipmentStats: () => createDefaultStatBlock(),
+    });
+
+    const snapshot = await composer.compose("player_test", 0);
+    expect(Object.isFrozen(snapshot.equipmentStats)).toBe(true);
   });
 });

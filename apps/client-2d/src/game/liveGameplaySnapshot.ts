@@ -314,6 +314,35 @@ export interface CampStockSnapshot {
   lastUpdatedTick: number;
 }
 
+/**
+ * Aggregated equipment stats from server-authoritative equipment state.
+ * All values are integers. Defaults to 0 for all stats.
+ */
+export interface EquipmentStats {
+  attackPower: number;
+  defense: number;
+  maxHealth: number;
+  maxStamina: number;
+  magicFind: number;
+  gatheringYield: number;
+  gatheringXp: number;
+  lootQuality: number;
+  criticalChancePerMille: number;
+}
+
+/** Zero-equipment baseline for honest empty display */
+export const EMPTY_EQUIPMENT_STATS: EquipmentStats = Object.freeze({
+  attackPower: 0,
+  defense: 0,
+  maxHealth: 0,
+  maxStamina: 0,
+  magicFind: 0,
+  gatheringYield: 0,
+  gatheringXp: 0,
+  lootQuality: 0,
+  criticalChancePerMille: 0,
+});
+
 export interface LiveGameplaySnapshot {
   status: LiveDataStatus;
   serverTick: number | null;
@@ -339,6 +368,8 @@ export interface LiveGameplaySnapshot {
   campNpcs: CampNpcSnapshot[];
   /** Camp stock at discovered gathering camp POIs */
   campStocks: CampStockSnapshot[];
+  /** Aggregated equipment stats from all equipped items (server-computed) */
+  equipmentStats?: EquipmentStats;
 }
 
 // Default empty snapshot - honest waiting state
@@ -441,6 +472,7 @@ export function normalizeLiveGameplaySnapshot(
       vendorEconomy: normalizeVendorEconomy(input.vendorEconomy),
       campNpcs: normalizeCampNpcs(input.campNpcs),
       campStocks: normalizeCampStocks(input.campStocks),
+      equipmentStats: normalizeEquipmentStats(input.equipmentStats),
     };
   } catch (error) {
     // Never crash the client - return empty snapshot on normalization error
@@ -867,4 +899,26 @@ function normalizeCampStocks(input: unknown): CampStockSnapshot[] {
     .map(normalizeCampStock)
     .filter((stock): stock is CampStockSnapshot => stock !== null && stock.poiId !== "")
     .sort((a, b) => a.poiId.localeCompare(b.poiId));
+}
+
+/**
+ * Normalize equipment stats from server.
+ * Pure function - no mutation of input.
+ * Returns EMPTY_EQUIPMENT_STATS if input is absent or invalid.
+ */
+export function normalizeEquipmentStats(input: unknown): EquipmentStats {
+  if (!input || typeof input !== "object") return EMPTY_EQUIPMENT_STATS;
+  const raw = input as any;
+
+  return {
+    attackPower: Math.max(0, Math.floor(Number(raw.attackPower ?? 0))),
+    defense: Math.max(0, Math.floor(Number(raw.defense ?? 0))),
+    maxHealth: Math.max(0, Math.floor(Number(raw.maxHealth ?? 0))),
+    maxStamina: Math.max(0, Math.floor(Number(raw.maxStamina ?? 0))),
+    magicFind: Math.max(0, Math.floor(Number(raw.magicFind ?? 0))),
+    gatheringYield: Math.max(0, Math.floor(Number(raw.gatheringYield ?? 0))),
+    gatheringXp: Math.max(0, Math.floor(Number(raw.gatheringXp ?? 0))),
+    lootQuality: Math.max(0, Math.floor(Number(raw.lootQuality ?? 0))),
+    criticalChancePerMille: Math.max(0, Math.floor(Number(raw.criticalChancePerMille ?? 0))),
+  };
 }

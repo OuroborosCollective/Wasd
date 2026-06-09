@@ -7,6 +7,9 @@ import { getVillageResourceVendor } from "../economy/VillageVendors.js";
 import { campNpcService } from "../npc/CampNpcService.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
+import { calculateEquipmentStats } from "../equipment/EquipmentStatService.js";
+import { createDefaultStatBlock } from "../equipment/EquipmentStatTypes.js";
+import type { PlayerEquipmentState } from "../equipment/EquipmentTypes.js";
 
 interface LegacyInventorySlot {
   readonly itemId?: string;
@@ -129,6 +132,21 @@ export async function composeLiveGameplaySnapshotFromLegacy(
       visiblePoiCount: 0,
     },
     getRecentDiscoveries: () => input.recentDiscoveries ?? [],
+    getEquipmentStats: () => {
+      const eq = input.equipment as { slots?: readonly { slotId?: string; itemId?: string | null }[] } | null;
+      if (!eq?.slots) return createDefaultStatBlock();
+      const playerEquipmentState: PlayerEquipmentState = {
+        playerId: input.playerId,
+        schemaVersion: 1,
+        slots: eq.slots.map((slot) => ({
+          slotId: String(slot.slotId ?? "unknown") as any,
+          itemId: String(slot.itemId ?? ""),
+          title: String(slot.itemId ?? "Unknown"),
+          tier: 1,
+        })),
+      };
+      return calculateEquipmentStats({ equipment: playerEquipmentState });
+    },
   });
 
   const baseSnapshot = await composer.compose(input.playerId, input.logicalIndex);
