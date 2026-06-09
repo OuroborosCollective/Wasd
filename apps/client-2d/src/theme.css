@@ -269,3 +269,389 @@ canvas { display: block; filter: saturate(1.16) contrast(1.08); touch-action: no
     height: 48px;
   }
 }
+
+/* ─── Cyber-Zen NPC Dialogue Panel ──────────────────────────────────────────── */
+
+.cz-npc-panel {
+  width: 100%;
+  max-width: 380px;
+  border: 1px solid rgba(0, 229, 255, 0.28);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(4, 8, 14, 0.92), rgba(13, 18, 33, 0.88));
+  box-shadow: 0 0 28px rgba(0, 229, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* NPC Memory Block */
+.cz-npc-memory {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.18);
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.08), rgba(103, 92, 255, 0.06));
+}
+
+.cz-npc-memory-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--st-aether);
+}
+
+.cz-npc-sigil {
+  font-size: 14px;
+  color: var(--cz-aura);
+}
+
+.cz-npc-label {
+  font-weight: 800;
+}
+
+.cz-npc-memory-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cz-npc-identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cz-npc-name {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cz-text);
+  text-shadow: 0 0 12px rgba(0, 229, 255, 0.3);
+}
+
+/* Trust Tier Badges */
+.cz-trust-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.trust-tier--honored {
+  border: 1px solid rgba(139, 92, 246, 0.6);
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.3);
+}
+
+.trust-tier--trusted {
+  border: 1px solid rgba(57, 255, 20, 0.5);
+  background: rgba(57, 255, 20, 0.15);
+  color: var(--st-emerald);
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.2);
+}
+
+.trust-tier--neutral {
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  background: rgba(0, 229, 255, 0.1);
+  color: var(--st-aether);
+}
+
+.trust-tier--cold {
+  border: 1px solid rgba(100, 116, 139, 0.5);
+  background: rgba(100, 116, 139, 0.15);
+  color: #94a3b8;
+}
+
+.trust-tier--hostile {
+  border: 1px solid rgba(255, 63, 111, 0.5);
+  background: rgba(255, 63, 111, 0.15);
+  color: var(--st-ruby);
+  box-shadow: 0 0 10px rgba(255, 63, 111, 0.2);
+}
+
+/* Reputation Row */
+.cz-npc-rep-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--cz-muted);
+}
+
+.cz-npc-rep-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: rgba(244, 247, 255, 0.5);
+}
+
+.cz-npc-rep-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--st-aether);
+  text-shadow: 0 0 14px rgba(0, 229, 255, 0.4);
+}
+
+.cz-npc-quest-count {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  font-size: 10px;
+  color: #a78bfa;
+}
+
+/* Memory Note */
+.cz-npc-memory-note {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: rgba(244, 247, 255, 0.7);
+  text-transform: uppercase;
+}
+
+/* Dialogue State */
+.cz-npc-dialogue-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.cz-npc-dialogue-label {
+  color: rgba(244, 247, 255, 0.5);
+  font-weight: 600;
+}
+
+.cz-npc-dialogue-value {
+  color: var(--st-gold);
+  font-weight: 700;
+}
+
+/* NPC Dialogue Line */
+.cz-npc-line {
+  padding: 14px 16px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(244, 247, 255, 0.85);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.1);
+}
+
+.cz-npc-line p {
+  margin: 0;
+}
+
+/* Quest Tracker */
+.cz-quest-tracker {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.1);
+}
+
+.cz-quest-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.cz-quest-label {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(0, 229, 255, 0.15);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: var(--st-aether);
+}
+
+.cz-quest-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cz-text);
+}
+
+/* Quest Objectives */
+.cz-quest-objectives {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cz-quest-objective {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+}
+
+.cz-quest-objective.completed {
+  background: rgba(57, 255, 20, 0.08);
+  border-color: rgba(57, 255, 20, 0.25);
+}
+
+.cz-quest-check {
+  font-size: 14px;
+  color: var(--st-emerald);
+  text-shadow: 0 0 8px var(--st-emerald);
+}
+
+.cz-quest-objective:not(.completed) .cz-quest-check {
+  color: rgba(244, 247, 255, 0.4);
+  text-shadow: none;
+}
+
+.cz-quest-objective-title {
+  flex: 1;
+  color: rgba(244, 247, 255, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cz-quest-objective.completed .cz-quest-objective-title {
+  color: var(--st-emerald);
+}
+
+.cz-quest-progress {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--st-aether);
+  font-family: ui-monospace, monospace;
+}
+
+/* Quest Rewards */
+.cz-quest-reward {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 215, 106, 0.08), rgba(0, 229, 255, 0.06));
+  border: 1px solid rgba(255, 215, 106, 0.2);
+}
+
+.cz-reward-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: var(--st-gold);
+}
+
+.cz-reward-item {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(244, 247, 255, 0.75);
+}
+
+.cz-reward-rep {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+}
+
+/* Action Buttons */
+.cz-npc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 16px;
+}
+
+.cz-action-btn {
+  flex: 1;
+  min-width: 100px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cz-action-btn--accept {
+  border: 1px solid rgba(0, 229, 255, 0.5);
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.2), rgba(103, 92, 255, 0.15));
+  color: var(--st-aether);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.15);
+}
+
+.cz-action-btn--accept:hover {
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.35), rgba(103, 92, 255, 0.25));
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.cz-action-btn--complete {
+  border: 1px solid rgba(57, 255, 20, 0.5);
+  background: linear-gradient(135deg, rgba(57, 255, 20, 0.2), rgba(0, 229, 255, 0.15));
+  color: var(--st-emerald);
+  box-shadow: 0 0 14px rgba(57, 255, 20, 0.2);
+}
+
+.cz-action-btn--complete:hover {
+  background: linear-gradient(135deg, rgba(57, 255, 20, 0.35), rgba(0, 229, 255, 0.25));
+  box-shadow: 0 0 20px rgba(57, 255, 20, 0.35);
+  transform: translateY(-1px);
+}
+
+.cz-action-btn--talk {
+  border: 1px solid rgba(255, 215, 106, 0.4);
+  background: linear-gradient(135deg, rgba(255, 215, 106, 0.15), rgba(139, 92, 246, 0.1));
+  color: var(--st-gold);
+}
+
+.cz-action-btn--talk:hover {
+  background: linear-gradient(135deg, rgba(255, 215, 106, 0.25), rgba(139, 92, 246, 0.2));
+  box-shadow: 0 0 16px rgba(255, 215, 106, 0.25);
+}
+
+.cz-action-btn:active {
+  transform: scale(0.97);
+}
+
+/* Mobile Responsive */
+@media (max-width: 520px) {
+  .cz-npc-panel {
+    max-width: 100%;
+    border-radius: 14px;
+  }
+
+  .cz-npc-actions {
+    flex-direction: column;
+  }
+
+  .cz-action-btn {
+    width: 100%;
+  }
+}

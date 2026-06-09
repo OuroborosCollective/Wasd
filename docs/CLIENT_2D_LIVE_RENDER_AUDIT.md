@@ -269,3 +269,73 @@ pnpm --filter @wasd/client-2d test -- --run uiRuntimeManifest
 The `uiRuntimeManifest.ts` file provides a machine-readable version of this audit.
 
 See: `apps/client-2d/src/ui/uiRuntimeManifest.ts`
+
+## Update (2026-06-09): NPC Dialogue Panel Cyber-Zen Update
+
+The `NpcDialoguePanel` component has been updated with full Cyber-Zen styling:
+
+### Component Status
+
+| Component | Path | Status | Notes |
+|-----------|------|--------|-------|
+| NpcDialoguePanel | `src/ui/windows/NpcDialoguePanel.tsx` | LIVE | Cyber-Zen styled, NPC memory/reputation |
+
+### Cyber-Zen Features Added
+
+1. **NPC Memory Block** - Shows NPC identity, trust tier badge, reputation value, and deterministic memory note
+2. **Trust Tier Badges** - Visual states for hostile/cold/neutral/trusted/honored based on reputation
+3. **Dialogue State Indicator** - Shows current dialogue state in monospace format
+4. **Quest Tracker** - Cyber-Zen styled with emerald checkmarks for completed objectives
+5. **Action Buttons** - Accept (cyan), Complete (green), Talk (gold) styled consistently
+
+### Test IDs Added
+
+| Test ID | Element |
+|---------|---------|
+| `npc-memory-village_trader_001` | NPC memory block |
+| `npc-trust-tier-village_trader_001` | Trust tier badge |
+| `npc-reputation-village_trader_001` | Reputation value |
+| `npc-memory-note-village_trader_001` | Memory/lore text |
+| `npc-dialogue-memory-state-village_trader_001` | Dialogue state indicator |
+
+### CSS Classes
+
+New Cyber-Zen classes in `theme.css`:
+
+| Class | Purpose |
+|-------|---------|
+| `.cz-npc-panel` | Main NPC dialogue panel |
+| `.cz-npc-memory` | NPC memory block |
+| `.cz-trust-badge` | Trust tier badge |
+| `.trust-tier--honored` | Honored tier (violet) |
+| `.trust-tier--trusted` | Trusted tier (green) |
+| `.trust-tier--neutral` | Neutral tier (cyan) |
+| `.trust-tier--cold` | Cold tier (grey-blue) |
+| `.trust-tier--hostile` | Hostile tier (ruby) |
+| `.cz-npc-rep-value` | Reputation number display |
+| `.cz-npc-memory-note` | Deterministic memory text |
+| `.cz-action-btn` | Action buttons |
+
+### Visual Design Source
+
+Cyber-Zen design vocabulary from `theme.css`:
+
+```css
+--cz-bg: #05060b
+--cz-panel: rgba(13, 17, 28, 0.86)
+--cz-cyan / --st-aether: #00e5ff
+--cz-green / --st-emerald: #39ff14
+--cz-gold / --st-gold: #ffd76a
+--st-ruby: #ff3f6f
+--st-violet: #8b5cf6
+```
+
+### Data Source
+
+All NPC memory/reputation values come from `LiveGameplaySnapshot`:
+
+- `snapshot.npcDialogues[]` - NPC dialogue state and line
+- `snapshot.npcReputations[]` - NPC reputation and completed quests
+- `snapshot.activeQuests[]` - Active quest with objectives
+- `snapshot.availableQuests[]` - Available quests
+- `snapshot.completedQuestIds[]` - Completed quest IDs
