@@ -50,9 +50,17 @@ jobs:
       - name: Reinstall deps
         run: pnpm install --no-frozen-lockfile
 
+      - name: Optional autofix
+        run: |
+          set -euo pipefail
+          pnpm -r --if-present lint:fix
+          pnpm -r --if-present format:write
+          pnpm -r --if-present format
+
       - name: Lint
         run: |
           set -euo pipefail
+          pnpm -r --if-present lint
           pnpm run guard:all
           NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/server exec tsc --noEmit
 
@@ -66,6 +74,7 @@ jobs:
         id: gate
         run: |
           set -euo pipefail
+          pnpm -r --if-present lint
           pnpm run guard:all
           NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/server exec tsc --noEmit
           pnpm -r --if-present test
