@@ -140,3 +140,41 @@ A component is only considered complete when:
 3. It has a stable `data-testid` attribute for testability
 4. It has error/loading fallbacks that don't cause blank screens
 5. An E2E or integration test verifies it renders in the real path
+
+## Live Render Path Audit
+
+A full audit of all client-2d UI components has been performed.
+
+**Summary:**
+
+| Status | Count | Description |
+|--------|-------|-------------|
+| LIVE | 25 | Imported in real path, connected to real state |
+| PARTIAL | 4 | Imported but missing server backing or data |
+| UNUSED | 29 | Not imported in real path |
+| LEGACY | 3 | Old implementations, not current path |
+| PROTOTYPE | 52 | Design mockups, not production |
+
+**Key findings:**
+
+1. **Inventory/Paperdoll** - LIVE via `ui/windows/InventoryPanel.tsx` and `ui/windows/EquipmentPanel.tsx`
+2. **Character panels** - PARTIAL via `GameplayWindowsLayer` - need verification
+3. **Many unused components** - 29 files exist but are not imported
+4. **52 prototype screens** - Design mockups in `stitch-screens/` are NOT production code
+
+**Full audit documentation:**
+
+- `docs/CLIENT_2D_LIVE_RENDER_AUDIT.md` - Detailed audit report
+- `apps/client-2d/src/ui/uiRuntimeManifest.ts` - Machine-readable manifest
+- `apps/client-2d/src/ui/uiRuntimeManifest.test.ts` - Manifest validation tests
+
+**Audit classification rules:**
+
+```typescript
+export type UiRuntimeStatus =
+  | "LIVE"        // Imported in real path, visible, connected to real state
+  | "PARTIAL"     // Imported but missing real data or server backing
+  | "UNUSED"      // File exists but not imported in real path
+  | "LEGACY"      // Old implementation, not current path
+  | "PROTOTYPE";  // Design mockup, not connected to production
+```
