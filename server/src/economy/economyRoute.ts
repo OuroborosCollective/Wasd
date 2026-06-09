@@ -9,6 +9,7 @@
 import express, { Router } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { economyService } from "./economyRuntime.js";
+import { npcQuestService } from "../quests/NpcQuestService.js";
 
 const router = Router();
 
@@ -106,6 +107,16 @@ router.post("/sell-resource", async (req, res) => {
       playerPosition: playerPosition ?? undefined,
       vendorId: vendorId ?? undefined,
     });
+
+    // Update NPC quest progress if sell succeeded
+    if (result.ok) {
+      npcQuestService.updateQuestProgress(
+        identity.playerId,
+        "sell",
+        itemId,
+        quantity,
+      );
+    }
 
     const statusCode = result.ok ? 200 : 400;
     res.status(statusCode).json({

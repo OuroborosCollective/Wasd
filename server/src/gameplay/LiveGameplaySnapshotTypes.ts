@@ -13,6 +13,60 @@
 
 import type { EquipmentStatBlock } from "../equipment/EquipmentStatTypes.js";
 
+/**
+ * Quest objective progress for snapshot.
+ */
+export interface LiveGameplayQuestObjective {
+  readonly objectiveId: string;
+  readonly title: string;
+  readonly current: number;
+  readonly required: number;
+  readonly completed: boolean;
+}
+
+/**
+ * Quest progress for snapshot.
+ */
+export interface LiveGameplayQuestProgress {
+  readonly questId: string;
+  readonly state: "available" | "active" | "ready_to_complete" | "completed";
+  readonly objectives: readonly LiveGameplayQuestObjective[];
+}
+
+/**
+ * NPC dialogue state types.
+ */
+export type LiveGameplayNpcDialogueState =
+  | "quest_available"
+  | "quest_active_missing_wood"
+  | "quest_active_ready_to_process"
+  | "quest_active_ready_to_sell"
+  | "quest_ready_to_complete"
+  | "quest_completed";
+
+/**
+ * NPC dialogue for snapshot.
+ */
+export interface LiveGameplayNpcDialogue {
+  readonly npcId: string;
+  readonly displayName: string;
+  readonly dialogueState: LiveGameplayNpcDialogueState;
+  readonly line: string;
+  readonly availableQuestIds: readonly string[];
+  readonly activeQuestIds: readonly string[];
+  readonly completedQuestIds: readonly string[];
+}
+
+/**
+ * NPC reputation for snapshot.
+ */
+export interface LiveGameplayNpcReputation {
+  readonly npcId: string;
+  readonly playerId: string;
+  readonly reputation: number;
+  readonly completedQuestIds: readonly string[];
+}
+
 export interface LiveGameplayInventoryItem {
   readonly itemId: string;
   readonly quantity: number;
@@ -201,6 +255,16 @@ export interface LiveGameplaySnapshot {
   readonly equipmentStats: EquipmentStatBlock;
   /** Processing stations for crafting UI */
   readonly processingStations: readonly LiveGameplayProcessingStation[];
+  /** Active NPC quests for the player */
+  readonly activeQuests: readonly LiveGameplayQuestProgress[];
+  /** Available NPC quests for the player */
+  readonly availableQuests: readonly LiveGameplayQuestProgress[];
+  /** IDs of completed quests */
+  readonly completedQuestIds: readonly string[];
+  /** NPC dialogues for nearby NPCs */
+  readonly npcDialogues: readonly LiveGameplayNpcDialogue[];
+  /** NPC reputations for the player */
+  readonly npcReputations: readonly LiveGameplayNpcReputation[];
 }
 
 export interface GatherResult {

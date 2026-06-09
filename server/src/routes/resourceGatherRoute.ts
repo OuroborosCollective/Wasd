@@ -15,6 +15,7 @@
 import express from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { gatheringService } from "../resources/GatheringService.js";
+import { npcQuestService } from "../quests/NpcQuestService.js";
 
 const router = express.Router();
 
@@ -123,6 +124,16 @@ router.post("/gather", async (req, res) => {
     playerPosition,
     currentTick,
   });
+
+  // Update NPC quest progress if gather succeeded
+  if (result.ok && result.itemRewardId) {
+    npcQuestService.updateQuestProgress(
+      identity.playerId,
+      "gather",
+      result.itemRewardId,
+      result.inventoryQuantity ?? 1,
+    );
+  }
 
   // Return 200 for success, 409 for failure (conflict with world state)
   res.status(result.ok ? 200 : 409).json({

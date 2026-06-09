@@ -24,6 +24,9 @@ import type {
   RecentDiscovery,
   LiveGameplayCampNpc,
   LiveGameplayCampStock,
+  LiveGameplayQuestProgress,
+  LiveGameplayNpcDialogue,
+  LiveGameplayNpcReputation,
 } from "./LiveGameplaySnapshotTypes.js";
 import { RESOURCE_SELL_PRICES } from "../economy/ResourceSellPrices.js";
 import { calculateDynamicPrice } from "../economy/DemandPricing.js";
@@ -43,6 +46,11 @@ export interface LiveGameplaySnapshotComposerDeps {
   readonly getCampStocks?: () => readonly LiveGameplayCampStock[] | Promise<readonly LiveGameplayCampStock[]>;
   readonly getEquipmentStats?: (playerId: string) => import("../equipment/EquipmentStatTypes.js").EquipmentStatBlock | Promise<import("../equipment/EquipmentStatTypes.js").EquipmentStatBlock>;
   readonly getProcessingStations?: () => readonly LiveGameplayProcessingStation[] | Promise<readonly LiveGameplayProcessingStation[]>;
+  readonly getActiveQuests?: (playerId: string) => readonly LiveGameplayQuestProgress[] | Promise<readonly LiveGameplayQuestProgress[]>;
+  readonly getAvailableQuests?: (playerId: string) => readonly LiveGameplayQuestProgress[] | Promise<readonly LiveGameplayQuestProgress[]>;
+  readonly getCompletedQuestIds?: (playerId: string) => readonly string[] | Promise<readonly string[]>;
+  readonly getNpcDialogues?: (playerId: string) => readonly LiveGameplayNpcDialogue[] | Promise<readonly LiveGameplayNpcDialogue[]>;
+  readonly getNpcReputations?: (playerId: string) => readonly LiveGameplayNpcReputation[] | Promise<readonly LiveGameplayNpcReputation[]>;
 }
 
 export class LiveGameplaySnapshotComposer {
@@ -96,6 +104,23 @@ export class LiveGameplaySnapshotComposer {
       ? await this.deps.getProcessingStations()
       : [];
 
+    // Get quest data if available
+    const activeQuests = this.deps.getActiveQuests
+      ? await this.deps.getActiveQuests(playerId)
+      : [];
+    const availableQuests = this.deps.getAvailableQuests
+      ? await this.deps.getAvailableQuests(playerId)
+      : [];
+    const completedQuestIds = this.deps.getCompletedQuestIds
+      ? await this.deps.getCompletedQuestIds(playerId)
+      : [];
+    const npcDialogues = this.deps.getNpcDialogues
+      ? await this.deps.getNpcDialogues(playerId)
+      : [];
+    const npcReputations = this.deps.getNpcReputations
+      ? await this.deps.getNpcReputations(playerId)
+      : [];
+
     return Object.freeze({
       schemaVersion: "live-gameplay-snapshot.v1" as const,
       playerId,
@@ -115,6 +140,11 @@ export class LiveGameplaySnapshotComposer {
       campStocks: Object.freeze([...campStocks].sort((a, b) => a.poiId.localeCompare(b.poiId))),
       equipmentStats,
       processingStations: Object.freeze([...processingStations].sort((a, b) => a.id.localeCompare(b.id))),
+      activeQuests: Object.freeze([...activeQuests].sort((a, b) => a.questId.localeCompare(b.questId))),
+      availableQuests: Object.freeze([...availableQuests].sort((a, b) => a.questId.localeCompare(b.questId))),
+      completedQuestIds: Object.freeze([...completedQuestIds].sort()),
+      npcDialogues: Object.freeze([...npcDialogues].sort((a, b) => a.npcId.localeCompare(b.npcId))),
+      npcReputations: Object.freeze([...npcReputations].sort((a, b) => a.npcId.localeCompare(b.npcId))),
     });
   }
 
