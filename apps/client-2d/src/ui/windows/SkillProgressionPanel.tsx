@@ -33,7 +33,7 @@ export function SkillProgressionPanel({ skills }: Props) {
 
       <div className="skill-list">
         {skills.map((skill) => (
-          <article key={skill.id} className="skill-row">
+          <article key={skill.id} className="skill-row" data-testid={`skill-progress-${skill.id}`}>
             <div className="skill-row__header">
               <strong>{skill.title}</strong>
               <span className="skill-row__level">Lv. {skill.level}</span>

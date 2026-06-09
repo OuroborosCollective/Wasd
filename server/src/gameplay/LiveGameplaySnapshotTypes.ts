@@ -164,6 +164,18 @@ export interface LiveGameplayCampStock {
   readonly lastUpdatedTick: number;
 }
 
+/**
+ * Processing station snapshot for crafting UI.
+ */
+export interface LiveGameplayProcessingStation {
+  readonly id: string;
+  readonly type: "campfire" | "furnace" | "workbench";
+  readonly title: string;
+  readonly x: number;
+  readonly y: number;
+  readonly interactionRadius: number;
+}
+
 export interface LiveGameplaySnapshot {
   readonly schemaVersion: "live-gameplay-snapshot.v1";
   readonly playerId: string;
@@ -187,6 +199,8 @@ export interface LiveGameplaySnapshot {
   readonly campStocks: readonly LiveGameplayCampStock[];
   /** Aggregated equipment stats from all equipped items */
   readonly equipmentStats: EquipmentStatBlock;
+  /** Processing stations for crafting UI */
+  readonly processingStations: readonly LiveGameplayProcessingStation[];
 }
 
 export interface GatherResult {

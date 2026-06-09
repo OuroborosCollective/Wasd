@@ -136,6 +136,18 @@ export interface CraftingSnapshot {
 }
 
 /**
+ * Processing station snapshot for crafting UI.
+ */
+export interface ProcessingStationSnapshot {
+  id: string;
+  type: "campfire" | "furnace" | "workbench";
+  title: string;
+  x: number;
+  y: number;
+  interactionRadius: number;
+}
+
+/**
  * Equipped Slot Snapshot shape
  */
 export interface EquippedSlotSnapshot {
@@ -370,6 +382,8 @@ export interface LiveGameplaySnapshot {
   campStocks: CampStockSnapshot[];
   /** Aggregated equipment stats from all equipped items (server-computed) */
   equipmentStats?: EquipmentStats;
+  /** Processing stations for crafting UI */
+  processingStations: ProcessingStationSnapshot[];
 }
 
 // Default empty snapshot - honest waiting state
@@ -419,6 +433,7 @@ export const EMPTY_LIVE_GAMEPLAY_SNAPSHOT: LiveGameplaySnapshot = {
   },
   campNpcs: [],
   campStocks: [],
+  processingStations: [],
 };
 
 // Normalization helper - pure function, no mutation
@@ -473,6 +488,7 @@ export function normalizeLiveGameplaySnapshot(
       campNpcs: normalizeCampNpcs(input.campNpcs),
       campStocks: normalizeCampStocks(input.campStocks),
       equipmentStats: normalizeEquipmentStats(input.equipmentStats),
+      processingStations: normalizeProcessingStations(input.processingStations),
     };
   } catch (error) {
     // Never crash the client - return empty snapshot on normalization error
@@ -921,4 +937,38 @@ export function normalizeEquipmentStats(input: unknown): EquipmentStats {
     lootQuality: Math.max(0, Math.floor(Number(raw.lootQuality ?? 0))),
     criticalChancePerMille: Math.max(0, Math.floor(Number(raw.criticalChancePerMille ?? 0))),
   };
+}
+
+/**
+ * Normalize a single processing station from server.
+ * Pure function - no mutation of input.
+ */
+function normalizeProcessingStation(input: unknown): ProcessingStationSnapshot | null {
+  if (!input || typeof input !== "object") return null;
+  const raw = input as any;
+
+  const validTypes = ["campfire", "furnace", "workbench"];
+  const type = validTypes.includes(raw.type) ? raw.type : "workbench";
+
+  return {
+    id: String(raw.id ?? ""),
+    type,
+    title: String(raw.title ?? "Station"),
+    x: Number(raw.x ?? 0),
+    y: Number(raw.y ?? 0),
+    interactionRadius: Math.max(1, Math.floor(Number(raw.interactionRadius ?? 32))),
+  };
+}
+
+/**
+ * Normalize processing station snapshots from server.
+ * Pure function - no mutation of input.
+ */
+export function normalizeProcessingStations(input: unknown): ProcessingStationSnapshot[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map(normalizeProcessingStation)
+    .filter((station): station is ProcessingStationSnapshot => station !== null && station.id !== "")
+    .sort((a, b) => a.id.localeCompare(b.id));
 }

@@ -314,7 +314,7 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
       <h2>Inventory</h2>
 
       {/* Wallet Section */}
-      <div className="wallet-section" data-testid="wallet-balance">
+      <div className="wallet-section" data-testid="wallet-coin-balance">
         <span className="wallet-label">💰 Coins:</span>
         <span className="wallet-value">{wallet?.coin ?? 0}</span>
       </div>
@@ -452,7 +452,7 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
           const totalValue = sellPrice * slot.quantity;
 
           return (
-            <article key={slot.slotId} className={`inventory-slot rarity-${rarity}`}>
+            <article key={slot.slotId} className={`inventory-slot rarity-${rarity}`} data-testid={`inventory-item-${slot.itemId}`}>
               <div className="inventory-slot__icon">
                 {iconPath ? (
                   <img src={iconPath} alt={slot.name} className="inventory-slot-svg" />
@@ -478,7 +478,7 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
                   type="button"
                   className="sell-button"
                   onClick={() => handleSell(slot.itemId, slot.quantity)}
-                  data-testid="sell-resource-button"
+                  data-testid={`vendor-sell-${slot.itemId}`}
                   title={`Sell ${slot.name} for ${totalValue} coins`}
                 >
                   SELL {totalValue}c

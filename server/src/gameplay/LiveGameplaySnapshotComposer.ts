@@ -19,6 +19,7 @@ import type {
   LiveGameplayResourceNode,
   LiveGameplayWorldPoi,
   LiveGameplayVendorEconomySnapshot,
+  LiveGameplayProcessingStation,
   DiscoveryStats,
   RecentDiscovery,
   LiveGameplayCampNpc,
@@ -41,6 +42,7 @@ export interface LiveGameplaySnapshotComposerDeps {
   readonly getCampNpcs?: () => readonly LiveGameplayCampNpc[] | Promise<readonly LiveGameplayCampNpc[]>;
   readonly getCampStocks?: () => readonly LiveGameplayCampStock[] | Promise<readonly LiveGameplayCampStock[]>;
   readonly getEquipmentStats?: (playerId: string) => import("../equipment/EquipmentStatTypes.js").EquipmentStatBlock | Promise<import("../equipment/EquipmentStatTypes.js").EquipmentStatBlock>;
+  readonly getProcessingStations?: () => readonly LiveGameplayProcessingStation[] | Promise<readonly LiveGameplayProcessingStation[]>;
 }
 
 export class LiveGameplaySnapshotComposer {
@@ -89,6 +91,11 @@ export class LiveGameplaySnapshotComposer {
       ? await this.deps.getEquipmentStats(playerId)
       : createDefaultStatBlock();
 
+    // Get processing stations if available
+    const processingStations = this.deps.getProcessingStations
+      ? await this.deps.getProcessingStations()
+      : [];
+
     return Object.freeze({
       schemaVersion: "live-gameplay-snapshot.v1" as const,
       playerId,
@@ -107,6 +114,7 @@ export class LiveGameplaySnapshotComposer {
       campNpcs: Object.freeze([...campNpcs].sort((a, b) => a.id.localeCompare(b.id))),
       campStocks: Object.freeze([...campStocks].sort((a, b) => a.poiId.localeCompare(b.poiId))),
       equipmentStats,
+      processingStations: Object.freeze([...processingStations].sort((a, b) => a.id.localeCompare(b.id))),
     });
   }
 
