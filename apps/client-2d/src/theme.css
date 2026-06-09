@@ -408,6 +408,205 @@ canvas { display: block; filter: saturate(1.16) contrast(1.08); touch-action: no
   color: #a78bfa;
 }
 
+/* Direct Memory Section */
+.cz-npc-direct-memory {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(103, 92, 255, 0.18);
+  background: linear-gradient(135deg, rgba(103, 92, 255, 0.08), rgba(139, 92, 246, 0.05));
+}
+
+.cz-npc-memory-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #a78bfa;
+}
+
+.cz-memory-count {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  font-size: 9px;
+  color: #a78bfa;
+}
+
+.cz-npc-memory-events {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cz-npc-memory-event-note {
+  font-size: 10px;
+  color: rgba(244, 247, 255, 0.7);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(139, 92, 246, 0.1);
+  border-left: 2px solid rgba(139, 92, 246, 0.4);
+}
+
+.cz-npc-memory-empty {
+  font-size: 10px;
+  color: rgba(244, 247, 255, 0.4);
+  font-style: italic;
+}
+
+/* Rumors Heard Section */
+.cz-npc-rumors-section {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(57, 255, 20, 0.18);
+  background: linear-gradient(135deg, rgba(57, 255, 20, 0.05), rgba(57, 255, 20, 0.03));
+}
+
+.cz-npc-rumors-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--st-emerald);
+}
+
+.cz-rumor-count {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(57, 255, 20, 0.15);
+  border: 1px solid rgba(57, 255, 20, 0.4);
+  font-size: 9px;
+  color: var(--st-emerald);
+}
+
+.cz-npc-rumors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cz-npc-rumor-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 10px;
+  border-left: 3px solid;
+}
+
+.cz-npc-rumor-item.rumor-badge--positive {
+  background: rgba(0, 229, 255, 0.1);
+  border-color: var(--cz-cyan);
+}
+
+.cz-npc-rumor-item.rumor-badge--green {
+  background: rgba(57, 255, 20, 0.1);
+  border-color: var(--cz-green);
+}
+
+.cz-npc-rumor-item.rumor-badge--violet {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: var(--st-violet);
+}
+
+.cz-npc-rumor-item.rumor-badge--warning {
+  background: rgba(255, 215, 106, 0.1);
+  border-color: var(--cz-gold);
+}
+
+.cz-npc-rumor-item.rumor-badge--danger {
+  background: rgba(255, 63, 111, 0.1);
+  border-color: var(--st-ruby);
+}
+
+.cz-npc-rumor-item.rumor-badge--neutral {
+  background: rgba(244, 247, 255, 0.05);
+  border-color: rgba(244, 247, 255, 0.3);
+}
+
+.cz-rumor-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.rumor-badge--positive .cz-rumor-badge { color: var(--cz-cyan); }
+.rumor-badge--green .cz-rumor-badge { color: var(--cz-green); }
+.rumor-badge--violet .cz-rumor-badge { color: var(--st-violet); }
+.rumor-badge--warning .cz-rumor-badge { color: var(--cz-gold); }
+.rumor-badge--danger .cz-rumor-badge { color: var(--st-ruby); }
+
+.cz-rumor-note {
+  font-size: 10px;
+  color: rgba(244, 247, 255, 0.7);
+  font-style: italic;
+}
+
+.cz-rumor-weight {
+  font-size: 9px;
+  color: rgba(244, 247, 255, 0.5);
+}
+
+/* Effective Trust Section */
+.cz-npc-effective-trust {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.18);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(103, 92, 255, 0.05));
+}
+
+.cz-npc-trust-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--st-violet);
+}
+
+.cz-npc-trust-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 10px;
+}
+
+.cz-npc-trust-label {
+  color: rgba(244, 247, 255, 0.6);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.cz-npc-trust-value {
+  font-weight: 800;
+  color: var(--st-violet);
+  text-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
+}
+
+.cz-npc-trust-row.cz-npc-trust-total {
+  padding-top: 6px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.cz-npc-trust-row.cz-npc-trust-total .cz-npc-trust-label {
+  color: var(--st-violet);
+}
+
+.cz-npc-trust-row.cz-npc-trust-total .cz-npc-trust-value {
+  font-size: 14px;
+  color: var(--st-violet);
+  text-shadow: 0 0 12px rgba(139, 92, 246, 0.5);
+}
+
 /* Memory Note */
 .cz-npc-memory-note {
   margin-top: 6px;

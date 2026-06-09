@@ -27,6 +27,8 @@ import type {
   LiveGameplayQuestProgress,
   LiveGameplayNpcDialogue,
   LiveGameplayNpcReputation,
+  LiveGameplayNpcMemory,
+  LiveGameplayNpcRumor,
 } from "./LiveGameplaySnapshotTypes.js";
 import { RESOURCE_SELL_PRICES } from "../economy/ResourceSellPrices.js";
 import { calculateDynamicPrice } from "../economy/DemandPricing.js";
@@ -51,6 +53,8 @@ export interface LiveGameplaySnapshotComposerDeps {
   readonly getCompletedQuestIds?: (playerId: string) => readonly string[] | Promise<readonly string[]>;
   readonly getNpcDialogues?: (playerId: string) => readonly LiveGameplayNpcDialogue[] | Promise<readonly LiveGameplayNpcDialogue[]>;
   readonly getNpcReputations?: (playerId: string) => readonly LiveGameplayNpcReputation[] | Promise<readonly LiveGameplayNpcReputation[]>;
+  readonly getNpcMemories?: (playerId: string) => readonly LiveGameplayNpcMemory[] | Promise<readonly LiveGameplayNpcMemory[]>;
+  readonly getNpcRumors?: (playerId: string) => readonly LiveGameplayNpcRumor[] | Promise<readonly LiveGameplayNpcRumor[]>;
 }
 
 export class LiveGameplaySnapshotComposer {
@@ -120,6 +124,12 @@ export class LiveGameplaySnapshotComposer {
     const npcReputations = this.deps.getNpcReputations
       ? await this.deps.getNpcReputations(playerId)
       : [];
+    const npcMemories = this.deps.getNpcMemories
+      ? await this.deps.getNpcMemories(playerId)
+      : [];
+    const npcRumors = this.deps.getNpcRumors
+      ? await this.deps.getNpcRumors(playerId)
+      : [];
 
     return Object.freeze({
       schemaVersion: "live-gameplay-snapshot.v1" as const,
@@ -145,6 +155,8 @@ export class LiveGameplaySnapshotComposer {
       completedQuestIds: Object.freeze([...completedQuestIds].sort()),
       npcDialogues: Object.freeze([...npcDialogues].sort((a, b) => a.npcId.localeCompare(b.npcId))),
       npcReputations: Object.freeze([...npcReputations].sort((a, b) => a.npcId.localeCompare(b.npcId))),
+      npcMemories: Object.freeze([...npcMemories].sort((a, b) => a.npcId.localeCompare(b.npcId))),
+      npcRumors: Object.freeze([...npcRumors].sort((a, b) => a.rumorId.localeCompare(b.rumorId))),
     });
   }
 

@@ -394,6 +394,10 @@ export interface LiveGameplaySnapshot {
   npcDialogues?: NpcDialogueSnapshot[];
   /** NPC reputations for the player */
   npcReputations?: NpcReputationSnapshot[];
+  /** NPC memory snapshots for the player */
+  npcMemories?: NpcMemorySnapshot[];
+  /** NPC rumor snapshots for the player */
+  npcRumors?: NpcRumorSnapshot[];
 }
 
 /**
@@ -448,6 +452,47 @@ export interface NpcReputationSnapshot {
   playerId: string;
   reputation: number;
   completedQuestIds: string[];
+}
+
+/**
+ * Trust tier for NPC-player relationship.
+ */
+export type TrustTier = "hostile" | "cold" | "neutral" | "trusted" | "honored";
+
+/**
+ * NPC memory snapshot for server-authoritative display.
+ */
+export interface NpcMemorySnapshot {
+  npcId: string;
+  playerId: string;
+  reputation: number;
+  trustTier: TrustTier;
+  memoryEventCount: number;
+  recentMemoryNotes: readonly string[];
+  knownRumorCount: number;
+}
+
+/**
+ * Rumor kinds for NPC memory system.
+ */
+export type NpcRumorKind =
+  | "helped_village"
+  | "reliable_supplier"
+  | "troublemaker"
+  | "hostile_actor"
+  | "trusted_worker";
+
+/**
+ * NPC rumor snapshot for server-authoritative display.
+ */
+export interface NpcRumorSnapshot {
+  rumorId: string;
+  npcId: string;
+  playerId: string;
+  kind: NpcRumorKind;
+  weight: number;
+  note: string;
+  sourceNpcId: string;
 }
 
 // Default empty snapshot - honest waiting state

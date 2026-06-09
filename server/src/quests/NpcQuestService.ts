@@ -4,6 +4,7 @@
  * Server-authoritative quest management for NPC economy quests.
  * Deterministic: No Math.random(), no Date.now() for gameplay state.
  * All quest mutations happen server-side after validation.
+ * Integrates with NpcMemoryService for memory event recording.
  */
 
 import {
@@ -20,6 +21,7 @@ import {
   type QuestFailReason,
 } from "./NpcQuestTypes.js";
 import { type QuestSnapshot } from "./QuestSnapshotTypes.js";
+import { npcMemoryService } from "../npc/NpcMemoryService.js";
 
 /**
  * Active quest state for a player.
@@ -279,6 +281,11 @@ export class NpcQuestService {
       started: true,
     });
 
+    // Record memory event for quest acceptance (non-blocking)
+    npcMemoryService.recordQuestAccepted(playerId, questDef.npcId, questId).catch((err) => {
+      console.warn("[NpcQuestService] Failed to record quest_accepted memory:", err);
+    });
+
     const progress = this.getQuestProgress(playerId, questId);
     return { ok: true, result: progress! };
   }
@@ -426,6 +433,17 @@ export class NpcQuestService {
     const npcRep = this.getOrCreateNpcReputation(questDef.npcId, playerId);
     npcRep.reputation += questDef.reward.reputation;
     npcRep.completedQuestIds.push(questId);
+
+    // Record memory event for quest completion (non-blocking)
+    // This also triggers helped_village rumor creation
+    npcMemoryService.recordQuestCompleted(
+      playerId,
+      questDef.npcId,
+      questId,
+      questDef.reward.reputation,
+    ).catch((err) => {
+      console.warn("[NpcQuestService] Failed to record quest_completed memory:", err);
+    });
 
     const progress = this.getQuestProgress(playerId, questId);
     const reputation = this.getNpcReputation(playerId, questDef.npcId);
