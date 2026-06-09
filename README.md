@@ -2,14 +2,50 @@
 
 **Areloria WASD** is a browser-native deterministic MMORPG engine and living-world simulation platform.
 
-It combines a 10Hz authoritative Node.js game server, Three.js/WebGL clients, chunk-streamed world logic, protected player-built civilization systems, deterministic ARE simulation rules, self-healing runtime safeguards, and a long-term design path toward an emergent AI population that can trade, remember, organize, govern, build, revolt, ally, migrate, and reshape the world through explicit rule-bound logic.
+The current release path is **2D-first**: a server-authoritative Node.js game server, a Pixi-style `/2d` client surface, Cyber-Zen/Stitch UI panels, deterministic 10Hz gameplay rules, NPC memory/reputation/rumor systems, resource economy loops, and a quarantine-first asset intake pipeline for generated 2.5D sprite atlases.
+
+The 3D client remains part of the repository, but it is not the active release gate unless a task explicitly says otherwise.
 
 ![Node.js](https://img.shields.io/badge/Node.js-22.x-green)
 ![Runtime](https://img.shields.io/badge/runtime-deterministic_10Hz-blue)
+![Client](https://img.shields.io/badge/client-2D_first-cyan)
 ![Simulation](https://img.shields.io/badge/simulation-ARE_logic-purple)
 ![License](https://img.shields.io/badge/license-proprietary_all_rights_reserved-red)
 <img alt="open collective badge" src="https://opencollective.com/ouroboros-collective-are/tiers/backers/badge.svg?label=backer&color=brightgreen" />
-> This repository is proprietary. It is not MIT licensed. See [License and Usage Policy](#license-and-usage-policy).
+
+> This repository is proprietary. It is not MIT licensed. See [License and usage policy](#license-and-usage-policy).
+
+---
+
+## Current project state
+
+Areloria is no longer only a shell or prototype. The repository now contains a playable deterministic browser-MMORPG foundation with these active layers:
+
+```text
+/2d runtime path
+server-authoritative gameplay snapshots
+resource gather/process/sell economy loop
+NPC resource quest loop
+Cyber-Zen NPC dialogue and reputation UI
+persistent NPC memory and deterministic rumor summaries
+Stitch 2.5D atlas intake pipeline
+VPS-oriented Docker deployment path
+```
+
+Recent high-value systems:
+
+| Area | Current status |
+| --- | --- |
+| Runtime client | `/2d` is the primary proof path; 3D is not the current release blocker |
+| Server tick | 10Hz deterministic server-authoritative gameplay model |
+| Economy | resource gathering, processing/crafting, selling, wallet/XP progression |
+| NPC quests | Mira / village supply style NPC resource quest loop |
+| NPC social layer | reputation, memory, persisted memory state and rumor network |
+| UI style | Cyber-Zen / Arelorian Stitch dark-neon HUD language |
+| Assets | Stitch 2.5D sprite atlas intake, manifest generation and quarantine-first QA |
+| Deployment | VPS-oriented flow; production Docker file is `Dockerfile.vps` |
+
+A feature is considered real only when it is visible or verifiable through the active runtime path, server state, generated manifest, or CI/smoke test. Detached demos do not count as production integration.
 
 ---
 
@@ -17,7 +53,7 @@ It combines a 10Hz authoritative Node.js game server, Three.js/WebGL clients, ch
 
 Areloria is not designed as a simple web game shell. It is an attempt to build a mathematically disciplined, deterministic living-world engine for a browser MMORPG.
 
-The world is meant to feel inhabited rather than scripted. NPCs are not only quest dispensers. They are future citizens, workers, traders, witnesses, political actors, enemies, allies, informants, settlers, rulers, rebels, and memory-bearing participants in a simulated civilization.
+The world should feel inhabited rather than merely scripted. NPCs are future citizens, workers, traders, witnesses, political actors, enemies, allies, informants, settlers, rulers, rebels, and memory-bearing participants in a simulated civilization.
 
 The long-term target is an emergent AI population governed by deterministic server logic:
 
@@ -34,30 +70,49 @@ Areloria is therefore both a game project and a simulation architecture project.
 
 ## Core principles
 
-### 1. Determinism rules the simulation
+### 1. Server authority is non-negotiable
 
-Gameplay state must be reproducible from explicit inputs.
+Gameplay state follows this chain:
 
-Simulation code must not depend on process-local randomness or hidden wall-clock state.
+```text
+client sends intent
+server validates
+server mutates
+server emits snapshot/event
+client renders
+```
 
-Forbidden in simulation paths:
+The client must not authoritatively mutate inventory, wallet, equipment, character stats, quest state, combat, loot, NPC memory, reputation, rumor state, economy state, or persistence state.
+
+Failed validation must not partially mutate state.
+
+### 2. Determinism rules the simulation
+
+Gameplay state must be reproducible from explicit inputs. Simulation code must not depend on process-local randomness or hidden wall-clock state.
+
+Forbidden in gameplay/simulation causality:
 
 ```text
 Math.random()
 Date.now()
 new Date()
+performance.now()
 randomUUID()
 process uptime as gameplay input
 host/container identity as gameplay input
+unordered iteration where order changes state
 ```
 
 Use instead:
 
 ```text
-AREClock
-ARERng
-explicit tick time
+explicit logical tick / logicalIndex
+ARE clock/time adapters
 stable seeds from world facts
+content hashes for generated assets
+row-major frame order for atlases
+stable sorted traversal
+stable JSON formatting
 ```
 
 Good seed parts:
@@ -66,21 +121,9 @@ Good seed parts:
 worldSeed | regionId | chunkId | tick | actorId | targetId | tableId | cycleId
 ```
 
-The determinism gate currently protects simulation-critical paths including:
+### 3. ARE logic is the governing model
 
-```text
-server/src/core/systems/**
-server/src/core/watchdogs/**
-server/src/core/*Watchdog.ts
-server/src/modules/brain/**
-server/src/modules/loot/**
-server/src/modules/warfront/**
-server/src/modules/oracle/**
-```
-
-### 2. ARE logic is the governing model
-
-Areloria is built around the project’s ARE logic model: an axiomatic, deterministic rule system intended to govern simulation flow, replayability, causality, pressure, observation, and bounded emergence.
+Areloria is built around the project’s ARE logic model: an axiomatic deterministic rule system intended to govern simulation flow, replayability, causality, pressure, observation, and bounded emergence.
 
 Within this repository, ARE is treated as the governing logic layer for:
 
@@ -93,24 +136,11 @@ Within this repository, ARE is treated as the governing logic layer for:
 - oracle/brain interpretation,
 - protected simulation boundaries.
 
-The current implementation contains practical ARE primitives such as:
+The broader ARE theory, formula language, manuscripts, trademarks, research notes, and commercial/political/industrial usage rights are reserved by the rights holder and are not granted by this repository.
 
-```text
-AREClock
-SystemAREClock
-FixedAREClock
-ARERng
-SeededARERng
-createARESeed
-```
-
-These are engineering primitives. The broader ARE theory, formula language, manuscripts, trademarks, research notes, and commercial/political/industrial usage rights are reserved by the rights holder and are not granted by this repository.
-
-### 3. Observation bounds reality
+### 4. Observation bounds reality
 
 The world should not simulate every possible place at full cost forever.
-
-Areloria follows an observation-driven principle:
 
 ```text
 Only observed or relevant regions receive expensive simulation.
@@ -119,7 +149,7 @@ Unobserved regions decay, summarize, or sleep.
 
 This keeps server load proportional to active player observation and relevant world pressure.
 
-### 4. The 10Hz server tick is sacred
+### 5. The 10Hz server tick is sacred
 
 The authoritative server loop is designed around deterministic 10Hz logic.
 
@@ -135,7 +165,7 @@ Systems must declare:
 
 No system may dump unbounded scans into the tick.
 
-### 5. Player-built and paid structures are protected
+### 6. Protected structures stay protected
 
 Areloria’s civilization and monetization design includes player-built assets and potentially paid construction energy.
 
@@ -147,34 +177,47 @@ If uncertain, do not damage the structure.
 
 NPCs, swarms, bosses, decay systems, watchdogs, and world events must not damage or destroy player-built, paid, or protected structures unless an explicit reviewed policy allows it.
 
-Protection concepts include:
-
-```text
-isPlayerBuilt
-paidAsset
-protectedFeature
-damageableByWorldEvent === true
-ownerId
-assetProtectionTier
-```
-
 ---
 
-## Game features and world systems
-
-Areloria’s design combines classic MMORPG pleasures with deterministic simulation depth.
+## Active gameplay systems
 
 ### Player progression
 
 - Classless progression inspired by open-skill MMORPG design.
 - Stamina and skill use shape combat capability.
-- No hard conceptual level ceiling in the long-term design.
 - Equipment, loot, region pressure, and mastery shape identity.
+- Long-term design does not require a hard conceptual level ceiling.
+
+### Resource economy
+
+The current economy direction is a deterministic loop:
+
+```text
+gather resource
+process/craft item
+sell to NPC/vendor
+receive wallet/XP/reputation effect
+expose state through LiveGameplaySnapshot
+```
+
+Economy state must remain server-authoritative and idempotent.
+
+### NPC quests, memory and rumors
+
+NPC systems now move toward social consequence rather than simple dialogue popups:
+
+- NPCs can expose quest state through live snapshots.
+- NPC dialogue can show trust/reputation state.
+- NPC memory can persist by player/NPC pair.
+- Deterministic rumor records can summarize important social events.
+- Rumors may affect tone and effective trust, but must not duplicate rewards.
+
+Direct memory is stronger than rumor memory. Broad autonomous AI behavior should not be added before deterministic memory, reputation and persistence contracts are solid.
 
 ### Loot and item systems
 
 - Diablo-like rarity and affix direction.
-- Deterministic loot rolls through `ARERng`.
+- Deterministic loot rolls through explicit RNG/seed flow.
 - Smart loot and treasure tables must be replay-safe.
 - Item generation cannot use host randomness in simulation.
 
@@ -183,84 +226,66 @@ Areloria’s design combines classic MMORPG pleasures with deterministic simulat
 - Server-authoritative combat.
 - Deterministic critical hits and damage calculations.
 - Replay-safe loot drop rolls.
-- Region threat and oracle pressure may affect outcomes through explicit state.
+- Region threat and oracle pressure may affect outcomes through explicit state only.
 
-### Warfronts
+### Warfronts, Oracle and brain/watchdog systems
 
-- Deterministic cycle timing through `AREClock`.
-- Daily/seasonal warfront cycle logic.
-- Front boss readiness, phase changes, and reward history must be reproducible.
-- Warfront combat telemetry is treated as side-channel observability, not gameplay truth.
+These systems are planned or partially present as bounded deterministic layers:
 
-### Oracle and prophecy
+- deterministic cycle timing,
+- warning/prophecy output from explicit records,
+- bounded low-frequency brain interpretation,
+- fast-path watchdog checks,
+- telemetry as side-channel observability rather than gameplay truth.
 
-- Oracle systems expose pattern pressure, warnings, visions, and world-thought.
-- Oracle outputs must be deterministic when they affect simulation or player-facing state.
-- Prophecy archive timing is explicit and replay-friendly.
+All simulation-affecting output must be deterministic, bounded, inspectable, and compatible with tick constraints.
 
-### Brain and watchdog systems
+---
 
-Brain systems perform low-frequency heuristic reasoning.
+## UI and asset direction
 
-Watchdog systems perform bounded fast-path checks.
+### Cyber-Zen / Arelorian Stitch UI
 
-Current and planned examples include:
+In-game panels and debug/preview tools should use the existing Cyber-Zen / Stitch visual language:
 
-- Matrix precognition and load projection,
-- chrono swarm density detection,
-- reality fissure/paradox tracking,
-- synaptic load dilation,
-- world-brain cache summaries,
-- future Aetheric Leyline logic,
-- future Chronos Anomaly zones,
-- future Void Swarm incursions.
+```text
+dark cyber panel
+thin neon border
+cyan / fire / violet / green accents
+monospace metadata labels
+compact status badges
+card-like blocks
+Ouroboros / 10Hz / deterministic HUD feeling
+```
 
-All Brain/Watchdog simulation code is now expected to pass the ARE determinism gate.
+Do not add unstyled default HTML panels to the real `/2d` path.
 
-### Emergent AI population
+### Stitch 2.5D asset intake
 
-The future population model aims for NPCs that can:
+Generated or external asset packs must go through a deterministic intake pipeline before runtime use.
 
-- remember local player actions,
-- share local memory through bounded caches,
-- refuse help to hostile players,
-- trade and price goods according to scarcity,
-- found or join settlements,
-- participate in elections,
-- follow laws or rebel against them,
-- declare war or seek peace,
-- migrate under pressure,
-- form guilds, villages, towns, cities, kingdoms, and lands,
-- generate visible thought/intent channels where appropriate.
+Pipeline principles:
 
-This population must remain deterministic, bounded, inspectable, and compatible with server tick constraints.
+```text
+raw input stays separate
+runtime output is generated deterministically
+sourcePath must be stable, not /tmp/...
+asset IDs are lower snake_case and stable
+frame order is row-major
+manifest entries are sorted
+bad or suspicious sheets go to quarantine/manual_review
+large generated assets must not silently bloat the repository
+```
 
-### Civilization and settlement rules
+Useful commands where available:
 
-World-building must respect deterministic layout rules, including concepts such as:
+```bash
+pnpm assets:stitch:intake
+pnpm assets:stitch:intake:zip -- ./assets/raw/stitch/stitch_2.5d_enemy_sprite_atlas.zip
+pnpm assets:stitch:validate
+```
 
-- 64x64 chunk logic,
-- city/village hierarchy,
-- roads between structures,
-- walls connected with valid doors,
-- houses not overlapping houses,
-- spacing rules between buildings,
-- dungeon/world-boss distance constraints,
-- biome or region boundaries for larger political units.
-
-These rules belong in explicit validators, not hidden client-only assumptions.
-
-### GLB and asset safety
-
-Areloria targets GLB-based 3D assets for characters, structures, items, and world objects.
-
-Asset rules:
-
-- validate GLB assets before runtime use,
-- quarantine broken or unsafe assets,
-- do not crash the runtime on malformed content,
-- keep placement deterministic,
-- enforce city layout and protected-asset policies.
+The active visual proof path is the `/2d` Stitch asset preview panel and `/2d-assets/stitch/manifest.json`.
 
 ---
 
@@ -269,25 +294,26 @@ Asset rules:
 ### Monorepo layout
 
 ```text
-apps/                 Application surfaces and API shells
-client/               Browser 3D client
+apps/                 Application surfaces and API/client shells
+apps/client-2d/       Active 2D browser client path
+client/               3D client path; currently not the release gate
 server/               Authoritative game server
 packages/             Shared packages and core logic
 projects/             Additional project modules and experiments
 docs/                 Architecture, deploy, policy, and audit docs
-scripts/              Build, deploy, audit, and validation scripts
-.github/workflows/    CI, deploy, and guardrail automation
+scripts/              Build, deploy, audit, wiki, asset and validation scripts
+.github/workflows/    CI, deploy, guardrail and wiki automation
 ```
 
 ### Runtime shape
 
 ```text
-Browser Client
+Browser /2d Client
   -> Host Nginx
   -> 127.0.0.1:3001
   -> arelorian-engine Docker container
   -> Node.js authoritative server
-  -> Supabase/PostgreSQL, Redis, Soketi/Pusher-compatible services
+  -> Supabase/PostgreSQL, Redis, Soketi/Pusher-compatible services where enabled
 ```
 
 Production port policy:
@@ -319,7 +345,8 @@ docs/NGINX_HOST_GATEWAY.md
 
 ```text
 Node.js 22.x
-pnpm 9.x or newer
+pnpm 11.x preferred by packageManager; pnpm 9+ may work where CI allows
+Python 3 + Pillow for Stitch atlas intake
 Docker for production-style deploy testing
 ```
 
@@ -327,31 +354,53 @@ Docker for production-style deploy testing
 
 ```bash
 pnpm install
-pnpm build:all
-pnpm dev:all
+pnpm build:2d
+pnpm dev:2d
+pnpm guard:all
 ```
 
 Targeted builds:
 
 ```bash
-pnpm build:network
+pnpm build:web
 pnpm build:2d
 pnpm build:3d
 ```
 
-Determinism gate:
-
-```bash
-node scripts/check-are-determinism.mjs
-```
+Use `build:3d` only when the task touches the 3D client.
 
 Recommended server/client checks:
 
 ```bash
-pnpm --filter @wasd/server --if-present build
 pnpm --filter @wasd/shared --if-present build
-pnpm --filter @wasd/client --if-present build
+pnpm --filter @wasd/server --if-present build
+pnpm --filter @wasd/client-2d --if-present build
 ```
+
+---
+
+## Wiki and documentation automation
+
+The repository keeps wiki source material in `docs/wiki/` and has an autonomous wiki builder under `scripts/wiki/`.
+
+The intended wiki flow is:
+
+```text
+README.md / docs/*.md / docs/wiki/*.md / scripts/wiki/** changes
+→ build autonomous wiki into .wiki-build
+→ sync generated .wiki-build content to the GitHub wiki repository
+```
+
+The sync workflow must build first and sync second. Copying only `docs/wiki/**` is not enough because the generated wiki also depends on README, docs, package metadata, changelog and module maps.
+
+Useful commands:
+
+```bash
+node scripts/wiki/build-autonomous-wiki.mjs --source docs/wiki --out .wiki-build --rebuild true
+node scripts/sync-wiki.mjs
+```
+
+`sync-wiki.mjs` should use `.wiki-build` in CI when available and fall back to `docs/wiki` only for manual/simple syncs.
 
 ---
 
@@ -365,9 +414,18 @@ Primary deploy workflow:
 GitHub Actions -> VPS Docker Deploy (monorepo)
 ```
 
+Production Docker file:
+
+```text
+Dockerfile.vps
+```
+
+Do not silently switch production deploys to `Dockerfile.prod` unless the repository intentionally changes that convention.
+
 Default production values:
 
 ```text
+VPS project path: /opt/areloria
 ARELORIAN_PORT=3001
 ARELORIAN_DOCKER_NETWORK=areloria_arelorian-network
 ARELORIAN_ENV_FILE=.env.docker
@@ -375,22 +433,17 @@ ARELORIAN_ENV_FILE=.env.docker
 
 Runtime secrets are written to a VPS-local `.env.docker` file and loaded by Docker Compose. Do not commit runtime secrets.
 
-After a successful deploy, the verification workflow can validate:
+After a successful deploy, verification should validate:
 
 ```text
 /health
 /client-config.json
 /
+/2d
 container state
 host port mapping
 optional nginx config
 recent engine logs
-```
-
-Workflow:
-
-```text
-VPS Final Deploy Verification
 ```
 
 ### Nginx host gateway
@@ -421,23 +474,51 @@ Hard rules:
 - no hidden nondeterminism,
 - no broad deploy changes inside gameplay PRs,
 - no protected structure damage without explicit policy,
-- every new simulation path must be covered by the determinism gate,
-- every heavy runtime feature must be feature-flagged and cadence-bounded.
+- every new simulation path must be covered by determinism guardrails,
+- every heavy runtime feature must be feature-flagged and cadence-bounded,
+- every player-visible gameplay feature needs a real `/2d` proof path where practical.
+
+Good PR body sections:
+
+```text
+Summary
+Changed files
+Runtime proof path
+Determinism notes
+Verification commands
+Known limitations
+Follow-up work
+```
 
 ---
 
 ## Documentation map
 
-Important docs include:
+Start with:
+
+```text
+docs/START_HERE.md
+docs/PROJECT_STATUS_2026.md
+docs/ROADMAP_TO_RELEASE.md
+docs/ARELORIAN_PROJECT_KNOWLEDGE_BASE.md
+```
+
+Important focused docs include:
 
 ```text
 docs/AGENT_FEATURE_PR_POLICY.md
 docs/ARE_DETERMINISM_CLASSIFICATION.md
 docs/ARE_TELEMETRY_SIDE_CHANNEL.md
-docs/AUDIT_RUNTIME_STABILITY_2026-05-16.md
+docs/CLIENT_2D_LIVE_RENDER_AUDIT.md
+docs/NPC_MEMORY_REPUTATION.md
+docs/NPC_RUMOR_NETWORK.md
+docs/STITCH_2_5D_ASSET_INTAKE.md
+docs/ASSET_PIPELINE_CONTRACT.md
 docs/DEPLOY_PORT_MAP.md
 docs/NGINX_HOST_GATEWAY.md
 ```
+
+Prefer active code and current docs over older historical notes.
 
 ---
 
@@ -473,6 +554,6 @@ See `LICENSE` for the repository license terms.
 
 Areloria WASD is under active development.
 
-The current priority is to keep the engine deterministic, deployable, and safe while expanding toward a living browser MMORPG with an emergent AI population and protected player civilization systems.
+The current priority is to keep the engine deterministic, deployable, 2D-playable, asset-pipeline-safe, and ready for a living browser MMORPG with social NPC memory and protected player civilization systems.
 
-The world must be allowed to become strange, but never nondeterministic by accident.
+The world may become strange, but never nondeterministic by accident.
