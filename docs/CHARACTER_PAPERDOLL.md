@@ -160,3 +160,129 @@ Character and paperdoll are included in `/api/gameplay/snapshot`:
 
 - `server/src/tests/character-store.test.ts` - Unit tests
 - `e2e/character-profile.spec.ts` - E2E tests
+
+## Equipment System (2026-06-09)
+
+The equipment system provides server-authoritative equip/unequip functionality.
+
+### API Endpoints
+
+#### GET /api/equipment/state
+
+Get current player equipment state.
+
+**Response:**
+```json
+{
+  "ok": true,
+  "playerId": "player_123",
+  "equipment": {
+    "playerId": "player_123",
+    "schemaVersion": 1,
+    "slots": [
+      { "slotId": "woodcutting_tool", "itemId": "wooden_axe", "title": "Wooden Axe", "tier": 1 }
+    ]
+  }
+}
+```
+
+#### POST /api/equipment/equip
+
+Equip an item from inventory.
+
+**Request:**
+```json
+{ "itemId": "wooden_axe" }
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "result": {
+    "ok": true,
+    "playerId": "player_123",
+    "itemId": "wooden_axe",
+    "reason": "equipped",
+    "equipment": { ... }
+  }
+}
+```
+
+#### POST /api/equipment/unequip
+
+Unequip an item from a slot.
+
+**Request:**
+```json
+{ "slotId": "woodcutting_tool" }
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "result": {
+    "ok": true,
+    "playerId": "player_123",
+    "slotId": "woodcutting_tool",
+    "reason": "unequipped",
+    "equipment": { ... }
+  }
+}
+```
+
+### Fail Reasons
+
+| Reason | Description |
+|--------|-------------|
+| `invalid_item` | Item ID is not a valid equipment item |
+| `item_not_owned` | Player does not own this item in inventory |
+| `invalid_player` | Player ID is invalid (anonymous) |
+| `invalid_slot` | Slot ID is not a valid equipment slot |
+| `slot_empty` | No item equipped in the specified slot |
+
+### Equipment Slots
+
+| Slot ID | Skill | Example Items |
+|---------|-------|----------------|
+| `woodcutting_tool` | Woodcutting | wooden_axe, copper_axe |
+| `mining_tool` | Mining | copper_pickaxe, reinforced_pickaxe |
+| `fishing_tool` | Fishing | simple_fishing_rod, reinforced_fishing_rod |
+
+### Client Integration
+
+```typescript
+import { equipGatheringTool, unequipGatheringTool, fetchEquipmentState } from "./game/equipment";
+
+// Equip a tool
+const result = await equipGatheringTool("wooden_axe");
+
+// Unequip a tool
+const result = await unequipGatheringTool("woodcutting_tool");
+
+// Fetch current equipment state
+const result = await fetchEquipmentState();
+```
+
+### Test IDs
+
+| Test ID | Element |
+|---------|---------|
+| `inventory-panel-live` | Main inventory panel |
+| `inventory-panel-empty` | Empty inventory state |
+| `wallet-balance` | Coin balance display |
+| `equipment-slot-{slotId}` | Equipped item in slot |
+| `unequip-slot-{slotId}` | Unequip button for slot |
+| `equip-item-{itemId}` | Equip button for item |
+| `sell-resource-button` | Sell individual resource |
+| `sell-all-resources-button` | Sell all resources |
+
+### Files
+
+- `server/src/routes/equipmentRoute.ts` - REST endpoints
+- `server/src/equipment/EquipmentService.ts` - Equipment service
+- `server/src/equipment/EquipmentStore.ts` - In-memory store
+- `server/src/equipment/EquipmentTypes.ts` - Types and definitions
+- `apps/client-2d/src/game/equipment.ts` - Client API functions
+- `apps/client-2d/src/ui/windows/InventoryPanel.tsx` - Inventory UI

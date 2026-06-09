@@ -97,6 +97,30 @@ export async function equipGatheringTool(itemId: string): Promise<{
 }
 
 /**
+ * Unequip a gathering tool from a slot.
+ * Server validates ownership.
+ */
+export async function unequipGatheringTool(slotId: string): Promise<{
+  ok: boolean;
+  result?: {
+    ok: boolean;
+    playerId: string;
+    slotId: string;
+    reason?: string;
+  };
+}> {
+  const response = await fetch("/api/equipment/unequip", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ slotId }),
+  });
+
+  return response.json();
+}
+
+/**
  * Get current player equipment state from server.
  */
 export async function fetchEquipmentState(): Promise<{
