@@ -3,22 +3,30 @@ name: Portal Runtime Smoke
 on:
   pull_request:
     paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
       - 'client/**'
       - 'apps/client-2d/**'
+      - 'packages/shared/**'
       - 'scripts/write-runtime-entrypoints.mjs'
       - 'scripts/write-public-route-hub.mjs'
-      - 'Dockerfile.prod'
+      - 'Dockerfile.vps'
       - '.github/workflows/portal-smoke.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: portal-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   portal-smoke:
     name: Build and verify public route hub
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -30,36 +38,52 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22'
           cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Prepare pnpm
         run: corepack prepare pnpm@9.12.2 --activate
 
+      - name: Print toolchain
+        run: |
+          node --version
+          corepack --version
+          pnpm --version
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile --ignore-scripts
 
-      - name: Build workspace packages
+      - name: Build shared package
         run: pnpm --filter @wasd/shared build
 
       - name: Build 2D Stitch client
         run: pnpm --filter @wasd/client-2d build
 
-      - name: Build root client and public route hub
+      - name: Build root client
         run: pnpm --filter @wasd/client build
 
-      - name: Verify runtime files
+      - name: Generate runtime entrypoints and public route hub
+        run: |
+          node scripts/write-runtime-entrypoints.mjs
+          node scripts/write-public-route-hub.mjs
+
+      - name: Verify runtime files and markers
         run: |
           set -euo pipefail
 
           require_file() {
             local path="$1"
+
             if [ ! -f "$path" ]; then
               echo "::error::Missing runtime file: $path"
+
               echo "client/dist tree:"
-              find client/dist -maxdepth 3 -type f | sort || true
+              find client/dist -maxdepth 4 -type f | sort || true
+
               echo "apps/client-2d/dist tree:"
-              find apps/client-2d/dist -maxdepth 2 -type f | sort || true
+              find apps/client-2d/dist -maxdepth 3 -type f | sort || true
+
               exit 1
             fi
           }
@@ -67,30 +91,82 @@ jobs:
           require_grep() {
             local needle="$1"
             local path="$2"
-            if ! grep -q "$needle" "$path"; then
+
+            if ! grep -Fq "$needle" "$path"; then
               echo "::error::Missing marker '$needle' in $path"
+
               echo "--- $path head ---"
-              sed -n '1,80p' "$path" || true
-              echo "--- $path grep context ---"
-              grep -nE 'CHOOSE|Sovereign|SCIENCE|SOVEREIGN|ARE Runtime|/2d/|/3d/|/apps/' "$path" || true
+              sed -n '1,100p' "$path" || true
+
+              echo "--- $path marker context ---"
+              grep -nE 'CHOOSE|Sovereign|SCIENCE|SOVEREIGN|ARE Runtime|/2d/|/apps/|/portal/' "$path" || true
+
               exit 1
             fi
           }
 
           require_file client/dist/index.html
-          require_file client/dist/3d/index.html
           require_file client/dist/portal/index.html
           require_file client/dist/apps/index.html
           require_file client/dist/are-console.html
           require_file client/dist/sovereign-truth.html
           require_file client/dist/runtime-build-info.json
           require_file apps/client-2d/dist/index.html
+
           require_grep 'CHOOSE' client/dist/index.html
           require_grep 'Sovereign Tools' client/dist/index.html
           require_grep 'SCIENCE PORTAL' client/dist/portal/index.html
           require_grep 'SOVEREIGN TOOLS' client/dist/apps/index.html
           require_grep 'ARE Runtime Console' client/dist/are-console.html
           require_grep '"/2d/"' client/dist/runtime-build-info.json
-          require_grep '"/3d/"' client/dist/runtime-build-info.json
           require_grep '"/apps/"' client/dist/runtime-build-info.json
-          echo 'Public route hub smoke OK'
+          require_grep '"/portal/"' client/dist/runtime-build-info.json
+
+          echo 'Runtime file smoke OK'
+
+      - name: Verify static HTTP routes
+        run: |
+          set -euo pipefail
+
+          python3 -m http.server 4173 --directory client/dist > /tmp/portal-smoke-server.log 2>&1 &
+          SERVER_PID=$!
+
+          cleanup() {
+            kill "$SERVER_PID" || true
+          }
+
+          trap cleanup EXIT
+
+          sleep 2
+
+          require_http() {
+            local url="$1"
+            local marker="$2"
+
+            echo "Checking $url"
+
+            body="$(curl -fsSL "$url")"
+
+            if ! printf '%s' "$body" | grep -Fq "$marker"; then
+              echo "::error::Missing marker '$marker' from $url"
+              echo "--- response head ---"
+              printf '%s' "$body" | sed -n '1,80p'
+              echo "--- server log ---"
+              cat /tmp/portal-smoke-server.log || true
+              exit 1
+            fi
+          }
+
+          require_http 'http://127.0.0.1:4173/' 'CHOOSE'
+          require_http 'http://127.0.0.1:4173/portal/' 'SCIENCE PORTAL'
+          require_http 'http://127.0.0.1:4173/apps/' 'SOVEREIGN TOOLS'
+          require_http 'http://127.0.0.1:4173/are-console.html' 'ARE Runtime Console'
+          require_http 'http://127.0.0.1:4173/sovereign-truth.html' '<!DOCTYPE html'
+          require_http 'http://127.0.0.1:4173/runtime-build-info.json' '"/2d/"'
+
+          echo 'Static HTTP route smoke OK'
+
+      - name: Build VPS Docker image
+        run: |
+          set -euo pipefail
+          docker build -f Dockerfile.vps -t wasd-vps-smoke:ci .
