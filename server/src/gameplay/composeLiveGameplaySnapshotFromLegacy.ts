@@ -10,6 +10,7 @@ import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
 import { calculateEquipmentStats } from "../equipment/EquipmentStatService.js";
 import { createDefaultStatBlock } from "../equipment/EquipmentStatTypes.js";
 import type { PlayerEquipmentState } from "../equipment/EquipmentTypes.js";
+import { isInventoryItemId } from "../inventory/InventoryTypes.js";
 
 interface LegacyInventorySlot {
   readonly itemId?: string;
@@ -138,12 +139,16 @@ export async function composeLiveGameplaySnapshotFromLegacy(
       const playerEquipmentState: PlayerEquipmentState = {
         playerId: input.playerId,
         schemaVersion: 1,
-        slots: eq.slots.map((slot) => ({
-          slotId: String(slot.slotId ?? "unknown") as any,
-          itemId: String(slot.itemId ?? ""),
-          title: String(slot.itemId ?? "Unknown"),
-          tier: 1,
-        })),
+        slots: eq.slots.flatMap((slot) => {
+          const itemId = String(slot.itemId ?? "");
+          if (!isInventoryItemId(itemId)) return [];
+          return [{
+            slotId: String(slot.slotId ?? "unknown") as any,
+            itemId,
+            title: itemId,
+            tier: 1,
+          }];
+        }),
       };
       return calculateEquipmentStats({ equipment: playerEquipmentState });
     },
