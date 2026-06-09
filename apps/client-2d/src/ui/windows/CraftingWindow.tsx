@@ -162,6 +162,7 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
                     className="crafting-row__button"
                     disabled={!recipe.craftable}
                     onClick={() => handleCraft(recipe.id)}
+                    data-testid={`process-${recipe.id}`}
                   >
                     {getBlockedMessage(recipe.blockedReason)}
                   </button>

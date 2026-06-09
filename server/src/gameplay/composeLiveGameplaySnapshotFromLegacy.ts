@@ -9,6 +9,7 @@ import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
 import { createDefaultStatBlock, statKeyToPropertyName, isEquipmentStatKey, capStatValue } from "../equipment/EquipmentStatTypes.js";
 import type { EquipmentStatBlock } from "../equipment/EquipmentStatTypes.js";
+import { getStarterProcessingStations } from "../crafting/ProcessingStations.js";
 
 interface LegacyInventorySlot {
   readonly itemId?: string;
@@ -170,6 +171,17 @@ export async function composeLiveGameplaySnapshotFromLegacy(
         }
       }
       return Object.freeze(capped);
+    },
+    getProcessingStations: () => {
+      const stations = getStarterProcessingStations();
+      return stations.map((s) => ({
+        id: s.id,
+        type: s.type,
+        title: s.title,
+        x: s.position.x,
+        y: s.position.y,
+        interactionRadius: s.interactionRadius,
+      }));
     },
   });
 

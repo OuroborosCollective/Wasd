@@ -48,6 +48,7 @@ export function ResourceNodePanel({ resources }: Props) {
           <article
             key={node.id}
             className={`resource-row ${node.status === "depleted" ? "resource-row--depleted" : ""}`}
+            data-testid={`resource-node-${node.itemRewardId}`}
           >
             <div className="resource-row__header">
               <span className="resource-row__icon" title={node.kind}>
@@ -72,6 +73,25 @@ export function ResourceNodePanel({ resources }: Props) {
                 </span>
               )}
             </div>
+            {node.status === "available" && (
+              <button
+                type="button"
+                className="gather-button"
+                data-testid={`gather-resource-${node.itemRewardId}`}
+                onClick={() => {
+                  window.dispatchEvent(
+                    new CustomEvent("wasd:client-action", {
+                      detail: {
+                        action: "resource_gather",
+                        payload: { nodeId: node.id },
+                      },
+                    })
+                  );
+                }}
+              >
+                Gather
+              </button>
+            )}
           </article>
         ))}
       </div>
