@@ -10,6 +10,7 @@ import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
 import { createDefaultStatBlock, statKeyToPropertyName, isEquipmentStatKey, capStatValue } from "../equipment/EquipmentStatTypes.js";
 import type { EquipmentStatBlock } from "../equipment/EquipmentStatTypes.js";
 import { getStarterProcessingStations } from "../crafting/ProcessingStations.js";
+import { npcQuestService } from "../quests/NpcQuestService.js";
 
 interface LegacyInventorySlot {
   readonly itemId?: string;
@@ -182,6 +183,51 @@ export async function composeLiveGameplaySnapshotFromLegacy(
         y: s.position.y,
         interactionRadius: s.interactionRadius,
       }));
+    },
+    // NPC Quest system integration
+    getActiveQuests: (playerId: string) => {
+      const activeQuests = npcQuestService.getActiveQuests(playerId);
+      return activeQuests.map((q) => ({
+        questId: q.questId,
+        state: q.state,
+        objectives: q.objectives.map((obj) => ({
+          objectiveId: obj.objectiveId,
+          title: obj.title,
+          current: obj.current,
+          required: obj.required,
+          completed: obj.completed,
+        })),
+      }));
+    },
+    getAvailableQuests: (playerId: string) => {
+      const availableQuests = npcQuestService.getAvailableQuests(playerId);
+      return availableQuests.map((q) => ({
+        questId: q.questId,
+        state: q.state,
+        objectives: q.objectives.map((obj) => ({
+          objectiveId: obj.objectiveId,
+          title: obj.title,
+          current: obj.current,
+          required: obj.required,
+          completed: obj.completed,
+        })),
+      }));
+    },
+    getCompletedQuestIds: (playerId: string) => {
+      // Get from active quests that are completed, or query the service
+      const playerState = (npcQuestService as any).playerQuestStates?.get(playerId);
+      if (playerState?.completedQuestIds) {
+        return [...playerState.completedQuestIds];
+      }
+      return [];
+    },
+    getNpcDialogues: (playerId: string) => {
+      // Return dialogues for all known NPCs (village_trader_001)
+      const npcIds = ["village_trader_001"];
+      return npcIds.map((npcId) => npcQuestService.getNpcDialogue(playerId, npcId));
+    },
+    getNpcReputations: (playerId: string) => {
+      return npcQuestService.getAllNpcReputations(playerId);
     },
   });
 
