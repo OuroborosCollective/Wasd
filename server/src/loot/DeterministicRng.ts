@@ -1,6 +1,6 @@
 'use strict';
 
-const crypto = require('node:crypto');
+import crypto from 'node:crypto';
 
 class DeterministicRng {
   private state: number;

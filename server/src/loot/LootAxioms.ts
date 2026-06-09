@@ -1,6 +1,6 @@
 'use strict';
 
-const crypto = require('node:crypto');
+import crypto from 'node:crypto';
 
 const LootAxioms = Object.freeze({
   VERSION: 'ARE_LOOT_AXIOMS_V3_MUTATION',
