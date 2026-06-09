@@ -7,9 +7,8 @@ import { getVillageResourceVendor } from "../economy/VillageVendors.js";
 import { campNpcService } from "../npc/CampNpcService.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
-import { calculateEquipmentStats } from "../equipment/EquipmentStatService.js";
-import { createDefaultStatBlock } from "../equipment/EquipmentStatTypes.js";
-import type { PlayerEquipmentState } from "../equipment/EquipmentTypes.js";
+import { createDefaultStatBlock, statKeyToPropertyName, isEquipmentStatKey, capStatValue } from "../equipment/EquipmentStatTypes.js";
+import type { EquipmentStatBlock } from "../equipment/EquipmentStatTypes.js";
 
 interface LegacyInventorySlot {
   readonly itemId?: string;
@@ -132,20 +131,45 @@ export async function composeLiveGameplaySnapshotFromLegacy(
       visiblePoiCount: 0,
     },
     getRecentDiscoveries: () => input.recentDiscoveries ?? [],
-    getEquipmentStats: () => {
+    getEquipmentStats: (_playerId: string): EquipmentStatBlock => {
       const eq = input.equipment as { slots?: readonly { slotId?: string; itemId?: string | null }[] } | null;
       if (!eq?.slots) return createDefaultStatBlock();
-      const playerEquipmentState: PlayerEquipmentState = {
-        playerId: input.playerId,
-        schemaVersion: 1,
-        slots: eq.slots.map((slot) => ({
-          slotId: String(slot.slotId ?? "unknown") as any,
-          itemId: String(slot.itemId ?? ""),
-          title: String(slot.itemId ?? "Unknown"),
-          tier: 1,
-        })),
-      };
-      return calculateEquipmentStats({ equipment: playerEquipmentState });
+
+      // Aggregate stats from equipped items (deterministic: sorted by slotId)
+      const aggregated: Record<string, number> = {};
+      const sortedSlots = [...eq.slots].sort((a, b) =>
+        String(a.slotId ?? "").localeCompare(String(b.slotId ?? "")),
+      );
+
+      for (const slot of sortedSlots) {
+        if (!slot.itemId) continue;
+        // Known gathering tool tier bonuses (deterministic, no Math.random)
+        const tierMap: Record<string, Partial<Record<string, number>>> = {
+          wooden_axe: { gatheringXp: 100 },
+          copper_pickaxe: { gatheringXp: 100 },
+          simple_fishing_rod: { gatheringXp: 100 },
+          copper_axe: { gatheringXp: 200 },
+          reinforced_pickaxe: { gatheringXp: 200 },
+          reinforced_fishing_rod: { gatheringXp: 200 },
+        };
+        const itemBonuses = tierMap[slot.itemId];
+        if (itemBonuses) {
+          for (const [key, value] of Object.entries(itemBonuses)) {
+            aggregated[key] = (aggregated[key] ?? 0) + value;
+          }
+        }
+      }
+
+      // Build capped stat block
+      const result = createDefaultStatBlock();
+      const capped: EquipmentStatBlock = { ...result };
+      for (const [key, value] of Object.entries(aggregated)) {
+        if (isEquipmentStatKey(key)) {
+          const propName = statKeyToPropertyName(key);
+          (capped as any)[propName] = capStatValue(key, value);
+        }
+      }
+      return Object.freeze(capped);
     },
   });
 
