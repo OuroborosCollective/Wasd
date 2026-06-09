@@ -51,10 +51,13 @@ jobs:
         run: pnpm install --no-frozen-lockfile
 
       - name: Lint
-        run: pnpm run lint
+        run: |
+          set -euo pipefail
+          pnpm run guard:all
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/server exec tsc --noEmit
 
       - name: Test
-        run: pnpm test
+        run: pnpm -r --if-present test
 
       # ----------------------------
       # GATE
@@ -62,7 +65,11 @@ jobs:
       - name: Merge Gate
         id: gate
         run: |
-          pnpm run lint && pnpm test && echo "safe=true" >> $GITHUB_OUTPUT || echo "safe=false" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          pnpm run guard:all
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/server exec tsc --noEmit
+          pnpm -r --if-present test
+          echo "safe=true" >> $GITHUB_OUTPUT
 
       # ----------------------------
       # COMMIT FIXES
