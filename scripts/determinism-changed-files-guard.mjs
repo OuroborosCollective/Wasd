@@ -27,8 +27,8 @@ const ignoredPathPatterns = [
 ];
 
 const forbiddenPatterns = [
-  { label: "Math.random()", regex: /\bMath\.random\s*\(/ },
-  { label: "Date.now()", regex: /\bDate\.now\s*\(/ },
+  { label: "Math.random()", regex: /\bMath\.random\s*\(/, hint: "Use seeded ARE RNG from explicit seed/tick input." },
+  { label: "Date.now()", regex: /\bDate\.now\s*\(/, hint: "Use AREClock.msFromTick(authoritativeTick) or WorldTickTimeAdapter.nowTick()." },
 ];
 
 function git(args) {
@@ -92,6 +92,7 @@ for (const filePath of getChangedFiles()) {
         filePath,
         line: index + 1,
         label: pattern.label,
+        hint: pattern.hint,
         text: line.trim(),
       });
     }
@@ -100,9 +101,9 @@ for (const filePath of getChangedFiles()) {
 
 if (violations.length > 0) {
   console.error("Determinism guard failed: forbidden gameplay time/random source detected.");
-  console.error("Use logical ticks, stable seeds, deterministic RNG services, or add a local ARE-DETERMINISM-ALLOW comment only for logging/diagnostics.");
   for (const violation of violations) {
     console.error(`- ${violation.filePath}:${violation.line} uses ${violation.label}: ${violation.text}`);
+    console.error(`  fix: ${violation.hint}`);
   }
   process.exit(1);
 }
