@@ -240,15 +240,9 @@ router.post("/rumors/propagate", async (req, res) => {
     return;
   }
 
-  // Get current tick from WorldTick if available
-  let currentTick = 0;
-  try {
-    // Import WorldTick lazily to avoid circular dependencies
-    const { worldTick } = await import("../core/WorldTick.js");
-    currentTick = (worldTick as { tickCount?: number })?.tickCount ?? 0;
-  } catch {
-    // Use 0 if not available
-  }
+  // Get current tick from request body or use 0 as default
+  // The tick is used for tracking propagation time, not for determinism
+  const currentTick = typeof req.body?.tick === "number" ? req.body.tick : 0;
 
   const result = await npcRumorService.propagateRumor(playerId, rumorId, currentTick);
 
