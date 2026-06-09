@@ -214,12 +214,9 @@ export async function composeLiveGameplaySnapshotFromLegacy(
       }));
     },
     getCompletedQuestIds: (playerId: string) => {
-      // Get from active quests that are completed, or query the service
-      const playerState = (npcQuestService as any).playerQuestStates?.get(playerId);
-      if (playerState?.completedQuestIds) {
-        return [...playerState.completedQuestIds];
-      }
-      return [];
+      // Use public NPC dialogue method to get completed quest IDs
+      const dialogue = npcQuestService.getNpcDialogue(playerId, "village_trader_001");
+      return [...dialogue.completedQuestIds];
     },
     getNpcDialogues: (playerId: string) => {
       // Return dialogues for all known NPCs (village_trader_001)
