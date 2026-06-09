@@ -235,11 +235,109 @@ export class NPCSystem {
     public handleChoice(npcId: string, nodeId: string, choiceId: string, player: any): any {
         const npc = this.getNPC(npcId);
         if (!npc) return null;
+
+        // Process the choice based on choiceId
+        let responseText: string;
+        let newChoices: Array<{ id: string; text: string }> = [];
+
+        switch (choiceId) {
+            case "greet":
+                responseText = "Good to see you, traveler.";
+                newChoices = [
+                    { id: "browse", text: "Browse wares" },
+                    { id: "farewell", text: "Farewell" },
+                ];
+                break;
+            case "farewell":
+                responseText = "Safe travels, friend.";
+                newChoices = [];
+                break;
+            case "browse":
+            case "trade":
+                responseText = "Take a look at what I have.";
+                newChoices = [
+                    { id: "buy", text: "Buy item" },
+                    { id: "sell", text: "Sell item" },
+                    { id: "farewell", text: "Leave" },
+                ];
+                break;
+            case "buy":
+            case "sell":
+                responseText = "What would you like to trade?";
+                newChoices = [
+                    { id: "confirm", text: "Confirm trade" },
+                    { id: "cancel", text: "Cancel" },
+                ];
+                break;
+            case "rest":
+                responseText = "The room is yours for as long as you need.";
+                newChoices = [{ id: "farewell", text: "Leave room" }];
+                break;
+            case "eat":
+                responseText = "Enjoy this meal.";
+                newChoices = [{ id: "farewell", text: "Thank you" }];
+                break;
+            case "gossip":
+                responseText = "Word is there's trouble brewing beyond the village walls.";
+                newChoices = [
+                    { id: "quest", text: "Tell me more" },
+                    { id: "farewell", text: "Farewell" },
+                ];
+                break;
+            case "quest":
+                responseText = "I hear creatures are stirring near the old ruins.";
+                newChoices = [{ id: "accept", text: "I'll investigate" }, { id: "farewell", text: "Not interested" }];
+                break;
+            case "accept":
+                responseText = "Good luck, brave traveler.";
+                newChoices = [];
+                break;
+            case "repair":
+            case "forge":
+            case "upgrade":
+                responseText = "I can work on that for you.";
+                newChoices = [
+                    { id: "confirm", text: "Proceed" },
+                    { id: "farewell", text: "Maybe later" },
+                ];
+                break;
+            case "confirm":
+                responseText = "Consider it done.";
+                newChoices = [{ id: "farewell", text: "Thank you" }];
+                break;
+            case "cancel":
+            case "decline":
+                responseText = "Another time perhaps.";
+                newChoices = [{ id: "farewell", text: "Farewell" }];
+                break;
+            case "heal":
+                responseText = "Let me tend to your wounds.";
+                newChoices = [{ id: "farewell", text: "Thank you" }];
+                break;
+            case "bless":
+            case "pray":
+                responseText = "May the light protect you.";
+                newChoices = [{ id: "farewell", text: "Amen" }];
+                break;
+            case "report":
+                responseText = "Report anything unusual to the guard captain.";
+                newChoices = [{ id: "farewell", text: "Understood" }];
+                break;
+            case "advice":
+                responseText = "Stay away from the dark forest at night.";
+                newChoices = [{ id: "farewell", text: "I will" }];
+                break;
+            default:
+                responseText = "I understand.";
+                newChoices = [{ id: "farewell", text: "Farewell" }];
+        }
+
         return {
             source: npc.name || "NPC",
-            text: "You chose wisely.",
-            choices: [],
-            npcId
+            text: responseText,
+            choices: newChoices,
+            npcId,
+            lastChoice: choiceId,
         };
     }
 

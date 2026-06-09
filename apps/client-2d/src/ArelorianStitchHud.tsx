@@ -81,6 +81,9 @@ const panels: { id: Exclude<HudPanel, null>; label: string; icon: string; shortc
   { id: "resources", label: "Resources", icon: "⛏", shortcut: "r" },
 ];
 
+// Chat button for side menu
+const chatPanelBtn = { id: "chat" as HudPanel, label: "Chat", icon: "💬", shortcut: "t" };
+
 const overlays: { id: HudOverlay; label: string; short: string }[] = [
   { id: "vitals", label: "Vitals", short: "HP" },
   { id: "radar", label: "Radar", short: "MAP" },
@@ -365,6 +368,16 @@ export function ArelorianStitchHud({
             <small>{panel.label}</small>
           </button>
         ))}
+        {/* Chat button in side menu */}
+        <button
+          className={openOverlays.chat ? "active" : ""}
+          onClick={() => toggleOverlay("chat")}
+          title="Chat [T]"
+          aria-pressed={openOverlays.chat}
+        >
+          <span>{chatPanelBtn.icon}</span>
+          <small>{chatPanelBtn.label}</small>
+        </button>
       </aside>
 
       <section className="stitch-radar" aria-label="Radar Sensor">
