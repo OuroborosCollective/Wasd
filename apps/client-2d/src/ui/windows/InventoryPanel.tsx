@@ -14,6 +14,7 @@
  * - Client cannot set inventory directly
  * - After equip, refetches snapshot to update equipment/paperdoll display
  * - After sell, refetches snapshot to update inventory and wallet
+ * - After unequip, refetches snapshot to update inventory and equipment
  */
 
 import React, { useCallback, useMemo } from "react";
@@ -25,7 +26,7 @@ import type {
   VendorPriceItemSnapshot,
 } from "../../game/liveGameplaySnapshot";
 import { getVendorPriceForItem } from "../../game/liveGameplaySnapshot";
-import { equipGatheringTool } from "../../game/equipment";
+import { equipGatheringTool, unequipGatheringTool } from "../../game/equipment";
 import { fetchGameplaySnapshot, liveGameplayStore, DEFAULT_GAMEPLAY_PLAYER_ID } from "../../game/liveGameplayStore";
 import { getGatheringToolIcon, isGatheringTool } from "../utils/ItemIconMapper";
 import { dispatchSellResource, dispatchSellAllResources } from "../../game/gameplayActions";
@@ -140,6 +141,16 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy }: 
     [getPriceInfo],
   );
 
+  /**
+   * Refetch snapshot after mutating actions.
+   */
+  const refetchSnapshot = useCallback(async () => {
+    const next = await fetchGameplaySnapshot(DEFAULT_GAMEPLAY_PLAYER_ID);
+    if (next) {
+      liveGameplayStore.setSnapshot(next);
+    }
+  }, []);
+
   const handleEquip = useCallback(
     async (itemId: string) => {
       const result = await equipGatheringTool(itemId);
@@ -155,10 +166,7 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy }: 
         );
 
         // Refetch snapshot to update equipment/paperdoll display
-        const next = await fetchGameplaySnapshot(DEFAULT_GAMEPLAY_PLAYER_ID);
-        if (next) {
-          liveGameplayStore.setSnapshot(next);
-        }
+        await refetchSnapshot();
       } else {
         window.dispatchEvent(
           new CustomEvent("wasd:toast", {
@@ -170,7 +178,37 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy }: 
         );
       }
     },
-    [],
+    [refetchSnapshot],
+  );
+
+  const handleUnequip = useCallback(
+    async (slotId: string) => {
+      const result = await unequipGatheringTool(slotId);
+
+      if (result.ok && result.result?.ok) {
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "success",
+              message: "Tool unequipped",
+            },
+          }),
+        );
+
+        // Refetch snapshot to update equipment/paperdoll display
+        await refetchSnapshot();
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "error",
+              message: `Unequip failed: ${result.result?.reason ?? "unknown"}`,
+            },
+          }),
+        );
+      }
+    },
+    [refetchSnapshot],
   );
 
   const handleSell = useCallback(
@@ -275,12 +313,21 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy }: 
               {equipped.map((slot) => {
                 const iconPath = getGatheringToolIcon(slot.itemId);
                 return (
-                  <div key={slot.slotId} className={`equipped-slot rarity-${TOOL_RARITY[slot.itemId] ?? "common"}`}>
+                  <div key={slot.slotId} className={`equipped-slot rarity-${TOOL_RARITY[slot.itemId] ?? "common"}`} data-testid={`equipment-slot-${slot.slotId}`}>
                     {iconPath && (
                       <img src={iconPath} alt={slot.title} className="tool-svg-icon" />
                     )}
                     <span className="slot-label">{SLOT_LABELS[slot.slotId] ?? slot.slotId}:</span>
                     <span className="item-name">{slot.title}</span>
+                    <button
+                      type="button"
+                      className="unequip-button"
+                      onClick={() => handleUnequip(slot.slotId)}
+                      data-testid={`unequip-slot-${slot.slotId}`}
+                      title={`Unequip ${slot.title}`}
+                    >
+                      ✕
+                    </button>
                   </div>
                 );
               })}
@@ -300,6 +347,7 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy }: 
                     type="button"
                     className={`tool-button rarity-${TOOL_RARITY[slot.itemId] ?? "common"}`}
                     onClick={() => handleEquip(slot.itemId)}
+                    data-testid={`equip-item-${slot.itemId}`}
                     title={`Equip ${slot.name}`}
                   >
                     {iconPath && (

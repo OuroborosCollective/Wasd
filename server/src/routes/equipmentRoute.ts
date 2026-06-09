@@ -15,6 +15,7 @@ import { Router } from "express";
 import { json } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { equipmentService } from "../equipment/equipmentRuntime.js";
+import { EQUIPMENT_DEFINITIONS } from "../equipment/EquipmentTypes.js";
 
 const router = Router();
 
@@ -93,6 +94,56 @@ router.post("/equip", async (req, res) => {
     });
   } catch (error) {
     console.error("[equipment-equip] Failed to equip item:", error);
+    res.status(500).json({
+      ok: false,
+      error: "internal_error",
+    });
+  }
+});
+
+/**
+ * POST /api/equipment/unequip
+ *
+ * Unequip an item from a slot.
+ * Requires authenticated player in production.
+ */
+router.post("/unequip", async (req, res) => {
+  const identity = resolveHttpPlayerIdentity(req);
+
+  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+    res.status(401).json({ ok: false, error: "authenticated_player_required" });
+    return;
+  }
+
+  const slotId = parseItemId(req.body?.slotId);
+
+  if (!slotId) {
+    res.status(400).json({ ok: false, error: "invalid_slot_id" });
+    return;
+  }
+
+  // Validate slotId is a known equipment slot
+  const validSlots = Object.keys(EQUIPMENT_DEFINITIONS).map(
+    (itemId) => EQUIPMENT_DEFINITIONS[itemId as keyof typeof EQUIPMENT_DEFINITIONS].slotId
+  );
+  const uniqueSlots = [...new Set(validSlots)];
+  if (!uniqueSlots.includes(slotId as any)) {
+    res.status(400).json({ ok: false, error: "invalid_slot" });
+    return;
+  }
+
+  try {
+    const result = await equipmentService.unequipItem({
+      playerId: identity.playerId,
+      slotId: slotId as any,
+    });
+
+    res.status(result.ok ? 200 : 409).json({
+      ok: result.ok,
+      result,
+    });
+  } catch (error) {
+    console.error("[equipment-unequip] Failed to unequip item:", error);
     res.status(500).json({
       ok: false,
       error: "internal_error",
