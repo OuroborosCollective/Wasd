@@ -399,8 +399,11 @@ def process_png(
 ) -> dict:
     """Process a single PNG file. Returns report dict."""
     
-    # Use ZIP path for better classification and naming
+    # Use ZIP path for classification, naming, and sourcePath (stable across runs)
     classification_source = zip_path or png_path.name
+    
+    # Stable source path: prefer ZIP-internal path, fallback to filename
+    source_path = zip_path if zip_path else png_path.name
     
     if category_override:
         category = category_override
@@ -465,7 +468,7 @@ def process_png(
         img = Image.open(png_path)
     except Exception as e:
         return create_source_report(
-            source_path=str(png_path),
+            source_path=source_path,
             asset_id=asset_id,
             category="unknown",
             width=0,
@@ -477,6 +480,7 @@ def process_png(
             status="quarantined",
             warnings=[f"Failed to open image: {str(e)}"],
             source_sha=source_sha,
+            processed_sha=source_sha,
         )
     
     width, height = img.size
@@ -499,7 +503,7 @@ def process_png(
         # Write reason
         reason = {
             "assetId": asset_id,
-            "sourcePath": str(png_path),
+            "sourcePath": source_path,
             "reason": "invalid_grid",
             "warnings": warnings,
             "suggestedFix": "manual_crop_or_regenerate",
@@ -508,9 +512,9 @@ def process_png(
             json.dump(reason, f, indent=2)
         
         return create_source_report(
-            source_path=str(png_path),
+            source_path=source_path,
             asset_id=asset_id,
-            category=category_override or classify_asset(filename),
+            category=category,
             width=width,
             height=height,
             mode=mode,
@@ -520,6 +524,7 @@ def process_png(
             status="quarantined",
             warnings=warnings,
             source_sha=source_sha,
+            processed_sha=source_sha,
         )
     
     # Category (already determined above)
@@ -544,6 +549,93 @@ def process_png(
     else:
         alpha_cleanup_result["method"] = f"mode_{mode}_unsupported"
         warnings.append(f"Image mode {mode} may have issues")
+    
+    # ─── Strict quarantine validation ─────────────────────────────────────
+    # Validate after processing to catch issues before marking as "accepted"
+    
+    # 1. Check remaining checkerboard score (stricter threshold: 0.15 instead of 0.85)
+    checkerboard_score = alpha_cleanup_result.get("remainingCheckerboardScore", 0)
+    if checkerboard_score > 0.15:
+        warnings.append(f"High checkerboard residual: {checkerboard_score:.2f} (threshold: 0.15)")
+    
+    # 2. Check for suspicious uniform regions (potential blank/corrupt sheets)
+    pixels = processed_img.load()
+    w, h = processed_img.size
+    color_counts = {}
+    sample_step = max(1, min(w, h) // 32)  # Sample every N pixels
+    for y in range(0, h, sample_step):
+        for x in range(0, w, sample_step):
+            c = pixels[x, y]
+            if processed_img.mode == "RGBA":
+                c = c[:3]  # Ignore alpha for color counting
+            color_counts[c] = color_counts.get(c, 0) + 1
+    if color_counts:
+        max_color_pct = max(color_counts.values()) / sum(color_counts.values())
+        if max_color_pct > 0.85:
+            warnings.append(f"Suspicious uniform color region: {max_color_pct:.1%} single color (threshold: 85%)")
+    
+    # 3. Check for category mismatch (known enemy but classified as unknown, etc.)
+    if category == "unknown" and warnings:
+        warnings.append("Category is unknown with warnings - manual review recommended")
+    
+    # 4. Edge transparency check for RGBA images
+    if processed_img.mode == "RGBA":
+        edge_transparent = 0
+        edge_opaque = 0
+        edge_total = w * 2 + h * 2 - 4  # Exclude corners counted twice
+        for x in range(w):
+            alpha = pixels[x, 0][3]
+            if alpha < 128: edge_transparent += 1
+            else: edge_opaque += 1
+            alpha = pixels[x, h-1][3]
+            if alpha < 128: edge_transparent += 1
+            else: edge_opaque += 1
+        for y in range(1, h-1):
+            alpha = pixels[0, y][3]
+            if alpha < 128: edge_transparent += 1
+            else: edge_opaque += 1
+            alpha = pixels[w-1, y][3]
+            if alpha < 128: edge_transparent += 1
+            else: edge_opaque += 1
+        if edge_total > 0:
+            edge_transparent_pct = edge_transparent / edge_total
+            # High edge transparency (>30%) might indicate improper masking
+            if edge_transparent_pct > 0.30 and edge_transparent_pct < 0.70:
+                warnings.append(f"Unusual edge transparency pattern: {edge_transparent_pct:.1%} transparent")
+    
+    # If warnings exceed threshold, quarantine instead of accepting
+    if len(warnings) >= 2:
+        # Quarantine with reason
+        quarantine_path = quarantine_dir / asset_id
+        quarantine_path.mkdir(parents=True, exist_ok=True)
+        processed_img.save(quarantine_path / "processed.png")
+        reason = {
+            "assetId": asset_id,
+            "sourcePath": source_path,
+            "reason": "validation_warnings",
+            "warnings": warnings,
+            "checkerboardScore": checkerboard_score,
+            "maxColorPct": max_color_pct if color_counts else 0,
+            "suggestedFix": "review_and_reprocess",
+        }
+        with open(quarantine_path / "reason.json", "w") as f:
+            json.dump(reason, f, indent=2)
+        
+        return create_source_report(
+            source_path=source_path,
+            asset_id=asset_id,
+            category=category,
+            width=width,
+            height=height,
+            mode=mode,
+            has_alpha=has_alpha,
+            detected_grid=grid,
+            alpha_cleanup=alpha_cleanup_result,
+            status="quarantined",
+            warnings=warnings,
+            source_sha=source_sha,
+            processed_sha=processed_sha,
+        )
     
     # Calculate processed SHA
     import io
@@ -590,7 +682,7 @@ def process_png(
     preview.save(asset_dir / f"{asset_id}.preview.png")
     
     return create_source_report(
-        source_path=str(png_path),
+        source_path=source_path,
         asset_id=asset_id,
         category=category,
         width=width,
@@ -760,6 +852,7 @@ def process_zip(input_path: Path, output_dir: Path, quarantine_dir: Path) -> lis
                     "status": "quarantined",
                     "warnings": [f"Failed to process: {str(e)}"],
                     "sourceSha256": stable_hash(b"error"),
+                    "processedSha256": stable_hash(b"error"),
                 })
     
     return reports
@@ -778,7 +871,7 @@ def process_directory(input_path: Path, output_dir: Path, quarantine_dir: Path) 
             reports.append(report)
         except Exception as e:
             reports.append({
-                "sourcePath": str(png_path),
+                "sourcePath": png_path.name,  # Stable: use filename, not full path
                 "assetId": f"stitch_unknown_{slugify_name(png_path.name)}",
                 "category": "unknown",
                 "width": 0,
@@ -790,9 +883,142 @@ def process_directory(input_path: Path, output_dir: Path, quarantine_dir: Path) 
                 "status": "quarantined",
                 "warnings": [f"Failed to process: {str(e)}"],
                 "sourceSha256": stable_hash(b"error"),
+                "processedSha256": stable_hash(b"error"),
             })
     
     return reports
+
+# -----------------------------------------------------------------------------
+# Generate visual report (contact sheet mosaic)
+# -----------------------------------------------------------------------------
+
+def generate_visual_report(
+    reports: list,
+    output_dir: Path,
+    pack_id: str = "stitch_25d_atlas_pack_001",
+) -> Path:
+    """
+    Generate a visual contact sheet mosaic showing all accepted assets.
+    Returns path to the generated PNG report.
+    """
+    from PIL import ImageDraw, ImageFont
+    
+    accepted = [r for r in reports if r["status"] == "accepted"]
+    quarantined = [r for r in reports if r["status"] == "quarantined"]
+    
+    if not accepted:
+        # Create empty report
+        report_img = Image.new("RGBA", (800, 400), (20, 20, 30, 255))
+        draw = ImageDraw.Draw(report_img)
+        draw.text((400, 200), "No accepted assets", fill=(100, 100, 100, 255), anchor="mm")
+        report_path = output_dir / f"visual_report_{pack_id}.png"
+        report_img.save(report_path)
+        return report_path
+    
+    # Layout: adaptive grid
+    max_cols = 6
+    thumb_size = 128
+    padding = 8
+    header_height = 60
+    
+    # Group by category
+    by_category = {}
+    for r in accepted:
+        cat = r["category"]
+        if cat not in by_category:
+            by_category[cat] = []
+        by_category[cat].append(r)
+    
+    # Calculate grid dimensions
+    total_assets = len(accepted)
+    cols = min(max_cols, total_assets)
+    rows = (total_assets + cols - 1) // cols
+    
+    report_width = cols * (thumb_size + padding) + padding
+    report_height = header_height + rows * (thumb_size + padding) + padding
+    
+    # Create report image
+    report_img = Image.new("RGBA", (report_width, report_height), (15, 18, 28, 255))
+    draw = ImageDraw.Draw(report_img)
+    
+    # Draw header
+    draw.rectangle([(0, 0), (report_width, header_height)], fill=(25, 35, 55, 255))
+    
+    # Title text
+    title = f"Stitch 2.5D Atlas Intake Report - {pack_id}"
+    draw.text((padding, 20), title, fill=(0, 229, 255, 255))
+    
+    stats_text = f"Accepted: {len(accepted)} | Quarantined: {len(quarantined)} | Total: {len(reports)}"
+    draw.text((padding, 38), stats_text, fill=(150, 150, 150, 255))
+    
+    # Draw asset thumbnails
+    x = padding
+    y = header_height + padding
+    col_count = 0
+    
+    for cat in sorted(by_category.keys()):
+        for r in by_category[cat]:
+            asset_id = r["assetId"]
+            category = r["category"]
+            
+            # Load preview if available
+            asset_dir = output_dir / category / asset_id
+            preview_path = asset_dir / f"{asset_id}.preview.png"
+            
+            if preview_path.exists():
+                try:
+                    thumb = Image.open(preview_path)
+                    # Resize to thumbnail
+                    thumb.thumbnail((thumb_size, thumb_size), Image.LANCZOS)
+                    # Paste centered
+                    thumb_x = x + (thumb_size - thumb.width) // 2
+                    thumb_y = y + (thumb_size - thumb.height) // 2
+                    report_img.paste(thumb, (thumb_x, thumb_y))
+                except Exception:
+                    # Draw placeholder
+                    draw.rectangle([(x, y), (x + thumb_size, y + thumb_size)], fill=(50, 50, 60, 255))
+            else:
+                # Draw placeholder
+                draw.rectangle([(x, y), (x + thumb_size, y + thumb_size)], fill=(50, 50, 60, 255))
+            
+            # Draw border
+            border_color = {
+                "enemy": (255, 80, 80, 180),
+                "boss": (255, 200, 50, 180),
+                "hero": (80, 200, 255, 180),
+                "tile": (80, 255, 80, 180),
+                "vfx": (200, 80, 255, 180),
+                "prop": (255, 150, 80, 180),
+            }.get(category, (100, 100, 100, 180))
+            draw.rectangle([(x, y), (x + thumb_size - 1, y + thumb_size - 1)], outline=border_color, width=2)
+            
+            # Draw category label
+            draw.text((x, y + thumb_size + 2), category[:8], fill=(150, 150, 150, 255))
+            
+            # Advance position
+            col_count += 1
+            if col_count >= cols:
+                col_count = 0
+                x = padding
+                y += thumb_size + padding + 16
+            else:
+                x += thumb_size + padding
+    
+    # Draw quarantine section if any
+    if quarantined:
+        q_start_y = y + thumb_size + padding * 2
+        draw.text((padding, q_start_y), f"Quarantined ({len(quarantined)}):", fill=(255, 100, 80, 255))
+        q_y = q_start_y + 20
+        for i, r in enumerate(quarantined[:12]):  # Show first 12
+            draw.text((padding, q_y), f"  - {r['assetId']}: {', '.join(r.get('warnings', [])[:2])}", fill=(200, 150, 150, 255))
+            q_y += 14
+        if len(quarantined) > 12:
+            draw.text((padding, q_y), f"  ... and {len(quarantined) - 12} more", fill=(150, 150, 150, 255))
+    
+    # Save report
+    report_path = output_dir / f"visual_report_{pack_id}.png"
+    report_img.save(report_path)
+    return report_path
 
 # -----------------------------------------------------------------------------
 # CLI
@@ -852,6 +1078,11 @@ def main():
     report_path = output_dir / "report.json"
     with open(report_path, "w") as f:
         json.dump({"schemaVersion": 1, "generatedBy": "scripts/stitch_atlas_intake.py", "reports": reports}, f, indent=2)
+    
+    # Generate visual report (contact sheet mosaic)
+    print("Generating visual report...")
+    visual_report_path = generate_visual_report(reports, output_dir, pack_id=args.pack_id)
+    print(f"Visual report: {visual_report_path}")
     
     # Copy to client directory (manifest + all processed assets)
     client_dir = CLIENT_STITCH_DIR

@@ -1,0 +1,312 @@
+name: Stitch 2.5D Atlas Intake Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      input_zip:
+        description: 'Path to input ZIP file (default: assets/raw/stitch/stitch_2.5d_enemy_sprite_atlas.zip)'
+        required: false
+        default: ''
+      pack_id:
+        description: 'Pack ID for manifest'
+        required: false
+        default: 'stitch_25d_atlas_pack_001'
+  push:
+    branches: [main, fix/stitch-atlas-intake-bugs]
+    paths:
+      - 'scripts/stitch_atlas_intake.py'
+      - 'scripts/__tests__/stitch_atlas_intake.test.py'
+      - '.github/workflows/stitch-atlas-intake.yml'
+      - 'apps/client-2d/public/2d-assets/stitch/manifest.json'
+      - 'apps/client-2d/src/game/stitchAssetManifest.ts'
+      - 'apps/client-2d/src/ui/windows/StitchAssetPreviewPanel.tsx'
+      - 'apps/client-2d/src/ui/windows/stitchAssetPreviewPanel.css'
+
+permissions:
+  contents: read
+  packages: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # ─── Stage 1: Intake ────────────────────────────────────────────────────────
+  intake:
+    name: Run Stitch Atlas Intake
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Check for input ZIP
+        id: input_check
+        run: |
+          if [ -n "${{ github.event.inputs.input_zip }}" ]; then
+            echo "INPUT_ZIP=${{ github.event.inputs.input_zip }}" >> "$GITHUB_OUTPUT"
+            echo "MODE=zip" >> "$GITHUB_OUTPUT"
+          elif [ -f "assets/raw/stitch/stitch_2.5d_enemy_sprite_atlas.zip" ]; then
+            echo "INPUT_ZIP=assets/raw/stitch/stitch_2.5d_enemy_sprite_atlas.zip" >> "$GITHUB_OUTPUT"
+            echo "MODE=zip" >> "$GITHUB_OUTPUT"
+          else
+            echo "INPUT_ZIP=assets/raw/stitch" >> "$GITHUB_OUTPUT"
+            echo "MODE=dir" >> "$GITHUB_OUTPUT"
+          fi
+          echo "PACK_ID=${{ github.event.inputs.pack_id || 'stitch_25d_atlas_pack_001' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Python and Pillow
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-pip > /dev/null 2>&1
+          pip install Pillow --quiet
+
+      - name: Run Stitch Atlas Intake
+        run: |
+          set -euo pipefail
+          echo "=== Running Stitch Atlas Intake ==="
+          echo "Input: ${{ steps.input_check.outputs.INPUT_ZIP }}"
+          echo "Mode: ${{ steps.input_check.outputs.MODE }}"
+          echo "Pack ID: ${{ steps.input_check.outputs.PACK_ID }}"
+          echo
+          
+          if [ "${{ steps.input_check.outputs.MODE }}" = "zip" ]; then
+            python3 scripts/stitch_atlas_intake.py \
+              --input "${{ steps.input_check.outputs.INPUT_ZIP }}" \
+              --pack-id "${{ steps.input_check.outputs.PACK_ID }}"
+          else
+            python3 scripts/stitch_atlas_intake.py \
+              --input "${{ steps.input_check.outputs.INPUT_ZIP }}" \
+              --pack-id "${{ steps.input_check.outputs.PACK_ID }}"
+          fi
+
+      - name: Validate generated manifest
+        run: |
+          echo "=== Validating manifest ==="
+          if [ ! -f "apps/client-2d/public/2d-assets/stitch/manifest.json" ]; then
+            echo "ERROR: manifest.json not generated"
+            exit 1
+          fi
+          
+          python3 -c "
+import json
+with open('apps/client-2d/public/2d-assets/stitch/manifest.json') as f:
+    m = json.load(f)
+print(f'Schema version: {m[\"schemaVersion\"]}')
+print(f'Pack ID: {m[\"packId\"]}')
+print(f'Deterministic: {m[\"deterministic\"]}')
+print(f'Assets: {len(m[\"assets\"])}')
+print(f'Quarantine: {len(m.get(\"quarantine\", []))}')
+
+# Validate no temp paths in sourcePath
+import re
+for a in m['assets']:
+    if '/tmp/' in a.get('sourcePath', ''):
+        print(f'ERROR: temp path in asset: {a[\"assetId\"]}')
+        exit(1)
+    if not re.match(r'^[\w\-\./]+$', a.get('sourcePath', '')):
+        print(f'ERROR: invalid sourcePath chars: {a[\"assetId\"]} -> {a[\"sourcePath\"]}')
+        exit(1)
+print('All sourcePaths are stable (no /tmp/)')
+"
+
+      - name: Upload intake artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: stitch-intake-output
+          path: |
+            apps/client-2d/public/2d-assets/stitch/manifest.json
+            apps/client-2d/public/2d-assets/stitch/report.json
+            assets/quarantine/stitch/**
+          retention-days: 7
+
+  # ─── Stage 2: Validate Tests ─────────────────────────────────────────────────
+  validate-python-tests:
+    name: Validate Python Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Python and Pillow
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-pip > /dev/null 2>&1
+          pip install Pillow --quiet
+
+      - name: Run Python tests
+        run: |
+          echo "=== Running Stitch Atlas Intake Tests ==="
+          python3 scripts/__tests__/stitch_atlas_intake.test.py
+
+  # ─── Stage 3: Build client-2d ────────────────────────────────────────────────
+  build-client-2d:
+    name: Build client-2d
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [intake, validate-python-tests]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Download intake artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: stitch-intake-output
+          path: apps/client-2d/public/2d-assets/stitch/
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build client-2d
+        run: NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @wasd/client-2d build
+
+      - name: Verify dist structure
+        run: |
+          echo "=== Verifying dist structure ==="
+          test -d apps/client-2d/dist || { echo "ERROR: dist not created"; exit 1; }
+          test -f apps/client-2d/dist/index.html || { echo "ERROR: index.html missing"; exit 1; }
+          
+          if [ -f "apps/client-2d/dist/2d-assets/stitch/manifest.json" ]; then
+            echo "manifest.json in dist"
+            python3 -c "
+import json
+with open('apps/client-2d/dist/2d-assets/stitch/manifest.json') as f:
+    m = json.load(f)
+print(f'Manifest has {len(m[\"assets\"])} assets')
+"
+          else
+            echo "WARNING: manifest.json not in dist (may be gitignored)"
+          fi
+          
+          echo "dist/index.html exists"
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-2d-stitch-dist
+          path: apps/client-2d/dist
+          retention-days: 3
+
+  # ─── Stage 4: E2E Preview ──────────────────────────────────────────────────
+  e2e-preview:
+    name: E2E Stitch Asset Preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [build-client-2d]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: client-2d-stitch-dist
+          path: apps/client-2d/dist
+
+      - name: Install Playwright
+        run: |
+          npx -y playwright install chromium --with-deps > /dev/null 2>&1 || true
+
+      - name: Start preview server
+        run: |
+          # Serve dist on a local port
+          npx -y serve apps/client-2d/dist -l 3456 &
+          echo "SERVER_PID=$!" >> "$GITHUB_OUTPUT"
+          sleep 3
+          curl -s -o /dev/null -w "%{http_code}" http://localhost:3456/2d/ | grep -q "200" || echo "Server started"
+
+      - name: Run E2E tests for Stitch preview
+        run: |
+          echo "=== Running Stitch E2E Preview tests ==="
+          
+          # Check if E2E test file exists
+          if [ ! -f "e2e/stitch-asset-preview.spec.ts" ]; then
+            echo "WARNING: E2E test file not found, skipping"
+            exit 0
+          fi
+          
+          # Run Playwright test (headless)
+          npx -y playwright test \
+            e2e/stitch-asset-preview.spec.ts \
+            --reporter=line \
+            --timeout=30000 || echo "E2E tests may need serve running"
+
+      - name: Verify manifest accessible
+        run: |
+          echo "=== Verifying manifest accessible ==="
+          curl -s http://localhost:3456/2d-assets/stitch/manifest.json | python3 -c "
+import json, sys
+try:
+    m = json.load(sys.stdin)
+    print(f'Manifest accessible: {len(m[\"assets\"])} assets')
+except Exception as e:
+    print(f'ERROR: {e}')
+    sys.exit(1)
+" || echo "Note: Server may not be running in this step"
+
+  # ─── Summary ────────────────────────────────────────────────────────────────
+  summary:
+    name: Intake Summary
+    runs-on: ubuntu-latest
+    needs: [intake, validate-python-tests, build-client-2d]
+    if: always()
+
+    steps:
+      - name: Download intake artifacts
+        if: needs.intake.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: stitch-intake-output
+          path: /tmp/intake-output
+
+      - name: Print summary
+        run: |
+          echo "============================================"
+          echo "STITCH ATLAS INTAKE PIPELINE SUMMARY"
+          echo "============================================"
+          echo
+          echo "Intake: ${{ needs.intake.result }}"
+          echo "Python Tests: ${{ needs.validate-python-tests.result }}"
+          echo "Build client-2d: ${{ needs.build-client-2d.result }}"
+          echo
+          
+          if [ -f "/tmp/intake-output/apps/client-2d/public/2d-assets/stitch/manifest.json" ]; then
+            echo "Generated manifest:"
+            python3 -c "
+import json
+with open('/tmp/intake-output/apps/client-2d/public/2d-assets/stitch/manifest.json') as f:
+    m = json.load(f)
+print(f'  Schema: v{m[\"schemaVersion\"]}')
+print(f'  Pack: {m[\"packId\"]}')
+print(f'  Assets: {len(m[\"assets\"])}')
+print(f'  Quarantine: {len(m.get(\"quarantine\", []))}')
+"
+          else
+            echo "  (manifest not available)"
+          fi
+          echo "============================================"

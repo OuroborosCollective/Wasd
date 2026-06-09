@@ -27,6 +27,9 @@
     "guard:worldtick": "pnpm --filter @wasd/server guard:worldtick",
     "guard:entrypoints": "node scripts/verify-client-entrypoints.mjs",
     "guard:all": "pnpm guard:monorepo && pnpm guard:architecture && pnpm guard:worldtick && pnpm guard:entrypoints",
+    "assets:stitch:intake": "python3 scripts/stitch_atlas_intake.py",
+    "assets:stitch:intake:zip": "python3 scripts/stitch_atlas_intake.py --input",
+    "assets:stitch:validate": "python3 scripts/__tests__/stitch_atlas_intake.test.py",
     "clean": "pnpm -r exec rm -rf dist node_modules"
   },
   "engines": {
