@@ -1,0 +1,365 @@
+/**
+ * stitchAssetPreviewPanel.css
+ *
+ * Cyber-Zen / Arelorian Stitch HUD styling.
+ * Dark panel, thin neon border, cyan/fire/violet/green accents.
+ * Monospace metadata labels, card-like asset blocks.
+ */
+
+/* ─── CSS Variables ──────────────────────────────────────────────────────── */
+
+.stitch-panel {
+  --st-fire: #ff6b35;
+  --st-aether: #00e5ff;
+  --st-emerald: #39ff14;
+  --st-violet: #bf5fff;
+  --st-gold: #ffd700;
+  --st-bg-dark: rgba(4, 8, 14, 0.75);
+  --st-border: rgba(0, 229, 255, 0.22);
+  --st-border-bright: rgba(0, 229, 255, 0.5);
+  --st-text-dim: rgba(244, 247, 255, 0.5);
+  --st-text-main: rgba(244, 247, 255, 0.85);
+  --st-text-bright: #f4f7ff;
+  --st-radius: 12px;
+  --st-font: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+
+/* ─── Panel Container ────────────────────────────────────────────────────── */
+
+.stitch-asset-preview-panel {
+  --st-fire: #ff6b35;
+  --st-aether: #00e5ff;
+  --st-emerald: #39ff14;
+  --st-violet: #bf5fff;
+  --st-gold: #ffd700;
+  --st-bg-dark: rgba(4, 8, 14, 0.75);
+  --st-border: rgba(0, 229, 255, 0.22);
+  --st-border-bright: rgba(0, 229, 255, 0.5);
+  --st-text-dim: rgba(244, 247, 255, 0.5);
+  --st-text-main: rgba(244, 247, 255, 0.85);
+  --st-text-bright: #f4f7ff;
+  --st-radius: 12px;
+  --st-font: ui-monospace, "Cascadia Code", Consolas, monospace;
+
+  position: relative;
+  width: 340px;
+  background: var(--st-bg-dark);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    0 0 24px rgba(0, 229, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 12px;
+  font-family: var(--st-font);
+  color: var(--st-text-main);
+  z-index: 50;
+}
+
+/* ─── Header ──────────────────────────────────────────────────────────────── */
+
+.stitch-asset-preview-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--st-border);
+}
+
+.stitch-asset-preview-panel__title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--st-aether);
+  text-transform: uppercase;
+}
+
+.stitch-asset-preview-panel__stats {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--st-text-dim);
+}
+
+.stitch-asset-preview-panel__divider {
+  color: var(--st-border);
+}
+
+/* ─── Pack Info ───────────────────────────────────────────────────────────── */
+
+.stitch-asset-preview-panel__pack {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 9px;
+}
+
+.stitch-asset-preview-panel__pack-id {
+  color: var(--st-emerald);
+  letter-spacing: 0.06em;
+}
+
+.stitch-asset-preview-panel__schema {
+  color: var(--st-text-dim);
+}
+
+/* ─── Sample Assets Grid ──────────────────────────────────────────────────── */
+
+.stitch-asset-preview-panel__samples {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+/* ─── Asset Card ──────────────────────────────────────────────────────────── */
+
+.stitch-asset-card {
+  background: rgba(10, 15, 25, 0.6);
+  border: 1px solid var(--st-border);
+  border-radius: 8px;
+  padding: 8px;
+  transition: border-color 0.2s ease;
+}
+
+.stitch-asset-card:hover {
+  border-color: var(--st-border-bright);
+}
+
+.stitch-asset-card--empty {
+  opacity: 0.5;
+}
+
+.stitch-asset-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.stitch-asset-card__label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--st-text-dim);
+  text-transform: uppercase;
+}
+
+.stitch-asset-card__badge {
+  font-size: 8px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.stitch-asset-card__badge--accepted {
+  background: rgba(57, 255, 20, 0.15);
+  color: var(--st-emerald);
+  border: 1px solid rgba(57, 255, 20, 0.3);
+}
+
+.stitch-asset-card__badge--quarantined {
+  background: rgba(255, 107, 53, 0.15);
+  color: var(--st-fire);
+  border: 1px solid rgba(255, 107, 53, 0.3);
+}
+
+.stitch-asset-card__preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 64px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.stitch-asset-card__img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.stitch-asset-card__empty {
+  font-size: 9px;
+  color: var(--st-text-dim);
+  text-align: center;
+  padding: 16px 0;
+}
+
+.stitch-asset-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 8px;
+}
+
+.stitch-asset-card__id {
+  color: var(--st-text-main);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stitch-asset-card__frames,
+.stitch-asset-card__dims {
+  color: var(--st-text-dim);
+}
+
+.stitch-asset-card__category {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--st-border);
+  font-size: 8px;
+  color: var(--st-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-left: 2px solid var(--st-border);
+  padding-left: 4px;
+}
+
+/* ─── Categories Breakdown ───────────────────────────────────────────────── */
+
+.stitch-asset-preview-panel__categories {
+  margin-bottom: 10px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+}
+
+.stitch-asset-preview-panel__cat-label {
+  display: block;
+  font-size: 9px;
+  color: var(--st-text-dim);
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+
+.stitch-asset-preview-panel__cat-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stitch-asset-preview-panel__cat-item {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 9px;
+}
+
+.stitch-asset-preview-panel__cat-name {
+  color: var(--st-text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stitch-asset-preview-panel__cat-count {
+  color: var(--st-emerald);
+  font-weight: 700;
+}
+
+/* ─── Footer ──────────────────────────────────────────────────────────────── */
+
+.stitch-asset-preview-panel__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid var(--st-border);
+  font-size: 9px;
+}
+
+.stitch-asset-preview-panel__deterministic {
+  color: var(--st-emerald);
+  letter-spacing: 0.06em;
+}
+
+.stitch-asset-preview-panel__frames-total {
+  color: var(--st-text-dim);
+}
+
+/* ─── Loading State ──────────────────────────────────────────────────────── */
+
+.stitch-asset-preview-panel__loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  font-size: 11px;
+  color: var(--st-text-dim);
+}
+
+.stitch-loading-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--st-aether);
+  animation: stitch-pulse 1.2s ease-in-out infinite;
+}
+
+.stitch-loading-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.stitch-loading-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes stitch-pulse {
+  0%, 80%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ─── Error State ─────────────────────────────────────────────────────────── */
+
+.stitch-asset-preview-panel--error {
+  border-color: rgba(255, 107, 53, 0.3);
+}
+
+.stitch-asset-preview-panel__error-badge {
+  font-size: 9px;
+  padding: 2px 6px;
+  background: rgba(255, 107, 53, 0.15);
+  color: var(--st-fire);
+  border: 1px solid rgba(255, 107, 53, 0.3);
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.stitch-asset-preview-panel__error-msg {
+  font-size: 10px;
+  color: var(--st-fire);
+  margin: 8px 0;
+}
+
+.stitch-asset-preview-panel__retry {
+  width: 100%;
+  padding: 8px;
+  background: rgba(255, 107, 53, 0.1);
+  border: 1px solid rgba(255, 107, 53, 0.3);
+  border-radius: 6px;
+  color: var(--st-fire);
+  font-family: var(--st-font);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.stitch-asset-preview-panel__retry:hover {
+  background: rgba(255, 107, 53, 0.2);
+}

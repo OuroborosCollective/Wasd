@@ -14,6 +14,7 @@ import { ToastStack, type ClientToast } from "./ui/ToastStack";
 import { NpcDialoguePanel } from "./ui/NpcDialoguePanel";
 import { InteractionPrompt } from "./ui/InteractionPrompt";
 import { StitchAssetGalleryPanel } from "./ui/StitchAssetGalleryPanel";
+import { StitchAssetPreviewPanel } from "./ui/windows/StitchAssetPreviewPanel";
 import { ModuleRegistryPanel } from "./ModuleRegistryPanel";
 import { SelfHealWorkshopPanel } from "./SelfHealWorkshopPanel";
 import { createLootFeedStore, type LootFeedEntry } from "./game/loot";
@@ -35,6 +36,7 @@ import "./hudSafeZones.css";
 import "./moduleRegistry.css";
 import "./selfHealWorkshop.css";
 import "./ui/stitchAssetGallery.css";
+import "./ui/windows/stitchAssetPreviewPanel.css";
 
 installClient2DDepthRuntime();
 installViewportRuntime();
@@ -88,6 +90,7 @@ function UIOverlayLayer() {
   const [showRegistry, setShowRegistry] = useState(false);
   const [showWorkshop, setShowWorkshop] = useState(false);
   const [showStitchGallery, setShowStitchGallery] = useState(false);
+  const [showStitchPreview, setShowStitchPreview] = useState(false);
   const lootFeedRef = useRef(createLootFeedStore(6));
 
   useEffect(() => {
@@ -103,6 +106,7 @@ function UIOverlayLayer() {
       if (e.key === "m" || e.key === "M") setShowRegistry((prev) => !prev);
       if (e.key === "s" || e.key === "S") setShowWorkshop((prev) => !prev);
       if (e.key === "a" || e.key === "A") setShowStitchGallery((prev) => !prev);
+      if (e.key === "p" || e.key === "P") setShowStitchPreview((prev) => !prev);
     }
     window.addEventListener("keydown", handleKeyDown);
 
@@ -174,6 +178,14 @@ function UIOverlayLayer() {
           <div className="module-registry-modal" onClick={(e) => e.stopPropagation()}>
             <button className="module-registry-close" onClick={() => setShowStitchGallery(false)} aria-label="Close Stitch Asset Gallery">×</button>
             <StitchAssetGalleryPanel />
+          </div>
+        </div>
+      )}
+      {showStitchPreview && (
+        <div className="module-registry-overlay" onClick={() => setShowStitchPreview(false)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <button className="module-registry-close" onClick={() => setShowStitchPreview(false)} aria-label="Close Stitch Asset Preview">×</button>
+            <StitchAssetPreviewPanel />
           </div>
         </div>
       )}
