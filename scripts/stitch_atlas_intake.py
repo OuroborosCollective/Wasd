@@ -548,6 +548,13 @@ def process_png(
         alpha_cleanup_result["method"] = f"mode_{mode}_unsupported"
         warnings.append(f"Image mode {mode} may have issues")
     
+    # Calculate processed SHA BEFORE quarantine check
+    # (needed for both accepted and quarantined assets)
+    import io
+    buf = io.BytesIO()
+    processed_img.save(buf, format="PNG")
+    processed_sha = stable_hash(buf.getvalue())
+    
     # ─── Strict quarantine validation ─────────────────────────────────────
     # Validate after processing to catch issues before marking as "accepted"
     
@@ -624,13 +631,6 @@ def process_png(
             source_sha=source_sha,
             processed_sha=processed_sha,
         )
-    
-    # Calculate processed SHA
-    import io
-    buf = io.BytesIO()
-    processed_img.save(buf, format="PNG")
-    processed_data = buf.getvalue()
-    processed_sha = stable_hash(processed_data)
     
     # Slice frames
     frames = slice_frames(

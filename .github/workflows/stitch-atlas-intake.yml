@@ -244,7 +244,7 @@ print(f'Manifest has {len(m[\"assets\"])} assets')
           npx -y playwright test \
             e2e/stitch-asset-preview.spec.ts \
             --reporter=line \
-            --timeout=30000 || echo "E2E tests may need serve running"
+            --timeout=30000
 
       - name: Verify manifest accessible
         run: |
@@ -257,7 +257,7 @@ try:
 except Exception as e:
     print(f'ERROR: {e}')
     sys.exit(1)
-" || echo "Note: Server may not be running in this step"
+"
 
   # ─── Summary ────────────────────────────────────────────────────────────────
   summary:
