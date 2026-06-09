@@ -384,6 +384,70 @@ export interface LiveGameplaySnapshot {
   equipmentStats?: EquipmentStats;
   /** Processing stations for crafting UI */
   processingStations: ProcessingStationSnapshot[];
+  /** Active NPC quests for the player */
+  activeQuests?: NpcQuestProgressSnapshot[];
+  /** Available NPC quests for the player */
+  availableQuests?: NpcQuestProgressSnapshot[];
+  /** IDs of completed quests */
+  completedQuestIds?: string[];
+  /** NPC dialogues for nearby NPCs */
+  npcDialogues?: NpcDialogueSnapshot[];
+  /** NPC reputations for the player */
+  npcReputations?: NpcReputationSnapshot[];
+}
+
+/**
+ * Quest objective for NPC quest system.
+ */
+export interface NpcQuestObjectiveSnapshot {
+  objectiveId: string;
+  title: string;
+  current: number;
+  required: number;
+  completed: boolean;
+}
+
+/**
+ * Quest progress for NPC quest system.
+ */
+export interface NpcQuestProgressSnapshot {
+  questId: string;
+  state: "available" | "active" | "ready_to_complete" | "completed";
+  objectives: NpcQuestObjectiveSnapshot[];
+}
+
+/**
+ * NPC dialogue state.
+ */
+export type NpcDialogueStateType =
+  | "quest_available"
+  | "quest_active_missing_wood"
+  | "quest_active_ready_to_process"
+  | "quest_active_ready_to_sell"
+  | "quest_ready_to_complete"
+  | "quest_completed";
+
+/**
+ * NPC dialogue snapshot.
+ */
+export interface NpcDialogueSnapshot {
+  npcId: string;
+  displayName: string;
+  dialogueState: NpcDialogueStateType;
+  line: string;
+  availableQuestIds: string[];
+  activeQuestIds: string[];
+  completedQuestIds: string[];
+}
+
+/**
+ * NPC reputation snapshot.
+ */
+export interface NpcReputationSnapshot {
+  npcId: string;
+  playerId: string;
+  reputation: number;
+  completedQuestIds: string[];
 }
 
 // Default empty snapshot - honest waiting state

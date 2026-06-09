@@ -9,6 +9,7 @@
 import express, { Router } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { craftingService } from "../crafting/CraftingService.js";
+import { npcQuestService } from "../quests/NpcQuestService.js";
 
 const router = Router();
 
@@ -107,6 +108,18 @@ router.post("/craft", async (req, res) => {
       playerPosition,
       stationId,
     });
+
+    // Update NPC quest progress if craft succeeded
+    if (result.ok && result.outputs) {
+      for (const output of result.outputs) {
+        npcQuestService.updateQuestProgress(
+          identity.playerId,
+          "craft",
+          output.itemId,
+          output.quantity,
+        );
+      }
+    }
 
     res.status(result.ok ? 200 : 409).json({
       ok: result.ok,
