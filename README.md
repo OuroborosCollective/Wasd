@@ -17,6 +17,36 @@ The 3D client remains part of the repository, but it is not the active release g
 
 ---
 
+## Core truth
+
+Areloria is developed under this technical rule:
+
+```text
+Kein Snapshot, kein Spiel.
+Kein Tick, keine Wahrheit.
+Kein Guard, keine Architektur.
+Kein /2d Proof, keine Integration.
+```
+
+A feature is considered real only when it is visible or verifiable through the active runtime path, server state, generated manifest, replay/state hash, or CI/smoke test. Detached demos do not count as production integration.
+
+Canonical server flow:
+
+```text
+client intent
+→ server validation
+→ deterministic TickSystem
+→ canonical delta
+→ AREReplayBuffer / StateHash
+→ SnapshotComposer or runtime manifest
+→ /2d observer rendering
+→ guard/test/workflow protection
+```
+
+`server/src/core/WorldTick.ts` is legacy mass, not the new extension point. New systems must target `WorldTickScheduler`, `TickSystemRegistry`, ports, deltas, replay sinks and snapshot/runtime-manifest output.
+
+---
+
 ## Current project state
 
 Areloria is no longer only a shell or prototype. The repository now contains a playable deterministic browser-MMORPG foundation with these active layers:
@@ -24,6 +54,9 @@ Areloria is no longer only a shell or prototype. The repository now contains a p
 ```text
 /2d runtime path
 server-authoritative gameplay snapshots
+TickSystemRegistry and WorldTickScheduler foundation
+WorldBrainTickSystem as subsystem, not scheduler owner
+TickSystemContextProvider for deterministic HTTP route context
 resource gather/process/sell economy loop
 NPC resource quest loop
 Cyber-Zen NPC dialogue and reputation UI
@@ -37,15 +70,14 @@ Recent high-value systems:
 | Area | Current status |
 | --- | --- |
 | Runtime client | `/2d` is the primary proof path; 3D is not the current release blocker |
-| Server tick | 10Hz deterministic server-authoritative gameplay model |
+| Server tick | 10Hz deterministic server-authoritative gameplay model via scheduler/registry migration |
+| Route tick context | HTTP routes should use `TickSystemContextProvider`, not legacy tick internals |
 | Economy | resource gathering, processing/crafting, selling, wallet/XP progression |
 | NPC quests | Mira / village supply style NPC resource quest loop |
 | NPC social layer | reputation, memory, persisted memory state and rumor network |
 | UI style | Cyber-Zen / Arelorian Stitch dark-neon HUD language |
 | Assets | Stitch 2.5D sprite atlas intake, manifest generation and quarantine-first QA |
 | Deployment | VPS-oriented flow; production Docker file is `Dockerfile.vps` |
-
-A feature is considered real only when it is visible or verifiable through the active runtime path, server state, generated manifest, or CI/smoke test. Detached demos do not count as production integration.
 
 ---
 
@@ -101,18 +133,23 @@ randomUUID()
 process uptime as gameplay input
 host/container identity as gameplay input
 unordered iteration where order changes state
+external API timing as simulation input
 ```
 
 Use instead:
 
 ```text
-explicit logical tick / logicalIndex
+TickId / logicalIndex
+KappaInt / branded core types
+StateHash
+DeterministicPrng
 ARE clock/time adapters
 stable seeds from world facts
 content hashes for generated assets
 row-major frame order for atlases
 stable sorted traversal
 stable JSON formatting
+explicit replay input
 ```
 
 Good seed parts:
@@ -147,7 +184,12 @@ Only observed or relevant regions receive expensive simulation.
 Unobserved regions decay, summarize, or sleep.
 ```
 
-This keeps server load proportional to active player observation and relevant world pressure.
+Spatial truth must come from `UnifiedChunkContract`:
+
+```text
+simulationRadiusChunks = 2 → 5×5 simulation/interest envelope
+broadcastRadiusChunks  = 1 → 3×3 client broadcast envelope
+```
 
 ### 5. The 10Hz server tick is sacred
 
@@ -176,6 +218,64 @@ If uncertain, do not damage the structure.
 ```
 
 NPCs, swarms, bosses, decay systems, watchdogs, and world events must not damage or destroy player-built, paid, or protected structures unless an explicit reviewed policy allows it.
+
+---
+
+## New module implementation standard
+
+Every new server-side module follows:
+
+```text
+Types
+→ Ports
+→ TickSystem
+→ Delta
+→ Replay sink
+→ Snapshot or runtime manifest sink
+→ /2d proof where player-visible
+→ Unit/guard tests
+→ Docs
+```
+
+Examples: weather, settlement pressure, disease, faction pressure, dungeon pressure, trading pressure, NPC social systems.
+
+External APIs, LLMs, asset generators and telemetry collectors are adapters, not authoritative tick truth.
+
+Correct:
+
+```text
+external adapter outside tick
+→ sanitized deterministic input event
+→ TickSystem consumes event on tick boundary
+→ state delta
+→ replay/snapshot proof
+```
+
+Wrong:
+
+```text
+TickSystem.tick()
+→ fetch external API
+→ mutate canonical state from response timing/content
+```
+
+See `docs/ARE_MODULE_IMPLEMENTATION_STANDARD.md`.
+
+---
+
+## Kappa and chunk math
+
+Kappa is the integer coordinate contract:
+
+```text
+1 world unit = 1000 Kappa
+1 chunk side = 64 world units = 64,000 Kappa
+1 chunk plane = 64,000 × 64,000 = 4,096,000,000 Kappa cells
+```
+
+Do not confuse 4,096 logical tiles with Kappa-cell count.
+
+Boundary decimal adapters may round into Kappa for compatibility. Internal simulation state must already be integer Kappa.
 
 ---
 
@@ -227,18 +327,6 @@ Direct memory is stronger than rumor memory. Broad autonomous AI behavior should
 - Deterministic critical hits and damage calculations.
 - Replay-safe loot drop rolls.
 - Region threat and oracle pressure may affect outcomes through explicit state only.
-
-### Warfronts, Oracle and brain/watchdog systems
-
-These systems are planned or partially present as bounded deterministic layers:
-
-- deterministic cycle timing,
-- warning/prophecy output from explicit records,
-- bounded low-frequency brain interpretation,
-- fast-path watchdog checks,
-- telemetry as side-channel observability rather than gameplay truth.
-
-All simulation-affecting output must be deterministic, bounded, inspectable, and compatible with tick constraints.
 
 ---
 
@@ -402,6 +490,8 @@ node scripts/sync-wiki.mjs
 
 `sync-wiki.mjs` should use `.wiki-build` in CI when available and fall back to `docs/wiki` only for manual/simple syncs.
 
+Current workflow `.github/workflows/sync-wiki.yml` is expected to trigger on README, docs and wiki-builder changes.
+
 ---
 
 ## Deployment
@@ -465,6 +555,7 @@ Automated agents must follow:
 
 ```text
 docs/AGENT_FEATURE_PR_POLICY.md
+docs/AGENT_ARE_SKILL_PLAYBOOK.md
 ```
 
 Hard rules:
@@ -472,6 +563,7 @@ Hard rules:
 - small PRs only,
 - no unrelated lockfile churn,
 - no hidden nondeterminism,
+- no direct new logic in legacy `WorldTick.ts`,
 - no broad deploy changes inside gameplay PRs,
 - no protected structure damage without explicit policy,
 - every new simulation path must be covered by determinism guardrails,
@@ -498,6 +590,10 @@ Start with:
 
 ```text
 docs/START_HERE.md
+docs/ARELORIA_CODE_TRUTH_MANIFEST_2026_06.md
+docs/ARE_MODULE_IMPLEMENTATION_STANDARD.md
+docs/AGENT_ARE_SKILL_PLAYBOOK.md
+docs/CONVERSATION_ARCHIVE_SYNTHESIS_2026_06.md
 docs/PROJECT_STATUS_2026.md
 docs/ROADMAP_TO_RELEASE.md
 docs/ARELORIAN_PROJECT_KNOWLEDGE_BASE.md
@@ -506,6 +602,7 @@ docs/ARELORIAN_PROJECT_KNOWLEDGE_BASE.md
 Important focused docs include:
 
 ```text
+docs/CONVERSATION_DERIVED_PROJECT_RULES_2026_06.md
 docs/AGENT_FEATURE_PR_POLICY.md
 docs/ARE_DETERMINISM_CLASSIFICATION.md
 docs/ARE_TELEMETRY_SIDE_CHANNEL.md
@@ -518,7 +615,7 @@ docs/DEPLOY_PORT_MAP.md
 docs/NGINX_HOST_GATEWAY.md
 ```
 
-Prefer active code and current docs over older historical notes.
+Prefer active code and current docs over older historical notes. Conversation ZIPs are source material only and must not be committed raw.
 
 ---
 
