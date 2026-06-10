@@ -99,3 +99,21 @@ export {
   WorldBrainScheduler,
   registerWorldBrainScheduler
 } from './WorldBrainScheduler.js';
+
+// Phase 8: Snapshot Composer & Layer Validation
+export {
+  IARE_LAYER_NAMES,
+  LAYER_CONSTANTS,
+  createEmptyIARELogicLayers,
+  getLayerValues,
+  type IARELogicLayers
+} from './IARELogicLayers.js';
+
+export {
+  SnapshotComposer,
+  snapshotComposer,
+  DeterminismViolation,
+  type SnapshotEntityState,
+  type ChunkSnapshot,
+  type WorldSnapshot
+} from './SnapshotComposer.js';
