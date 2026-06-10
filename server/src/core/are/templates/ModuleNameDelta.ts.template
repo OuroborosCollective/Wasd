@@ -1,0 +1,206 @@
+/**
+ * {{MODULE_NAME}}Delta - Immutable change records for {{MODULE_NAME}}
+ * 
+ * ARE Module Standard: All state changes produce Delta records.
+ * Deltas are:
+ * - Immutable (readonly after creation)
+ * - Deterministic (same input → same delta)
+ * - Replay-compatible (can reconstruct state from deltas)
+ * - StateHash-fähig (contribute to state verification)
+ */
+
+import type { TickId, EntityId, KappaInt } from '../types.js';
+import { createStateHash } from '../StateHash.js';
+
+/**
+ * DeltaType - Discriminated union of all {{MODULE_NAME}} change types
+ */
+export type DeltaType = 
+  | '{{moduleName}}-created'
+  | '{{moduleName}}-updated'
+  | '{{moduleName}}-destroyed';
+
+/**
+ * Base{{MODULE_NAME}}Delta - Common fields for all {{MODULE_NAME}} deltas
+ */
+export interface Base{{MODULE_NAME}}Delta {
+  /** Unique delta identifier for replay */
+  readonly deltaId: string;
+  /** Tick when delta was generated */
+  readonly tick: TickId;
+  /** Entity this delta applies to */
+  readonly entityId: EntityId;
+  /** Delta type discriminator */
+  readonly deltaType: DeltaType;
+  /** Timestamp for logging (tick-based, not wall-clock) */
+  readonly tickTime: number;
+}
+
+/**
+ * {{MODULE_NAME}}CreatedDelta - Entity creation event
+ */
+export interface {{MODULE_NAME}}CreatedDelta extends Base{{MODULE_NAME}}Delta {
+  readonly deltaType: '{{moduleName}}-created';
+  readonly initialValue: KappaInt;
+}
+
+/**
+ * {{MODULE_NAME}}UpdatedDelta - Entity value change event
+ */
+export interface {{MODULE_NAME}}UpdatedDelta extends Base{{MODULE_NAME}}Delta {
+  readonly deltaType: '{{moduleName}}-updated';
+  readonly previousValue: KappaInt;
+  readonly newValue: KappaInt;
+  readonly change: KappaInt; // newValue - previousValue
+}
+
+/**
+ * {{MODULE_NAME}}DestroyedDelta - Entity removal event
+ */
+export interface {{MODULE_NAME}}DestroyedDelta extends Base{{MODULE_NAME}}Delta {
+  readonly deltaType: '{{moduleName}}-destroyed';
+  readonly finalValue: KappaInt;
+}
+
+/**
+ * Union type for all {{MODULE_NAME}} deltas
+ */
+export type {{MODULE_NAME}}Delta = 
+  | {{MODULE_NAME}}CreatedDelta
+  | {{MODULE_NAME}}UpdatedDelta
+  | {{MODULE_NAME}}DestroyedDelta;
+
+// =============================================================================
+// Delta Factory
+// =============================================================================
+
+/**
+ * Create a {{MODULE_NAME}}CreatedDelta
+ */
+export function create{{MODULE_NAME}}CreatedDelta(
+  tick: TickId,
+  entityId: EntityId,
+  initialValue: KappaInt
+): {{MODULE_NAME}}CreatedDelta {
+  return {
+    deltaId: `delta-${entityId}-${tick}-created`,
+    tick,
+    entityId,
+    deltaType: '{{moduleName}}-created',
+    tickTime: Number(tick),
+    initialValue,
+  };
+}
+
+/**
+ * Create a {{MODULE_NAME}}UpdatedDelta
+ */
+export function create{{MODULE_NAME}}UpdatedDelta(
+  tick: TickId,
+  entityId: EntityId,
+  previousValue: KappaInt,
+  newValue: KappaInt
+): {{MODULE_NAME}}UpdatedDelta {
+  return {
+    deltaId: `delta-${entityId}-${tick}-updated`,
+    tick,
+    entityId,
+    deltaType: '{{moduleName}}-updated',
+    tickTime: Number(tick),
+    previousValue,
+    newValue,
+    change: newValue - previousValue,
+  };
+}
+
+/**
+ * Create a {{MODULE_NAME}}DestroyedDelta
+ */
+export function create{{MODULE_NAME}}DestroyedDelta(
+  tick: TickId,
+  entityId: EntityId,
+  finalValue: KappaInt
+): {{MODULE_NAME}}DestroyedDelta {
+  return {
+    deltaId: `delta-${entityId}-${tick}-destroyed`,
+    tick,
+    entityId,
+    deltaType: '{{moduleName}}-destroyed',
+    tickTime: Number(tick),
+    finalValue,
+  };
+}
+
+// =============================================================================
+// Delta Utilities
+// =============================================================================
+
+/**
+ * Calculate hash of a delta for replay verification
+ */
+export function hashDelta(delta: {{MODULE_NAME}}Delta): string {
+  const content = JSON.stringify({
+    deltaId: delta.deltaId,
+    tick: delta.tick,
+    entityId: delta.entityId,
+    deltaType: delta.deltaType,
+    // Type-specific fields
+    ...('initialValue' in delta && { initialValue: delta.initialValue }),
+    ...('newValue' in delta && { newValue: delta.newValue }),
+    ...('previousValue' in delta && { previousValue: delta.previousValue }),
+    ...('change' in delta && { change: delta.change }),
+    ...('finalValue' in delta && { finalValue: delta.finalValue }),
+  });
+  // Use simple hash for delta content
+  return content.split('').reduce((hash, char) => {
+    return ((hash << 5) - hash + char.charCodeAt(0)) | 0;
+  }, 0).toString(16).padStart(8, '0');
+}
+
+/**
+ * Apply a delta to reconstruct state
+ */
+export function applyDelta(
+  currentState: {{MODULE_NAME}}State | null,
+  delta: {{MODULE_NAME}}Delta
+): {{MODULE_NAME}}State {
+  const base = {
+    id: delta.entityId,
+    tick: delta.tick,
+  };
+  
+  switch (delta.deltaType) {
+    case '{{moduleName}}-created':
+      return {
+        ...base,
+        value: delta.initialValue,
+      };
+    case '{{moduleName}}-updated':
+      if (!currentState) {
+        throw new Error(`Cannot apply update delta without existing state: ${delta.deltaId}`);
+      }
+      return {
+        ...base,
+        value: delta.newValue,
+      };
+    case '{{moduleName}}-destroyed':
+      // Return null to indicate destroyed
+      return {
+        ...base,
+        value: 0, // Zero value indicates destroyed
+      };
+  }
+}
+
+// =============================================================================
+// State Type (for applyDelta)
+// =============================================================================
+
+/**
+ * {{MODULE_NAME}}State - Reconstructed state from deltas
+ */
+export interface {{MODULE_NAME}}State {
+  id: EntityId;
+  tick: TickId;
+  value: KappaInt;
+}

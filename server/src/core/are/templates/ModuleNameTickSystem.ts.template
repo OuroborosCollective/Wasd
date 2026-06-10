@@ -1,0 +1,131 @@
+/**
+ * {{MODULE_NAME}}TickSystem - TickSystem implementation for {{MODULE_NAME}}
+ * 
+ * ARE Module Standard: Implements TickSystem interface for deterministic processing.
+ */
+
+import { 
+  TickSystem, 
+  TickSystemPriority, 
+  type TickSystemContext 
+} from '../TickSystem.js';
+import { tickSystemRegistry } from '../TickSystemRegistry.js';
+
+/**
+ * {{MODULE_NAME}}TickSystem - Processes {{MODULE_NAME}} logic each simulation tick.
+ * 
+ * Responsibilities:
+ * - Process {{MODULE_NAME}} state changes deterministically
+ * - Generate deltas for all state mutations
+ * - Feed snapshots to SnapshotComposer
+ * 
+ * Determinism rules:
+ * - ❌ No Math.random (use DeterministicPrng)
+ * - ❌ No Date.now (use tick-based time)
+ * - ❌ No I/O in tick()
+ * - ❌ No direct WorldTick import
+ */
+export class {{MODULE_NAME}}TickSystem implements TickSystem {
+  readonly name = '{{moduleName}}';
+  readonly priority = TickSystemPriority.GAMEPLAY; // 20
+  enabled = true;
+  
+  private tickProvider: (() => number) | null = null;
+  
+  constructor() {
+    // Initialize dependencies
+  }
+  
+  /**
+   * Set the tick count provider.
+   * This allows the system to get current tick without direct WorldTick coupling.
+   */
+  setTickProvider(provider: () => number): void {
+    this.tickProvider = provider;
+  }
+  
+  /**
+   * Main tick processing.
+   * 
+   * @param context - TickSystemContext with tick metadata
+   * 
+   * @remarks
+   * This method must be:
+   * - Idempotent (safe to call multiple times)
+   * - Fast (sub-millisecond target)
+   * - Deterministic (same inputs → same outputs)
+   */
+  tick(context: TickSystemContext): void {
+    const tickCount = context.tickCount;
+    
+    // Process {{MODULE_NAME}} logic here
+    // Use tick-based time, not Date.now()
+    // Use deterministic RNG, not Math.random()
+    
+    // Example: Process pending {{MODULE_NAME}} events
+    // this.processPendingEvents(tickCount);
+    
+    // Example: Cleanup stale states
+    // this.cleanupStaleStates(tickCount);
+  }
+  
+  /**
+   * Optional hook called before main tick loop.
+   */
+  onStart?(): void {
+    console.log('[{{MODULE_NAME}}TickSystem] Started');
+  }
+  
+  /**
+   * Optional hook called after main tick loop.
+   */
+  onEnd?(): void {
+    // Flush any pending writes
+  }
+  
+  /**
+   * Optional hook called on shutdown.
+   */
+  onShutdown?(): void {
+    // Final persistence
+  }
+  
+  // =============================================================================
+  // Private methods
+  // =============================================================================
+  
+  /**
+   * Get current tick count safely.
+   */
+  private getTickCount(): number {
+    return this.tickProvider ? this.tickProvider() : 0;
+  }
+}
+
+// =============================================================================
+// Registration
+// =============================================================================
+
+/**
+ * Register {{MODULE_NAME}}TickSystem with the global registry.
+ * 
+ * @example
+ * ```typescript
+ * import { register{{MODULE_NAME}}System } from './{{MODULE_NAME}}TickSystem.js';
+ * 
+ * const system = register{{MODULE_NAME}}System(my{{MODULE_NAME}}System);
+ * ```
+ */
+export function register{{MODULE_NAME}}System(
+  // Add system-specific dependencies here
+): {{MODULE_NAME}}TickSystem {
+  const system = new {{MODULE_NAME}}TickSystem();
+  
+  tickSystemRegistry.register({
+    system,
+    dependencies: [], // Add dependencies: ['player-system', 'npc-system']
+    tags: ['{{moduleName}}', 'gameplay'],
+  });
+  
+  return system;
+}

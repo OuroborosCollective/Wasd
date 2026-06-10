@@ -1,0 +1,92 @@
+/**
+ * {{MODULE_NAME}}Types - State and Delta type definitions
+ * 
+ * ARE Module Standard: All state uses branded types (Kappa, TickId, StateHash).
+ */
+
+import type { Kappa, TickId, StateHash, EntityId, KappaInt } from '../types.js';
+
+// =============================================================================
+// State Types
+// =============================================================================
+
+/**
+ * {{MODULE_NAME}}State - Main state for a single entity or system
+ */
+export interface {{MODULE_NAME}}State {
+  id: EntityId;
+  tick: TickId;
+  value: KappaInt;
+}
+
+// =============================================================================
+// Delta Types
+// =============================================================================
+
+/**
+ * Base interface for all {{MODULE_NAME}} deltas
+ */
+export interface Base{{MODULE_NAME}}Delta {
+  type: string;
+  tick: TickId;
+  entityId: EntityId;
+}
+
+/**
+ * {{MODULE_NAME}}ValueDelta - State change delta
+ */
+export interface {{MODULE_NAME}}ValueDelta extends Base{{MODULE_NAME}}Delta {
+  type: '{{moduleName}}-value';
+  previousValue: KappaInt;
+  newValue: KappaInt;
+}
+
+/**
+ * {{MODULE_NAME}}CreatedDelta - Entity creation delta
+ */
+export interface {{MODULE_NAME}}CreatedDelta extends Base{{MODULE_NAME}}Delta {
+  type: '{{moduleName}}-created';
+  initialState: {{MODULE_NAME}}State;
+}
+
+/**
+ * {{MODULE_NAME}}DestroyedDelta - Entity destruction delta
+ */
+export interface {{MODULE_NAME}}DestroyedDelta extends Base{{MODULE_NAME}}Delta {
+  type: '{{moduleName}}-destroyed';
+  finalState: {{MODULE_NAME}}State;
+}
+
+/**
+ * Union of all {{MODULE_NAME}} deltas
+ */
+export type {{MODULE_NAME}}Delta = 
+  | {{MODULE_NAME}}ValueDelta
+  | {{MODULE_NAME}}CreatedDelta
+  | {{MODULE_NAME}}DestroyedDelta;
+
+// =============================================================================
+// Port Types (Read-only state access)
+// =============================================================================
+
+/**
+ * {{MODULE_NAME}}Ports - Read-only interface for accessing {{MODULE_NAME}} state
+ */
+export interface {{MODULE_NAME}}Ports {
+  getState(entityId: EntityId): {{MODULE_NAME}}State | null;
+  getAllStates(): Iterable<{{MODULE_NAME}}State>;
+  getStateHash(): StateHash;
+}
+
+// =============================================================================
+// Snapshot Types
+// =============================================================================
+
+/**
+ * {{MODULE_NAME}}Snapshot - Full state snapshot for a tick
+ */
+export interface {{MODULE_NAME}}Snapshot {
+  tick: TickId;
+  states: Map<EntityId, {{MODULE_NAME}}State>;
+  deltaHash: StateHash;
+}
