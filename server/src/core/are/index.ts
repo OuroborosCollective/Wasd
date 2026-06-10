@@ -127,3 +127,10 @@ export {
   type PersistenceQueueStats,
   type LayerPersistenceEvent
 } from './LayerPersistenceQueue.js';
+
+// Phase 10: WorldTick Thin Shell
+export {
+  WorldTickThinShell,
+  worldTickThinShell,
+  registerWorldTickThinShell
+} from './WorldTickThinShell.js';

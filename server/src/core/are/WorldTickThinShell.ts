@@ -1,0 +1,260 @@
+/**
+ * WorldTickThinShell - Phase 10: Extremely Slim World Brain Scheduler
+ * 
+ * WorldTick wird zum extrem schlanken "World Brain Scheduler".
+ * Er iteriert über aktive Chunks, evaluiert die 13 Punkte deterministisch
+ * gegeneinander und berechnet den neuen Erdős-Attraktor-Zustand.
+ * 
+ * OHNE tiefere Fachlogik selbst auszuführen.
+ * Die TickSystems führen die Logik aus, Brain koordiniert nur.
+ * 
+ * 10-Hz Taktung: 100ms intervals
+ */
+
+import { 
+  tickSystemRegistry, 
+  createDefaultTickContext,
+  WorldBrainScheduler,
+  SnapshotComposer,
+  LayerPersistenceQueue,
+  layerPersistenceQueue,
+  type TickSystemContext 
+} from './index.js';
+
+/**
+ * WorldTickThinShell - The slim coordinator that:
+ * 1. Iterates active chunks at 10-Hz
+ * 2. Evaluates 13 layers deterministically
+ * 3. Computes Ω_E attractor states
+ * 4. Aggregates into WorldHash
+ * 5. Coordinates SnapshotComposer + PersistenceQueue
+ */
+export class WorldTickThinShell {
+  /** Current tick count */
+  private tickCount: number = 0;
+  
+  /** TICK_INTERVAL_MS - 10-Hz tick rate */
+  static readonly TICK_INTERVAL_MS = 100;
+  
+  /** World Brain Scheduler for 13-layer evaluation */
+  private worldBrain: WorldBrainScheduler;
+  
+  /** Snapshot Composer for world state */
+  private snapshotComposer: SnapshotComposer;
+  
+  /** Persistence Queue for async writes */
+  private persistenceQueue: LayerPersistenceQueue;
+  
+  /** Is the shell running */
+  private isRunning: boolean = false;
+  
+  /** Timer handle */
+  private timer: ReturnType<typeof setInterval> | null = null;
+  
+  constructor() {
+    this.worldBrain = new WorldBrainScheduler();
+    this.snapshotComposer = new SnapshotComposer();
+    this.persistenceQueue = layerPersistenceQueue;
+  }
+  
+  /**
+   * Start the World Brain tick loop.
+   * 10-Hz tick rate (100ms intervals).
+   */
+  start(): void {
+    if (this.isRunning) return;
+    
+    console.log('[WorldTickThinShell] Starting - 10-Hz brain tick');
+    this.isRunning = true;
+    
+    // Notify all registered systems
+    tickSystemRegistry.notifyStart();
+    
+    // Start the tick loop
+    this.timer = setInterval(() => this.tick(), WorldTickThinShell.TICK_INTERVAL_MS);
+  }
+  
+  /**
+   * Stop the World Brain tick loop.
+   */
+  async stop(): Promise<void> {
+    if (!this.isRunning) return;
+    
+    console.log('[WorldTickThinShell] Stopping');
+    this.isRunning = false;
+    
+    // Stop timer
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    
+    // Shutdown brain
+    this.worldBrain.onShutdown();
+    
+    // Graceful persistence shutdown
+    await this.persistenceQueue.shutdown();
+    
+    // Notify all systems
+    tickSystemRegistry.notifyShutdown();
+  }
+  
+  /**
+   * Main tick - the extremely slim coordinator.
+   */
+  tick(): void {
+    this.tickCount++;
+    
+    // 1. PRE-TICK: Create tick context
+    const context: TickSystemContext = createDefaultTickContext(this.tickCount);
+    
+    // 2. EXECUTE REGISTERED SYSTEMS via TickSystemRegistry
+    // The Brain does NOT execute domain logic - it coordinates
+    tickSystemRegistry.executeAll(context);
+    
+    // 3. WORLD BRAIN: Evaluate 13 layers for active chunks
+    // This computes the Ω_E attractor states
+    this.worldBrain.tick(context);
+    
+    // 4. SNAPSHOT COMPOSER: Compose world snapshot
+    // WorldHash = Hash(ChunkID + EntityStates + IARELogicLayers)
+    this.composeWorldSnapshot();
+    
+    // 5. PERSISTENCE: Queue layer states for async write
+    // Non-blocking - happens asynchronously
+    this.queuePersistenceEvents();
+    
+    // 6. POST-TICK: Check if flush needed
+    this.persistenceQueue.tick(this.tickCount as any);
+  }
+  
+  /**
+   * Compose world snapshot from brain state.
+   */
+  private composeWorldSnapshot(): void {
+    const snapshot = this.worldBrain.getSnapshot();
+    
+    // Add each chunk's layer state to snapshot composer
+    for (const chunkKey of snapshot.active_chunks) {
+      const layerState = this.worldBrain.getChunkLayerState(chunkKey);
+      if (layerState) {
+        // Convert ChunkLayerState to IARELogicLayers format
+        const iareLayers = this.convertToIARELayers(layerState);
+        
+        this.snapshotComposer.addChunk(
+          chunkKey,
+          this.tickCount as any,
+          [], // Entity states would come from other systems
+          iareLayers
+        );
+      }
+    }
+    
+    // Finalize snapshot
+    if (this.snapshotComposer.getChunkCount() > 0) {
+      this.snapshotComposer.finalizeWorldSnapshot(this.tickCount as any);
+    }
+  }
+  
+  /**
+   * Convert ChunkLayerState to IARELogicLayers format.
+   */
+  private convertToIARELayers(chunkLayerState: any): any {
+    return {
+      ecology: chunkLayerState.ecology,
+      market: chunkLayerState.economy, // Note: mapping
+      physiology: chunkLayerState.npc_vitality,
+      trade: chunkLayerState.trade,
+      memory: chunkLayerState.social_memory,
+      politics: chunkLayerState.politics,
+      conflict: chunkLayerState.aggression,
+      economy: chunkLayerState.conjuncture,
+      kingdoms: chunkLayerState.kingdom,
+      faith: chunkLayerState.faith,
+      dungeon: chunkLayerState.dungeon,
+      fear: chunkLayerState.fear,
+      cycles: chunkLayerState.resurrection
+    };
+  }
+  
+  /**
+   * Queue persistence events for write-behind.
+   */
+  private queuePersistenceEvents(): void {
+    const snapshot = this.worldBrain.getSnapshot();
+    
+    for (const chunkKey of snapshot.active_chunks) {
+      const layerState = this.worldBrain.getChunkLayerState(chunkKey);
+      if (layerState) {
+        const iareLayers = this.convertToIARELayers(layerState);
+        
+        const event = {
+          chunkKey,
+          tick: this.tickCount as any,
+          layerSnapshot: iareLayers,
+          deltaHash: snapshot.world_hash,
+          timestamp: Date.now()
+        };
+        
+        this.persistenceQueue.enqueue(event);
+      }
+    }
+  }
+  
+  /**
+   * Register a chunk as active.
+   */
+  registerChunk(chunkKey: string): void {
+    this.worldBrain.registerChunk(chunkKey as any);
+  }
+  
+  /**
+   * Unregister a chunk.
+   */
+  unregisterChunk(chunkKey: string): void {
+    this.worldBrain.unregisterChunk(chunkKey as any);
+  }
+  
+  /**
+   * Get current tick count.
+   */
+  getTickCount(): number {
+    return this.tickCount;
+  }
+  
+  /**
+   * Get world brain snapshot.
+   */
+  getWorldBrainSnapshot(): any {
+    return this.worldBrain.getSnapshot();
+  }
+  
+  /**
+   * Get persistence queue stats.
+   */
+  getPersistenceStats() {
+    return this.persistenceQueue.getStats();
+  }
+  
+  /**
+   * Get snapshot composer stats.
+   */
+  getSnapshotStats() {
+    return {
+      chunkCount: this.snapshotComposer.getChunkCount()
+    };
+  }
+}
+
+/**
+ * Global WorldTickThinShell instance.
+ */
+export const worldTickThinShell = new WorldTickThinShell();
+
+/**
+ * Register WorldTickThinShell with the global registry.
+ */
+export function registerWorldTickThinShell(): WorldTickThinShell {
+  // This is the final integration point - WorldTickThinShell IS the tick system
+  return worldTickThinShell;
+}
