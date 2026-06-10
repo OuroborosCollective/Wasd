@@ -180,6 +180,17 @@ export {
   type WorldBrainTickSystemOptions,
 } from './WorldBrainTickSystem.js';
 
+// Phase 11: OuroborosTickSystem - Ouroboros autonomous agent integration
+export {
+  OUROBOROS_TICK_SYSTEM_NAME,
+  OUROBOROS_TICK_PRIORITY,
+  OuroborosTickSystem,
+  createOuroborosTickSystem,
+  registerOuroborosTickSystem,
+  getOuroborosTickSystem,
+  type OuroborosTickSystemOptions,
+} from './OuroborosTickSystem.js';
+
 // Phase 11: WorldTickScheduler - Thin scheduler without wall-clock dependencies
 export {
   ARE_TICK_RATE_HZ,
