@@ -131,7 +131,11 @@ jobs:
       - name: Build client-2d on GitHub runner
         run: |
           set -euo pipefail
-          pnpm --filter @wasd/client-2d --if-present build
+          # Force a fresh build - no cache, no --if-present.
+          # The VPS side does git reset --hard which can restore stale dist/ from git history,
+          # so we must always build from scratch here and ensure the artifact is fresh.
+          rm -rf apps/client-2d/dist
+          pnpm --filter @wasd/client-2d build
           test -f apps/client-2d/dist/index.html
           grep -q "${CLIENT_2D_MARKER}" apps/client-2d/dist/index.html
           test -f apps/client-2d/dist/manifest.webmanifest
