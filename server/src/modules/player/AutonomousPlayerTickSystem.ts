@@ -206,7 +206,7 @@ export class AutonomousPlayerTickSystem implements TickSystem {
       targetPosition: decision.action === AutonomousAction.MOVE_POSITION 
         ? this.calculateTargetPosition(context, decision) 
         : undefined,
-      validUntilTick: (tick + MICRO_ACTION_VALIDITY) as TickId,
+      validUntilTick: (tick + MICRO_ACTION_VALIDITY) as unknown as TickId,
     };
     
     // 6. Execute the decided action
@@ -438,7 +438,7 @@ export class AutonomousPlayerTickSystem implements TickSystem {
       winningScore: winner.score,
       fallbackAction: runnerUp.action,
       reasoning,
-      decisionTick: this.tickCount as TickId,
+      decisionTick: this.tickCount as unknown as TickId,
     };
   }
   
@@ -663,7 +663,7 @@ export class AutonomousPlayerTickSystem implements TickSystem {
     
     return {
       entityId: this.entityId,
-      tick: tick as TickId,
+      tick: tick as unknown as TickId,
       inputState: context,
       utilityScores,
       weights: this.weights,

@@ -145,7 +145,7 @@ export class AREShadowAdapter {
     console.log(`[AREShadowAdapter] 🎯 Decision: ${thoughtState.decision.reasoning}`);
     
     // Write to log sink for structured storage
-    this.logSink.write(tick, researchEnvelope);
+    this.logSink.write(tick, researchEnvelope as any);
     
     // If export path provided, flag for external Google Drive sync
     if (researchExportPath) {
