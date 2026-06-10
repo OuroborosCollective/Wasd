@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   LineChart,
   Line,
@@ -15,88 +21,111 @@ import {
   ZAxis,
   Cell,
 } from "recharts";
-import { Activity, Zap, BarChart3, RefreshCw, AlertCircle } from "lucide-react";
+import {
+  Activity,
+  Zap,
+  BarChart3,
+  RefreshCw,
+  AlertCircle,
+  ShieldCheck,
+} from "lucide-react";
 
 interface WeightTrend {
-  timestamp: string;
-  weightA: number;
-  weightB: number;
-  weightC: number;
+  readonly timestamp: string;
+  readonly weightA: number;
+  readonly weightB: number;
+  readonly weightC: number;
 }
 
 interface HeatmapPoint {
-  hour: number;
-  day: number;
-  value: number;
+  readonly hour: number;
+  readonly day: number;
+  readonly value: number;
 }
 
 interface Metrics {
-  conversionRate: number;
-  totalEvents: number;
-  avgLatency: number;
+  readonly conversionRate: number;
+  readonly totalEvents: number;
+  readonly avgLatency: number;
 }
 
-type ConnectionStatus = "connecting" | "connected" | "disconnected";
+interface WeightUpdatePayload {
+  readonly weightA: number;
+  readonly weightB: number;
+  readonly weightC: number;
+  readonly timestamp?: string;
+}
+
+type ConnectionStatus = "connecting" | "connected" | "fallback";
 
 type StatsMessage =
   | {
-      type: "WEIGHT_UPDATE";
-      payload: {
-        weightA: number;
-        weightB: number;
-        weightC: number;
-        timestamp?: string;
-      };
+      readonly type: "WEIGHT_UPDATE";
+      readonly payload: WeightUpdatePayload;
     }
   | {
-      type: "HEATMAP_UPDATE";
-      payload: HeatmapPoint[];
+      readonly type: "HEATMAP_UPDATE";
+      readonly payload: readonly HeatmapPoint[];
     }
   | {
-      type: "METRICS_UPDATE";
-      payload: Metrics;
+      readonly type: "METRICS_UPDATE";
+      readonly payload: Metrics;
     };
 
 const MAX_WEIGHT_POINTS = 20;
 const FALLBACK_INTERVAL_MS = 3000;
 const RECONNECT_BASE_MS = 1200;
-const RECONNECT_MAX_MS = 10000;
+const RECONNECT_MAX_MS = 10_000;
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
-const clamp = (value: number, min: number, max: number) => {
-  return Math.min(max, Math.max(min, value));
-};
+const DEFAULT_METRICS: Metrics = Object.freeze({
+  conversionRate: 0,
+  totalEvents: 0,
+  avgLatency: 0,
+});
 
-const stableHash = (input: string): number => {
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function safeNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function stableHash(input: string): number {
   let hash = 2166136261;
 
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i);
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
   }
 
   return hash >>> 0;
-};
+}
 
-const deterministic01 = (seed: string): number => {
-  const hash = stableHash(seed);
-  return hash / 0xffffffff;
-};
+function deterministic01(seed: string): number {
+  return stableHash(seed) / 0xffffffff;
+}
 
-const deterministicRange = (seed: string, min: number, max: number): number => {
+function deterministicRange(seed: string, min: number, max: number): number {
   return min + deterministic01(seed) * (max - min);
-};
+}
 
-const deterministicInt = (seed: string, min: number, max: number): number => {
+function deterministicInt(seed: string, min: number, max: number): number {
   return Math.floor(deterministicRange(seed, min, max + 1));
-};
+}
 
-const formatTickLabel = (tick: number) => {
+function formatTickLabel(tick: number): string {
   return `T+${tick.toString().padStart(4, "0")}`;
-};
+}
 
-const createFallbackHeatmap = (tick: number): HeatmapPoint[] => {
+function getDayLabel(value: unknown): string {
+  const index = Math.trunc(safeNumber(value, -1));
+  return DAY_LABELS[index] ?? "";
+}
+
+function createFallbackHeatmap(tick: number): readonly HeatmapPoint[] {
   const points: HeatmapPoint[] = [];
 
   for (let day = 0; day < 7; day += 1) {
@@ -106,43 +135,65 @@ const createFallbackHeatmap = (tick: number): HeatmapPoint[] => {
       const weekendBoost = day >= 5 ? 12 : 0;
       const base = deterministicInt(`heat:${tick}:${day}:${hour}`, 4, 72);
 
-      points.push({
-        day,
-        hour,
-        value: clamp(base + morningBoost + eveningBoost + weekendBoost, 0, 100),
-      });
+      points.push(
+        Object.freeze({
+          day,
+          hour,
+          value: clamp(base + morningBoost + eveningBoost + weekendBoost, 0, 100),
+        }),
+      );
     }
   }
 
-  return points;
-};
+  return Object.freeze(points);
+}
 
-const createFallbackWeights = (tick: number): WeightTrend => {
+function createFallbackWeights(tick: number): WeightTrend {
   const waveA = 50 + Math.sin(tick * 0.47) * 22;
   const waveB = 48 + Math.cos(tick * 0.31) * 24;
   const waveC = 52 + Math.sin(tick * 0.19 + 1.2) * 20;
 
-  return {
+  return Object.freeze({
     timestamp: formatTickLabel(tick),
-    weightA: clamp(waveA + deterministicRange(`weightA:${tick}`, -7, 7), 0, 100),
-    weightB: clamp(waveB + deterministicRange(`weightB:${tick}`, -7, 7), 0, 100),
-    weightC: clamp(waveC + deterministicRange(`weightC:${tick}`, -7, 7), 0, 100),
-  };
-};
+    weightA: clamp(
+      waveA + deterministicRange(`weightA:${tick}`, -7, 7),
+      0,
+      100,
+    ),
+    weightB: clamp(
+      waveB + deterministicRange(`weightB:${tick}`, -7, 7),
+      0,
+      100,
+    ),
+    weightC: clamp(
+      waveC + deterministicRange(`weightC:${tick}`, -7, 7),
+      0,
+      100,
+    ),
+  });
+}
 
-const createFallbackMetrics = (tick: number): Metrics => {
-  return {
-    conversionRate: clamp(3.2 + Math.sin(tick * 0.21) * 0.8 + deterministicRange(`cr:${tick}`, -0.18, 0.18), 0, 100),
-    totalEvents: 12450 + tick * 37 + deterministicInt(`events:${tick}`, 0, 25),
-    avgLatency: clamp(45 + Math.cos(tick * 0.33) * 6 + deterministicRange(`lat:${tick}`, -2.5, 2.5), 1, 999),
-  };
-};
+function createFallbackMetrics(tick: number): Metrics {
+  return Object.freeze({
+    conversionRate: clamp(
+      3.2 + Math.sin(tick * 0.21) * 0.8 + deterministicRange(`cr:${tick}`, -0.18, 0.18),
+      0,
+      100,
+    ),
+    totalEvents: 12_450 + tick * 37 + deterministicInt(`events:${tick}`, 0, 25),
+    avgLatency: clamp(
+      45 + Math.cos(tick * 0.33) * 6 + deterministicRange(`lat:${tick}`, -2.5, 2.5),
+      1,
+      999,
+    ),
+  });
+}
 
-const resolveStatsWsUrl = () => {
+function resolveStatsWsUrl(): string {
   const envUrl = process.env.NEXT_PUBLIC_STATS_WS_URL;
 
-  if (envUrl && envUrl.trim().length > 0) {
-    return envUrl;
+  if (typeof envUrl === "string" && envUrl.trim().length > 0) {
+    return envUrl.trim();
   }
 
   if (typeof window === "undefined") {
@@ -151,21 +202,35 @@ const resolveStatsWsUrl = () => {
 
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const hostname = window.location.hostname || "localhost";
+  const port = window.location.port ? `:${window.location.port}` : "";
 
   if (hostname === "localhost" || hostname === "127.0.0.1") {
     return "ws://localhost:8080/stats";
   }
 
-  return `${protocol}//${hostname}/stats`;
-};
+  return `${protocol}//${hostname}${port}/stats`;
+}
 
-const isHeatmapPayload = (payload: unknown): payload is HeatmapPoint[] => {
+function isWeightPayload(payload: unknown): payload is WeightUpdatePayload {
+  if (!payload || typeof payload !== "object") return false;
+
+  const candidate = payload as Partial<WeightUpdatePayload>;
+
+  return (
+    Number.isFinite(candidate.weightA) &&
+    Number.isFinite(candidate.weightB) &&
+    Number.isFinite(candidate.weightC) &&
+    (candidate.timestamp === undefined || typeof candidate.timestamp === "string")
+  );
+}
+
+function isHeatmapPayload(payload: unknown): payload is readonly HeatmapPoint[] {
   return (
     Array.isArray(payload) &&
     payload.every((point) => {
       if (!point || typeof point !== "object") return false;
 
-      const candidate = point as HeatmapPoint;
+      const candidate = point as Partial<HeatmapPoint>;
 
       return (
         Number.isFinite(candidate.hour) &&
@@ -174,134 +239,139 @@ const isHeatmapPayload = (payload: unknown): payload is HeatmapPoint[] => {
       );
     })
   );
-};
+}
 
-const isMetricsPayload = (payload: unknown): payload is Metrics => {
+function isMetricsPayload(payload: unknown): payload is Metrics {
   if (!payload || typeof payload !== "object") return false;
 
-  const candidate = payload as Metrics;
+  const candidate = payload as Partial<Metrics>;
 
   return (
     Number.isFinite(candidate.conversionRate) &&
     Number.isFinite(candidate.totalEvents) &&
     Number.isFinite(candidate.avgLatency)
   );
-};
+}
 
-const isWeightPayload = (
-  payload: unknown,
-): payload is StatsMessage & { type: "WEIGHT_UPDATE" } extends infer T
-  ? T extends { payload: infer P }
-    ? P
-    : never
-  : never => {
-  if (!payload || typeof payload !== "object") return false;
-
-  const candidate = payload as {
-    weightA: number;
-    weightB: number;
-    weightC: number;
-  };
-
-  return (
-    Number.isFinite(candidate.weightA) &&
-    Number.isFinite(candidate.weightB) &&
-    Number.isFinite(candidate.weightC)
+function normalizeHeatmap(payload: readonly HeatmapPoint[]): readonly HeatmapPoint[] {
+  return Object.freeze(
+    payload.map((point) =>
+      Object.freeze({
+        hour: clamp(Math.trunc(point.hour), 0, 23),
+        day: clamp(Math.trunc(point.day), 0, 6),
+        value: clamp(point.value, 0, 100),
+      }),
+    ),
   );
-};
+}
 
-const parseStatsMessage = (raw: string): StatsMessage | null => {
+function normalizeMetrics(payload: Metrics): Metrics {
+  return Object.freeze({
+    conversionRate: clamp(payload.conversionRate, 0, 100),
+    totalEvents: Math.max(0, Math.trunc(payload.totalEvents)),
+    avgLatency: Math.max(0, payload.avgLatency),
+  });
+}
+
+function parseStatsMessage(raw: string): StatsMessage | null {
   try {
     const parsed = JSON.parse(raw) as {
-      type?: unknown;
-      payload?: unknown;
+      readonly type?: unknown;
+      readonly payload?: unknown;
     };
 
     if (parsed.type === "WEIGHT_UPDATE" && isWeightPayload(parsed.payload)) {
-      return {
+      return Object.freeze({
         type: "WEIGHT_UPDATE",
-        payload: parsed.payload,
-      };
+        payload: Object.freeze({
+          weightA: parsed.payload.weightA,
+          weightB: parsed.payload.weightB,
+          weightC: parsed.payload.weightC,
+          timestamp: parsed.payload.timestamp,
+        }),
+      });
     }
 
     if (parsed.type === "HEATMAP_UPDATE" && isHeatmapPayload(parsed.payload)) {
-      return {
+      return Object.freeze({
         type: "HEATMAP_UPDATE",
-        payload: parsed.payload.map((point) => ({
-          hour: clamp(Math.trunc(point.hour), 0, 23),
-          day: clamp(Math.trunc(point.day), 0, 6),
-          value: clamp(point.value, 0, 100),
-        })),
-      };
+        payload: normalizeHeatmap(parsed.payload),
+      });
     }
 
     if (parsed.type === "METRICS_UPDATE" && isMetricsPayload(parsed.payload)) {
-      return {
+      return Object.freeze({
         type: "METRICS_UPDATE",
-        payload: {
-          conversionRate: clamp(parsed.payload.conversionRate, 0, 100),
-          totalEvents: Math.max(0, Math.trunc(parsed.payload.totalEvents)),
-          avgLatency: Math.max(0, parsed.payload.avgLatency),
-        },
-      };
+        payload: normalizeMetrics(parsed.payload),
+      });
     }
 
     return null;
   } catch {
     return null;
   }
-};
+}
 
-const Dashboard = () => {
-  const [weights, setWeights] = useState<WeightTrend[]>([]);
-  const [heatmap, setHeatmap] = useState<HeatmapPoint[]>(() => createFallbackHeatmap(0));
+function getCellColor(value: number): string {
+  const safeValue = clamp(value, 0, 100);
+  const hue = Math.trunc((safeValue / 100) * 140);
+
+  return `hsl(${hue}, 72%, 48%)`;
+}
+
+export default function Dashboard() {
+  const [weights, setWeights] = useState<readonly WeightTrend[]>([]);
+  const [heatmap, setHeatmap] = useState<readonly HeatmapPoint[]>(() =>
+    createFallbackHeatmap(0),
+  );
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
-  const [metrics, setMetrics] = useState<Metrics>({
-    conversionRate: 0,
-    totalEvents: 0,
-    avgLatency: 0,
-  });
+  const [metrics, setMetrics] = useState<Metrics>(DEFAULT_METRICS);
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fallbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reconnectAttemptRef = useRef(0);
   const fallbackTickRef = useRef(0);
-  const isMountedRef = useRef(false);
+  const mountedRef = useRef(false);
 
   const wsUrl = useMemo(() => resolveStatsWsUrl(), []);
 
   const connectionLabel = useMemo(() => {
     if (status === "connected") return "CONNECTED";
     if (status === "connecting") return "CONNECTING";
-    return "FALLBACK";
+    return "DETERMINISTIC FALLBACK";
   }, [status]);
 
   const statusClassName = useMemo(() => {
-    if (status === "connected") return "bg-emerald-500/10 text-emerald-400";
-    if (status === "connecting") return "bg-blue-500/10 text-blue-400";
-    return "bg-rose-500/10 text-rose-400";
+    if (status === "connected") return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+    if (status === "connecting") return "bg-cyan-500/10 text-cyan-400 border-cyan-500/20";
+    return "bg-amber-500/10 text-amber-300 border-amber-500/20";
   }, [status]);
 
   const dotClassName = useMemo(() => {
     if (status === "connected") return "bg-emerald-500 animate-pulse";
-    if (status === "connecting") return "bg-blue-500 animate-pulse";
-    return "bg-rose-500";
+    if (status === "connecting") return "bg-cyan-500 animate-pulse";
+    return "bg-amber-400";
   }, [status]);
 
   const appendWeight = useCallback((next: WeightTrend) => {
-    setWeights((prev) => [...prev.slice(-(MAX_WEIGHT_POINTS - 1)), next]);
+    setWeights((prev) =>
+      Object.freeze([...prev.slice(-(MAX_WEIGHT_POINTS - 1)), next]),
+    );
   }, []);
 
   const applyMessage = useCallback(
     (message: StatsMessage) => {
       if (message.type === "WEIGHT_UPDATE") {
-        appendWeight({
-          timestamp: message.payload.timestamp ?? formatTickLabel(fallbackTickRef.current),
-          weightA: clamp(message.payload.weightA, 0, 100),
-          weightB: clamp(message.payload.weightB, 0, 100),
-          weightC: clamp(message.payload.weightC, 0, 100),
-        });
+        appendWeight(
+          Object.freeze({
+            timestamp:
+              message.payload.timestamp ?? formatTickLabel(fallbackTickRef.current),
+            weightA: clamp(message.payload.weightA, 0, 100),
+            weightB: clamp(message.payload.weightB, 0, 100),
+            weightC: clamp(message.payload.weightC, 0, 100),
+          }),
+        );
 
         return;
       }
@@ -311,9 +381,7 @@ const Dashboard = () => {
         return;
       }
 
-      if (message.type === "METRICS_UPDATE") {
-        setMetrics(message.payload);
-      }
+      setMetrics(message.payload);
     },
     [appendWeight],
   );
@@ -328,6 +396,13 @@ const Dashboard = () => {
     setMetrics(createFallbackMetrics(tick));
   }, [appendWeight]);
 
+  const stopFallback = useCallback(() => {
+    if (!fallbackTimerRef.current) return;
+
+    clearInterval(fallbackTimerRef.current);
+    fallbackTimerRef.current = null;
+  }, []);
+
   const startFallback = useCallback(() => {
     if (fallbackTimerRef.current) return;
 
@@ -339,13 +414,6 @@ const Dashboard = () => {
     }, FALLBACK_INTERVAL_MS);
   }, [runFallbackTick]);
 
-  const stopFallback = useCallback(() => {
-    if (!fallbackTimerRef.current) return;
-
-    clearInterval(fallbackTimerRef.current);
-    fallbackTimerRef.current = null;
-  }, []);
-
   const clearReconnectTimer = useCallback(() => {
     if (!reconnectTimerRef.current) return;
 
@@ -353,8 +421,27 @@ const Dashboard = () => {
     reconnectTimerRef.current = null;
   }, []);
 
+  const closeSocket = useCallback(() => {
+    const socket = socketRef.current;
+    socketRef.current = null;
+
+    if (!socket) return;
+
+    socket.onopen = null;
+    socket.onmessage = null;
+    socket.onerror = null;
+    socket.onclose = null;
+
+    if (
+      socket.readyState === WebSocket.CONNECTING ||
+      socket.readyState === WebSocket.OPEN
+    ) {
+      socket.close();
+    }
+  }, []);
+
   const connect = useCallback(() => {
-    if (!isMountedRef.current) return;
+    if (!mountedRef.current) return;
 
     clearReconnectTimer();
 
@@ -370,7 +457,16 @@ const Dashboard = () => {
 
     setStatus("connecting");
 
-    const socket = new WebSocket(wsUrl);
+    let socket: WebSocket;
+
+    try {
+      socket = new WebSocket(wsUrl);
+    } catch {
+      setStatus("fallback");
+      startFallback();
+      return;
+    }
+
     socketRef.current = socket;
 
     socket.onopen = () => {
@@ -379,7 +475,7 @@ const Dashboard = () => {
       stopFallback();
     };
 
-    socket.onmessage = (event) => {
+    socket.onmessage = (event: MessageEvent) => {
       if (typeof event.data !== "string") return;
 
       const message = parseStatsMessage(event.data);
@@ -398,9 +494,9 @@ const Dashboard = () => {
         socketRef.current = null;
       }
 
-      if (!isMountedRef.current) return;
+      if (!mountedRef.current) return;
 
-      setStatus("disconnected");
+      setStatus("fallback");
       startFallback();
 
       reconnectAttemptRef.current += 1;
@@ -414,65 +510,62 @@ const Dashboard = () => {
         connect();
       }, delay);
     };
-  }, [applyMessage, clearReconnectTimer, startFallback, stopFallback, wsUrl]);
+  }, [
+    applyMessage,
+    clearReconnectTimer,
+    startFallback,
+    stopFallback,
+    wsUrl,
+  ]);
 
   useEffect(() => {
-    isMountedRef.current = true;
-
+    mountedRef.current = true;
     connect();
 
     return () => {
-      isMountedRef.current = false;
-
+      mountedRef.current = false;
       clearReconnectTimer();
       stopFallback();
-
-      if (socketRef.current) {
-        socketRef.current.close();
-        socketRef.current = null;
-      }
+      closeSocket();
     };
-  }, [clearReconnectTimer, connect, stopFallback]);
-
-  const getColor = useCallback((value: number) => {
-    const safeValue = clamp(value, 0, 100);
-    const hue = (safeValue / 100) * 140;
-
-    return `hsl(${hue}, 72%, 48%)`;
-  }, []);
+  }, [clearReconnectTimer, closeSocket, connect, stopFallback]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 p-4 sm:p-6 lg:p-8 font-sans">
       <div className="max-w-7xl mx-auto space-y-8">
-        <header className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center border-b border-slate-800 pb-6">
+        <header className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center border-b border-cyan-500/20 pb-6">
           <div>
+            <div className="flex items-center gap-2 text-cyan-300 text-xs font-mono uppercase tracking-[0.22em] mb-2">
+              <ShieldCheck size={14} />
+              ARE Telemetry Side Channel
+            </div>
+
             <h1 className="text-3xl font-bold tracking-tight">
               Heuristic Analytics Engine
             </h1>
+
             <p className="text-slate-400 mt-1">
-              Deterministic real-time optimization monitoring
+              Deterministic monitoring surface — not authoritative gameplay truth
             </p>
           </div>
 
           <div className="flex flex-col sm:items-end gap-2">
             <div
-              className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${statusClassName}`}
+              className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${statusClassName}`}
               title={wsUrl}
             >
               <div className={`w-2 h-2 rounded-full ${dotClassName}`} />
               {connectionLabel}
             </div>
 
-            <p className="text-xs text-slate-500 break-all">
-              Stream: {wsUrl}
-            </p>
+            <p className="text-xs text-slate-500 break-all">Stream: {wsUrl}</p>
           </div>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-2xl shadow-black/10">
+          <section className="bg-slate-900/90 border border-slate-800 p-6 rounded-xl shadow-2xl shadow-black/10">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-500/10 rounded-lg text-blue-400">
+              <div className="p-3 bg-cyan-500/10 rounded-lg text-cyan-400">
                 <BarChart3 size={24} />
               </div>
               <div>
@@ -484,9 +577,9 @@ const Dashboard = () => {
             </div>
           </section>
 
-          <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-2xl shadow-black/10">
+          <section className="bg-slate-900/90 border border-slate-800 p-6 rounded-xl shadow-2xl shadow-black/10">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-500/10 rounded-lg text-purple-400">
+              <div className="p-3 bg-violet-500/10 rounded-lg text-violet-400">
                 <Activity size={24} />
               </div>
               <div>
@@ -498,13 +591,13 @@ const Dashboard = () => {
             </div>
           </section>
 
-          <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-2xl shadow-black/10">
+          <section className="bg-slate-900/90 border border-slate-800 p-6 rounded-xl shadow-2xl shadow-black/10">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-amber-500/10 rounded-lg text-amber-400">
                 <Zap size={24} />
               </div>
               <div>
-                <p className="text-sm text-slate-400">Latency avg</p>
+                <p className="text-sm text-slate-400">Latency Avg</p>
                 <p className="text-2xl font-bold">
                   {metrics.avgLatency.toFixed(1)}ms
                 </p>
@@ -514,15 +607,15 @@ const Dashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-2xl shadow-black/10">
+          <section className="bg-slate-900/90 border border-slate-800 p-6 rounded-xl shadow-2xl shadow-black/10">
             <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-              <RefreshCw className="text-blue-400" size={20} />
+              <RefreshCw className="text-cyan-400" size={20} />
               Optimization Trend
             </h2>
 
             <div className="h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={weights}>
+                <LineChart data={[...weights]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                   <XAxis
                     dataKey="timestamp"
@@ -549,7 +642,7 @@ const Dashboard = () => {
                     type="monotone"
                     dataKey="weightA"
                     name="Weight A"
-                    stroke="#3b82f6"
+                    stroke="#22d3ee"
                     strokeWidth={2}
                     dot={false}
                     isAnimationActive={false}
@@ -567,7 +660,7 @@ const Dashboard = () => {
                     type="monotone"
                     dataKey="weightC"
                     name="Weight C"
-                    stroke="#eab308"
+                    stroke="#f59e0b"
                     strokeWidth={2}
                     dot={false}
                     isAnimationActive={false}
@@ -577,7 +670,7 @@ const Dashboard = () => {
             </div>
           </section>
 
-          <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-2xl shadow-black/10">
+          <section className="bg-slate-900/90 border border-slate-800 p-6 rounded-xl shadow-2xl shadow-black/10">
             <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
               <AlertCircle className="text-emerald-400" size={20} />
               Conversion Heatmap Day/Hour
@@ -602,7 +695,7 @@ const Dashboard = () => {
                     domain={[0, 6]}
                     stroke="#64748b"
                     allowDecimals={false}
-                    tickFormatter={(value) => DAY_LABELS[value as keyof typeof DAY_LABELS] ?? ""}
+                    tickFormatter={getDayLabel}
                   />
                   <ZAxis type="number" dataKey="value" range={[70, 420]} />
                   <Tooltip
@@ -613,7 +706,10 @@ const Dashboard = () => {
                       borderRadius: "0.75rem",
                     }}
                     formatter={(value, name) => {
-                      if (name === "value") return [`${Number(value).toFixed(0)}%`, "Intensity"];
+                      if (name === "value") {
+                        return [`${Number(value).toFixed(0)}%`, "Intensity"];
+                      }
+
                       return [value, name];
                     }}
                     labelFormatter={(_, payload) => {
@@ -625,13 +721,13 @@ const Dashboard = () => {
                   />
                   <Scatter
                     name="Conversion Intensity"
-                    data={heatmap}
+                    data={[...heatmap]}
                     isAnimationActive={false}
                   >
                     {heatmap.map((entry) => (
                       <Cell
                         key={`cell-${entry.day}-${entry.hour}`}
-                        fill={getColor(entry.value)}
+                        fill={getCellColor(entry.value)}
                       />
                     ))}
                   </Scatter>
@@ -643,6 +739,4 @@ const Dashboard = () => {
       </div>
     </div>
   );
-};
-
-export default Dashboard;
+  }
