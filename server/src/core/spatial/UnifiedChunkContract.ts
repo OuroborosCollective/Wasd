@@ -1,144 +1,82 @@
 /**
  * ARELORIA CORE: Unified Chunk Contract
  * 
- * Establishes the single source of truth for chunk visibility radii.
+ * Single source of truth for chunk geometry parameters.
  * 
- * Key architectural decision:
- * - Simulation radius: 5×5 grid (radius=2) - entities within this range are simulated together
- * - Broadcast radius: 3×3 grid (radius=1) - entities within this range receive updates
+ * ARCHITECTURE DECISION: Resolve conflicting radii:
+ * - ObserverEngine used viewDistanceChunks=2 → 5×5 simulation/interest grid
+ * - WorldTick.SpatialBroadcastGrid used 3×3 broadcast grid
  * 
- * This separation allows:
- * - Accurate simulation of nearby entities
- * - Efficient bandwidth by only broadcasting to nearby chunks
- * - Prevention of "popping" when entities enter/exit simulation range
- */
-
-import type { ChunkKey } from '../are/types';
-import { getChunkGrid } from './ChunkMath';
-
-/**
- * Simulation radius: Number of chunks in each direction from center.
- * At radius=2, this creates a 5×5 grid covering 10×10 chunks.
- */
-export const SIMULATION_CHUNK_RADIUS = 2;
-
-/**
- * Broadcast radius: Number of chunks in each direction from center.
- * At radius=1, this creates a 3×3 grid covering 6×6 chunks.
- */
-export const BROADCAST_CHUNK_RADIUS = 1;
-
-/**
- * Total chunks in simulation grid (5×5 = 25)
- */
-export const SIMULATION_CHUNK_COUNT = (SIMULATION_CHUNK_RADIUS * 2 + 1) ** 2;
-
-/**
- * Total chunks in broadcast grid (3×3 = 9)
- */
-export const BROADCAST_CHUNK_COUNT = (BROADCAST_CHUNK_RADIUS * 2 + 1) ** 2;
-
-/**
- * UnifiedChunkContract: Interface for chunk visibility contracts.
+ * Solution:
+ * - simulationRadiusChunks = 2 → 5×5 for INTEREST MANAGEMENT
+ * - broadcastRadiusChunks = 1 → 3×3 for CLIENT SNAPSHOTS
  * 
- * All spatial systems MUST use these constants/functions to ensure
- * consistent chunk visibility across the codebase.
+ * These are NOT conflicting - they serve different purposes:
+ * - 5×5 = which chunks affect simulation/interest calculations
+ * - 3×3 = which entities are sent to client in snapshot
  */
+
+import { CHUNK_SIZE_TILES, CHUNK_SIZE_KAPPA } from './ChunkMath';
+
 export interface UnifiedChunkContract {
-  /** Radius for simulation (entities within this range are processed together) */
-  readonly simulationRadius: number;
+  /** Chunk size in tiles (world units) */
+  readonly chunkSizeTiles: 64;
   
-  /** Radius for broadcast (entities within this range receive updates) */
-  readonly broadcastRadius: number;
+  /** Chunk size in Kappa (fixed-point) */
+  readonly chunkSizeKappa: 64000;
   
-  /** Get all chunk keys for simulation range */
-  getSimulationChunks(center: ChunkKey): ChunkKey[];
+  /** 
+   * Radius for simulation/interest management.
+   * Entities in this range affect each other's simulation.
+   * 2 chunks = 5×5 grid centered on observer
+   */
+  readonly simulationRadiusChunks: 2;
   
-  /** Get all chunk keys for broadcast range */
-  getBroadcastChunks(center: ChunkKey): ChunkKey[];
+  /** 
+   * Radius for client broadcast snapshots.
+   * Only entities in this range are sent to client.
+   * 1 chunk = 3×3 grid centered on observer
+   */
+  readonly broadcastRadiusChunks: 1;
   
-  /** Check if a chunk is within simulation range of center */
-  isInSimulationRange(center: ChunkKey, chunk: ChunkKey): boolean;
+  /** 
+   * Number of chunks in simulation grid (one dimension).
+   * simulationRadius 2 → 5 chunks (dx from -2 to +2)
+   */
+  readonly simulationGridSize: 5;
   
-  /** Check if a chunk is within broadcast range of center */
-  isInBroadcastRange(center: ChunkKey, chunk: ChunkKey): boolean;
+  /** 
+   * Number of chunks in broadcast grid (one dimension).
+   * broadcastRadius 1 → 3 chunks (dx from -1 to +1)
+   */
+  readonly broadcastGridSize: 3;
+  
+  /** 
+   * Chunks after which a dormant chunk becomes inactive.
+   * 0 = immediately dormant when no observers
+   */
+  readonly dormantAfterTicks: number;
 }
 
-/**
- * Default implementation of UnifiedChunkContract.
- * Uses the standard 5×5 simulation / 3×3 broadcast radii.
- */
-export class DefaultChunkContract implements UnifiedChunkContract {
-  readonly simulationRadius = SIMULATION_CHUNK_RADIUS;
-  readonly broadcastRadius = BROADCAST_CHUNK_RADIUS;
+export const UNIFIED_CHUNK_CONTRACT: UnifiedChunkContract = {
+  chunkSizeTiles: CHUNK_SIZE_TILES,
+  chunkSizeKappa: CHUNK_SIZE_KAPPA,
+  simulationRadiusChunks: 2,
+  broadcastRadiusChunks: 1,
+  simulationGridSize: 5, // 2*2 + 1
+  broadcastGridSize: 3, // 1*2 + 1
+  dormantAfterTicks: 0, // Immediately dormant when no observers
+} as const;
 
-  getSimulationChunks(center: ChunkKey): ChunkKey[] {
-    return getChunkGrid(center, this.simulationRadius);
+/**
+ * Validate chunk coordinate is within bounds.
+ */
+export function assertValidChunkCoord(coord: number, operation: string): void {
+  if (!Number.isInteger(coord)) {
+    throw new Error(`[UnifiedChunkContract] Non-integer chunk coord in ${operation}: ${coord}`);
   }
-
-  getBroadcastChunks(center: ChunkKey): ChunkKey[] {
-    return getChunkGrid(center, this.broadcastRadius);
+  // Reasonable bounds check (-32768 to 32767 for Morton code compatibility)
+  if (coord < -32768 || coord > 32767) {
+    throw new Error(`[UnifiedChunkContract] Chunk coord out of Morton range in ${operation}: ${coord}`);
   }
-
-  isInSimulationRange(center: ChunkKey, chunk: ChunkKey): boolean {
-    const simulationChunks = this.getSimulationChunks(center);
-    return simulationChunks.includes(chunk);
-  }
-
-  isInBroadcastRange(center: ChunkKey, chunk: ChunkKey): boolean {
-    const broadcastChunks = this.getBroadcastChunks(center);
-    return broadcastChunks.includes(chunk);
-  }
-}
-
-/**
- * Singleton instance of the default chunk contract.
- */
-export const chunkContract = new DefaultChunkContract();
-
-/**
- * Get all chunks that should be simulated for an entity at the given position.
- * This includes the entity's own chunk plus all chunks within simulation radius.
- */
-export function getSimulationChunks(center: ChunkKey): ChunkKey[] {
-  return chunkContract.getSimulationChunks(center);
-}
-
-/**
- * Get all chunks that should receive broadcasts for an entity at the given position.
- * This is a subset of simulation chunks (3×3 vs 5×5).
- */
-export function getBroadcastChunks(center: ChunkKey): ChunkKey[] {
-  return chunkContract.getBroadcastChunks(center);
-}
-
-/**
- * Check if a chunk is within the simulation range of another chunk.
- */
-export function isInSimulationRange(center: ChunkKey, chunk: ChunkKey): boolean {
-  return chunkContract.isInSimulationRange(center, chunk);
-}
-
-/**
- * Check if a chunk is within the broadcast range of another chunk.
- */
-export function isInBroadcastRange(center: ChunkKey, chunk: ChunkKey): boolean {
-  return chunkContract.isInBroadcastRange(center, chunk);
-}
-
-/**
- * Get all chunks that are in simulation range but NOT in broadcast range.
- * These chunks are simulated but don't receive broadcasts (edge of interaction).
- */
-export function getEdgeChunks(center: ChunkKey): ChunkKey[] {
-  const simChunks = getSimulationChunks(center);
-  const broadcastChunks = getBroadcastChunks(center);
-  return simChunks.filter(c => !broadcastChunks.includes(c));
-}
-
-/**
- * Validate that a radius value is valid for chunk operations.
- */
-export function isValidChunkRadius(radius: number): boolean {
-  return Number.isInteger(radius) && radius >= 0 && radius <= 10;
 }

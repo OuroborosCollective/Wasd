@@ -12,16 +12,19 @@
  * for efficient broadcast targeting.
  */
 
-import type { ChunkKey, EntityId } from '../are/types';
-import { chunkContract, getBroadcastChunks } from './UnifiedChunkContract';
+import type { ChunkKey } from '../are/types';
+import { UNIFIED_CHUNK_CONTRACT } from './UnifiedChunkContract';
+import { tileToChunkCoord, getChunkKey } from './ChunkMath';
+import type { ChunkCoord } from '../are/types';
 
 /**
  * ObserverInterest: Tracks what chunks an observer is interested in.
  */
 export interface ObserverInterest {
   observerId: string;
-  position: { x: number; y: number };
-  subscribedChunks: Set<ChunkKey>;
+  tileX: number;
+  tileY: number;
+  subscribedChunks: Set<string>;
   lastUpdate: number;
 }
 
@@ -37,26 +40,26 @@ export class InterestGrid {
   private observers = new Map<string, ObserverInterest>();
   
   // Map<chunkKey, Set<observerId>> - reverse index for efficient chunk-to-observer lookup
-  private chunkToObservers = new Map<ChunkKey, Set<string>>();
+  private chunkToObservers = new Map<string, Set<string>>();
   
-  private readonly chunkSize: number;
-  private readonly contract = chunkContract;
+  private readonly contract = UNIFIED_CHUNK_CONTRACT;
 
-  constructor(chunkSize: number = 64) {
-    this.chunkSize = chunkSize;
+  constructor() {
   }
 
   /**
    * Register an observer at a position.
    * Creates subscriptions for all chunks in broadcast range.
    */
-  register(observerId: string, position: { x: number; y: number }): void {
-    const centerChunk = this.getChunkKey(position.x, position.y);
-    const subscribedChunks = new Set(this.contract.getBroadcastChunks(centerChunk));
+  register(observerId: string, tileX: number, tileY: number): void {
+    const cx = tileToChunkCoord(tileX);
+    const cy = tileToChunkCoord(tileY);
+    const subscribedChunks = this.getChunksInRadius(cx, cy, this.contract.broadcastRadiusChunks);
 
     this.observers.set(observerId, {
       observerId,
-      position,
+      tileX,
+      tileY,
       subscribedChunks,
       lastUpdate: Date.now()
     });
@@ -92,31 +95,34 @@ export class InterestGrid {
    * Update an observer's position.
    * Automatically handles chunk subscription changes.
    */
-  updatePosition(observerId: string, position: { x: number; y: number }): void {
+  updatePosition(observerId: string, tileX: number, tileY: number): void {
     const interest = this.observers.get(observerId);
     if (!interest) {
       // Not registered yet - register instead
-      this.register(observerId, position);
+      this.register(observerId, tileX, tileY);
       return;
     }
 
-    const oldChunk = this.getChunkKey(interest.position.x, interest.position.y);
-    const newChunk = this.getChunkKey(position.x, position.y);
+    const oldCx = tileToChunkCoord(interest.tileX);
+    const oldCy = tileToChunkCoord(interest.tileY);
+    const newCx = tileToChunkCoord(tileX);
+    const newCy = tileToChunkCoord(tileY);
 
     // No change needed if same chunk
-    if (oldChunk === newChunk) {
-      interest.position = position;
+    if (oldCx === newCx && oldCy === newCy) {
+      interest.tileX = tileX;
+      interest.tileY = tileY;
       interest.lastUpdate = Date.now();
       return;
     }
 
     // Calculate old and new subscription sets
-    const oldChunks = this.contract.getBroadcastChunks(oldChunk);
-    const newChunks = this.contract.getBroadcastChunks(newChunk);
+    const oldChunks = this.getChunksInRadius(oldCx, oldCy, this.contract.broadcastRadiusChunks);
+    const newChunks = this.getChunksInRadius(newCx, newCy, this.contract.broadcastRadiusChunks);
 
     // Find chunks to unsubscribe and subscribe
-    const toRemove = oldChunks.filter(c => !newChunks.includes(c));
-    const toAdd = newChunks.filter(c => !oldChunks.includes(c));
+    const toRemove = oldChunks.filter(c => !new Set(newChunks).has(c));
+    const toAdd = newChunks.filter(c => !new Set(oldChunks).has(c));
 
     // Update reverse index
     for (const chunk of toRemove) {
@@ -134,7 +140,8 @@ export class InterestGrid {
     }
 
     // Update interest
-    interest.position = position;
+    interest.tileX = tileX;
+    interest.tileY = tileY;
     interest.subscribedChunks = new Set(newChunks);
     interest.lastUpdate = Date.now();
   }
@@ -142,14 +149,14 @@ export class InterestGrid {
   /**
    * Get all observers subscribed to a specific chunk.
    */
-  getObserversInChunk(chunkKey: ChunkKey): string[] {
+  getObserversInChunk(chunkKey: string): string[] {
     return Array.from(this.chunkToObservers.get(chunkKey) ?? []);
   }
 
   /**
    * Get all chunks an observer is subscribed to.
    */
-  getSubscribedChunks(observerId: string): ChunkKey[] {
+  getSubscribedChunks(observerId: string): string[] {
     const interest = this.observers.get(observerId);
     return interest ? Array.from(interest.subscribedChunks) : [];
   }
@@ -198,18 +205,24 @@ export class InterestGrid {
   }
 
   /**
-   * Compute chunk key from tile coordinates.
+   * Get all chunks in a radius around a center chunk.
    */
-  private getChunkKey(tileX: number, tileZ: number): ChunkKey {
-    const cx = Math.floor(tileX / this.chunkSize);
-    const cz = Math.floor(tileZ / this.chunkSize);
-    return `${cx}:${cz}` as ChunkKey;
+  private getChunksInRadius(cx: ChunkCoord, cy: ChunkCoord, radius: number): string[] {
+    const keys: string[] = [];
+    for (let dx = -radius; dx <= radius; dx++) {
+      for (let dy = -radius; dy <= radius; dy++) {
+        const nc = (Number(cx) + dx) as ChunkCoord;
+        const ny = (Number(cy) + dy) as ChunkCoord;
+        keys.push(getChunkKey(nc, ny));
+      }
+    }
+    return keys;
   }
 }
 
 /**
  * Create a new InterestGrid instance.
  */
-export function createInterestGrid(chunkSize: number = 64): InterestGrid {
-  return new InterestGrid(chunkSize);
+export function createInterestGrid(): InterestGrid {
+  return new InterestGrid();
 }

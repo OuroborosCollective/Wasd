@@ -10,8 +10,82 @@
  * - Tile coordinates are integer positions within the world
  */
 
-import type { ChunkCoord, ChunkKey } from '../are/types';
-import { CHUNK_SIZE } from '../are/types';
+import type { Kappa, ChunkCoord, ChunkKey } from '../are/types';
+import { KAPPA } from '../are/Kappa';
+
+export const CHUNK_SIZE_TILES = 64;
+export const CHUNK_SIZE_KAPPA = CHUNK_SIZE_TILES * KAPPA; // 64000
+
+// Backwards compatibility alias
+export const CHUNK_SIZE = CHUNK_SIZE_TILES;
+
+/**
+ * Convert world-unit Kappa position to tile coordinate.
+ */
+export function kappaToTile(kappa: Kappa): number {
+  return Math.trunc(Number(kappa) / KAPPA);
+}
+
+/**
+ * Convert tile coordinate to Kappa.
+ */
+export function tileToKappa(tile: number): Kappa {
+  return (tile * KAPPA) as Kappa;
+}
+
+/**
+ * Convert tile coordinate to chunk coordinate.
+ */
+export function tileToChunkCoord(tile: number): ChunkCoord {
+  return Math.trunc(tile / CHUNK_SIZE_TILES) as ChunkCoord;
+}
+
+/**
+ * Convert Kappa to chunk coordinate.
+ */
+export function kappaToChunkCoord(kappa: Kappa): ChunkCoord {
+  return tileToChunkCoord(kappaToTile(kappa));
+}
+
+/**
+ * Get chunk key string from chunk coordinates.
+ */
+export function getChunkKey(cx: ChunkCoord, cz: ChunkCoord): string {
+  return `${cx}:${cz}`;
+}
+
+/**
+ * Parse chunk key to coordinates.
+ */
+export function parseChunkKey(key: string): { cx: ChunkCoord; cz: ChunkCoord } {
+  const [cx, cz] = key.split(':').map(Number);
+  return {
+    cx: cx as ChunkCoord,
+    cz: cz as ChunkCoord,
+  };
+}
+
+/**
+ * Get all chunk keys within a radius.
+ * @param centerCx Center chunk X
+ * @param centerCz Center chunk Z  
+ * @param radiusChunks Radius in chunks (e.g., 1 = 3×3, 2 = 5×5)
+ */
+export function getChunkKeysInRadius(
+  centerCx: ChunkCoord,
+  centerCz: ChunkCoord,
+  radiusChunks: number
+): string[] {
+  const keys: string[] = [];
+  for (let dx = -radiusChunks; dx <= radiusChunks; dx++) {
+    for (let dz = -radiusChunks; dz <= radiusChunks; dz++) {
+      const cx = (Number(centerCx) + dx) as ChunkCoord;
+      const cz = (Number(centerCz) + dz) as ChunkCoord;
+      keys.push(getChunkKey(cx, cz));
+    }
+  }
+  return keys;
+}
 
 /**
  * Compute chunk key from tile coordinates.
@@ -22,7 +96,7 @@ import { CHUNK_SIZE } from '../are/types';
  * @param chunkSize - Size of each chunk (default: 64)
  * @returns Chunk key in format "cx:cz"
  */
-export function computeChunkKey(tileX: number, tileZ: number, chunkSize: number = CHUNK_SIZE): ChunkKey {
+export function computeChunkKey(tileX: number, tileZ: number, chunkSize: number = CHUNK_SIZE_TILES): ChunkKey {
   const cx = Math.floor(tileX / chunkSize);
   const cz = Math.floor(tileZ / chunkSize);
   return `${cx}:${cz}` as ChunkKey;
