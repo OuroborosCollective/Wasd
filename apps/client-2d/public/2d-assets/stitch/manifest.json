@@ -28,7 +28,22 @@
       ],
       "sourceSha256": "51ca8665d5e319a0c59cc1ead2d11d5ee7f9380e5e2ef928a66cfaef355c2a83",
       "processedSha256": "889379aff73aabba2e805bf402c9cb4fdbf103ea27f792224200125667f0896f",
-      "status": "accepted"
+      "status": "accepted",
+      "resonanceTags": {
+        "baseType": "enemy",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "undead",
+        "style": "square"
+      },
+      "_debugFilename": "stitch_enemy_undead_blade_walker_square_sheet",
+      "_debugTags": {
+        "baseType": "enemy",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "undead",
+        "style": "square"
+      }
     },
     {
       "assetId": "stitch_equipment_overlay_crystal_armor_modular_sheet",
@@ -54,7 +69,22 @@
       ],
       "sourceSha256": "f5c88a238d9dc3a4f3dde7b4ef140ddde400599353a8710270c27f565a6f487f",
       "processedSha256": "dea7ab137d7aef4a8d18d015a041752f457fece5fb933025c625d1b67876c812",
-      "status": "accepted"
+      "status": "accepted",
+      "resonanceTags": {
+        "baseType": "equipment",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "crystal",
+        "style": "modular"
+      },
+      "_debugFilename": "stitch_equipment_overlay_crystal_armor_modular_sheet",
+      "_debugTags": {
+        "baseType": "equipment",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "crystal",
+        "style": "modular"
+      }
     },
     {
       "assetId": "stitch_npc_eldritch_modular_gothic_assembly_catalog",
@@ -80,7 +110,24 @@
       ],
       "sourceSha256": "eb304606e425707c18cd9d1e7019cf0908fd1ec6f28d1b9d59b1dc53d5e9514d",
       "processedSha256": "2aaaadcfd1c859be84f9d87de0835bef6d7c81bb76fcbf1278f0658476957098",
-      "status": "accepted"
+      "status": "accepted",
+      "resonanceTags": {
+        "baseType": "npc",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "gothic",
+        "biome": "dungeon",
+        "style": "modular"
+      },
+      "_debugFilename": "stitch_npc_eldritch_modular_gothic_assembly_catalog",
+      "_debugTags": {
+        "baseType": "npc",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "gothic",
+        "biome": "dungeon",
+        "style": "modular"
+      }
     },
     {
       "assetId": "stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog",
@@ -106,7 +153,24 @@
       ],
       "sourceSha256": "0c5509765cbd69fd107ba35123d302641fc53ed7b4c55841a2a4d46ec01f55e3",
       "processedSha256": "906bdbad692d62b84b21a795af8b78a57d9557d367db07bb949c29401251cad6",
-      "status": "accepted"
+      "status": "accepted",
+      "resonanceTags": {
+        "baseType": "prop",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "gothic",
+        "biome": "dungeon",
+        "style": "modular"
+      },
+      "_debugFilename": "stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog",
+      "_debugTags": {
+        "baseType": "prop",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "gothic",
+        "biome": "dungeon",
+        "style": "modular"
+      }
     },
     {
       "assetId": "stitch_vfx_arelorian_elemental_spell_fx_square_sheet",
@@ -132,7 +196,22 @@
       ],
       "sourceSha256": "596493f14833b63b667a399227f15cc8857552a71a8398cf8a3b992104d12347",
       "processedSha256": "7b749deeec131524e6feb7140a4d90ff6b6cccaaa60cf14365da4366ffcc9556",
-      "status": "accepted"
+      "status": "accepted",
+      "resonanceTags": {
+        "baseType": "vfx",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "universal",
+        "style": "square"
+      },
+      "_debugFilename": "stitch_vfx_arelorian_elemental_spell_fx_square_sheet",
+      "_debugTags": {
+        "baseType": "vfx",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "universal",
+        "style": "square"
+      }
     }
   ],
   "quarantine": [
