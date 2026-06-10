@@ -70,3 +70,6 @@ export {
 // Supporting modules
 export { DeterministicPrng, LcgPrng, createDeterministicPrng } from './DeterministicPrng.js';
 export { StateHash, createStateHash, isStateHash, stateHashEquals, GENESIS_STATE_HASH, GENESIS_PREVIOUS_HASH } from './StateHash.js';
+
+// Integration
+export { WorldTickRegistryAdapter, createWorldTickRegistryAdapter } from './WorldTickRegistryAdapter.js';
