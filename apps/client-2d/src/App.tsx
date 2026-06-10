@@ -169,7 +169,9 @@ export function App() {
   }
 
   function startNetwork(app: Application) {
-    const client = createClient({ url: "https://arelorian.de", heartbeatInterval: 30000 });
+    // Use environment variable for WebSocket URL, fallback to current origin
+    const wsUrl = (import.meta.env.VITE_WS_URL as string | undefined) || window.location.origin;
+    const client = createClient({ url: wsUrl, heartbeatInterval: 30000 });
     cliRef.current = client;
 
     client.on("connect", () => setConn(true));
