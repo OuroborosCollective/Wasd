@@ -298,7 +298,11 @@ export class AutonomousPlayerTickSystem implements TickSystem {
   
   private gatherDecisionContext(tick: KappaInt): DecisionContext {
     // Use deterministic RNG for "observed" values that would come from game state
-    const obsRng = createDeterministicPrng(Number(tick) ^ Number(this.entityId.split('').reduce((h, c) => h + c.charCodeAt(0), 0))));
+    let entityHash = 0;
+    for (let i = 0; i < this.entityId.length; i++) {
+      entityHash += this.entityId.charCodeAt(i);
+    }
+    const obsRng = createDeterministicPrng(Number(tick) ^ entityHash);
     
     return {
       position: { ...this.position },
