@@ -852,7 +852,8 @@ def process_directory(input_path: Path, output_dir: Path, quarantine_dir: Path) 
     reports = []
     
     # Find all PNG files
-    png_files = list(input_path.rglob("*.png"))
+    # Find all image files (PNG, JPG, JPEG)
+    png_files = list(input_path.rglob("*.png")) + list(input_path.rglob("*.jpg")) + list(input_path.rglob("*.jpeg"))
     png_files.sort()  # Stable sorted traversal
     
     for png_path in png_files:

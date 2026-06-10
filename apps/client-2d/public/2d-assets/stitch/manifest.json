@@ -5,6 +5,32 @@
   "deterministic": true,
   "assets": [
     {
+      "assetId": "stitch_enemy_undead_blade_walker_square_sheet",
+      "category": "enemy",
+      "displayName": "Enemy Undead Blade Walker Square Sheet",
+      "sourcePath": "stitch_enemy_undead_blade_walker_square_sheet.jpg",
+      "imagePath": "enemy/stitch_enemy_stitch_enemy_undead_blade_walker_square_sheet/stitch_enemy_stitch_enemy_undead_blade_walker_square_sheet.png",
+      "atlasPath": "enemy/stitch_enemy_stitch_enemy_undead_blade_walker_square_sheet/stitch_enemy_stitch_enemy_undead_blade_walker_square_sheet.atlas.json",
+      "previewPath": "enemy/stitch_enemy_stitch_enemy_undead_blade_walker_square_sheet/stitch_enemy_stitch_enemy_undead_blade_walker_square_sheet.preview.png",
+      "width": 1536,
+      "height": 1536,
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "columns": 6,
+      "rows": 6,
+      "frameCount": 36,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.82
+      },
+      "tags": [
+        "enemy"
+      ],
+      "sourceSha256": "51ca8665d5e319a0c59cc1ead2d11d5ee7f9380e5e2ef928a66cfaef355c2a83",
+      "processedSha256": "889379aff73aabba2e805bf402c9cb4fdbf103ea27f792224200125667f0896f",
+      "status": "accepted"
+    },
+    {
       "assetId": "stitch_equipment_overlay_crystal_armor_modular_sheet",
       "category": "equipment_overlay",
       "displayName": "Equipment Overlay Equipment Overlay Crystal Armor Modular Sheet",
@@ -116,6 +142,14 @@
       "reason": "invalid_grid",
       "warnings": [
         "No valid grid detected for 988x1536"
+      ]
+    },
+    {
+      "assetId": "stitch_unknown_stitch_catalog_asset_collection_mobile_overview",
+      "sourcePath": "/workspace/project/Wasd/assets/raw/stitch/arelorian_manual_drop_2026_06_10/stitch_catalog_asset_collection_mobile_overview.jpg",
+      "reason": "invalid_grid",
+      "warnings": [
+        "No valid grid detected for 917x1536"
       ]
     },
     {
