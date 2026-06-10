@@ -14,6 +14,7 @@
 
 import { Router, Request, Response } from 'express';
 import type { WorldTick } from '../core/WorldTick.js';
+import { tickContextProvider } from '../core/are/TickSystemContextProvider.js';
 
 export interface ResyncRequest {
   /** Player ID requesting resync */
@@ -94,7 +95,8 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
 
       // Get current server state (using private method via class access)
       const serverState = (worldTick as any).buildFullState();
-      const serverTick = (worldTick as any).tickCount ?? 0;
+      // Phase 11: Use TickSystemContextProvider for deterministic tick
+      const serverTick = tickContextProvider.getContext().tickId;
       
       // Create divergence manifest
       const divergenceManifest = worldTick.handleClientDivergence(
@@ -191,10 +193,11 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
       res.json({
         ok: true,
         matches,
-        serverTick: (worldTick as any).tickCount ?? 0,
+        // Phase 11: Use TickSystemContextProvider for deterministic tick
+        serverTick: tickContextProvider.getContext().tickId,
         serverStateHash: currentHash,
         requestedTick: tick,
-        tickDiff: Math.abs(((worldTick as any).tickCount ?? 0) - tick),
+        tickDiff: Math.abs(tickContextProvider.getContext().tickId - tick),
       });
     } catch (error) {
       res.status(500).json({ ok: false, error: String(error) });
