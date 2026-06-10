@@ -117,3 +117,13 @@ export {
   type ChunkSnapshot,
   type WorldSnapshot
 } from './SnapshotComposer.js';
+
+// Phase 9: Write-Behind Persistence Queue
+export {
+  LayerPersistenceQueue,
+  layerPersistenceQueue,
+  createLayerPersistenceEvent,
+  PERSISTENCE_CONSTANTS,
+  type PersistenceQueueStats,
+  type LayerPersistenceEvent
+} from './LayerPersistenceQueue.js';
