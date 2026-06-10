@@ -139,7 +139,8 @@ SUPPORTED_SIZES = [
     (512, 64),    # 512x512 → 8x8 grid → 64x64 frames
     (256, 64),    # 256x256 → 4x4 grid → 64x64 frames
     (1024, 256),  # 1024x1024 → 4x4 grid → 256x256 frames
-    (768, 256),   # 768x768 → 3x3 grid → 256x256 frames
+    (768, 256),   # 768x768 ...
+    (1536, 256),  # 1536x1536 → 6x6 grid → 256x256 frames (Areloria manual drop 2026-06-10)
 ]
 
 def detect_grid(width: int, height: int) -> Optional[dict]:
@@ -480,6 +481,7 @@ def process_png(
             status="quarantined",
             warnings=[f"Failed to open image: {str(e)}"],
             source_sha=source_sha,
+            processed_sha=source_sha,  # Same as source since no processing happened
         )
     
     width, height = img.size
@@ -513,7 +515,7 @@ def process_png(
         return create_source_report(
             source_path=str(png_path),
             asset_id=asset_id,
-            category=category_override or classify_asset(filename),
+            category=category_override or classify_asset(png_path.name),
             width=width,
             height=height,
             mode=mode,
@@ -523,6 +525,7 @@ def process_png(
             status="quarantined",
             warnings=warnings,
             source_sha=source_sha,
+            processed_sha=source_sha,  # Same as source since no processing happened
         )
     
     # Category (already determined above)
