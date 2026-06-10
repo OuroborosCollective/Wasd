@@ -62,3 +62,4 @@ vendor-assets/
 apps/client-2d/private-assets/
 apps/client-2d/public/vendor-private/
 apps/client-2d/public/client2d-assets/graphicriver-iso/
+.agents_tmp/
