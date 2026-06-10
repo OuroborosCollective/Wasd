@@ -137,6 +137,7 @@ export {
   type LayerDelta,
   type OmegaAttractorState,
   type WorldBrainSnapshot,
+  type WorldLogicalState,
 } from './ChunkLayerState.js';
 
 export {

@@ -80,6 +80,22 @@ export class CombatFXManager {
   }
 
   /**
+   * Get actor sprite for VFX positioning.
+   * Returns undefined if actor not registered.
+   */
+  getActorSprite(actorId: string): Container | undefined {
+    return this.actorSpriteMap.get(actorId);
+  }
+
+  /**
+   * Get all registered actor IDs.
+   * Useful for debugging and batch operations.
+   */
+  getRegisteredActorIds(): string[] {
+    return Array.from(this.actorSpriteMap.keys());
+  }
+
+  /**
    * Spawn floating damage number at target position.
    * 
    * @param x - Screen X coordinate (falls back to actor position via targetId)

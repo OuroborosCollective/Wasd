@@ -3,12 +3,18 @@ export interface KappaPos {
     y: number;
 }
 
+// WorldLogicalState is now in server/src/core/are/ChunkLayerState.ts
+// Re-export for backward compatibility
+export type { WorldLogicalState } from '../core/are/ChunkLayerState.js';
+
 export interface AREPayload {
     resonance: number;
     phaseShift: number;
     plexity: number;
     entropy?: number;
     vector?: KappaPos;
+    /** World state vectors for 2D client resonance scoring */
+    worldState?: import('../core/are/ChunkLayerState.js').WorldLogicalState;
 }
 
 export interface AREEntity {
