@@ -79,10 +79,11 @@ const PIVOT_BY_CATEGORY: Record<StitchAssetCategory, StitchPivot> = {
 };
 
 // Sample asset IDs for demo/preview (stable, deterministic)
-const SAMPLE_ENEMY_ID = "stitch_enemy_skeleton_warrior";
-const SAMPLE_TILE_ID = "stitch_tile_crypt_floor";
-const SAMPLE_VFX_ID = "stitch_vfx_magic_burst";
-const SAMPLE_PROP_ID = "stitch_prop_infernal_gate";
+// Areloria manual drop 2026-06-10 assets
+const SAMPLE_ENEMY_ID = "stitch_enemy_undead_blade_walker_square_sheet";
+const SAMPLE_TILE_ID = "stitch_tile_swamp_marsh_biome_tiles_props_backgrounds_sheet";
+const SAMPLE_VFX_ID = "stitch_vfx_arelorian_elemental_spell_fx_square_sheet";
+const SAMPLE_PROP_ID = "stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog";
 
 /**
  * Fetch the Stitch runtime manifest from the client assets directory.
