@@ -124,9 +124,9 @@ export class AIService {
       const engine = ouroborosTickSystem.getEngine();
       const memory = engine.getNPCMemory(npcId);
       
-      // Get NPC-specific context
+      // Get NPC-specific context (deterministic - no Date.now())
       const memoryContext = memory 
-        ? `NPC memory age: ${Date.now() - (memory.createdAt || 0)}ms`
+        ? `NPC memory available: tick ${tickContext.tickId}`
         : 'No memory yet';
       
       return {

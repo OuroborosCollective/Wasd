@@ -229,7 +229,7 @@ export function isChunkKey(value: unknown): value is ChunkKey {
   return Number.isSafeInteger(cx) && Number.isSafeInteger(cz);
 }
 
-export function parseChunkKey(key: ChunkKey): ParsedChunkKey {
+export function parseChunkKey(key: string | ChunkKey): ParsedChunkKey {
   const parts = String(key).split(":");
 
   if (parts.length !== 2) {

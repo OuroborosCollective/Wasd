@@ -13,7 +13,7 @@ import {
   isValidChunkKey,
   getChunkBoundingBox,
   CHUNK_SIZE,
-  createChunkKey
+  getChunkKey
 } from '../ChunkMath';
 
 describe('ChunkMath', () => {
@@ -82,7 +82,7 @@ describe('ChunkMath', () => {
 
   describe('getChunkGrid', () => {
     it('should return 3x3 grid for radius 1', () => {
-      const keys = getChunkGrid(createChunkKey('0:0'), 1);
+      const keys = getChunkGrid(getChunkKey('0:0'), 1);
       expect(keys).toHaveLength(9);
       expect(keys).toContain('0:0');
       expect(keys).toContain('1:0');
@@ -92,12 +92,12 @@ describe('ChunkMath', () => {
     });
 
     it('should return 5x5 grid for radius 2', () => {
-      const keys = getChunkGrid(createChunkKey('0:0'), 2);
+      const keys = getChunkGrid(getChunkKey('0:0'), 2);
       expect(keys).toHaveLength(25);
     });
 
     it('should return 1x1 grid for radius 0', () => {
-      const keys = getChunkGrid(createChunkKey('5:5'), 0);
+      const keys = getChunkGrid(getChunkKey('5:5'), 0);
       expect(keys).toHaveLength(1);
       expect(keys[0]).toBe('5:5');
     });
@@ -109,14 +109,14 @@ describe('ChunkMath', () => {
 
   describe('get3x3ChunkKeys', () => {
     it('should return 9 keys for 3x3 grid', () => {
-      const keys = get3x3ChunkKeys(createChunkKey('0:0'));
+      const keys = get3x3ChunkKeys(getChunkKey('0:0'));
       expect(keys).toHaveLength(9);
     });
   });
 
   describe('get5x5ChunkKeys', () => {
     it('should return 25 keys for 5x5 grid', () => {
-      const keys = get5x5ChunkKeys(createChunkKey('0:0'));
+      const keys = get5x5ChunkKeys(getChunkKey('0:0'));
       expect(keys).toHaveLength(25);
     });
   });
