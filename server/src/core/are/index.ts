@@ -77,3 +77,6 @@ export { WorldTickRegistryAdapter, createWorldTickRegistryAdapter } from './Worl
 // Domain TickSystems
 export { CombatTickSystem, registerCombatSystem } from './CombatTickSystem.js';
 export { NPCTickSystem, registerNPCSystem } from './NPCTickSystem.js';
+export { EconomyTickSystem, registerEconomySystem } from './EconomyTickSystem.js';
+export { QuestTickSystem, registerQuestSystem } from './QuestTickSystem.js';
+export { GuildTickSystem, registerGuildSystem } from './GuildTickSystem.js';
