@@ -193,7 +193,8 @@ export class WorldTickThinShell {
           tick: this.tickCount as any,
           layerSnapshot: iareLayers,
           deltaHash: snapshot.world_hash,
-          timestamp: Date.now()
+          // Legacy compatibility field. Keep deterministic until this shell is replaced.
+          timestamp: this.tickCount
         };
         
         this.persistenceQueue.enqueue(event);
