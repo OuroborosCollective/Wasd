@@ -14,106 +14,241 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  DEPLOY_REASON: PR merged to main
+  DEPLOY_PATH: /opt/areloria
+  DEPLOY_BRANCH: main
+  ARELORIAN_PORT: ${{ secrets.VPS_ARELORIAN_PORT || '3001' }}
+  ARELORIAN_DOCKER_NETWORK: ${{ secrets.VPS_DOCKER_NETWORK || 'areloria_arelorian-network' }}
+  CLIENT_2D_ARCHIVE: wasd-client-2d-dist-${{ github.sha }}.tgz
+  CLIENT_2D_MARKER: REAL_PIXI_CLIENT
+  CLIENT_2D_BUILD_SHA: ${{ github.sha }}
+
 jobs:
+  build-client-2d:
+    if: ${{ github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          lfs: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up pnpm
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@11.1.1 --activate
+          pnpm config set store-dir .pnpm-store
+          pnpm config set verify-deps-before-run false
+
+      - name: Install client-2d dependencies
+        run: |
+          set -euo pipefail
+          pnpm --filter @wasd/client-2d... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
+          pnpm --filter @wasd/client-2d... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
+
+      - name: Import Cozy Spring assets when inbox exists
+        run: |
+          set -euo pipefail
+          INBOX="apps/client-2d/public/assets/cozy-spring"
+          MANIFEST="apps/client-2d/public/assets/cozy-spring/manifest.json"
+          if [ -d ".asset-inbox/cozy-spring" ]; then
+            echo "Importing Cozy Spring assets from .asset-inbox/cozy-spring"
+            python3 scripts/extract-cozy-spring-objects.py --inbox ".asset-inbox/cozy-spring" --output "$INBOX" --tmp .tmp/cozy-spring-extract --verbose
+            echo "Filtering keyboard glyph props from runtime spawning"
+            python3 scripts/filter-cozy-keyboard-glyph-props.py --manifest "$MANIFEST" --output-root "$INBOX"
+          else
+            echo "No Cozy inbox found; using committed fallback assets."
+          fi
+          test -f "$MANIFEST"
+          node -e "const m=require('./${MANIFEST}'); if(m.importPolicy!=='tilesets-as-tiles-props-as-extracted-objects'||!m.props||Object.keys(m.props).length===0){throw new Error('Invalid Cozy manifest')}; console.log('Cozy manifest OK', Object.keys(m.props).length)"
+
+      - name: Import Stitch game assets when inbox exists
+        run: |
+          set -euo pipefail
+          STITCH_INBOX=".asset-inbox/stitch"
+          STITCH_OUT="apps/client-2d/public/2d-assets/game-assets"
+          if [ -d "$STITCH_INBOX" ] && [ -n "$(ls -A "$STITCH_INBOX" 2>/dev/null)" ]; then
+            echo "Importing Stitch game assets from $STITCH_INBOX"
+            mkdir -p "$STITCH_OUT"
+            cp -r "$STITCH_INBOX"/* "$STITCH_OUT/" 2>/dev/null || true
+            node scripts/stitch-game-assets-importer.mjs --local-inbox "$STITCH_INBOX" --output "$STITCH_OUT"
+          else
+            echo "No Stitch inbox found; skipping Stitch asset import."
+          fi
+          echo "Stitch assets ready at $STITCH_OUT"
+
+      - name: Build client-2d on GitHub runner
+        run: |
+          set -euo pipefail
+          # Always build fresh - do not use cached dist
+          rm -rf apps/client-2d/dist
+          pnpm --filter @wasd/client-2d build
+          test -f apps/client-2d/dist/index.html
+          grep -q "${CLIENT_2D_MARKER}" apps/client-2d/dist/index.html
+          test -f apps/client-2d/dist/manifest.webmanifest
+          test -f apps/client-2d/dist/service-worker.js
+          node <<'NODE'
+          const fs = require('node:fs');
+          const sha = process.env.CLIENT_2D_BUILD_SHA;
+          if (!sha) throw new Error('CLIENT_2D_BUILD_SHA missing');
+          fs.writeFileSync('apps/client-2d/dist/build-stamp.json', JSON.stringify({ ok: true, app: 'client-2d', commit: sha, marker: process.env.CLIENT_2D_MARKER || 'REAL_PIXI_CLIENT', generatedBy: 'vps-docker-deploy-on-merge.yml' }, null, 2));
+          NODE
+          grep -q "${CLIENT_2D_BUILD_SHA}" apps/client-2d/dist/build-stamp.json
+          tar -C apps/client-2d -czf "${CLIENT_2D_ARCHIVE}" dist
+          ls -lh "${CLIENT_2D_ARCHIVE}"
+
+      - name: Upload prebuilt client-2d artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-2d-dist-${{ github.sha }}
+          path: ${{ env.CLIENT_2D_ARCHIVE }}
+          retention-days: 1
+
   deploy:
     if: ${{ github.event.pull_request.merged == true }}
+    needs: build-client-2d
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
-      - name: Verify VPS secrets are set
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+      - name: Download prebuilt client-2d artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: client-2d-dist-${{ github.sha }}
+          path: .
+
+      - name: Install sshpass
         run: |
           set -euo pipefail
-          ok=true
-          HOST="${VPS_HOST:-${SSH_HOST:-}}"
-          USER="${VPS_USER:-${SSH_USER:-}}"
-          KEY="${VPS_SSH_KEY:-${SSH_PRIVATE_KEY:-}}"
-          if [ -z "${HOST:-}" ]; then echo "::error::Set VPS_HOST or SSH_HOST."; ok=false; fi
-          if [ -z "${USER:-}" ]; then echo "::error::Set VPS_USER or SSH_USER."; ok=false; fi
-          if [ -z "${KEY:-}" ] && [ -z "${SSH_PASSWORD:-}" ]; then echo "::error::Set SSH key or SSH password."; ok=false; fi
-          if [ "$ok" != true ]; then exit 1; fi
+          sudo apt-get update
+          sudo apt-get install -y sshpass
 
-      - name: Deploy merged main to VPS
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.VPS_HOST || secrets.SSH_HOST }}
-          username: ${{ secrets.VPS_USER || secrets.SSH_USER }}
-          key: ${{ secrets.VPS_SSH_KEY || secrets.SSH_PRIVATE_KEY }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          timeout: 2m
-          command_timeout: 55m
-          script_stop: true
-          script: |
-            set -euo pipefail
-            DEPLOY_PATH='/opt/areloria'
-            REPO_URL='https://github.com/OuroborosCollective/Wasd.git'
-            DEPLOY_BRANCH='main'
-            export ARELORIAN_PORT='${{ secrets.VPS_ARELORIAN_PORT || '3001' }}'
-            export ARELORIAN_DOCKER_NETWORK='${{ secrets.VPS_ARELORIAN_DOCKER_NETWORK || 'areloria_arelorian-network' }}'
-            export ARELORIAN_ENABLE_DOCKER_INGRESS='false'
-            export ARELORIAN_INGRESS_HTTP_BIND='127.0.0.1'
-            export ARELORIAN_INGRESS_HTTP_PORT='8080'
-            export ARELORIAN_ENV_FILE='.env.docker'
-            export DEPLOY_BRANCH
-
-            echo "=== WASD automatic deploy after merged PR ==="
-            echo "Deploy path: $DEPLOY_PATH"
-            echo "Engine port: $ARELORIAN_PORT"
-
-            command -v git >/dev/null 2>&1 || { echo "ERROR: git is required on the VPS."; exit 1; }
-            command -v docker >/dev/null 2>&1 || { echo "ERROR: docker is required on the VPS."; exit 1; }
-            docker info >/dev/null 2>&1 || { echo "ERROR: Docker daemon is not reachable by this SSH user."; exit 1; }
-
-            if [ ! -d "$DEPLOY_PATH" ]; then
-              mkdir -p "$DEPLOY_PATH" 2>/dev/null || sudo mkdir -p "$DEPLOY_PATH"
-              sudo chown -R "$(id -un):$(id -gn)" "$DEPLOY_PATH" 2>/dev/null || true
+      - name: Verify VPS SSH connection
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            echo "SSH attempt ${attempt}/5"
+            if sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
+              -p "${{ secrets.SSH_PORT || 22 }}" \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -o ConnectTimeout=65 \
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+              "echo 'SSH OK'; hostname"; then
+              exit 0
             fi
+            sleep 16
+          done
+          echo "ERROR: VPS SSH unreachable after retries."
+          exit 255
 
-            if [ ! -d "$DEPLOY_PATH/.git" ]; then
-              rm -rf "$DEPLOY_PATH"/* 2>/dev/null || true
-              git clone --branch "$DEPLOY_BRANCH" --depth 1 "$REPO_URL" "$DEPLOY_PATH"
-            else
-              cd "$DEPLOY_PATH"
-              git remote set-url origin "$REPO_URL" || true
-              git fetch --no-tags origin "$DEPLOY_BRANCH"
-              git reset --hard "origin/$DEPLOY_BRANCH"
-              git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ || true
-            fi
+      - name: Upload artifact to VPS
+        run: |
+          set -euo pipefail
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -p "${{ secrets.SSH_PORT || 22 }}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" "mkdir -p '${{ env.DEPLOY_PATH }}'"
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -P "${{ secrets.SSH_PORT || 22 }}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${{ env.CLIENT_2D_ARCHIVE }}" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_PATH }}/${{ env.CLIENT_2D_ARCHIVE }}"
+          ls -lh "${{ env.CLIENT_2D_ARCHIVE }}"
 
-            cd "$DEPLOY_PATH"
-            chmod +x scripts/deploy-vps-docker.sh 2>/dev/null || true
-            bash scripts/deploy-vps-docker.sh
+      - name: Deploy to VPS with Docker
+        run: |
+          set -euo pipefail
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
+            -p "${{ secrets.SSH_PORT || 22 }}" \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o ServerAliveInterval=36 \
+            -o ServerAliveCountMax=16 \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "DEPLOY_PATH='${{ env.DEPLOY_PATH }}' DEPLOY_BRANCH='${{ env.DEPLOY_BRANCH }}' ARELORIAN_PORT='${{ env.ARELORIAN_PORT }}' ARELORIAN_DOCKER_NETWORK='${{ env.ARELORIAN_DOCKER_NETWORK }}' CLIENT_2D_ARCHIVE='${{ env.CLIENT_2D_ARCHIVE }}' CLIENT_2D_MARKER='${{ env.CLIENT_2D_MARKER }}' CLIENT_2D_BUILD_SHA='${{ env.CLIENT_2D_BUILD_SHA }}' GITHUB_SHA_EXPECTED='${{ github.sha }}' bash -s" <<'REMOTE_EOF'
+          set -Eeuo pipefail
+          APP_DIR="${DEPLOY_PATH:-/opt/areloria}"
+          BRANCH="${DEPLOY_BRANCH:-main}"
+          REPO_URL="https://github.com/${{ github.repository }}.git"
+          mkdir -p "$APP_DIR"
+          cd "$APP_DIR"
+          if [ ! -d .git ]; then
+            git clone --branch "$BRANCH" "$REPO_URL" .
+          else
+            git remote set-url origin "$REPO_URL" || true
+            git fetch --no-tags origin "$BRANCH"
+            git reset --hard "origin/$BRANCH"
+            # IMPORTANT: Wipe dist directories to ensure fresh client-2d from artifact
+            git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e "$CLIENT_2D_ARCHIVE" -e apps/client-2d/dist/ -e .asset-inbox/ || true
+          fi
+          echo "Remote HEAD=$(git rev-parse HEAD)"
+          echo "Expected HEAD=$GITHUB_SHA_EXPECTED"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA_EXPECTED"
+          test -f Dockerfile.vps
+          # Extract prebuilt client-2d artifact
+          if [ -n "${CLIENT_2D_ARCHIVE:-}" ] && [ -f "$APP_DIR/$CLIENT_2D_ARCHIVE" ]; then
+            rm -rf apps/client-2d/dist
+            mkdir -p apps/client-2d
+            tar -xzf "$APP_DIR/$CLIENT_2D_ARCHIVE" -C apps/client-2d
+            test -f apps/client-2d/dist/index.html
+            grep -q "$CLIENT_2D_MARKER" apps/client-2d/dist/index.html
+            test -f apps/client-2d/dist/build-stamp.json
+            grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json
+            echo "Prebuilt client-2d artifact extracted and verified."
+          else
+            echo "ERROR: No client-2d artifact found at $APP_DIR/$CLIENT_2D_ARCHIVE"
+            exit 1
+          fi
+          chmod +x scripts/deploy-vps-docker.sh scripts/vps-docker-inline-deploy.sh 2>/dev/null || true
+          ARELORIAN_PORT="${ARELORIAN_PORT:-3001}" \
+          ARELORIAN_DOCKER_NETWORK="${ARELORIAN_DOCKER_NETWORK:-areloria_arelorian-network}" \
+          ARELORIAN_ENV_FILE=".env.docker" \
+          CLIENT_2D_ARCHIVE="$CLIENT_2D_ARCHIVE" \
+          CLIENT_2D_MARKER="$CLIENT_2D_MARKER" \
+          CLIENT_2D_BUILD_SHA="$CLIENT_2D_BUILD_SHA" \
+          DEPLOY_BRANCH="$BRANCH" \
+          bash scripts/deploy-vps-docker.sh
 
-            echo "=== Applying safe nginx upload limit patch ==="
-            if command -v nginx >/dev/null 2>&1; then
-              cat > /tmp/arelorian-client2d-upload-limit.conf <<'EOF_NGINX_UPLOAD'
-            # Managed by Areloria deploy. Do not place server blocks here.
+          echo "=== Applying safe nginx upload limit patch ==="
+          if command -v nginx >/dev/null 2>&1; then
+            cat > /tmp/arelorian-client2d-upload-limit.conf <<'EOF_NGINX_UPLOAD'
             client_max_body_size 1024m;
             client_body_timeout 600s;
             proxy_request_buffering off;
             proxy_read_timeout 900s;
             proxy_send_timeout 900s;
             EOF_NGINX_UPLOAD
-              if command -v sudo >/dev/null 2>&1; then
-                sudo mkdir -p /etc/nginx/conf.d
-                sudo mv /tmp/arelorian-client2d-upload-limit.conf /etc/nginx/conf.d/arelorian-client2d-upload-limit.conf
-                sudo nginx -t
-                sudo systemctl reload nginx 2>/dev/null || sudo service nginx reload
-              else
-                mkdir -p /etc/nginx/conf.d
-                mv /tmp/arelorian-client2d-upload-limit.conf /etc/nginx/conf.d/arelorian-client2d-upload-limit.conf
-                nginx -t
-                systemctl reload nginx 2>/dev/null || service nginx reload
-              fi
+            if command -v sudo >/dev/null 2>&1; then
+              sudo mkdir -p /etc/nginx/conf.d
+              sudo mv /tmp/arelorian-client2d-upload-limit.conf /etc/nginx/conf.d/arelorian-client2d-upload-limit.conf
+              sudo nginx -t
+              sudo systemctl reload nginx 2>/dev/null || sudo service nginx reload
             else
-              echo "nginx not installed on host; skipping nginx upload limit patch."
+              mkdir -p /etc/nginx/conf.d
+              mv /tmp/arelorian-client2d-upload-limit.conf /etc/nginx/conf.d/arelorian-client2d-upload-limit.conf
+              nginx -t
+              systemctl reload nginx 2>/dev/null || service nginx reload
             fi
+          else
+            echo "nginx not installed on host; skipping nginx upload limit patch."
+          fi
+          REMOTE_EOF
+
+      - name: Verify deployment
+        run: |
+          set -euo pipefail
+          echo "Checking https://arelorian.de/2d/build-stamp.json"
+          STAMP="$(curl -k -sS -L --max-time 20 "https://arelorian.de/2d/build-stamp.json" || true)"
+          echo "Build stamp: $STAMP"
+          echo "$STAMP" | node -e "
+            const data = JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8'));
+            if (data.commit !== '${{ github.sha }}') {
+              console.error('ERROR: stale 2D bundle. expected=${{ github.sha }} got=' + data.commit);
+              process.exit(1);
+            }
+            console.log('2D build stamp verified: ' + data.commit);
+          "
