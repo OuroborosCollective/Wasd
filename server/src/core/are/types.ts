@@ -1,63 +1,120 @@
 /**
  * ARELORIA CORE: Branded Types
- * 
- * Branded types prevent mixing values that semantically differ
- * even if they share the same underlying primitive type.
- * 
- * This module establishes type-level guarantees for:
- * - Kappa: Fixed-point integer representation (1 world unit = 1000 Kappa)
- * - TickId: Monotonically increasing tick counter
- * - StateHash: SHA-256 derived hash string (64 hex chars)
- * - ChunkCoord: Integer chunk coordinate
- * - ChunkKey: String chunk key (format: "cx:cz")
+ *
+ * Branded types prevent mixing values that semantically differ even if they
+ * share the same underlying primitive type.
+ *
+ * Core invariants:
+ * - Kappa: fixed-point integer representation.
+ * - 1 world unit = 1000 Kappa.
+ * - TickId: monotonic non-negative simulation tick.
+ * - StateHash: deterministic 64-char hex state fingerprint.
+ * - ChunkCoord: deterministic signed 32-bit chunk coordinate.
+ * - ChunkKey: canonical "cx:cz" chunk identifier.
+ * - MortonCode: BigInt-backed Z-order spatial key.
+ *
+ * No Date.now().
+ * No Math.random().
+ * No floating-point simulation state.
  */
 
-import { KAPPA } from './Kappa';
+import { KAPPA } from "./Kappa.js";
+
+// =============================================================================
+// Shared Guards
+// =============================================================================
+
+function assertSafeInteger(value: number, label: string): void {
+  if (!Number.isSafeInteger(value)) {
+    throw new Error(`[${label}] Expected safe integer, got: ${value}`);
+  }
+}
+
+function assertFiniteNumber(value: number, label: string): void {
+  if (!Number.isFinite(value)) {
+    throw new Error(`[${label}] Expected finite number, got: ${value}`);
+  }
+}
+
+function assertSignedInt32(value: number, label: string): void {
+  assertSafeInteger(value, label);
+
+  if (value < -2_147_483_648 || value > 2_147_483_647) {
+    throw new Error(`[${label}] Expected signed 32-bit integer, got: ${value}`);
+  }
+}
+
+function assertNonEmptyString(value: string, label: string): void {
+  if (value.trim().length === 0) {
+    throw new Error(`[${label}] Expected non-empty string`);
+  }
+}
 
 // =============================================================================
 // Kappa - Fixed-Point Integer Representation
 // =============================================================================
 
 /**
- * Kappa: Fixed-point integer representation for world positions and calculations.
- * 
- * Scale: 1 world unit = 1000 Kappa
- * 
- * This ensures all simulation math uses integers only, preventing floating-point
- * nondeterminism across different platforms.
+ * Kappa: fixed-point integer representation.
+ *
+ * Scale:
+ * 1 world unit = 1000 Kappa
+ *
+ * Example:
+ * 1.57 world units = 1570 Kappa
  */
 export type Kappa = number & { readonly __brand: "Kappa" };
 
 /**
- * KappaInt: The raw integer type used in Kappa operations.
- * This is the underlying type that all kappa functions operate on.
+ * KappaInt: raw integer type used in Kappa operations.
  */
 export type KappaInt = number & { readonly __brand: "KappaInt" };
 
 /**
- * Create a Kappa value from a number.
- * Ensures the value is a safe integer.
+ * Create a Kappa value from an already-scaled integer.
  */
 export function createKappa(value: number): Kappa {
-  if (!Number.isInteger(value)) {
-    throw new Error(`[Kappa] Cannot create Kappa from non-integer: ${value}`);
-  }
-  if (!Number.isSafeInteger(value)) {
-    throw new Error(`[Kappa] Unsafe integer: ${value}`);
-  }
+  assertSafeInteger(value, "Kappa");
   return value as Kappa;
 }
 
 /**
- * Create a Kappa value from a decimal input.
- * Rounds to the nearest Kappa.
+ * Create a KappaInt value from an integer.
+ */
+export function createKappaInt(value: number): KappaInt {
+  assertSafeInteger(value, "KappaInt");
+  return value as KappaInt;
+}
+
+/**
+ * Convert external world-unit input into Kappa.
+ *
+ * This is a boundary adapter. Do not use decimal world-unit values inside
+ * simulation logic. Internal simulation code should already use Kappa integers.
+ */
+export function createKappaFromWorldUnits(value: number): Kappa {
+  assertFiniteNumber(value, "Kappa.fromWorldUnits");
+
+  const scaled = Math.trunc(value * KAPPA);
+  assertSafeInteger(scaled, "Kappa.fromWorldUnits.scaled");
+
+  return scaled as Kappa;
+}
+
+/**
+ * Backward-compatible alias.
  */
 export function createKappaFromDecimal(value: number): Kappa {
-  const scaled = Math.round(value * KAPPA);
-  if (!Number.isSafeInteger(scaled)) {
-    throw new Error(`[Kappa] Decimal conversion resulted in unsafe integer: ${value}`);
-  }
-  return scaled as Kappa;
+  return createKappaFromWorldUnits(value);
+}
+
+/**
+ * Convert Kappa back to a display number.
+ *
+ * Use only for UI/debug/output adapters, never as simulation input.
+ */
+export function kappaToWorldUnits(value: Kappa | KappaInt): number {
+  return Number(value) / KAPPA;
 }
 
 // =============================================================================
@@ -65,29 +122,24 @@ export function createKappaFromDecimal(value: number): Kappa {
 // =============================================================================
 
 /**
- * TickId: Unique identifier for a simulation tick.
- * 
- * Must be a non-negative integer.
- * Used to ensure ordered, deterministic tick processing.
+ * TickId: unique identifier for a simulation tick.
+ *
+ * Must be a non-negative safe integer.
  */
 export type TickId = number & { readonly __brand: "TickId" };
 
-/**
- * Create a TickId from a number.
- * Validates that it's a non-negative integer.
- */
 export function createTickId(value: number): TickId {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`[TickId] Invalid tick ID: ${value} (must be non-negative integer)`);
+  assertSafeInteger(value, "TickId");
+
+  if (value < 0) {
+    throw new Error(`[TickId] Invalid tick ID: ${value}. Must be non-negative.`);
   }
+
   return value as TickId;
 }
 
-/**
- * Increment a TickId by 1.
- */
 export function incrementTickId(tick: TickId): TickId {
-  return createTickId(tick + 1);
+  return createTickId(Number(tick) + 1);
 }
 
 // =============================================================================
@@ -95,96 +147,96 @@ export function incrementTickId(tick: TickId): TickId {
 // =============================================================================
 
 /**
- * StateHash: SHA-256 derived hash string.
- * 
- * Format: 64 hexadecimal characters.
- * Used for:
- * - Replay verification
- * - Divergence detection
- * - State comparison
+ * StateHash: deterministic 64-character hex state fingerprint.
  */
 export type StateHash = string & { readonly __brand: "StateHash" };
 
-/**
- * Create a StateHash from a 64-character hex string.
- * Validates format before branding.
- */
+const STATE_HASH_PATTERN = /^[0-9a-f]{64}$/i;
+
 export function createStateHash(value: string): StateHash {
-  if (!/^[0-9a-f]{64}$/i.test(value)) {
-    throw new Error(`[StateHash] Invalid hash format: ${value.substring(0, 16)}... (expected 64 hex chars)`);
+  if (!STATE_HASH_PATTERN.test(value)) {
+    const preview = value.length > 16 ? `${value.slice(0, 16)}...` : value;
+    throw new Error(
+      `[StateHash] Invalid hash format: ${preview}. Expected 64 hex chars.`,
+    );
   }
-  return value as StateHash;
+
+  return value.toLowerCase() as StateHash;
 }
 
-/**
- * Verify a value is a valid StateHash.
- */
 export function isStateHash(value: unknown): value is StateHash {
-  return typeof value === 'string' && /^[0-9a-f]{64}$/i.test(value);
+  return typeof value === "string" && STATE_HASH_PATTERN.test(value);
 }
 
-/**
- * GENESIS_STATE_HASH - Initial state before any ticks
- */
-export const GENESIS_STATE_HASH: StateHash = '0'.repeat(64) as StateHash;
+export const GENESIS_STATE_HASH: StateHash = createStateHash("0".repeat(64));
 
 // =============================================================================
 // Chunk Coordinates
 // =============================================================================
 
 /**
- * ChunkCoord: Integer chunk coordinate.
- * 
- * Chunks are grid cells used for spatial partitioning.
- * Each chunk covers SPATIAL_CHUNK_SIZE tiles.
+ * ChunkCoord: signed 32-bit integer chunk coordinate.
  */
 export type ChunkCoord = number & { readonly __brand: "ChunkCoord" };
 
 /**
- * ChunkKey: String key for chunk lookup.
- * 
- * Format: "cx:cz" where cx and cz are chunk coordinates.
- * This is the canonical format for chunk identification.
+ * ChunkKey: canonical string key for chunk lookup.
+ *
+ * Format:
+ * "cx:cz"
  */
 export type ChunkKey = string & { readonly __brand: "ChunkKey" };
 
-/**
- * Create a ChunkCoord from a number.
- */
+export interface ParsedChunkKey {
+  readonly cx: ChunkCoord;
+  readonly cz: ChunkCoord;
+}
+
 export function createChunkCoord(value: number): ChunkCoord {
-  if (!Number.isInteger(value)) {
-    throw new Error(`[ChunkCoord] Cannot create from non-integer: ${value}`);
-  }
+  assertSignedInt32(value, "ChunkCoord");
   return value as ChunkCoord;
 }
 
-/**
- * Create a ChunkKey from chunk coordinates.
- */
 export function createChunkKey(cx: number, cz: number): ChunkKey {
-  if (!Number.isInteger(cx) || !Number.isInteger(cz)) {
-    throw new Error(`[ChunkKey] Cannot create from non-integers: ${cx}, ${cz}`);
-  }
-  return `${cx}:${cz}` as ChunkKey;
+  const safeCx = createChunkCoord(cx);
+  const safeCz = createChunkCoord(cz);
+
+  return `${safeCx}:${safeCz}` as ChunkKey;
 }
 
-/**
- * Parse a ChunkKey back to coordinates.
- */
-export function parseChunkKey(key: ChunkKey): { cx: ChunkCoord; cz: ChunkCoord } {
-  const parts = key.split(':');
+export function isChunkKey(value: unknown): value is ChunkKey {
+  if (typeof value !== "string") return false;
+
+  const parts = value.split(":");
+  if (parts.length !== 2) return false;
+
+  const cx = Number(parts[0]);
+  const cz = Number(parts[1]);
+
+  return (
+    Number.isSafeInteger(cx) &&
+    Number.isSafeInteger(cz) &&
+    cx >= -2_147_483_648 &&
+    cx <= 2_147_483_647 &&
+    cz >= -2_147_483_648 &&
+    cz <= 2_147_483_647
+  );
+}
+
+export function parseChunkKey(key: ChunkKey): ParsedChunkKey {
+  const parts = String(key).split(":");
+
   if (parts.length !== 2) {
-    throw new Error(`[ChunkKey] Invalid chunk key format: ${key}`);
+    throw new Error(`[ChunkKey] Invalid chunk key format: ${String(key)}`);
   }
-  const cx = parseInt(parts[0], 10);
-  const cz = parseInt(parts[1], 10);
-  if (isNaN(cx) || isNaN(cz)) {
-    throw new Error(`[ChunkKey] Invalid chunk key coordinates: ${key}`);
-  }
-  return {
+
+  const cx = Number(parts[0]);
+  const cz = Number(parts[1]);
+
+  return Object.freeze({
     cx: createChunkCoord(cx),
-    cz: createChunkCoord(cz)
-  };
+    cz: createChunkCoord(cz),
+  });
 }
 
 // =============================================================================
@@ -192,68 +244,100 @@ export function parseChunkKey(key: ChunkKey): { cx: ChunkCoord; cz: ChunkCoord }
 // =============================================================================
 
 /**
- * MortonCode: Z-order curve encoding for spatial indexing.
- * 
- * Used for efficient spatial queries and cache-friendly data access.
- * A Morton code interleaves the bits of x and z coordinates.
+ * MortonCode: BigInt-backed Z-order curve key.
+ *
+ * Why BigInt?
+ * JavaScript bitwise operators are signed 32-bit. Interleaving two 32-bit
+ * coordinates into a 64-bit Morton code cannot be represented safely as a
+ * normal number.
  */
-export type MortonCode = number & { readonly __brand: "MortonCode" };
+export type MortonCode = bigint & { readonly __brand: "MortonCode" };
+
+const UINT32_MASK = 0xffffffffn;
+
+export function createMortonCode(cx: number, cz: number): MortonCode {
+  const x = zigZagEncode32(createChunkCoord(cx));
+  const z = zigZagEncode32(createChunkCoord(cz));
+
+  return encodeMortonUnsigned32(x, z);
+}
+
+export function createMortonCodeFromChunkKey(chunkKey: ChunkKey): MortonCode {
+  const parsed = parseChunkKey(chunkKey);
+  return createMortonCode(parsed.cx, parsed.cz);
+}
+
+export function decodeMorton(morton: MortonCode): { readonly x: number; readonly z: number } {
+  const decoded = decodeMortonUnsigned32(morton);
+
+  return Object.freeze({
+    x: zigZagDecode32(decoded.x),
+    z: zigZagDecode32(decoded.z),
+  });
+}
+
+function encodeMortonUnsigned32(x: bigint, z: bigint): MortonCode {
+  let morton = 0n;
+
+  for (let bit = 0n; bit < 32n; bit += 1n) {
+    const xBit = (x >> bit) & 1n;
+    const zBit = (z >> bit) & 1n;
+
+    morton |= xBit << (bit * 2n);
+    morton |= zBit << (bit * 2n + 1n);
+  }
+
+  return morton as MortonCode;
+}
+
+function decodeMortonUnsigned32(
+  morton: MortonCode,
+): { readonly x: bigint; readonly z: bigint } {
+  let x = 0n;
+  let z = 0n;
+
+  for (let bit = 0n; bit < 32n; bit += 1n) {
+    x |= ((morton >> (bit * 2n)) & 1n) << bit;
+    z |= ((morton >> (bit * 2n + 1n)) & 1n) << bit;
+  }
+
+  return Object.freeze({
+    x: x & UINT32_MASK,
+    z: z & UINT32_MASK,
+  });
+}
 
 /**
- * Create a MortonCode from chunk coordinates.
+ * Deterministic signed int32 -> unsigned int32 mapping.
  */
-export function createMortonCode(cx: number, cz: number): MortonCode {
-  const code = encodeMorton(cx, cz);
-  return code as MortonCode;
+function zigZagEncode32(value: ChunkCoord): bigint {
+  const n = BigInt(Number(value));
+  return n >= 0n ? n * 2n : (-n * 2n) - 1n;
+}
+
+/**
+ * Deterministic unsigned int32 -> signed int32 mapping.
+ */
+function zigZagDecode32(value: bigint): number {
+  const decoded = (value & 1n) === 0n
+    ? value / 2n
+    : -((value + 1n) / 2n);
+
+  const asNumber = Number(decoded);
+  assertSignedInt32(asNumber, "MortonCode.decode");
+
+  return asNumber;
 }
 
 // =============================================================================
 // Entity ID Types
 // =============================================================================
 
-/**
- * EntityId: Unique identifier for a game entity.
- */
 export type EntityId = string & { readonly __brand: "EntityId" };
 
-/**
- * Create an EntityId from a string.
- */
 export function createEntityId(value: string): EntityId {
-  if (!value || value.length === 0) {
-    throw new Error(`[EntityId] Cannot create from empty string`);
-  }
+  assertNonEmptyString(value, "EntityId");
   return value as EntityId;
-}
-
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Encode x,z coordinates into a Morton code (Z-order curve).
- * Interleaves the bits of x and z for cache-friendly spatial access.
- */
-function encodeMorton(x: number, z: number): number {
-  // Based on "Numerical Recipes" method for bit interleaving
-  let morton = 0;
-  for (let i = 0; i < 32; i++) {
-    morton |= ((x & (1 << i)) << i) | ((z & (1 << i)) << (i + 1));
-  }
-  return morton;
-}
-
-/**
- * Decode a Morton code back to x,z coordinates.
- */
-export function decodeMorton(morton: number): { x: number; z: number } {
-  let x = 0;
-  let z = 0;
-  for (let i = 0; i < 32; i++) {
-    x |= (morton >>> i) & (1 << i);
-    z |= (morton >>> (i + 1)) & (1 << i);
-  }
-  return { x, z };
 }
 
 // =============================================================================
@@ -261,13 +345,25 @@ export function decodeMorton(morton: number): { x: number; z: number } {
 // =============================================================================
 
 /**
- * CHUNK_SIZE: Each chunk is 64 tiles × 64 tiles (4,096 tiles per chunk).
- * Used for Spatial Plexity (Axiom 4) - spatial filtering for broadcasts.
+ * Each chunk is 64 × 64 logical tiles.
  */
 export const CHUNK_SIZE = 64 as const;
 
 /**
- * CHUNK_SIZE_KAPPA: Chunk size in Kappa units per side (64,000).
- * A chunk contains 64,000 × 64,000 = 4,096,000,000 discrete Kappa cells.
+ * Each chunk has 4,096 logical tiles.
  */
-export const CHUNK_SIZE_KAPPA = CHUNK_SIZE * KAPPA;
+export const CHUNK_TILE_COUNT = CHUNK_SIZE * CHUNK_SIZE;
+
+/**
+ * Chunk side length in Kappa units.
+ *
+ * 64 world units × 1000 Kappa = 64,000 Kappa.
+ */
+export const CHUNK_SIZE_KAPPA: KappaInt = createKappaInt(CHUNK_SIZE * KAPPA);
+
+/**
+ * Full Kappa-cell count per chunk plane.
+ *
+ * 64,000 × 64,000 = 4,096,000,000 Kappa cells.
+ */
+export const CHUNK_KAPPA_CELL_COUNT = BigInt(CHUNK_SIZE_KAPPA) * BigInt(CHUNK_SIZE_KAPPA);
