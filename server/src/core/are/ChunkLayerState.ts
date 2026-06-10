@@ -14,6 +14,28 @@ import type { Kappa, ChunkKey, StateHash, TickId } from './types.js';
 import { createKappa } from './types.js';
 
 /**
+ * WorldLogicalState - Pure vector state for 2D client visual asset selection.
+ * 
+ * These vectors are calculated server-side during worldTick and sent to clients
+ * for the AutonomousResonanceRouter to deterministically select appropriate visuals.
+ * This ensures Server Authority over rendering while enabling client-side creativity.
+ */
+export interface WorldLogicalState {
+  /** Base type for asset matching (e.g., 'npc', 'enemy', 'prop', 'vfx', 'tree', 'wall') */
+  baseType: string;
+  /** Season vector (e.g., 'spring', 'summer', 'autumn', 'winter', 'neutral') */
+  season: string;
+  /** Decay level (e.g., 'high', 'medium', 'low', 'none') */
+  decayLevel: string;
+  /** Culture vector (e.g., 'elven', 'dwarven', 'human', 'arcane', 'universal', 'undead') */
+  culture: string;
+  /** Optional biome hint (e.g., 'forest', 'swamp', 'mountain', 'dungeon') */
+  biome?: string;
+  /** Optional environment (e.g., 'indoor', 'outdoor', 'underground') */
+  environment?: string;
+}
+
+/**
  * Index for the 13 logic layers.
  */
 export enum ChunkLayerIndex {
