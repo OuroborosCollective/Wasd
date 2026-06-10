@@ -240,7 +240,9 @@ fetch_and_reset() {
   local temp_ref="refs/wasd-deploy/${DEPLOY_BRANCH}"
   echo "[1/4] git fetch + hard reset via temporary deploy ref"
   git reset --hard >/dev/null 2>&1 || true
-  git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e apps/client-2d/dist/ -e .asset-inbox/ >/dev/null 2>&1 || true
+  # Always wipe dist/ so we start fresh. The GitHub workflow uploads a freshly-built
+  # client-2d artifact, so we must NOT preserve a stale dist/ from git history.
+  git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e .asset-inbox/ >/dev/null 2>&1 || true
   git update-ref -d "$temp_ref" >/dev/null 2>&1 || true
   if ! git -c remote.origin.fetch= fetch --no-tags origin "+refs/heads/${DEPLOY_BRANCH}:${temp_ref}"; then
     echo "WARN: fetch failed; healing stale origin ref and retrying once."
