@@ -770,7 +770,9 @@ export function DeterministicWorldIsoApp() {
   }, []);
 
   function startNetwork(app: Application) {
-    const c = createClient({ url: "https://arelorian.de", heartbeatInterval: 30000 });
+    // Use environment variable for WebSocket URL, fallback to current origin
+    const wsUrl = (import.meta.env.VITE_WS_URL as string | undefined) || window.location.origin;
+    const c = createClient({ url: wsUrl, heartbeatInterval: 30000 });
     clientRef.current = c;
     initLootFeedback(app, c);
     

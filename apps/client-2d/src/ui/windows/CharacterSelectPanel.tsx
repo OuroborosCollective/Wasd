@@ -196,6 +196,11 @@ export function CharacterSelectPanel({ onCreated }: Props) {
               setStatus("Character created.");
               onCreated?.();
 
+              // Dispatch character-created event to pause polling briefly
+              window.dispatchEvent(new CustomEvent("wasd:character-created", {
+                detail: { playerId },
+              }));
+
               // Dispatch toast notification
               window.dispatchEvent(new CustomEvent("wasd:toast", {
                 detail: {
