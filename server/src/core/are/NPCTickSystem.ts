@@ -13,7 +13,7 @@
 
 import { TickSystem, TickSystemPriority, type TickSystemContext } from './TickSystem.js';
 import { tickSystemRegistry } from './TickSystemRegistry.js';
-import type { NPCSystem } from '../modules/npc/NPCSystem.js';
+import { NPCSystem } from '../modules/npc/NPCSystem.js';
 
 /**
  * NPCTickSystem implements TickSystem for NPC processing.
@@ -67,7 +67,7 @@ export class NPCTickSystem implements TickSystem {
    * Collect emergence events from NPC system.
    */
   collectEmergenceEvents(): any[] {
-    return this.collectNpcEmergenceEvents?.() ?? [];
+    return this.npcSystem.drainEmergenceEvents?.() ?? [];
   }
   
   onStart(): void {

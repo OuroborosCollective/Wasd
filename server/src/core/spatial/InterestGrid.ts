@@ -54,7 +54,7 @@ export class InterestGrid {
   register(observerId: string, tileX: number, tileY: number): void {
     const cx = tileToChunkCoord(tileX);
     const cy = tileToChunkCoord(tileY);
-    const subscribedChunks = this.getChunksInRadius(cx, cy, this.contract.broadcastRadiusChunks);
+    const subscribedChunks = new Set(this.getChunksInRadius(cx, cy, this.contract.broadcastRadiusChunks));
 
     this.observers.set(observerId, {
       observerId,

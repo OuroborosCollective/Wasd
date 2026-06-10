@@ -180,7 +180,7 @@ export class WorldBrainScheduler implements TickSystem {
     const convergence = this.computeConvergence(evaluation);
     
     // Determine attractor type based on dominant layer and thresholds
-    let attractor_type = ATTRACTOR_TYPES.STABLE;
+    let attractor_type: typeof ATTRACTOR_TYPES[keyof typeof ATTRACTOR_TYPES] = ATTRACTOR_TYPES.STABLE;
     
     if (maxLayer === ChunkLayerIndex.TRADE && maxValue > LAYER_THRESHOLDS.TRADE_CITY_THRESHOLD) {
       attractor_type = ATTRACTOR_TYPES.VILLAGE_TO_CITY;

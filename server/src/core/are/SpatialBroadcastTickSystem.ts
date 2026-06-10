@@ -281,7 +281,6 @@ export class SpatialBroadcastTickSystem implements TickSystem {
         const tileZ = Math.round(player.y);
         this.grid.upsert(player.id, tileX, tileZ, "player", {
           id: player.id,
-          name: player.name ?? player.id,
           x: tileX,
           z: tileZ,
           kind: "player",

@@ -32,7 +32,7 @@ describe('ManifestTickSystem', () => {
 
     it('should delegate to manifest manager when available', () => {
       const mockManager = {
-        tick: jest.fn(),
+        tick: vi.fn(),
         isHealthy: () => true,
       };
       

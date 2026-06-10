@@ -14,7 +14,8 @@
 import type { Kappa, TickId, StateHash, ChunkKey, EntityId } from './types.js';
 import { createStateHash, type KappaInt } from './types.js';
 import { KAPPA } from './Kappa.js';
-import type { IARELogicLayers, LayerPersistenceEvent } from './IARELogicLayers.js';
+import type { IARELogicLayers } from './IARELogicLayers.js';
+import type { LayerPersistenceEvent } from './ChunkLayerState.js';
 import { getLayerValues, LAYER_CONSTANTS, createEmptyIARELogicLayers } from './IARELogicLayers.js';
 
 /**
