@@ -1,10 +1,19 @@
+import { UNIFIED_CHUNK_CONTRACT } from '../../core/spatial/UnifiedChunkContract.js';
+
 export class ObserverEngine {
   private observers = new Map<string, { x: number; y: number }>();
-  private viewDistanceChunks = 2; // 2 chunks in each direction (5x5 grid) to cover interaction range safely
   private readonly chunkSize: number;
 
   constructor(chunkSize: number = 64) {
     this.chunkSize = chunkSize;
+  }
+
+  /**
+   * Get the simulation radius in chunks.
+   * Uses UnifiedChunkContract to resolve chunk radius conflicts.
+   */
+  private get viewDistanceChunks(): number {
+    return UNIFIED_CHUNK_CONTRACT.simulationRadiusChunks;
   }
 
   register(playerId: string, position: { x: number; y: number }) {
