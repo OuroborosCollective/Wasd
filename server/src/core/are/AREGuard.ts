@@ -59,27 +59,26 @@ export class AREGuard {
    * @ARE-GUARD-EXEMPT: Protection mechanism implementation; not world-state input.
    */
   static executeProtected<T>(tickFn: () => T): T {
-    // ARE-DETERMINISM-ALLOW Protection: Save original functions for restoration
-    // @ts-ignore
+    // @ts-ignore ARE-DETERMINISM-ALLOW Protection: Save original function for restoration.
     const originalRandom = Math.random;
-    // @ts-ignore
+    // @ts-ignore ARE-DETERMINISM-ALLOW Protection: Save original function for restoration.
     const originalDateNow = Date.now;
 
     try {
-      // ARE-DETERMINISM-ALLOW Protection: Install throw handlers
+      // ARE-DETERMINISM-ALLOW Protection: Install throw handler.
       Math.random = () => {
         throw new Error('[ARE-Guard] Math.random is strictly prohibited in authoritative core.');
       };
-      // @ts-ignore
+      // @ts-ignore ARE-DETERMINISM-ALLOW Protection: Install throw handler.
       Date.now = () => {
         throw new Error('[ARE-Guard] Date.now is strictly prohibited. Use deterministic tick time.');
       };
 
       return tickFn();
     } finally {
-      // ARE-DETERMINISM-ALLOW Restoration: Restore original functions
+      // ARE-DETERMINISM-ALLOW Restoration: Restore original function.
       Math.random = originalRandom;
-      // @ts-ignore
+      // @ts-ignore ARE-DETERMINISM-ALLOW Restoration: Restore original function.
       Date.now = originalDateNow;
     }
   }
