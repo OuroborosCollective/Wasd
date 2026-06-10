@@ -8,6 +8,7 @@ import { AREPayloadFactory, type AREPayloadNormalizationOptions, type IAREPayloa
 import type { AREReplayBuffer } from './AREReplayBuffer';
 import { AREShadowLogSink } from './AREShadowLogSink';
 import { AREShadowState, type AREShadowEcosystemStats } from './AREShadowState';
+import type { ThoughtState } from '../../modules/player/PlayerTypes.js';
 
 export interface AREShadowTickInput {
   readonly entityId: string;
@@ -112,6 +113,44 @@ export class AREShadowAdapter {
     
     console.log(`[AREShadowAdapter] 📡 Write shadow log: tick=${input.tick}, entity=${input.entityId}, stateHash=${stateHash}`);
     this.logSink.write(input.tick, stats as any);
+  }
+
+  /**
+   * routeThoughtStateLog - Route autonomous player ThoughtState to shadow log stream.
+   * 
+   * Called by AutonomousPlayerTickSystem every 50 ticks when generating thinking logs.
+   * Routes the thought state out of the main tick loop for external research sync.
+   * 
+   * @param thoughtState - The complete thought state to route
+   * @param researchExportPath - Optional path for Google Drive sync
+   */
+  static routeThoughtStateLog(thoughtState: ThoughtState, researchExportPath?: string): void {
+    const tick = thoughtState.tick;
+    
+    // Create research envelope for external sync
+    const researchEnvelope = {
+      type: 'AUTONOMOUS_PLAYER_THOUGHT_STATE',
+      version: '1.0',
+      entityId: thoughtState.entityId,
+      tick: tick,
+      thoughtState: thoughtState,
+      exportPath: researchExportPath ?? null,
+      routedAt: Date.now(),
+      ecosystem: this.getEcosystemTelemetry(),
+    };
+    
+    // Write to shadow log sink for persistence
+    console.log(`[AREShadowAdapter] 🧠 ThoughtState logged: entity=${thoughtState.entityId} tick=${tick} action=${thoughtState.decision.action}`);
+    console.log(`[AREShadowAdapter] 📊 Utility Scores: combat=${thoughtState.utilityScores.combatScore} diplomacy=${thoughtState.utilityScores.diplomacyScore} flee=${thoughtState.utilityScores.fleeScore}`);
+    console.log(`[AREShadowAdapter] 🎯 Decision: ${thoughtState.decision.reasoning}`);
+    
+    // Write to log sink for structured storage
+    this.logSink.write(tick, researchEnvelope);
+    
+    // If export path provided, flag for external Google Drive sync
+    if (researchExportPath) {
+      console.log(`[AREShadowAdapter] 📁 Marked for research export: ${researchExportPath}`);
+    }
   }
 
   static executeShadowTick(input: AREShadowTickInput): AREShadowTickResult {
