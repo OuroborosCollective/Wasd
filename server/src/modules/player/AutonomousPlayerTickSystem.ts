@@ -15,15 +15,8 @@
  * Entity Identity: player:are_ghost_01 (registered as standard player)
  */
 
-import type {
-  TickSystem,
-  TickSystemContext,
-  TickSystemPriority,
-  KappaInt,
-  EntityId,
-  TickId,
-} from '../../core/are/types.js';
-import { DeterministicPrng, LcgPrng, createDeterministicPrng } from '../../core/are/DeterministicPrng.js';
+import { type TickSystem, type TickSystemContext, TickSystemPriority, type KappaInt, type EntityId, type TickId } from '../../core/are/index.js';
+import { type DeterministicPrng, createDeterministicPrng } from '../../core/are/DeterministicPrng.js';
 import { AREShadowAdapter } from '../../core/are/AREShadowAdapter.js';
 import { DeterminismViolation } from '../../core/are/SnapshotComposer.js';
 import {
@@ -213,7 +206,7 @@ export class AutonomousPlayerTickSystem implements TickSystem {
       targetPosition: decision.action === AutonomousAction.MOVE_POSITION 
         ? this.calculateTargetPosition(context, decision) 
         : undefined,
-      validUntilTick: (tick + MICRO_ACTION_VALIDITY) as TickId,
+      validUntilTick: (tick + MICRO_ACTION_VALIDITY) as unknown as TickId,
     };
     
     // 6. Execute the decided action
@@ -441,7 +434,7 @@ export class AutonomousPlayerTickSystem implements TickSystem {
       winningScore: winner.score,
       fallbackAction: runnerUp.action,
       reasoning,
-      decisionTick: this.tickCount as TickId,
+      decisionTick: this.tickCount as unknown as TickId,
     };
   }
   
@@ -657,7 +650,7 @@ export class AutonomousPlayerTickSystem implements TickSystem {
     
     return {
       entityId: this.entityId,
-      tick: tick as TickId,
+      tick: tick as unknown as TickId,
       inputState: context,
       utilityScores,
       weights: this.weights,
@@ -683,7 +676,7 @@ export class AutonomousPlayerTickSystem implements TickSystem {
       throw new DeterminismViolation(
         'AutonomousPlayerTickSystem',
         'RNG not properly initialized',
-        this.tickCount as TickId
+        this.tickCount as unknown as TickId
       );
     }
   }
@@ -700,7 +693,7 @@ export class AutonomousPlayerTickSystem implements TickSystem {
       throw new DeterminismViolation(
         'AutonomousPlayerTickSystem',
         `Energy overflow: ${currentTotal} > ${maxTotal}`,
-        this.tickCount as TickId
+        this.tickCount as unknown as TickId
       );
     }
   }

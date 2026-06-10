@@ -36,10 +36,10 @@ export {
   type TickSystem,
   type TickSystemDescriptor,
   type TickSystemContext,
-  type TickSystemPriority,
-  TickSystemPriority,
   createDefaultTickContext,
 } from './TickSystem.js';
+export { TickSystemPriority } from './TickSystem.js';
+export type { TickSystemPriority } from './TickSystem.js';
 
 export {
   TickSystemRegistry,
@@ -66,7 +66,8 @@ export {
 
 // Supporting modules
 export { DeterministicPrng, LcgPrng, createDeterministicPrng } from './DeterministicPrng.js';
-export { createStateHash, isStateHash, stateHashEquals, GENESIS_STATE_HASH, GENESIS_PREVIOUS_HASH, type StateHash } from './StateHash.js';
+export { createStateHash, isStateHash, stateHashEquals, GENESIS_STATE_HASH, GENESIS_PREVIOUS_HASH } from './StateHash.js';
+export type { StateHash } from './StateHash.js';
 
 // Integration
 export { WorldTickRegistryAdapter, createWorldTickRegistryAdapter } from './WorldTickRegistryAdapter.js';
