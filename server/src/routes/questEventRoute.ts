@@ -4,6 +4,8 @@
  * Controlled quest event endpoint for server-authoritative progression.
  * Accepts only allowlisted event types - no arbitrary mutations.
  *
+ * Phase 11: Integrated with OuroborosTickSystem via TickSystemContextProvider.
+ * 
  * MVP Status:
  * - Dev/test mode: query playerId allowed as fallback
  * - Production mode: requires authenticated playerId
@@ -23,6 +25,7 @@ import {
   type QuestEvent,
 } from "../quests/QuestProgressionStore.js";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
 export const questEventRouter = Router();
 
@@ -65,12 +68,20 @@ questEventRouter.post("/event", async (req, res) => {
 
   const questState = questProgressionStore.applyEvent(event);
 
+  // Phase 11: Include deterministic tick context for Ouroboros integration
+  const tickContext = tickContextProvider.getContext();
   res.json({
     ok: true,
     playerId: event.playerId,
     playerIdentitySource: identity.source,
     authenticated: identity.authenticated,
     questState,
+    // Ouroboros tick system context for deterministic tracking
+    tickContext: {
+      tickId: tickContext.tickId,
+      worldTimeHours: tickContext.worldTimeHours,
+      seedHash: tickContext.seedHash,
+    },
   });
 });
 

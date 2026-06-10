@@ -4,12 +4,15 @@
  * Server-authoritative crafting API.
  * No Date.now(), no Math.random(), stable recipe ordering.
  * Requires station proximity for recipes with stationType.
+ *
+ * Phase 11: Integrated with OuroborosTickSystem via TickSystemContextProvider.
  */
 
 import express, { Router } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { craftingService } from "../crafting/CraftingService.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
 const router = Router();
 
@@ -56,10 +59,18 @@ router.get("/recipes", async (req, res) => {
   try {
     const recipes = await craftingService.listRecipeSnapshots(identity.playerId);
 
+    // Phase 11: Include deterministic tick context for Ouroboros integration
+    const tickContext = tickContextProvider.getContext();
     res.json({
       ok: true,
       playerId: identity.playerId,
       recipes,
+      // Ouroboros tick system context
+      tickContext: {
+        tickId: tickContext.tickId,
+        worldTimeHours: tickContext.worldTimeHours,
+        seedHash: tickContext.seedHash,
+      },
     });
   } catch (error) {
     console.error("[crafting-recipes] Failed to list recipes:", error);
@@ -121,9 +132,17 @@ router.post("/craft", async (req, res) => {
       }
     }
 
+    // Phase 11: Include deterministic tick context for Ouroboros integration
+    const tickContext = tickContextProvider.getContext();
     res.status(result.ok ? 200 : 409).json({
       ok: result.ok,
       result,
+      // Ouroboros tick system context
+      tickContext: {
+        tickId: tickContext.tickId,
+        worldTimeHours: tickContext.worldTimeHours,
+        seedHash: tickContext.seedHash,
+      },
     });
   } catch (error) {
     console.error("[crafting-craft] Failed to craft:", error);

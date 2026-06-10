@@ -4,6 +4,9 @@
  * Server-authoritative onboarding flow for new players.
  * Provides deterministic starter tool bundle acquisition.
  *
+ * Phase 11: Integrated with OuroborosTickSystem via TickSystemContextProvider.
+ * Uses deterministic tick context for idempotency.
+ *
  * Rules:
  * - No Date.now() for gameplay state
  * - No Math.random()
@@ -18,6 +21,7 @@ import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
 import { equipmentService } from "../equipment/equipmentRuntime.js";
 import { EQUIPMENT_DEFINITIONS } from "../equipment/EquipmentTypes.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
 const router = Router();
 
@@ -137,6 +141,8 @@ router.post("/claim-starter-tools", async (req, res) => {
     }
 
     // Return success even if some tools failed (partial success)
+    // Phase 11: Include deterministic tick context for Ouroboros integration
+    const tickContext = tickContextProvider.getContext();
     res.json({
       ok: true,
       result: {
@@ -144,6 +150,12 @@ router.post("/claim-starter-tools", async (req, res) => {
         tools: STARTER_TOOL_BUNDLE.map((t) => t.itemId),
         equipped: equippedSlots,
         failed: failedTools.length > 0 ? failedTools : undefined,
+      },
+      // Ouroboros tick system context for deterministic tracking
+      tickContext: {
+        tickId: tickContext.tickId,
+        worldTimeHours: tickContext.worldTimeHours,
+        seedHash: tickContext.seedHash,
       },
     });
   } catch (error) {

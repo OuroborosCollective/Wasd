@@ -1,7 +1,15 @@
 'use strict';
 
+/**
+ * LOOT ROUTES - Phase 11: OuroborosTickSystem Integration
+ * 
+ * ARE Infinite Loot Machine routes with deterministic tick context.
+ * Uses TickSystemContextProvider instead of direct tickIndex.
+ */
+
 import { getLootDirector } from '../bootLootSystem.js';
 import express from 'express';
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
 export function createLootRoutes(app: any): void {
   // Ensure JSON parsing is available for POST body
@@ -41,9 +49,13 @@ export function createLootRoutes(app: any): void {
       const db = (global as any).__db || {};
       const machine = new ProceduralLootMachine(db);
 
+      // Phase 11: Use TickSystemContextProvider for deterministic tickIndex
+      const tickContext = tickContextProvider.getContext();
+      const tickIndex = ctx.tickIndex ?? tickContext.tickIndex;
+
       const result = await machine.generate({
         playerId: ctx.playerId || 'admin_test',
-        tickIndex: ctx.tickIndex || 0,
+        tickIndex: tickIndex,
         dropSourceId: ctx.dropSourceId || 'admin',
         lootIndex: ctx.lootIndex || 0,
         areaLevel: ctx.areaLevel || 10,
@@ -61,7 +73,13 @@ export function createLootRoutes(app: any): void {
         ok: true,
         seedHash: result.seedHash,
         items: result.items,
-        context: result.context
+        context: result.context,
+        // Ouroboros tick system context for deterministic tracking
+        tickContext: {
+          tickId: tickContext.tickId,
+          worldTimeHours: tickContext.worldTimeHours,
+          seedHash: tickContext.seedHash,
+        },
       });
     } catch (error: any) {
       res.status(500).json({

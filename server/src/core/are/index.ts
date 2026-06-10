@@ -203,3 +203,14 @@ export {
   type WorldTickStepResult,
   type WorldTickSchedulerSystemName,
 } from './WorldTickScheduler.js';
+
+// Phase 11: TickSystemContextProvider - HTTP route tick context
+export {
+  TickSystemContextProvider,
+  tickContextProvider,
+  getCurrentTickContext,
+  getCurrentTickId,
+  getWorldTimeHours,
+  getDeterministicSeed,
+  type TickContext,
+} from './TickSystemContextProvider.js';

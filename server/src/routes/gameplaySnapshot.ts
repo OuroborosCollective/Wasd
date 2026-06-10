@@ -5,6 +5,9 @@
  * Provides Quest/Guild/Faction/Map data from server-authoritative state.
  * Includes Character Profile and Paperdoll Snapshot.
  *
+ * Phase 11: Integrated with OuroborosTickSystem via TickSystemContextProvider.
+ * Uses deterministic tick context instead of WorldTick.ts coupling.
+ *
  * Rules:
  * - No Math.random() for gameplay values
  * - No Date.now() for gameplay state
@@ -15,7 +18,7 @@
  */
 
 import express from "express";
-import type { WorldTick } from "../core/WorldTick.js";
+import { tickContextProvider, getCurrentTickContext } from "../core/are/TickSystemContextProvider.js";
 import { createGameplaySnapshot } from "./gameplaySnapshotUtils.js";
 import type { WorldPoiSnapshot } from "./gameplaySnapshotUtils.js";
 import { questProgressionStore } from "../quests/QuestProgressionStore.js";
@@ -35,12 +38,11 @@ import { getVisibleChunkCoords } from "../resources/ChunkResourceGenerator.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 
 /**
- * Get current tick ID from WorldTick instance.
+ * Get current tick ID from TickSystemContextProvider.
  * Returns 0 if not available.
  */
-function getCurrentTickId(tick: WorldTick | null): number {
-  if (!tick) return 0;
-  return (tick as any).tickCount ?? 0;
+function getCurrentTickId(): number {
+  return tickContextProvider.getTickCounter();
 }
 
 function isGuestHttpAllowed(): boolean {
@@ -59,9 +61,9 @@ function rejectUnauthenticatedInLockedProduction(identity: { authenticated: bool
 
 /**
  * Create gameplay snapshot router.
- * Requires WorldTick instance for server tick.
+ * Phase 11: Uses TickSystemContextProvider instead of WorldTick instance.
  */
-export function createGameplaySnapshotRouter(tick: WorldTick) {
+export function createGameplaySnapshotRouter() {
   const router = express.Router();
 
   router.get("/snapshot", async (req, res) => {
@@ -75,7 +77,7 @@ export function createGameplaySnapshotRouter(tick: WorldTick) {
       return;
     }
 
-    const serverTick = getCurrentTickId(tick);
+    const serverTick = getCurrentTickId();
 
     // Hydrate persisted quest state before returning
     await questProgressionStore.hydratePlayer(identity.playerId);

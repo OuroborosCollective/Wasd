@@ -2,12 +2,15 @@
  * SelfHeal Workshop API Route
  * Read-only endpoint for dry-run workshop proposals.
  * GET /api/self-healing
+ * 
+ * Phase 11: Integrated with OuroborosTickSystem via TickSystemContextProvider.
  */
 
 import type { Express, Request, Response } from "express";
 import { Router } from "express";
 import { selfHealWorkshop } from "../selfhealing/SelfHealingWorkshop.js";
 import type { SelfHealIssue } from "../selfhealing/SelfHealingWorkshopTypes.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
 /**
  * Create the SelfHeal Workshop router.
@@ -34,8 +37,19 @@ export function createSelfHealWorkshopRouter() {
 
       const response = selfHealWorkshop.getWorkshopResponse();
       
+      // Phase 11: Include deterministic tick context for Ouroboros integration
+      const tickContext = tickContextProvider.getContext();
+      
       // Safe response - no secrets, no stack traces
-      res.json(response);
+      res.json({
+        ...response,
+        // Ouroboros tick system context
+        tickContext: {
+          tickId: tickContext.tickId,
+          worldTimeHours: tickContext.worldTimeHours,
+          seedHash: tickContext.seedHash,
+        },
+      });
     } catch (error) {
       // Fail gracefully - no stack traces in production
       console.error("[SelfHealWorkshop] Error generating proposals:", error);
@@ -64,9 +78,17 @@ export function createSelfHealWorkshopRouter() {
         });
       }
       
+      // Phase 11: Include deterministic tick context for Ouroboros integration
+      const tickContext = tickContextProvider.getContext();
       res.json({
         ok: true,
         proposal,
+        // Ouroboros tick system context
+        tickContext: {
+          tickId: tickContext.tickId,
+          worldTimeHours: tickContext.worldTimeHours,
+          seedHash: tickContext.seedHash,
+        },
       });
     } catch (error) {
       console.error("[SelfHealWorkshop] Error fetching proposal:", error);

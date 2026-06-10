@@ -4,6 +4,8 @@
  * Server-authoritative inventory state API.
  * Players can only view their own inventory.
  *
+ * Phase 11: Integrated with OuroborosTickSystem via TickSystemContextProvider.
+ *
  * Rules:
  * - No Date.now() for gameplay state
  * - No Math.random()
@@ -14,6 +16,7 @@
 import express, { Router } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
 const router = Router();
 
@@ -42,11 +45,19 @@ router.get("/state", async (req, res) => {
     const service = await getInventoryService();
     const inventory = await service.getPlayerInventory(identity.playerId);
 
+    // Phase 11: Include deterministic tick context for Ouroboros integration
+    const tickContext = tickContextProvider.getContext();
     res.json({
       ok: true,
       playerId: identity.playerId,
       authenticated: identity.authenticated,
       inventory,
+      // Ouroboros tick system context
+      tickContext: {
+        tickId: tickContext.tickId,
+        worldTimeHours: tickContext.worldTimeHours,
+        seedHash: tickContext.seedHash,
+      },
     });
   } catch (error) {
     console.error("[inventory-state] Failed to get inventory state:", error);
