@@ -1,76 +1,24 @@
 {
   "schemaVersion": 1,
-  "packId": "stitch_25d_atlas_pack_001",
-  "generatedBy": "scripts/stitch-atlas-intake.py",
+  "packId": "arelorian_manual_drop_2026_06_10",
+  "generatedBy": "scripts/stitch_atlas_intake.py",
   "deterministic": true,
   "assets": [
     {
-      "assetId": "stitch_boss_enemy_skeleton_king_1",
-      "category": "boss",
-      "displayName": "Boss Enemy Skeleton King 1",
-      "sourcePath": "/tmp/tmp7ykesdz7.png",
-      "imagePath": "boss/stitch_boss_enemy_skeleton_king_1/stitch_boss_enemy_skeleton_king_1.png",
-      "atlasPath": "boss/stitch_boss_enemy_skeleton_king_1/stitch_boss_enemy_skeleton_king_1.atlas.json",
-      "previewPath": "boss/stitch_boss_enemy_skeleton_king_1/stitch_boss_enemy_skeleton_king_1.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.82
-      },
-      "tags": [
-        "boss"
-      ],
-      "sourceSha256": "22310fdeb278ad79a1d7d81c3370f07f76e46ce103d64209396e6e5386af035a",
-      "processedSha256": "22310fdeb278ad79a1d7d81c3370f07f76e46ce103d64209396e6e5386af035a",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_boss_enemy_skeleton_king_2",
-      "category": "boss",
-      "displayName": "Boss Enemy Skeleton King 2",
-      "sourcePath": "/tmp/tmp6omxta62.png",
-      "imagePath": "boss/stitch_boss_enemy_skeleton_king_2/stitch_boss_enemy_skeleton_king_2.png",
-      "atlasPath": "boss/stitch_boss_enemy_skeleton_king_2/stitch_boss_enemy_skeleton_king_2.atlas.json",
-      "previewPath": "boss/stitch_boss_enemy_skeleton_king_2/stitch_boss_enemy_skeleton_king_2.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.82
-      },
-      "tags": [
-        "boss"
-      ],
-      "sourceSha256": "8ebb29847a8d1d3072c0763db823bcd36014ac854149c11ee5ae7821b3942bfe",
-      "processedSha256": "8ebb29847a8d1d3072c0763db823bcd36014ac854149c11ee5ae7821b3942bfe",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_enemy_ghoulish_ravager_1",
+      "assetId": "stitch_enemy_undead_blade_walker_square_sheet",
       "category": "enemy",
-      "displayName": "Enemy Ghoulish Ravager 1",
-      "sourcePath": "/tmp/tmpy8x9sr73.png",
-      "imagePath": "enemy/stitch_enemy_ghoulish_ravager_1/stitch_enemy_ghoulish_ravager_1.png",
-      "atlasPath": "enemy/stitch_enemy_ghoulish_ravager_1/stitch_enemy_ghoulish_ravager_1.atlas.json",
-      "previewPath": "enemy/stitch_enemy_ghoulish_ravager_1/stitch_enemy_ghoulish_ravager_1.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
+      "displayName": "Enemy Undead Blade Walker Square Sheet",
+      "sourcePath": "stitch_enemy_undead_blade_walker_square_sheet.jpg",
+      "imagePath": "enemy/stitch_enemy_stitch_enemy_undead_blade_walker_square_sheet/stitch_enemy_stitch_enemy_undead_blade_walker_square_sheet.png",
+      "atlasPath": "enemy/stitch_enemy_stitch_enemy_undead_blade_walker_square_sheet/stitch_enemy_stitch_enemy_undead_blade_walker_square_sheet.atlas.json",
+      "previewPath": "enemy/stitch_enemy_stitch_enemy_undead_blade_walker_square_sheet/stitch_enemy_stitch_enemy_undead_blade_walker_square_sheet.preview.png",
+      "width": 1536,
+      "height": 1536,
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "columns": 6,
+      "rows": 6,
+      "frameCount": 36,
       "pivot": {
         "x": 0.5,
         "y": 0.82
@@ -78,155 +26,40 @@
       "tags": [
         "enemy"
       ],
-      "sourceSha256": "1702c7529fc5cb846cba6c0d27e5098c8ff59b33b3c85cde7f222038346926bc",
-      "processedSha256": "1702c7529fc5cb846cba6c0d27e5098c8ff59b33b3c85cde7f222038346926bc",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_enemy_ghoulish_ravager_2",
-      "category": "enemy",
-      "displayName": "Enemy Ghoulish Ravager 2",
-      "sourcePath": "/tmp/tmprgh_0jm2.png",
-      "imagePath": "enemy/stitch_enemy_ghoulish_ravager_2/stitch_enemy_ghoulish_ravager_2.png",
-      "atlasPath": "enemy/stitch_enemy_ghoulish_ravager_2/stitch_enemy_ghoulish_ravager_2.atlas.json",
-      "previewPath": "enemy/stitch_enemy_ghoulish_ravager_2/stitch_enemy_ghoulish_ravager_2.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.82
+      "sourceSha256": "51ca8665d5e319a0c59cc1ead2d11d5ee7f9380e5e2ef928a66cfaef355c2a83",
+      "processedSha256": "889379aff73aabba2e805bf402c9cb4fdbf103ea27f792224200125667f0896f",
+      "status": "accepted",
+      "resonanceTags": {
+        "baseType": "enemy",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "undead",
+        "style": "square"
       },
-      "tags": [
-        "enemy"
-      ],
-      "sourceSha256": "fb4a28221a284baff6326b4d3f4d1624d63e75f3dc1d17d6c65cddf7ebbcfadf",
-      "processedSha256": "fb4a28221a284baff6326b4d3f4d1624d63e75f3dc1d17d6c65cddf7ebbcfadf",
-      "status": "accepted"
+      "_debugFilename": "stitch_enemy_undead_blade_walker_square_sheet",
+      "_debugTags": {
+        "baseType": "enemy",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "undead",
+        "style": "square"
+      }
     },
     {
-      "assetId": "stitch_enemy_shadow_mage",
-      "category": "enemy",
-      "displayName": "Enemy Shadow Mage",
-      "sourcePath": "/tmp/tmpz7fdtubj.png",
-      "imagePath": "enemy/stitch_enemy_shadow_mage/stitch_enemy_shadow_mage.png",
-      "atlasPath": "enemy/stitch_enemy_shadow_mage/stitch_enemy_shadow_mage.atlas.json",
-      "previewPath": "enemy/stitch_enemy_shadow_mage/stitch_enemy_shadow_mage.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.82
-      },
-      "tags": [
-        "enemy"
-      ],
-      "sourceSha256": "c94e191e6aeeee1323f074f756ad19ab1d1f8156684bf2ba8f6390b84607e3f4",
-      "processedSha256": "c94e191e6aeeee1323f074f756ad19ab1d1f8156684bf2ba8f6390b84607e3f4",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_enemy_shadow_mage_1",
-      "category": "enemy",
-      "displayName": "Enemy Shadow Mage 1",
-      "sourcePath": "/tmp/tmp6rx4m9eq.png",
-      "imagePath": "enemy/stitch_enemy_shadow_mage_1/stitch_enemy_shadow_mage_1.png",
-      "atlasPath": "enemy/stitch_enemy_shadow_mage_1/stitch_enemy_shadow_mage_1.atlas.json",
-      "previewPath": "enemy/stitch_enemy_shadow_mage_1/stitch_enemy_shadow_mage_1.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.82
-      },
-      "tags": [
-        "enemy"
-      ],
-      "sourceSha256": "6b3874ee337d74a8f7f71cafbbd9526545c0bfaf6aff0d43a75ddf6db685a7c3",
-      "processedSha256": "6b3874ee337d74a8f7f71cafbbd9526545c0bfaf6aff0d43a75ddf6db685a7c3",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_enemy_skeleton_warrior_1",
-      "category": "enemy",
-      "displayName": "Enemy Skeleton Warrior 1",
-      "sourcePath": "/tmp/tmpzqpuxadw.png",
-      "imagePath": "enemy/stitch_enemy_skeleton_warrior_1/stitch_enemy_skeleton_warrior_1.png",
-      "atlasPath": "enemy/stitch_enemy_skeleton_warrior_1/stitch_enemy_skeleton_warrior_1.atlas.json",
-      "previewPath": "enemy/stitch_enemy_skeleton_warrior_1/stitch_enemy_skeleton_warrior_1.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.82
-      },
-      "tags": [
-        "enemy"
-      ],
-      "sourceSha256": "def9f94f61b17dfb39fa598a59759536e761d114a8734d649d583b1b96f8b07f",
-      "processedSha256": "def9f94f61b17dfb39fa598a59759536e761d114a8734d649d583b1b96f8b07f",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_enemy_skeleton_warrior_2",
-      "category": "enemy",
-      "displayName": "Enemy Skeleton Warrior 2",
-      "sourcePath": "/tmp/tmp6ultvvw7.png",
-      "imagePath": "enemy/stitch_enemy_skeleton_warrior_2/stitch_enemy_skeleton_warrior_2.png",
-      "atlasPath": "enemy/stitch_enemy_skeleton_warrior_2/stitch_enemy_skeleton_warrior_2.atlas.json",
-      "previewPath": "enemy/stitch_enemy_skeleton_warrior_2/stitch_enemy_skeleton_warrior_2.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.82
-      },
-      "tags": [
-        "enemy"
-      ],
-      "sourceSha256": "f67b3ad79521f1c7ba9c94579f0ba07ded9fff5dc1505215465f8eaf6e1c6456",
-      "processedSha256": "f67b3ad79521f1c7ba9c94579f0ba07ded9fff5dc1505215465f8eaf6e1c6456",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_equipment_overlay_hardened_leather",
+      "assetId": "stitch_equipment_overlay_crystal_armor_modular_sheet",
       "category": "equipment_overlay",
-      "displayName": "Equipment Overlay Hardened Leather",
-      "sourcePath": "/tmp/tmp3fh1dxwu.png",
-      "imagePath": "equipment_overlay/stitch_equipment_overlay_hardened_leather/stitch_equipment_overlay_hardened_leather.png",
-      "atlasPath": "equipment_overlay/stitch_equipment_overlay_hardened_leather/stitch_equipment_overlay_hardened_leather.atlas.json",
-      "previewPath": "equipment_overlay/stitch_equipment_overlay_hardened_leather/stitch_equipment_overlay_hardened_leather.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
+      "displayName": "Equipment Overlay Equipment Overlay Crystal Armor Modular Sheet",
+      "sourcePath": "stitch_equipment_overlay_crystal_armor_modular_sheet.png",
+      "imagePath": "equipment_overlay/stitch_equipment_overlay_stitch_equipment_overlay_crystal_armor_modular_sheet/stitch_equipment_overlay_stitch_equipment_overlay_crystal_armor_modular_sheet.png",
+      "atlasPath": "equipment_overlay/stitch_equipment_overlay_stitch_equipment_overlay_crystal_armor_modular_sheet/stitch_equipment_overlay_stitch_equipment_overlay_crystal_armor_modular_sheet.atlas.json",
+      "previewPath": "equipment_overlay/stitch_equipment_overlay_stitch_equipment_overlay_crystal_armor_modular_sheet/stitch_equipment_overlay_stitch_equipment_overlay_crystal_armor_modular_sheet.preview.png",
+      "width": 1536,
+      "height": 1536,
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "columns": 6,
+      "rows": 6,
+      "frameCount": 36,
       "pivot": {
         "x": 0.5,
         "y": 0.5
@@ -234,207 +67,83 @@
       "tags": [
         "equipment_overlay"
       ],
-      "sourceSha256": "3280a8c62684bb1dc2628c0377b7b8c454096372d8633c7b2285f91a9240954d",
-      "processedSha256": "3280a8c62684bb1dc2628c0377b7b8c454096372d8633c7b2285f91a9240954d",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_equipment_overlay_heavy_plate_armor",
-      "category": "equipment_overlay",
-      "displayName": "Equipment Overlay Heavy Plate Armor",
-      "sourcePath": "/tmp/tmpl2ozllwd.png",
-      "imagePath": "equipment_overlay/stitch_equipment_overlay_heavy_plate_armor/stitch_equipment_overlay_heavy_plate_armor.png",
-      "atlasPath": "equipment_overlay/stitch_equipment_overlay_heavy_plate_armor/stitch_equipment_overlay_heavy_plate_armor.atlas.json",
-      "previewPath": "equipment_overlay/stitch_equipment_overlay_heavy_plate_armor/stitch_equipment_overlay_heavy_plate_armor.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
+      "sourceSha256": "f5c88a238d9dc3a4f3dde7b4ef140ddde400599353a8710270c27f565a6f487f",
+      "processedSha256": "dea7ab137d7aef4a8d18d015a041752f457fece5fb933025c625d1b67876c812",
+      "status": "accepted",
+      "resonanceTags": {
+        "baseType": "equipment",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "crystal",
+        "style": "modular"
       },
-      "tags": [
-        "equipment_overlay"
-      ],
-      "sourceSha256": "eeaaca898fa5c6cdfcc83fbed1c5fc94b0da1eeae90e11185d2035290d3b6db5",
-      "processedSha256": "eeaaca898fa5c6cdfcc83fbed1c5fc94b0da1eeae90e11185d2035290d3b6db5",
-      "status": "accepted"
+      "_debugFilename": "stitch_equipment_overlay_crystal_armor_modular_sheet",
+      "_debugTags": {
+        "baseType": "equipment",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "crystal",
+        "style": "modular"
+      }
     },
     {
-      "assetId": "stitch_equipment_overlay_runic_mystic_robes",
-      "category": "equipment_overlay",
-      "displayName": "Equipment Overlay Runic Mystic Robes",
-      "sourcePath": "/tmp/tmp2t7nhdhu.png",
-      "imagePath": "equipment_overlay/stitch_equipment_overlay_runic_mystic_robes/stitch_equipment_overlay_runic_mystic_robes.png",
-      "atlasPath": "equipment_overlay/stitch_equipment_overlay_runic_mystic_robes/stitch_equipment_overlay_runic_mystic_robes.atlas.json",
-      "previewPath": "equipment_overlay/stitch_equipment_overlay_runic_mystic_robes/stitch_equipment_overlay_runic_mystic_robes.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "tags": [
-        "equipment_overlay"
-      ],
-      "sourceSha256": "8603c34ceb61fa39ee1090e7626df518620e35e11ec7222605bfc9acfa74ffe9",
-      "processedSha256": "8603c34ceb61fa39ee1090e7626df518620e35e11ec7222605bfc9acfa74ffe9",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_hero_character_human_male",
-      "category": "hero",
-      "displayName": "Hero Character Human Male",
-      "sourcePath": "/tmp/tmp3_y0aq7y.png",
-      "imagePath": "hero/stitch_hero_character_human_male/stitch_hero_character_human_male.png",
-      "atlasPath": "hero/stitch_hero_character_human_male/stitch_hero_character_human_male.atlas.json",
-      "previewPath": "hero/stitch_hero_character_human_male/stitch_hero_character_human_male.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
+      "assetId": "stitch_npc_eldritch_modular_gothic_assembly_catalog",
+      "category": "npc",
+      "displayName": "Npc Eldritch Modular Gothic Assembly Catalog",
+      "sourcePath": "stitch_npc_eldritch_modular_gothic_assembly_catalog.png",
+      "imagePath": "npc/stitch_npc_stitch_npc_eldritch_modular_gothic_assembly_catalog/stitch_npc_stitch_npc_eldritch_modular_gothic_assembly_catalog.png",
+      "atlasPath": "npc/stitch_npc_stitch_npc_eldritch_modular_gothic_assembly_catalog/stitch_npc_stitch_npc_eldritch_modular_gothic_assembly_catalog.atlas.json",
+      "previewPath": "npc/stitch_npc_stitch_npc_eldritch_modular_gothic_assembly_catalog/stitch_npc_stitch_npc_eldritch_modular_gothic_assembly_catalog.preview.png",
+      "width": 1536,
+      "height": 1536,
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "columns": 6,
+      "rows": 6,
+      "frameCount": 36,
       "pivot": {
         "x": 0.5,
         "y": 0.82
       },
       "tags": [
-        "hero"
+        "npc"
       ],
-      "sourceSha256": "d61cbfdf0d561cb3800f0911a64894a95b19f71a2134a8909ff556a9b0efe04e",
-      "processedSha256": "d61cbfdf0d561cb3800f0911a64894a95b19f71a2134a8909ff556a9b0efe04e",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_hero_character_human_male_action_atlas",
-      "category": "hero",
-      "displayName": "Hero Character Human Male Action Atlas",
-      "sourcePath": "/tmp/tmpba_69n3q.png",
-      "imagePath": "hero/stitch_hero_character_human_male_action_atlas/stitch_hero_character_human_male_action_atlas.png",
-      "atlasPath": "hero/stitch_hero_character_human_male_action_atlas/stitch_hero_character_human_male_action_atlas.atlas.json",
-      "previewPath": "hero/stitch_hero_character_human_male_action_atlas/stitch_hero_character_human_male_action_atlas.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.82
+      "sourceSha256": "eb304606e425707c18cd9d1e7019cf0908fd1ec6f28d1b9d59b1dc53d5e9514d",
+      "processedSha256": "2aaaadcfd1c859be84f9d87de0835bef6d7c81bb76fcbf1278f0658476957098",
+      "status": "accepted",
+      "resonanceTags": {
+        "baseType": "npc",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "gothic",
+        "biome": "dungeon",
+        "style": "modular"
       },
-      "tags": [
-        "hero"
-      ],
-      "sourceSha256": "90156f74fd6b48b28b61169a9f6209f5d4df4c60f04b329b2b8ca862b26e724e",
-      "processedSha256": "90156f74fd6b48b28b61169a9f6209f5d4df4c60f04b329b2b8ca862b26e724e",
-      "status": "accepted"
+      "_debugFilename": "stitch_npc_eldritch_modular_gothic_assembly_catalog",
+      "_debugTags": {
+        "baseType": "npc",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "gothic",
+        "biome": "dungeon",
+        "style": "modular"
+      }
     },
     {
-      "assetId": "stitch_hero_character_the_agile_rogue_human",
-      "category": "hero",
-      "displayName": "Hero Character The Agile Rogue Human",
-      "sourcePath": "/tmp/tmpu0i8e71h.png",
-      "imagePath": "hero/stitch_hero_character_the_agile_rogue_human/stitch_hero_character_the_agile_rogue_human.png",
-      "atlasPath": "hero/stitch_hero_character_the_agile_rogue_human/stitch_hero_character_the_agile_rogue_human.atlas.json",
-      "previewPath": "hero/stitch_hero_character_the_agile_rogue_human/stitch_hero_character_the_agile_rogue_human.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.82
-      },
-      "tags": [
-        "hero"
-      ],
-      "sourceSha256": "44579db3050a94c028afbeb80027247f5d15e472c069d3c00c084ae963bc12f3",
-      "processedSha256": "44579db3050a94c028afbeb80027247f5d15e472c069d3c00c084ae963bc12f3",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_hero_character_the_mystic_human_male",
-      "category": "hero",
-      "displayName": "Hero Character The Mystic Human Male",
-      "sourcePath": "/tmp/tmpn9bnq89b.png",
-      "imagePath": "hero/stitch_hero_character_the_mystic_human_male/stitch_hero_character_the_mystic_human_male.png",
-      "atlasPath": "hero/stitch_hero_character_the_mystic_human_male/stitch_hero_character_the_mystic_human_male.atlas.json",
-      "previewPath": "hero/stitch_hero_character_the_mystic_human_male/stitch_hero_character_the_mystic_human_male.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.82
-      },
-      "tags": [
-        "hero"
-      ],
-      "sourceSha256": "719dffcb91733e04d83ecd2a141394729257c6c1274e64dacfbe45a4a0bea9d6",
-      "processedSha256": "719dffcb91733e04d83ecd2a141394729257c6c1274e64dacfbe45a4a0bea9d6",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_hero_character_the_veteran_human_male",
-      "category": "hero",
-      "displayName": "Hero Character The Veteran Human Male",
-      "sourcePath": "/tmp/tmpmx9sd67f.png",
-      "imagePath": "hero/stitch_hero_character_the_veteran_human_male/stitch_hero_character_the_veteran_human_male.png",
-      "atlasPath": "hero/stitch_hero_character_the_veteran_human_male/stitch_hero_character_the_veteran_human_male.atlas.json",
-      "previewPath": "hero/stitch_hero_character_the_veteran_human_male/stitch_hero_character_the_veteran_human_male.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.82
-      },
-      "tags": [
-        "hero"
-      ],
-      "sourceSha256": "a1c3e9c3bf9bc8b4bae078ac16247391e9e036643dbcdf9306d3640b0a6b447d",
-      "processedSha256": "a1c3e9c3bf9bc8b4bae078ac16247391e9e036643dbcdf9306d3640b0a6b447d",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_prop_destructible_environment_objects_ancient",
+      "assetId": "stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog",
       "category": "prop",
-      "displayName": "Prop Destructible Environment Objects Ancient",
-      "sourcePath": "/tmp/tmp72mk9s4t.png",
-      "imagePath": "prop/stitch_prop_destructible_environment_objects_ancient/stitch_prop_destructible_environment_objects_ancient.png",
-      "atlasPath": "prop/stitch_prop_destructible_environment_objects_ancient/stitch_prop_destructible_environment_objects_ancient.atlas.json",
-      "previewPath": "prop/stitch_prop_destructible_environment_objects_ancient/stitch_prop_destructible_environment_objects_ancient.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
+      "displayName": "Prop Eldritch Modular Gothic Dungeon Assets Catalog",
+      "sourcePath": "stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog.png",
+      "imagePath": "prop/stitch_prop_stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog/stitch_prop_stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog.png",
+      "atlasPath": "prop/stitch_prop_stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog/stitch_prop_stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog.atlas.json",
+      "previewPath": "prop/stitch_prop_stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog/stitch_prop_stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog.preview.png",
+      "width": 1536,
+      "height": 1536,
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "columns": 6,
+      "rows": 6,
+      "frameCount": 36,
       "pivot": {
         "x": 0.5,
         "y": 0.9
@@ -442,259 +151,42 @@
       "tags": [
         "prop"
       ],
-      "sourceSha256": "9e6acccd9fc3cf7b63e2df340a0ddf33168bcd9008b50c5f4072f1e5d28a88bc",
-      "processedSha256": "9e6acccd9fc3cf7b63e2df340a0ddf33168bcd9008b50c5f4072f1e5d28a88bc",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_prop_destructible_environment_objects_cursed",
-      "category": "prop",
-      "displayName": "Prop Destructible Environment Objects Cursed",
-      "sourcePath": "/tmp/tmptkus2_9z.png",
-      "imagePath": "prop/stitch_prop_destructible_environment_objects_cursed/stitch_prop_destructible_environment_objects_cursed.png",
-      "atlasPath": "prop/stitch_prop_destructible_environment_objects_cursed/stitch_prop_destructible_environment_objects_cursed.atlas.json",
-      "previewPath": "prop/stitch_prop_destructible_environment_objects_cursed/stitch_prop_destructible_environment_objects_cursed.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.9
+      "sourceSha256": "0c5509765cbd69fd107ba35123d302641fc53ed7b4c55841a2a4d46ec01f55e3",
+      "processedSha256": "906bdbad692d62b84b21a795af8b78a57d9557d367db07bb949c29401251cad6",
+      "status": "accepted",
+      "resonanceTags": {
+        "baseType": "prop",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "gothic",
+        "biome": "dungeon",
+        "style": "modular"
       },
-      "tags": [
-        "prop"
-      ],
-      "sourceSha256": "13e3957025abdf230027ac66c03c8eaffbd4a4a2621da66b55dd0096d06a7858",
-      "processedSha256": "13e3957025abdf230027ac66c03c8eaffbd4a4a2621da66b55dd0096d06a7858",
-      "status": "accepted"
+      "_debugFilename": "stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog",
+      "_debugTags": {
+        "baseType": "prop",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "gothic",
+        "biome": "dungeon",
+        "style": "modular"
+      }
     },
     {
-      "assetId": "stitch_prop_environment_objects_ancient_pillars",
-      "category": "prop",
-      "displayName": "Prop Environment Objects Ancient Pillars",
-      "sourcePath": "/tmp/tmp0omo7fre.png",
-      "imagePath": "prop/stitch_prop_environment_objects_ancient_pillars/stitch_prop_environment_objects_ancient_pillars.png",
-      "atlasPath": "prop/stitch_prop_environment_objects_ancient_pillars/stitch_prop_environment_objects_ancient_pillars.atlas.json",
-      "previewPath": "prop/stitch_prop_environment_objects_ancient_pillars/stitch_prop_environment_objects_ancient_pillars.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.9
-      },
-      "tags": [
-        "prop"
-      ],
-      "sourceSha256": "1d07bbdf2d0233318604becfbfa8fa6d8029172b8c5ae7c9f119c46f3c5b26bb",
-      "processedSha256": "1d07bbdf2d0233318604becfbfa8fa6d8029172b8c5ae7c9f119c46f3c5b26bb",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_prop_environment_objects_frozen_obelisks",
-      "category": "prop",
-      "displayName": "Prop Environment Objects Frozen Obelisks",
-      "sourcePath": "/tmp/tmpomujyjbj.png",
-      "imagePath": "prop/stitch_prop_environment_objects_frozen_obelisks/stitch_prop_environment_objects_frozen_obelisks.png",
-      "atlasPath": "prop/stitch_prop_environment_objects_frozen_obelisks/stitch_prop_environment_objects_frozen_obelisks.atlas.json",
-      "previewPath": "prop/stitch_prop_environment_objects_frozen_obelisks/stitch_prop_environment_objects_frozen_obelisks.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.9
-      },
-      "tags": [
-        "prop"
-      ],
-      "sourceSha256": "f5f1b3928dde2fb85a1a1d437cf4385fbf40634e9262ecece34c5f25bbc27e94",
-      "processedSha256": "f5f1b3928dde2fb85a1a1d437cf4385fbf40634e9262ecece34c5f25bbc27e94",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_prop_environment_objects_massive_iron_gates",
-      "category": "prop",
-      "displayName": "Prop Environment Objects Massive Iron Gates",
-      "sourcePath": "/tmp/tmpc939vp89.png",
-      "imagePath": "prop/stitch_prop_environment_objects_massive_iron_gates/stitch_prop_environment_objects_massive_iron_gates.png",
-      "atlasPath": "prop/stitch_prop_environment_objects_massive_iron_gates/stitch_prop_environment_objects_massive_iron_gates.atlas.json",
-      "previewPath": "prop/stitch_prop_environment_objects_massive_iron_gates/stitch_prop_environment_objects_massive_iron_gates.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.9
-      },
-      "tags": [
-        "prop"
-      ],
-      "sourceSha256": "6dc43aff03c7b11226525dd3bad14954b8ca919fda04753ec4601d3ce26d6e5f",
-      "processedSha256": "6dc43aff03c7b11226525dd3bad14954b8ca919fda04753ec4601d3ce26d6e5f",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_tile_floor_tiles",
-      "category": "tile",
-      "displayName": "Tile Floor Tiles",
-      "sourcePath": "/tmp/tmpq1rm8y1f.png",
-      "imagePath": "tile/stitch_tile_floor_tiles/stitch_tile_floor_tiles.png",
-      "atlasPath": "tile/stitch_tile_floor_tiles/stitch_tile_floor_tiles.atlas.json",
-      "previewPath": "tile/stitch_tile_floor_tiles/stitch_tile_floor_tiles.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "tags": [
-        "tile"
-      ],
-      "sourceSha256": "b7f75590e31d2140001e52be4c7e4b4708c281e0bef65f99114a00cc9e03e821",
-      "processedSha256": "b7f75590e31d2140001e52be4c7e4b4708c281e0bef65f99114a00cc9e03e821",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_tile_floor_tiles_flesh_corruption",
-      "category": "tile",
-      "displayName": "Tile Floor Tiles Flesh Corruption",
-      "sourcePath": "/tmp/tmpav8p3n4z.png",
-      "imagePath": "tile/stitch_tile_floor_tiles_flesh_corruption/stitch_tile_floor_tiles_flesh_corruption.png",
-      "atlasPath": "tile/stitch_tile_floor_tiles_flesh_corruption/stitch_tile_floor_tiles_flesh_corruption.atlas.json",
-      "previewPath": "tile/stitch_tile_floor_tiles_flesh_corruption/stitch_tile_floor_tiles_flesh_corruption.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "tags": [
-        "tile"
-      ],
-      "sourceSha256": "c7907f0e31dad2084d6d276b7864abb50032420612445247608ad490b06bc2bc",
-      "processedSha256": "c7907f0e31dad2084d6d276b7864abb50032420612445247608ad490b06bc2bc",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_tile_floor_tiles_frozen_crypt",
-      "category": "tile",
-      "displayName": "Tile Floor Tiles Frozen Crypt",
-      "sourcePath": "/tmp/tmp05o7ys0e.png",
-      "imagePath": "tile/stitch_tile_floor_tiles_frozen_crypt/stitch_tile_floor_tiles_frozen_crypt.png",
-      "atlasPath": "tile/stitch_tile_floor_tiles_frozen_crypt/stitch_tile_floor_tiles_frozen_crypt.atlas.json",
-      "previewPath": "tile/stitch_tile_floor_tiles_frozen_crypt/stitch_tile_floor_tiles_frozen_crypt.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "tags": [
-        "tile"
-      ],
-      "sourceSha256": "c9004f21037e92ad7ab82d34031728f960e473c3e1c47006da5d2d093534598a",
-      "processedSha256": "c9004f21037e92ad7ab82d34031728f960e473c3e1c47006da5d2d093534598a",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_tile_floor_tiles_infernal_forge",
-      "category": "tile",
-      "displayName": "Tile Floor Tiles Infernal Forge",
-      "sourcePath": "/tmp/tmpnf853piv.png",
-      "imagePath": "tile/stitch_tile_floor_tiles_infernal_forge/stitch_tile_floor_tiles_infernal_forge.png",
-      "atlasPath": "tile/stitch_tile_floor_tiles_infernal_forge/stitch_tile_floor_tiles_infernal_forge.atlas.json",
-      "previewPath": "tile/stitch_tile_floor_tiles_infernal_forge/stitch_tile_floor_tiles_infernal_forge.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "tags": [
-        "tile"
-      ],
-      "sourceSha256": "235ad6261c95f4d49a9a3da2385b1fb0c7d09989520c41d8ed356418df53a535",
-      "processedSha256": "235ad6261c95f4d49a9a3da2385b1fb0c7d09989520c41d8ed356418df53a535",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_tile_transition_floor_tiles",
-      "category": "tile",
-      "displayName": "Tile Transition Floor Tiles",
-      "sourcePath": "/tmp/tmp7cv1_onm.png",
-      "imagePath": "tile/stitch_tile_transition_floor_tiles/stitch_tile_transition_floor_tiles.png",
-      "atlasPath": "tile/stitch_tile_transition_floor_tiles/stitch_tile_transition_floor_tiles.atlas.json",
-      "previewPath": "tile/stitch_tile_transition_floor_tiles/stitch_tile_transition_floor_tiles.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "tags": [
-        "tile"
-      ],
-      "sourceSha256": "aa0101d00646d9a9ad9057a6d853e329c0d145b1257e36100f582ab998db0739",
-      "processedSha256": "aa0101d00646d9a9ad9057a6d853e329c0d145b1257e36100f582ab998db0739",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_vfx_defense_shield_effects",
+      "assetId": "stitch_vfx_arelorian_elemental_spell_fx_square_sheet",
       "category": "vfx",
-      "displayName": "Vfx Defense Shield Effects",
-      "sourcePath": "/tmp/tmppw4mlzxx.png",
-      "imagePath": "vfx/stitch_vfx_defense_shield_effects/stitch_vfx_defense_shield_effects.png",
-      "atlasPath": "vfx/stitch_vfx_defense_shield_effects/stitch_vfx_defense_shield_effects.atlas.json",
-      "previewPath": "vfx/stitch_vfx_defense_shield_effects/stitch_vfx_defense_shield_effects.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
+      "displayName": "Vfx Arelorian Elemental Spell Fx Square Sheet",
+      "sourcePath": "stitch_vfx_arelorian_elemental_spell_fx_square_sheet.png",
+      "imagePath": "vfx/stitch_vfx_stitch_vfx_arelorian_elemental_spell_fx_square_sheet/stitch_vfx_stitch_vfx_arelorian_elemental_spell_fx_square_sheet.png",
+      "atlasPath": "vfx/stitch_vfx_stitch_vfx_arelorian_elemental_spell_fx_square_sheet/stitch_vfx_stitch_vfx_arelorian_elemental_spell_fx_square_sheet.atlas.json",
+      "previewPath": "vfx/stitch_vfx_stitch_vfx_arelorian_elemental_spell_fx_square_sheet/stitch_vfx_stitch_vfx_arelorian_elemental_spell_fx_square_sheet.preview.png",
+      "width": 1536,
+      "height": 1536,
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "columns": 6,
+      "rows": 6,
+      "frameCount": 36,
       "pivot": {
         "x": 0.5,
         "y": 0.5
@@ -702,114 +194,66 @@
       "tags": [
         "vfx"
       ],
-      "sourceSha256": "317b6f79cb42e73ff59990e8fa4d71e0f171e97f02cff8e26166b469a3b76314",
-      "processedSha256": "317b6f79cb42e73ff59990e8fa4d71e0f171e97f02cff8e26166b469a3b76314",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_vfx_magic_attack_effects",
-      "category": "vfx",
-      "displayName": "Vfx Magic Attack Effects",
-      "sourcePath": "/tmp/tmppy36blok.png",
-      "imagePath": "vfx/stitch_vfx_magic_attack_effects/stitch_vfx_magic_attack_effects.png",
-      "atlasPath": "vfx/stitch_vfx_magic_attack_effects/stitch_vfx_magic_attack_effects.atlas.json",
-      "previewPath": "vfx/stitch_vfx_magic_attack_effects/stitch_vfx_magic_attack_effects.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
+      "sourceSha256": "596493f14833b63b667a399227f15cc8857552a71a8398cf8a3b992104d12347",
+      "processedSha256": "7b749deeec131524e6feb7140a4d90ff6b6cccaaa60cf14365da4366ffcc9556",
+      "status": "accepted",
+      "resonanceTags": {
+        "baseType": "vfx",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "universal",
+        "style": "square"
       },
-      "tags": [
-        "vfx"
-      ],
-      "sourceSha256": "aa0686f3dd486f56313b10b8fe90a7fa5ce37807b05dc5a16055cd324b4f4e09",
-      "processedSha256": "aa0686f3dd486f56313b10b8fe90a7fa5ce37807b05dc5a16055cd324b4f4e09",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_vfx_magic_attack_vfx",
-      "category": "vfx",
-      "displayName": "Vfx Magic Attack Vfx",
-      "sourcePath": "/tmp/tmp0nlrx31s.png",
-      "imagePath": "vfx/stitch_vfx_magic_attack_vfx/stitch_vfx_magic_attack_vfx.png",
-      "atlasPath": "vfx/stitch_vfx_magic_attack_vfx/stitch_vfx_magic_attack_vfx.atlas.json",
-      "previewPath": "vfx/stitch_vfx_magic_attack_vfx/stitch_vfx_magic_attack_vfx.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "tags": [
-        "vfx"
-      ],
-      "sourceSha256": "3176ebcc780abe90f525c7369dedc89887daf0a5097b8421891e17a35129faeb",
-      "processedSha256": "3176ebcc780abe90f525c7369dedc89887daf0a5097b8421891e17a35129faeb",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_vfx_melee_attack_effects",
-      "category": "vfx",
-      "displayName": "Vfx Melee Attack Effects",
-      "sourcePath": "/tmp/tmpj_0rmarv.png",
-      "imagePath": "vfx/stitch_vfx_melee_attack_effects/stitch_vfx_melee_attack_effects.png",
-      "atlasPath": "vfx/stitch_vfx_melee_attack_effects/stitch_vfx_melee_attack_effects.atlas.json",
-      "previewPath": "vfx/stitch_vfx_melee_attack_effects/stitch_vfx_melee_attack_effects.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "tags": [
-        "vfx"
-      ],
-      "sourceSha256": "9c1321b4393b5755badd9584c678f84e4e81404dfcb264985044f5914e52502f",
-      "processedSha256": "9c1321b4393b5755badd9584c678f84e4e81404dfcb264985044f5914e52502f",
-      "status": "accepted"
-    },
-    {
-      "assetId": "stitch_vfx_visceral_attack_vfx",
-      "category": "vfx",
-      "displayName": "Vfx Visceral Attack Vfx",
-      "sourcePath": "/tmp/tmpjvv6qwev.png",
-      "imagePath": "vfx/stitch_vfx_visceral_attack_vfx/stitch_vfx_visceral_attack_vfx.png",
-      "atlasPath": "vfx/stitch_vfx_visceral_attack_vfx/stitch_vfx_visceral_attack_vfx.atlas.json",
-      "previewPath": "vfx/stitch_vfx_visceral_attack_vfx/stitch_vfx_visceral_attack_vfx.preview.png",
-      "width": 1024,
-      "height": 1024,
-      "frameWidth": 128,
-      "frameHeight": 128,
-      "columns": 8,
-      "rows": 8,
-      "frameCount": 64,
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      },
-      "tags": [
-        "vfx"
-      ],
-      "sourceSha256": "a6394fe46900cdb5563e7dcdc10e2bf8b850427b3ef2eaa7bae06107301873c7",
-      "processedSha256": "a6394fe46900cdb5563e7dcdc10e2bf8b850427b3ef2eaa7bae06107301873c7",
-      "status": "accepted"
+      "_debugFilename": "stitch_vfx_arelorian_elemental_spell_fx_square_sheet",
+      "_debugTags": {
+        "baseType": "vfx",
+        "season": "neutral",
+        "decay": "none",
+        "culture": "universal",
+        "style": "square"
+      }
     }
   ],
-  "quarantine": []
+  "quarantine": [
+    {
+      "assetId": "stitch_tile_stitch_building_cyber_stone_village_house_set_catalog",
+      "sourcePath": "/workspace/project/Wasd/assets/raw/stitch/arelorian_manual_drop_2026_06_10/stitch_building_cyber_stone_village_house_set_catalog.png",
+      "reason": "invalid_grid",
+      "warnings": [
+        "No valid grid detected for 988x1536"
+      ]
+    },
+    {
+      "assetId": "stitch_unknown_stitch_catalog_asset_collection_mobile_overview",
+      "sourcePath": "/workspace/project/Wasd/assets/raw/stitch/arelorian_manual_drop_2026_06_10/stitch_catalog_asset_collection_mobile_overview.jpg",
+      "reason": "invalid_grid",
+      "warnings": [
+        "No valid grid detected for 917x1536"
+      ]
+    },
+    {
+      "assetId": "stitch_hero_stitch_hero_classless_human_worker_multi_action_sheet",
+      "sourcePath": "/workspace/project/Wasd/assets/raw/stitch/arelorian_manual_drop_2026_06_10/stitch_hero_classless_human_worker_multi_action_sheet.png",
+      "reason": "invalid_grid",
+      "warnings": [
+        "No valid grid detected for 1024x1536"
+      ]
+    },
+    {
+      "assetId": "stitch_hero_stitch_hero_cyber_knight_guard_multi_action_sheet",
+      "sourcePath": "/workspace/project/Wasd/assets/raw/stitch/arelorian_manual_drop_2026_06_10/stitch_hero_cyber_knight_guard_multi_action_sheet.png",
+      "reason": "invalid_grid",
+      "warnings": [
+        "No valid grid detected for 988x1536"
+      ]
+    },
+    {
+      "assetId": "stitch_tile_stitch_tile_swamp_marsh_biome_tiles_props_backgrounds_sheet",
+      "sourcePath": "/workspace/project/Wasd/assets/raw/stitch/arelorian_manual_drop_2026_06_10/stitch_tile_swamp_marsh_biome_tiles_props_backgrounds_sheet.png",
+      "reason": "invalid_grid",
+      "warnings": [
+        "No valid grid detected for 1536x838"
+      ]
+    }
+  ]
 }

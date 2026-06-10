@@ -1,226 +1,116 @@
-# Areloria Codex Engine 🐉
+# Areloria Codex Engine
 
-> **The Living Knowledge Base of a Deterministic World**
+Tags: `home`, `are`, `determinism`, `2d`, `tick-system`, `wiki`
+Status: `living-index`
 
-```
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                                                                              ║
-║     ███████╗██╗  ██╗██╗   ██╗████████╗██████╗  ██████╗ ██████╗ ███████╗   ║
-║     ██╔════╝██║ ██╔╝██║   ██║╚══██╔══╝██╔══██╗██╔═══██╗██╔══██╗██╔════╝   ║
-║     ███████╗█████╔╝ ██║   ██║   ██║   ██████╔╝██║   ██║██║  ██║███████╗   ║
-║     ╚════██║██╔═██╗ ██║   ██║   ██║   ██╔══██╗██║   ██║██║  ██║╚════██║   ║
-║     ███████║██║  ██╗╚██████╔╝   ██║   ██║  ██║╚██████╔╝██████╔╝███████║   ║
-║     ╚══════╝╚═╝  ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝   ║
-║                                                                              ║
-║                        CODEX ENGINE — v1.0.0                                  ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+> The living knowledge base of a deterministic browser MMORPG engine.
+
+```text
+Kein Snapshot, kein Spiel.
+Kein Tick, keine Wahrheit.
+Kein Guard, keine Architektur.
+Kein /2d Proof, keine Integration.
 ```
 
 ---
 
-## The Five Pillars of Knowledge
+## Current canonical truth
 
+Areloria uses a 2D-first, server-authoritative, deterministic runtime path.
+
+```text
+client intent
+→ server validation
+→ deterministic TickSystem
+→ canonical delta
+→ replay/state hash
+→ SnapshotComposer or runtime manifest
+→ /2d observer rendering
+→ guard/test/wiki proof
 ```
-                    ┌─────────────────────────────────────┐
-                    │      AUTHENTIC REALITY EMANCIPATION   │
-                    │            (ARE LOGIC CORE)          │
-                    └──────────────────┬──────────────────┘
-                                       │
-           ┌───────────────────────────┼───────────────────────────┐
-           │                           │                           │
-           ▼                           ▼                           ▼
-    ┌─────────────┐           ┌─────────────┐           ┌─────────────┐
-    │  ERDOS      │           │  WORLD TICK │           │   NPC CORE  │
-    │  ATTRACTOR  │           │   10Hz SIM  │           │  AUTONOMY   │
-    └─────────────┘           └─────────────┘           └─────────────┘
-           │                           │                           │
-           └───────────────────────────┼───────────────────────────┘
-                                       │
-                    ┌─────────────────┴─────────────────┐
-                    │      IMPLEMENTATION MAP          │
-                    │   (From Theory to Code)        │
-                    └─────────────────────────────────┘
+
+Old `WorldTick.ts` language in historical docs should be interpreted as legacy compatibility unless a current file explicitly says otherwise. New systems must target `WorldTickScheduler`, `TickSystemRegistry`, snapshot/replay sinks, and `/2d` proof.
+
+---
+
+## Core architecture map
+
+| Layer | Canonical anchor | Meaning |
+| --- | --- | --- |
+| Core types | `server/src/core/are/types.ts` | Kappa, TickId, StateHash, ChunkKey |
+| Kappa math | `server/src/core/are/Kappa.ts` | integer fixed-point truth |
+| Scheduler | `server/src/core/are/WorldTickScheduler.ts` | thin logical stepping |
+| Registry | `server/src/core/are/TickSystemRegistry.ts` | ordered deterministic systems |
+| Brain | `server/src/core/are/WorldBrainTickSystem.ts` | 13-layer brain as subsystem |
+| Route tick context | `server/src/core/are/TickSystemContextProvider.ts` | deterministic HTTP route tick context |
+| Spatial contract | `server/src/core/spatial/UnifiedChunkContract.ts` | simulation/broadcast radii and chunk truth |
+| Snapshot | `server/src/core/are/SnapshotComposer.ts` | server output truth |
+| Replay | `server/src/core/are/AREReplayBuffer.ts` | reconstructable mutation evidence |
+| Persistence | write-behind queue | side effect, not simulation truth |
+
+---
+
+## Must-read project rules
+
+| Page | Purpose |
+| --- | --- |
+| [[ARE Core Reality Standard|ARE-Core-Reality-Standard]] | Current technical constitution |
+| [[WorldTick and 10Hz Simulation|WorldTick-and-10Hz-Simulation]] | New scheduler/registry interpretation |
+| [[Determinism]] | Determinism guardrails |
+| [[Systems Architecture|Systems_Architecture]] | System-level map |
+| [[Asset Forge and 2D Pipeline|Asset-Forge-and-2D-Pipeline]] | Stitch and asset pipeline |
+| [[ARE Logic Core|ARE-Logic-Core]] | ARE rule layer |
+
+Repository docs synced into the wiki also include:
+
+```text
+docs/ARELORIA_CODE_TRUTH_MANIFEST_2026_06.md
+docs/ARE_MODULE_IMPLEMENTATION_STANDARD.md
+docs/AGENT_ARE_SKILL_PLAYBOOK.md
+docs/CONVERSATION_ARCHIVE_SYNTHESIS_2026_06.md
+docs/CONVERSATION_DERIVED_PROJECT_RULES_2026_06.md
 ```
 
 ---
 
-## Core Systems Architecture
+## Runtime proof path
 
-### 🔮 Deterministic Engine
+A feature is not considered integrated until it is visible or verifiable through one of these channels:
 
-| System | File | Status | Purpose |
-|--------|------|--------|---------|
-| `WorldTick` | `server/src/core/WorldTick.ts` | 🟢 Live | 10Hz simulation heartbeat |
-| `AREClock` | `server/src/core/AREClock.ts` | 🟢 Live | Deterministic time |
-| `ARERng` | `server/src/core/ARERng.ts` | 🟢 Live | Seeded randomness |
-| `Manifest` | `server/src/core/manifest/` | 🟢 Live | State hash chain |
+```text
+/2d live client
+server-authoritative snapshot
+runtime asset manifest
+deterministic replay/state hash
+CI guard/test/smoke proof
+```
 
-### 🤖 Autonomous NPCs
-
-| System | File | Status | Purpose |
-|--------|------|--------|---------|
-| `NPCSystem` | `server/src/modules/npc/` | 🟢 Live | NPC runtime |
-| `MemoryCache` | `server/src/modules/npc/memory.ts` | 🟢 Live | Event persistence |
-| `Relationships` | `server/src/modules/npc/relations.ts` | 🟢 Live | NPC connections |
-
-### ⚔️ Combat & Loot
-
-| System | File | Status | Purpose |
-|--------|------|--------|---------|
-| `CombatDirector` | `server/src/modules/combat/` | 🟢 Live | Server-authoritative combat |
-| `AntiNinjaLoot` | `server/src/modules/loot/` | 🟢 Live | 60s kill lock |
-| `PlayerStatsSync` | `server/src/core/` | 🟢 Live | XP/level broadcast |
+Detached demos and one-off preview pages are useful only as prototypes. They are not production proof.
 
 ---
 
-## Design Language — Stitch Theme
+## Wiki automation
 
-### Color Palette
+This wiki is built from repository documentation.
 
-```css
-:root {
-  /* Primary — Deep Marine (void of space) */
-  --deep-marine: #0a0e14;
-  --void-black: #070711;
-  
-  /* Accent — Ethereal Energy */
-  --primary-blurple: #afc8f0;
-  --energy-amber: #ffb77d;
-  --mana-cyan: #00e5ff;
-  --malachite: #2ae500;
-  
-  /* Glassmorphism */
-  --glass-bg: rgba(16, 20, 25, 0.6);
-  --glass-border: rgba(175, 200, 240, 0.15);
-  --glass-glow: rgba(0, 229, 255, 0.1);
-}
+```text
+README.md / docs/*.md / docs/wiki/*.md / scripts/wiki/**
+→ scripts/wiki/build-autonomous-wiki.mjs
+→ .wiki-build
+→ scripts/sync-wiki.mjs
+→ GitHub wiki
 ```
 
-### Typography System
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│ DISPLAY — Epilogue (geometric, sharp)                                │
-│ ████████████████████████████████████████████████████████████████     │
-│ Areloria Codex Engine — The Living World Simulation                 │
-├──────────────────────────────────────────────────────────────────────┤
-│ BODY — Inter (readable, modern)                                     │
-│ ████████████████████████████████████████████████████████████████     │
-│ Deterministic simulation with 10Hz tick. Every state reproducible.    │
-├──────────────────────────────────────────────────────────────────────┤
-│ CODE — JetBrains Mono (precise, technical)                          │
-│ ████████████████████████████████████████████████████████████████     │
-│ WorldTick.ts:100 → const tick = await clock.tick()                 │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-### Visual Motifs
-
-```
-✦ Starfield particles in void background
-✦ Hexagonal grid overlay (subtle)
-✦ Glyph borders with corner accents
-✦ Pulsing energy lines between connected concepts
-✦ Depth layers with parallax scroll
-```
+The sync must build first and sync second. Copying only `docs/wiki/**` is not enough because the generated wiki depends on README, docs, module maps and package metadata.
 
 ---
 
-## Quick Navigation
+## See also
 
-### Start Here
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  🚀 QUICK START                                                     │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  1. [README.md](../README.md)          → Project overview          │
-│  2. [Vision](Areloria-Vision)       → World design philosophy     │
-│  3. [ARE-Logic-Core](ARE-Logic-Core) → Core simulation model       │
-│  4. [NPC_Core](NPC_Core)            → Autonomous NPCs              │
-│  5. [Deployment](../DEPLOYMENT.md)  → VPS setup                   │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### By Category
-
-| 🎯 Vision | ⚙️ Systems | 🤖 NPCs | 🛡️ Operations |
-|-----------|-------------|---------|-----------------|
-| [Areloria Vision](Areloria-Vision) | [ARE-Logic-Core](ARE-Logic-Core) | [NPC_Core](NPC_Core) | [Guard_and_Ops](Guard_and_Ops) |
-| [Research Publications](Research-Publications) | [WorldTick](WorldTick-and-10Hz-Simulation) | [Economy_and_Matrix](Economy_and_Matrix) | [Systems_Architecture](Systems_Architecture) |
-| [Determinism](Determinism) | [Asset Forge](Asset-Forge-and-2D-Pipeline) | — | — |
-
----
-
-## Status Indicators
-
-```
-🟢 LIVE     — Fully implemented and running
-🟡 BETA     — Implemented but may change
-🔵 PLANNED  — On the roadmap
-⚪ RESEARCH — Theoretical / under exploration
-```
-
----
-
-## Maintenance Rules
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  📜 WIKI CONVENTIONS                                               │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ✓ Use [[Page]] wiki links for internal navigation                │
-│  ✓ Start each page with Tags: and Status:                         │
-│  ✓ Link back to Home, Glossary, and at least one implementation   │
-│  ✓ Use Implementation anchors (file paths) for code references    │
-│  ✓ End with See also section                                      │
-│  ✗ Don't use theory without code anchor                           │
-│  ✗ Don't duplicate information across pages                        │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Auto-Generated Content
-
-This wiki is automatically synced from project documentation. The **Codex Engine** pulls from:
-
-```
-Source                          → Generated Page
-─────────────────────────────────────────────────
-docs/wiki/*.md                  → (copied as-is)
-server/src/                     → Implementation-Map
-.git/commits                    → Changelog
-docs/ROADMAP_TO_RELEASE.md      → Roadmap
-docs/PROJECT_STATUS_2026.md     → Status
-```
-
----
-
-## External Resources
-
-| Resource | Link |
-|----------|------|
-| 🌐 Project Website | [Arelorian.de](https://www.Arelorian.de) |
-| 📂 GitHub Repository | [OuroborosCollective/Wasd](https://github.com/OuroborosCollective/Wasd) |
-| 🎨 Design System | [Stitch Integration](../STITCH_MCP_INTEGRATION.md) |
-| 📊 Open Science | [OSF Publications](Research-Publications) |
-
----
-
-```
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                                                                              ║
-║   "The world must be allowed to become strange,                             ║
-║    but never nondeterministic by accident."                                  ║
-║                                                                              ║
-║                              — Areloria Design Principles                     ║
-║                                                                              ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+- [[WorldTick and 10Hz Simulation|WorldTick-and-10Hz-Simulation]]
+- [[ARE Core Reality Standard|ARE-Core-Reality-Standard]]
+- [[Determinism]]
+- [[Implementation Map|Implementation-Map]]
+- [[Glossary]]
 
 Status: Living Wiki | Last Sync: Auto-generated
-Version: 1.0.0 | Build: Deterministic 🔮
-```

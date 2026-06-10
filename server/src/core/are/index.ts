@@ -65,6 +65,23 @@ export {
   TICK_INTERVAL_MS,
 } from './types.js';
 
+// Core Reality Resolver: legacy inputs resolve into canonical ARE architecture.
+export {
+  CoreRealityResolver,
+  CoreRealityResolverError,
+  defaultCoreRealityResolver,
+  strictCoreRealityResolver,
+  resolveCoreReality,
+  resolveCoreRealityDetailed,
+  resolveCoreRealityStrict,
+  type CoreRealityModuleId,
+  type CoreRealityResolutionSource,
+  type CoreRealitySeverity,
+  type CoreRealityResolverOptions,
+  type CoreRealityResolution,
+  type CoreRealityProof,
+} from '../../resolvers/CoreRealityResolver.js';
+
 // TickSystem Core (types exported from types.js above)
 export {
   type TickSystemDescriptor,
