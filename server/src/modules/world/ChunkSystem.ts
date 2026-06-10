@@ -78,6 +78,40 @@ export interface Chunk {
         const chunk = this.getChunk(x, y);
         chunk.data = data;
     }
-    public getActiveChunks(): any[] { return []; }
-    public setChunkActive(id: string, active: boolean): void {}
+
+    /**
+     * Get all active chunks.
+     * Active chunks are those with isActive=true or active=true.
+     */
+    public getActiveChunks(): Chunk[] {
+        return Array.from(this.chunks.values()).filter(
+            chunk => chunk.isActive === true || chunk.active === true
+        );
+    }
+
+    /**
+     * Set a chunk as active or inactive by its coordinates.
+     * @param x Chunk X coordinate
+     * @param y Chunk Y coordinate
+     * @param active True to mark active, false to mark inactive
+     */
+    public setChunkActive(x: number, y: number, active: boolean): void {
+        const chunk = this.getChunk(x, y);
+        chunk.isActive = active;
+        chunk.active = active;
+    }
+
+    /**
+     * Set a chunk as active or inactive by its chunk ID (cx:cy format).
+     * @param chunkId Chunk ID in format "cx:cy"
+     * @param active True to mark active, false to mark inactive
+     */
+    public setChunkActiveById(chunkId: string, active: boolean): void {
+        const [cxStr, cyStr] = chunkId.split(':');
+        const cx = parseInt(cxStr, 10);
+        const cy = parseInt(cyStr, 10);
+        if (!isNaN(cx) && !isNaN(cy)) {
+            this.setChunkActive(cx, cy, active);
+        }
+    }
 }
