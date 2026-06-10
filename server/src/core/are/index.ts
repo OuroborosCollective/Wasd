@@ -80,3 +80,22 @@ export { NPCTickSystem, registerNPCSystem } from './NPCTickSystem.js';
 export { EconomyTickSystem, registerEconomySystem } from './EconomyTickSystem.js';
 export { QuestTickSystem, registerQuestSystem } from './QuestTickSystem.js';
 export { GuildTickSystem, registerGuildSystem } from './GuildTickSystem.js';
+
+// Phase 8-10: World Brain & 13-Layer Emergent Logic
+export {
+  ChunkLayerIndex,
+  LAYER_NAMES,
+  LAYER_THRESHOLDS,
+  ATTRACTOR_TYPES,
+  createEmptyLayerState,
+  type ChunkLayerState,
+  type LayerDelta,
+  type OmegaAttractorState,
+  type WorldBrainSnapshot,
+  type LayerPersistenceEvent
+} from './ChunkLayerState.js';
+
+export {
+  WorldBrainScheduler,
+  registerWorldBrainScheduler
+} from './WorldBrainScheduler.js';
