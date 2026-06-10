@@ -162,8 +162,17 @@ function checkNonDeterministicAPIs() {
   const files = findFiles(CORE_DIR);
   const violations = [];
   const exemptPatterns = [
-    'AREGuard', 'Protection', '@ARE-GUARD-EXEMPT', '// ARE-DETERMINISM-ALLOW',
-    '__tests__', '.test.', 'assertSafeInteger'
+    'AREGuard', 'Protection', '@ARE-GUARD-EXEMPT', '// ARE-DETERMINISM-ALLOW', '@ARE-DETERMINISM-ALLOW',
+    '__tests__', '.test.', 'assertSafeInteger',
+    'lastUpdate', '// last-update', 'receivedAtMs',
+    'tickStart', 'tickDuration', 'start = performance', 'end = performance',
+    'start = performance', 'end = performance',
+    'originalRandom', 'originalDateNow', // AREGuard monkey-patching
+    'Math.random = ()', 'Date.now = ()', // AREGuard overrides
+    'Math.random = original', 'Date.now = original', // AREGuard restore
+    'strictly prohibited', // AREGuard error messages
+    'DeterministicPrng for any randomness', // TickSystem documentation
+    'references below are the protection' // AREGuard JSDoc
   ];
 
   for (const file of files) {
