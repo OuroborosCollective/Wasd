@@ -5,7 +5,10 @@
  * All functions use integer arithmetic for deterministic behavior.
  * 
  * Key concepts:
- * - CHUNK_SIZE = 64 tiles per chunk
+ * - CHUNK_SIZE = 64 tiles per chunk (4,096 tiles per chunk)
+ * - KAPPA = 1000 (fixed-point integer representation)
+ * - CHUNK_SIZE_KAPPA = 64 * 1000 = 64,000 (one side in Kappa units)
+ * - Each chunk contains 64,000 × 64,000 = 4,096,000,000 discrete Kappa cells
  * - Chunk coordinates are integer grid indices
  * - Tile coordinates are integer positions within the world
  */
@@ -14,7 +17,12 @@ import type { Kappa, ChunkCoord, ChunkKey } from '../are/types';
 import { KAPPA } from '../are/Kappa';
 
 export const CHUNK_SIZE_TILES = 64;
-export const CHUNK_SIZE_KAPPA = CHUNK_SIZE_TILES * KAPPA; // 64000
+export const CHUNK_SIZE_KAPPA = CHUNK_SIZE_TILES * KAPPA; // 64,000
+
+/**
+ * Total discrete Kappa cells per chunk (64,000 × 64,000).
+ */
+export const CHUNK_KAPPA_CELLS = CHUNK_SIZE_KAPPA * CHUNK_SIZE_KAPPA; // 4,096,000,000
 
 // Backwards compatibility alias
 export const CHUNK_SIZE = CHUNK_SIZE_TILES;

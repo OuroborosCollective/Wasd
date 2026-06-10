@@ -261,12 +261,13 @@ export function decodeMorton(morton: number): { x: number; z: number } {
 // =============================================================================
 
 /**
- * CHUNK_SIZE: Each chunk is 64 tiles × 64 tiles.
+ * CHUNK_SIZE: Each chunk is 64 tiles × 64 tiles (4,096 tiles per chunk).
  * Used for Spatial Plexity (Axiom 4) - spatial filtering for broadcasts.
  */
 export const CHUNK_SIZE = 64 as const;
 
 /**
- * CHUNK_SIZE_KAPPA: Chunk size in Kappa units.
+ * CHUNK_SIZE_KAPPA: Chunk size in Kappa units per side (64,000).
+ * A chunk contains 64,000 × 64,000 = 4,096,000,000 discrete Kappa cells.
  */
 export const CHUNK_SIZE_KAPPA = CHUNK_SIZE * KAPPA as const;
