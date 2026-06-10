@@ -1,33 +1,163 @@
 name: Jules Dynamic World Expansion
+
 on:
   repository_dispatch:
-    types: [generate_new_biome_quests] # Reagiert ausschließlich auf diesen spezifischen Event-Typ
+    types: [generate_new_biome_quests]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jules-dynamic-world-expansion-${{ github.event.client_payload.chunkKey || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   expand_world_logic:
+    name: Expand deterministic biome quest logic
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
+    timeout-minutes: 30
+
+    if: ${{ github.event_name == 'repository_dispatch' && github.event.action == 'generate_new_biome_quests' }}
+
     steps:
+      - name: Validate dispatch payload contract
+        id: validate
+        shell: bash
+        env:
+          RAW_AGGRESSION: ${{ github.event.client_payload.aggression }}
+          RAW_CHUNK_KEY: ${{ github.event.client_payload.chunkKey }}
+        run: |
+          python3 <<'PY'
+          import hashlib
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          aggression_raw = os.environ.get("RAW_AGGRESSION", "").strip()
+          chunk_key_raw = os.environ.get("RAW_CHUNK_KEY", "").strip()
+
+          errors = []
+
+          try:
+              aggression = float(aggression_raw)
+          except ValueError:
+              aggression = None
+              errors.append("client_payload.aggression must be a float between 0.0 and 1.0")
+
+          if aggression is not None and not (0.0 <= aggression <= 1.0):
+              errors.append("client_payload.aggression must be in range 0.0..1.0")
+
+          if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", chunk_key_raw):
+              errors.append("client_payload.chunkKey must match [A-Za-z0-9_.:-]{1,80}")
+
+          if errors:
+              for error in errors:
+                  print(f"::error::{error}")
+              sys.exit(1)
+
+          aggression_norm = f"{aggression:.6f}"
+          seed_material = f"generate_new_biome_quests|{chunk_key_raw}|{aggression_norm}"
+          deterministic_seed = hashlib.sha256(seed_material.encode("utf-8")).hexdigest()[:32]
+
+          output_path = Path(os.environ["GITHUB_OUTPUT"])
+          with output_path.open("a", encoding="utf-8") as output:
+              output.write(f"aggression={aggression_norm}\n")
+              output.write(f"chunk_key={chunk_key_raw}\n")
+              output.write(f"deterministic_seed={deterministic_seed}\n")
+          PY
+
       - name: Trigger Jules Coding Agent via Invoke Action
+        # Production-Härtung:
+        # Ersetze @v1 nach Prüfung durch den vollen Commit-SHA des gewünschten Releases.
         uses: google-labs-code/jules-invoke@v1
         with:
-          prompt: |
-            Der MasterExpansionOrchestrator meldet signifikante Spieleraktivitäten im Biom.
-            Der Aggressions-Durchschnitt (aggression_avg) ist auf ${{ github.event.client_payload.aggression }} gesunken,
-            und die Gilden-Souveränität (Guild Sovereignty Engine) im Chunk ${{ github.event.client_payload.chunkKey }} hat sich verfestigt.
-
-            Aufgabe für den Agenten:
-            1. Erstelle drei neue, kontextsensitive Fraktions-Quests in 'server/data/quests/dynamic/'.
-            2. Erweitere die Logik in 'server/src/modules/npc/FactionLegacyEngine.ts', sodass neue NPCs in diesem Sektor
-               eine um 0.15 höhere Basis-'faith' (Glauben) und geringere Aggression erhalten, um die friedliche Atmosphäre zu reflektieren.
-            3. Schreibe entsprechende TypeScript Unit-Tests, um sicherzustellen, dass die Kompilierbarkeit im
-               AREStateCompiler nicht beeinträchtigt wird und die kappaPos-Integer-Skalierung strikt eingehalten wird.
-
-            Architektonische Regeln:
-            - Halte dich strikt an das Muster des Stateless Determinism.
-            - Nutze die plexity-Heuristik (45/35/20 Gewichtung) für alle neuen Interaktionen.
           jules_api_key: ${{ secrets.JULES_API_KEY }}
           starting_branch: main
           include_last_commit: false
+          include_commit_log: false
+          prompt: |
+            Du bist Jules und arbeitest im Repository als deterministischer ARELogic-Coding-Agent.
+
+            Auslöser:
+            Der MasterExpansionOrchestrator meldet signifikante Spieleraktivitäten im Biom.
+
+            Validierter Dispatch-Kontext:
+            - event_type: generate_new_biome_quests
+            - chunkKey: ${{ steps.validate.outputs.chunk_key }}
+            - aggression_avg: ${{ steps.validate.outputs.aggression }}
+            - deterministic_seed: ${{ steps.validate.outputs.deterministic_seed }}
+
+            Ziel:
+            Erzeuge eine kleine, sichere Pull Request, die dynamische Welt-Expansion für diesen Sektor vorbereitet.
+
+            Konkrete Aufgaben:
+            1. Erstelle genau drei neue kontextsensitive Fraktions-Quest-Dateien unter:
+               server/data/quests/dynamic/
+
+               Anforderungen an jede Quest:
+               - deterministische ID, abgeleitet aus chunkKey + deterministic_seed + Quest-Index
+               - keine Date.now(), keine Math.random(), keine nondeterministische UUID
+               - klare Fraktionsbindung
+               - friedliches Biom-Verhalten wegen gesunkener aggression_avg
+               - Quest-Daten müssen vom vorhandenen Quest-/AREStateCompiler-System kompilierbar bleiben
+               - keine Breaking Changes an bestehenden statischen Quests
+
+            2. Erweitere:
+               server/src/modules/npc/FactionLegacyEngine.ts
+
+               Anforderungen:
+               - Neue NPCs im validierten Chunk/Sektor erhalten +0.15 Basis-faith.
+               - Neue NPCs im validierten Chunk/Sektor erhalten reduzierte Basis-Aggression.
+               - Die Skalierung muss deterministisch und integer-basiert bleiben.
+               - kappaPos darf nur als deterministisch skalierter Integer behandelt werden.
+               - Keine direkte Entity-Mutation außerhalb der erlaubten ARELogic-Pfade.
+               - Keine globalen Seiteneffekte.
+               - Keine versteckten Runtime-Abhängigkeiten.
+
+            3. Nutze für neue Interaktionen die Plexity-Heuristik:
+               - 45% lokale Chunk-Resonanz
+               - 35% Fraktions-/Gilden-Kontext
+               - 20% NPC-Legacy/Faith-Kontext
+
+               Implementiere die Gewichtung integer-basiert, z. B. 45/35/20 statt Float-Drift.
+
+            4. Schreibe TypeScript Unit-Tests.
+
+               Testziele:
+               - neue Quest-Dateien sind ladbar/kompilierbar
+               - AREStateCompiler wird nicht beschädigt
+               - FactionLegacyEngine erhöht faith deterministisch um exakt 0.15 in Integer-Skalierung
+               - Aggression sinkt deterministisch
+               - kappaPos bleibt Integer
+               - gleiche Inputs erzeugen gleiche Outputs
+               - unterschiedliche chunkKeys erzeugen unterschiedliche deterministische Seeds/IDs
+               - keine Math.random()/Date.now()-Nutzung in neuen Dateien
+
+            5. Falls im Repo vorhanden, führe passende Checks aus:
+               - pnpm --filter @wasd/server test
+               - pnpm --filter @wasd/server exec tsc --noEmit
+               - pnpm test
+               - vorhandene AREStateCompiler-/determinism-tests
+
+               Nutze nur vorhandene Scripts. Wenn ein Script nicht existiert, dokumentiere es kurz in der PR-Beschreibung.
+
+            Harte Architekturregeln:
+            - Stateless Determinism ist Pflicht.
+            - 10-Hz/100-ms ARELogic darf nicht gebrochen werden.
+            - Keine direkte Simulation über Wall-Clock-Zeit.
+            - Keine Math.random().
+            - Keine Date.now().
+            - Kein Float-Drift in Persistenz-/Compiler-relevanten Werten.
+            - Keine Änderung am pausierten 3D-Client.
+            - Fokus auf Server/Data/Tests.
+            - Kleine PR, kein Großumbau.
+            - Keine Secrets ausgeben.
+            - Keine externen Services außer der Jules-Ausführung selbst.
+
+            Erwartete PR-Beschreibung:
+            - Zusammenfassung
+            - Geänderte Dateien
+            - Determinismus-Garantien
+            - Tests/Checks
+            - Hinweise, falls bestimmte Repo-Scripts nicht existieren
