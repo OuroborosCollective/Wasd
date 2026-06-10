@@ -1,0 +1,163 @@
+/**
+ * {{MODULE_NAME}}Snapshot - Replay and state snapshot sink for {{MODULE_NAME}}
+ * 
+ * ARE Module Standard: All systems must support replay via snapshot composition.
+ * 
+ * Snapshot responsibilities:
+ * - Accumulate deltas between snapshots
+ * - Generate state hash for verification
+ * - Support replay from genesis to any tick
+ * - Integrate with SnapshotComposer for world snapshots
+ */
+
+import type { TickId, EntityId, KappaInt, StateHash } from '../types.js';
+import { createStateHash } from '../StateHash.js';
+import type { {{MODULE_NAME}}Delta } from './{{MODULE_NAME}}Delta.js';
+import type { {{MODULE_NAME}}State } from './{{MODULE_NAME}}Types.js';
+
+/**
+ * {{MODULE_NAME}}Snapshot - Full state at a specific tick
+ */
+export interface {{MODULE_NAME}}Snapshot {
+  /** Tick this snapshot represents */
+  readonly tick: TickId;
+  /** All entity states at this tick */
+  readonly states: Map<EntityId, {{MODULE_NAME}}State>;
+  /** Hash of all deltas since last snapshot */
+  readonly deltaHash: StateHash;
+  /** Count of deltas accumulated */
+  readonly deltaCount: number;
+}
+
+/**
+ * {{MODULE_NAME}}ReplaySink - Sink for replaying {{MODULE_NAME}} from deltas
+ */
+export class {{MODULE_NAME}}ReplaySink {
+  private states: Map<EntityId, {{MODULE_NAME}}State> = new Map();
+  private deltaHash: StateHash = createStateHash('0'.repeat(64));
+  private deltaCount: number = 0;
+  
+  /**
+   * Apply a delta, updating internal state
+   */
+  applyDelta(delta: {{MODULE_NAME}}Delta): void {
+    const entityId = delta.entityId;
+    
+    switch (delta.deltaType) {
+      case '{{moduleName}}-created': {
+        this.states.set(entityId, {
+          id: entityId,
+          tick: delta.tick,
+          value: delta.initialValue,
+        });
+        break;
+      }
+      case '{{moduleName}}-updated': {
+        const current = this.states.get(entityId);
+        if (current) {
+          this.states.set(entityId, {
+            ...current,
+            tick: delta.tick,
+            value: delta.newValue,
+          });
+        }
+        break;
+      }
+      case '{{moduleName}}-destroyed': {
+        this.states.delete(entityId);
+        break;
+      }
+    }
+    
+    this.deltaCount++;
+  }
+  
+  /**
+   * Generate snapshot at current tick
+   */
+  snapshot(tick: TickId): {{MODULE_NAME}}Snapshot {
+    return {
+      tick,
+      states: new Map(this.states),
+      deltaHash: this.deltaHash,
+      deltaCount: this.deltaCount,
+    };
+  }
+  
+  /**
+   * Get current state of an entity
+   */
+  getState(entityId: EntityId): {{MODULE_NAME}}State | null {
+    return this.states.get(entityId) ?? null;
+  }
+  
+  /**
+   * Get all current states
+   */
+  getAllStates(): Map<EntityId, {{MODULE_NAME}}State> {
+    return new Map(this.states);
+  }
+  
+  /**
+   * Reset to genesis state
+   */
+  reset(): void {
+    this.states.clear();
+    this.deltaHash = createStateHash('0'.repeat(64));
+    this.deltaCount = 0;
+  }
+  
+  /**
+   * Hydrate from a snapshot (for fast-forward replay)
+   */
+  hydrate(snapshot: {{MODULE_NAME}}Snapshot): void {
+    this.states = new Map(snapshot.states);
+    this.deltaHash = snapshot.deltaHash;
+    this.deltaCount = snapshot.deltaCount;
+  }
+}
+
+// =============================================================================
+// Snapshot Composer Integration
+// =============================================================================
+
+/**
+ * {{MODULE_NAME}}SnapshotIntegration - Integrates {{MODULE_NAME}} with world SnapshotComposer
+ */
+export class {{MODULE_NAME}}SnapshotIntegration {
+  private replaySink: {{MODULE_NAME}}ReplaySink;
+  
+  constructor() {
+    this.replaySink = new {{MODULE_NAME}}ReplaySink();
+  }
+  
+  /**
+   * Process a delta, updating snapshot state
+   */
+  processDelta(delta: {{MODULE_NAME}}Delta): void {
+    this.replaySink.applyDelta(delta);
+  }
+  
+  /**
+   * Get current snapshot for world composition
+   */
+  getSnapshot(tick: TickId): {{MODULE_NAME}}Snapshot {
+    return this.replaySink.snapshot(tick);
+  }
+  
+  /**
+   * Register entity state with SnapshotComposer
+   */
+  registerWithSnapshotComposer(): void {
+    // Integration with SnapshotComposer would go here
+    // Example:
+    // for (const [entityId, state] of this.replaySink.getAllStates()) {
+    //   snapshotComposer.registerEntity(entityId, {
+    //     position_x: state.positionX,
+    //     position_z: state.positionZ,
+    //     health: state.health,
+    //     level: state.level,
+    //   });
+    // }
+  }
+}
