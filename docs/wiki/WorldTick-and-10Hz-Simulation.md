@@ -1,24 +1,66 @@
 # WorldTick and 10Hz Simulation
 
-Tags: `worldtick`, `10hz`, `server`, `simulation`, `determinism`
-Status: `implementation-anchor`
+Tags: `10hz`, `tick-system`, `scheduler`, `determinism`, `server`
+Status: `migration-anchor`
 
-`WorldTick` is the authoritative heartbeat of the Areloria server simulation.
+This page records the current 10Hz simulation rule. Historical references to `WorldTick` must be interpreted through the current refactor:
 
-The design target is a stable **10Hz loop**, meaning one authoritative simulation step every `100ms`. Rendering can be smooth and interpolated, but authoritative decisions should happen at tick boundaries.
+```text
+WorldTickScheduler
+→ TickSystemRegistry
+→ ordered TickSystem modules
+→ AREReplayBuffer
+→ SnapshotComposer
+→ WriteBehindPersistenceQueue
+```
+
+`server/src/core/WorldTick.ts` may still exist as a legacy compatibility surface, but it is not the canonical extension point for new logic.
+
+---
+
+## Prime rule
+
+```text
+Kein Snapshot, kein Spiel.
+Kein Tick, keine Wahrheit.
+Kein Guard, keine Architektur.
+Kein /2d Proof, keine Integration.
+```
 
 ---
 
 ## Why 10Hz matters
 
-A fixed tick rate keeps core logic reproducible:
+A fixed 10Hz tick keeps authoritative gameplay reproducible:
 
 - combat timing,
 - NPC decisions,
 - resource updates,
-- collision / interaction windows,
-- event replay,
-- future [[ARE-Erdos Attractor Model|ARE-Erdos-Attractor-Model]] propagation.
+- economy and quest events,
+- world-brain pressure,
+- replay verification,
+- snapshot production.
+
+Rendering may interpolate. Server truth changes only through deterministic tick boundaries.
+
+---
+
+## Canonical scheduler order
+
+```text
+WorldTickScheduler 10Hz
+  → TickSystemRegistry
+    1. InputTickSystem
+    2. SpatialInterestTickSystem
+    3. ResourceEconomyTickSystem
+    4. NpcMemoryRumorTickSystem
+    5. WorldBrainTickSystem
+    6. SnapshotComposerTickSystem
+  → AREReplayBuffer
+  → WriteBehindPersistenceQueue
+```
+
+The World Brain is a TickSystem. It must not control the scheduler directly.
 
 ---
 
@@ -26,34 +68,74 @@ A fixed tick rate keeps core logic reproducible:
 
 Core simulation should prefer:
 
-```txt
-currentTick
-entityId
-logical position
-seed / deterministic input
+```text
+TickId
+logicalIndex
+KappaInt
+ChunkKey
+StateHash
+explicit seed
+stable sorted traversal
 ```
 
 and avoid hidden dependencies on:
 
-```txt
+```text
 Date.now()
+new Date()
 Math.random()
-floating delta time
-iteration order of unordered maps
+performance.now()
 external API timing
+unordered map/object iteration where order changes state
 ```
 
 ---
 
-## Rendering boundary
+## HTTP route tick context
 
-Client rendering may interpolate between server snapshots. That does not change the authoritative tick.
+HTTP routes that need tick awareness should use `TickSystemContextProvider` or sanctioned read ports, not `WorldTick.tickCount`.
 
-Related pages:
+Canonical route response shape:
 
-- [[Determinism]]
-- [[Systems Architecture|Systems_Architecture]]
-- [[Asset Forge and 2D Pipeline|Asset-Forge-and-2D-Pipeline]]
+```json
+{
+  "ok": true,
+  "result": {},
+  "tickContext": {
+    "tickId": 123,
+    "tickIndex": 123,
+    "worldTimeHours": 2.95,
+    "tickTimestamp": 12300,
+    "seedHash": "..."
+  }
+}
+```
+
+---
+
+## Kappa / chunk math note
+
+Do not confuse logical tiles with Kappa cells.
+
+```text
+chunk side = 64 logical tiles
+Kappa scale = 1000
+chunk side = 64,000 Kappa
+chunk Kappa plane = 64,000 × 64,000 = 4,096,000,000 Kappa cells
+```
+
+---
+
+## Spatial radius contract
+
+The old conflict is resolved by naming two different envelopes:
+
+```text
+simulationRadiusChunks = 2 → 5×5 simulation/interest envelope
+broadcastRadiusChunks  = 1 → 3×3 client broadcast envelope
+```
+
+Both must come from `UnifiedChunkContract`.
 
 ---
 
@@ -61,43 +143,14 @@ Related pages:
 
 | Path | Meaning |
 | --- | --- |
-| `server/src/core/WorldTick.ts` | Authoritative simulation loop |
-| `server/src/networking/WebSocketServer.ts` | Player message delivery |
-| `client/src/engine/renderer.ts` | Client interpolation / rendering layer |
-| `apps/client-2d/src/stackedProps.ts` | 2D prop rendering path |
-| `server/src/modules/world/ChunkModificationDirector.ts` | Depletion persistence for resources |
-| `server/src/modules/world/ResourcePopulator.ts` | Deterministic resource entity generation |
-
-## Resources Entity System
-
-As of 2026-05-31, WorldTick supports `type: 'RESOURCE'` entities in `world_snapshot`:
-
-```typescript
-// Resources broadcast to clients
-this.ws.sendToPlayer(socketId, {
-  type: "world_snapshot",
-  tick: this.tickCount,
-  self: selfId,
-  other_players: [...],
-  npcs: [...],
-  loot: [...],
-  resources: [  // NEW
-    {
-      id: 'res_wood_0_5_0',
-      type: 'RESOURCE',
-      resourceType: 'wood',
-      x, z,            // World space
-      kappaX, kappaZ,   // KAPPA space (1 unit = 1000 KAPPA)
-      yield: 5,
-      maxYield: 5,
-      depleted: false,
-      regrowRate: 600, // Ticks
-    }
-  ]
-});
-```
-
-Resource entity IDs format: `res_{type}_{chunkX}_{chunkZ}_{index}`
+| `server/src/core/are/WorldTickScheduler.ts` | thin logical scheduler |
+| `server/src/core/are/TickSystemRegistry.ts` | deterministic system ordering |
+| `server/src/core/are/TickSystem.ts` | subsystem contract |
+| `server/src/core/are/TickSystemContextProvider.ts` | deterministic route tick context |
+| `server/src/core/are/WorldBrainTickSystem.ts` | 13-layer brain as TickSystem |
+| `server/src/core/are/SnapshotComposer.ts` | snapshot truth output |
+| `server/src/core/are/AREReplayBuffer.ts` | replay/delta evidence |
+| `server/src/core/spatial/UnifiedChunkContract.ts` | canonical spatial constants |
 
 ---
 
@@ -105,18 +158,21 @@ Resource entity IDs format: `res_{type}_{chunkX}_{chunkZ}_{index}`
 
 When editing tick logic:
 
-1. keep changes small,
-2. add deterministic tests when possible,
-3. avoid broad bot-generated rewrites,
-4. do not mix NPC, economy, combat and CI changes in one PR,
-5. document new tick rules in [[Implementation Map|Implementation-Map]].
+1. do not add new domain logic to `server/src/core/WorldTick.ts`,
+2. add or modify a `TickSystem`,
+3. read and write through ports,
+4. emit replayable deltas,
+5. feed snapshot/manifest output,
+6. prove through tests or `/2d` where player-visible,
+7. document new rules in current docs/wiki.
 
 ---
 
 ## See also
 
 - [[Home]]
-- [[Glossary]]
-- [[ARE Logic Core|ARE-Logic-Core]]
-- [[ARE-Erdos Attractor Model|ARE-Erdos-Attractor-Model]]
+- [[ARE Core Reality Standard|ARE-Core-Reality-Standard]]
+- [[Determinism]]
+- [[Systems Architecture|Systems_Architecture]]
 - [[Implementation Map|Implementation-Map]]
+- [[Glossary]]
