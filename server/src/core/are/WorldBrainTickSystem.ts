@@ -30,10 +30,7 @@ import type {
   TickId,
 } from "./types.js";
 import { createStateHash } from "./StateHash.js";
-import {
-  ATTRACTOR_TYPES,
-  ChunkLayerIndex,
-} from "./ChunkLayerState.js";
+import { ATTRACTOR_TYPES } from "./ChunkLayerState.js";
 import {
   LAYER_CONSTANTS,
   createEmptyIARELogicLayers,
