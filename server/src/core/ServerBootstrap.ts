@@ -304,9 +304,10 @@ export class ServerBootstrap {
         
         // Phase 11: Start tick context provider with WorldTick integration
         // This ensures all HTTP routes have deterministic tick context
+        // Use liveHeal.getStatus().tickCount as a stable public accessor to tickCount
         const tickUpdateInterval = setInterval(() => {
-          // Use getTick() if available, otherwise access tickCount directly
-          const currentTick = (tick as any).tickCount ?? (tick as any).getTick?.() ?? 0;
+          const status = (tick as any).liveHeal?.getStatus?.();
+          const currentTick = status?.tickCount ?? 0;
           tickContextProvider.updateTick(currentTick);
         }, 100); // Update every 100ms (10Hz)
         
