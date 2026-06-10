@@ -12,7 +12,7 @@
 
 import { TickSystem, TickSystemPriority, type TickSystemContext } from './TickSystem.js';
 import { tickSystemRegistry } from './TickSystemRegistry.js';
-import { EconomySystem } from '../modules/economy/EconomySystem.js';
+import { EconomySystem } from '../../modules/economy/EconomySystem.js';
 
 /**
  * EconomyTickSystem implements TickSystem for economy processing.

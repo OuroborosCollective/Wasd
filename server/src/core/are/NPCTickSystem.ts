@@ -13,7 +13,7 @@
 
 import { TickSystem, TickSystemPriority, type TickSystemContext } from './TickSystem.js';
 import { tickSystemRegistry } from './TickSystemRegistry.js';
-import { NPCSystem } from '../modules/npc/NPCSystem.js';
+import { NPCSystem } from '../../modules/npc/NPCSystem.js';
 
 /**
  * NPCTickSystem implements TickSystem for NPC processing.

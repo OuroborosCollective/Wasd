@@ -18,6 +18,7 @@ import {
   SnapshotComposer,
   LayerPersistenceQueue,
   layerPersistenceQueue,
+  registerOuroborosTickSystem,
   type TickSystemContext 
 } from './index.js';
 
@@ -28,6 +29,7 @@ import {
  * 3. Computes Ω_E attractor states
  * 4. Aggregates into WorldHash
  * 5. Coordinates SnapshotComposer + PersistenceQueue
+ * 6. Integrates Ouroboros autonomous NPC behavior
  */
 export class WorldTickThinShell {
   /** Current tick count */
@@ -55,6 +57,16 @@ export class WorldTickThinShell {
     this.worldBrain = new WorldBrainScheduler();
     this.snapshotComposer = new SnapshotComposer();
     this.persistenceQueue = layerPersistenceQueue;
+    
+    // Phase 11: Register OuroborosTickSystem for autonomous NPC behavior
+    registerOuroborosTickSystem({
+      engineConfig: {
+        tickInterval: 10,        // 1 Hz at 10 ticks/sec
+        conflictCheckInterval: 100,
+        enableNPCBrain: true,
+        npcBrainInterval: 10,
+      },
+    });
   }
   
   /**
