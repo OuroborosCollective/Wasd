@@ -73,3 +73,7 @@ export { StateHash, createStateHash, isStateHash, stateHashEquals, GENESIS_STATE
 
 // Integration
 export { WorldTickRegistryAdapter, createWorldTickRegistryAdapter } from './WorldTickRegistryAdapter.js';
+
+// Domain TickSystems
+export { CombatTickSystem, registerCombatSystem } from './CombatTickSystem.js';
+export { NPCTickSystem, registerNPCSystem } from './NPCTickSystem.js';
