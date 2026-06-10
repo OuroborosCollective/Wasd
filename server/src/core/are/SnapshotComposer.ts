@@ -258,20 +258,6 @@ export class SnapshotComposer {
   private moduleSnapshots: Map<string, ModuleSnapshotData> = new Map();
 
   /**
-   * ModuleSnapshotData - Snapshot data for a single module
-   */
-  export interface ModuleSnapshotData {
-    moduleName: string;
-    tick: TickId;
-    stateHash: StateHash;
-    entityCount: number;
-    deltaCount: number;
-    category: string;
-    patterns: string[];
-    timestamp: number;
-  }
-
-  /**
    * Register a module snapshot from AutoModuleKatalysator
    * This feeds module state to the PixiJS client via the snapshot system
    */
@@ -336,3 +322,21 @@ export class SnapshotComposer {
  * Global SnapshotComposer instance.
  */
 export const snapshotComposer = new SnapshotComposer();
+
+// ============================================================================
+// Module Snapshot Interface (for AutoModuleKatalysator)
+// ============================================================================
+
+/**
+ * ModuleSnapshotData - Snapshot data for a single module
+ */
+export interface ModuleSnapshotData {
+  moduleName: string;
+  tick: TickId;
+  stateHash: StateHash;
+  entityCount: number;
+  deltaCount: number;
+  category: string;
+  patterns: string[];
+  timestamp: number;
+}
