@@ -11,7 +11,7 @@
 
 import { TickSystem, TickSystemPriority, type TickSystemContext } from './TickSystem.js';
 import { tickSystemRegistry } from './TickSystemRegistry.js';
-import type { WarfrontSystem } from '../modules/warfront/WarfrontSystem.js';
+import { WarfrontSystem } from '../modules/warfront/WarfrontSystem.js';
 
 /**
  * WarfrontTickSystem implements TickSystem for the Warfront module.

@@ -11,7 +11,7 @@
 
 import { TickSystem, TickSystemPriority, type TickSystemContext } from './TickSystem.js';
 import { tickSystemRegistry } from './TickSystemRegistry.js';
-import type { GuildSystem } from '../modules/guild/GuildSystem.js';
+import { GuildSystem } from '../modules/guild/GuildSystem.js';
 
 /**
  * GuildTickSystem implements TickSystem for guild processing.

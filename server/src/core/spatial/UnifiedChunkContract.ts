@@ -20,10 +20,10 @@ import { CHUNK_SIZE_TILES, CHUNK_SIZE_KAPPA } from './ChunkMath';
 
 export interface UnifiedChunkContract {
   /** Chunk size in tiles (world units) */
-  readonly chunkSizeTiles: 64;
+  readonly chunkSizeTiles: number;
   
   /** Chunk size in Kappa (fixed-point) */
-  readonly chunkSizeKappa: 64000;
+  readonly chunkSizeKappa: number;
   
   /** 
    * Radius for simulation/interest management.

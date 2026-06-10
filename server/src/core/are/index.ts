@@ -69,7 +69,7 @@ export {
 
 // Supporting modules
 export { DeterministicPrng, LcgPrng, createDeterministicPrng } from './DeterministicPrng.js';
-export { StateHash, createStateHash, isStateHash, stateHashEquals, GENESIS_STATE_HASH, GENESIS_PREVIOUS_HASH } from './StateHash.js';
+export { createStateHash, isStateHash, stateHashEquals, GENESIS_STATE_HASH, GENESIS_PREVIOUS_HASH, type StateHash } from './StateHash.js';
 
 // Integration
 export { WorldTickRegistryAdapter, createWorldTickRegistryAdapter } from './WorldTickRegistryAdapter.js';
@@ -92,7 +92,6 @@ export {
   type LayerDelta,
   type OmegaAttractorState,
   type WorldBrainSnapshot,
-  type LayerPersistenceEvent
 } from './ChunkLayerState.js';
 
 export {

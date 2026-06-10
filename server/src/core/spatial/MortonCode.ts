@@ -89,6 +89,13 @@ export class MortonCode {
   }
 
   /**
+   * Clone this MortonCode.
+   */
+  clone(): MortonCode {
+    return new MortonCode(this.code);
+  }
+
+  /**
    * Create a MortonCode from x,z coordinates.
    */
   static fromCoords(x: number, z: number): MortonCode {

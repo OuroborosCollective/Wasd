@@ -16,8 +16,8 @@
 
 import { TickSystem, TickSystemPriority, type TickSystemContext } from './TickSystem.js';
 import { tickSystemRegistry } from './TickSystemRegistry.js';
-import type { CombatSystem } from '../modules/combat/CombatSystem.js';
-import type { CombatService } from '../modules/combat/CombatService.js';
+import { CombatSystem } from '../modules/combat/CombatSystem.js';
+import { CombatService } from '../modules/combat/CombatService.js';
 
 /**
  * CombatTickSystem implements TickSystem for combat processing.
