@@ -1,6 +1,7 @@
 name: Jules Dynamic World Expansion
 
 on:
+  workflow_dispatch:
   repository_dispatch:
     types: [generate_new_biome_quests]
 
