@@ -101,7 +101,36 @@ export class SnapshotComposer {
     
     this.chunkSnapshots.set(chunkId, chunkSnapshot);
   }
-  
+
+  /**
+   * Register a single entity state for snapshot composition.
+   * Used by AutoModuleKatalysator to feed entity states to the snapshot system.
+   */
+  registerEntity(entityId: EntityId, state: {
+    position_x: KappaInt;
+    position_z: KappaInt;
+    health: KappaInt;
+    level: KappaInt;
+  }): void {
+    const entityState: SnapshotEntityState = {
+      id: entityId,
+      position_x: state.position_x,
+      position_z: state.position_z,
+      health: state.health,
+      level: state.level
+    };
+
+    const defaultChunkId = 'default' as ChunkKey;
+
+    if (this.chunkSnapshots.has(defaultChunkId)) {
+      const existing = this.chunkSnapshots.get(defaultChunkId)!;
+      existing.entityStates.push(entityState);
+    } else {
+      const emptyLayers = createEmptyIARELogicLayers();
+      this.addChunk(defaultChunkId, 0 as TickId, [entityState], emptyLayers);
+    }
+  }
+
   /**
    * Validate layer integrity: ∑ Are = const
    * Throws DeterminismViolation if check fails.
