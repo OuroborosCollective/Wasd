@@ -354,3 +354,269 @@ export const CHUNK_SIZE_KAPPA: KappaInt = createKappaInt(CHUNK_SIZE * KAPPA);
  */
 export const CHUNK_KAPPA_CELL_COUNT =
   BigInt(Number(CHUNK_SIZE_KAPPA)) * BigInt(Number(CHUNK_SIZE_KAPPA));
+
+// =============================================================================
+// ChunkKey Compatibility Functions
+// =============================================================================
+
+/**
+ * Compatibility alias for createChunkKey.
+ */
+export function getChunkKey(cx: number | ChunkCoord, cz: number | ChunkCoord): ChunkKey {
+  return createChunkKey(Number(cx), Number(cz));
+}
+
+/**
+ * Convert a raw string into a validated branded ChunkKey.
+ *
+ * Useful for tests, persistence adapters and network payloads.
+ */
+export function createChunkKeyFromString(value: string): ChunkKey {
+  if (value.trim().length === 0) {
+    throw new Error('[ChunkKey] Expected non-empty string');
+  }
+
+  const parts = value.split(':');
+  if (parts.length !== 2) {
+    throw new Error(`[ChunkKey] Invalid chunk key format: ${value}`);
+  }
+
+  const cx = Number(parts[0]);
+  const cz = Number(parts[1]);
+
+  if (!Number.isInteger(cx) || !Number.isSafeInteger(cx)) {
+    throw new Error(`[ChunkKey.cx] Expected integer, got: ${parts[0]}`);
+  }
+  if (!Number.isInteger(cz) || !Number.isSafeInteger(cz)) {
+    throw new Error(`[ChunkKey.cz] Expected integer, got: ${parts[1]}`);
+  }
+
+  return createChunkKey(cx, cz);
+}
+
+/**
+ * Compatibility alias for raw persisted/network string keys.
+ */
+export function coerceChunkKey(value: ChunkKey | string): ChunkKey {
+  if (isChunkKey(value)) return value;
+  return createChunkKeyFromString(String(value));
+}
+
+/**
+ * Convert ChunkKey to string.
+ */
+export function chunkKeyToString(key: ChunkKey): string {
+  return String(key);
+}
+
+/**
+ * Compare two ChunkKeys (accepts raw strings for test compatibility).
+ */
+export function sameChunkKey(a: ChunkKey | string, b: ChunkKey | string): boolean {
+  return String(coerceChunkKey(a)) === String(coerceChunkKey(b));
+}
+
+/**
+ * Get all 8 neighbor chunk keys.
+ */
+export function getNeighborChunkKeys(key: ChunkKey | string): readonly ChunkKey[] {
+  const { cx, cz } = parseChunkKey(key);
+  const x = Number(cx);
+  const z = Number(cz);
+
+  return Object.freeze([
+    createChunkKey(x - 1, z - 1),
+    createChunkKey(x, z - 1),
+    createChunkKey(x + 1, z - 1),
+    createChunkKey(x - 1, z),
+    createChunkKey(x + 1, z),
+    createChunkKey(x - 1, z + 1),
+    createChunkKey(x, z + 1),
+    createChunkKey(x + 1, z + 1),
+  ]);
+}
+
+/**
+ * Get 4 cardinal neighbor chunk keys.
+ */
+export function getCardinalNeighborChunkKeys(key: ChunkKey | string): readonly ChunkKey[] {
+  const { cx, cz } = parseChunkKey(key);
+  const x = Number(cx);
+  const z = Number(cz);
+
+  return Object.freeze([
+    createChunkKey(x, z - 1),
+    createChunkKey(x + 1, z),
+    createChunkKey(x, z + 1),
+    createChunkKey(x - 1, z),
+  ]);
+}
+
+/**
+ * Get Chebyshev distance between two chunks.
+ */
+export function getChunkChebyshevDistance(a: ChunkKey | string, b: ChunkKey | string): number {
+  const pa = parseChunkKey(a);
+  const pb = parseChunkKey(b);
+  return Math.max(
+    Math.abs(Number(pa.cx) - Number(pb.cx)),
+    Math.abs(Number(pa.cz) - Number(pb.cz)),
+  );
+}
+
+/**
+ * Get Manhattan distance between two chunks.
+ */
+export function getChunkManhattanDistance(a: ChunkKey | string, b: ChunkKey | string): number {
+  const pa = parseChunkKey(a);
+  const pb = parseChunkKey(b);
+  return (
+    Math.abs(Number(pa.cx) - Number(pb.cx)) +
+    Math.abs(Number(pa.cz) - Number(pb.cz))
+  );
+}
+
+// =============================================================================
+// Entity ID Types
+// =============================================================================
+
+export type PlayerId = string & { readonly __brand: 'PlayerId' };
+export type NpcId = string & { readonly __brand: 'NpcId' };
+export type GuildId = string & { readonly __brand: 'GuildId' };
+export type QuestId = string & { readonly __brand: 'QuestId' };
+export type TickSystemId = string & { readonly __brand: 'TickSystemId' };
+
+export function createPlayerId(value: string): PlayerId {
+  if (value.trim().length === 0) {
+    throw new Error('[PlayerId] Expected non-empty string');
+  }
+  return value as PlayerId;
+}
+
+export function createNpcId(value: string): NpcId {
+  if (value.trim().length === 0) {
+    throw new Error('[NpcId] Expected non-empty string');
+  }
+  return value as NpcId;
+}
+
+export function createGuildId(value: string): GuildId {
+  if (value.trim().length === 0) {
+    throw new Error('[GuildId] Expected non-empty string');
+  }
+  return value as GuildId;
+}
+
+export function createQuestId(value: string): QuestId {
+  if (value.trim().length === 0) {
+    throw new Error('[QuestId] Expected non-empty string');
+  }
+  return value as QuestId;
+}
+
+export function createTickSystemId(value: string): TickSystemId {
+  if (value.trim().length === 0) {
+    throw new Error('[TickSystemId] Expected non-empty string');
+  }
+  return value as TickSystemId;
+}
+
+// =============================================================================
+// Tick System Contracts
+// =============================================================================
+
+export enum TickSystemPriority {
+  CRITICAL = 0,
+  INFRASTRUCTURE = 50,
+  HIGH = 100,
+  WORLD = 200,
+  COMBAT = 300,
+  NPC = 400,
+  ECONOMY = 500,
+  NORMAL = 500,
+  QUEST = 600,
+  GUILD = 700,
+  BROADCAST = 800,
+  BACKGROUND = 900,
+  LOW = 1000,
+}
+
+export enum TickSystemCategory {
+  CORE = 'core',
+  WORLD = 'world',
+  SPATIAL = 'spatial',
+  COMBAT = 'combat',
+  NPC = 'npc',
+  ECONOMY = 'economy',
+  QUEST = 'quest',
+  GUILD = 'guild',
+  WARFRONT = 'warfront',
+  PLAYER = 'player',
+  BROADCAST = 'broadcast',
+  AUTONOMOUS = 'autonomous',
+  UNKNOWN = 'unknown',
+}
+
+export interface TickTraceEvent {
+  readonly tickId?: TickId;
+  readonly systemId: string;
+  readonly category?: TickSystemCategory | string;
+  readonly message: string;
+  readonly severity?: 'debug' | 'info' | 'warn' | 'error' | 'critical';
+  readonly metadata?: Readonly<Record<string, unknown>>;
+}
+
+export interface TickSystemContext<
+  TWorld = unknown,
+  TEvent = unknown,
+  TCommand = unknown,
+> {
+  readonly tickId?: TickId;
+  readonly tick?: TickId | number;
+  readonly logicalIndex?: TickId | number;
+  readonly fixedDeltaMs?: number;
+  readonly deltaTicks?: number;
+  readonly world?: TWorld;
+  readonly previousStateHash?: StateHash;
+  readonly stateHash?: StateHash;
+  readonly seedHash?: StateHash;
+  readonly events?: readonly TEvent[];
+  readonly commands?: readonly TCommand[];
+  readonly emitEvent?: (event: TEvent) => void;
+  readonly enqueueCommand?: (command: TCommand) => void;
+  readonly trace?: (event: TickTraceEvent) => void;
+}
+
+export interface TickSystem<
+  TContext extends TickSystemContext = TickSystemContext,
+> {
+  readonly id: string;
+  readonly name?: string;
+  readonly category?: TickSystemCategory | string;
+  readonly priority?: TickSystemPriority;
+  tick?(context: TContext): void | Promise<void>;
+  update?(context: TContext): void | Promise<void>;
+  init?(context?: TContext): void | Promise<void>;
+  shutdown?(context?: TContext): void | Promise<void>;
+}
+
+export function getTickSystemPriority(system: TickSystem): TickSystemPriority {
+  return system.priority ?? TickSystemPriority.NORMAL;
+}
+
+export function getTickSystemCategory(system: TickSystem): TickSystemCategory | string {
+  return system.category ?? TickSystemCategory.UNKNOWN;
+}
+
+export function compareTickSystems(a: TickSystem, b: TickSystem): number {
+  const priorityDiff = getTickSystemPriority(a) - getTickSystemPriority(b);
+  if (priorityDiff !== 0) return priorityDiff;
+  return a.id.localeCompare(b.id);
+}
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+export const TICK_RATE_HZ = 10 as const;
+export const TICK_INTERVAL_MS = 100 as const;

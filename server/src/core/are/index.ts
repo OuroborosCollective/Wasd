@@ -9,37 +9,67 @@
  * - Pre-built TickSystem implementations
  */
 
-// Types
+// Types from types.js
+export type {
+  Kappa,
+  KappaInt,
+  TickId,
+  StateHash,
+  ChunkCoord,
+  ChunkKey,
+  EntityId,
+  PlayerId,
+  NpcId,
+  GuildId,
+  QuestId,
+  TickSystemId,
+  MortonCode,
+  ParsedChunkKey,
+  TickSystemContext,
+  TickSystem,
+  TickTraceEvent,
+} from './types.js';
+
+// Value exports from types.js
 export {
-  type Kappa,
-  type KappaInt,
-  type TickId,
-  type StateHash,
-  type ChunkCoord,
-  type ChunkKey,
-  type EntityId,
-  type MortonCode,
+  TickSystemPriority,
+  TickSystemCategory,
   createKappa,
   createKappaFromDecimal,
   createTickId,
   incrementTickId,
   createChunkCoord,
   createChunkKey,
+  getChunkKey,
+  createChunkKeyFromString,
+  coerceChunkKey,
   parseChunkKey,
+  chunkKeyToString,
+  sameChunkKey,
+  getNeighborChunkKeys,
+  getCardinalNeighborChunkKeys,
+  getChunkChebyshevDistance,
+  getChunkManhattanDistance,
   createEntityId,
+  createPlayerId,
+  createNpcId,
+  createGuildId,
+  createQuestId,
+  createTickSystemId,
+  getTickSystemPriority,
+  getTickSystemCategory,
+  compareTickSystems,
   CHUNK_SIZE,
   CHUNK_SIZE_KAPPA,
+  TICK_RATE_HZ,
+  TICK_INTERVAL_MS,
 } from './types.js';
 
-// TickSystem Core
+// TickSystem Core (types exported from types.js above)
 export {
-  type TickSystem,
   type TickSystemDescriptor,
-  type TickSystemContext,
   createDefaultTickContext,
 } from './TickSystem.js';
-export { TickSystemPriority } from './TickSystem.js';
-export type { TickSystemPriority } from './TickSystem.js';
 
 export {
   TickSystemRegistry,
@@ -67,7 +97,6 @@ export {
 // Supporting modules
 export { DeterministicPrng, LcgPrng, createDeterministicPrng } from './DeterministicPrng.js';
 export { createStateHash, isStateHash, stateHashEquals, GENESIS_STATE_HASH, GENESIS_PREVIOUS_HASH } from './StateHash.js';
-export type { StateHash } from './StateHash.js';
 
 // Integration
 export { WorldTickRegistryAdapter, createWorldTickRegistryAdapter } from './WorldTickRegistryAdapter.js';

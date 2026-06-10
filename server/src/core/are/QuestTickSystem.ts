@@ -11,7 +11,7 @@
 
 import { TickSystem, TickSystemPriority, type TickSystemContext } from './TickSystem.js';
 import { tickSystemRegistry } from './TickSystemRegistry.js';
-import { QuestEngine } from '../modules/quest/QuestEngine.js';
+import { QuestEngine } from '../../modules/quest/QuestEngine.js';
 
 /**
  * QuestTickSystem implements TickSystem for quest processing.
