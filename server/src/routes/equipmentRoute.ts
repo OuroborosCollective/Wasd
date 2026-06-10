@@ -4,6 +4,8 @@
  * Server-authoritative equipment state API.
  * Players can only view and modify their own equipment.
  *
+ * Phase 11: Integrated with OuroborosTickSystem via TickSystemContextProvider.
+ *
  * Rules:
  * - No Date.now() for gameplay state
  * - No Math.random()
@@ -16,6 +18,7 @@ import { json } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { equipmentService } from "../equipment/equipmentRuntime.js";
 import { EQUIPMENT_DEFINITIONS } from "../equipment/EquipmentTypes.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
 const router = Router();
 
@@ -46,10 +49,18 @@ router.get("/state", async (req, res) => {
   try {
     const equipment = await equipmentService.getPlayerEquipment(identity.playerId);
 
+    // Phase 11: Include deterministic tick context for Ouroboros integration
+    const tickContext = tickContextProvider.getContext();
     res.json({
       ok: true,
       playerId: identity.playerId,
       equipment,
+      // Ouroboros tick system context
+      tickContext: {
+        tickId: tickContext.tickId,
+        worldTimeHours: tickContext.worldTimeHours,
+        seedHash: tickContext.seedHash,
+      },
     });
   } catch (error) {
     console.error("[equipment-state] Failed to get equipment state:", error);
@@ -88,9 +99,17 @@ router.post("/equip", async (req, res) => {
       itemId,
     });
 
+    // Phase 11: Include deterministic tick context for Ouroboros integration
+    const tickContext = tickContextProvider.getContext();
     res.status(result.ok ? 200 : 409).json({
       ok: result.ok,
       result,
+      // Ouroboros tick system context
+      tickContext: {
+        tickId: tickContext.tickId,
+        worldTimeHours: tickContext.worldTimeHours,
+        seedHash: tickContext.seedHash,
+      },
     });
   } catch (error) {
     console.error("[equipment-equip] Failed to equip item:", error);
@@ -138,9 +157,17 @@ router.post("/unequip", async (req, res) => {
       slotId: slotId as any,
     });
 
+    // Phase 11: Include deterministic tick context for Ouroboros integration
+    const tickContext = tickContextProvider.getContext();
     res.status(result.ok ? 200 : 409).json({
       ok: result.ok,
       result,
+      // Ouroboros tick system context
+      tickContext: {
+        tickId: tickContext.tickId,
+        worldTimeHours: tickContext.worldTimeHours,
+        seedHash: tickContext.seedHash,
+      },
     });
   } catch (error) {
     console.error("[equipment-unequip] Failed to unequip item:", error);

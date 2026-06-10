@@ -4,6 +4,8 @@
  * Controlled API for skill XP gains.
  * Only allows controlled events - no free level/xp setting.
  *
+ * Phase 11: Integrated with OuroborosTickSystem via TickSystemContextProvider.
+ *
  * Rules:
  * - No Date.now() for gameplay state
  * - No Math.random()
@@ -16,6 +18,7 @@ import express, { Router } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { getSkillProgressionService } from "../skills/skillRuntime.js";
 import type { SkillId } from "../skills/SkillTypes.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
 const router = Router();
 
@@ -85,11 +88,19 @@ router.post("/event", async (req, res) => {
       source: "admin_test",
     });
 
+    // Phase 11: Include deterministic tick context for Ouroboros integration
+    const tickContext = tickContextProvider.getContext();
     res.json({
       ok: true,
       playerId: identity.playerId,
       authenticated: identity.authenticated,
       skills: state.skills,
+      // Ouroboros tick system context
+      tickContext: {
+        tickId: tickContext.tickId,
+        worldTimeHours: tickContext.worldTimeHours,
+        seedHash: tickContext.seedHash,
+      },
     });
   } catch (error) {
     console.error("[skill-event] Failed to apply skill event:", error);
@@ -121,11 +132,19 @@ router.get("/state", async (req, res) => {
     const service = await getSkillProgressionService();
     const state = await service.getPlayerSkillState(identity.playerId);
 
+    // Phase 11: Include deterministic tick context for Ouroboros integration
+    const tickContext = tickContextProvider.getContext();
     res.json({
       ok: true,
       playerId: identity.playerId,
       authenticated: identity.authenticated,
       skills: state.skills,
+      // Ouroboros tick system context
+      tickContext: {
+        tickId: tickContext.tickId,
+        worldTimeHours: tickContext.worldTimeHours,
+        seedHash: tickContext.seedHash,
+      },
     });
   } catch (error) {
     console.error("[skill-state] Failed to get skill state:", error);

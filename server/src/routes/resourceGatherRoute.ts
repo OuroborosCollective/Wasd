@@ -4,6 +4,8 @@
  * Controlled API for resource gathering interactions.
  * Server-authoritative: playerId, position, skill level, XP, items.
  *
+ * Phase 11: Integrated with OuroborosTickSystem via TickSystemContextProvider.
+ *
  * Rules:
  * - No Math.random()
  * - No Date.now() for gameplay state
@@ -16,6 +18,7 @@ import express from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { gatheringService } from "../resources/GatheringService.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
 const router = express.Router();
 
@@ -136,9 +139,17 @@ router.post("/gather", async (req, res) => {
   }
 
   // Return 200 for success, 409 for failure (conflict with world state)
+  // Phase 11: Include deterministic tick context for Ouroboros integration
+  const tickContext = tickContextProvider.getContext();
   res.status(result.ok ? 200 : 409).json({
     ok: result.ok,
     result,
+    // Ouroboros tick system context
+    tickContext: {
+      tickId: tickContext.tickId,
+      worldTimeHours: tickContext.worldTimeHours,
+      seedHash: tickContext.seedHash,
+    },
   });
 });
 
@@ -149,10 +160,9 @@ router.post("/gather", async (req, res) => {
  * Used for client panel and debugging.
  */
 router.get("/nodes", async (req, res) => {
-  const rawTick = Number(req.query.tick ?? 0);
-  const currentTick = Number.isFinite(rawTick)
-    ? Math.max(0, Math.floor(rawTick))
-    : 0;
+  // Phase 11: Use TickSystemContextProvider for deterministic tick
+  const tickContext = tickContextProvider.getContext();
+  const currentTick = tickContext.tickIndex;
 
   const nodes = gatheringService.listResourceSnapshots(currentTick);
 
@@ -160,6 +170,12 @@ router.get("/nodes", async (req, res) => {
     ok: true,
     nodes,
     count: nodes.length,
+    // Ouroboros tick system context
+    tickContext: {
+      tickId: tickContext.tickId,
+      worldTimeHours: tickContext.worldTimeHours,
+      seedHash: tickContext.seedHash,
+    },
   });
 });
 

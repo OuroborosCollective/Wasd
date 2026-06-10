@@ -83,7 +83,8 @@ function createDefaultUtilityWeights(seed: number): UtilityWeights {
 
 export class AutonomousPlayerTickSystem implements TickSystem {
   readonly name = 'autonomous.player.are_ghost_01';
-  readonly priority = TickSystemPriority.GAMEPLAY;
+  readonly id = 'autonomous.player.are_ghost_01';
+  readonly priority = TickSystemPriority.NORMAL;
   enabled = true;
   
   private readonly entityId: EntityId = AUTONOMOUS_PLAYER_ID;
@@ -142,7 +143,9 @@ export class AutonomousPlayerTickSystem implements TickSystem {
   // =============================================================================
   
   tick(context: TickSystemContext): void {
-    const tick = context.tickCount as KappaInt;
+    // Use tickId if available, fallback to tick or logicalIndex
+    const tickValue = context.tickId ?? context.tick ?? context.logicalIndex ?? 0;
+    const tick = tickValue as KappaInt;
     this.tickCount = tick;
     
     // Validate determinism (Axiom 4)

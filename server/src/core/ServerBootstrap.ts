@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import { existsSync } from "node:fs";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import { WorldTick } from "./WorldTick.js";
+import { tickContextProvider } from "./are/TickSystemContextProvider.js";
 import { installClient2DPublicKeyLoginBridge } from "./installClient2DPublicKeyLoginBridge.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -201,7 +202,7 @@ export class ServerBootstrap {
     app.use("/api/are/validation", areValidationRouter(tick));
     app.use("/api/are/replay", areReplayRouter(tick));
     app.use("/api/are", createAREHeartbeatRouter(tick, ws));
-    app.use("/api/gameplay", createGameplaySnapshotRouter(tick));
+    app.use("/api/gameplay", createGameplaySnapshotRouter());
     app.use("/api/quest", questEventRouter);
     app.use("/api/skill", skillEventRouter);
     app.use("/api/resource", resourceGatherRouter);
@@ -300,6 +301,16 @@ export class ServerBootstrap {
     const port = Number(process.env.PORT || 3000);
     httpServer.listen(port, () => {
         console.log(`Arelorian server listening on ${port}`);
+        
+        // Phase 11: Start tick context provider with WorldTick integration
+        // This ensures all HTTP routes have deterministic tick context
+        // Use liveHeal.getStatus().tickCount as a stable public accessor to tickCount
+        const tickUpdateInterval = setInterval(() => {
+          const status = (tick as any).liveHeal?.getStatus?.();
+          const currentTick = status?.tickCount ?? 0;
+          tickContextProvider.updateTick(currentTick);
+        }, 100); // Update every 100ms (10Hz)
+        
         tick.start();
         
         // Install ARE Infinite Loot Machine

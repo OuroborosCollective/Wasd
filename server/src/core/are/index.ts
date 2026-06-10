@@ -95,7 +95,8 @@ export {
 } from './ManifestTickSystem.js';
 
 // Supporting modules
-export { DeterministicPrng, LcgPrng, createDeterministicPrng } from './DeterministicPrng.js';
+export type { DeterministicPrng } from './DeterministicPrng.js';
+export { LcgPrng, createDeterministicPrng } from './DeterministicPrng.js';
 export { createStateHash, isStateHash, stateHashEquals, GENESIS_STATE_HASH, GENESIS_PREVIOUS_HASH } from './StateHash.js';
 
 // Integration
@@ -203,3 +204,14 @@ export {
   type WorldTickStepResult,
   type WorldTickSchedulerSystemName,
 } from './WorldTickScheduler.js';
+
+// Phase 11: TickSystemContextProvider - HTTP route tick context
+export {
+  TickSystemContextProvider,
+  tickContextProvider,
+  getCurrentTickContext,
+  getCurrentTickId,
+  getWorldTimeHours,
+  getDeterministicSeed,
+  type TickContext,
+} from './TickSystemContextProvider.js';

@@ -156,8 +156,9 @@ export class SpatialBroadcastGrid {
   /**
    * Get all entities in a specific chunk.
    */
-  getEntitiesInChunk(chunkKey: ChunkKey): SpatialEntity[] {
-    const entityIds = this.chunkToEntities.get(chunkKey);
+  getEntitiesInChunk(chunkKey: string | ChunkKey): SpatialEntity[] {
+    const key = String(chunkKey);
+    const entityIds = this.chunkToEntities.get(key as ChunkKey);
     if (!entityIds) return [];
     
     const entities: SpatialEntity[] = [];

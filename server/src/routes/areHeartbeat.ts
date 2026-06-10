@@ -3,17 +3,19 @@
  * 
  * Serves live ARE heartbeat snapshot for the 2D client.
  * 
+ * Phase 11: Uses TickSystemContextProvider instead of WorldTick.ts coupling.
+ * 
  * Rules:
  * - No Math.random() for ARE values
  * - No Date.now() for simulation values
  * - kappa is exactly 1000 (invariant)
- * - tickId comes from real server tick state
+ * - tickId comes from TickSystemContextProvider
  * - observerCount comes from WebSocket connection count
  * - replayHash is deterministic from stable input
  */
 
 import express from "express";
-import type { WorldTick } from "../core/WorldTick.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { createAREHeartbeatSnapshot } from "./areHeartbeatUtils.js";
 
 /**
@@ -40,24 +42,16 @@ function getObserverCount(ws: any): number {
 }
 
 /**
- * Get current tick ID from WorldTick instance.
- * Returns 0 if not available.
- */
-function getCurrentTickId(tick: WorldTick | null): number {
-  if (!tick) return 0;
-  // tick is the WorldTick instance, access tickCount property
-  return (tick as any).tickCount ?? 0;
-}
-
-/**
  * Create ARE heartbeat router.
- * Requires WorldTick instance for tick count and WebSocket for observer count.
+ * Phase 11: Uses TickSystemContextProvider for tick count.
  */
-export function createAREHeartbeatRouter(tick: WorldTick, ws: any) {
+export function createAREHeartbeatRouter(_tick: any, ws: any) {
   const router = express.Router();
 
   router.get("/heartbeat", (_req, res) => {
-    const tickId = getCurrentTickId(tick);
+    // Phase 11: Use TickSystemContextProvider for deterministic tick
+    const tickContext = tickContextProvider.getContext();
+    const tickId = tickContext.tickId;
     const observerCount = getObserverCount(ws);
 
     const snapshot = createAREHeartbeatSnapshot({

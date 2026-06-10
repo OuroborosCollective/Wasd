@@ -1,5 +1,6 @@
 import express from "express";
 import type { WorldTick } from "../core/WorldTick.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { attachSovereignBillingBridge } from "../market/SovereignBillingBridge.js";
 import { calculateUsageCost, sovereignMarket } from "../market/SovereignMarket.js";
 import { paypalAdapter } from "../finance/PayPalAdapter.js";
@@ -88,14 +89,14 @@ export function areReplayRouter(tick: WorldTick) {
   });
 
   router.get("/governance/status", (_req, res) => {
-    const report = sovereignGovernance.getReport(Number((tick as any).tickCount ?? 0));
+    const report = sovereignGovernance.getReport(Number(tickContextProvider.getContext().tickId));
     res.json(report);
   });
 
   router.post("/governance/directives", express.json({ limit: "96kb" }), (req, res) => {
     try {
-      const directive = sovereignGovernance.propose({ ...req.body, tick: Number((tick as any).tickCount ?? 0) });
-      const report = sovereignGovernance.getReport(Number((tick as any).tickCount ?? 0));
+      const directive = sovereignGovernance.propose({ ...req.body, tick: Number(tickContextProvider.getContext().tickId) });
+      const report = sovereignGovernance.getReport(Number(tickContextProvider.getContext().tickId));
       broadcastCouncil(tick, report);
       res.json({ ok: true, directive, report });
     } catch (error) {
@@ -105,8 +106,8 @@ export function areReplayRouter(tick: WorldTick) {
 
   router.post("/governance/directives/:id/vote", express.json({ limit: "96kb" }), (req, res) => {
     try {
-      const vote = sovereignGovernance.vote({ ...req.body, directiveId: req.params.id, tick: Number((tick as any).tickCount ?? 0) });
-      const report = sovereignGovernance.getReport(Number((tick as any).tickCount ?? 0));
+      const vote = sovereignGovernance.vote({ ...req.body, directiveId: req.params.id, tick: Number(tickContextProvider.getContext().tickId) });
+      const report = sovereignGovernance.getReport(Number(tickContextProvider.getContext().tickId));
       broadcastCouncil(tick, report);
       res.json({ ok: true, vote, report });
     } catch (error) {
@@ -119,8 +120,8 @@ export function areReplayRouter(tick: WorldTick) {
       const adminKey = process.env.SOVEREIGN_LAUNCH_KEY || process.env.ARE_GOVERNANCE_ADMIN_KEY || "";
       const provided = String(req.headers["x-sovereign-key"] || req.body?.key || "");
       if (adminKey && provided !== adminKey) return res.status(403).json({ ok: false, error: "forbidden" });
-      const directive = sovereignGovernance.enact(req.params.id, Number((tick as any).tickCount ?? 0));
-      const report = sovereignGovernance.getReport(Number((tick as any).tickCount ?? 0));
+      const directive = sovereignGovernance.enact(req.params.id, Number(tickContextProvider.getContext().tickId));
+      const report = sovereignGovernance.getReport(Number(tickContextProvider.getContext().tickId));
       broadcastCouncil(tick, report);
       res.json({ ok: true, directive, report });
     } catch (error) {
