@@ -15,15 +15,8 @@
  * Entity Identity: player:are_ghost_01 (registered as standard player)
  */
 
-import type {
-  TickSystem,
-  TickSystemContext,
-  TickSystemPriority,
-  KappaInt,
-  EntityId,
-  TickId,
-} from '../../core/are/types.js';
-import { DeterministicPrng, LcgPrng, createDeterministicPrng } from '../../core/are/DeterministicPrng.js';
+import { type TickSystem, type TickSystemContext, TickSystemPriority, type KappaInt, type EntityId, type TickId } from '../../core/are/types.js';
+import { type DeterministicPrng, createDeterministicPrng } from '../../core/are/DeterministicPrng.js';
 import { AREShadowAdapter } from '../../core/are/AREShadowAdapter.js';
 import { DeterminismViolation } from '../../core/are/SnapshotComposer.js';
 import {
@@ -252,12 +245,14 @@ export class AutonomousPlayerTickSystem implements TickSystem {
   private evaluateMicroActionContinuation(context: DecisionContext): boolean {
     // Quick check if conditions have drastically changed
     // Health dropped below safety threshold?
-    if (this.health < (this.maxHealth * 200n / 1000n as unknown as KappaInt)) {
+    const healthThreshold = (this.maxHealth * 200) / 1000;
+    if (this.health < healthThreshold) {
       return false; // Re-evaluate immediately
     }
     
     // Too many enemies now?
-    if (context.nearbyEnemies > (this.weights.proximityWeight * 3n / 1000n as unknown as KappaInt)) {
+    const enemyThreshold = (this.weights.proximityWeight * 3) / 1000;
+    if (context.nearbyEnemies > enemyThreshold) {
       return false; // Flee instead
     }
     
@@ -266,13 +261,14 @@ export class AutonomousPlayerTickSystem implements TickSystem {
   
   private applyMicroActionEffect(action: AutonomousAction): void {
     // Apply minimal state change based on cached action
+    // All operations use KappaInt - no floating point
     switch (action) {
       case AutonomousAction.GATHER_RESOURCE:
         this.gold = (this.gold + 1) as KappaInt;
         this.stamina = (this.stamina - 5) as KappaInt;
         break;
       case AutonomousAction.REST_RECOVER:
-        this.stamina = (Math.min(Number(this.stamina) + 20, Number(this.maxStamina))) as KappaInt;
+        this.stamina = Math.min(this.stamina + 20, this.maxStamina) as unknown as KappaInt;
         break;
       case AutonomousAction.MOVE_POSITION:
         // Micro-movement on Kappa grid
@@ -328,18 +324,18 @@ export class AutonomousPlayerTickSystem implements TickSystem {
       return (sum > Number(MAX_UTILITY_SCORE) ? MAX_UTILITY_SCORE : sum) as KappaInt;
     };
     
-    // Helper: safe multiply with overflow cap
+    // Helper: safe multiply with overflow cap (KappaInt fixed-point)
     const safeMul = (a: KappaInt, b: KappaInt, scale: number = 1): KappaInt => {
       const product = (Number(a) * Number(b) * scale) / 1000;
-      return (product > Number(MAX_UTILITY_SCORE) ? MAX_UTILITY_SCORE : Math.floor(product)) as KappaInt;
+      return (product > Number(MAX_UTILITY_SCORE) ? MAX_UTILITY_SCORE : Math.trunc(product)) as KappaInt;
     };
     
     // Health factor (0-1000, where 1000 = full health)
-    const healthFactor = safeMul(context.health, 1000n as KappaInt, 1) / Number(context.maxHealth);
+    const healthFactor = safeMul(context.health, 1000 as KappaInt, 1) / Number(context.maxHealth);
     const healthScore = safeMul(healthFactor, w.healthWeight, 1) as KappaInt;
     
     // Stamina factor
-    const staminaFactor = safeMul(context.stamina, 1000n as KappaInt, 1) / Number(context.maxStamina);
+    const staminaFactor = safeMul(context.stamina, 1000 as KappaInt, 1) / Number(context.maxStamina);
     const staminaScore = safeMul(staminaFactor, w.staminaWeight, 1) as KappaInt;
     
     // Enemy proximity factor (higher enemies = lower combat score)
@@ -348,59 +344,63 @@ export class AutonomousPlayerTickSystem implements TickSystem {
     // Combat score: favor when healthy and enemies present
     const combatScore = safeAdd(
       healthScore,
-      safeAdd(staminaScore, safeMul(context.nearbyEnemies, 50n as KappaInt, 1))
+      safeAdd(staminaScore, safeMul(context.nearbyEnemies, 50 as KappaInt, 1))
     );
     const combatScoreFinal = (Number(combatScore) - Number(enemyProximityPenalty)) as KappaInt;
     
     // Diplomacy score: favor when low threat and social opportunity
     const diplomacyScore = safeAdd(
       safeMul(context.nearbyAllies, w.socialWeight, 1),
-      safeMul(safeAdd(healthFactor, staminaFactor), 100n as KappaInt, 1)
+      safeMul(safeAdd(healthFactor, staminaFactor), 100 as KappaInt, 1)
     );
     const diplomacyScoreFinal = (Number(diplomacyScore) - Number(safeMul(context.nearbyEnemies, w.proximityWeight, 1))) as KappaInt;
     
     // Flee score: favor when low health or high enemy DPS
-    const lowHealthPenalty = (context.health < (context.maxHealth * 300n / 1000n as unknown as KappaInt)) 
-      ? (w.safetyMarginWeight * 2n) as KappaInt 
-      : 0n as KappaInt;
-    const highEnemyDpsPenalty = (context.enemyAverageDps > 50n as KappaInt) 
-      ? (w.proximityWeight * 2n) as KappaInt 
-      : 0n as KappaInt;
+    const lowHealthThreshold = (context.maxHealth * 300) / 1000;
+    const lowHealthPenalty = (context.health < lowHealthThreshold) 
+      ? (w.safetyMarginWeight * 2) as KappaInt 
+      : 0 as KappaInt;
+    const highEnemyDpsPenalty = (context.enemyAverageDps > 50 as KappaInt) 
+      ? (w.proximityWeight * 2) as KappaInt 
+      : 0 as KappaInt;
     const fleeScore = safeAdd(
       lowHealthPenalty,
-      safeAdd(highEnemyDpsPenalty, safeMul(context.ticksSinceCombat, 10n as KappaInt, 1))
+      safeAdd(highEnemyDpsPenalty, safeMul(context.ticksSinceCombat, 10 as KappaInt, 1))
     );
     
     // Gather score: favor when resources available and energy sufficient
     const gatherScore = safeAdd(
       safeMul(context.resourceDensity, w.resourceWeight, 1),
-      safeMul(staminaFactor, 200n as KappaInt, 1)
+      safeMul(staminaFactor, 200 as KappaInt, 1)
     );
     
     // Explore score: favor when safe and layer difficulty low
     const exploreScore = safeAdd(
-      safeMul(safeAdd(healthFactor, staminaFactor), 100n as KappaInt, 1),
-      safeMul((1000n as KappaInt - context.currentLayerDifficulty), 50n as KappaInt, 1)
+      safeMul(safeAdd(healthFactor, staminaFactor), 100 as KappaInt, 1),
+      safeMul((1000 as KappaInt - context.currentLayerDifficulty), 50 as KappaInt, 1)
     );
     
     // Rest score: favor when stamina low
-    const restScore = safeMul((1000n as KappaInt - staminaFactor), w.staminaWeight, 2) as KappaInt;
+    const restScore = safeMul((1000 as KappaInt - staminaFactor), w.staminaWeight, 2) as KappaInt;
     
     // Trade score: favor when gold low but stable
-    const tradeScore = safeMul(context.gold, 10n as KappaInt, 1) as KappaInt;
+    const tradeScore = safeMul(context.gold, 10 as KappaInt, 1) as KappaInt;
     
     // Quest score: favor when active quests and safe
     const questScore = safeMul(context.activeQuests, w.questProgressWeight, 1) as KappaInt;
     
+    // Clamp all scores to non-negative KappaInt values
+    const clamp = (v: KappaInt): KappaInt => (Number(v) < 0 ? 0 as KappaInt : v);
+    
     return {
-      combatScore: Math.max(0, combatScoreFinal as unknown as number) as KappaInt,
-      diplomacyScore: Math.max(0, diplomacyScoreFinal as unknown as number) as KappaInt,
-      fleeScore: Math.max(0, fleeScore as unknown as number) as KappaInt,
-      gatherScore: Math.max(0, gatherScore as unknown as number) as KappaInt,
-      exploreScore: Math.max(0, exploreScore as unknown as number) as KappaInt,
-      restScore: Math.max(0, restScore as unknown as number) as KappaInt,
-      tradeScore: Math.max(0, tradeScore as unknown as number) as KappaInt,
-      questScore: Math.max(0, questScore as unknown as number) as KappaInt,
+      combatScore: clamp(combatScoreFinal),
+      diplomacyScore: clamp(diplomacyScoreFinal),
+      fleeScore: clamp(fleeScore),
+      gatherScore: clamp(gatherScore),
+      exploreScore: clamp(exploreScore),
+      restScore: clamp(restScore),
+      tradeScore: clamp(tradeScore),
+      questScore: clamp(questScore),
     };
   }
   
@@ -424,7 +424,7 @@ export class AutonomousPlayerTickSystem implements TickSystem {
     scoreEntries.sort((a, b) => Number(b.score) - Number(a.score));
     
     const winner = scoreEntries[0];
-    const runnerUp = scoreEntries[1] ?? { action: AutonomousAction.IDLE_WAIT, score: 0n as KappaInt };
+    const runnerUp = scoreEntries[1] ?? { action: AutonomousAction.IDLE_WAIT, score: 0 as KappaInt };
     
     // Generate deterministic reasoning
     const reasoning = this.generateReasoning(winner.action, winner.score, context);
@@ -481,8 +481,8 @@ export class AutonomousPlayerTickSystem implements TickSystem {
         this.combatMetrics.dpsAccumulator = (this.combatMetrics.dpsAccumulator + 0) as KappaInt; // No DPS for gather
         break;
       case AutonomousAction.REST_RECOVER:
-        this.stamina = (Math.min(Number(this.stamina) + 200, Number(this.maxStamina))) as KappaInt;
-        this.health = (Math.min(Number(this.health) + 50, Number(this.maxHealth))) as KappaInt;
+        this.stamina = Math.min(this.stamina + 200, this.maxStamina) as unknown as KappaInt;
+        this.health = Math.min(this.health + 50, this.maxHealth) as unknown as KappaInt;
         break;
       case AutonomousAction.EXPLORE_NEW_AREA:
         this.executeExploreAction(context);
@@ -557,7 +557,7 @@ export class AutonomousPlayerTickSystem implements TickSystem {
     // Simple deterministic trade
     if (this.gold > 50) {
       this.gold = (this.gold - 50) as KappaInt;
-      this.stamina = (Math.min(Number(this.stamina) + 100, Number(this.maxStamina))) as KappaInt;
+      this.stamina = Math.min(this.stamina + 100, this.maxStamina) as unknown as KappaInt;
     }
   }
   
@@ -594,44 +594,53 @@ export class AutonomousPlayerTickSystem implements TickSystem {
   private calculateCombatAnalytics(): CombatAnalytics {
     const m = this.combatMetrics;
     
+    // Helper: integer division with floor (deterministic)
+    const intDiv = (a: number, b: number): number => {
+      const result = a / b;
+      return result >= 0 ? Math.trunc(result) : -Math.trunc(-result);
+    };
+    
+    // Helper: safe min for two KappaInt values
+    const safeMin = (a: KappaInt, b: KappaInt): KappaInt => (Number(a) < Number(b) ? a : b);
+    
     // Hit ratio (percentage * 1000 for precision)
     const hitRatio = (m.attacksAttempted > 0)
-      ? (Number(m.hitsLanded) * 1000000 / Number(m.attacksAttempted)) as KappaInt
-      : 0n as KappaInt;
+      ? intDiv(Number(m.hitsLanded) * 1000000, Number(m.attacksAttempted)) as KappaInt
+      : 0 as KappaInt;
     
     // Average DPS (over window)
     const windowTicks = Number(WARFRONT_WINDOW_TICKS);
-    const averageDps = (Number(m.dpsAccumulator) / windowTicks * 1000) as KappaInt;
+    const averageDps = intDiv(Number(m.dpsAccumulator) * 1000, windowTicks) as KappaInt;
     
     // Stamina efficiency (damage per stamina unit)
     const staminaEfficiency = (m.staminaDrainAccumulator > 0)
-      ? (Number(m.dpsAccumulator) * 1000 / Number(m.staminaDrainAccumulator)) as KappaInt
-      : 0n as KappaInt;
+      ? intDiv(Number(m.dpsAccumulator) * 1000, Number(m.staminaDrainAccumulator)) as KappaInt
+      : 0 as KappaInt;
     
     // Movement efficiency (distance per position change)
     const movementEfficiency = (m.positionChanges > 0)
-      ? (Number(m.distanceMoved) / Number(m.positionChanges)) as KappaInt
-      : 0n as KappaInt;
+      ? intDiv(Number(m.distanceMoved), Number(m.positionChanges)) as KappaInt
+      : 0 as KappaInt;
     
     // Survival rating (percentage * 1000)
     const totalFlees = Number(m.fleeSuccesses) + Number(m.fleeFailures);
     const survivalRating = (totalFlees > 0)
-      ? (Number(m.fleeSuccesses) * 1000000 / totalFlees) as KappaInt
-      : 1000000n as KappaInt; // Default 100%
+      ? intDiv(Number(m.fleeSuccesses) * 1000000, totalFlees) as KappaInt
+      : 1000000 as KappaInt; // Default 100%
     
     // Aggression index (enemies per tick)
-    const ticksInWindow = Math.min(Number(this.tickCount), Number(WARFRONT_WINDOW_TICKS));
+    const ticksInWindow = Number(safeMin(this.tickCount, WARFRONT_WINDOW_TICKS));
     const aggressionIndex = (ticksInWindow > 0)
-      ? (Number(m.enemiesEngaged) * 1000 / ticksInWindow) as KappaInt
-      : 0n as KappaInt;
+      ? intDiv(Number(m.enemiesEngaged) * 1000, ticksInWindow) as KappaInt
+      : 0 as KappaInt;
     
     return {
-      hitRatio: Math.floor(Number(hitRatio)) as KappaInt,
-      averageDps: Math.floor(Number(averageDps)) as KappaInt,
-      staminaEfficiency: Math.floor(Number(staminaEfficiency)) as KappaInt,
-      movementEfficiency: Math.floor(Number(movementEfficiency)) as KappaInt,
-      survivalRating: Math.floor(Number(survivalRating)) as KappaInt,
-      aggressionIndex: Math.floor(Number(aggressionIndex)) as KappaInt,
+      hitRatio,
+      averageDps,
+      staminaEfficiency,
+      movementEfficiency,
+      survivalRating,
+      aggressionIndex,
     };
   }
   
@@ -674,9 +683,7 @@ export class AutonomousPlayerTickSystem implements TickSystem {
     // Verify RNG state is deterministic
     if (!this.rng || typeof this.rng.nextFloat !== 'function') {
       throw new DeterminismViolation(
-        'AutonomousPlayerTickSystem',
-        'RNG not properly initialized',
-        this.tickCount as TickId
+        `AutonomousPlayerTickSystem: RNG not properly initialized at tick=${this.tickCount}`
       );
     }
   }
@@ -691,16 +698,14 @@ export class AutonomousPlayerTickSystem implements TickSystem {
     const maxTotal = Number(this.maxHealth) + Number(this.maxStamina) + 10000; // 10k gold cap
     if (currentTotal > maxTotal) {
       throw new DeterminismViolation(
-        'AutonomousPlayerTickSystem',
-        `Energy overflow: ${currentTotal} > ${maxTotal}`,
-        this.tickCount as TickId
+        `AutonomousPlayerTickSystem: Energy overflow: ${currentTotal} > ${maxTotal} at tick=${this.tickCount}`
       );
     }
   }
   
   private captureEnergyState(): EnergyState {
-    const energyIn = 100n as KappaInt; // Base regeneration
-    const energyOut = (this.stamina < this.maxStamina ? 50n : 0n) as KappaInt;
+    const energyIn = 100 as KappaInt; // Base regeneration
+    const energyOut = (this.stamina < this.maxStamina ? 50 : 0) as KappaInt;
     const deltaEnergy = (energyIn - energyOut) as KappaInt;
     
     return {
@@ -717,13 +722,15 @@ export class AutonomousPlayerTickSystem implements TickSystem {
   // =============================================================================
   
   private deriveSeedFromEntityId(entityId: EntityId): number {
+    // Deterministic hash - no Math.random, no Math.abs
     let hash = 0;
     for (let i = 0; i < entityId.length; i++) {
       const char = entityId.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
+      hash = hash & hash; // 32-bit wrapping
     }
-    return Math.abs(hash);
+    // Ensure non-negative via unsigned right shift
+    return hash >>> 0;
   }
   
   /**
