@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import path from 'node:path';
-import type { WorldTick } from '../core/WorldTick.js';
+import type { WorldTick } from '../core/are/index.js';
 import { getDeterministicWatchdogStatus } from '../core/installDeterministicWatchdog.js';
 import { checkQuestPersistenceWritable } from './questPersistenceHealth.js';
 import { checkSkillPersistenceWritable } from './skillPersistenceHealth.js';

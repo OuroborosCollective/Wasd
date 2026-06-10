@@ -1,6 +1,6 @@
 import express, { Router, type Response } from "express";
 import { adminAuthMiddleware, adminWriteBlocked, type AdminRequest } from "../middleware/adminAuthMiddleware.js";
-import type { WorldTick } from "../core/WorldTick.js";
+import type { WorldTick } from "../core/are/index.js";
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";

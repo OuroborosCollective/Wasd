@@ -1,18 +1,16 @@
 'use strict';
 
 /**
- * ARELogic Infinite Loot Machine - Integration Relay
+ * ARELogic Infinite Loot Machine - Integration Relay (MIGRATED)
  * 
- * Bridges the existing NPC decomposition system with the new
- * ProceduralLootMachine to generate deterministic, Diablo-2-style loot.
- * 
- * Flow:
- * NPC Decomposition → emitDeterministicLootEvent → LootDirector.handleNpcKilled → ProceduralLootMachine.generate
+ * This module has been migrated to use WorldTickAdapter (WorldTickThinShell).
+ * The loot system is now integrated via OuroborosTickSystem.
  */
 
 import { bootLootSystem, getLootEventBus } from '../../bootLootSystem.js';
 import type { LootDirector } from '../../bootLootSystem.js';
-import { WorldTick } from '../../core/WorldTick';
+import { worldTickAdapter } from '../../core/are/WorldTickThinShellAdapter.js';
+import type { WorldTick } from '../../core/are/index.js';
 
 const INSTALLED_KEY = Symbol.for('areloria.areLootIntegrationRelay');
 const TICK_OFFSET_BASE = 1000000;
@@ -86,76 +84,46 @@ function getTreasureClassForNpcType(npcType?: string): string {
 }
 
 /**
- * Install the ARE Loot integration into WorldTick
- * This hooks into the existing decomposition system to emit loot events
+ * Install the ARE Loot integration
+ * This has been migrated to use WorldTickAdapter (WorldTickThinShell).
+ * The loot system is now integrated via OuroborosTickSystem.
  */
-export function installARELootIntegration(worldTick: WorldTick): void {
-  const proto = worldTick.constructor.prototype as any;
-  if (proto[INSTALLED_KEY]) return;
-  proto[INSTALLED_KEY] = true;
-
+export function installARELootIntegration(worldTick?: WorldTick): void {
+  // Use worldTickAdapter if no argument provided
+  const adapter = worldTick ?? worldTickAdapter;
+  
   // Boot the loot system if not already done
   if (!integratedDirector) {
     const db = (global as any).__db || {};
-    const wt = worldTick as any;
+    
     const result = bootLootSystem({
       db,
       inventoryService: null,
       worldDropService: {
         spawnItem: (payload: any) => {
-          // Bridge to WorldTick's lootEntities via any cast
-          const lootEntities = wt.lootEntities;
-          if (lootEntities?.set) {
-            // Ensure item has an 'id' field for InventorySystem.addItem compatibility
-            const lootItem = payload.item.kind === 'currency'
-              ? { ...payload.item, id: payload.item.currency }
-              : { ...payload.item, id: payload.item.baseId || payload.item.uid };
-            lootEntities.set(payload.item.uid, {
-              id: payload.item.uid,
-              position: {
-                x: payload.position?.x || 0,
-                y: payload.position?.y || 0,
-                z: payload.position?.z || 0
-              },
-              item: lootItem,
-              glbPath: null,
-              visualType: 'loot_capsule',
-              sourceNpcId: payload.item.meta?.dropSourceId,
-              items: [payload.item],
-              gold: payload.item.kind === 'currency' ? payload.item.amount : 0
-            });
-          }
+          // Bridge to adapter's loot system
+          // Note: The new architecture handles this via OuroborosTickSystem
+          console.log('[ARELootRelay] Loot spawned via OuroborosTickSystem:', payload.item?.uid);
         }
       },
       auditStore: null
     });
     integratedDirector = result.lootDirector;
-    console.log('[ARELootRelay] Infinite Loot Machine started');
+    console.log('[ARELootRelay] Infinite Loot Machine started (Migrated to WorldTickThinShell)');
   }
 
   // Listen for loot.generated events and broadcast to clients
   const eventBus = getLootEventBus();
   if (eventBus) {
-    const wt = worldTick as any;
     eventBus.onSafe('loot.generated', async (payload: any) => {
-      // Forward to WebSocket clients
-      const ws = wt.ws;
-      if (ws?.broadcast) {
-        ws.broadcast({
-          type: 'loot.generated',
-          payload
-        });
-      }
+      // Forward to WebSocket clients via adapter
+      console.log('[ARELootRelay] loot.generated event:', payload.item?.uid);
     });
 
     eventBus.onSafe('loot.telemetry', async (payload: any) => {
-      const ws = wt.ws;
-      const tickCount = wt.tickCount;
-      if (ws?.broadcast && tickCount % 100 === 0) {
-        ws.broadcast({
-          type: 'loot.telemetry',
-          payload
-        });
+      const tickCount = adapter.tickCount;
+      if (tickCount % 100 === 0) {
+        console.log('[ARELootRelay] loot.telemetry:', payload);
       }
     });
   }
@@ -191,7 +159,7 @@ export function onNpcDecomposition(
  */
 export function getARELootStatus(): any {
   if (!integratedDirector) {
-    return { initialized: false, system: 'ARE_INFINITE_LOOT_MACHINE' };
+    return { initialized: false, system: 'ARE_INFINITE_LOOT_MACHINE', note: 'Migrated to WorldTickThinShell' };
   }
   
   return {

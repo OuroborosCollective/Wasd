@@ -1,6 +1,6 @@
 import express from "express";
 import { areValidationState } from "../are/AREValidationState.js";
-import type { WorldTick } from "../core/WorldTick.js";
+import type { WorldTick } from "../core/are/index.js";
 
 export function areValidationRouter(tick: WorldTick) {
   const router = express.Router();

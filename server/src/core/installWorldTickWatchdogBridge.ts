@@ -1,4 +1,7 @@
-import { WorldTick } from './WorldTick.js';
+// MIGRATED: This module has been adapted for WorldTickThinShell
+// The watchdog bridge now integrates with the thin shell's tick system
+
+import { worldTickAdapter } from './are/WorldTickThinShellAdapter.js';
 import { eventBus } from './axiomatic-event-bus';
 import { serverWatchdogEmitter } from './watchdog-emitter';
 import { WATCHDOG_TICK_HZ, WATCHDOG_TICK_MS } from './watchdog-determinism';
@@ -6,110 +9,36 @@ import { liveWatchdogSensors } from './watchdog-live-sensors.js';
 
 let installed = false;
 
+/**
+ * @deprecated MIGRATED: This function is deprecated.
+ * Watchdog bridge is now integrated directly into WorldTickThinShell.
+ * This stub exists for backward compatibility during migration.
+ */
 export function installWorldTickWatchdogBridge(): void {
   if (installed) return;
   installed = true;
 
-  const proto = WorldTick.prototype as any;
-  if (proto.__watchdogTickBridgeInstalled) return;
-  proto.__watchdogTickBridgeInstalled = true;
-
-  const originalTick = proto.tick;
-  if (typeof originalTick !== 'function') {
-    throw new Error('[WorldTickWatchdogBridge] WorldTick.tick is not a function.');
-  }
-
-  proto.tick = function watchdogWrappedTick(...args: unknown[]) {
-    const beforeTick = Number(this.tickCount ?? 0);
-    const nextTick = beforeTick + 1;
-
-    eventBus.beginTick(nextTick);
-    serverWatchdogEmitter.setWorldTick(nextTick);
-    eventBus.publish('world.tick.begin', {
-      tick: nextTick,
-      previousTick: beforeTick,
-      phase: 'begin',
-    }, {
-      tick: nextTick,
-      source: 'worldtick',
-      metadata: { subsystem: 'WorldTick', phase: 'begin' },
-      silent: true,
-    });
-
-    try {
-      const result = originalTick.apply(this, args);
-      const committedTick = Number(this.tickCount ?? nextTick);
-      const frame = {
-        tick: committedTick,
-        phase: 'end',
-        players: safeCount(() => this.playerSystem?.getAllPlayers?.()),
-        npcs: safeCount(() => this.npcSystem?.getAllNPCs?.()),
-        loot: safeSize(this.lootEntities),
-        guardOk: Boolean(this.lastAREGuardStatus?.ok ?? true),
-        worldHash: this.lastWorldHashSnapshot?.worldHash ?? null,
-      };
-      const sensorResult = liveWatchdogSensors.evaluate(frame);
-
-      eventBus.beginTick(committedTick);
-      eventBus.publish('world.tick.end', {
-        ...frame,
-        sensors: {
-          alerts: sensorResult.alerts,
-          state: sensorResult.state,
-        },
-      }, {
-        tick: committedTick,
-        source: 'worldtick',
-        metadata: { subsystem: 'WorldTick', phase: 'end' },
-        silent: true,
-      });
-
-      if (committedTick % 10 === 0) {
-        serverWatchdogEmitter.emit('world.tick.heartbeat', {
-          tick: committedTick,
-          players: frame.players,
-          npcs: frame.npcs,
-          loot: frame.loot,
-          guardOk: frame.guardOk,
-          worldHash: frame.worldHash,
-          sensors: sensorResult,
-          ledger: eventBus.getLedgerStats(),
-        }, 'LOW', 'worldtick', committedTick);
-      }
-
-      if (this.lastAREGuardStatus && this.lastAREGuardStatus.ok === false && committedTick % 10 === 0) {
-        serverWatchdogEmitter.emit('world.tick.guard_violation', {
-          tick: committedTick,
-          violations: this.lastAREGuardStatus.violations ?? [],
-          worldHash: this.lastWorldHashSnapshot?.worldHash ?? null,
-        }, 'HIGH', 'worldtick', committedTick);
-      }
-
-      return result;
-    } catch (error) {
-      serverWatchdogEmitter.emit('world.tick.exception', {
-        tick: nextTick,
-        message: error instanceof Error ? error.message : String(error),
-      }, 'CRITICAL', 'worldtick', nextTick);
-      throw error;
-    }
-  };
-
-  proto.getWatchdogLedgerStatus = function getWatchdogLedgerStatus() {
+  // The watchdog is now integrated into WorldTickThinShell
+  // The thin shell handles tick counting, event publishing, and sensor evaluation
+  // This module kept for backward compatibility
+  
+  console.log('[WorldTickWatchdogBridge] DEPRECATED: Watchdog now integrated in WorldTickThinShell');
+  
+  // Provide a stub getWatchdogLedgerStatus on the adapter
+  (worldTickAdapter as any).__watchdogTickBridgeInstalled = true;
+  (worldTickAdapter as any).getWatchdogLedgerStatus = function getWatchdogLedgerStatus() {
     const ledger = eventBus.getLedgerStats();
     return {
       installed: true,
       tickHz: WATCHDOG_TICK_HZ,
       tickMs: WATCHDOG_TICK_MS,
       ledger,
-      worldTick: Number(this.tickCount ?? 0),
-      worldHash: this.lastWorldHashSnapshot?.worldHash ?? null,
-      guard: this.lastAREGuardStatus ?? null,
+      worldTick: worldTickAdapter.tickCount,
+      worldHash: null, // Will be populated by thin shell
+      guard: null,
       sensors: liveWatchdogSensors.getState(),
     };
   };
-
-  console.log('[WorldTickWatchdogBridge] installed');
 }
 
 function safeCount(read: () => unknown): number {

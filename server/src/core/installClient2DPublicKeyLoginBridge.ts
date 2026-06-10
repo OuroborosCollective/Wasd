@@ -1,5 +1,5 @@
 import type { GameWebSocketServer } from "../networking/WebSocketServer.js";
-import type { WorldTick } from "./WorldTick.js";
+import type { WorldTick } from "./are/index.js";
 
 function sanitizeIdentityPart(value: unknown, fallback: string): string {
   const raw = String(value ?? fallback).trim().toLowerCase();
