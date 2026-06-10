@@ -23,13 +23,10 @@ export {
   createKappaFromDecimal,
   createTickId,
   incrementTickId,
-  createStateHash,
-  isStateHash,
   createChunkCoord,
   createChunkKey,
   parseChunkKey,
   createEntityId,
-  GENESIS_STATE_HASH,
   CHUNK_SIZE,
   CHUNK_SIZE_KAPPA,
 } from './types.js';
