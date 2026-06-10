@@ -145,6 +145,12 @@ export {
   registerWorldBrainScheduler
 } from './WorldBrainScheduler.js';
 
+export {
+  WorldTickAdapter,
+  worldTickAdapter,
+  type WorldTick
+} from './WorldTickThinShellAdapter.js';
+
 // Phase 8: Snapshot Composer & Layer Validation
 export {
   IARE_LAYER_NAMES,

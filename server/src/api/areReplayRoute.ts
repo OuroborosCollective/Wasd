@@ -1,5 +1,5 @@
 import express from "express";
-import type { WorldTick } from "../core/WorldTick.js";
+import type { WorldTick } from "../core/are/index.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { attachSovereignBillingBridge } from "../market/SovereignBillingBridge.js";
 import { calculateUsageCost, sovereignMarket } from "../market/SovereignMarket.js";

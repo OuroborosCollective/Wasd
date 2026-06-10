@@ -1,7 +1,10 @@
-import { WorldTick } from "../../core/WorldTick.js";
+// MIGRATED: This module is deprecated - loot decomposition is now handled
+// by the TickSystemRegistry via OuroborosTickSystem.
+// This stub exists for backward compatibility during migration.
+
+import { worldTickAdapter } from "../../core/are/WorldTickThinShellAdapter.js";
 
 const installed = Symbol.for("areloria.decompositionLootRelay");
-const relayTimers = new WeakMap<object, ReturnType<typeof setInterval>>();
 
 type DropProfile = {
   weaponChance: number;
@@ -112,46 +115,13 @@ function createDropItem(capsule: any, fallbackItem: any): any {
   };
 }
 
+/**
+ * @deprecated MIGRATED: This function is deprecated.
+ * Loot decomposition is now handled by OuroborosTickSystem via TickSystemRegistry.
+ * This stub exists for backward compatibility during migration.
+ */
 export function installDecompositionLootRelay(): void {
-  const proto = WorldTick.prototype as any;
-  if (proto[installed]) return;
-  proto[installed] = true;
-
-  const start = proto.start;
-  const stop = proto.stop;
-
-  proto.start = function (...args: unknown[]) {
-    const result = start.apply(this, args);
-    if (relayTimers.has(this)) return result;
-
-    const timer = setInterval(() => {
-      const drain = this.npcSystem?.drainLootCapsules;
-      if (typeof drain !== "function") return;
-
-      for (const capsule of drain.call(this.npcSystem) ?? []) {
-        if (!capsule?.id || this.lootEntities?.has?.(capsule.id)) continue;
-        const item = capsule.items?.[0] ?? { itemId: "energy_core", count: 1 };
-        this.lootEntities?.set?.(capsule.id, {
-          id: capsule.id,
-          position: toWorldPosition(capsule.position),
-          item: createDropItem(capsule, item),
-          glbPath: null,
-          visualType: "loot_capsule",
-          sourceNpcId: capsule.sourceNpcId,
-        });
-      }
-    }, 100);
-
-    relayTimers.set(this, timer);
-    return result;
-  };
-
-  proto.stop = function (...args: unknown[]) {
-    const timer = relayTimers.get(this);
-    if (timer) {
-      clearInterval(timer);
-      relayTimers.delete(this);
-    }
-    return stop.apply(this, args);
-  };
+  // No-op: Loot decomposition is now handled by OuroborosTickSystem
+  // This module was modifying WorldTick.prototype which is no longer supported
+  console.log('[installDecompositionLootRelay] DEPRECATED: Loot decomposition now handled by OuroborosTickSystem');
 }

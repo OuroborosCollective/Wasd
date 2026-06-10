@@ -3,7 +3,7 @@ import express, { type Request } from "express";
 import { createServer } from "node:http";
 import { existsSync } from "node:fs";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
-import { WorldTick } from "./WorldTick.js";
+import { worldTickAdapter } from "./are/WorldTickThinShellAdapter.js";
 import { tickContextProvider } from "./are/TickSystemContextProvider.js";
 import { installClient2DPublicKeyLoginBridge } from "./installClient2DPublicKeyLoginBridge.js";
 import path from "node:path";
@@ -193,7 +193,7 @@ export class ServerBootstrap {
     });
     const ws = new GameWebSocketServer(httpServer);
     ws.start();
-    const tick = new WorldTick(ws);
+    const tick = worldTickAdapter;
     installClient2DPublicKeyLoginBridge(ws, tick);
     (this as any)._tick = tick;
     await tick.init();

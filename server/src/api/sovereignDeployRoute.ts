@@ -1,7 +1,7 @@
 import express from "express";
 import { execFile, execFileSync } from "node:child_process";
 import net from "node:net";
-import type { WorldTick } from "../core/WorldTick.js";
+import type { WorldTick } from "../core/are/index.js";
 import { getSupabaseSummary } from "../config/supabase.js";
 
 const REPO_FULL_NAME = process.env.SOVEREIGN_REPO || "OuroborosCollective/Wasd";

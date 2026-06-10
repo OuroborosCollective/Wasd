@@ -3,7 +3,7 @@ import path from "node:path";
 import { Router, type Response } from "express";
 import express from "express";
 import multer from "multer";
-import type { WorldTick } from "../core/WorldTick.js";
+import type { WorldTick } from "../core/are/index.js";
 import type { GLBLink } from "../modules/asset-registry/GLBRegistry.js";
 import { adminAuthMiddleware, adminWriteBlocked, type AdminRequest } from "../middleware/adminAuthMiddleware.js";
 import { getContentDataSourceLabel } from "../modules/content/contentDataRoot.js";

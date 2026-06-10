@@ -1,5 +1,5 @@
 import express from "express";
-import type { WorldTick } from "../core/WorldTick.js";
+import type { WorldTick } from "../core/are/index.js";
 
 export function areOracleRouter(tick: WorldTick) {
   const router = express.Router();

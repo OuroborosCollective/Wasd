@@ -1,5 +1,5 @@
 import express, { type Request, type Response, type Router } from "express";
-import type { WorldTick } from "../core/WorldTick.js";
+import type { WorldTick } from "../core/are/index.js";
 import { WarfrontCombatTelemetry } from "../modules/warfront/WarfrontCombatTelemetry.js";
 import type { WarfrontSectorKind } from "../modules/warfront/warfrontTypes.js";
 

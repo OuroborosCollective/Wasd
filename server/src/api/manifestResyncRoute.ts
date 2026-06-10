@@ -13,7 +13,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import type { WorldTick } from '../core/WorldTick.js';
+import type { WorldTick } from '../core/are/index.js';
 import { tickContextProvider } from '../core/are/TickSystemContextProvider.js';
 
 export interface ResyncRequest {
