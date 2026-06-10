@@ -130,3 +130,35 @@ export {
   worldTickThinShell,
   registerWorldTickThinShell
 } from './WorldTickThinShell.js';
+
+// Phase 11: WorldBrainTickSystem - Clean TickSystem integration
+export {
+  WORLD_BRAIN_TICK_SYSTEM_NAME,
+  WORLD_BRAIN_TICK_PRIORITY,
+  WorldBrainTickSystem,
+  SnapshotComposerWorldBrainSink,
+  InMemoryWorldBrainReplaySink,
+  createWorldBrainTickSystemDescriptor,
+  registerWorldBrainTickSystem,
+  type WorldBrainLayerKey,
+  type WorldBrainAttractorType,
+  type WorldBrainAttractor,
+  type WorldBrainDelta,
+  type WorldBrainCanonicalStatePort,
+  type WorldBrainSnapshotSink,
+  type WorldBrainReplaySink,
+  type WorldBrainTickSystemOptions,
+} from './WorldBrainTickSystem.js';
+
+// Phase 11: WorldTickScheduler - Thin scheduler without wall-clock dependencies
+export {
+  ARE_TICK_RATE_HZ,
+  ARE_TICK_INTERVAL_MS,
+  WORLD_TICK_SCHEDULER_ORDER,
+  WORLD_TICK_RECOMMENDED_PRIORITIES,
+  WorldTickScheduler,
+  createWorldTickScheduler,
+  type WorldTickSchedulerOptions,
+  type WorldTickStepResult,
+  type WorldTickSchedulerSystemName,
+} from './WorldTickScheduler.js';
