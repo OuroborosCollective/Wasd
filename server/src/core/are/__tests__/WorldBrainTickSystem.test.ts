@@ -23,13 +23,12 @@ import {
 import type {
   WorldBrainCanonicalStatePort,
   WorldBrainDelta,
-  TickSystemContext,
 } from '../WorldBrainTickSystem.js';
 import {
   WORLD_TICK_RECOMMENDED_PRIORITIES,
   WorldTickScheduler,
 } from '../WorldTickScheduler.js';
-import { TickSystemPriority, type TickSystem } from '../TickSystem.js';
+import { TickSystemPriority, type TickSystem, type TickSystemContext } from '../TickSystem.js';
 import { TickSystemRegistry } from '../TickSystemRegistry.js';
 import { SnapshotComposer } from '../SnapshotComposer.js';
 import {
@@ -492,13 +491,12 @@ describe('WorldBrainTickSystem', () => {
       const registry = new TickSystemRegistry();
       const executed: string[] = [];
 
-      for (const name of ['input', 'spatial-interest', 'resource-economy', 'npc-memory-rumor', 'world-brain', 'snapshot-composer'] as const) {
-        registry.register({
-          system: createNoopSystem(name, WORLD_TICK_RECOMMENDED_PRIORITIES[name === 'spatial-interest' ? 'spatialInterest' : name === 'resource-economy' ? 'resourceEconomy' : name === 'npc-memory-rumor' ? 'npcMemoryRumor' : name === 'world-brain' ? 'worldBrain' : name === 'snapshot-composer' ? 'snapshotComposer' : 'input'], executed),
-          dependencies: [],
-          tags: [],
-        });
-      }
+      registry.register({ system: createNoopSystem('input', WORLD_TICK_RECOMMENDED_PRIORITIES.input, executed), dependencies: [], tags: [] });
+      registry.register({ system: createNoopSystem('spatial-interest', WORLD_TICK_RECOMMENDED_PRIORITIES.spatialInterest, executed), dependencies: [], tags: [] });
+      registry.register({ system: createNoopSystem('resource-economy', WORLD_TICK_RECOMMENDED_PRIORITIES.resourceEconomy, executed), dependencies: [], tags: [] });
+      registry.register({ system: createNoopSystem('npc-memory-rumor', WORLD_TICK_RECOMMENDED_PRIORITIES.npcMemoryRumor, executed), dependencies: [], tags: [] });
+      registry.register({ system: createNoopSystem('world-brain', WORLD_TICK_RECOMMENDED_PRIORITIES.worldBrain, executed), dependencies: [], tags: [] });
+      registry.register({ system: createNoopSystem('snapshot-composer', WORLD_TICK_RECOMMENDED_PRIORITIES.snapshotComposer, executed), dependencies: [], tags: [] });
 
       const scheduler = new WorldTickScheduler({ registry });
       const results = scheduler.runTicks(3);
