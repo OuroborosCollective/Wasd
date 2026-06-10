@@ -249,6 +249,87 @@ export class SnapshotComposer {
   getChunkSnapshot(chunkId: ChunkKey): ChunkSnapshot | undefined {
     return this.chunkSnapshots.get(chunkId);
   }
+
+  // ============================================================================
+  // Module Snapshot Integration (for AutoModuleKatalysator)
+  // ============================================================================
+
+  /** Module-level snapshots for PixiJS client */
+  private moduleSnapshots: Map<string, ModuleSnapshotData> = new Map();
+
+  /**
+   * ModuleSnapshotData - Snapshot data for a single module
+   */
+  export interface ModuleSnapshotData {
+    moduleName: string;
+    tick: TickId;
+    stateHash: StateHash;
+    entityCount: number;
+    deltaCount: number;
+    category: string;
+    patterns: string[];
+    timestamp: number;
+  }
+
+  /**
+   * Register a module snapshot from AutoModuleKatalysator
+   * This feeds module state to the PixiJS client via the snapshot system
+   */
+  registerModuleSnapshot(moduleName: string, data: {
+    tick: number;
+    stateHash: StateHash;
+    entityCount: number;
+    deltaCount: number;
+    category: string;
+    patterns: string[];
+  }): void {
+    const snapshotData: ModuleSnapshotData = {
+      moduleName,
+      tick: data.tick as TickId,
+      stateHash: data.stateHash,
+      entityCount: data.entityCount,
+      deltaCount: data.deltaCount,
+      category: data.category,
+      patterns: data.patterns,
+      timestamp: Date.now(), // Note: This is for logging, not determinism
+    };
+
+    this.moduleSnapshots.set(moduleName, snapshotData);
+  }
+
+  /**
+   * Get all registered module snapshots
+   * Used by PixiJS client to render module states
+   */
+  getModuleSnapshots(): Map<string, ModuleSnapshotData> {
+    return new Map(this.moduleSnapshots);
+  }
+
+  /**
+   * Get module snapshot by name
+   */
+  getModuleSnapshot(moduleName: string): ModuleSnapshotData | undefined {
+    return this.moduleSnapshots.get(moduleName);
+  }
+
+  /**
+   * Get all module snapshots as array for network transmission
+   */
+  getModuleSnapshotsForClient(): ModuleSnapshotData[] {
+    return Array.from(this.moduleSnapshots.values()).map(snapshot => ({
+      ...snapshot,
+      // Ensure timestamp is not included in deterministic snapshot
+      // (timestamp is for logging only)
+      timestamp: 0, // Zero for determinism - client uses tick-based time
+    }));
+  }
+
+  /**
+   * Clear module snapshots (called at tick boundary)
+   */
+  clearModuleSnapshots(): void {
+    this.moduleSnapshots.clear();
+  }
 }
 
 /**
