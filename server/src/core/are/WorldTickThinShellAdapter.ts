@@ -1,5 +1,7 @@
 import type { WorldLogicalState } from './ChunkLayerState.js';
 import { worldTickThinShell, type WorldTickThinShell } from './WorldTickThinShell.js';
+import { RuntimePlayerSystem, RuntimeWarfrontPort, createRuntimeWarfrontSystem } from './RuntimeDomainPorts.js';
+import { registerWarfrontSystem, type WarfrontTickSystem } from './WarfrontTickSystem.js';
 
 type AutoRepairStatus = { ok: boolean; status: string };
 type DeterministicRecorderStats = { recordedTicks: number; replayBufferSize: number };
@@ -21,7 +23,6 @@ class StubObserverEngine {
   register(id: string, value: unknown = {}): void { this.positions.set(id, value); }
   updatePosition(id: string, position: unknown): void { this.positions.set(id, position); }
 }
-class StubPlayerSystem { getPlayer(_id: string) { return null; } getAllPlayers() { return []; } }
 class StubCombatSystem {}
 class StubCombatService {}
 class StubInventorySystem {}
@@ -32,14 +33,6 @@ class StubQuestEngine {}
 class StubWorldSystem {}
 class StubPersistenceManager { getStats() { return {}; } }
 class StubGLBRegistry { scanModels() { return []; } getLinks() { return []; } }
-class StubWarfrontSystem {
-  getCycleSnapshot(_tick?: number) { return null; }
-  getRewardTiers() { return []; }
-  getFrontBossSpawnPoint() { return null; }
-  getStatusForPlayer(playerId: string) { return { ok: true, playerId, contribution: 0, rewardsClaimed: false, cycle: this.getCycleSnapshot() }; }
-  registerContribution(playerId: string, amount = 0, reason = 'api') { return { ok: true, playerId, amount, reason, totalContribution: amount }; }
-  claimSeasonRewards(playerId: string) { return { ok: true, playerId, rewards: [], claimed: true }; }
-}
 class StubAssetPoolResolver { getDocument() { return {}; } }
 
 function createManifestManager(adapter: WorldTickAdapter) {
@@ -55,9 +48,12 @@ export class WorldTickAdapter {
   readonly thinShell: WorldTickThinShell = worldTickThinShell;
   get tickCount(): number { return this.thinShell.getTickCount(); }
 
+  private readonly warfrontDomain = createRuntimeWarfrontSystem();
+  readonly warfrontTickSystem: WarfrontTickSystem;
+
   readonly chunkSystem = new StubChunkSystem();
   readonly observerEngine = new StubObserverEngine();
-  readonly playerSystem = new StubPlayerSystem();
+  readonly playerSystem = new RuntimePlayerSystem();
   readonly combatSystem = new StubCombatSystem();
   readonly combatService = new StubCombatService();
   readonly inventorySystem = new StubInventorySystem();
@@ -68,7 +64,7 @@ export class WorldTickAdapter {
   readonly worldSystem = new StubWorldSystem();
   readonly persistence = new StubPersistenceManager();
   readonly glbRegistry = new StubGLBRegistry();
-  readonly warfrontSystem = new StubWarfrontSystem();
+  readonly warfrontSystem = new RuntimeWarfrontPort(this.warfrontDomain, () => this.tickCount * 100);
   readonly assetPoolResolver = new StubAssetPoolResolver();
   readonly placementEngine = {};
   readonly placementEnginePort = { type: 'NullPlacementPort' as const };
@@ -88,7 +84,13 @@ export class WorldTickAdapter {
   };
   readonly assetHealthService = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
 
-  async init(): Promise<void> {}
+  constructor() {
+    this.warfrontTickSystem = registerWarfrontSystem(this.warfrontDomain);
+  }
+
+  async init(): Promise<void> {
+    this.warfrontDomain.initialize(this.tickCount * 100);
+  }
   start(): void { this.thinShell.start(); }
   async stop(): Promise<void> { await this.thinShell.stop(); }
 
