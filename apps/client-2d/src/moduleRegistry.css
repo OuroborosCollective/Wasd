@@ -51,6 +51,33 @@
   transform: scale(1.1);
 }
 
+.module-registry-floating-dev-button {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(86px, calc(env(safe-area-inset-bottom) + 86px));
+  z-index: 8500;
+  border: 1px solid rgba(72, 233, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(7, 7, 17, 0.82);
+  color: #48e9ff;
+  box-shadow: 0 0 28px rgba(72, 233, 255, 0.16);
+  backdrop-filter: blur(10px);
+  padding: 10px 14px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.module-registry-floating-dev-button:hover,
+.module-registry-floating-dev-button:focus-visible {
+  background: rgba(72, 233, 255, 0.12);
+  outline: none;
+}
+
 .module-registry-header {
   padding: 18px 20px;
   border-bottom: 1px solid rgba(72, 233, 255, 0.16);
@@ -256,110 +283,4 @@
 .module-vis {
   background: rgba(72, 233, 255, 0.15);
   color: #48e9ff;
-}
-
-.module-e2e {
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(0, 229, 255, 0.2);
-  color: #48e9ff;
-  font-size: 9px;
-  font-weight: 700;
-}
-
-.module-expand-btn {
-  padding: 4px 8px;
-  border: none;
-  background: none;
-  color: rgba(245, 247, 255, 0.5);
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.module-registry-row-details {
-  padding: 12px 14px;
-  border-top: 1px solid rgba(72, 233, 255, 0.08);
-  background: rgba(0, 0, 0, 0.2);
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.module-registry-row-details p {
-  margin: 4px 0;
-  color: rgba(245, 247, 255, 0.7);
-}
-
-.module-registry-row-details strong {
-  color: #48e9ff;
-}
-
-.module-registry-footer {
-  padding: 10px 20px;
-  border-top: 1px solid rgba(72, 233, 255, 0.1);
-  text-align: center;
-}
-
-.module-registry-footer small {
-  font-size: 10px;
-  color: rgba(245, 247, 255, 0.4);
-  letter-spacing: 0.08em;
-}
-
-/* Compact Badge */
-.module-registry-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border: 1px solid rgba(72, 233, 255, 0.3);
-  border-radius: 8px;
-  background: rgba(16, 16, 33, 0.8);
-  color: #f5f7ff;
-  font-size: 11px;
-  font-family: ui-monospace, monospace;
-}
-
-.badge-missing {
-  color: #ff416c;
-  font-weight: 700;
-}
-
-.badge-preview {
-  color: #f6b64a;
-  font-weight: 700;
-}
-
-/* Mobile Responsive */
-@media (max-width: 640px) {
-  .module-registry-modal {
-    max-height: 95vh;
-  }
-
-  .module-registry-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .module-registry-stats {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .module-registry-filters {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .filter-group {
-    flex-wrap: wrap;
-  }
-
-  .module-registry-row-header {
-    flex-wrap: wrap;
-  }
-
-  .module-id {
-    width: 100%;
-    order: 1;
-  }
 }
