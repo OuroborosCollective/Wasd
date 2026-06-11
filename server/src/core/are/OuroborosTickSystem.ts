@@ -41,10 +41,10 @@ import { NPCMemoryCache } from "../../modules/npc/NPCMemoryCache.js";
 import type { NPCRelationshipSystem } from "../../modules/npc/NPCRelationshipSystem.js";
 import type {
   ChatChannelRouter,
-  type ChatRecipient,
-  type SendToPlayerFn,
-  type BroadcastFn,
-  type ResolveSocketIdFn,
+  ChatRecipient,
+  SendToPlayerFn,
+  BroadcastFn,
+  ResolveSocketIdFn,
 } from "../../modules/chat/ChatChannelRouter.js";
 import type { StatusEmitter } from "../../modules/chat/StatusEmitter.js";
 
