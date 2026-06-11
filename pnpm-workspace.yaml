@@ -9,14 +9,13 @@ packages:
   - "server"
   - "backend"
 allowBuilds:
-  '@firebase/util': true
-  '@google/genai': true
-  '@nestjs/core': true
-  '@prisma/engines': true
-  cpu-features: true
-  esbuild: true
-  prisma: true
-  protobufjs: true
-  ssh2: true
-
-# Note: allowBuilds is now set in .npmrc
+  "@firebase/util": true
+  "@google/genai": true
+  "@nestjs/core": true
+  "@prisma/engines": true
+  "cpu-features": true
+  "esbuild": true
+  "prisma": true
+  "protobufjs": true
+  sharp: set this to true or false
+  "ssh2": true
