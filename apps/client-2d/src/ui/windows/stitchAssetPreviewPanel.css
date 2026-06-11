@@ -1,30 +1,4 @@
-/**
- * stitchAssetPreviewPanel.css
- *
- * Cyber-Zen / Arelorian Stitch HUD styling.
- * Dark panel, thin neon border, cyan/fire/violet/green accents.
- * Monospace metadata labels, card-like asset blocks.
- */
-
-/* ─── CSS Variables ──────────────────────────────────────────────────────── */
-
-.stitch-panel {
-  --st-fire: #ff6b35;
-  --st-aether: #00e5ff;
-  --st-emerald: #39ff14;
-  --st-violet: #bf5fff;
-  --st-gold: #ffd700;
-  --st-bg-dark: rgba(4, 8, 14, 0.75);
-  --st-border: rgba(0, 229, 255, 0.22);
-  --st-border-bright: rgba(0, 229, 255, 0.5);
-  --st-text-dim: rgba(244, 247, 255, 0.5);
-  --st-text-main: rgba(244, 247, 255, 0.85);
-  --st-text-bright: #f4f7ff;
-  --st-radius: 12px;
-  --st-font: ui-monospace, "Cascadia Code", Consolas, monospace;
-}
-
-/* ─── Panel Container ────────────────────────────────────────────────────── */
+/* Cyber-Zen / Arelorian Stitch HUD styling. */
 
 .stitch-asset-preview-panel {
   --st-fire: #ff6b35;
@@ -32,23 +6,25 @@
   --st-emerald: #39ff14;
   --st-violet: #bf5fff;
   --st-gold: #ffd700;
-  --st-bg-dark: rgba(4, 8, 14, 0.75);
+  --st-bg-dark: rgba(4, 8, 14, 0.82);
   --st-border: rgba(0, 229, 255, 0.22);
   --st-border-bright: rgba(0, 229, 255, 0.5);
-  --st-text-dim: rgba(244, 247, 255, 0.5);
-  --st-text-main: rgba(244, 247, 255, 0.85);
+  --st-text-dim: rgba(244, 247, 255, 0.56);
+  --st-text-main: rgba(244, 247, 255, 0.88);
   --st-text-bright: #f4f7ff;
   --st-radius: 12px;
   --st-font: ui-monospace, "Cascadia Code", Consolas, monospace;
 
   position: relative;
-  width: 340px;
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 72px);
+  overflow: auto;
   background: var(--st-bg-dark);
   border: 1px solid var(--st-border);
   border-radius: var(--st-radius);
   backdrop-filter: blur(14px);
   box-shadow:
-    0 0 24px rgba(0, 229, 255, 0.08),
+    0 0 28px rgba(0, 229, 255, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
   padding: 12px;
   font-family: var(--st-font);
@@ -56,12 +32,11 @@
   z-index: 50;
 }
 
-/* ─── Header ──────────────────────────────────────────────────────────────── */
-
 .stitch-asset-preview-panel__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--st-border);
@@ -75,21 +50,34 @@
   text-transform: uppercase;
 }
 
-.stitch-asset-preview-panel__stats {
+.stitch-asset-preview-panel__stats,
+.stitch-asset-preview-panel__review-stats {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   font-size: 10px;
   color: var(--st-text-dim);
+}
+
+.stitch-asset-preview-panel__review-stats {
+  margin-bottom: 10px;
+}
+
+.stitch-asset-preview-panel__review-stats span {
+  padding: 3px 6px;
+  border: 1px solid rgba(255, 215, 0, 0.22);
+  border-radius: 999px;
+  color: var(--st-gold);
+  background: rgba(255, 215, 0, 0.06);
 }
 
 .stitch-asset-preview-panel__divider {
   color: var(--st-border);
 }
 
-/* ─── Pack Info ───────────────────────────────────────────────────────────── */
-
 .stitch-asset-preview-panel__pack {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 10px;
   font-size: 9px;
@@ -100,27 +88,30 @@
   letter-spacing: 0.06em;
 }
 
-.stitch-asset-preview-panel__schema {
+.stitch-asset-preview-panel__schema,
+.stitch-asset-preview-panel__proof {
   color: var(--st-text-dim);
 }
 
-/* ─── Sample Assets Grid ──────────────────────────────────────────────────── */
+.stitch-asset-preview-panel__proof {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
 
 .stitch-asset-preview-panel__samples {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 8px;
   margin-bottom: 10px;
 }
 
-/* ─── Asset Card ──────────────────────────────────────────────────────────── */
-
 .stitch-asset-card {
-  background: rgba(10, 15, 25, 0.6);
+  background: rgba(10, 15, 25, 0.62);
   border: 1px solid var(--st-border);
   border-radius: 8px;
   padding: 8px;
   transition: border-color 0.2s ease;
+  min-width: 0;
 }
 
 .stitch-asset-card:hover {
@@ -128,13 +119,14 @@
 }
 
 .stitch-asset-card--empty {
-  opacity: 0.5;
+  opacity: 0.55;
 }
 
 .stitch-asset-card__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 6px;
   margin-bottom: 6px;
 }
 
@@ -160,18 +152,12 @@
   border: 1px solid rgba(57, 255, 20, 0.3);
 }
 
-.stitch-asset-card__badge--quarantined {
-  background: rgba(255, 107, 53, 0.15);
-  color: var(--st-fire);
-  border: 1px solid rgba(255, 107, 53, 0.3);
-}
-
 .stitch-asset-card__preview {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 64px;
-  background: rgba(0, 0, 0, 0.3);
+  height: 68px;
+  background: rgba(0, 0, 0, 0.32);
   border-radius: 4px;
   margin-bottom: 6px;
   overflow: hidden;
@@ -223,7 +209,204 @@
   padding-left: 4px;
 }
 
-/* ─── Categories Breakdown ───────────────────────────────────────────────── */
+.stitch-resonance__scenario-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(0, 229, 255, 0.04);
+  border: 1px solid rgba(0, 229, 255, 0.12);
+}
+
+.stitch-resonance__scenario {
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--st-text-dim);
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-family: var(--st-font);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.stitch-resonance__scenario--active {
+  color: var(--st-aether);
+  border-color: rgba(0, 229, 255, 0.55);
+  background: rgba(0, 229, 255, 0.1);
+}
+
+.stitch-resonance {
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.stitch-resonance__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.stitch-resonance__title {
+  font-size: 10px;
+  color: var(--st-aether);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.stitch-resonance__badge {
+  font-size: 8px;
+  border-radius: 999px;
+  padding: 3px 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.stitch-resonance__badge--ok {
+  color: var(--st-emerald);
+  border: 1px solid rgba(57, 255, 20, 0.32);
+  background: rgba(57, 255, 20, 0.08);
+}
+
+.stitch-resonance__badge--fallback {
+  color: var(--st-fire);
+  border: 1px solid rgba(255, 107, 53, 0.32);
+  background: rgba(255, 107, 53, 0.08);
+}
+
+.stitch-resonance__vector {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.stitch-resonance__vector-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(244, 247, 255, 0.06);
+}
+
+.stitch-resonance__vector-chip span {
+  font-size: 8px;
+  color: var(--st-text-dim);
+  text-transform: uppercase;
+}
+
+.stitch-resonance__vector-chip strong {
+  font-size: 10px;
+  color: var(--st-text-bright);
+  font-weight: 700;
+}
+
+.stitch-resonance__body {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.stitch-resonance__preview {
+  height: 88px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.stitch-resonance__img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.stitch-resonance__fallback {
+  text-align: center;
+  font-size: 9px;
+  color: var(--st-fire);
+  padding: 8px;
+}
+
+.stitch-resonance__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--st-text-dim);
+  min-width: 0;
+}
+
+.stitch-resonance__asset {
+  color: var(--st-text-bright);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stitch-asset-preview-panel__queues {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.stitch-asset-preview-panel__queue {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 215, 0, 0.14);
+  background: rgba(255, 215, 0, 0.04);
+}
+
+.stitch-asset-preview-panel__queue-title {
+  display: flex;
+  justify-content: space-between;
+  color: var(--st-gold);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.stitch-asset-preview-panel__queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stitch-asset-preview-panel__queue-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 8px;
+}
+
+.stitch-asset-preview-panel__queue-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--st-text-main);
+}
+
+.stitch-asset-preview-panel__queue-cat,
+.stitch-asset-preview-panel__queue-empty {
+  color: var(--st-text-dim);
+}
 
 .stitch-asset-preview-panel__categories {
   margin-bottom: 10px;
@@ -264,12 +447,11 @@
   font-weight: 700;
 }
 
-/* ─── Footer ──────────────────────────────────────────────────────────────── */
-
 .stitch-asset-preview-panel__footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--st-border);
   font-size: 9px;
@@ -283,8 +465,6 @@
 .stitch-asset-preview-panel__frames-total {
   color: var(--st-text-dim);
 }
-
-/* ─── Loading State ──────────────────────────────────────────────────────── */
 
 .stitch-asset-preview-panel__loading {
   display: flex;
@@ -321,8 +501,6 @@
     transform: scale(1);
   }
 }
-
-/* ─── Error State ─────────────────────────────────────────────────────────── */
 
 .stitch-asset-preview-panel--error {
   border-color: rgba(255, 107, 53, 0.3);
@@ -362,4 +540,11 @@
 
 .stitch-asset-preview-panel__retry:hover {
   background: rgba(255, 107, 53, 0.2);
+}
+
+@media (max-width: 720px) {
+  .stitch-asset-preview-panel__queues,
+  .stitch-resonance__body {
+    grid-template-columns: 1fr;
+  }
 }
