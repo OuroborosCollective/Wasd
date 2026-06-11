@@ -1,157 +1,111 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-# Check if GOOGLE_CLOUD_PROJECT is defined
-if [ -z "${GOOGLE_CLOUD_PROJECT}" ]; then
-  echo "Error: GOOGLE_CLOUD_PROJECT environment variable is not set."
-  exit 1
-else
-  echo "GOOGLE_CLOUD_PROJECT is set to: ${GOOGLE_CLOUD_PROJECT}"
-fi
+echo "=== ARELORIA / WASD No-Firebase Bootstrap ==="
 
-# Check if CLOUD_SHELL is set to true
-if [ "${CLOUD_SHELL}" = "true" ]; then
-  echo "CLOUD_SHELL is set to true."
-else
-  echo "Error: CLOUD_SHELL environment variable is not set to true."
-  exit 1
-fi
-
-# Set the predefined relative application path
-APP_PATH="."
-echo "APP_PATH is set to: ${APP_PATH}"
-
-# Define the bootstrap.js path
+APP_PATH="${APP_PATH:-.}"
 BOOTSTRAP_JS_PATH="${APP_PATH}/src/bootstrap.js"
-echo "BOOTSTRAP_JS_PATH is set to: ${BOOTSTRAP_JS_PATH}"
 
-# Check if firebase CLI is installed
-if ! command -v firebase &> /dev/null
-then
-    echo "Error: firebase command not found. Please install the Firebase CLI."
-    echo "Installation instructions: https://firebase.google.com/docs/cli"
-    exit 1
-fi
+APP_NAME="${APP_NAME:-Areloria WASD}"
+APP_ENV="${APP_ENV:-development}"
 
-# Check if jq is installed
-if ! command -v jq &> /dev/null
-then
-    echo "Error: jq command not found. Please install jq to parse JSON."
-    echo "Installation instructions: https://stedolan.github.io/jq/download/"
-    exit 1
-fi
+API_HTTP_URL="${API_HTTP_URL:-http://localhost:3001}"
+WS_URL="${WS_URL:-ws://localhost:3001/ws}"
 
-# Enable Web Frameworks experiment
-echo "Enabling Firebase Web Frameworks experiment..."
-firebase experiments:enable webframeworks
+SERVER_TICK_HZ="${SERVER_TICK_HZ:-10}"
+DETERMINISM_MODE="${DETERMINISM_MODE:-strict}"
+ASSET_BASE_URL="${ASSET_BASE_URL:-/assets}"
 
-# Login to Firebase
-echo "Logging into Firebase..."
-firebase login
+echo "APP_PATH: ${APP_PATH}"
+echo "BOOTSTRAP_JS_PATH: ${BOOTSTRAP_JS_PATH}"
+echo "APP_ENV: ${APP_ENV}"
+echo "API_HTTP_URL: ${API_HTTP_URL}"
+echo "WS_URL: ${WS_URL}"
+echo "SERVER_TICK_HZ: ${SERVER_TICK_HZ}"
 
-# Check if the firebase login command was successful
-if [ $? -ne 0 ]; then
-  echo "Error: Failed to login to Firebase."
+if [ ! -d "${APP_PATH}" ]; then
+  echo "Error: APP_PATH does not exist: ${APP_PATH}"
   exit 1
 fi
 
-# Set the default Firebase project
-echo "Setting default Firebase project to: ${GOOGLE_CLOUD_PROJECT}"
-firebase use ${GOOGLE_CLOUD_PROJECT} --alias default
-
-# Check if the firebase use command was successful
-if [ $? -ne 0 ]; then
-  echo "Error: Failed to set Firebase project."
-  exit 1
-fi
-
-# List Firebase web apps and parse the output
-echo "Fetching Firebase web apps list..."
-FIREBASE_APPS_JSON=$(firebase --json apps:list WEB)
-
-# Check if the apps:list command was successful
-if [ $? -ne 0 ]; then
-  echo "Error: Failed to list Firebase apps."
-  exit 1
-fi
-
-# Count the number of apps
-APP_COUNT=$(echo "${FIREBASE_APPS_JSON}" | jq '.result | length')
-
-if [ "${APP_COUNT}" -eq 0 ]; then
-  echo "Error: No WEB apps found in Firebase project ${GOOGLE_CLOUD_PROJECT}."
-  exit 1
-elif [ "${APP_COUNT}" -gt 1 ]; then
-  echo "Error: Multiple WEB apps found in Firebase project ${GOOGLE_CLOUD_PROJECT}. This script expects only one."
-  echo "${FIREBASE_APPS_JSON}"
-  exit 1
-fi
-
-# Extract the appId
-APP_ID=$(echo "${FIREBASE_APPS_JSON}" | jq -r '.result[0].appId')
-
-if [ -z "${APP_ID}" ] || [ "${APP_ID}" = "null" ]; then
-  echo "Error: Could not extract appId from Firebase app list."
-  echo "${FIREBASE_APPS_JSON}"
-  exit 1
-fi
-
-echo "Found single Firebase WEB app with appId: ${APP_ID}"
-
-# Get the Firebase app config
-echo "Fetching Firebase app config for appId: ${APP_ID}"
-FIREBASE_CONFIG_JSON=$(firebase --json apps:sdkconfig WEB ${APP_ID})
-
-# Check if the apps:sdkconfig command was successful
-if [ $? -ne 0 ]; then
-  echo "Error: Failed to fetch Firebase app config."
-  exit 1
-fi
-
-# Extract config values using jq
-API_KEY=$(echo "${FIREBASE_CONFIG_JSON}" | jq -r '.result.sdkConfig.apiKey')
-AUTH_DOMAIN=$(echo "${FIREBASE_CONFIG_JSON}" | jq -r '.result.sdkConfig.authDomain')
-DATABASE_URL=$(echo "${FIREBASE_CONFIG_JSON}" | jq -r '.result.sdkConfig.databaseURL')
-PROJECT_ID=$(echo "${FIREBASE_CONFIG_JSON}" | jq -r '.result.sdkConfig.projectId')
-STORAGE_BUCKET=$(echo "${FIREBASE_CONFIG_JSON}" | jq -r '.result.sdkConfig.storageBucket')
-MESSAGING_SENDER_ID=$(echo "${FIREBASE_CONFIG_JSON}" | jq -r '.result.sdkConfig.messagingSenderId')
-MEASUREMENT_ID=$(echo "${FIREBASE_CONFIG_JSON}" | jq -r '.result.sdkConfig.measurementId')
-
-# Create the directory for bootstrap.js if it doesn't exist
 mkdir -p "$(dirname "${BOOTSTRAP_JS_PATH}")"
 
-# Generate the bootstrap.js file
 echo "Generating ${BOOTSTRAP_JS_PATH}..."
-cat << EOF > "${BOOTSTRAP_JS_PATH}"
-window["APP_TEMPLATE_BOOTSTRAP"] = {
-    firebase: {
-      apiKey: "${API_KEY}",
-      authDomain: "${AUTH_DOMAIN}",
-      databaseURL: "${DATABASE_URL}",
-      projectId: "${PROJECT_ID}",
-      storageBucket: "${STORAGE_BUCKET}",
-      messagingSenderId: "${MESSAGING_SENDER_ID}",
-      appId: "${APP_ID}",
-      measurementId: "${MEASUREMENT_ID}",
-    },
-};
+
+cat > "${BOOTSTRAP_JS_PATH}" <<EOF
+window["APP_TEMPLATE_BOOTSTRAP"] = Object.freeze({
+  app: Object.freeze({
+    name: "${APP_NAME}",
+    env: "${APP_ENV}",
+    firebaseEnabled: false,
+  }),
+
+  network: Object.freeze({
+    apiHttpUrl: "${API_HTTP_URL}",
+    wsUrl: "${WS_URL}",
+  }),
+
+  arelogic: Object.freeze({
+    serverTickHz: ${SERVER_TICK_HZ},
+    tickMs: ${SERVER_TICK_HZ} > 0 ? Math.floor(1000 / ${SERVER_TICK_HZ}) : 100,
+    determinismMode: "${DETERMINISM_MODE}",
+    kappaInvariant: 1000,
+  }),
+
+  assets: Object.freeze({
+    baseUrl: "${ASSET_BASE_URL}",
+  }),
+
+  features: Object.freeze({
+    firebase: false,
+    auth: "guest-or-own-backend",
+    websocketGateway: "native-ws",
+    runtime: "pixi-2d-client",
+  }),
+});
 EOF
 
-if [ $? -ne 0 ]; then
-  echo "Error: Failed to generate ${BOOTSTRAP_JS_PATH}."
-  exit 1
-fi
-
 echo "Successfully generated ${BOOTSTRAP_JS_PATH}."
-echo "Configuration checks and setup passed."
 
-# Install npm dependencies
-echo "Installing npm dependencies in ${APP_PATH}..."
-(cd "${APP_PATH}" && npm install)
+echo "Checking package manager..."
 
-if [ $? -ne 0 ]; then
-  echo "Error: Failed to install npm dependencies."
-  exit 1
+if [ -f "${APP_PATH}/pnpm-lock.yaml" ]; then
+  if ! command -v pnpm >/dev/null 2>&1; then
+    echo "Error: pnpm lockfile found but pnpm is not installed."
+    echo "Install with: corepack enable && corepack prepare pnpm@9.12.2 --activate"
+    exit 1
+  fi
+
+  echo "Installing dependencies with pnpm..."
+  (cd "${APP_PATH}" && pnpm install)
+
+elif [ -f "${APP_PATH}/package-lock.json" ]; then
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "Error: npm is not installed."
+    exit 1
+  fi
+
+  echo "Installing dependencies with npm ci..."
+  (cd "${APP_PATH}" && npm ci)
+
+elif [ -f "${APP_PATH}/yarn.lock" ]; then
+  if ! command -v yarn >/dev/null 2>&1; then
+    echo "Error: yarn lockfile found but yarn is not installed."
+    exit 1
+  fi
+
+  echo "Installing dependencies with yarn..."
+  (cd "${APP_PATH}" && yarn install --frozen-lockfile)
+
+else
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "Error: npm is not installed."
+    exit 1
+  fi
+
+  echo "No lockfile found. Installing dependencies with npm install..."
+  (cd "${APP_PATH}" && npm install)
 fi
 
-echo "Successfully installed npm dependencies."
+echo "No-Firebase bootstrap completed successfully."
 exit 0
