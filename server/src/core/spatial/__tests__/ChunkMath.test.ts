@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { ChunkKey } from '../../are/types';
 import {
   computeChunkKey,
   computeChunkCoords,
@@ -12,9 +13,13 @@ import {
   chunkEuclideanDistance,
   isValidChunkKey,
   getChunkBoundingBox,
-  CHUNK_SIZE,
-  getChunkKey
 } from '../ChunkMath';
+
+const key = (value: string): ChunkKey => value as ChunkKey;
+
+const expectChunkKeysToContain = (keys: readonly ChunkKey[], value: string): void => {
+  expect(keys.map(String)).toContain(value);
+};
 
 describe('ChunkMath', () => {
   describe('computeChunkKey', () => {
@@ -82,52 +87,52 @@ describe('ChunkMath', () => {
 
   describe('getChunkGrid', () => {
     it('should return 3x3 grid for radius 1', () => {
-      const keys = getChunkGrid(getChunkKey('0:0'), 1);
+      const keys = getChunkGrid(key('0:0'), 1);
       expect(keys).toHaveLength(9);
-      expect(keys).toContain('0:0');
-      expect(keys).toContain('1:0');
-      expect(keys).toContain('-1:0');
-      expect(keys).toContain('0:1');
-      expect(keys).toContain('0:-1');
+      expectChunkKeysToContain(keys, '0:0');
+      expectChunkKeysToContain(keys, '1:0');
+      expectChunkKeysToContain(keys, '-1:0');
+      expectChunkKeysToContain(keys, '0:1');
+      expectChunkKeysToContain(keys, '0:-1');
     });
 
     it('should return 5x5 grid for radius 2', () => {
-      const keys = getChunkGrid(getChunkKey('0:0'), 2);
+      const keys = getChunkGrid(key('0:0'), 2);
       expect(keys).toHaveLength(25);
     });
 
     it('should return 1x1 grid for radius 0', () => {
-      const keys = getChunkGrid(getChunkKey('5:5'), 0);
+      const keys = getChunkGrid(key('5:5'), 0);
       expect(keys).toHaveLength(1);
-      expect(keys[0]).toBe('5:5');
+      expect(String(keys[0])).toBe('5:5');
     });
 
     it('should throw for invalid chunk key', () => {
-      expect(() => getChunkGrid('invalid', 1)).toThrow();
+      expect(() => getChunkGrid('invalid' as ChunkKey, 1)).toThrow();
     });
   });
 
   describe('get3x3ChunkKeys', () => {
     it('should return 9 keys for 3x3 grid', () => {
-      const keys = get3x3ChunkKeys(getChunkKey('0:0'));
+      const keys = get3x3ChunkKeys(key('0:0'));
       expect(keys).toHaveLength(9);
     });
   });
 
   describe('get5x5ChunkKeys', () => {
     it('should return 25 keys for 5x5 grid', () => {
-      const keys = get5x5ChunkKeys(getChunkKey('0:0'));
+      const keys = get5x5ChunkKeys(key('0:0'));
       expect(keys).toHaveLength(25);
     });
   });
 
   describe('isSameChunk', () => {
     it('should return true for same chunk', () => {
-      expect(isSameChunk('5:5', '5:5')).toBe(true);
+      expect(isSameChunk(key('5:5'), key('5:5'))).toBe(true);
     });
 
     it('should return false for different chunks', () => {
-      expect(isSameChunk('5:5', '5:6')).toBe(false);
+      expect(isSameChunk(key('5:5'), key('5:6'))).toBe(false);
     });
   });
 
@@ -143,27 +148,27 @@ describe('ChunkMath', () => {
 
   describe('chunkManhattanDistance', () => {
     it('should return 0 for same chunk', () => {
-      expect(chunkManhattanDistance('5:5', '5:5')).toBe(0);
+      expect(chunkManhattanDistance(key('5:5'), key('5:5'))).toBe(0);
     });
 
     it('should return correct distance', () => {
-      expect(chunkManhattanDistance('0:0', '3:4')).toBe(7);
-      expect(chunkManhattanDistance('1:1', '4:1')).toBe(3);
+      expect(chunkManhattanDistance(key('0:0'), key('3:4'))).toBe(7);
+      expect(chunkManhattanDistance(key('1:1'), key('4:1'))).toBe(3);
     });
   });
 
   describe('chunkEuclideanDistance', () => {
     it('should return 0 for same chunk', () => {
-      expect(chunkEuclideanDistance('5:5', '5:5')).toBe(0);
+      expect(chunkEuclideanDistance(key('5:5'), key('5:5'))).toBe(0);
     });
 
     it('should return correct distance in tiles', () => {
-      expect(chunkEuclideanDistance('0:0', '1:0')).toBe(64);
-      expect(chunkEuclideanDistance('0:0', '0:1')).toBe(64);
+      expect(chunkEuclideanDistance(key('0:0'), key('1:0'))).toBe(64);
+      expect(chunkEuclideanDistance(key('0:0'), key('0:1'))).toBe(64);
     });
 
     it('should handle diagonal distance', () => {
-      const dist = chunkEuclideanDistance('0:0', '1:1');
+      const dist = chunkEuclideanDistance(key('0:0'), key('1:1'));
       expect(dist).toBeCloseTo(64 * Math.SQRT2, 1);
     });
   });
@@ -191,7 +196,7 @@ describe('ChunkMath', () => {
     });
 
     it('should return correct bounding box', () => {
-      const box = getChunkBoundingBox(['0:0', '2:3', '1:1']);
+      const box = getChunkBoundingBox([key('0:0'), key('2:3'), key('1:1')]);
       expect(box.minCx).toBe(0);
       expect(box.minCz).toBe(0);
       expect(box.maxCx).toBe(2);
