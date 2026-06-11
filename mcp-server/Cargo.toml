@@ -8,7 +8,7 @@ license = "MIT"
 publish = false
 
 [dependencies]
-tokio = { version = "1.38", features = [
+tokio = { version = "1.38", default-features = false, features = [
   "macros",
   "rt-multi-thread",
   "io-std",
@@ -24,24 +24,32 @@ anyhow = "1.0"
 thiserror = "1.0"
 
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+  "env-filter",
+  "fmt",
+  "std",
+  "ansi"
+] }
 
 async-trait = "0.1"
 schemars = { version = "0.8", features = ["derive"] }
 
 bytes = "1.6"
-futures = "0.3"
+futures = { version = "0.3", default-features = false, features = ["std", "async-await"] }
 
 [profile.dev]
 debug = true
 overflow-checks = true
+incremental = true
 
 [profile.release]
 strip = true
 opt-level = "s"
-lto = true
+lto = "fat"
 codegen-units = 1
-panic = "abort"
+overflow-checks = true
+debug = false
+incremental = false
 
 [profile.release.package."*"]
 opt-level = "s"
