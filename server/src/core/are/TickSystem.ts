@@ -1,31 +1,14 @@
 /**
  * TickSystem - legacy import surface for ARE tick systems.
  *
- * The canonical registry still imports this file, while newer modules may import
- * branded helper types from `types.ts`. Keep this contract broad enough for both
- * WorldThinShell and legacy registry adapters.
+ * This file reuses the canonical priority enum from `types.ts` so registry,
+ * auto-generated systems and WorldThinShell systems all share one priority type.
  */
 
+import { TickSystemPriority } from './types.js';
 import type { TickId, TickSystemContext as CanonicalTickSystemContext } from './types.js';
 
-export enum TickSystemPriority {
-  CRITICAL = 0,
-  INFRASTRUCTURE = 50,
-  FOUNDATION = 100,
-  HIGH = 100,
-  WORLD = 200,
-  GAMEPLAY = 250,
-  COMBAT = 300,
-  NPC = 400,
-  ECONOMY = 500,
-  NORMAL = 500,
-  QUEST = 600,
-  GUILD = 700,
-  BROADCAST = 800,
-  PERSISTENCE = 850,
-  BACKGROUND = 900,
-  LOW = 1000,
-}
+export { TickSystemPriority };
 
 export interface TickSystemContext extends CanonicalTickSystemContext {
   readonly tickCount: TickId;
