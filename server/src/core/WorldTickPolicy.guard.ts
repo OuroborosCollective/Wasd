@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
@@ -11,8 +11,27 @@ import {
   worldTickToMs,
 } from "./WorldTickPolicy.js";
 
+// WorldThinShell: Guard resolves the canonical WorldTick source.
+// Priority: canonical root world tick first, local path as legacy fallback.
+// No symlinks, no copies - one true source for stateless determinism.
 const here = dirname(fileURLToPath(import.meta.url));
-const worldTickSource = readFileSync(join(here, "WorldTick.ts"), "utf8");
+const candidates = [
+  join(here, "../../../src/core/WorldTick.ts"),  // canonical root world tick
+  join(here, "WorldTick.ts"),                      // legacy local fallback
+];
+
+let worldTickSource: string | null = null;
+for (const candidate of candidates) {
+  if (existsSync(candidate)) {
+    worldTickSource = readFileSync(candidate, "utf8");
+    console.log(`[WorldTickPolicy.guard] resolved WorldTick from: ${candidate}`);
+    break;
+  }
+}
+
+if (!worldTickSource) {
+  throw new Error("[WorldTickPolicy.guard] Cannot resolve WorldTick.ts from candidates: " + candidates.join(", "));
+}
 
 assertAuthoritativeWorldTickPolicy();
 
