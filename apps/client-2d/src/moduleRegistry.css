@@ -51,6 +51,33 @@
   transform: scale(1.1);
 }
 
+.module-registry-floating-dev-button {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(86px, calc(env(safe-area-inset-bottom) + 86px));
+  z-index: 8500;
+  border: 1px solid rgba(72, 233, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(7, 7, 17, 0.82);
+  color: #48e9ff;
+  box-shadow: 0 0 28px rgba(72, 233, 255, 0.16);
+  backdrop-filter: blur(10px);
+  padding: 10px 14px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.module-registry-floating-dev-button:hover,
+.module-registry-floating-dev-button:focus-visible {
+  background: rgba(72, 233, 255, 0.12);
+  outline: none;
+}
+
 .module-registry-header {
   padding: 18px 20px;
   border-bottom: 1px solid rgba(72, 233, 255, 0.16);
