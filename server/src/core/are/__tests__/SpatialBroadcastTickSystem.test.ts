@@ -107,12 +107,12 @@ describe('SpatialBroadcastGrid', () => {
       grid.upsert('npc1', 110, 210, 'npc', {});
       grid.upsert('player2', 5000, 5000, 'player', {}); // Different chunk
       
-      const entities = grid.getEntitiesInChunk(createChunkKey('1:3'));
+      const entities = grid.getEntitiesInChunk(createChunkKey(1, 3));
       expect(entities.length).toBe(2);
     });
 
     it('should return empty array for empty chunk', () => {
-      const entities = grid.getEntitiesInChunk(createChunkKey('999:999'));
+      const entities = grid.getEntitiesInChunk(createChunkKey(999, 999));
       expect(entities.length).toBe(0);
     });
   });
