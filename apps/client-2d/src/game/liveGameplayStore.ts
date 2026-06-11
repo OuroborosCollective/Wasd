@@ -13,6 +13,16 @@ type Listener = () => void;
 
 const GAMEPLAY_PLAYER_ID_KEY = "wasd:2d:playerId";
 const PUBLIC_KEY_KEY = "wasd:2d:publicKey";
+const ANON_ID_SEED_KEY = "wasd:2d:anonSeed";
+
+function stableHash32(input: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash >>> 0;
+}
 
 function prettifyId(value: string): string {
   return value
@@ -31,12 +41,32 @@ function safeStoredValue(key: string): string | null {
   }
 }
 
+function resolveAnonymousGameplayPlayerId(): string {
+  const existing = safeStoredValue(ANON_ID_SEED_KEY);
+  if (existing) return existing;
+
+  const basis = [
+    globalThis.location?.origin ?? "originless",
+    globalThis.navigator?.userAgent ?? "agentless",
+    globalThis.navigator?.language ?? "langless",
+  ].join("|");
+  const playerId = `anon_${stableHash32(`gameplay:${basis}`).toString(16).padStart(8, "0")}`;
+
+  try {
+    localStorage.setItem(ANON_ID_SEED_KEY, playerId);
+  } catch {
+    // Storage can be unavailable in privacy/test contexts; the derived ID remains deterministic for this runtime basis.
+  }
+
+  return playerId;
+}
+
 export function getDefaultGameplayPlayerId(): string {
-  return safeStoredValue(GAMEPLAY_PLAYER_ID_KEY) ?? safeStoredValue(PUBLIC_KEY_KEY) ?? DEFAULT_GAMEPLAY_PLAYER_ID;
+  return safeStoredValue(GAMEPLAY_PLAYER_ID_KEY) ?? safeStoredValue(PUBLIC_KEY_KEY) ?? resolveAnonymousGameplayPlayerId();
 }
 
 function projectComposerSnapshot(input: Record<string, unknown>): Partial<LiveGameplaySnapshot> {
-  const playerId = String(input.playerId ?? "guest");
+  const playerId = String(input.playerId ?? getDefaultGameplayPlayerId());
   const inventory = Array.isArray(input.inventory) ? input.inventory : [];
   const equipment = Array.isArray(input.equipment) ? input.equipment : [];
   const skills = Array.isArray(input.skills) ? input.skills : [];
@@ -203,9 +233,7 @@ export class LiveGameplayStore {
 
 export const liveGameplayStore = new LiveGameplayStore();
 
-// HTTP fallback fetch for when WebSocket hasn't delivered data yet.
-// This ID intentionally matches the guest/playtest HTTP fallback path.
-export const DEFAULT_GAMEPLAY_PLAYER_ID = "guest";
+export const DEFAULT_GAMEPLAY_PLAYER_ID = getDefaultGameplayPlayerId();
 
 export async function fetchGameplaySnapshot(
   playerId: string = getDefaultGameplayPlayerId()
