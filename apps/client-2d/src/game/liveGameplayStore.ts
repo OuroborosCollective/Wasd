@@ -11,12 +11,28 @@ import { readPlayerPositionBridge } from "./PlayerPositionBridge";
 
 type Listener = () => void;
 
+const GAMEPLAY_PLAYER_ID_KEY = "wasd:2d:playerId";
+const PUBLIC_KEY_KEY = "wasd:2d:publicKey";
+
 function prettifyId(value: string): string {
   return value
     .split("_")
     .filter(Boolean)
     .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function safeStoredValue(key: string): string | null {
+  try {
+    const value = localStorage.getItem(key)?.trim();
+    return value && /^[a-zA-Z0-9._:-]{1,96}$/.test(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function getDefaultGameplayPlayerId(): string {
+  return safeStoredValue(GAMEPLAY_PLAYER_ID_KEY) ?? safeStoredValue(PUBLIC_KEY_KEY) ?? DEFAULT_GAMEPLAY_PLAYER_ID;
 }
 
 function projectComposerSnapshot(input: Record<string, unknown>): Partial<LiveGameplaySnapshot> {
@@ -113,9 +129,6 @@ function mergeComposerIntoLegacy(
 function pickSnapshotPayload(data: unknown): unknown {
   const raw = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
 
-  // Existing route wrapper contract with post-#1762 sibling composer data.
-  // Keep legacy as the base so Quest Journal, Character, Paperdoll, Crafting,
-  // Guild/Faction and Map data are not lost.
   if (
     raw.snapshot &&
     typeof raw.snapshot === "object" &&
@@ -128,17 +141,14 @@ function pickSnapshotPayload(data: unknown): unknown {
     );
   }
 
-  // Preferred post-#1762 contract when it is the only available payload.
   if (raw.liveGameplaySnapshot && typeof raw.liveGameplaySnapshot === "object") {
     return projectComposerSnapshot(raw.liveGameplaySnapshot as Record<string, unknown>);
   }
 
-  // Direct composer snapshot, e.g. WebSocket payload.
   if (raw.schemaVersion === "live-gameplay-snapshot.v1") {
     return projectComposerSnapshot(raw);
   }
 
-  // Existing route wrapper contract.
   if (raw.snapshot && typeof raw.snapshot === "object") {
     const snapshot = raw.snapshot as Record<string, unknown>;
     if (snapshot.schemaVersion === "live-gameplay-snapshot.v1") {
@@ -198,18 +208,12 @@ export const liveGameplayStore = new LiveGameplayStore();
 export const DEFAULT_GAMEPLAY_PLAYER_ID = "guest";
 
 export async function fetchGameplaySnapshot(
-  playerId: string = DEFAULT_GAMEPLAY_PLAYER_ID
+  playerId: string = getDefaultGameplayPlayerId()
 ): Promise<LiveGameplaySnapshot | null> {
   try {
-    const encodedPlayerId = encodeURIComponent(playerId);
-
-    // Build query params, including player position if available
-    // Position is needed for server to register visible procedural chunks
     const position = readPlayerPositionBridge();
-    const queryParams = new URLSearchParams({ playerId: encodedPlayerId });
+    const queryParams = new URLSearchParams({ playerId });
 
-    // Include player position in kappa units if available
-    // The bridge stores position in kappa (e.g., 460000 = 460 tiles)
     if (position) {
       queryParams.set("px", String(Math.round(position.x)));
       queryParams.set("py", String(Math.round(position.z ?? position.y ?? position.x)));

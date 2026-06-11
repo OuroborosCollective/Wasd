@@ -41,7 +41,6 @@ export type QuestEvent =
   | { type: "npc_kill"; playerId: string; npcId: string }
   | { type: "item_pickup"; playerId: string; itemId: string; quantity: number };
 
-// Constants for quest objective targets - NPC ID allowlists
 const TOWN_ELDER_IDS = new Set([
   "town_elder",
   "npc_town_elder",
@@ -56,6 +55,7 @@ const TRAINING_TARGET_IDS = new Set([
 ]);
 
 const FIRST_STEPS_QUEST_ID = "first_steps";
+const REWARD_CLAIMED_OBJECTIVE_ID = "reward_claimed";
 
 function isTownElderNpc(npcId: string): boolean {
   return TOWN_ELDER_IDS.has(npcId);
@@ -63,6 +63,29 @@ function isTownElderNpc(npcId: string): boolean {
 
 function isTrainingTargetNpc(npcId: string): boolean {
   return TRAINING_TARGET_IDS.has(npcId);
+}
+
+function hasRewardClaimedObjective(quest: QuestSnapshot): boolean {
+  return quest.objectives.some((objective) => objective.id === REWARD_CLAIMED_OBJECTIVE_ID && objective.completed);
+}
+
+function withRewardClaimedObjective(quest: QuestSnapshot): QuestSnapshot {
+  if (hasRewardClaimedObjective(quest)) return quest;
+
+  return normalizeQuestSnapshot({
+    ...quest,
+    status: "completed",
+    objectives: [
+      ...quest.objectives,
+      {
+        id: REWARD_CLAIMED_OBJECTIVE_ID,
+        label: "Belohnung abgeholt",
+        current: 1,
+        required: 1,
+        completed: true,
+      },
+    ],
+  });
 }
 
 function createFirstStepsQuest(
@@ -92,10 +115,6 @@ function createFirstStepsQuest(
   });
 }
 
-/**
- * Create persistence adapter based on environment.
- * Supports JSON (default) and Postgres (production).
- */
 function createPersistenceAdapter(): QuestPersistenceAdapter {
   const driver = process.env.QUEST_PERSISTENCE_DRIVER ?? "json";
 
@@ -117,10 +136,6 @@ export class QuestProgressionStore {
 
   constructor(private readonly persistence?: QuestPersistenceAdapter) {}
 
-  /**
-   * Hydrate player quest state from persistence.
-   * Safe to call multiple times - only hydrates once per playerId.
-   */
   async hydratePlayer(playerId: string): Promise<void> {
     if (!this.persistence || this.hydratedPlayers.has(playerId)) return;
 
@@ -136,10 +151,6 @@ export class QuestProgressionStore {
     this.hydratedPlayers.add(playerId);
   }
 
-  /**
-   * Flush player state to persistence (for testing).
-   * Not required for normal gameplay - persistence happens async after events.
-   */
   async flushPlayerForTests(playerId: string): Promise<void> {
     if (!this.persistence) return;
 
@@ -180,11 +191,6 @@ export class QuestProgressionStore {
     return quest;
   }
 
-  /**
-   * Preserve derived quest completion from server-authoritative snapshots.
-   * This is used for start-path quests whose objectives are derived from inventory.
-   * Once completed, they must not regress when follow-up crafting consumes items.
-   */
   upsertDerivedQuestSnapshot(playerId: string, quest: QuestSnapshot): QuestSnapshot {
     const normalized = normalizeQuestSnapshot(quest);
     const existing = this.getOrCreatePlayerQuestMap(playerId).get(normalized.id);
@@ -198,6 +204,33 @@ export class QuestProgressionStore {
     return normalized;
   }
 
+  isQuestRewardClaimed(playerId: string, questId: string): boolean {
+    const quest = this.getOrCreatePlayerQuestMap(playerId).get(questId);
+    return quest ? hasRewardClaimedObjective(quest) : false;
+  }
+
+  markQuestRewardClaimed(playerId: string, questId: string): { ok: boolean; reason: string; quest?: QuestSnapshot } {
+    const quests = this.getOrCreatePlayerQuestMap(playerId);
+    const quest = quests.get(questId);
+
+    if (!quest) {
+      return { ok: false, reason: "quest_not_found" };
+    }
+
+    if (quest.status !== "completed") {
+      return { ok: false, reason: "quest_not_completed", quest };
+    }
+
+    if (hasRewardClaimedObjective(quest)) {
+      return { ok: false, reason: "reward_already_claimed", quest };
+    }
+
+    const claimedQuest = withRewardClaimedObjective(quest);
+    this.setQuest(playerId, claimedQuest);
+    void this.persistPlayerState(playerId);
+    return { ok: true, reason: "reward_claimed", quest: claimedQuest };
+  }
+
   applyEvent(event: QuestEvent): PlayerQuestState {
     if (event.type === "quest_accept") {
       this.acceptQuest(event.playerId, event.questId);
@@ -209,7 +242,6 @@ export class QuestProgressionStore {
     let quest =
       state.get(FIRST_STEPS_QUEST_ID) ?? createFirstStepsQuest("active");
 
-    // Auto-activate if available
     if (quest.status === "available") {
       quest = { ...quest, status: "active" as const };
     }
@@ -273,10 +305,6 @@ export class QuestProgressionStore {
     return quests;
   }
 
-  /**
-   * Persist player state asynchronously.
-   * Failures are swallowed to prevent gameplay loop crashes.
-   */
   private async persistPlayerState(playerId: string): Promise<void> {
     if (!this.persistence) return;
 
@@ -287,13 +315,9 @@ export class QuestProgressionStore {
       );
     } catch {
       // Never crash gameplay loop because persistence failed.
-      // Later SelfHeal/Watchdog can observe persistence errors.
     }
   }
 
-  /**
-   * Get persistence driver info for health checks.
-   */
   getPersistenceInfo(): { driver: string; adapter: string } {
     const driver = process.env.QUEST_PERSISTENCE_DRIVER ?? "json";
     return {
@@ -303,11 +327,6 @@ export class QuestProgressionStore {
   }
 }
 
-/**
- * Global quest progression store singleton with configurable persistence.
- * Uses QUEST_PERSISTENCE_DRIVER env var (default: json).
- * Falls back to JSON when DATABASE_URL unavailable for Postgres.
- */
 export const questProgressionStore = new QuestProgressionStore(
   createPersistenceAdapter(),
 );

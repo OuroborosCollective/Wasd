@@ -10,34 +10,33 @@ import type { PlayerInventoryState } from "../inventory/InventoryTypes.js";
 import type { PlayerEquipmentState } from "../equipment/EquipmentTypes.js";
 import { normalizeQuestSnapshot, type QuestSnapshot } from "../quests/QuestSnapshotTypes.js";
 import type { CharacterProfileSnapshot } from "./CharacterTypes.js";
-import { getStartPathStarterKit } from "./StartPathStarterKits.js";
+import { getStarterGrantQuantity, getStartPathStarterKit } from "./StartPathStarterKits.js";
 
 function inventoryQuantity(inventory: PlayerInventoryState | null | undefined, itemId: string): number {
   const slot = inventory?.slots.find((entry) => entry.itemId === itemId);
   return Math.max(0, Math.floor(Number(slot?.quantity ?? 0)));
 }
 
+function earnedInventoryQuantity(
+  inventory: PlayerInventoryState | null | undefined,
+  character: CharacterProfileSnapshot,
+  itemId: string,
+): number {
+  return Math.max(0, inventoryQuantity(inventory, itemId) - getStarterGrantQuantity(character.archetype, itemId));
+}
+
 function clampObjectiveCurrent(current: number, required: number): number {
   return Math.max(0, Math.min(required, Math.floor(current)));
 }
 
-/**
- * Required tool slots for complete tool setup.
- */
 const REQUIRED_TOOL_SLOTS = ["mining_tool", "fishing_tool"] as const;
 
-/**
- * Count how many required tool slots are equipped.
- */
 function countEquippedTools(equipment: PlayerEquipmentState | null | undefined): number {
   if (!equipment?.slots?.length) return 0;
   const equippedSlots = new Set(equipment.slots.map((s) => s.slotId));
   return REQUIRED_TOOL_SLOTS.filter((slot) => equippedSlots.has(slot)).length;
 }
 
-/**
- * Check if the player has all required gathering tools equipped.
- */
 function hasAllRequiredTools(equipment: PlayerEquipmentState | null | undefined): boolean {
   if (!equipment?.slots?.length) return false;
   const equippedSlots = new Set(equipment.slots.map((s) => s.slotId));
@@ -53,18 +52,16 @@ export function createStartPathQuestSnapshot(input: {
   if (!character) return null;
 
   const kit = getStartPathStarterKit(character.archetype);
-
-  // Tool equipping objective - shared across all archetypes
   const equippedToolsCount = countEquippedTools(equipment);
   const hasTools = hasAllRequiredTools(equipment);
 
   if (character.archetype === "forager") {
     const required = 3;
-    const current = clampObjectiveCurrent(inventoryQuantity(inventory, "wood_log"), required);
+    const current = clampObjectiveCurrent(earnedInventoryQuantity(inventory, character, "wood_log"), required);
     return normalizeQuestSnapshot({
       id: "start_path_forager",
       title: "Startpfad: Forager",
-      description: `Sammle Naturmaterialien am ersten Ressourcen-Spot (${kit.firstResourceSpotId ?? "starter area"}). Reward-Line: Woodcutting XP + Wood Logs.`,
+      description: `Sammle Naturmaterialien am ersten Ressourcen-Spot (${kit.firstResourceSpotId ?? "starter area"}). Starter-Kit-Material zählt nicht zum Sammelziel. Reward-Line: Woodcutting XP + Wood Logs.`,
       status: hasTools && current >= required ? "completed" : "active",
       objectives: [
         {
@@ -76,7 +73,7 @@ export function createStartPathQuestSnapshot(input: {
         },
         {
           id: "collect_wood_logs",
-          label: "Sammle 3 Wood Logs",
+          label: "Sammle 3 Wood Logs nach Starter-Kit",
           current,
           required,
           completed: current >= required,
@@ -87,11 +84,11 @@ export function createStartPathQuestSnapshot(input: {
 
   if (character.archetype === "miner") {
     const required = 3;
-    const current = clampObjectiveCurrent(inventoryQuantity(inventory, "copper_ore"), required);
+    const current = clampObjectiveCurrent(earnedInventoryQuantity(inventory, character, "copper_ore"), required);
     return normalizeQuestSnapshot({
       id: "start_path_miner",
       title: "Startpfad: Miner",
-      description: `Baue Kupfer am ersten Ressourcen-Spot ab (${kit.firstResourceSpotId ?? "starter area"}). Reward-Line: Mining XP + Copper Ore.`,
+      description: `Baue Kupfer am ersten Ressourcen-Spot ab (${kit.firstResourceSpotId ?? "starter area"}). Starter-Kit-Erz zählt nicht zum Sammelziel. Reward-Line: Mining XP + Copper Ore.`,
       status: hasTools && current >= required ? "completed" : "active",
       objectives: [
         {
@@ -103,7 +100,7 @@ export function createStartPathQuestSnapshot(input: {
         },
         {
           id: "collect_copper_ore",
-          label: "Sammle 3 Copper Ore",
+          label: "Sammle 3 Copper Ore nach Starter-Kit",
           current,
           required,
           completed: current >= required,
@@ -114,11 +111,11 @@ export function createStartPathQuestSnapshot(input: {
 
   if (character.archetype === "angler") {
     const required = 3;
-    const current = clampObjectiveCurrent(inventoryQuantity(inventory, "raw_fish"), required);
+    const current = clampObjectiveCurrent(earnedInventoryQuantity(inventory, character, "raw_fish"), required);
     return normalizeQuestSnapshot({
       id: "start_path_angler",
       title: "Startpfad: Angler",
-      description: `Fange Fische am ersten Ressourcen-Spot (${kit.firstResourceSpotId ?? "starter area"}). Reward-Line: Fishing XP + Raw Fish, danach Cooking/Crafting.`,
+      description: `Fange Fische am ersten Ressourcen-Spot (${kit.firstResourceSpotId ?? "starter area"}). Starter-Kit-Fisch zählt nicht zum Sammelziel. Reward-Line: Fishing XP + Raw Fish, danach Cooking/Crafting.`,
       status: hasTools && current >= required ? "completed" : "active",
       objectives: [
         {
@@ -130,7 +127,7 @@ export function createStartPathQuestSnapshot(input: {
         },
         {
           id: "catch_raw_fish",
-          label: "Fange 3 Raw Fish",
+          label: "Fange 3 Raw Fish nach Starter-Kit",
           current,
           required,
           completed: current >= required,
@@ -167,11 +164,11 @@ export function createStartPathQuestSnapshot(input: {
   }
 
   const required = 1;
-  const current = clampObjectiveCurrent(inventoryQuantity(inventory, "cooked_fish"), required);
+  const current = clampObjectiveCurrent(earnedInventoryQuantity(inventory, character, "cooked_fish"), required);
   return normalizeQuestSnapshot({
     id: "start_path_wanderer",
     title: "Startpfad: Wanderer",
-    description: "Nutze deinen Basisvorrat und folge der First-Steps-Quest. Reward-Line: erster Kampf, erster NPC, erste sichere Versorgung.",
+    description: "Nutze deinen Basisvorrat und folge der First-Steps-Quest. Starter-Kit-Vorrat zählt nicht als erledigtes Ziel. Reward-Line: erster Kampf, erster NPC, erste sichere Versorgung.",
     status: hasTools && current >= required ? "completed" : "active",
     objectives: [
       {
@@ -183,7 +180,7 @@ export function createStartPathQuestSnapshot(input: {
       },
       {
         id: "secure_basic_supplies",
-        label: "Sichere deinen Basisvorrat",
+        label: "Sichere 1 Basisvorrat nach Starter-Kit",
         current,
         required,
         completed: current >= required,
