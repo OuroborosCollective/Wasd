@@ -34,7 +34,7 @@ export class CharacterStore {
 
     if (this.profiles.has(input.playerId)) {
       return {
-        ok: false,
+        ok: true,
         playerId: input.playerId,
         reason: "already_exists",
         profile: this.getCharacterProfile(input.playerId) ?? undefined,
