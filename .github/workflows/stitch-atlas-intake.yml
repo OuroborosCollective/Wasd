@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       input_zip:
-        description: 'Path to input ZIP file (default: assets/raw/stitch/stitch_2.5d_enemy_sprite_atlas.zip)'
+        description: 'Input path: ZIP, folder, or image file. Default auto-detects assets/raw/stitch.'
         required: false
         default: ''
       pack_id:
@@ -70,7 +70,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Check for input ZIP
+      - name: Check for input path
         id: input_check
         env:
           REQUESTED_INPUT_ZIP: ${{ github.event.inputs.input_zip || '' }}
@@ -80,10 +80,30 @@ jobs:
 
           if [ -n "$REQUESTED_INPUT_ZIP" ]; then
             echo "INPUT_ZIP=$REQUESTED_INPUT_ZIP" >> "$GITHUB_OUTPUT"
-            echo "MODE=zip" >> "$GITHUB_OUTPUT"
+
+            if [ -d "$REQUESTED_INPUT_ZIP" ]; then
+              echo "MODE=dir" >> "$GITHUB_OUTPUT"
+            elif [ -f "$REQUESTED_INPUT_ZIP" ]; then
+              case "$REQUESTED_INPUT_ZIP" in
+                *.zip|*.ZIP)
+                  echo "MODE=zip" >> "$GITHUB_OUTPUT"
+                  ;;
+                *)
+                  echo "MODE=file" >> "$GITHUB_OUTPUT"
+                  ;;
+              esac
+            else
+              echo "MODE=unknown" >> "$GITHUB_OUTPUT"
+            fi
+
+          elif [ -d "assets/raw/stitch" ]; then
+            echo "INPUT_ZIP=assets/raw/stitch" >> "$GITHUB_OUTPUT"
+            echo "MODE=dir" >> "$GITHUB_OUTPUT"
+
           elif [ -f "assets/raw/stitch/stitch_2.5d_enemy_sprite_atlas.zip" ]; then
             echo "INPUT_ZIP=assets/raw/stitch/stitch_2.5d_enemy_sprite_atlas.zip" >> "$GITHUB_OUTPUT"
             echo "MODE=zip" >> "$GITHUB_OUTPUT"
+
           else
             echo "INPUT_ZIP=assets/raw/stitch" >> "$GITHUB_OUTPUT"
             echo "MODE=dir" >> "$GITHUB_OUTPUT"
@@ -92,12 +112,13 @@ jobs:
           echo "PACK_ID=$REQUESTED_PACK_ID" >> "$GITHUB_OUTPUT"
 
           echo "Resolved input:"
-          echo "  INPUT_ZIP=$REQUESTED_INPUT_ZIP"
+          echo "  INPUT_ZIP=$(cat "$GITHUB_OUTPUT" | grep '^INPUT_ZIP=' | tail -n1 | cut -d= -f2-)"
           echo "  PACK_ID=$REQUESTED_PACK_ID"
 
       - name: Install Python and Pillow
         run: |
           set -euo pipefail
+
           sudo apt-get update -qq
           sudo apt-get install -y -qq python3-pip > /dev/null 2>&1
           python3 -m pip install --quiet Pillow
@@ -111,7 +132,7 @@ jobs:
           if [ ! -e "$INPUT_PATH" ]; then
             echo "::error::Input path does not exist: $INPUT_PATH"
             echo "Available assets/raw tree:"
-            find assets/raw -maxdepth 5 -type f | sort || true
+            find assets/raw -maxdepth 6 -type f | sort || true
             exit 1
           fi
 
@@ -139,93 +160,93 @@ jobs:
 
           if [ ! -f "apps/client-2d/public/2d-assets/stitch/manifest.json" ]; then
             echo "::error::manifest.json not generated"
-            find apps/client-2d/public/2d-assets/stitch -maxdepth 5 -type f | sort || true
+            find apps/client-2d/public/2d-assets/stitch -maxdepth 6 -type f | sort || true
             exit 1
           fi
 
           EXPECTED_PACK_ID="${{ steps.input_check.outputs.PACK_ID }}" python3 <<'PY'
-import json
-import os
-import re
-import sys
+          import json
+          import os
+          import re
+          import sys
 
-manifest_path = "apps/client-2d/public/2d-assets/stitch/manifest.json"
-expected_pack_id = os.environ["EXPECTED_PACK_ID"]
+          manifest_path = "apps/client-2d/public/2d-assets/stitch/manifest.json"
+          expected_pack_id = os.environ["EXPECTED_PACK_ID"]
 
-with open(manifest_path, "r", encoding="utf-8") as f:
-    m = json.load(f)
+          with open(manifest_path, "r", encoding="utf-8") as f:
+              m = json.load(f)
 
-print(f"Schema version: {m.get('schemaVersion')}")
-print(f"Pack ID: {m.get('packId')}")
-print(f"Deterministic: {m.get('deterministic')}")
-print(f"Assets: {len(m.get('assets', []))}")
-print(f"Quarantine: {len(m.get('quarantine', []))}")
+          print(f"Schema version: {m.get('schemaVersion')}")
+          print(f"Pack ID: {m.get('packId')}")
+          print(f"Deterministic: {m.get('deterministic')}")
+          print(f"Assets: {len(m.get('assets', []))}")
+          print(f"Quarantine: {len(m.get('quarantine', []))}")
 
-if m.get("packId") != expected_pack_id:
-    print(f"ERROR: unexpected packId: {m.get('packId')} != {expected_pack_id}")
-    sys.exit(1)
+          if m.get("packId") != expected_pack_id:
+              print(f"ERROR: unexpected packId: {m.get('packId')} != {expected_pack_id}")
+              sys.exit(1)
 
-if m.get("deterministic") is not True:
-    print("ERROR: manifest deterministic flag is not true")
-    sys.exit(1)
+          if m.get("deterministic") is not True:
+              print("ERROR: manifest deterministic flag is not true")
+              sys.exit(1)
 
-if not isinstance(m.get("assets"), list):
-    print("ERROR: manifest assets must be a list")
-    sys.exit(1)
+          if not isinstance(m.get("assets"), list):
+              print("ERROR: manifest assets must be a list")
+              sys.exit(1)
 
-if len(m["assets"]) == 0:
-    print("ERROR: manifest assets list is empty")
-    sys.exit(1)
+          if len(m["assets"]) == 0:
+              print("ERROR: manifest assets list is empty")
+              sys.exit(1)
 
-seen_asset_ids = set()
-seen_source_paths = set()
+          seen_asset_ids = set()
+          seen_source_paths = set()
 
-for asset in m["assets"]:
-    asset_id = asset.get("assetId")
-    source_path = asset.get("sourcePath", "")
+          for asset in m["assets"]:
+              asset_id = asset.get("assetId")
+              source_path = asset.get("sourcePath", "")
 
-    if not asset_id:
-        print("ERROR: asset without assetId")
-        sys.exit(1)
+              if not asset_id:
+                  print("ERROR: asset without assetId")
+                  sys.exit(1)
 
-    if asset_id in seen_asset_ids:
-        print(f"ERROR: duplicate assetId: {asset_id}")
-        sys.exit(1)
+              if asset_id in seen_asset_ids:
+                  print(f"ERROR: duplicate assetId: {asset_id}")
+                  sys.exit(1)
 
-    seen_asset_ids.add(asset_id)
+              seen_asset_ids.add(asset_id)
 
-    if not source_path:
-        print(f"ERROR: asset without sourcePath: {asset_id}")
-        sys.exit(1)
+              if not source_path:
+                  print(f"ERROR: asset without sourcePath: {asset_id}")
+                  sys.exit(1)
 
-    if source_path in seen_source_paths:
-        print(f"WARNING: duplicate sourcePath: {source_path}")
+              if source_path in seen_source_paths:
+                  print(f"WARNING: duplicate sourcePath: {source_path}")
 
-    seen_source_paths.add(source_path)
+              seen_source_paths.add(source_path)
 
-    if "/tmp/" in source_path:
-        print(f"ERROR: temp path in asset: {asset_id} -> {source_path}")
-        sys.exit(1)
+              if "/tmp/" in source_path:
+                  print(f"ERROR: temp path in asset: {asset_id} -> {source_path}")
+                  sys.exit(1)
 
-    if source_path.startswith("/"):
-        print(f"ERROR: absolute sourcePath: {asset_id} -> {source_path}")
-        sys.exit(1)
+              if source_path.startswith("/"):
+                  print(f"ERROR: absolute sourcePath: {asset_id} -> {source_path}")
+                  sys.exit(1)
 
-    if ".." in source_path.split("/"):
-        print(f"ERROR: path traversal in sourcePath: {asset_id} -> {source_path}")
-        sys.exit(1)
+              if ".." in source_path.split("/"):
+                  print(f"ERROR: path traversal in sourcePath: {asset_id} -> {source_path}")
+                  sys.exit(1)
 
-    if "\\" in source_path:
-        print(f"ERROR: Windows-style path separator in sourcePath: {asset_id} -> {source_path}")
-        sys.exit(1)
+              if "\\" in source_path:
+                  print(f"ERROR: Windows-style path separator in sourcePath: {asset_id} -> {source_path}")
+                  sys.exit(1)
 
-    if not re.match(r"^[\w\-\./]+$", source_path):
-        print(f"ERROR: invalid sourcePath chars: {asset_id} -> {source_path}")
-        sys.exit(1)
+              if not re.match(r"^[\w\-\./!:]+$", source_path):
+                  print(f"ERROR: invalid sourcePath chars: {asset_id} -> {source_path}")
+                  sys.exit(1)
 
-print("Manifest validation OK")
-print("All sourcePaths are stable, relative, and clean")
-PY
+          print("Manifest validation OK")
+          print("All sourcePaths are stable, relative, and clean")
+          PY
 
       - name: Verify deterministic manifest replay
         run: |
@@ -274,6 +295,7 @@ PY
       - name: Install Python and Pillow
         run: |
           set -euo pipefail
+
           sudo apt-get update -qq
           sudo apt-get install -y -qq python3-pip > /dev/null 2>&1
           python3 -m pip install --quiet Pillow
@@ -281,6 +303,7 @@ PY
       - name: Run Python tests
         run: |
           set -euo pipefail
+
           echo "=== Running Stitch Atlas Intake Tests ==="
           python3 scripts/__tests__/stitch_atlas_intake.test.py
 
@@ -348,6 +371,7 @@ PY
       - name: Print toolchain
         run: |
           set -euo pipefail
+
           node --version
           corepack --version
           pnpm --version
@@ -378,13 +402,13 @@ PY
             echo "manifest.json in dist"
 
             python3 <<'PY'
-import json
+            import json
 
-with open("apps/client-2d/dist/2d-assets/stitch/manifest.json", "r", encoding="utf-8") as f:
-    m = json.load(f)
+            with open("apps/client-2d/dist/2d-assets/stitch/manifest.json", "r", encoding="utf-8") as f:
+                m = json.load(f)
 
-print(f"Manifest has {len(m['assets'])} assets")
-PY
+            print(f"Manifest has {len(m['assets'])} assets")
+            PY
           else
             echo "::warning::manifest.json not in dist"
             echo "dist tree:"
@@ -438,6 +462,7 @@ PY
       - name: Install Playwright Chromium
         run: |
           set -euo pipefail
+
           npx -y playwright install chromium --with-deps
 
       - name: Run preview server and E2E checks
@@ -472,18 +497,18 @@ PY
             -o /tmp/stitch-manifest.json
 
           python3 <<'PY'
-import json
-import sys
+          import json
+          import sys
 
-try:
-    with open("/tmp/stitch-manifest.json", "r", encoding="utf-8") as f:
-        m = json.load(f)
+          try:
+              with open("/tmp/stitch-manifest.json", "r", encoding="utf-8") as f:
+                  m = json.load(f)
 
-    print(f"Manifest accessible: {len(m['assets'])} assets")
-except Exception as exc:
-    print(f"ERROR: {exc}")
-    sys.exit(1)
-PY
+              print(f"Manifest accessible: {len(m['assets'])} assets")
+          except Exception as exc:
+              print(f"ERROR: {exc}")
+              sys.exit(1)
+          PY
 
           echo "=== Running Stitch E2E Preview tests ==="
 
@@ -541,20 +566,20 @@ PY
             echo "Generated manifest:"
 
             MANIFEST_PATH="$MANIFEST" python3 <<'PY'
-import json
-import os
+            import json
+            import os
 
-manifest_path = os.environ["MANIFEST_PATH"]
+            manifest_path = os.environ["MANIFEST_PATH"]
 
-with open(manifest_path, "r", encoding="utf-8") as f:
-    m = json.load(f)
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                m = json.load(f)
 
-print(f"  Schema: v{m.get('schemaVersion')}")
-print(f"  Pack: {m.get('packId')}")
-print(f"  Deterministic: {m.get('deterministic')}")
-print(f"  Assets: {len(m.get('assets', []))}")
-print(f"  Quarantine: {len(m.get('quarantine', []))}")
-PY
+            print(f"  Schema: v{m.get('schemaVersion')}")
+            print(f"  Pack: {m.get('packId')}")
+            print(f"  Deterministic: {m.get('deterministic')}")
+            print(f"  Assets: {len(m.get('assets', []))}")
+            print(f"  Quarantine: {len(m.get('quarantine', []))}")
+            PY
           else
             echo "  (manifest not available)"
 
