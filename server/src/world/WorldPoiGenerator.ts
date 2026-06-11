@@ -20,9 +20,10 @@
 import { SeededARERng } from "@wasd/shared";
 import type { WorldPoiSnapshot, WorldPoiType } from "./WorldPoiTypes.js";
 import { getCampResourceBias } from "./WorldPoiTypes.js";
+import { resolveResourceWorldSeed } from "../resources/ResourceWorldSeedResolver.js";
 
-/** Legacy fallback world seed. Runtime callers should pass worldSeed explicitly. */
-const WORLD_SEED = "areloria:earth_1_1"; // STATELESS_AUDIT_ALLOW
+/** Runtime-resolved world seed. No hardcoded seed fallback. */
+const WORLD_SEED = resolveResourceWorldSeed(undefined, "world poi generator");
 
 /** Chunk size in tiles (kappa units / 1000) */
 const CHUNK_TILES = 16;
