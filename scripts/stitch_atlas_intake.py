@@ -4,13 +4,20 @@ scripts/stitch_atlas_intake.py
 
 Deterministic Stitch 2.5D asset intake pipeline for Areloria/WASD.
 
-Accepts a directory, a single image, or a ZIP. Supported input images:
-PNG, JPG, JPEG, WEBP, BMP.
+Accepts:
+  - a directory containing images and/or ZIP files
+  - a single image file
+  - a single ZIP file
 
-Pipeline:
-source image -> classify -> deterministic assetId -> normalize frame size ->
-PNG runtime sheet -> Pixi/TexturePacker atlas JSON -> preview -> manifest/report ->
-apps/client-2d/public/2d-assets/stitch.
+Supported image inputs:
+  .png, .jpg, .jpeg, .webp, .bmp
+
+Behavior:
+  source image -> deterministic classify/name -> normalize to game frame size ->
+  generated PNG sheet -> Pixi/TexturePacker-style atlas JSON ->
+  preview image -> manifest.json + report.json -> client-2d public stitch folder.
+
+No Date.now, no randomness, no UUIDs. Naming is path/content-hash based.
 """
 
 from __future__ import annotations
@@ -41,6 +48,7 @@ CLIENT_STITCH_DIR = ROOT / "apps" / "client-2d" / "public" / "2d-assets" / "stit
 
 SUPPORTED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 SUPPORTED_ARCHIVE_EXTENSIONS = {".zip"}
+
 MAX_SOURCE_PIXELS = 96_000_000
 MAX_FRAME_COUNT = 4096
 PACK_SCHEMA_VERSION = 2
@@ -58,16 +66,126 @@ LEGACY_SUPPORTED_SIZES = [
 ]
 
 CATEGORY_KEYWORDS = {
-    "boss": ["boss", "king", "lord", "dragon", "titan", "world_boss"],
-    "enemy": ["enemy", "monster", "skeleton", "ghost", "demon", "beast", "creature", "ghoul", "ravager", "zombie"],
-    "hero": ["hero", "player", "warrior", "knight", "paladin", "ranger", "mage", "rogue"],
-    "npc": ["npc", "villager", "merchant", "guard", "blacksmith", "farmer", "civilian"],
-    "vfx": ["vfx", "effect", "magic", "spell", "fire", "ice", "lightning", "heal", "burst", "slash", "impact", "projectile"],
-    "tile": ["tile", "tileset", "floor", "ground", "grass", "stone", "dirt", "path", "road", "wall", "terrain", "swamp"],
-    "prop": ["prop", "decor", "tree", "rock", "furniture", "object", "gate", "pillar", "obelisk", "vegetation", "bush", "mushroom", "sign"],
-    "item": ["item", "loot", "pickup", "treasure", "chest", "key", "potion", "sword", "axe", "staff", "bow", "ring", "amulet"],
-    "equipment_overlay": ["equipment_overlay", "overlay", "helmet", "armor", "weapon", "shield", "boots", "gloves", "plate"],
-    "ui": ["ui", "icon", "button", "panel", "hud", "menu", "cursor", "slot"],
+    "boss": [
+        "boss",
+        "king",
+        "lord",
+        "dragon",
+        "titan",
+        "world_boss",
+    ],
+    "enemy": [
+        "enemy",
+        "monster",
+        "skeleton",
+        "ghost",
+        "demon",
+        "beast",
+        "creature",
+        "ghoul",
+        "ravager",
+        "zombie",
+    ],
+    "hero": [
+        "hero",
+        "player",
+        "warrior",
+        "knight",
+        "paladin",
+        "ranger",
+        "mage",
+        "rogue",
+    ],
+    "npc": [
+        "npc",
+        "villager",
+        "merchant",
+        "guard",
+        "blacksmith",
+        "farmer",
+        "civilian",
+    ],
+    "vfx": [
+        "vfx",
+        "effect",
+        "magic",
+        "spell",
+        "fire",
+        "ice",
+        "lightning",
+        "heal",
+        "burst",
+        "slash",
+        "impact",
+        "projectile",
+    ],
+    "tile": [
+        "tile",
+        "tileset",
+        "floor",
+        "ground",
+        "grass",
+        "stone",
+        "dirt",
+        "path",
+        "road",
+        "wall",
+        "terrain",
+        "swamp",
+    ],
+    "prop": [
+        "prop",
+        "props",
+        "decor",
+        "tree",
+        "rock",
+        "furniture",
+        "object",
+        "gate",
+        "pillar",
+        "obelisk",
+        "vegetation",
+        "bush",
+        "mushroom",
+        "sign",
+    ],
+    "item": [
+        "item",
+        "loot",
+        "pickup",
+        "treasure",
+        "chest",
+        "key",
+        "potion",
+        "sword",
+        "axe",
+        "staff",
+        "bow",
+        "ring",
+        "amulet",
+    ],
+    "equipment_overlay": [
+        "equipment_overlay",
+        "equipment_overlays",
+        "overlay",
+        "helmet",
+        "armor",
+        "weapon",
+        "shield",
+        "boots",
+        "gloves",
+        "plate",
+    ],
+    "ui": [
+        "ui",
+        "icon",
+        "button",
+        "panel",
+        "hud",
+        "menu",
+        "cursor",
+        "slot",
+    ],
 }
 
 CATEGORY_TARGET_FRAME_SIZE = {
@@ -114,6 +232,7 @@ def stable_hash(data: bytes) -> str:
 def slugify_name(name: str) -> str:
     stem = os.path.splitext(name)[0].lower()
     stem = stem.replace("2.5d", "25d").replace("2_5d", "25d")
+
     chars = []
 
     for c in stem:
@@ -124,6 +243,7 @@ def slugify_name(name: str) -> str:
 
     slug = "".join(chars)
     slug = re.sub(r"_+", "_", slug).strip("_")
+
     return slug or "asset"
 
 
@@ -132,7 +252,15 @@ def clean_asset_slug(source_path: str, category: str) -> str:
     parts = [p for p in normalized.split("/") if p]
     candidate = Path(parts[-1]).stem if parts else Path(normalized).stem
 
-    if candidate.lower() in {"screen", "image", "sprite", "atlas", "sheet", "spritesheet", "output"} and len(parts) >= 2:
+    if candidate.lower() in {
+        "screen",
+        "image",
+        "sprite",
+        "atlas",
+        "sheet",
+        "spritesheet",
+        "output",
+    } and len(parts) >= 2:
         candidate = parts[-2]
 
     candidate = candidate.lower()
@@ -152,6 +280,7 @@ def clean_asset_slug(source_path: str, category: str) -> str:
         candidate = candidate.replace(prefix, "")
 
     candidate = re.sub(r"_style_[a-z0-9_\-\.]+$", "", candidate)
+
     slug = slugify_name(candidate)
 
     for prefix in (category, f"stitch_{category}", "stitch"):
@@ -172,6 +301,115 @@ def classify_asset(filename: str) -> str:
 
 
 def classify_from_zip_path(zip_path: str) -> str:
+    """
+    Classify ZIP-internal paths by the most specific path segment first.
+
+    Important:
+    Some source ZIPs are named like stitch_2.5d_enemy_sprite_atlas.
+    That outer folder must not force every asset to category "enemy".
+    """
+    lower = zip_path.replace("\\", "/").lower()
+
+    if any(
+        kw in lower
+        for kw in [
+            "equipment_overlay",
+            "equipment_overlays",
+            "overlay_",
+            "_overlay",
+            "helmet",
+            "armor",
+            "shield",
+        ]
+    ):
+        return "equipment_overlay"
+
+    if any(
+        kw in lower
+        for kw in [
+            "floor_tiles",
+            "transition_floor_tiles",
+            "ground_tiles",
+            "tileset",
+            "/tile",
+            "_tile",
+            "terrain",
+            "swamp_ground",
+        ]
+    ):
+        return "tile"
+
+    if any(
+        kw in lower
+        for kw in [
+            "magic_attack",
+            "melee_attack",
+            "visceral_attack",
+            "defense_shield",
+            "attack_vfx",
+            "vfx",
+            "spell",
+            "effect",
+        ]
+    ):
+        return "vfx"
+
+    if any(
+        kw in lower
+        for kw in [
+            "hero_character",
+            "_hero_",
+            "_rogue_",
+            "_mystic_",
+            "_veteran_",
+            "_agile_",
+            "player_character",
+        ]
+    ):
+        return "hero"
+
+    if any(
+        kw in lower
+        for kw in [
+            "environment_objects",
+            "ancient_pillars",
+            "frozen_obelisks",
+            "massive_iron_gates",
+            "destructible_environment",
+            "props",
+            "prop_",
+        ]
+    ):
+        return "prop"
+
+    if any(
+        kw in lower
+        for kw in [
+            "boss_enemy",
+            "/boss_",
+            "_boss_",
+            "skeleton_king",
+            "dragon",
+            "titan",
+        ]
+    ):
+        return "boss"
+
+    if any(
+        kw in lower
+        for kw in [
+            "/enemy_",
+            "_enemy_",
+            "_ghoulish",
+            "_shadow_mage",
+            "_skeleton_warrior",
+            "_ravager",
+            "monster",
+            "creature",
+        ]
+    ):
+        return "enemy"
+
     return classify_asset(zip_path)
 
 
@@ -186,7 +424,12 @@ def resample_filter():
         return Image.LANCZOS
 
 
-def detect_grid(width: int, height: int, category: str = "unknown", source_path: str = "") -> Optional[dict]:
+def detect_grid(
+    width: int,
+    height: int,
+    category: str = "unknown",
+    source_path: str = "",
+) -> Optional[dict]:
     if width <= 0 or height <= 0:
         return None
 
@@ -195,6 +438,7 @@ def detect_grid(width: int, height: int, category: str = "unknown", source_path:
             if width == sheet_size:
                 cols = sheet_size // frame_size
                 rows = sheet_size // frame_size
+
                 return {
                     "columns": cols,
                     "rows": rows,
@@ -207,6 +451,7 @@ def detect_grid(width: int, height: int, category: str = "unknown", source_path:
     lower = source_path.lower()
 
     explicit = re.search(r"(?:^|[_\-. /])(\d{1,3})x(\d{1,3})(?:[_\-. /]|$)", lower)
+
     if explicit:
         cols = int(explicit.group(1))
         rows = int(explicit.group(2))
@@ -230,6 +475,7 @@ def detect_grid(width: int, height: int, category: str = "unknown", source_path:
                 }
 
     explicit_frame = re.search(r"(?:frame|cell|sprite)[_\-. ]?(\d{2,4})", lower)
+
     if explicit_frame:
         frame = int(explicit_frame.group(1))
 
@@ -251,7 +497,19 @@ def detect_grid(width: int, height: int, category: str = "unknown", source_path:
                     "source": "filename_frame",
                 }
 
-    sheet_tokens = ["sheet", "atlas", "spritesheet", "sprite_sheet", "walk", "run", "attack", "idle", "death", "die", "anim"]
+    sheet_tokens = [
+        "sheet",
+        "atlas",
+        "spritesheet",
+        "sprite_sheet",
+        "walk",
+        "run",
+        "attack",
+        "idle",
+        "death",
+        "die",
+        "anim",
+    ]
 
     if not any(token in lower for token in sheet_tokens):
         return None
@@ -303,6 +561,7 @@ def detect_corner_background(img: Image.Image) -> Optional[tuple[int, int, int]]
         return None
 
     pixels = rgb.load()
+
     samples = [
         pixels[0, 0],
         pixels[w - 1, 0],
@@ -331,16 +590,31 @@ def cleanup_flat_background_alpha(img: Image.Image) -> tuple[Image.Image, dict]:
     }
 
     if image_has_alpha(img):
-        result.update({"method": "native_alpha", "success": True})
+        result.update(
+            {
+                "method": "native_alpha",
+                "success": True,
+            }
+        )
         return rgba, result
 
     bg = detect_corner_background(img)
 
     if bg is None:
-        result.update({"method": "opaque_rgb_no_clear_background", "success": True})
+        result.update(
+            {
+                "method": "opaque_rgb_no_clear_background",
+                "success": True,
+            }
+        )
         return rgba, result
 
-    result.update({"attempted": True, "method": "corner_background_to_alpha"})
+    result.update(
+        {
+            "attempted": True,
+            "method": "corner_background_to_alpha",
+        }
+    )
 
     pixels = rgba.load()
     w, h = rgba.size
@@ -350,9 +624,9 @@ def cleanup_flat_background_alpha(img: Image.Image) -> tuple[Image.Image, dict]:
     for y in range(h):
         for x in range(w):
             r, g, b, _a = pixels[x, y]
-            d = abs(r - bg[0]) + abs(g - bg[1]) + abs(b - bg[2])
+            distance = abs(r - bg[0]) + abs(g - bg[1]) + abs(b - bg[2])
 
-            if d <= tolerance:
+            if distance <= tolerance:
                 pixels[x, y] = (r, g, b, 0)
                 changed += 1
             else:
@@ -403,7 +677,11 @@ def build_sheet(frames: list[Image.Image], frame_w: int, frame_h: int) -> tuple[
     return sheet, cols, rows
 
 
-def extract_normalized_frames(img: Image.Image, grid: Optional[dict], category: str) -> tuple[list[Image.Image], dict]:
+def extract_normalized_frames(
+    img: Image.Image,
+    grid: Optional[dict],
+    category: str,
+) -> tuple[list[Image.Image], dict]:
     target = target_frame_size_for_category(category)
 
     if grid:
@@ -413,7 +691,9 @@ def extract_normalized_frames(img: Image.Image, grid: Optional[dict], category: 
             for col in range(grid["columns"]):
                 left = col * grid["frameWidth"]
                 top = row * grid["frameHeight"]
-                source_frames.append(img.crop((left, top, left + grid["frameWidth"], top + grid["frameHeight"])))
+                right = left + grid["frameWidth"]
+                bottom = top + grid["frameHeight"]
+                source_frames.append(img.crop((left, top, right, bottom)))
 
         normalized = [pad_resize_to_frame(frame, target, target) for frame in source_frames]
 
@@ -440,7 +720,12 @@ def extract_normalized_frames(img: Image.Image, grid: Optional[dict], category: 
     }
 
 
-def create_contact_sheet(frames: list[Image.Image], frame_width: int, frame_height: int, cols: int = 4) -> Image.Image:
+def create_contact_sheet(
+    frames: list[Image.Image],
+    frame_width: int,
+    frame_height: int,
+    cols: int = 4,
+) -> Image.Image:
     if not frames:
         return Image.new("RGBA", (frame_width, frame_height), (0, 0, 0, 0))
 
@@ -503,7 +788,10 @@ def generate_atlas_json(
             "version": PACK_SCHEMA_VERSION,
             "image": f"{asset_id}.png",
             "format": "RGBA8888",
-            "size": {"w": sheet_width, "h": sheet_height},
+            "size": {
+                "w": sheet_width,
+                "h": sheet_height,
+            },
             "scale": "1",
             "assetId": asset_id,
             "category": category,
@@ -586,7 +874,12 @@ def save_quarantine(
 
 def process_asset(source: SourceAsset, output_dir: Path, quarantine_dir: Path) -> dict:
     source_sha = stable_hash(source.data)
-    category = classify_asset(source.display_source_path)
+
+    if "!/" in source.display_source_path or ".zip:" in source.display_source_path:
+        category = classify_from_zip_path(source.display_source_path)
+    else:
+        category = classify_asset(source.display_source_path)
+
     slug = clean_asset_slug(source.display_source_path, category)
     asset_id = f"stitch_{category}_{slug}_{source_sha[:10]}"
 
@@ -607,7 +900,12 @@ def process_asset(source: SourceAsset, output_dir: Path, quarantine_dir: Path) -
             False,
             None,
             None,
-            {"attempted": False, "method": "none", "success": False, "remainingCheckerboardScore": 0},
+            {
+                "attempted": False,
+                "method": "none",
+                "success": False,
+                "remainingCheckerboardScore": 0,
+            },
             "quarantined",
             warnings,
             source_sha,
@@ -638,7 +936,12 @@ def process_asset(source: SourceAsset, output_dir: Path, quarantine_dir: Path) -
             has_alpha,
             None,
             None,
-            {"attempted": False, "method": "none", "success": False, "remainingCheckerboardScore": 0},
+            {
+                "attempted": False,
+                "method": "none",
+                "success": False,
+                "remainingCheckerboardScore": 0,
+            },
             "quarantined",
             warnings,
             source_sha,
@@ -673,16 +976,16 @@ def process_asset(source: SourceAsset, output_dir: Path, quarantine_dir: Path) -
         f.write(processed_bytes)
 
     atlas = generate_atlas_json(
-        asset_id,
-        category,
-        sheet.width,
-        sheet.height,
-        normalized_grid["frameWidth"],
-        normalized_grid["frameHeight"],
-        columns,
-        rows,
-        source_sha,
-        processed_sha,
+        asset_id=asset_id,
+        category=category,
+        sheet_width=sheet.width,
+        sheet_height=sheet.height,
+        frame_width=normalized_grid["frameWidth"],
+        frame_height=normalized_grid["frameHeight"],
+        columns=columns,
+        rows=rows,
+        source_sha=source_sha,
+        processed_sha=processed_sha,
     )
 
     write_json(asset_dir / f"{asset_id}.atlas.json", atlas)
@@ -751,7 +1054,10 @@ def collect_sources(input_path: Path) -> list[SourceAsset]:
                 if suffix not in SUPPORTED_IMAGE_EXTENSIONS:
                     continue
 
-                display = f"{display_prefix}{path.name}!/{name}" if display_prefix else f"{path.name}!/{name}"
+                if display_prefix:
+                    display = f"{display_prefix}{path.name}!/{name}"
+                else:
+                    display = f"{path.name}!/{name}"
 
                 sources.append(
                     SourceAsset(
@@ -790,7 +1096,7 @@ def collect_sources(input_path: Path) -> list[SourceAsset]:
     for source in sources:
         unique[(source.display_source_path, stable_hash(source.data))] = source
 
-    return [unique[k] for k in sorted(unique.keys(), key=lambda k: (k[0].lower(), k[1]))]
+    return [unique[key] for key in sorted(unique.keys(), key=lambda k: (k[0].lower(), k[1]))]
 
 
 def generate_runtime_manifest(
@@ -818,7 +1124,7 @@ def generate_runtime_manifest(
         tags = sorted(
             set(
                 [category]
-                + [t for t in slugify_name(report["sourcePath"]).split("_") if len(t) > 2]
+                + [token for token in slugify_name(report["sourcePath"]).split("_") if len(token) > 2]
             )
         )
 
@@ -880,14 +1186,6 @@ def copy_runtime_to_client(output_dir: Path, client_dir: Path) -> None:
             shutil.copytree(item, target, dirs_exist_ok=True)
         else:
             shutil.copy2(item, target)
-
-
-def write_json(path: Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, sort_keys=True)
-        f.write("\n")
 
 
 def write_report(output_dir: Path, reports: list[dict]) -> None:
@@ -967,6 +1265,15 @@ def run_intake(
         for category in sorted(by_category):
             print(f"  {category}: {by_category[category]}")
 
+    if quarantined:
+        print("Quarantined assets:")
+
+        for report in quarantined[:20]:
+            print(f"  - {report['sourcePath']}: {'; '.join(report['warnings'])}")
+
+        if len(quarantined) > 20:
+            print(f"  ... and {len(quarantined) - 20} more")
+
     return 0
 
 
@@ -974,7 +1281,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Deterministic Stitch 2.5D Asset Intake Pipeline")
     parser.add_argument("--input", type=str, help="Input image, ZIP, or directory path")
     parser.add_argument("--output", type=str, help="Output directory")
-    parser.add_argument("--pack-id", type=str, default="stitch_25d_atlas_pack_001", help="Pack ID for manifest")
+    parser.add_argument(
+        "--pack-id",
+        type=str,
+        default="stitch_25d_atlas_pack_001",
+        help="Pack ID for manifest",
+    )
 
     args = parser.parse_args()
 
@@ -983,11 +1295,11 @@ def main() -> int:
 
     try:
         return run_intake(
-            input_path,
-            output_dir,
-            DEFAULT_QUARANTINE_DIR,
-            CLIENT_STITCH_DIR,
-            args.pack_id,
+            input_path=input_path,
+            output_dir=output_dir,
+            quarantine_dir=DEFAULT_QUARANTINE_DIR,
+            client_dir=CLIENT_STITCH_DIR,
+            pack_id=args.pack_id,
         )
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
