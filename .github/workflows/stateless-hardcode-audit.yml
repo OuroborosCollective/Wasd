@@ -18,13 +18,21 @@ on:
   workflow_dispatch:
     inputs:
       strict:
-        description: 'Fail the workflow when toxic runtime hardcoding is found'
+        description: 'Fail when ERROR severity toxic runtime hardcoding is found'
         required: false
         default: 'true'
         type: choice
         options:
           - 'true'
           - 'false'
+      strict_all:
+        description: 'Treat WARN findings as ERROR too'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 permissions:
   contents: read
@@ -55,12 +63,18 @@ jobs:
       - name: Run stateless hardcode audit
         env:
           STRICT_INPUT: ${{ inputs.strict }}
+          STRICT_ALL_INPUT: ${{ inputs.strict_all }}
         run: |
           set -euo pipefail
 
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${STRICT_INPUT:-true}" = "false" ]; then
-            node scripts/audit-hardcoded-runtime-state.mjs
-            exit 0
+          args=()
+
+          if [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ] || [ "${STRICT_INPUT:-true}" = "true" ]; then
+            args+=(--fail)
           fi
 
-          node scripts/audit-hardcoded-runtime-state.mjs --fail
+          if [ "${STRICT_ALL_INPUT:-false}" = "true" ]; then
+            args+=(--strict-all)
+          fi
+
+          node scripts/audit-hardcoded-runtime-state.mjs "${args[@]}"
