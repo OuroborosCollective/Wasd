@@ -41,6 +41,19 @@ import "./ui/windows/stitchAssetPreviewPanel.css";
 installClient2DDepthRuntime();
 installViewportRuntime();
 
+const ENABLE_PUBLIC_DEBUG_PANELS = ARELORIA_BOOT_CONFIG.design.showDebugHud;
+const ENABLE_STITCH_PREVIEW_PANEL =
+  ENABLE_PUBLIC_DEBUG_PANELS || import.meta.env.VITE_ENABLE_STITCH_PREVIEW_PANEL === "1";
+
+function hasStitchPreviewUrlRequest(): boolean {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("stitchPreview") === "1" || window.location.hash === "#stitch-preview";
+  } catch {
+    return false;
+  }
+}
+
 function showFatalBootError(error: unknown): void {
   const root = document.getElementById("root");
   const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error ?? "Unknown boot error");
@@ -90,7 +103,7 @@ function UIOverlayLayer() {
   const [showRegistry, setShowRegistry] = useState(false);
   const [showWorkshop, setShowWorkshop] = useState(false);
   const [showStitchGallery, setShowStitchGallery] = useState(false);
-  const [showStitchPreview, setShowStitchPreview] = useState(false);
+  const [showStitchPreview, setShowStitchPreview] = useState(() => ENABLE_STITCH_PREVIEW_PANEL && hasStitchPreviewUrlRequest());
   const lootFeedRef = useRef(createLootFeedStore(6));
 
   useEffect(() => {
@@ -103,12 +116,18 @@ function UIOverlayLayer() {
     function handleKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+      if (!ENABLE_PUBLIC_DEBUG_PANELS) return;
       if (e.key === "m" || e.key === "M") setShowRegistry((prev) => !prev);
       if (e.key === "s" || e.key === "S") setShowWorkshop((prev) => !prev);
       if (e.key === "a" || e.key === "A") setShowStitchGallery((prev) => !prev);
-      if (e.key === "p" || e.key === "P") setShowStitchPreview((prev) => !prev);
+      if (ENABLE_STITCH_PREVIEW_PANEL && (e.key === "p" || e.key === "P")) setShowStitchPreview((prev) => !prev);
     }
     window.addEventListener("keydown", handleKeyDown);
+
+    const openStitchPreview = () => {
+      if (ENABLE_STITCH_PREVIEW_PANEL) setShowStitchPreview(true);
+    };
+    window.addEventListener("wasd:open-stitch-preview", openStitchPreview);
 
     const handler = ((event: Event) => {
       const detail = (event as CustomEvent).detail;
@@ -142,6 +161,7 @@ function UIOverlayLayer() {
       clearInterval(lootInterval);
       clearInterval(toastInterval);
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("wasd:open-stitch-preview", openStitchPreview);
       window.removeEventListener("wasd:network-packet", handler);
     };
   }, []);
@@ -157,7 +177,7 @@ function UIOverlayLayer() {
           onInteract={() => window.dispatchEvent(new CustomEvent("wasd:client-action", { detail: { action: "interact", payload: {} } }))}
         />
       )}
-      {showRegistry && (
+      {ENABLE_PUBLIC_DEBUG_PANELS && showRegistry && (
         <div className="module-registry-overlay" onClick={() => setShowRegistry(false)}>
           <div className="module-registry-modal" onClick={(e) => e.stopPropagation()}>
             <button className="module-registry-close" onClick={() => setShowRegistry(false)} aria-label="Close Registry">×</button>
@@ -165,7 +185,7 @@ function UIOverlayLayer() {
           </div>
         </div>
       )}
-      {showWorkshop && (
+      {ENABLE_PUBLIC_DEBUG_PANELS && showWorkshop && (
         <div className="module-registry-overlay" onClick={() => setShowWorkshop(false)}>
           <div className="module-registry-modal" onClick={(e) => e.stopPropagation()}>
             <button className="module-registry-close" onClick={() => setShowWorkshop(false)} aria-label="Close Workshop">×</button>
@@ -173,7 +193,7 @@ function UIOverlayLayer() {
           </div>
         </div>
       )}
-      {showStitchGallery && (
+      {ENABLE_PUBLIC_DEBUG_PANELS && showStitchGallery && (
         <div className="module-registry-overlay" onClick={() => setShowStitchGallery(false)}>
           <div className="module-registry-modal" onClick={(e) => e.stopPropagation()}>
             <button className="module-registry-close" onClick={() => setShowStitchGallery(false)} aria-label="Close Stitch Asset Gallery">×</button>
@@ -181,13 +201,24 @@ function UIOverlayLayer() {
           </div>
         </div>
       )}
-      {showStitchPreview && (
+      {ENABLE_STITCH_PREVIEW_PANEL && showStitchPreview && (
         <div className="module-registry-overlay" onClick={() => setShowStitchPreview(false)}>
           <div onClick={(e) => e.stopPropagation()}>
             <button className="module-registry-close" onClick={() => setShowStitchPreview(false)} aria-label="Close Stitch Asset Preview">×</button>
             <StitchAssetPreviewPanel />
           </div>
         </div>
+      )}
+      {ENABLE_STITCH_PREVIEW_PANEL && !showStitchPreview && (
+        <button
+          className="module-registry-floating-dev-button"
+          type="button"
+          onClick={() => setShowStitchPreview(true)}
+          aria-label="Open Stitch Preview"
+          data-testid="stitch-preview-dev-open"
+        >
+          Stitch Preview
+        </button>
       )}
     </>
   );
