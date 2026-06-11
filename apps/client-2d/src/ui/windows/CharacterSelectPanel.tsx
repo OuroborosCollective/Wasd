@@ -12,8 +12,8 @@
 
 import React, { useState } from "react";
 import {
-  DEFAULT_GAMEPLAY_PLAYER_ID,
   fetchGameplaySnapshot,
+  getDefaultGameplayPlayerId,
   liveGameplayStore,
 } from "../../game/liveGameplayStore";
 
@@ -83,8 +83,16 @@ interface Props {
   onCreated?: () => void;
 }
 
+function readStoredDisplayName(): string {
+  try {
+    return localStorage.getItem("wasd:2d:name")?.trim() ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export function CharacterSelectPanel({ onCreated }: Props) {
-  const [displayName, setDisplayName] = useState("");
+  const [displayName, setDisplayName] = useState(() => readStoredDisplayName());
   const [startPath, setStartPath] = useState<StartPath>("wanderer");
   const [status, setStatus] = useState<string>("");
   const selectedPath = START_PATH_INFO[startPath];
@@ -167,7 +175,7 @@ export function CharacterSelectPanel({ onCreated }: Props) {
           setStatus("Creating character...");
 
           try {
-            const playerId = DEFAULT_GAMEPLAY_PLAYER_ID;
+            const playerId = getDefaultGameplayPlayerId();
             const response = await fetch(`/api/character/create?playerId=${encodeURIComponent(playerId)}`, {
               method: "POST",
               headers: {
@@ -187,25 +195,27 @@ export function CharacterSelectPanel({ onCreated }: Props) {
               ? await response.json()
               : { ok: false, error: `Server returned non-JSON response (${response.status})` };
 
-            if (result.ok) {
-              setStatus("Character created. Syncing world snapshot...");
+            if (result.ok || result.result?.reason === "already_exists") {
+              try {
+                localStorage.setItem("wasd:2d:name", displayName.trim());
+              } catch {}
+
+              setStatus(result.result?.reason === "already_exists" ? "Character already exists. Syncing world snapshot..." : "Character created. Syncing world snapshot...");
               const snapshot = await fetchGameplaySnapshot(playerId);
               if (snapshot) {
                 liveGameplayStore.setSnapshot(snapshot);
               }
-              setStatus("Character created.");
+              setStatus("Character ready.");
               onCreated?.();
 
-              // Dispatch character-created event to pause polling briefly
               window.dispatchEvent(new CustomEvent("wasd:character-created", {
                 detail: { playerId },
               }));
 
-              // Dispatch toast notification
               window.dispatchEvent(new CustomEvent("wasd:toast", {
                 detail: {
                   type: "success",
-                  message: "Character created",
+                  message: result.result?.reason === "already_exists" ? "Character loaded" : "Character created",
                 },
               }));
             } else {
