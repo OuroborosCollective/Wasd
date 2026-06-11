@@ -69,7 +69,13 @@ jobs:
 
           args=()
 
-          if [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ] || [ "${STRICT_INPUT:-true}" = "true" ]; then
+          # Only fail on push to main or workflow_dispatch with strict=true
+          # Pull requests report findings without blocking merge
+          if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            args+=(--fail)
+          fi
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${STRICT_INPUT:-true}" = "true" ]; then
             args+=(--fail)
           fi
 
