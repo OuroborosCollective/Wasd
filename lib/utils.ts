@@ -1,6 +1,13 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+/**
+ * Merges conditional class names and resolves Tailwind conflicts.
+ *
+ * Example:
+ * cn("px-2", "px-4", condition && "bg-red-500")
+ * => "px-4 bg-red-500"
+ */
+export function cn(...inputs: ClassValue[]): string {
+  return twMerge(clsx(inputs));
 }
