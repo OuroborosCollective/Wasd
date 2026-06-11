@@ -216,6 +216,20 @@ export {
   type OuroborosTickSystemOptions,
 } from './OuroborosTickSystem.js';
 
+// Phase 11: OracleTickSystem - Oracle Living World System integration
+export {
+  ORACLE_TICK_SYSTEM_NAME,
+  ORACLE_TICK_PRIORITY,
+  OracleTickSystem,
+  createOracleTickSystem,
+  registerOracleTickSystem,
+  getOracleTickSystem,
+  type OracleTickSystemOptions,
+  type BrainInformationFlow,
+  type OracleCriticalEvent,
+  type OracleRecommendation,
+} from './OracleTickSystem.js';
+
 // Phase 11: WorldTickScheduler - Thin scheduler without wall-clock dependencies
 export {
   ARE_TICK_RATE_HZ,

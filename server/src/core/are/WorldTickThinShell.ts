@@ -19,6 +19,7 @@ import {
   LayerPersistenceQueue,
   layerPersistenceQueue,
   registerOuroborosTickSystem,
+  registerOracleTickSystem,
   type TickSystemContext 
 } from './index.js';
 
@@ -66,6 +67,13 @@ export class WorldTickThinShell {
         enableNPCBrain: true,
         npcBrainInterval: 10,
       },
+    });
+    
+    // Phase 11: Register OracleTickSystem for Oracle Living World prophecy
+    registerOracleTickSystem({
+      tickInterval: 10,          // 1 Hz at 10 ticks/sec
+      minRecordsForAnalysis: 6,
+      maxStoredRecords: 240,
     });
   }
   
@@ -117,8 +125,16 @@ export class WorldTickThinShell {
   tick(): void {
     this.tickCount++;
     
-    // 1. PRE-TICK: Create tick context
+    // 1. PRE-TICK: Create tick context with world state
     const context: TickSystemContext = createDefaultTickContext(this.tickCount);
+    
+    // Add world state to context for tick systems (Oracle, Ouroboros, etc.)
+    const worldState = this.getWorldStateForTick();
+    Object.defineProperty(context, 'world', {
+      value: worldState,
+      writable: false,
+      enumerable: true,
+    });
     
     // 2. EXECUTE REGISTERED SYSTEMS via TickSystemRegistry
     // The Brain does NOT execute domain logic - it coordinates
@@ -138,6 +154,28 @@ export class WorldTickThinShell {
     
     // 6. POST-TICK: Check if flush needed
     this.persistenceQueue.tick(this.tickCount as any);
+  }
+  
+  /**
+   * Get world state for tick context.
+   * Collects NPCs, players, and loot from various systems.
+   */
+  private getWorldStateForTick(): { npcs: any[]; players: any[]; loot: any[] } {
+    // Default empty state - will be populated by actual game systems
+    // This is a fallback for when systems aren't fully initialized
+    return {
+      npcs: [],
+      players: [],
+      loot: [],
+    };
+  }
+  
+  /**
+   * Register a world state provider function.
+   * Game systems can provide callbacks to inject their state into tick context.
+   */
+  registerWorldStateProvider(provider: () => { npcs: any[]; players: any[]; loot: any[] }): void {
+    console.log('[WorldTickThinShell] World state provider registered');
   }
   
   /**

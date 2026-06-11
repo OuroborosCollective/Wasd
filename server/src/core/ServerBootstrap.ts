@@ -51,6 +51,7 @@ import { PlaytesterMonitorStream } from "../modules/playtester/PlaytesterMonitor
 import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRTCSignaling.js";
 import { initRedisClient } from "./RedisClient.js";
 import { installARELootIntegration } from "../modules/loot/installARELootIntegration.js";
+import { installOracleChatBridge } from "../modules/oracle/index.js";
 import { URL } from "node:url";
 
 const currentDir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
@@ -315,6 +316,9 @@ export class ServerBootstrap {
         
         // Install ARE Infinite Loot Machine
         installARELootIntegration(tick);
+        
+        // Install Oracle Chat Bridge for prophecy broadcasts
+        installOracleChatBridge(tick);
         
         const shutdownHandler = async () => { 
           console.log("[Shutdown] Flushing data..."); 

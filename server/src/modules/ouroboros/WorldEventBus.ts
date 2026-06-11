@@ -51,7 +51,10 @@ export type WorldEventType =
   | "agent_born"
   | "agent_died"
   | "player_chat"
-  | "world_tick";
+  | "world_tick"
+  | "oracle_prophecy"
+  | "oracle_critical"
+  | "oracle_recommendation";
 
 export type WorldEventHandler = (event: WorldEvent) => void;
 
