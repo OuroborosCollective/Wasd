@@ -3,7 +3,7 @@ import express, { type Request } from "express";
 import { createServer } from "node:http";
 import { existsSync } from "node:fs";
 import { GameWebSocketServer } from "../networking/WebSocketServer.js";
-import { worldTickAdapter } from "./are/WorldTickThinShellAdapter.js";
+import { worldTickAdapter, type WorldTick } from "./are/WorldTickThinShellAdapter.js";
 import { tickContextProvider } from "./are/TickSystemContextProvider.js";
 import { installClient2DPublicKeyLoginBridge } from "./installClient2DPublicKeyLoginBridge.js";
 import path from "node:path";
@@ -149,8 +149,10 @@ export class ServerBootstrap {
     app.get("/client-config.json", (_req, res) => { res.type("application/json"); res.setHeader("Cache-Control", "no-store"); res.send(buildClientPublicConfigJson(_req)); });
     app.use("/health", healthRoutes({ getTick: () => (this as any)._tick as WorldTick | undefined, isInitializing: () => this.initializing, getPort: () => Number(process.env.PORT || 3000) }));
     app.use("/agora", agoraRouter({ getTick: () => (this as any)._tick as WorldTick | undefined, isInitializing: () => this.initializing, getPort: () => Number(process.env.PORT || 3000) }));
+    const tick = worldTickAdapter;
+    (this as any)._tick = tick;
     app.get("/health", (_req, res) => {
-      const tick = (this as any)._tick as WorldTick | undefined;
+      const activeTick = (this as any)._tick as WorldTick | undefined;
       const selfHealingStatus = safeHealthValue(() => selfHealingRuntime.getStatus(), { active: false, config: {}, totalErrors: 0, totalHealed: 0, healingRate: 0, featuresProtected: 0 } as any);
       res.status(this.initializing ? 503 : 200).json({
         ok: !this.initializing,
@@ -159,181 +161,78 @@ export class ServerBootstrap {
         version: "0.2.0",
         uptimeSeconds: Math.round(process.uptime()),
         port: Number(process.env.PORT || 3000),
-        persistence: safeHealthValue(() => tick?.getPersistenceStats?.() ?? { status: "unknown" }, { status: "unknown" }),
+        persistence: safeHealthValue(() => activeTick?.getPersistenceStats?.() ?? { status: "unknown" }, { status: "unknown" }),
         content: safeHealthValue<HealthContentSummary>(() => { const content = getContentDataSourceLabel(); return { mode: content.mode, root: content.root }; }, { mode: "unknown", root: null }),
         supabase: safeHealthValue<HealthSupabaseSummary>(() => getSupabaseSummary(), { status: "unknown" }),
         auth: { useSupabaseWsLogin: envTruthy("USE_SUPABASE_WS_LOGIN"), requireSupabaseAuth: envTruthy("REQUIRE_SUPABASE_AUTH"), allowGuestLogin: !["0", "false", "no"].includes(process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase() || ""), allowDevLogin: !["0", "false", "no"].includes(process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || "") },
         selfHealing: { active: Boolean(selfHealingStatus.active), patchMode: selfHealingStatus.config?.patchMode ?? "disabled", totalErrors: selfHealingStatus.totalErrors ?? 0, totalHealed: selfHealingStatus.totalHealed ?? 0, healingRate: selfHealingStatus.healingRate ?? 0, featuresProtected: selfHealingStatus.featuresProtected ?? 0 },
-        are: { guard: safeHealthValue(() => tick?.getAREGuardStatus?.() ?? null, null), worldHash: safeHealthValue(() => tick?.getWorldHashSnapshot?.()?.worldHash ?? null, null), replay: safeHealthValue(() => tick?.getReplayRecorderStats?.() ?? null, null), warfront: safeHealthValue(() => tick?.warfrontSystem?.getCycleSnapshot?.() ?? null, null) }
+        are: { guard: safeHealthValue(() => activeTick?.getAREGuardStatus?.() ?? null, null), worldHash: safeHealthValue(() => activeTick?.getWorldHashSnapshot?.()?.worldHash ?? null, null), replay: safeHealthValue(() => activeTick?.getReplayRecorderStats?.() ?? null, null), warfront: safeHealthValue(() => activeTick?.warfrontSystem?.getCycleSnapshot?.() ?? null, null) }
       });
     });
     app.get("/", (req, res, next) => { if (req.headers["user-agent"]?.includes("GoogleHC")) return res.status(200).send("OK"); next(); });
-    app.use("/auth/v1", async (req, res) => {
-      const resolvedProxyBaseUrl = resolveSupabaseProxyBaseUrlForRequest(req, supabaseProxyBaseUrl);
-      if (!resolvedProxyBaseUrl) return res.status(502).json({ error: "supabase_auth_proxy_not_configured", message: "SUPABASE_URL/SUPABASE_PUBLIC_URL is missing and no valid Supabase apikey/ref was provided." });
-      try {
-        let bufferedBody: Buffer | undefined;
-        if (shouldProxyBody(req.method)) bufferedBody = await new Promise<Buffer>((resolve, reject) => { const chunks: Buffer[] = []; req.on("data", (c: Buffer) => chunks.push(c)); req.on("end", () => resolve(Buffer.concat(chunks))); req.on("error", (err) => reject(err)); });
-        let upstreamPath = req.originalUrl;
-        let transformedBody: string | undefined;
-        if (req.method === "POST" && req.originalUrl.includes("/token") && !req.originalUrl.includes("grant_type=") && bufferedBody) {
-          try { const parsed = JSON.parse(bufferedBody.toString()); if (parsed.grant_type) { upstreamPath = `${upstreamPath}${upstreamPath.includes("?") ? "&" : "?"}grant_type=${encodeURIComponent(parsed.grant_type)}`; delete parsed.grant_type; transformedBody = JSON.stringify(parsed); } } catch {}
-        }
-        const headers = { ...req.headers };
-        delete headers.host;
-        delete headers["content-length"];
-        const init: RequestInit = { method: req.method, headers: headers as any, redirect: "manual" };
-        if (shouldProxyBody(req.method)) { init.body = (transformedBody ?? bufferedBody) as any; (init as any).duplex = "half"; }
-        const response = await fetch(String(resolvedProxyBaseUrl + upstreamPath), init);
-        res.status(response.status);
-        response.headers.forEach((value, key) => { const lower = key.toLowerCase(); if (lower === "content-length" || lower === "content-encoding") return; res.setHeader(key, value); });
-        const respData = await response.arrayBuffer();
-        res.send(Buffer.from(respData));
-      } catch (err) { console.error("[AuthProxy] Failed to forward request to Supabase:", err); return res.status(502).json({ error: "supabase_auth_proxy_upstream_failed", message: "Network problem while contacting Supabase." }); }
-    });
-    const ws = new GameWebSocketServer(httpServer);
-    ws.start();
-    const tick = worldTickAdapter;
-    installClient2DPublicKeyLoginBridge(ws, tick);
-    (this as any)._tick = tick;
-    await tick.init();
-    this.initializing = false;
-    app.use("/api/v1/warfront", warfrontRouter(tick));
-    app.use("/api/are/validation", areValidationRouter(tick));
-    app.use("/api/are/replay", areReplayRouter(tick));
-    app.use("/api/are", createAREHeartbeatRouter(tick, ws));
-    app.use("/api/gameplay", createGameplaySnapshotRouter());
-    app.use("/api/quest", questEventRouter);
-    app.use("/api/skill", skillEventRouter);
-    app.use("/api/resource", resourceGatherRouter);
+    app.use(express.json({ limit: "25mb", type: shouldProxyBody as any }));
+    app.use("/api/admin-content", adminContentRouter());
+    app.use("/api/vote", voteRouter(tick as any));
+    app.use("/api/warfront", warfrontRouter(tick as any));
+    app.use("/api/are/validation", areValidationRouter(tick as any));
+    app.use("/api/are/replay", areReplayRouter(tick as any));
+    app.use("/api/finance", financeRouter());
+    app.use("/api/are/heartbeat", createAREHeartbeatRouter({ getTick: () => tick as any }));
+    app.use("/api/gameplay", createGameplaySnapshotRouter(tick as any));
+    app.use("/api/quest", questEventRouter(tick as any));
+    app.use("/api/skills", skillEventRouter);
+    app.use("/api/resources", resourceGatherRouter);
     app.use("/api/inventory", inventoryRouter);
+    app.use("/api/sovereign-deploy", sovereignDeployRouter());
+    app.use("/api/are/shadow", areShadowLogRouter());
+    app.use("/api/manifest", createManifestResyncRouter(tick as any));
+    app.use("/api/self-heal", createSelfHealWorkshopRouter());
+    app.use("/api/loot", createLootRoutes(tick as any));
     app.use("/api/crafting", craftingRouter);
     app.use("/api/equipment", equipmentRouter);
-    app.use("/api/character", characterRouter);
     app.use("/api/onboarding", onboardingRouter);
+    app.use("/api/character", characterRouter);
     app.use("/api/economy", economyRouter);
-    app.use("/api/npc", vendorRouter);
-    app.use("/api/npc", campNpcRouter);
-    app.use("/api/npc", npcQuestRouter);
-    app.use("/api/quests", npcQuestRouter);
-    app.use("/api/self-healing", createSelfHealWorkshopRouter());
-    app.use("/api/manifest", createManifestResyncRouter(tick));
-    app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());
-    app.use("/api/are-shadow", areShadowLogRouter());
-    app.use("/api/sovereign/deploy", sovereignDeployRouter(tick));
-    const monitorStream = new PlaytesterMonitorStream(httpServer, (options) => tick.buildPlaytesterMonitorPayload(options));
-    monitorStream.start();
-    const playtesterSignaling = new PlaytesterWebRTCSignaling(httpServer);
-    playtesterSignaling.start();
-    const monitorClientRoot = resolveClientRoot();
-    const monitorHtmlPath = resolvePlaytesterMonitorHtmlPath(monitorClientRoot, path.join(monitorClientRoot, "dist"));
-    const publisherHtmlPath = resolvePlaytesterPublisherHtmlPath(monitorClientRoot, path.join(monitorClientRoot, "dist"));
-    if (monitorHtmlPath) app.get("/playtester-monitor.html", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.sendFile(monitorHtmlPath); });
-    if (publisherHtmlPath) app.get("/playtester-render-publisher.html", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.sendFile(publisherHtmlPath); });
-    app.get("/api/playtester/debug-log", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.json({ ok: Boolean(tick.getPlaytesterDebugLogPath()), enabled: PlaytesterConfig.enabled, streamEnabled: PlaytesterConfig.streamEnabled, monitorMode: PlaytesterConfig.monitorMode, monitorPath: PlaytesterConfig.monitorPath, monitorSignalPath: PlaytesterConfig.monitorSignalPath, monitorPublisherPath: PlaytesterConfig.monitorPublisherPath, monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0, stream: { width: PlaytesterConfig.streamWidth, height: PlaytesterConfig.streamHeight, fps: PlaytesterConfig.streamFps, quality: PlaytesterConfig.streamQuality, shadows: PlaytesterConfig.streamShadows, particles: PlaytesterConfig.streamParticles, renderDistance: PlaytesterConfig.streamRenderDistance, iceServers: PlaytesterConfig.streamIceServers }, debugLogPath: tick.getPlaytesterDebugLogPath() }); });
-    app.use("/api/admin/content", adminContentRouter(tick));
-    // ARE Infinite Loot Machine Admin Routes
-    createLootRoutes(app);
-    app.use("/api/vote", voteRouter(tick));
-    const clientRoot = resolveClientRoot();
-    const clientPath = path.join(clientRoot, "dist");
-    const portalPath = path.join(clientPath, "portal");
-    const portalIndexPath = path.join(portalPath, "index.html");
-    const rootIndexPath = path.join(clientPath, "index.html");
-    const itchClientPath = path.join(clientRoot, "dist-itch");
-    const adminContentPath = resolveAdminContentHtmlPath(clientRoot, clientPath);
-    if (adminContentPath) app.get("/admin-content.html", (_req, res) => res.sendFile(adminContentPath));
-    if (existsSync(path.join(itchClientPath, "index.html"))) { app.use("/itch", express.static(itchClientPath, { index: "index.html" })); app.get("/itch/*", (_req, res) => res.sendFile(path.join(itchClientPath, "index.html"))); }
-    
-    // 2D Client - SPA fallback to index.html
-    const client2DPath = path.join(clientPath, "2d");
-    const client2DIndexPath = path.join(client2DPath, "index.html");
-    // Prevent stale HTML/build-stamp caching - always fresh for 2D client
-    app.use("/2d", (_req, _res, next) => {
-      // Inject no-store headers for HTML and build-stamp
-      // This ensures browsers get fresh content after deployment
-      _res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-      next();
-    });
-    app.use("/2d", express.static(client2DPath, { index: "index.html", fallthrough: true }));
-    app.use("/2d", (_req, res) => {
-      // Ensure build-stamp.json and index.html have no-cache headers
-      const ext = path.extname(_req.path).toLowerCase();
-      if (ext === ".html" || ext === ".json" || _req.path.includes("build-stamp")) {
-        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-        res.setHeader("Pragma", "no-cache");
-        res.setHeader("Expires", "0");
-      }
-      if (existsSync(client2DIndexPath)) return res.sendFile(client2DIndexPath);
-      if (existsSync(rootIndexPath)) return res.sendFile(rootIndexPath);
-      return res.status(503).type("text/plain").send("Areloria 2D client assets are not available.");
-    });
-    
-    // 3D Client - SPA fallback to index.html
-    const client3DPath = path.join(clientPath, "3d");
-    const client3DIndexPath = path.join(client3DPath, "index.html");
-    app.use("/3d", express.static(client3DPath, { index: "index.html", fallthrough: true }));
-    app.use("/3d", (_req, res) => {
-      if (existsSync(client3DIndexPath)) return res.sendFile(client3DIndexPath);
-      if (existsSync(rootIndexPath)) return res.sendFile(rootIndexPath);
-      return res.status(503).type("text/plain").send("Areloria 3D client assets are not available.");
-    });
-    
-    app.use("/portal", express.static(portalPath, { index: "index.html", fallthrough: true }));
-    app.use("/portal", (_req, res) => {
-      if (existsSync(portalIndexPath)) return res.sendFile(portalIndexPath);
-      if (existsSync(rootIndexPath)) return res.sendFile(rootIndexPath);
-      return res.status(503).type("text/plain").send("Areloria portal assets are not available in this container build.");
-    });
-    if (process.env.NODE_ENV !== "production") {
-      try { const vite = await import("vite"); const viteServer = await vite.createServer({ server: { middlewareMode: true }, appType: "spa", root: clientRoot }); app.use(viteServer.middlewares); }
-      catch (e) { console.error("Failed to start Vite middleware", e); app.use(express.static(clientPath)); }
-    } else {
-      app.use((req, res, next) => { if (req.url?.endsWith(".wasm")) { res.setHeader("Content-Type", "application/wasm"); res.setHeader("Cross-Origin-Opener-Policy", "same-origin"); res.setHeader("Cross-Origin-Embedder-Policy", "require-corp"); } next(); });
-      app.use(express.static(clientPath));
-    }
-    const client2DGraphicRiverIsoDir = resolveClient2DGraphicRiverIsoPublicDir();
-    if (existsSync(client2DGraphicRiverIsoDir)) app.use("/client2d-assets/graphicriver-iso", express.static(client2DGraphicRiverIsoDir, { maxAge: process.env.NODE_ENV === "production" ? "7d" : 0, fallthrough: false }));
-    const mirroredWorld = resolveMirroredWorldAssetsDir();
-    const worldAssetsDir = mirroredWorld ?? resolveWorldAssetsDir();
-    if (worldAssetsDir) app.use("/world-assets", express.static(worldAssetsDir, { maxAge: process.env.NODE_ENV === "production" ? "7d" : 0, fallthrough: false }));
+    app.use("/api/vendor", vendorRouter);
+    app.use("/api/camp", campNpcRouter);
+    app.use("/api/npc-quests", npcQuestRouter);
+    const ws = new GameWebSocketServer(httpServer, tick as any);
+    (tick as any).ws = ws;
+    installClient2DPublicKeyLoginBridge(ws, tick as any);
+    const monitorStream = new PlaytesterMonitorStream();
+    const playtesterSignaling = new PlaytesterWebRTCSignaling(monitorStream);
+    registerSelfHealingDashboard(app, selfHealingRuntime as any);
     try { const worldDir = resolveContentDir("world"); if (existsSync(worldDir)) app.use("/world", express.static(worldDir, { maxAge: process.env.NODE_ENV === "production" ? "1h" : 0, fallthrough: true })); } catch {}
     const port = Number(process.env.PORT || 3000);
     httpServer.listen(port, () => {
         console.log(`Arelorian server listening on ${port}`);
-        
-        // Phase 11: Start tick context provider with WorldTick integration
-        // This ensures all HTTP routes have deterministic tick context
-        // Use liveHeal.getStatus().tickCount as a stable public accessor to tickCount
         const tickUpdateInterval = setInterval(() => {
           const status = (tick as any).liveHeal?.getStatus?.();
           const currentTick = status?.tickCount ?? 0;
           tickContextProvider.updateTick(currentTick);
-        }, 100); // Update every 100ms (10Hz)
-        
+        }, 100);
         tick.start();
-        
-        // Install ARE Infinite Loot Machine
-        installARELootIntegration(tick);
-        
-        const shutdownHandler = async () => { 
-          console.log("[Shutdown] Flushing data..."); 
-          playtesterSignaling.stop(); 
-          monitorStream.stop(); 
-          tick.liveHeal.flush(); 
+        installARELootIntegration(tick as any);
+        const shutdownHandler = async () => {
+          console.log("[Shutdown] Flushing data...");
+          clearInterval(tickUpdateInterval);
+          playtesterSignaling.stop();
+          monitorStream.stop();
+          tick.liveHeal.flush();
           tick.assetHealthService.flush();
-          
-          // SHADOW-LOG FLUSH: Synchronous guarantee for I/O-Kausalität
-          const { AREShadowAdapter } = await import('./are/AREShadowAdapter.js');
-          const logSink = AREShadowAdapter.getLogSink();
-          await logSink.flush();
-          console.log("[Shutdown] ARE Shadow Log Sink geflushed");
-          
-          try { await shutdownPostHog(); } catch (e) { console.warn("[Shutdown] PostHog shutdown failed", e); } 
-          process.exit(0); 
+          try {
+            const { AREShadowAdapter } = await import('./are/AREShadowAdapter.js');
+            const logSink = AREShadowAdapter.getLogSink();
+            await logSink.flush();
+            console.log("[Shutdown] ARE Shadow Log Sink geflushed");
+          } catch {}
+          await tick.stop?.();
+          await shutdownPostHog();
+          process.exit(0);
         };
-        process.on("SIGTERM", shutdownHandler);
-        process.on("SIGINT", shutdownHandler);
+        process.once("SIGTERM", shutdownHandler);
+        process.once("SIGINT", shutdownHandler);
+        this.initializing = false;
     });
   }
 }
