@@ -1,0 +1,66 @@
+name: Stateless Hardcode Audit
+
+on:
+  pull_request:
+    paths:
+      - 'apps/client-2d/src/**'
+      - 'server/src/**'
+      - 'scripts/audit-hardcoded-runtime-state.mjs'
+      - '.github/workflows/stateless-hardcode-audit.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/client-2d/src/**'
+      - 'server/src/**'
+      - 'scripts/audit-hardcoded-runtime-state.mjs'
+      - '.github/workflows/stateless-hardcode-audit.yml'
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: 'Fail the workflow when toxic runtime hardcoding is found'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stateless-hardcode-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hardcode-audit:
+    name: Audit toxic runtime hardcoding
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Print toolchain
+        run: |
+          node --version
+
+      - name: Run stateless hardcode audit
+        env:
+          STRICT_INPUT: ${{ inputs.strict }}
+        run: |
+          set -euo pipefail
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${STRICT_INPUT:-true}" = "false" ]; then
+            node scripts/audit-hardcoded-runtime-state.mjs
+            exit 0
+          fi
+
+          node scripts/audit-hardcoded-runtime-state.mjs --fail
