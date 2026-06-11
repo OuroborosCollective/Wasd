@@ -85,6 +85,7 @@ CATEGORY_KEYWORDS = {
         "ghoul",
         "ravager",
         "zombie",
+        "undead",
     ],
     "hero": [
         "hero",
@@ -95,6 +96,7 @@ CATEGORY_KEYWORDS = {
         "ranger",
         "mage",
         "rogue",
+        "worker",
     ],
     "npc": [
         "npc",
@@ -118,6 +120,7 @@ CATEGORY_KEYWORDS = {
         "slash",
         "impact",
         "projectile",
+        "elemental",
     ],
     "tile": [
         "tile",
@@ -132,6 +135,25 @@ CATEGORY_KEYWORDS = {
         "wall",
         "terrain",
         "swamp",
+        "biome",
+    ],
+    "building": [
+        "building",
+        "buildings",
+        "house",
+        "houses",
+        "cottage",
+        "inn",
+        "dwelling",
+        "village",
+        "city",
+        "kingdom",
+        "architecture",
+        "architectural",
+        "doorway",
+        "window",
+        "street_lamp",
+        "conduit",
     ],
     "prop": [
         "prop",
@@ -148,6 +170,8 @@ CATEGORY_KEYWORDS = {
         "bush",
         "mushroom",
         "sign",
+        "dungeon",
+        "gothic",
     ],
     "item": [
         "item",
@@ -195,6 +219,7 @@ CATEGORY_TARGET_FRAME_SIZE = {
     "npc": 128,
     "vfx": 128,
     "tile": 128,
+    "building": 256,
     "prop": 128,
     "item": 64,
     "equipment_overlay": 128,
@@ -209,12 +234,50 @@ PIVOT_MAP = {
     "npc": {"x": 0.5, "y": 0.82},
     "vfx": {"x": 0.5, "y": 0.5},
     "tile": {"x": 0.5, "y": 0.5},
+    "building": {"x": 0.5, "y": 0.9},
     "prop": {"x": 0.5, "y": 0.9},
     "item": {"x": 0.5, "y": 0.5},
     "equipment_overlay": {"x": 0.5, "y": 0.5},
     "ui": {"x": 0.5, "y": 0.5},
     "unknown": {"x": 0.5, "y": 0.5},
 }
+
+MANUAL_REVIEW_HINTS = [
+    "catalog",
+    "collection",
+    "overview",
+    "assembly",
+    "set",
+    "sheet_with_labels",
+    "labeled",
+    "labels",
+    "type_1",
+    "type_2",
+    "type_3",
+    "front_walk",
+    "front_attack",
+    "front_defend",
+    "front_die",
+    "back_walk",
+    "back_attack",
+    "back_defend",
+    "back_die",
+    "side_left",
+    "side_right",
+    "view_front",
+    "view_back",
+    "view_left",
+    "view_right",
+    "mobile_overview",
+    "screenshot",
+]
+
+REFERENCE_ONLY_HINTS = [
+    "mobile_overview",
+    "screenshot",
+    "asset_collection",
+    "catalog_overview",
+]
 
 
 @dataclass(frozen=True)
@@ -245,6 +308,16 @@ def slugify_name(name: str) -> str:
     slug = re.sub(r"_+", "_", slug).strip("_")
 
     return slug or "asset"
+
+
+def is_manual_review_source(source_path: str) -> bool:
+    lower = slugify_name(source_path)
+    return any(hint in lower for hint in MANUAL_REVIEW_HINTS)
+
+
+def is_reference_only_source(source_path: str) -> bool:
+    lower = slugify_name(source_path)
+    return any(hint in lower for hint in REFERENCE_ONLY_HINTS)
 
 
 def clean_asset_slug(source_path: str, category: str) -> str:
@@ -371,6 +444,28 @@ def classify_from_zip_path(zip_path: str) -> str:
     if any(
         kw in lower
         for kw in [
+            "building",
+            "buildings",
+            "house",
+            "cottage",
+            "inn",
+            "dwelling",
+            "village",
+            "city",
+            "kingdom",
+            "architecture",
+            "architectural",
+            "doorway",
+            "window",
+            "street_lamp",
+            "conduit",
+        ]
+    ):
+        return "building"
+
+    if any(
+        kw in lower
+        for kw in [
             "environment_objects",
             "ancient_pillars",
             "frozen_obelisks",
@@ -449,6 +544,7 @@ def detect_grid(
                 }
 
     lower = source_path.lower()
+    normalized = slugify_name(source_path)
 
     explicit = re.search(r"(?:^|[_\-. /])(\d{1,3})x(\d{1,3})(?:[_\-. /]|$)", lower)
 
@@ -497,6 +593,9 @@ def detect_grid(
                     "source": "filename_frame",
                 }
 
+    if is_manual_review_source(source_path):
+        return None
+
     sheet_tokens = [
         "sheet",
         "atlas",
@@ -509,9 +608,32 @@ def detect_grid(
         "death",
         "die",
         "anim",
+        "animation",
     ]
 
-    if not any(token in lower for token in sheet_tokens):
+    has_sheet_token = any(token in normalized for token in sheet_tokens)
+
+    if width == height and has_sheet_token:
+        for sheet_size, frame_size in LEGACY_SUPPORTED_SIZES:
+            if width == sheet_size and width % frame_size == 0:
+                cols = width // frame_size
+                rows = height // frame_size
+                frame_count = cols * rows
+
+                if 1 < frame_count <= MAX_FRAME_COUNT:
+                    return {
+                        "columns": cols,
+                        "rows": rows,
+                        "frameWidth": frame_size,
+                        "frameHeight": frame_size,
+                        "sheetSize": sheet_size,
+                        "sheetWidth": width,
+                        "sheetHeight": height,
+                        "frameCount": frame_count,
+                        "source": "legacy_supported_sheet",
+                    }
+
+    if not has_sheet_token:
         return None
 
     preferred = [256, 128, 64, 32]
@@ -950,6 +1072,19 @@ def process_asset(source: SourceAsset, output_dir: Path, quarantine_dir: Path) -
 
     rgba, alpha_cleanup = cleanup_flat_background_alpha(img)
     detected_grid = detect_grid(width, height, category=category, source_path=source.display_source_path)
+
+    status = "accepted"
+
+    if is_reference_only_source(source.display_source_path):
+        status = "reference_only"
+        warnings.append("Reference-only overview image. Not used directly as runtime atlas.")
+    elif is_manual_review_source(source.display_source_path):
+        status = "manual_review"
+        warnings.append("Manual-review catalog or labeled assembly sheet. Crop/classify before runtime use.")
+    elif detected_grid is None and width != height:
+        status = "manual_review"
+        warnings.append("Non-square image without deterministic grid. Manual crop recommended.")
+
     frames, normalized_grid = extract_normalized_frames(rgba, detected_grid, category)
     sheet, columns, rows = build_sheet(frames, normalized_grid["frameWidth"], normalized_grid["frameHeight"])
 
@@ -1008,7 +1143,7 @@ def process_asset(source: SourceAsset, output_dir: Path, quarantine_dir: Path) -
         detected_grid,
         normalized_grid,
         alpha_cleanup,
-        "accepted",
+        status,
         warnings,
         source_sha,
         processed_sha,
@@ -1109,6 +1244,16 @@ def generate_runtime_manifest(
         key=lambda r: (r["category"], r["assetId"], r["sourcePath"]),
     )
 
+    manual_review = sorted(
+        [r for r in reports if r["status"] == "manual_review"],
+        key=lambda r: (r["category"], r["assetId"], r["sourcePath"]),
+    )
+
+    reference_only = sorted(
+        [r for r in reports if r["status"] == "reference_only"],
+        key=lambda r: (r["category"], r["assetId"], r["sourcePath"]),
+    )
+
     quarantined = sorted(
         [r for r in reports if r["status"] == "quarantined"],
         key=lambda r: (r["category"], r["assetId"], r["sourcePath"]),
@@ -1152,6 +1297,28 @@ def generate_runtime_manifest(
             }
         )
 
+    manual_review_summary = [
+        {
+            "assetId": r["assetId"],
+            "category": r["category"],
+            "sourcePath": r["sourcePath"],
+            "warnings": r["warnings"],
+            "sourceSha256": r["sourceSha256"],
+        }
+        for r in manual_review
+    ]
+
+    reference_only_summary = [
+        {
+            "assetId": r["assetId"],
+            "category": r["category"],
+            "sourcePath": r["sourcePath"],
+            "warnings": r["warnings"],
+            "sourceSha256": r["sourceSha256"],
+        }
+        for r in reference_only
+    ]
+
     quarantine_summary = [
         {
             "assetId": r["assetId"],
@@ -1170,8 +1337,12 @@ def generate_runtime_manifest(
         "generatedBy": "scripts/stitch_atlas_intake.py",
         "deterministic": True,
         "assetCount": len(assets),
+        "manualReviewCount": len(manual_review_summary),
+        "referenceOnlyCount": len(reference_only_summary),
         "quarantineCount": len(quarantine_summary),
         "assets": assets,
+        "manualReview": manual_review_summary,
+        "referenceOnly": reference_only_summary,
         "quarantine": quarantine_summary,
     }
 
@@ -1238,6 +1409,8 @@ def run_intake(
     copy_runtime_to_client(output_dir, client_dir)
 
     accepted = [r for r in reports if r["status"] == "accepted"]
+    manual_review = [r for r in reports if r["status"] == "manual_review"]
+    reference_only = [r for r in reports if r["status"] == "reference_only"]
     quarantined = [r for r in reports if r["status"] == "quarantined"]
 
     print()
@@ -1246,6 +1419,8 @@ def run_intake(
     print("=" * 60)
     print(f"Total discovered: {len(sources)}")
     print(f"Accepted: {len(accepted)}")
+    print(f"Manual review: {len(manual_review)}")
+    print(f"Reference only: {len(reference_only)}")
     print(f"Quarantined: {len(quarantined)}")
     print(f"Manifest: {output_dir / 'manifest.json'}")
     print(f"Client manifest: {client_dir / 'manifest.json'}")
@@ -1264,6 +1439,24 @@ def run_intake(
 
         for category in sorted(by_category):
             print(f"  {category}: {by_category[category]}")
+
+    if manual_review:
+        print("Manual-review assets:")
+
+        for report in manual_review[:20]:
+            print(f"  - {report['sourcePath']}: {'; '.join(report['warnings'])}")
+
+        if len(manual_review) > 20:
+            print(f"  ... and {len(manual_review) - 20} more")
+
+    if reference_only:
+        print("Reference-only assets:")
+
+        for report in reference_only[:20]:
+            print(f"  - {report['sourcePath']}: {'; '.join(report['warnings'])}")
+
+        if len(reference_only) > 20:
+            print(f"  ... and {len(reference_only) - 20} more")
 
     if quarantined:
         print("Quarantined assets:")
