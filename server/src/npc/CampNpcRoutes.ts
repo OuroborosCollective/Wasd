@@ -1,20 +1,7 @@
-/**
- * CAMP NPC ROUTES
- *
- * Server-authoritative camp NPC interaction routes.
- * Provides player-facing messages when interacting with camp NPCs.
- *
- * Rules:
- * - No Math.random()
- * - No Date.now()
- * - Deterministic NPC interactions based on tick
- */
-
 import express, { Router } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { campNpcService } from "./CampNpcService.js";
 import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
-import { isGatheringCamp } from "./CampNpcTypes.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import { generateVisibleChunkPois, getStarterVillagePois } from "../world/WorldPoiGenerator.js";
 import { getVisibleChunkCoords } from "../resources/ChunkResourceGenerator.js";
@@ -25,28 +12,24 @@ const router = Router();
 
 router.use(express.json());
 
-/**
- * Get current server tick from WorldTick instance.
- * Returns 0 if not available.
- */
-function getCurrentTick(): number {
-  // In a full implementation, we'd inject WorldTick
-  // For now, we derive tick from the game's tick system
-  // This will be passed through request context in a real implementation
-  return 0;
+function queryNumber(value: unknown): number | null {
+  if (Array.isArray(value)) return queryNumber(value[0]);
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
-/**
- * GET /api/npc/camp/:npcId
- *
- * Get camp NPC information and dialogue.
- */
+function requestVisibleChunks(req: express.Request): Array<{ chunkX: number; chunkZ: number }> {
+  const tileX = queryNumber(req.query.tileX ?? req.query.x);
+  const tileZ = queryNumber(req.query.tileZ ?? req.query.z ?? req.query.y);
+  if (tileX === null || tileZ === null) return [];
+  return getVisibleChunkCoords(Math.floor(tileX), Math.floor(tileZ));
+}
+
 router.get("/camp/:npcId", async (req, res) => {
   const npcId = req.params.npcId;
   const currentTick = Number(req.query.tick ?? 0);
-
   const dialogueResult = campNpcService.getNpcDialogue(npcId, currentTick);
-  
+
   if (!dialogueResult) {
     res.status(404).json({
       ok: false,
@@ -55,7 +38,6 @@ router.get("/camp/:npcId", async (req, res) => {
     return;
   }
 
-  // Parse NPC ID to get POI info
   const match = npcId.match(/^npc:(.+):worker:0$/);
   if (!match) {
     res.status(404).json({
@@ -78,19 +60,12 @@ router.get("/camp/:npcId", async (req, res) => {
   });
 });
 
-/**
- * POST /api/npc/camp/:npcId/interact
- *
- * Player interacts with camp NPC.
- * Returns interaction result and dialogue message.
- */
 router.post("/camp/:npcId/interact", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
   const npcId = req.params.npcId;
   const currentTick = Number(req.query.tick ?? 0);
-
-  // Check if player has discovered this NPC's POI
   const match = npcId.match(/^npc:(.+):worker:0$/);
+
   if (!match) {
     res.status(404).json({
       ok: false,
@@ -112,7 +87,7 @@ router.post("/camp/:npcId/interact", async (req, res) => {
   }
 
   const dialogueResult = campNpcService.getNpcDialogue(npcId, currentTick);
-  
+
   if (!dialogueResult) {
     res.status(404).json({
       ok: false,
@@ -133,17 +108,11 @@ router.post("/camp/:npcId/interact", async (req, res) => {
   });
 });
 
-/**
- * GET /api/npc/camp/:npcId/stock
- *
- * Get camp stock summary for a specific camp NPC.
- */
 router.get("/camp/:npcId/stock", async (req, res) => {
   const npcId = req.params.npcId;
   const currentTick = Number(req.query.tick ?? 0);
-
-  // Parse NPC ID to get POI info
   const match = npcId.match(/^npc:(.+):worker:0$/);
+
   if (!match) {
     res.status(404).json({
       ok: false,
@@ -153,16 +122,12 @@ router.get("/camp/:npcId/stock", async (req, res) => {
   }
 
   const poiId = match[1];
-
-  // Get the POI to find its type — starter village + chunk 0,0
   const starterPois = getStarterVillagePois();
-  const chunk0Pois = generateVisibleChunkPois([{ chunkX: 0, chunkZ: 0 }]);
-  const allPois: WorldPoiSnapshot[] = [...starterPois, ...chunk0Pois];
-
-  // Find the POI
+  const generatedPois = generateVisibleChunkPois(requestVisibleChunks(req));
+  const allPois: WorldPoiSnapshot[] = [...starterPois, ...generatedPois].sort((a, b) => a.id.localeCompare(b.id));
   const poi = allPois.find((p) => p.id === poiId);
+
   if (!poi) {
-    // POI not found - might be outside starter village
     res.status(200).json({
       ok: true,
       result: {
@@ -175,7 +140,6 @@ router.get("/camp/:npcId/stock", async (req, res) => {
     return;
   }
 
-  // Get camp stock snapshots
   const campStocks = campNpcService.getCampStockSnapshots([poi], currentTick);
   const campStock = campStocks.find((s) => s.poiId === poiId);
 
@@ -190,49 +154,11 @@ router.get("/camp/:npcId/stock", async (req, res) => {
   });
 });
 
-/**
- * POST /api/npc/camp/:npcId/buy-stock
- *
- * Buy stock from a camp NPC.
- * Validates proximity, discovery, coins, and stock before mutation.
- *
- * Input:
- * {
- *   playerId: string,
- *   itemId: string,
- *   quantity: number,
- *   playerPosition?: { x: number, y: number }
- * }
- *
- * Response success:
- * {
- *   ok: true,
- *   result: {
- *     npcId,
- *     poiId,
- *     itemId,
- *     quantityBought,
- *     unitPrice,
- *     totalCoins,
- *     newCoinBalance,
- *     remainingCampStock
- *   }
- * }
- *
- * Failure:
- * {
- *   ok: false,
- *   error: string (invalid_player|invalid_npc|undiscovered_camp|invalid_item|
- *                 invalid_quantity|insufficient_camp_stock|insufficient_coins|
- *                 missing_player_position|invalid_player_position|camp_too_far)
- * }
- */
 router.post("/camp/:npcId/buy-stock", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
   const npcId = req.params.npcId;
   const { playerId, itemId, quantity, playerPosition } = req.body;
 
-  // Validate playerId matches identity
   if (!playerId || playerId !== identity.playerId) {
     res.status(400).json({
       ok: false,
@@ -241,7 +167,6 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
     return;
   }
 
-  // Parse NPC ID to get POI info
   const match = npcId.match(/^npc:(.+):worker:0$/);
   if (!match) {
     res.status(404).json({
@@ -253,7 +178,6 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
 
   const poiId = match[1];
 
-  // Validate quantity
   if (!Number.isInteger(quantity) || quantity <= 0) {
     res.status(400).json({
       ok: false,
@@ -262,7 +186,6 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
     return;
   }
 
-  // Check if player has discovered this camp
   const isDiscovered = worldDiscoveryService.isPoiDiscovered(playerId, poiId);
   if (!isDiscovered) {
     res.status(403).json({
@@ -272,7 +195,6 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
     return;
   }
 
-  // Validate player position if provided
   if (playerPosition === undefined || playerPosition === null) {
     res.status(400).json({
       ok: false,
@@ -294,7 +216,6 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
     return;
   }
 
-  // Get POI to check proximity — use visible POIs (starter + generated camps)
   const tileX = Math.floor(playerPosition.x / 1000);
   const tileZ = Math.floor(playerPosition.y / 1000);
   const visibleChunks = getVisibleChunkCoords(tileX, tileZ);
@@ -302,6 +223,7 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
   const generatedPois = generateVisibleChunkPois(visibleChunks);
   const allPois: WorldPoiSnapshot[] = [...starterPois, ...generatedPois].sort((a, b) => a.id.localeCompare(b.id));
   const poi = allPois.find((p) => p.id === poiId);
+
   if (!poi) {
     res.status(404).json({
       ok: false,
@@ -310,11 +232,11 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
     return;
   }
 
-  // Check proximity to camp (interaction radius 32 or 48 units)
   const INTERACTION_RADIUS = 48;
   const dx = playerPosition.x - poi.position.x;
   const dy = playerPosition.y - poi.position.y;
   const distance = Math.sqrt(dx * dx + dy * dy);
+
   if (distance > INTERACTION_RADIUS) {
     res.status(403).json({
       ok: false,
@@ -323,11 +245,8 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
     return;
   }
 
-  // Validate coins BEFORE mutating camp stock
   const walletService = await getWalletService();
   const wallet = await walletService.getWallet(playerId);
-
-  // Try to buy stock from camp (mutates stock on success)
   const buyResult = campNpcService.buyStock({
     poiId,
     itemId,
@@ -343,9 +262,7 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
     return;
   }
 
-  // Now check coins after stock mutation succeeded
   if (wallet.balances.coin < buyResult.totalCost) {
-    // Stock already decremented — need to restore it
     const stockState = campNpcService.getStockState(poiId);
     if (stockState) {
       stockState.items[itemId] = (stockState.items[itemId] || 0) + quantity;
@@ -356,11 +273,6 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
     });
     return;
   }
-
-  // All validations passed - mutation order:
-  // 1. camp stock already mutated in buyStock
-  // 2. subtract coins
-  // 3. add player inventory
 
   await walletService.addCoins({
     playerId,
@@ -374,7 +286,6 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
     quantity,
   });
 
-  // Get new coin balance
   const newWallet = await walletService.getWallet(playerId);
 
   res.status(200).json({
