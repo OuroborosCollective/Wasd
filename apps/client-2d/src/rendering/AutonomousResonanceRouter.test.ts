@@ -1,234 +1,266 @@
 /**
  * AutonomousResonanceRouter Test Suite
- * 
- * Tests the autonomous resonance scoring algorithm with Stitch assets.
- * Verifies that world state vectors correctly collapse to matching assets.
+ *
+ * Tests deterministic observer-side asset binding with accepted Stitch assets.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   AutonomousResonanceRouter,
   extractResonanceTagsFromFilename,
-  type WorldLogicalState,
   type MaterializationResult,
-} from './AutonomousResonanceRouter';
+  type WorldLogicalState,
+} from "./AutonomousResonanceRouter";
+import type { StitchAssetCategory, StitchRuntimeAsset } from "../game/stitchAssetManifest";
 
-// Mock Stitch assets (simulating what comes from manifest)
-const MOCK_STITCH_ASSETS = [
-  {
-    assetId: 'stitch_enemy_undead_blade_walker_square_sheet',
-    category: 'enemy',
-    imagePath: 'enemy/stitch_enemy_undead_blade_walker_square_sheet/stitch_enemy_undead_blade_walker_square_sheet.png',
-    atlasPath: 'enemy/stitch_enemy_undead_blade_walker_square_sheet/stitch_enemy_undead_blade_walker_square_sheet.atlas.json',
-    sourcePath: 'stitch_enemy_undead_blade_walker_square_sheet.jpg',
-  },
-  {
-    assetId: 'stitch_equipment_overlay_crystal_armor_modular_sheet',
-    category: 'equipment_overlay',
-    imagePath: 'equipment_overlay/stitch_equipment_overlay_crystal_armor_modular_sheet/stitch_equipment_overlay_crystal_armor_modular_sheet.png',
-    atlasPath: 'equipment_overlay/stitch_equipment_overlay_crystal_armor_modular_sheet/stitch_equipment_overlay_crystal_armor_modular_sheet.atlas.json',
-    sourcePath: 'stitch_equipment_overlay_crystal_armor_modular_sheet.png',
-  },
-  {
-    assetId: 'stitch_npc_eldritch_modular_gothic_assembly_catalog',
-    category: 'npc',
-    imagePath: 'npc/stitch_npc_eldritch_modular_gothic_assembly_catalog/stitch_npc_eldritch_modular_gothic_assembly_catalog.png',
-    atlasPath: 'npc/stitch_npc_eldritch_modular_gothic_assembly_catalog/stitch_npc_eldritch_modular_gothic_assembly_catalog.atlas.json',
-    sourcePath: 'stitch_npc_eldritch_modular_gothic_assembly_catalog.png',
-  },
-  {
-    assetId: 'stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog',
-    category: 'prop',
-    imagePath: 'prop/stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog/stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog.png',
-    atlasPath: 'prop/stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog/stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog.atlas.json',
-    sourcePath: 'stitch_prop_eldritch_modular_gothic_dungeon_assets_catalog.png',
-  },
-  {
-    assetId: 'stitch_vfx_arelorian_elemental_spell_fx_square_sheet',
-    category: 'vfx',
-    imagePath: 'vfx/stitch_vfx_arelorian_elemental_spell_fx_square_sheet/stitch_vfx_arelorian_elemental_spell_fx_square_sheet.png',
-    atlasPath: 'vfx/stitch_vfx_arelorian_elemental_spell_fx_square_sheet/stitch_vfx_arelorian_elemental_spell_fx_square_sheet.atlas.json',
-    sourcePath: 'stitch_vfx_arelorian_elemental_spell_fx_square_sheet.png',
-  },
-];
+function mockAsset(
+  assetId: string,
+  category: StitchAssetCategory,
+  tags: readonly string[] = [],
+): StitchRuntimeAsset {
+  return {
+    assetId,
+    category,
+    displayName: assetId.replace(/_/g, " "),
+    sourcePath: `${assetId}.png`,
+    imagePath: `${category}/${assetId}/${assetId}.png`,
+    atlasPath: `${category}/${assetId}/${assetId}.atlas.json`,
+    previewPath: `${category}/${assetId}/${assetId}.preview.png`,
+    width: 1536,
+    height: 1536,
+    frameWidth: 128,
+    frameHeight: 128,
+    columns: 6,
+    rows: 6,
+    frameCount: 36,
+    pivot: { x: 0.5, y: 0.5 },
+    tags,
+    sourceSha256: `${assetId}_source_sha`,
+    processedSha256: `${assetId}_processed_sha`,
+    status: "accepted",
+  };
+}
 
-describe('AutonomousResonanceRouter', () => {
+const MOCK_STITCH_ASSETS: readonly StitchRuntimeAsset[] = Object.freeze([
+  mockAsset("stitch_enemy_undead_blade_walker_6x6_256", "enemy", ["enemy", "undead", "blade", "walker"]),
+  mockAsset("stitch_equipment_overlay_crystal_armor_6x6_256", "equipment_overlay", ["equipment_overlay", "crystal", "armor"]),
+  mockAsset("stitch_npc_eldritch_modular_gothic_assembly", "npc", ["npc", "eldritch", "gothic", "dungeon"]),
+  mockAsset("stitch_building_fantasy_stone_village_house", "building", ["building", "village", "stone", "settlement"]),
+  mockAsset("stitch_prop_eldritch_modular_gothic_dungeon_assets", "prop", ["prop", "eldritch", "gothic", "dungeon"]),
+  mockAsset("stitch_vfx_arelorian_elemental_spell_fx_6x6_256", "vfx", ["vfx", "arelorian", "elemental", "spell"]),
+]);
+
+describe("AutonomousResonanceRouter", () => {
   let router: AutonomousResonanceRouter;
-  
+
   beforeEach(() => {
     router = new AutonomousResonanceRouter();
-    router.loadAssetPool(MOCK_STITCH_ASSETS as any);
+    router.loadAssetPool(MOCK_STITCH_ASSETS);
   });
-  
-  describe('Tag Extraction', () => {
-    it('should extract tags from Stitch asset filenames', () => {
-      const tags = extractResonanceTagsFromFilename('stitch_enemy_undead_blade_walker_square_sheet');
-      expect(tags.baseType).toBe('enemy');
-      expect(tags.culture).toBe('undead');
-      expect(tags.season).toBe('neutral');
+
+  describe("tag extraction", () => {
+    it("extracts undead culture from Stitch enemy filenames", () => {
+      const tags = extractResonanceTagsFromFilename("stitch_enemy_undead_blade_walker_6x6_256");
+
+      expect(tags.baseType).toBe("enemy");
+      expect(tags.culture).toBe("undead");
+      expect(tags.season).toBe("neutral");
     });
-    
-    it('should extract gothic culture from eldritch assets', () => {
-      const tags = extractResonanceTagsFromFilename('stitch_npc_eldritch_modular_gothic_assembly_catalog');
-      expect(tags.baseType).toBe('npc');
-      expect(tags.culture).toBe('gothic');
-      expect(tags.biome).toBe('dungeon');
+
+    it("extracts gothic culture and dungeon biome from eldritch assets", () => {
+      const tags = extractResonanceTagsFromFilename("stitch_npc_eldritch_modular_gothic_dungeon_assembly");
+
+      expect(tags.baseType).toBe("npc");
+      expect(tags.culture).toBe("gothic");
+      expect(tags.biome).toBe("dungeon");
     });
-    
-    it('should handle standard naming convention', () => {
-      const tags = extractResonanceTagsFromFilename('tree_winter_decay_elf');
-      expect(tags.baseType).toBe('tree');
-      expect(tags.season).toBe('winter');
-      expect(tags.decay).toBe('high');
-      expect(tags.culture).toBe('elven');
+
+    it("handles standard non-Stitch naming", () => {
+      const tags = extractResonanceTagsFromFilename("tree_winter_decay_elf");
+
+      expect(tags.baseType).toBe("tree");
+      expect(tags.season).toBe("winter");
+      expect(tags.decay).toBe("high");
+      expect(tags.culture).toBe("elven");
     });
   });
-  
-  describe('Resonance Scoring', () => {
-    it('should match enemy base type', () => {
+
+  describe("resonance scoring", () => {
+    it("matches enemy base type and undead culture", () => {
       const worldState: WorldLogicalState = {
-        baseType: 'enemy',
-        season: 'neutral',
-        decayLevel: 'none',
-        culture: 'undead',
+        baseType: "enemy",
+        season: "neutral",
+        decayLevel: "none",
+        culture: "undead",
       };
-      
+
       const result = router.materializeEntity(worldState);
-      expect(result.assetId).toContain('enemy');
+
+      expect(result.assetId).toBe("stitch_enemy_undead_blade_walker_6x6_256");
       expect(result.resonanceScore).toBeGreaterThan(0);
+      expect(result.fallback).toBe(false);
     });
-    
-    it('should NOT match different base types', () => {
+
+    it("returns fallback when no positive base-type resonance exists", () => {
       const worldState: WorldLogicalState = {
-        baseType: 'tree', // Different from enemy
-        season: 'neutral',
-        decayLevel: 'none',
-        culture: 'universal',
+        baseType: "tree",
+        season: "neutral",
+        decayLevel: "none",
+        culture: "universal",
       };
-      
+
       const result = router.materializeEntity(worldState);
-      // Should return fallback since no tree assets in pool
+
       expect(result.fallback).toBe(true);
+      expect(result.resonanceScore).toBe(0);
     });
-    
-    it('should score culture match higher', () => {
-      const worldStateUndead: WorldLogicalState = {
-        baseType: 'enemy',
-        season: 'neutral',
-        decayLevel: 'none',
-        culture: 'undead',
-      };
-      
-      const worldStateUniversal: WorldLogicalState = {
-        baseType: 'enemy',
-        season: 'neutral',
-        decayLevel: 'none',
-        culture: 'universal',
-      };
-      
-      const resultUndead = router.materializeEntity(worldStateUndead);
-      const resultUniversal = router.materializeEntity(worldStateUniversal);
-      
-      // Undead match should have higher score (culture match = 400 vs universal = 150)
-      expect(resultUndead.resonanceScore).toBeGreaterThan(resultUniversal.resonanceScore);
+
+    it("scores a direct culture match higher than universal fallback", () => {
+      const direct = router.materializeEntity({
+        baseType: "enemy",
+        season: "neutral",
+        decayLevel: "none",
+        culture: "undead",
+      });
+
+      const universal = router.materializeEntity({
+        baseType: "enemy",
+        season: "neutral",
+        decayLevel: "none",
+        culture: "universal",
+      });
+
+      expect(direct.resonanceScore).toBeGreaterThan(universal.resonanceScore);
+    });
+
+    it("supports building assets as accepted runtime candidates", () => {
+      const result = router.materializeEntity({
+        baseType: "building",
+        season: "neutral",
+        decayLevel: "none",
+        culture: "universal",
+        environment: "settlement",
+      });
+
+      expect(result.assetId).toBe("stitch_building_fantasy_stone_village_house");
+      expect(result.fallback).toBe(false);
+    });
+
+    it("supports vfx as vfx instead of remapping it to generic effect", () => {
+      const result = router.materializeEntity({
+        baseType: "vfx",
+        season: "neutral",
+        decayLevel: "none",
+        culture: "arelorian",
+      });
+
+      expect(result.assetId).toBe("stitch_vfx_arelorian_elemental_spell_fx_6x6_256");
+      expect(result.fallback).toBe(false);
+    });
+
+    it("breaks score ties deterministically by assetId", () => {
+      const tieRouter = new AutonomousResonanceRouter();
+      tieRouter.loadAssetPool([
+        mockAsset("stitch_enemy_undead_zeta", "enemy", ["enemy", "undead"]),
+        mockAsset("stitch_enemy_undead_alpha", "enemy", ["enemy", "undead"]),
+      ]);
+
+      const result = tieRouter.materializeEntity({
+        baseType: "enemy",
+        season: "neutral",
+        decayLevel: "none",
+        culture: "undead",
+      });
+
+      expect(result.assetId).toBe("stitch_enemy_undead_alpha");
     });
   });
-  
-  describe('Cost Brake (Caching)', () => {
-    it('should cache repeated materializations', () => {
+
+  describe("cache brake", () => {
+    it("caches repeated materializations", () => {
       const worldState: WorldLogicalState = {
-        baseType: 'enemy',
-        season: 'neutral',
-        decayLevel: 'none',
-        culture: 'undead',
+        baseType: "enemy",
+        season: "neutral",
+        decayLevel: "none",
+        culture: "undead",
       };
-      
-      // First call
+
       const result1 = router.materializeEntity(worldState);
-      // Second call (should hit cache)
       const result2 = router.materializeEntity(worldState);
-      
+
       expect(result1.assetId).toBe(result2.assetId);
       expect(result1.resonanceScore).toBe(result2.resonanceScore);
-      
-      // Verify cache hit
-      const stats = router.getCacheStats();
-      expect(stats.size).toBe(1);
-    });
-    
-    it('should clear cache when requested', () => {
-      const worldState: WorldLogicalState = {
-        baseType: 'enemy',
-        season: 'neutral',
-        decayLevel: 'none',
-        culture: 'undead',
-      };
-      
-      router.materializeEntity(worldState);
       expect(router.getCacheStats().size).toBe(1);
-      
+    });
+
+    it("clears cache when requested", () => {
+      router.materializeEntity({
+        baseType: "enemy",
+        season: "neutral",
+        decayLevel: "none",
+        culture: "undead",
+      });
+
+      expect(router.getCacheStats().size).toBe(1);
+
       router.clearCache();
       expect(router.getCacheStats().size).toBe(0);
     });
   });
-  
-  describe('Batch Materialization', () => {
-    it('should materialize multiple entities', () => {
-      const worldStates: WorldLogicalState[] = [
-        { baseType: 'enemy', season: 'neutral', decayLevel: 'none', culture: 'undead' },
-        { baseType: 'npc', season: 'neutral', decayLevel: 'none', culture: 'gothic' },
-        { baseType: 'vfx', season: 'neutral', decayLevel: 'none', culture: 'universal' },
+
+  describe("batch materialization", () => {
+    it("materializes multiple entities", () => {
+      const worldStates: readonly WorldLogicalState[] = [
+        { baseType: "enemy", season: "neutral", decayLevel: "none", culture: "undead" },
+        { baseType: "npc", season: "neutral", decayLevel: "none", culture: "gothic", biome: "dungeon" },
+        { baseType: "vfx", season: "neutral", decayLevel: "none", culture: "arelorian" },
       ];
-      
+
       const results = router.materializeEntities(worldStates);
-      
+
       expect(results).toHaveLength(3);
-      expect(results[0].assetId).toContain('enemy');
-      expect(results[1].assetId).toContain('npc');
-      expect(results[2].assetId).toContain('vfx');
+      expect(results[0]?.assetId).toContain("enemy");
+      expect(results[1]?.assetId).toContain("npc");
+      expect(results[2]?.assetId).toContain("vfx");
     });
   });
-  
-  describe('Match Preview', () => {
-    it('should return all matching assets sorted by score', () => {
+
+  describe("match preview", () => {
+    it("returns matching assets sorted by score then assetId", () => {
       const worldState: WorldLogicalState = {
-        baseType: 'npc',
-        season: 'neutral',
-        decayLevel: 'none',
-        culture: 'gothic',
-        biome: 'dungeon',
+        baseType: "npc",
+        season: "neutral",
+        decayLevel: "none",
+        culture: "gothic",
+        biome: "dungeon",
       };
-      
+
       const matches = router.getMatchingAssets(worldState);
-      
+
       expect(matches.length).toBeGreaterThan(0);
-      // NPC asset should be first (highest score)
-      expect(matches[0].asset.assetId).toContain('npc');
-      // Verify sorted by score descending
-      for (let i = 1; i < matches.length; i++) {
-        expect(matches[i - 1].score).toBeGreaterThanOrEqual(matches[i].score);
+      expect(matches[0]?.asset.assetId).toContain("npc");
+
+      for (let index = 1; index < matches.length; index += 1) {
+        const previous = matches[index - 1];
+        const current = matches[index];
+        expect(previous?.score ?? 0).toBeGreaterThanOrEqual(current?.score ?? 0);
       }
     });
   });
 });
 
-describe('Integer Math Enforcement', () => {
-  it('should only use integer weights for scoring', () => {
+describe("Integer Math Enforcement", () => {
+  it("only uses integer scores", () => {
     const router = new AutonomousResonanceRouter();
-    router.loadAssetPool(MOCK_STITCH_ASSETS as any);
-    
-    const worldState: WorldLogicalState = {
-      baseType: 'enemy',
-      season: 'neutral',
-      decayLevel: 'none',
-      culture: 'undead',
-    };
-    
-    const result = router.materializeEntity(worldState);
-    
-    // All scores should be integer multiples of base weights
-    // BASE_TYPE_MATCH = 1000, CULTURE_MATCH = 400, SEASON_NEUTRAL = 100
-    // Expected: 1000 (base) + 400 (culture) + 100 (neutral) = 1500
-    expect(result.resonanceScore % 1).toBe(0); // Must be integer
+    router.loadAssetPool(MOCK_STITCH_ASSETS);
+
+    const result: MaterializationResult = router.materializeEntity({
+      baseType: "enemy",
+      season: "neutral",
+      decayLevel: "none",
+      culture: "undead",
+    });
+
+    expect(result.resonanceScore % 1).toBe(0);
   });
 });
