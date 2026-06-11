@@ -1,77 +1,59 @@
-/**
- * RuntimeDomainPorts - Runtime domain bridge adapters
- * 
- * Phase 3 of Core Reality Alignment initiative.
- * 
- * Provides runtime-domain wrappers that delegate to real domain systems
- * while exposing the port interface expected by the ARE shell.
- */
-
-import { PlayerSystem } from '../../modules/player/PlayerSystem.js';
 import { WarfrontSystem } from '../../modules/warfront/WarfrontSystem.js';
+import type { WarfrontSectorKind } from '../../modules/warfront/warfrontTypes.js';
 
-// Singleton player system instance for the runtime
-const runtimePlayerSystem = new PlayerSystem();
-
-/**
- * RuntimePlayerSystem - thin wrapper exposing the port interface
- */
 export class RuntimePlayerSystem {
-  getPlayer(id: string) {
-    return runtimePlayerSystem.getPlayer(id);
+  private readonly players = new Map<string, any>();
+
+  getPlayer(id: string): any | null {
+    const playerId = id.trim();
+    if (!playerId) return null;
+    let player = this.players.get(playerId);
+    if (!player) {
+      player = { id: playerId, gold: 0 };
+      this.players.set(playerId, player);
+    }
+    return player;
   }
 
-  getAllPlayers() {
-    return runtimePlayerSystem.getAllPlayers();
+  getAllPlayers(): any[] {
+    return [...this.players.values()];
   }
 }
 
-// Internal factory for creating WarfrontSystem with optional clock
-function createWarfrontSystemInternal(): WarfrontSystem {
-  return new WarfrontSystem();
-}
-
-/**
- * RuntimeWarfrontPort - runtime port delegating to real WarfrontSystem
- */
 export class RuntimeWarfrontPort {
-  private readonly warfrontSystem: WarfrontSystem;
-  private readonly tickMultiplier: () => number;
+  constructor(
+    private readonly system: WarfrontSystem,
+    private readonly tickNow: () => number,
+  ) {}
 
-  constructor(warfrontSystem: WarfrontSystem, tickMultiplier: () => number) {
-    this.warfrontSystem = warfrontSystem;
-    this.tickMultiplier = tickMultiplier;
+  private resolveNow(now?: number): number {
+    return Number.isFinite(now) ? Math.floor(Number(now)) : this.tickNow();
   }
 
-  getCycleSnapshot(now?: number): ReturnType<WarfrontSystem['getCycleSnapshot']> {
-    return this.warfrontSystem.getCycleSnapshot(now ?? this.tickMultiplier());
+  tick(now?: number) { return this.system.tick(this.resolveNow(now)); }
+  getCycleSnapshot(now?: number) { return this.system.getCycleSnapshot(this.resolveNow(now)); }
+  getRewardTiers() { return this.system.getRewardTiers(); }
+  getFrontBossSpawnPoint() { return this.system.getFrontBossSpawnPoint(); }
+  getStatusForPlayer(player: any, now?: number) { return this.system.getStatusForPlayer(player, this.resolveNow(now)); }
+
+  registerContribution(player: any, kind: WarfrontSectorKind, amount: number, now?: number) {
+    return this.system.registerContribution(player, kind, amount, this.resolveNow(now));
   }
 
-  getRewardTiers(): ReturnType<WarfrontSystem['getRewardTiers']> {
-    return this.warfrontSystem.getRewardTiers();
+  claimSeasonRewards(player: any, now?: number) {
+    return this.system.claimSeasonRewards(player, this.resolveNow(now));
   }
 
-  getFrontBossSpawnPoint(): ReturnType<WarfrontSystem['getFrontBossSpawnPoint']> {
-    return this.warfrontSystem.getFrontBossSpawnPoint();
-  }
-
-  getStatusForPlayer(player: any, now?: number): ReturnType<WarfrontSystem['getStatusForPlayer']> {
-    return this.warfrontSystem.getStatusForPlayer(player, now ?? this.tickMultiplier());
-  }
-
-  registerContribution(player: any, kind: string, amount: number, now?: number): ReturnType<WarfrontSystem['registerContribution']> {
-    return this.warfrontSystem.registerContribution(player, kind as any, amount, now ?? this.tickMultiplier());
-  }
-
-  claimSeasonRewards(player: any, now?: number): ReturnType<WarfrontSystem['claimSeasonRewards']> {
-    return this.warfrontSystem.claimSeasonRewards(player, now ?? this.tickMultiplier());
-  }
+  markFrontBossSpawned(npcId: string, now?: number): void { this.system.markFrontBossSpawned(npcId, this.resolveNow(now)); }
+  markFrontBossDefeated(now?: number): void { this.system.markFrontBossDefeated(this.resolveNow(now)); }
+  markFrontBossDespawned(now?: number): void { this.system.markFrontBossDespawned(this.resolveNow(now)); }
+  getFrontBossNpcId(): string | null { return this.system.getFrontBossNpcId(); }
+  isFrontBossNpc(npcId: string): boolean { return this.system.isFrontBossNpc(npcId); }
+  canSpawnFrontBoss(now?: number) { return this.system.canSpawnFrontBoss(this.resolveNow(now)); }
+  getActiveFrontBossMutator(): string | null { return this.system.getActiveFrontBossMutator(); }
+  getCurrentSeasonId(now?: number): string { return this.system.getCurrentSeasonId(this.resolveNow(now)); }
 }
 
-/**
- * Create a new RuntimeWarfrontSystem instance.
- * Returns the underlying WarfrontSystem for registration with WarfrontTickSystem.
- */
 export function createRuntimeWarfrontSystem(): WarfrontSystem {
-  return createWarfrontSystemInternal();
+  return new WarfrontSystem();
 }
