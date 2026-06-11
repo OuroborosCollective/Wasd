@@ -11,6 +11,7 @@ import { useDnD } from "../dnd/DnDContext";
 import { type DragItem, type DragItemType } from "../dnd/DnDContext";
 import { resolveItemIcon, hasGlowEffect } from "../utils/ItemIconMapper";
 import type { ModularItem, EquipSlot } from "@wasd/shared";
+import { getDefaultGameplayPlayerId } from "../../game/liveGameplayStore";
 import "../inventoryGrid.css";
 import "./equipmentPanel.css";
 
@@ -193,7 +194,8 @@ interface EquipmentPanelProps {
   playerId?: string;
 }
 
-export function EquipmentPanel({ isOpen = true, onClose, playerId = "guest" }: EquipmentPanelProps) {
+export function EquipmentPanel({ isOpen = true, onClose, playerId }: EquipmentPanelProps) {
+  const resolvedPlayerId = playerId ?? getDefaultGameplayPlayerId();
   const equipmentState = useEquipment();
   const [blockedSlots] = useState<Set<EquipSlotId>>(new Set());
   const [paperdollVisible, setPaperdollVisible] = useState(true);
@@ -201,27 +203,26 @@ export function EquipmentPanel({ isOpen = true, onClose, playerId = "guest" }: E
   const equipment = equipmentState?.equipment || {};
 
   const handleEquip = useCallback((slot: EquipSlotId, item: DragItem) => {
-    console.log("Equipment intent:", { slot, item });
+    console.log("Equipment intent:", { slot, item, playerId: resolvedPlayerId });
     // TODO: Send to server: POST /api/equipment/equip
     // For now, optimistic UI only after server validation in future PR
-  }, []);
+  }, [resolvedPlayerId]);
 
   const handleUnequip = useCallback((slot: EquipSlotId) => {
-    console.log("Unequip intent:", { slot });
+    console.log("Unequip intent:", { slot, playerId: resolvedPlayerId });
     // TODO: Send to server: POST /api/equipment/unequip
-  }, []);
+  }, [resolvedPlayerId]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="equipment-panel wow-panel">
+    <div className="equipment-panel wow-panel" data-player-id={resolvedPlayerId}>
       <div className="equipment-header">
         <h2>Equipment</h2>
         {onClose && <button onClick={onClose} className="close-btn">×</button>}
       </div>
 
       <div className="equipment-layout">
-        {/* Paper Doll Silhouette */}
         <div className="paperdoll-container">
           <div className="paperdoll-title">Paper Doll</div>
           <div className="paperdoll-silhouette">
@@ -232,7 +233,6 @@ export function EquipmentPanel({ isOpen = true, onClose, playerId = "guest" }: E
           </div>
         </div>
 
-        {/* Equipment Slots */}
         <div className="equipment-slots">
           {EQUIP_SLOTS_CONFIG.map((config) => (
             <EquipSlotComponent
