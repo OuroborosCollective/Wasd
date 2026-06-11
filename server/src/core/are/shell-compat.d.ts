@@ -1,1 +1,7 @@
-declare type WorldTick = import("./WorldTickThinShellAdapter.js").WorldTick;
+import type { WorldTick as ThinShellWorldTick } from "./WorldTickThinShellAdapter.js";
+
+declare global {
+  type WorldTick = ThinShellWorldTick;
+}
+
+export {};
