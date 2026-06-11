@@ -1,3 +1,6 @@
 {
-  "package.json": ["pnpm fix-lock"]
+  "scripts": {
+    "fix-lock": "pnpm install --no-frozen-lockfile",
+    "verify-lock": "pnpm install --frozen-lockfile"
+  }
 }
