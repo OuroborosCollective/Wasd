@@ -38,6 +38,7 @@ services:
       HOST: "0.0.0.0"
       CLIENT_2D_MARKER: "${CLIENT_2D_MARKER:-REAL_PIXI_CLIENT}"
       CLIENT_2D_BUILD_SHA: "${CLIENT_2D_BUILD_SHA:-}"
+      WASD_WORLD_SEED: "${WASD_WORLD_SEED:?WASD_WORLD_SEED is required for stateless deterministic world generation}"
 
       API_KEY: "${API_KEY:-}"
       API_KEYS: "${API_KEYS:-}"
