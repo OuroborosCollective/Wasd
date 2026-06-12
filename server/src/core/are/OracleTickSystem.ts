@@ -26,6 +26,9 @@ export const ORACLE_TICK_PRIORITY = TickSystemPriority.INFRASTRUCTURE;
 
 export { type OracleModuleConfig, type OracleCriticalEventData, type OracleRecommendationEventData };
 
+export type OracleCriticalEvent = OracleCriticalEventData;
+export type OracleRecommendation = OracleRecommendationEventData;
+
 export interface BrainInformationFlow {
   readonly tick: TickId;
   readonly activeProphecies: readonly unknown[];
