@@ -18,9 +18,6 @@ import type { IARELogicLayers } from './IARELogicLayers.js';
 import type { LayerPersistenceEvent, WorldLogicalState } from './ChunkLayerState.js';
 import { getLayerValues, LAYER_CONSTANTS, createEmptyIARELogicLayers } from './IARELogicLayers.js';
 
-/**
- * DeterminismViolation - Thrown when ARE conservation law is violated.
- */
 export class DeterminismViolation extends Error {
   constructor(message: string) {
     super(`[ARE-Logic] DeterminismViolation: ${message}`);
@@ -28,22 +25,15 @@ export class DeterminismViolation extends Error {
   }
 }
 
-/**
- * Entity state for snapshot composition.
- */
 export interface SnapshotEntityState {
   id: EntityId;
   position_x: KappaInt;
   position_z: KappaInt;
   health: KappaInt;
   level: KappaInt;
-  /** World state vectors for 2D client resonance scoring */
   worldState?: WorldLogicalState;
 }
 
-/**
- * Chunk snapshot with 13-layer validation.
- */
 export interface ChunkSnapshot {
   chunkId: ChunkKey;
   tick: TickId;
@@ -53,9 +43,6 @@ export interface ChunkSnapshot {
   deltaHash: StateHash;
 }
 
-/**
- * World snapshot - full state for a tick.
- */
 export interface WorldSnapshot {
   tick: TickId;
   chunkSnapshots: Map<ChunkKey, ChunkSnapshot>;
@@ -64,234 +51,58 @@ export interface WorldSnapshot {
   activeChunkCount: number;
 }
 
-/**
- * SnapshotComposer - Composes deterministic world snapshots.
- * 
- * WorldHash = Hash(ChunkID + EntityStates + IARELogicLayers)
- */
+export interface ModuleSnapshotData {
+  moduleName: string;
+  tick: TickId;
+  stateHash: StateHash;
+  entityCount: number;
+  deltaCount: number;
+  category: string;
+  patterns: string[];
+  timestamp: number;
+}
+
 export class SnapshotComposer {
-  /** Chunk snapshots for current tick */
   private chunkSnapshots: Map<ChunkKey, ChunkSnapshot> = new Map();
-  
-  /** Previous world hash for delta calculation */
   private previousWorldHash: StateHash = createStateHash('0'.repeat(64));
-  
-  /** Persistence queue for layer events */
   private persistenceQueue: LayerPersistenceEvent[] = [];
-  
-  /**
-   * Add a chunk to the snapshot composition.
-   */
+  private moduleSnapshots: Map<string, ModuleSnapshotData> = new Map();
+
   addChunk(chunkId: ChunkKey, tick: TickId, entityStates: SnapshotEntityState[], iareLayers: IARELogicLayers): void {
-    // Validate layer integrity BEFORE adding
-    SnapshotComposer.validateLayerIntegrity(iareLayers);
-    
-    // Compute layer checksum
     const layerChecksum = this.computeLayerChecksum(iareLayers);
-    
-    // Create delta hash
+    this.validateLayerConservation(layerChecksum);
     const deltaHash = this.computeDeltaHash(chunkId, entityStates, iareLayers);
-    
-    const chunkSnapshot: ChunkSnapshot = {
-      chunkId,
-      tick,
-      entityStates,
-      iareLayers,
-      layerChecksum,
-      deltaHash
-    };
-    
-    this.chunkSnapshots.set(chunkId, chunkSnapshot);
+    const snapshot: ChunkSnapshot = { chunkId, tick, entityStates, iareLayers, layerChecksum, deltaHash };
+    this.chunkSnapshots.set(chunkId, snapshot);
   }
 
-  /**
-   * Register a single entity state for snapshot composition.
-   * Used by AutoModuleKatalysator to feed entity states to the snapshot system.
-   */
-  registerEntity(entityId: EntityId, state: {
-    position_x: KappaInt;
-    position_z: KappaInt;
-    health: KappaInt;
-    level: KappaInt;
-  }): void {
-    const entityState: SnapshotEntityState = {
-      id: entityId,
-      position_x: state.position_x,
-      position_z: state.position_z,
-      health: state.health,
-      level: state.level
-    };
-
-    const defaultChunkId = 'default' as ChunkKey;
-
-    if (this.chunkSnapshots.has(defaultChunkId)) {
-      const existing = this.chunkSnapshots.get(defaultChunkId)!;
-      existing.entityStates.push(entityState);
-    } else {
-      const emptyLayers = createEmptyIARELogicLayers();
-      this.addChunk(defaultChunkId, 0 as TickId, [entityState], emptyLayers);
-    }
-  }
-
-  /**
-   * Validate layer integrity: ∑ Are = const
-   * Throws DeterminismViolation if check fails.
-   */
-  static validateLayerIntegrity(layers: IARELogicLayers): void {
-    const layerValues = getLayerValues(layers);
-    
-    // Sum all 13 layers using KappaInt arithmetic
-    let sum: KappaInt = 0 as KappaInt;
-    for (const value of layerValues) {
-      sum = (sum + value) as KappaInt;
-    }
-    
-    // Check conservation law: sum must equal CONST_ARE_TOTAL
-    // Note: In a properly functioning system, CONST_ARE_TOTAL would be a fixed value
-    // For now, we validate that the sum remains within expected bounds
-    const expectedSum = LAYER_CONSTANTS.CONST_ARE_TOTAL;
-    
-    // For dynamic systems, we check that the delta from expected is within tolerance
-    // This allows for legitimate state changes while detecting corruption
-    const TOLERANCE = 1; // 1 Kappa tolerance for integer arithmetic
-    
-    const delta = Math.abs(Number(sum) - Number(expectedSum));
-    if (delta > TOLERANCE && Number(expectedSum) !== 0) {
-      throw new DeterminismViolation(
-        `[ARE-Logic] Integrity check failed: Sum mismatch. ` +
-        `Expected: ${expectedSum}, Got: ${sum}, Delta: ${delta}`
-      );
-    }
-  }
-  
-  /**
-   * Compute checksum for layer state.
-   */
-  private computeLayerChecksum(layers: IARELogicLayers): KappaInt {
-    const layerValues = getLayerValues(layers);
-    
-    // XOR-based checksum for deterministic behavior
-    let checksum: KappaInt = 0 as KappaInt;
-    for (const value of layerValues) {
-      checksum = (checksum ^ value) as KappaInt;
-    }
-    
-    return checksum;
-  }
-  
-  /**
-   * Compute delta hash for chunk + entities + layers.
-   */
-  private computeDeltaHash(
-    chunkId: ChunkKey, 
-    entityStates: SnapshotEntityState[], 
-    iareLayers: IARELogicLayers
-  ): StateHash {
-    // Build deterministic hash input
-    let hashInput = String(chunkId);
-    
-    // Add entity states
-    for (const entity of entityStates) {
-      hashInput += `|${String(entity.id)}:${Number(entity.position_x)}:${Number(entity.position_z)}:${Number(entity.health)}`;
-    }
-    
-    // Add layer values
-    const layerValues = getLayerValues(iareLayers);
-    hashInput += '|layers:' + layerValues.map(v => String(v)).join(':');
-    
-    // Simple hash for now (in production, use sha256 from ManifestHasher)
-    const hashHex = this.simpleHash(hashInput);
-    return createStateHash(hashHex);
-  }
-  
-  /**
-   * Simple deterministic hash function.
-   */
-  private simpleHash(input: string): string {
-    let hash = 0;
-    for (let i = 0; i < input.length; i++) {
-      const char = input.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    
-    // Convert to 64-character hex string
-    const hex = Math.abs(hash).toString(16).padStart(8, '0').repeat(8).substring(0, 64);
-    return hex;
-  }
-  
-  /**
-   * Finalize world snapshot.
-   */
   finalizeWorldSnapshot(tick: TickId): WorldSnapshot {
-    // Compute world hash from all chunk hashes
-    let worldHashInput = `tick:${tick}`;
-    
-    for (const [chunkId, snapshot] of this.chunkSnapshots) {
-      worldHashInput += `|${String(chunkId)}:${String(snapshot.deltaHash)}`;
-    }
-    
-    const worldHash = createStateHash(this.simpleHash(worldHashInput).padEnd(64, '0').substring(0, 64));
-    
-    // Compute total layer checksum
-    let totalChecksum: KappaInt = 0 as KappaInt;
-    for (const snapshot of this.chunkSnapshots.values()) {
-      totalChecksum = (totalChecksum ^ snapshot.layerChecksum) as KappaInt;
-    }
-    
-    const worldSnapshot: WorldSnapshot = {
+    const worldHash = this.computeWorldHash();
+    const layerChecksum = this.computeTotalLayerChecksum();
+    const snapshot: WorldSnapshot = {
       tick,
       chunkSnapshots: new Map(this.chunkSnapshots),
       worldHash,
-      layerChecksum: totalChecksum,
-      activeChunkCount: this.chunkSnapshots.size
+      layerChecksum,
+      activeChunkCount: this.chunkSnapshots.size,
     };
-    
-    // Update previous hash
     this.previousWorldHash = worldHash;
-    
-    return worldSnapshot;
+    return snapshot;
   }
-  
-  /**
-   * Get persistence events for Phase 9.
-   */
-  getPersistenceEvents(): LayerPersistenceEvent[] {
-    return [...this.persistenceQueue];
-  }
-  
-  /**
-   * Clear current tick's data.
-   */
-  clear(): void {
-    this.chunkSnapshots.clear();
-  }
-  
-  /**
-   * Get number of chunks in current snapshot.
-   */
+
   getChunkCount(): number {
     return this.chunkSnapshots.size;
   }
-  
-  /**
-   * Get chunk snapshot by ID.
-   */
-  getChunkSnapshot(chunkId: ChunkKey): ChunkSnapshot | undefined {
-    return this.chunkSnapshots.get(chunkId);
+
+  clear(): void {
+    this.chunkSnapshots.clear();
+    this.moduleSnapshots.clear();
   }
 
-  // ============================================================================
-  // Module Snapshot Integration (for AutoModuleKatalysator)
-  // ============================================================================
+  addModuleState(moduleName: string, data: ModuleSnapshotData): void {
+    this.registerModuleSnapshot(moduleName, data);
+  }
 
-  /** Module-level snapshots for PixiJS client */
-  private moduleSnapshots: Map<string, ModuleSnapshotData> = new Map();
-
-  /**
-   * Register a module snapshot from AutoModuleKatalysator
-   * This feeds module state to the PixiJS client via the snapshot system
-   */
   registerModuleSnapshot(moduleName: string, data: {
     tick: number;
     stateHash: StateHash;
@@ -308,66 +119,53 @@ export class SnapshotComposer {
       deltaCount: data.deltaCount,
       category: data.category,
       patterns: data.patterns,
-      timestamp: Date.now(), // Note: This is for logging, not determinism
+      timestamp: data.tick,
     };
-
     this.moduleSnapshots.set(moduleName, snapshotData);
   }
 
-  /**
-   * Get all registered module snapshots
-   * Used by PixiJS client to render module states
-   */
-  getModuleSnapshots(): Map<string, ModuleSnapshotData> {
-    return new Map(this.moduleSnapshots);
+  getModuleSnapshots(): ModuleSnapshotData[] {
+    return Array.from(this.moduleSnapshots.values()).map((snapshot) => ({ ...snapshot, timestamp: 0 }));
   }
 
-  /**
-   * Get module snapshot by name
-   */
-  getModuleSnapshot(moduleName: string): ModuleSnapshotData | undefined {
-    return this.moduleSnapshots.get(moduleName);
+  private computeLayerChecksum(layers: IARELogicLayers): KappaInt {
+    const total = getLayerValues(layers).reduce((sum, value) => sum + value, 0);
+    return total as KappaInt;
   }
 
-  /**
-   * Get all module snapshots as array for network transmission
-   */
-  getModuleSnapshotsForClient(): ModuleSnapshotData[] {
-    return Array.from(this.moduleSnapshots.values()).map(snapshot => ({
-      ...snapshot,
-      // Ensure timestamp is not included in deterministic snapshot
-      // (timestamp is for logging only)
-      timestamp: 0, // Zero for determinism - client uses tick-based time
-    }));
+  private computeTotalLayerChecksum(): KappaInt {
+    let total = 0;
+    for (const snapshot of this.chunkSnapshots.values()) total += snapshot.layerChecksum;
+    return total as KappaInt;
   }
 
-  /**
-   * Clear module snapshots (called at tick boundary)
-   */
-  clearModuleSnapshots(): void {
-    this.moduleSnapshots.clear();
+  private validateLayerConservation(layerChecksum: KappaInt): void {
+    const expectedTotal = LAYER_CONSTANTS.TOTAL_SYSTEM_ENERGY;
+    if (layerChecksum !== expectedTotal) {
+      throw new DeterminismViolation(`Layer conservation violated: expected ${expectedTotal}, got ${layerChecksum}`);
+    }
+  }
+
+  private computeDeltaHash(chunkId: ChunkKey, entityStates: SnapshotEntityState[], iareLayers: IARELogicLayers): StateHash {
+    const input = JSON.stringify({ chunkId, entityStates, iareLayers });
+    return this.hashString(input);
+  }
+
+  private computeWorldHash(): StateHash {
+    const chunks = Array.from(this.chunkSnapshots.entries()).sort(([a], [b]) => String(a).localeCompare(String(b)));
+    const input = JSON.stringify(chunks.map(([key, snapshot]) => [key, snapshot.deltaHash, snapshot.layerChecksum]));
+    return this.hashString(`${this.previousWorldHash}:${input}`);
+  }
+
+  private hashString(input: string): StateHash {
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < input.length; i++) {
+      hash ^= input.charCodeAt(i);
+      hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    const hex = hash.toString(16).padStart(8, '0');
+    return createStateHash((hex.repeat(8)).slice(0, 64));
   }
 }
 
-/**
- * Global SnapshotComposer instance.
- */
 export const snapshotComposer = new SnapshotComposer();
-
-// ============================================================================
-// Module Snapshot Interface (for AutoModuleKatalysator)
-// ============================================================================
-
-/**
- * ModuleSnapshotData - Snapshot data for a single module
- */
-export interface ModuleSnapshotData {
-  moduleName: string;
-  tick: TickId;
-  stateHash: StateHash;
-  entityCount: number;
-  deltaCount: number;
-  category: string;
-  patterns: string[];
-  timestamp: number;
-}
