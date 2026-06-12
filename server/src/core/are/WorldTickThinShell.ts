@@ -17,6 +17,7 @@ import { SnapshotComposer } from "./SnapshotComposer.js";
 import { LayerPersistenceQueue, layerPersistenceQueue } from "./LayerPersistenceQueue.js";
 import { registerOuroborosTickSystem } from "./OuroborosTickSystem.js";
 import { registerOracleTickSystem } from "./OracleTickSystem.js";
+import { stableSort } from "./DeterministicEventFactory.js";
 import { sharedWorldEventBus } from "../../modules/ouroboros/sharedWorldEventBus.js";
 
 /**
@@ -37,7 +38,16 @@ export interface WorldStateProviderSlice {
 /**
  * Full world state merged from all providers.
  */
-export interface TickContextWorldState extends WorldStateProviderSlice {}
+export interface TickContextWorldState {
+  readonly npcs: readonly unknown[];
+  readonly players: readonly unknown[];
+  readonly loot: readonly unknown[];
+  readonly warfronts: readonly unknown[];
+  readonly economy: readonly unknown[];
+  readonly factions: readonly unknown[];
+  readonly quests: readonly unknown[];
+  readonly worldEvents: readonly unknown[];
+}
 
 /**
  * World state provider interface.
@@ -50,54 +60,37 @@ export interface WorldStateProvider {
   getWorldState(context: TickSystemContext): WorldStateProviderSlice;
 }
 
-export interface ThinShellWorldState {
-  readonly npcs: readonly unknown[];
-  readonly players: readonly unknown[];
-  readonly loot: readonly unknown[];
-}
+export interface ThinShellWorldState extends TickContextWorldState {}
 
-export type ThinShellWorldStateProvider = () => ThinShellWorldState;
+export type ThinShellWorldStateProvider = () => WorldStateProviderSlice;
 
 const EMPTY_WORLD_STATE: ThinShellWorldState = Object.freeze({
   npcs: Object.freeze([]),
   players: Object.freeze([]),
   loot: Object.freeze([]),
+  warfronts: Object.freeze([]),
+  economy: Object.freeze([]),
+  factions: Object.freeze([]),
+  quests: Object.freeze([]),
+  worldEvents: Object.freeze([]),
 });
 
-function normalizeWorldState(value: ThinShellWorldState | null | undefined): ThinShellWorldState {
+function normalizeWorldState(value: WorldStateProviderSlice | null | undefined): ThinShellWorldState {
   if (!value) return EMPTY_WORLD_STATE;
   return {
     npcs: Array.isArray(value.npcs) ? value.npcs : EMPTY_WORLD_STATE.npcs,
     players: Array.isArray(value.players) ? value.players : EMPTY_WORLD_STATE.players,
     loot: Array.isArray(value.loot) ? value.loot : EMPTY_WORLD_STATE.loot,
+    warfronts: Array.isArray(value.warfronts) ? value.warfronts : EMPTY_WORLD_STATE.warfronts,
+    economy: Array.isArray(value.economy) ? value.economy : EMPTY_WORLD_STATE.economy,
+    factions: Array.isArray(value.factions) ? value.factions : EMPTY_WORLD_STATE.factions,
+    quests: Array.isArray(value.quests) ? value.quests : EMPTY_WORLD_STATE.quests,
+    worldEvents: Array.isArray(value.worldEvents) ? value.worldEvents : EMPTY_WORLD_STATE.worldEvents,
   };
 }
 
 /**
- * Stable entity key for deterministic sorting.
- */
-function stableEntityKey(value: unknown): string {
-  if (typeof value === "object" && value !== null && value !== undefined) {
-    const record = value as Record<string, unknown>;
-    if (typeof record.id === "string" && record.id.length > 0) {
-      return record.id;
-    }
-  }
-  // Fallback to string representation
-  return String(value);
-}
-
-/**
- * Stable sort by entity key for deterministic ordering.
- */
-function stableSort<T>(items: readonly T[]): readonly T[] {
-  return [...items].sort((a, b) =>
-    stableEntityKey(a).localeCompare(stableEntityKey(b)),
-  );
-}
-
-/**
- * Append items from source to target, then stable-sort.
+ * Append items from source to target.
  */
 function appendStable(target: unknown[], source: readonly unknown[] | undefined): void {
   if (!source || source.length === 0) return;
@@ -224,7 +217,7 @@ export class WorldTickThinShell {
     };
 
     for (const provider of providers) {
-      const slice = provider.getWorldState(context);
+      const slice = normalizeWorldState(provider.getWorldState(context));
 
       appendStable(merged.npcs, slice.npcs);
       appendStable(merged.players, slice.players);
@@ -240,6 +233,11 @@ export class WorldTickThinShell {
       npcs: stableSort(merged.npcs),
       players: stableSort(merged.players),
       loot: stableSort(merged.loot),
+      warfronts: stableSort(merged.warfronts),
+      economy: stableSort(merged.economy),
+      factions: stableSort(merged.factions),
+      quests: stableSort(merged.quests),
+      worldEvents: stableSort(merged.worldEvents),
     });
   }
 
