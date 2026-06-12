@@ -1,27 +1,16 @@
 /**
- * Oracle Module - Living World System with WorldEventBus Integration
- * 
- * Provides deterministic prophecy generation for the Areloria game world.
- * 
- * Components:
- * - OracleModule: Core prophecy generation engine
- * - OracleChatBridge: Chat system integration for broadcasting prophecies
- * 
- * Usage:
- * ```typescript
- * import { OracleModule, getOracleModule } from './modules/oracle/index.js';
- * import { OracleTickSystem } from './core/are/OracleTickSystem.js';
- * 
- * // In your game server initialization:
- * const eventBus = new WorldEventBus();
- * const oracleModule = getOracleModule(eventBus);
- * 
- * // Subscribe to prophecies in other systems:
- * eventBus.on('oracle_critical', (event) => {
- *   console.log('Critical prophecy:', event.data.message);
- * });
- * ```
+ * Oracle Module - Living World System with WorldEventBus Integration.
  */
+
+import type { WorldEventBus } from "../ouroboros/WorldEventBus.js";
+import type {
+  BroadcastFn,
+  ChatChannelRouter,
+  ChatRecipient,
+  ResolveSocketIdFn,
+  SendToPlayerFn,
+} from "../chat/ChatChannelRouter.js";
+import { createOracleChatBridge, type OracleChatBridge } from "./OracleChatBridge.js";
 
 export {
   OracleModule,
@@ -32,38 +21,51 @@ export {
   type OracleProphecyEventData,
   type OracleCriticalEventData,
   type OracleRecommendationEventData,
-} from './OracleModule.js';
+} from "./OracleModule.js";
 
 export {
   OracleChatBridge,
   createOracleChatBridge,
   type OracleChatBridgeConfig,
-} from './OracleChatBridge.js';
+} from "./OracleChatBridge.js";
+
+export interface OracleChatBridgeInstallTarget {
+  readonly eventBus?: WorldEventBus;
+  readonly ouroborosEngine?: { readonly eventBus?: WorldEventBus };
+  readonly chatRouter?: ChatChannelRouter;
+  readonly chatSystem?: { readonly chatRouter?: ChatChannelRouter };
+  readonly players?: ChatRecipient[];
+  readonly sendToPlayer?: SendToPlayerFn;
+  readonly broadcast?: BroadcastFn;
+  readonly resolveSocketId?: ResolveSocketIdFn;
+  readonly playerToSocket?: Map<string, string>;
+  readonly ws?: {
+    readonly sendToPlayer?: SendToPlayerFn;
+    readonly broadcast?: BroadcastFn;
+  };
+}
 
 /**
- * Install Oracle Chat Bridge into the server tick loop.
- * This should be called during server bootstrap.
+ * Install the Oracle Chat Bridge into the server shell/adapter.
  */
-export function installOracleChatBridge(tick: any): void {
+export function installOracleChatBridge(tick: OracleChatBridgeInstallTarget): OracleChatBridge | null {
   const eventBus = tick.ouroborosEngine?.eventBus ?? tick.eventBus;
   const chatRouter = tick.chatSystem?.chatRouter ?? tick.chatRouter;
-  
+
   if (!eventBus || !chatRouter) {
-    console.log('[OracleChatBridge] Cannot install - eventBus or chatRouter not available');
-    return;
+    console.log("[OracleChatBridge] Cannot install - eventBus or chatRouter not available");
+    return null;
   }
-  
+
   const recipients = tick.players ?? [];
-  const sendToPlayer = tick.sendToPlayer ?? ((socketId: string, payload: unknown) => {
-    tick.ws?.sendTo?.(socketId, payload);
+  const sendToPlayer: SendToPlayerFn = tick.sendToPlayer ?? ((socketId, payload) => {
+    tick.ws?.sendToPlayer?.(socketId, payload);
   });
-  const broadcast = tick.broadcast ?? ((payload: unknown) => {
+  const broadcast: BroadcastFn = tick.broadcast ?? ((payload) => {
     tick.ws?.broadcast?.(payload);
   });
-  const resolveSocketId = tick.resolveSocketId ?? ((playerId: string) => {
-    return tick.playerToSocket?.get(playerId);
-  });
-  
+  const resolveSocketId: ResolveSocketIdFn = tick.resolveSocketId ?? ((playerId) => tick.playerToSocket?.get(playerId));
+
   const bridge = createOracleChatBridge(
     eventBus,
     chatRouter,
@@ -71,11 +73,9 @@ export function installOracleChatBridge(tick: any): void {
     sendToPlayer,
     broadcast,
     resolveSocketId,
-    { broadcastCritical: true, broadcastCooldownMs: 30000 }
+    { broadcastCritical: true, broadcastCooldownMs: 300 },
   );
-  
-  console.log('[OracleChatBridge] Installed successfully');
-  
-  // Return bridge for cleanup later
+
+  console.log("[OracleChatBridge] Installed successfully");
   return bridge;
 }
