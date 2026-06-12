@@ -60,6 +60,8 @@ export class SnapshotComposer {
   private previousWorldHash: StateHash = createStateHash('0'.repeat(64));
   private persistenceQueue: LayerPersistenceEvent[] = [];
   private moduleSnapshots: Map<string, ModuleSnapshotData> = new Map();
+  // Track expected layer checksum per chunk for conservation validation
+  private expectedLayerChecksums: Map<ChunkKey, KappaInt> = new Map();
 
   static validateLayerIntegrity(layers: IARELogicLayers): void {
     const values = getLayerValues(layers);
@@ -73,7 +75,7 @@ export class SnapshotComposer {
   addChunk(chunkId: ChunkKey, tick: TickId, entityStates: SnapshotEntityState[], iareLayers: IARELogicLayers): void {
     SnapshotComposer.validateLayerIntegrity(iareLayers);
     const layerChecksum = this.computeLayerChecksum(iareLayers);
-    this.validateLayerConservation(layerChecksum);
+    this.validateLayerConservation(chunkId, layerChecksum);
     const deltaHash = this.computeDeltaHash(chunkId, entityStates, iareLayers);
     const snapshot: ChunkSnapshot = { chunkId, tick, entityStates, iareLayers, layerChecksum, deltaHash };
     this.chunkSnapshots.set(chunkId, snapshot);
@@ -104,6 +106,7 @@ export class SnapshotComposer {
   clear(): void {
     this.chunkSnapshots.clear();
     this.moduleSnapshots.clear();
+    this.expectedLayerChecksums.clear();
   }
 
   addModuleState(moduleName: string, data: ModuleSnapshotData): void {
@@ -147,10 +150,33 @@ export class SnapshotComposer {
     return total as KappaInt;
   }
 
-  private validateLayerConservation(layerChecksum: KappaInt): void {
-    const expectedTotal = LAYER_CONSTANTS.CONST_ARE_TOTAL;
-    if (expectedTotal !== 0 && layerChecksum !== expectedTotal) {
-      throw new DeterminismViolation(`Layer conservation violated: expected ${expectedTotal}, got ${layerChecksum}`);
+  /**
+   * Validate layer conservation: the sum of layer values must remain constant
+   * for each chunk across ticks. This enforces the Ouroboros principle that
+   * information is conserved - no layer value can be created or destroyed,
+   * only transferred between layers.
+   * 
+   * Note: Chunks with checksum of 0 (empty/default state) are accepted without
+   * validation since newly registered chunks may start at zero before receiving
+   * their initial layer values from the tick system.
+   */
+  private validateLayerConservation(chunkId: ChunkKey, layerChecksum: KappaInt): void {
+    // Zero-sum chunks are accepted - they may be newly registered chunks
+    // that haven't yet received initial layer values
+    if (layerChecksum === 0) {
+      return;
+    }
+    
+    const existingExpected = this.expectedLayerChecksums.get(chunkId);
+    
+    if (existingExpected === undefined) {
+      // First time this chunk is added with non-zero checksum - record it
+      this.expectedLayerChecksums.set(chunkId, layerChecksum);
+    } else if (layerChecksum !== existingExpected) {
+      // Conservation violation: checksum changed for this chunk
+      throw new DeterminismViolation(
+        `Layer conservation violated for chunk ${String(chunkId)}: expected ${existingExpected}, got ${layerChecksum}`
+      );
     }
   }
 

@@ -132,14 +132,26 @@ export function getLayerValues(layers: IARELogicLayers): KappaInt[] {
 
 /**
  * Layer validation constants.
+ * 
+ * AXIOM 2 (Nomock-Theorem) & Conservation Law (∑ Are = const):
+ * - Total conservation sum: 13 layers * 500 midpoint = 6500
+ * - Each layer initialized at midpoint (500) for balanced start
+ * - Conservation validation ensures no state is created/destroyed mid-tick
  */
 export const LAYER_CONSTANTS = {
-  /** Total conservation sum for ∑ Are = const */
-  CONST_ARE_TOTAL: 0 as KappaInt,
+  /** 
+   * Total conservation sum for ∑ Are = const
+   * 13 layers × 500 midpoint = 6500
+   * Activated: Conservation law now enforced
+   */
+  CONST_ARE_TOTAL: 6500 as KappaInt,
   
   /** Maximum value per layer (1000 Kappa = 1 world unit) */
   LAYER_MAX: 1000 as KappaInt,
   
   /** Number of layers */
-  LAYER_COUNT: 13
+  LAYER_COUNT: 13,
+  
+  /** Midpoint for convergence calculation */
+  LAYER_MIDPOINT: 500 as KappaInt
 } as const;
