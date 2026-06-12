@@ -28,6 +28,8 @@ jobs:
   build-client-2d:
     if: ${{ github.event.pull_request.merged == true }}
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 40
 
     steps:
@@ -40,7 +42,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '24'
 
       - name: Set up pnpm
         run: |
@@ -118,6 +120,8 @@ jobs:
     if: ${{ github.event.pull_request.merged == true }}
     needs: build-client-2d
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 60
 
     steps:

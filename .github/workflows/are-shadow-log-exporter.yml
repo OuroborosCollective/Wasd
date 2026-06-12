@@ -37,6 +37,8 @@ jobs:
   collect-are-shadow-logs:
     name: Collect ARE Shadow Adapter Logs
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 15
 
     env:
@@ -296,6 +298,8 @@ jobs:
   generate-report:
     name: Generate ARE Shadow Report
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 5
     needs: collect-are-shadow-logs
 
