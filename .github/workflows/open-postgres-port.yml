@@ -6,6 +6,8 @@ on:
 jobs:
   open-port:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     steps:
       - name: Open Postgres port on Supabase docker-compose
         uses: appleboy/ssh-action@v1.2.5

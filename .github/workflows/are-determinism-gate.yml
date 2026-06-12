@@ -30,6 +30,8 @@ jobs:
   determinism-gate:
     name: ARE Determinism Firewall (Level 3)
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 10
     steps:
       - name: Checkout repository
@@ -38,7 +40,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Run Core Reality Alignment Audit
         run: |

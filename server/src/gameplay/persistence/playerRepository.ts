@@ -1,4 +1,4 @@
-/**
+/** @are-telemetry-side-channel Non-deterministic timestamps for identity/persistence only.
  * Phase 6: Player Repository
  * 
  * Handles player state persistence with memory fallback.

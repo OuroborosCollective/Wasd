@@ -47,6 +47,8 @@ jobs:
   pixi-asset-plan:
     name: Pixi asset scan, plan and validation
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 10
 
     steps:
@@ -56,7 +58,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '24'
 
       - name: Enable pnpm via Corepack
         run: |

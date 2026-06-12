@@ -16,6 +16,8 @@ jobs:
   version-lock:
     name: Guard critical runtime versions
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 5
     steps:
       - name: Checkout
@@ -24,7 +26,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Check runtime version locks
         run: node scripts/check-runtime-version-lock.mjs
