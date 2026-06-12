@@ -12,7 +12,7 @@ import type { LayoutConstraintRule, LayoutIssue, LayoutRuleContext, SpatialEntit
 import { pointDistance } from "./WorldLayoutSpatialIndex.js";
 
 let issueCounter = 0;
-function makeId(): string { return `RD-${Date.now()}-${(++issueCounter).toString(36)}`; }
+function makeId(): string { return `RD-${(++issueCounter).toString(36).padStart(4, "0")}`; }
 
 /**
  * Build an adjacency graph from road entities based on proximity.

@@ -11,7 +11,7 @@
  * - Placement state tracking
  */
 
-import type { SpatialEntity, LayoutIssue, GLBFootprintDescriptor } from "../layout/WorldLayoutTypes.js";
+import type { SpatialEntity, LayoutIssue } from "../layout/WorldLayoutTypes.js";
 import { WorldLayoutRuleEngine } from "../layout/WorldLayoutRuleEngine.js";
 import type { AssetProfile } from "../rules/assetProfiles.js";
 import { getAssetProfile, resolveProfileFromPath, resolveProfileFromMetadata } from "../rules/assetProfiles.js";
@@ -56,6 +56,7 @@ export class WorldPlacementRuleEngine {
   private terrainAdapter: TerrainQueryAdapter | null = null;
   private vegetationAdapter: VegetationExclusionAdapter | null = null;
   private navAdapter: NavDirtyAdapter | null = null;
+  private placementSequence = 0;
 
   constructor(
     layoutEngine: WorldLayoutRuleEngine,
@@ -230,7 +231,7 @@ export class WorldPlacementRuleEngine {
       terrainChanged,
       vegetationExclusionApplied: vegExclusionApplied,
       navDirty,
-      timestamp: Date.now(),
+      timestamp: this.nextPlacementTimestamp(request),
     };
 
     if (state === "validated") {
@@ -384,6 +385,17 @@ export class WorldPlacementRuleEngine {
     // Fixed TS2554: Pass [entity] to validate()
     const result = this.layoutEngine.getValidator().validate([entity]);
     return result.issues;
+  }
+
+  private nextPlacementTimestamp(request: PlacementRequest): number {
+    const metadata = request.metadata ?? {};
+    const provided = metadata.tick ?? metadata.timestamp ?? metadata.simulationMs;
+    if (typeof provided === "number" && Number.isSafeInteger(provided) && provided >= 0) {
+      return provided;
+    }
+
+    this.placementSequence += 1;
+    return this.placementSequence;
   }
 }
 

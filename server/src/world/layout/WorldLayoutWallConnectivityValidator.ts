@@ -12,7 +12,7 @@ import type { LayoutConstraintRule, LayoutIssue, LayoutRuleContext, SpatialEntit
 import { pointDistance } from "./WorldLayoutSpatialIndex.js";
 
 let issueCounter = 0;
-function makeId(): string { return `WL-${Date.now()}-${(++issueCounter).toString(36)}`; }
+function makeId(): string { return `WL-${(++issueCounter).toString(36).padStart(4, "0")}`; }
 
 function buildWallGraph(walls: SpatialEntity[], maxDist: number): Map<string, Set<string>> {
   const graph = new Map<string, Set<string>>();

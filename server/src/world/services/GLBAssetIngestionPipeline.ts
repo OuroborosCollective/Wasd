@@ -5,7 +5,7 @@
  * Runs automatically on asset import. Feeds into WorldPlacementRuleEngine.
  */
 
-import type { AssetProfile, ColliderType, NavImpact, InstancingStrategy } from "../rules/assetProfiles.js";
+import type { AssetProfile, InstancingStrategy } from "../rules/assetProfiles.js";
 import { getAssetProfile, resolveProfileFromPath, resolveProfileFromMetadata } from "../rules/assetProfiles.js";
 
 export type IngestionState = "pending" | "analyzing" | "profiled" | "validated" | "ready" | "failed";
@@ -30,6 +30,7 @@ export interface AssetIngestionResult {
 export class GLBAssetIngestionPipeline {
   private cache = new Map<string, AssetIngestionResult>();
   private listeners: Array<(result: AssetIngestionResult) => void> = [];
+  private ingestSequence = 0;
 
   /**
    * Ingest a GLB asset. Analyzes meshes, materials, bounding box, and resolves profile.
@@ -45,7 +46,7 @@ export class GLBAssetIngestionPipeline {
     },
     categoryHint?: string
   ): Promise<AssetIngestionResult> {
-    const start = Date.now();
+    const startOrdinal = this.ingestSequence;
     const cached = this.cache.get(assetId);
     if (cached && cached.state === "ready") return cached;
 
@@ -132,12 +133,13 @@ export class GLBAssetIngestionPipeline {
       }
 
       result.state = "ready";
-    } catch (err: any) {
+    } catch (err: unknown) {
       result.state = "failed";
-      result.errors.push(err.message ?? String(err));
+      result.errors.push(err instanceof Error ? err.message : String(err));
     }
 
-    result.ingestTimeMs = Date.now() - start;
+    this.ingestSequence += 1;
+    result.ingestTimeMs = this.ingestSequence - startOrdinal;
     this.cache.set(assetId, result);
 
     for (const listener of this.listeners) {
@@ -197,5 +199,6 @@ export class GLBAssetIngestionPipeline {
 
   clear(): void {
     this.cache.clear();
+    this.ingestSequence = 0;
   }
 }
