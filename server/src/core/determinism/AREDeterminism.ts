@@ -1,16 +1,15 @@
-import {
-  ARE_SIMULATION_TICK_HZ,
-  ARE_SIMULATION_TICK_MS,
-  areTicksToMs,
-  msToARETicks,
-} from '@wasd/shared';
+export const ARE_SIMULATION_TICK_HZ = 10;
+export const ARE_SIMULATION_TICK_MS = 1000 / ARE_SIMULATION_TICK_HZ;
 
-export {
-  ARE_SIMULATION_TICK_HZ,
-  ARE_SIMULATION_TICK_MS,
-  areTicksToMs,
-  msToARETicks,
-};
+export function msToARETicks(ms: number): number {
+  if (!Number.isFinite(ms) || ms <= 0) return 1;
+  return Math.max(1, Math.ceil(ms / ARE_SIMULATION_TICK_MS));
+}
+
+export function areTicksToMs(ticks: number): number {
+  if (!Number.isFinite(ticks) || ticks <= 0) return 0;
+  return Math.trunc(ticks) * ARE_SIMULATION_TICK_MS;
+}
 
 export interface AREClock {
   now(): number;
@@ -23,13 +22,6 @@ export interface ARERng {
   fork(label: string): ARERng;
 }
 
-/**
- * Deterministic simulation clock.
- *
- * The historical class name is kept for compatibility, but it intentionally no
- * longer reads wall-clock time. Simulation code must derive time from tick/seed
- * input so replays and CI checks stay stable.
- */
 export class SystemAREClock implements AREClock {
   constructor(private readonly tickNow = 0) {}
 
@@ -46,12 +38,6 @@ export class FixedAREClock implements AREClock {
   }
 }
 
-/**
- * Small deterministic PRNG for server simulation paths.
- *
- * This uses a 32-bit FNV-1a seed and Mulberry32 step. It is intended for
- * reproducible gameplay decisions, not cryptography or security tokens.
- */
 export class SeededARERng implements ARERng {
   private state: number;
 
@@ -98,12 +84,6 @@ export function deterministicRandom(seed: string | number | bigint = 0): number 
   return new SeededARERng(typeof seed === 'bigint' ? seed.toString() : seed).nextFloat();
 }
 
-/**
- * Stable 32-bit FNV-1a hash for deterministic ordering, replay IDs, and memory hashes.
- *
- * This is intentionally small and non-cryptographic. Do not use it for auth,
- * signatures, secrets, or any security boundary.
- */
 export function stableHash32(seed: string | number | bigint): number {
   return hashSeed(String(seed));
 }
