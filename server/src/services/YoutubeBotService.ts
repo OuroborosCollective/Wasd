@@ -1,5 +1,4 @@
 import { google, youtube_v3 } from 'googleapis';
-import { OAuth2Client } from 'google-auth-library';
 import fs from 'fs';
 
 interface VideoMetadata {
@@ -12,7 +11,7 @@ interface VideoMetadata {
 
 export class YoutubeBotService {
     private youtube: youtube_v3.Youtube;
-    private oauth2Client: OAuth2Client;
+    private oauth2Client: InstanceType<typeof google.auth.OAuth2>;
 
     constructor(
         clientId: string,
