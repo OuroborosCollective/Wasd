@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "mode": "strict",
+  "truthPath": {
+    "allowMocks": false,
+    "allowFakeSnapshots": false,
+    "allowStubGreen": false,
+    "allowMainPush": false
+  },
+  "autonomy": {
+    "maxLevel": 4,
+    "writeGeneratedManifest": true,
+    "writeHeaders": false,
+    "createBranch": true,
+    "createPullRequest": true,
+    "directCommitToMain": false
+  },
+  "safeFixes": {
+    "typeNameTypos": true,
+    "categoryTypos": true,
+    "esmImportExtensions": true,
+    "typeOnlyImports": true,
+    "generatedManifest": true
+  },
+  "determinismFixes": {
+    "replaceMathRandomOnlyWithExistingContextRng": true,
+    "replaceDateNowOnlyInTelemetrySideChannel": true,
+    "replaceCryptoUuidOnlyWithCanonicalHash": true,
+    "allowNewSeedCreation": false
+  },
+  "stubPolicy": {
+    "deleteStubAutomatically": false,
+    "quarantineStubAutomatically": true,
+    "generateImplementationAutomatically": false
+  },
+  "verification": {
+    "requiredCommands": [
+      "pnpm --filter @wasd/server exec tsc --noEmit",
+      "pnpm --filter @wasd/server test",
+      "node scripts/analyze-modules.mjs --ci --fail-on=D,E"
+    ],
+    "requireDeterministicReplay": true,
+    "requirePatchLedger": true
+  }
+}

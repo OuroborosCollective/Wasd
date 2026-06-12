@@ -1,0 +1,2845 @@
+{
+  "generatedBy": "scripts/autofix-modules.mjs",
+  "warning": "Generated scanner metadata. Not a green-state proof.",
+  "files": [
+    {
+      "path": "server/src/modules/WeatherResonance.ts",
+      "module": "WeatherResonance.ts",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/achievements/AchievementRegistry.ts",
+      "module": "achievements",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/achievements/AchievementSystem.ts",
+      "module": "achievements",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/admin/AdminAuditLog.ts",
+      "module": "admin",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/admin/AdminMountRegistry.ts",
+      "module": "admin",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/admin/AdminRollback.ts",
+      "module": "admin",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/admin/EditorActionLog.ts",
+      "module": "admin",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/admin/GMCommandLayer.ts",
+      "module": "admin",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/admin/GiraffeAdminMount.ts",
+      "module": "admin",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/admin/PermissionMatrix.ts",
+      "module": "admin",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/admin/RoleGuard.ts",
+      "module": "admin",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/aging/AgingSystem.ts",
+      "module": "aging",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/agora/AgoraMonitorApi.ts",
+      "module": "agora",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/agora/AgoraTypes.ts",
+      "module": "agora",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/agora/GitHubWebhook.ts",
+      "module": "agora",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/agora/OpenCollectiveAuth.ts",
+      "module": "agora",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/ai/AgingSystem.ts",
+      "module": "ai",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/ai/BehaviorTree.ts",
+      "module": "ai",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/ai/FamilyGenerationSystem.ts",
+      "module": "ai",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/ai/LLMConnector.ts",
+      "module": "ai",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/ai/MonsterDirector.ts",
+      "module": "ai",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/ai/NPCBrain.ts",
+      "module": "ai",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/ai/NPCSchedules.ts",
+      "module": "ai",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/ai/TaskSystem.ts",
+      "module": "ai",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/ai/WorldGenerationFlow.ts",
+      "module": "ai",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/analytics/PerformanceBudget.ts",
+      "module": "analytics",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/analytics/TelemetryCollector.ts",
+      "module": "analytics",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/api/editorRoutes.ts",
+      "module": "api",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/api/healthRoute.ts",
+      "module": "api",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/api/playerRoutes.ts",
+      "module": "api",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/api/worldRoutes.ts",
+      "module": "api",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/asset-brain/AssetBrainAnalytics.ts",
+      "module": "asset-brain",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/asset-brain/AssetBrainCache.ts",
+      "module": "asset-brain",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/asset-brain/AssetBrainDatabase.ts",
+      "module": "asset-brain",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/asset-brain/AssetBrainSchema.ts",
+      "module": "asset-brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/asset-brain/AssetPipeline.ts",
+      "module": "asset-brain",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/asset-brain/TripoService.ts",
+      "module": "asset-brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/asset-brain/assetBrainEngine.ts",
+      "module": "asset-brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/asset-brain/prompts.ts",
+      "module": "asset-brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/asset-registry/AssetRegistry.ts",
+      "module": "asset-registry",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/asset-registry/GLBRegistry.ts",
+      "module": "asset-registry",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/asset-registry/NPCAssets.ts",
+      "module": "asset-registry",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/asset-registry/StructureAssets.ts",
+      "module": "asset-registry",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/asset-registry/VegetationAssets.ts",
+      "module": "asset-registry",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/asset-registry/builtinModelFallbacks.ts",
+      "module": "asset-registry",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/assets/AssetImportQueue.ts",
+      "module": "assets",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/assets/AssetValidationReport.ts",
+      "module": "assets",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/assets/ContentManifest.ts",
+      "module": "assets",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/auction/AuctionFees.ts",
+      "module": "auction",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/auction/AuctionHouse.ts",
+      "module": "auction",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/auction/AuctionSettlement.ts",
+      "module": "auction",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/audio/AmbienceRegistry.ts",
+      "module": "audio",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/audio/MusicZones.ts",
+      "module": "audio",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/auth/PlayerRestore.ts",
+      "module": "auth",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/auth/SessionHeartbeat.ts",
+      "module": "auth",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/auth/SessionReconnectHandler.ts",
+      "module": "auth",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/auth/SessionRegistry.ts",
+      "module": "auth",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/auth/WebSocketPresence.ts",
+      "module": "auth",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/auth/resolveLoginIdentity.ts",
+      "module": "auth",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/bootstrap/ModuleRegistry.ts",
+      "module": "bootstrap",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/bootstrap/SystemWiring.ts",
+      "module": "bootstrap",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/BrainFieldAnalyzer.ts",
+      "module": "brain",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/brain/CascadeBrain.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/ChronoBrain.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/ChronoSwarmBrain.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/DreamWeaveBrain.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/EclipseBrain.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/GravityAnvilBrain.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/HeuristicWorldBrain.ts",
+      "module": "brain",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/brain/HivemindBrain.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/LeylineBrain.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/MatrixPrecognitionBrain.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/QuantumNebulaBrain.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/RealityFissureBrain.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/ResonanceBrainLogic.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/SynapticLoadBrain.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/TectonicBrain.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/brain/WorldBrainCacheService.ts",
+      "module": "brain",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/character/CharacterAssemblySystem.ts",
+      "module": "character",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/chat/ChatChannelRouter.ts",
+      "module": "chat",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/chat/ChatChannels.ts",
+      "module": "chat",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/chat/ChatModeration.ts",
+      "module": "chat",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/chat/ChatService.ts",
+      "module": "chat",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/chat/ChatSystem.ts",
+      "module": "chat",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/chat/RedisChatRelay.ts",
+      "module": "chat",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/chat/StatusEmitter.ts",
+      "module": "chat",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/chat/chatChannelTypes.ts",
+      "module": "chat",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/chat/installRuntimeChatRelay.ts",
+      "module": "chat",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/civilization/CivilizationRankings.ts",
+      "module": "civilization",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/civilization/KingdomLedger.ts",
+      "module": "civilization",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/civilization/SettlementSystem.ts",
+      "module": "civilization",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/combat/CombatDirector.ts",
+      "module": "combat",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/combat/CombatService.ts",
+      "module": "combat",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/combat/CombatSystem.ts",
+      "module": "combat",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/combat/ComboValidator.ts",
+      "module": "combat",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/combat/deathRespawnSystem.ts",
+      "module": "combat",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/combat/hookTypes.ts",
+      "module": "combat",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/combat/respawnPoints.ts",
+      "module": "combat",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/combat/selectAttackTarget.ts",
+      "module": "combat",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/combat/types.ts",
+      "module": "combat",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/construction/ConstructionQueue.ts",
+      "module": "construction",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/construction/UpgradeSystem.ts",
+      "module": "construction",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/content/adminContentChoices.ts",
+      "module": "content",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/content/adminGlbGallery.ts",
+      "module": "content",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/content/adminGlbModelNeeds.ts",
+      "module": "content",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/content/adminGlbPathCheck.ts",
+      "module": "content",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/content/adminGlbSmartLink.ts",
+      "module": "content",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/content/auditContentModelPaths.ts",
+      "module": "content",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/content/contentDataRoot.ts",
+      "module": "content",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/content/publishContentPackFromRepo.ts",
+      "module": "content",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/content/repoRoot.ts",
+      "module": "content",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/content/validateContentCore.ts",
+      "module": "content",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/crafting/CraftingDirector.ts",
+      "module": "crafting",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/crafting/CraftingStationRegistry.ts",
+      "module": "crafting",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/crafting/CraftingSystem.ts",
+      "module": "crafting",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/crafting/RecipeMatcher.ts",
+      "module": "crafting",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/crafting/RecipeRegistry.ts",
+      "module": "crafting",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/dialogue/DialogueContext.ts",
+      "module": "dialogue",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/dialogue/DialogueDirector.ts",
+      "module": "dialogue",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/dialogue/DialogueEngine.ts",
+      "module": "dialogue",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/dialogue/DialogueGenerator.ts",
+      "module": "dialogue",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/dialogue/DialogueMemoryBridge.ts",
+      "module": "dialogue",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/dialogue/DialogueTagRules.ts",
+      "module": "dialogue",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/dialogue/DialogueTemplates.ts",
+      "module": "dialogue",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/diplomacy/DiplomacyEngine.ts",
+      "module": "diplomacy",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/dungeon/DungeonGenerator.ts",
+      "module": "dungeon",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/dungeon/dungeonInstance.ts",
+      "module": "dungeon",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/economy/BuyOrders.ts",
+      "module": "economy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/economy/CaravanLogic.ts",
+      "module": "economy",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/economy/EconomyEngine.ts",
+      "module": "economy",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/economy/EconomySystem.ts",
+      "module": "economy",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/economy/EmergentMarket.ts",
+      "module": "economy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/economy/MarketExpansion.ts",
+      "module": "economy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/economy/MarketLedger.ts",
+      "module": "economy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/economy/MarketMonitor.ts",
+      "module": "economy",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/economy/MarketOrders.ts",
+      "module": "economy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/economy/MatrixEnergySystem.ts",
+      "module": "economy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/economy/NPCTradeAI.ts",
+      "module": "economy",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/economy/PlayerMarket.ts",
+      "module": "economy",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/economy/PriceBalancer.ts",
+      "module": "economy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/economy/ScarcityPredictor.ts",
+      "module": "economy",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/economy/SellOrders.ts",
+      "module": "economy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/economy/TaxLedger.ts",
+      "module": "economy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/economy/TradeRoutes.ts",
+      "module": "economy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/economy/WeatherEconomyBridge.ts",
+      "module": "economy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/economy/WorldEventBus.ts",
+      "module": "economy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/economy/auctionListing.ts",
+      "module": "economy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/engine/ObserverEngine.ts",
+      "module": "engine",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/equipment/EquipmentSystem.ts",
+      "module": "equipment",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/events/DisasterEngine.ts",
+      "module": "events",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/events/EventScheduler.ts",
+      "module": "events",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/events/MigrationEngine.ts",
+      "module": "events",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/events/WarForecast.ts",
+      "module": "events",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/events/WorldEventLayer.ts",
+      "module": "events",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/faction/FactionMemory.ts",
+      "module": "faction",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/faction/FactionSystem.ts",
+      "module": "faction",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/faction/NPCFactionAdapter.ts",
+      "module": "faction",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/farming/FarmingSystem.ts",
+      "module": "farming",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/farming/TreeGrowthSystem.ts",
+      "module": "farming",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/gameplay/ConstructionScheduler.ts",
+      "module": "gameplay",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/gameplay/ContractManager.ts",
+      "module": "gameplay",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/gameplay/FactionConstruction.ts",
+      "module": "gameplay",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/gameplay/GameplayFusionDirector.ts",
+      "module": "gameplay",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/gameplay/InventorySystem.ts",
+      "module": "gameplay",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/genealogy/FamilyGenerationSystem.ts",
+      "module": "genealogy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/gm/AdminAuditLog.ts",
+      "module": "gm",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/gm/GMCommandLayer.ts",
+      "module": "gm",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/growth/AgingSystem.ts",
+      "module": "growth",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/growth/FamilyGenerationSystem.ts",
+      "module": "growth",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/growth/FarmingSystem.ts",
+      "module": "growth",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/growth/TreeGrowthSystem.ts",
+      "module": "growth",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/guild/GuildSovereigntyEngine.ts",
+      "module": "guild",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/guild/GuildStorage.ts",
+      "module": "guild",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/guild/GuildSystem.ts",
+      "module": "guild",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/guild/TerritoryControl.ts",
+      "module": "guild",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/history/DudenregisterHistory.ts",
+      "module": "history",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/history/HistoricalMapEngine.ts",
+      "module": "history",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/history/ProphecyArchive.ts",
+      "module": "history",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/history/RuinEvolutionEngine.ts",
+      "module": "history",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/history/WorldHistory.ts",
+      "module": "history",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/history/WorldSnapshotSystem.ts",
+      "module": "history",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/housing/HousingSystem.ts",
+      "module": "housing",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/housing/OwnershipRegistry.ts",
+      "module": "housing",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/inventory/InventoryDirector.ts",
+      "module": "inventory",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/inventory/InventoryService.ts",
+      "module": "inventory",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/inventory/InventorySystem.ts",
+      "module": "inventory",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/inventory/ItemRegistry.ts",
+      "module": "inventory",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/inventory/index.ts",
+      "module": "inventory",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/inventory/inventoryStacks.ts",
+      "module": "inventory",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/items/AffixSystem.ts",
+      "module": "items",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/items/EquipmentSystem.ts",
+      "module": "items",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/items/ItemGenerator.ts",
+      "module": "items",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/items/dualInventoryTypes.ts",
+      "module": "items",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/items/itemBindingPolicy.ts",
+      "module": "items",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/items/legendaryPowers.ts",
+      "module": "items",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/items/setBonuses.ts",
+      "module": "items",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/land/LandSystem.ts",
+      "module": "land",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/legend/LegendDistiller.ts",
+      "module": "legend",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/llm/LLMService.ts",
+      "module": "llm",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/localization/LocaleDictionary.ts",
+      "module": "localization",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/localization/LocaleRegistry.ts",
+      "module": "localization",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/localization/TextKeyResolver.ts",
+      "module": "localization",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/loot/AffixSystem.ts",
+      "module": "loot",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/loot/ItemGenerator.ts",
+      "module": "loot",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/loot/LootSystem.ts",
+      "module": "loot",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/loot/LootTables.ts",
+      "module": "loot",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/loot/WeaponVisualPool.ts",
+      "module": "loot",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/loot/diabloItemGen.ts",
+      "module": "loot",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/loot/diabloSampleData.ts",
+      "module": "loot",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/loot/diabloTreasure.ts",
+      "module": "loot",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/loot/gearConvert.ts",
+      "module": "loot",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/loot/installARELootIntegration.ts",
+      "module": "loot",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/loot/installDecompositionLootRelay.ts",
+      "module": "loot",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/loot/installLootBridge.ts",
+      "module": "loot",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/loot/itemEnchant.ts",
+      "module": "loot",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/loot/itemIdentify.ts",
+      "module": "loot",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/loot/lootBag.ts",
+      "module": "loot",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/loot/pity.ts",
+      "module": "loot",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/loot/rollScale.ts",
+      "module": "loot",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/loot/smartLoot.ts",
+      "module": "loot",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/loot/socketedItem.ts",
+      "module": "loot",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/lore/worldFragments.ts",
+      "module": "lore",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/magic/MagicSystem.ts",
+      "module": "magic",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/mail/MailAttachments.ts",
+      "module": "mail",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/mail/MailService.ts",
+      "module": "mail",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/market/MarketExpansion.ts",
+      "module": "market",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/market/NPCTradeAI.ts",
+      "module": "market",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/market/PriceBalancer.ts",
+      "module": "market",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/migration/MigrationEngine.ts",
+      "module": "migration",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/monitoring/BackupManager.ts",
+      "module": "monitoring",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/monitoring/CrashRecovery.ts",
+      "module": "monitoring",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/monitoring/SystemHealthMonitor.ts",
+      "module": "monitoring",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/monster/MonsterDNA.ts",
+      "module": "monster",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/monster/MonsterMutation.ts",
+      "module": "monster",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/monster/MonsterSpawnTable.ts",
+      "module": "monster",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/monster/MonsterSpawner.ts",
+      "module": "monster",
+      "category": "A",
+      "categoryName": "ARE_ALIGNED"
+    },
+    {
+      "path": "server/src/modules/mounts/MountRegistry.ts",
+      "module": "mounts",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/mounts/TravelSystem.ts",
+      "module": "mounts",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/network/AREPayloadManager.ts",
+      "module": "network",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/notifications/NotificationService.ts",
+      "module": "notifications",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/npc/CaravanLogic.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/EmergentBrain.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/EmergentThermalAdapter.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/FactionLegacyEngine.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/HeritageResolver.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/HeuristicGoalPruner.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/NPCChatAgent.ts",
+      "module": "npc",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/npc/NPCChatBridge.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/NPCChatTypes.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/NPCCraftingAdapter.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/NPCDialogueSystem.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/NPCFactionMoodBroadcaster.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/NPCGenealogyEngine.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/NPCGoalPruningRuntime.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/NPCHeuristics.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/NPCInterfaces.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/NPCInventoryManager.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/NPCMemoryBridge.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/NPCMemoryCache.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/NPCMemoryEngine.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/NPCMemoryPersistence.ts",
+      "module": "npc",
+      "category": "D",
+      "categoryName": "NON_DETERMINISTIC"
+    },
+    {
+      "path": "server/src/modules/npc/NPCMemoryTicker.ts",
+      "module": "npc",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/npc/NPCPersonalityEngine.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/NPCProfessions.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/NPCRelationshipSystem.ts",
+      "module": "npc",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/npc/NPCScheduleRegistry.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/NPCSpawnTable.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/NPCSystem.ts",
+      "module": "npc",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/npc/NPCThinkingLogService.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/NPCTraits.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/PerceptionLogic.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/SharedMemoryNetwork.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/ThermalLogic.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/TradeAIBehavior.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/TraitResonanceEngine.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/behavior/GoalEvaluator.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/brain/NPCBrainDebugSnapshot.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/brain/NPCBrainRunner.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/brain/NPCBrainScheduler.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/brain/NPCDecisionEngine.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/brain/NPCMemoryCompression.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/npc/brain/NPCMemoryScoring.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/brain/NPCMemoryV3.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/brain/NPCObservationBus.ts",
+      "module": "npc",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/npc/brain/index.ts",
+      "module": "npc",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/observer/ObserverEngine.ts",
+      "module": "observer",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/oracle/OracleChatBridge.ts",
+      "module": "oracle",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/oracle/OracleEngine.ts",
+      "module": "oracle",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/oracle/OracleMemoryBridge.ts",
+      "module": "oracle",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/oracle/OracleModule.ts",
+      "module": "oracle",
+      "category": "A",
+      "categoryName": "ARE_ALIGNED"
+    },
+    {
+      "path": "server/src/modules/oracle/ProphecyArchive.ts",
+      "module": "oracle",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/oracle/ProphecyGenerator.ts",
+      "module": "oracle",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/oracle/WarForecast.ts",
+      "module": "oracle",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/oracle/__tests__/OracleChatBridge.test.ts",
+      "module": "oracle",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/oracle/__tests__/OracleModule.test.ts",
+      "module": "oracle",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/oracle/index.ts",
+      "module": "oracle",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/ouroboros/AgentNeeds.ts",
+      "module": "ouroboros",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/ouroboros/BountySystem.ts",
+      "module": "ouroboros",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/ouroboros/DynamicFactions.ts",
+      "module": "ouroboros",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/ouroboros/EmergentMarket.ts",
+      "module": "ouroboros",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/ouroboros/LegendDistiller.ts",
+      "module": "ouroboros",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/ouroboros/NPCRelationshipSystem.ts",
+      "module": "ouroboros",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/ouroboros/OuroborosEngine.ts",
+      "module": "ouroboros",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/ouroboros/OuroborosLoop.ts",
+      "module": "ouroboros",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/ouroboros/WorldEventBus.ts",
+      "module": "ouroboros",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/ouroboros/WorldHistory.ts",
+      "module": "ouroboros",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/ouroboros/WorldHistoryProcessor.ts",
+      "module": "ouroboros",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/ouroboros/sharedWorldEventBus.ts",
+      "module": "ouroboros",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/party/partySystem.ts",
+      "module": "party",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/payment/PayPalService.ts",
+      "module": "payment",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/persistence/CivilizationDatabase.ts",
+      "module": "persistence",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/persistence/DataSeeder.ts",
+      "module": "persistence",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/persistence/PersistenceDirector.ts",
+      "module": "persistence",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/persistence/PlayerDatabase.ts",
+      "module": "persistence",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/persistence/SafeMigrationRunner.ts",
+      "module": "persistence",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/persistence/SaveFormats.ts",
+      "module": "persistence",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/persistence/SnapshotArchive.ts",
+      "module": "persistence",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/persistence/WorldDatabase.ts",
+      "module": "persistence",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/persistence/createPersistenceBackend.ts",
+      "module": "persistence",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/persistence/filePersistenceBackend.ts",
+      "module": "persistence",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/persistence/persistenceBackend.ts",
+      "module": "persistence",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/persistence/persistencePaths.ts",
+      "module": "persistence",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/persistence/playerSnapshot.ts",
+      "module": "persistence",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/persistence/postgresPersistenceBackend.ts",
+      "module": "persistence",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/persistence/redisPersistenceBackend.ts",
+      "module": "persistence",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/player/AutonomousPlayerTickSystem.ts",
+      "module": "player",
+      "category": "D",
+      "categoryName": "NON_DETERMINISTIC"
+    },
+    {
+      "path": "server/src/modules/player/EquipmentSystem.ts",
+      "module": "player",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/player/PlayerStatsDirector.ts",
+      "module": "player",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/player/PlayerSystem.ts",
+      "module": "player",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/player/PlayerTypes.ts",
+      "module": "player",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/player/ReputationTitleBridge.ts",
+      "module": "player",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/player/StaminaRegen.ts",
+      "module": "player",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/player/StealthSystem.ts",
+      "module": "player",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/player/TitleSystem.ts",
+      "module": "player",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/playtester/AutonomousPlaytester.ts",
+      "module": "playtester",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/playtester/PersistentPlaytesterNPC.ts",
+      "module": "playtester",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/playtester/PlaytesterActionPlanner.ts",
+      "module": "playtester",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/playtester/PlaytesterBrain.ts",
+      "module": "playtester",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/playtester/PlaytesterDebugLog.ts",
+      "module": "playtester",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/playtester/PlaytesterJsonlLogger.ts",
+      "module": "playtester",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/playtester/PlaytesterMonitorStream.ts",
+      "module": "playtester",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/playtester/PlaytesterTelemetry.ts",
+      "module": "playtester",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/playtester/PlaytesterWebRTCSignaling.ts",
+      "module": "playtester",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/playtester/playtesterTypes.ts",
+      "module": "playtester",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/playtester/playtesterUtils.ts",
+      "module": "playtester",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/politics/DiplomacyEngine.ts",
+      "module": "politics",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/politics/GovernmentTypes.ts",
+      "module": "politics",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/politics/ReputationSystem.ts",
+      "module": "politics",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/politics/WarEngine.ts",
+      "module": "politics",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/prediction/ScarcityPredictor.ts",
+      "module": "prediction",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/prophecy/ProphecyArchive.ts",
+      "module": "prophecy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/prophecy/ProphecyGenerator.ts",
+      "module": "prophecy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/prophecy/WarForecast.ts",
+      "module": "prophecy",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/quest/HeuristicGoalPruner.ts",
+      "module": "quest",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/quest/QuestEchoSystem.ts",
+      "module": "quest",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/quest/QuestEngine.ts",
+      "module": "quest",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/quest/QuestRewards.ts",
+      "module": "quest",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/quest/QuestService.ts",
+      "module": "quest",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/quest/QuestStateStore.ts",
+      "module": "quest",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/quest/QuestSystem.ts",
+      "module": "quest",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/questline/crossroadsResolver.ts",
+      "module": "questline",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/questline/factionRegistry.ts",
+      "module": "questline",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/questline/featureTrigger.ts",
+      "module": "questline",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/questline/questlineBridge.ts",
+      "module": "questline",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/questline/questlineEngine.ts",
+      "module": "questline",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/questline/questlineGenerator.ts",
+      "module": "questline",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/questline/questlineRepository.ts",
+      "module": "questline",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/questline/strandResolver.ts",
+      "module": "questline",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/questline/worldSpawner.ts",
+      "module": "questline",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/quests/QuestRewards.ts",
+      "module": "quests",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/quests/QuestStateStore.ts",
+      "module": "quests",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/relationships/NPCRelationshipSystem.ts",
+      "module": "relationships",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/relationships/SharedMemoryNetwork.ts",
+      "module": "relationships",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/release/BuildStamp.ts",
+      "module": "release",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/release/ReleaseChecklist.ts",
+      "module": "release",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/release/ReleaseProfile.ts",
+      "module": "release",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/religion/ReligionSystem.ts",
+      "module": "religion",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/reputation/ReputationLedger.ts",
+      "module": "reputation",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/reputation/ReputationSystem.ts",
+      "module": "reputation",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/resolvers/ProfileResolver.ts",
+      "module": "resolvers",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/resonance/TraitResonanceEngine.ts",
+      "module": "resonance",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/resource/forestMath.ts",
+      "module": "resource",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/resource/forestResourceCheck.ts",
+      "module": "resource",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/resource/forestResourceRules.ts",
+      "module": "resource",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/security/AntiCheatHooks.ts",
+      "module": "security",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/security/PayloadValidator.ts",
+      "module": "security",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/siege/SiegeEngine.ts",
+      "module": "siege",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/skill/SkillSystem.ts",
+      "module": "skill",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/skill/impactBusterConfig.ts",
+      "module": "skill",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/skill/skillDefinitions.ts",
+      "module": "skill",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/social/FriendsSystem.ts",
+      "module": "social",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/social/GroupFinder.ts",
+      "module": "social",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/social/IgnoreSystem.ts",
+      "module": "social",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/social/PartySystem.ts",
+      "module": "social",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/streaming/StreamController.ts",
+      "module": "streaming",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/structure/ConstructionQueue.ts",
+      "module": "structure",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/structure/GateController.ts",
+      "module": "structure",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/structure/SiegeEngine.ts",
+      "module": "structure",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/structure/StorageEntity.ts",
+      "module": "structure",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/structure/StructureTemplates.ts",
+      "module": "structure",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/structure/UpgradeSystem.ts",
+      "module": "structure",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/swarm/config/swarm.constants.ts",
+      "module": "swarm",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/swarm/orchestrator/SwarmOrchestrator.ts",
+      "module": "swarm",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/swarm/services/AIService.ts",
+      "module": "swarm",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/swarm/services/ArchitectAgent.ts",
+      "module": "swarm",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/swarm/services/DeveloperAgent.ts",
+      "module": "swarm",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/swarm/services/ReviewerAgent.ts",
+      "module": "swarm",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/swarm/services/WorldEventBus.ts",
+      "module": "swarm",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/swarm/types/agent.types.ts",
+      "module": "swarm",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/systems/ContractManager.ts",
+      "module": "systems",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/systems/InventorySystem.ts",
+      "module": "systems",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/systems/PathfindingSystem.ts",
+      "module": "systems",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/telemetry/PerformanceBudget.ts",
+      "module": "telemetry",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/telemetry/TelemetryCollector.ts",
+      "module": "telemetry",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/territory/TerritoryControl.ts",
+      "module": "territory",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/trade/BuyOrders.ts",
+      "module": "trade",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/trade/PlayerMarket.ts",
+      "module": "trade",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/trade/SellOrders.ts",
+      "module": "trade",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/types/index.ts",
+      "module": "types",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/vote/VoteBannerStore.ts",
+      "module": "vote",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/vote/VoteProviderRegistry.ts",
+      "module": "vote",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/vote/VoteSystem.ts",
+      "module": "vote",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/vote/playerVoteProgress.ts",
+      "module": "vote",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/vote/voteTypes.ts",
+      "module": "vote",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/warfront/WarfrontCombatOrchestrator.ts",
+      "module": "warfront",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/warfront/WarfrontCombatTelemetry.ts",
+      "module": "warfront",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/warfront/WarfrontSystem.ts",
+      "module": "warfront",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/warfront/playerWarfrontProgress.ts",
+      "module": "warfront",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/warfront/warfrontRng.ts",
+      "module": "warfront",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/warfront/warfrontTypes.ts",
+      "module": "warfront",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/weather/ClimateModel.ts",
+      "module": "weather",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/weather/SeasonalGrowthBridge.ts",
+      "module": "weather",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/weather/WeatherEffects.ts",
+      "module": "weather",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/weather/WeatherMagicBridge.ts",
+      "module": "weather",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/weather/WeatherPresets.ts",
+      "module": "weather",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/weather/WeatherResonance.ts",
+      "module": "weather",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/AREModeAuditTrail.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/AREStateCompiler.ts",
+      "module": "world",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/world/AssetPoolResolver.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/BiomeGenerator.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/ChunkActivation.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/ChunkModificationDirector.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/ChunkSystem.ts",
+      "module": "world",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/world/HazardResonance.ts",
+      "module": "world",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/world/LootDirector.ts",
+      "module": "world",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/world/NavMeshNodes.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/Pathfinding.ts",
+      "module": "world",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/world/ProfileResolver.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/ResourcePopulator.ts",
+      "module": "world",
+      "category": "D",
+      "categoryName": "NON_DETERMINISTIC"
+    },
+    {
+      "path": "server/src/modules/world/ResourceScatter.ts",
+      "module": "world",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/world/ResourceSystem.ts",
+      "module": "world",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/world/RuntimeSettingsStore.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/SeasonSystem.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/SeasonalEventBridge.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/ShadowRegisterPortal.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/TerrainGenerator.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/TravelHazards.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/WeatherResonance.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/WeatherSystem.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/WorldEmergenceEvent.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/WorldEventBus.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/WorldObjectSystem.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/WorldResonanceAdapter.ts",
+      "module": "world",
+      "category": "B",
+      "categoryName": "DETERMINISTIC_READY"
+    },
+    {
+      "path": "server/src/modules/world/WorldSeed.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/WorldState.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/WorldStateStore.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/WorldSystem.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world/WorldWonderRegistry.ts",
+      "module": "world",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    },
+    {
+      "path": "server/src/modules/world-editor/AdminAuditLog.ts",
+      "module": "world-editor",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/world-editor/ObjectPlacement.ts",
+      "module": "world-editor",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/world-editor/TerrainBrush.ts",
+      "module": "world-editor",
+      "category": "E",
+      "categoryName": "STUB_FAKE"
+    },
+    {
+      "path": "server/src/modules/world-editor/WorldEditorServer.ts",
+      "module": "world-editor",
+      "category": "C",
+      "categoryName": "UTILITY_LOW_RISK"
+    }
+  ],
+  "summary": {
+    "A": 2,
+    "B": 100,
+    "C": 262,
+    "D": 3,
+    "E": 105
+  }
+}
