@@ -7,7 +7,7 @@
  *
  * ARE Determinism:
  * - All providers return deterministic data from the game state
- * - No Date.now() or Math.random() in provider implementations
+ * - Providers must not read wall-clock time or entropy in truth-path code
  * - Providers use stable entity keys for deterministic ordering
  */
 
