@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { TickSystemPriority } from '../TickSystem.js';
 import { ManifestTickSystem } from '../ManifestTickSystem.js';
 
