@@ -1,5 +1,6 @@
 import {
   TickSystemPriority,
+  createDefaultTickContext,
   type TickSystem,
   type TickSystemContext,
 } from "./TickSystem.js";
@@ -19,6 +20,7 @@ import {
   type OracleCriticalEventData,
   type OracleRecommendationEventData,
 } from "../../modules/oracle/OracleModule.js";
+import type { Prophecy } from "../../are/OuroborosOracle.js";
 import type { WorldEventBus } from "../../modules/ouroboros/WorldEventBus.js";
 
 export const ORACLE_TICK_SYSTEM_NAME = "oracle" as const;
@@ -31,7 +33,7 @@ export type OracleRecommendation = OracleRecommendationEventData;
 
 export interface BrainInformationFlow {
   readonly tick: TickId;
-  readonly activeProphecies: readonly unknown[];
+  readonly activeProphecies: readonly Prophecy[];
   readonly criticalEvents: OracleCriticalEventData[];
   readonly recommendations: OracleRecommendationEventData[];
   readonly worldHash: string | null;
@@ -57,7 +59,7 @@ export class OracleTickSystem implements TickSystem {
     }
 
     this.oracleModule = getOracleModule();
-    this.oracleModule.tick({ tickCount: 0 });
+    this.oracleModule.tick(createDefaultTickContext(0));
   }
 
   tick(context: TickSystemContext): void {
@@ -136,7 +138,7 @@ export class OracleTickSystem implements TickSystem {
     this.oracleModule.setOnRecommendation((rec) => callback(rec));
   }
 
-  setOnProphecy(callback: (prophecy: unknown) => void): void {
+  setOnProphecy(callback: (prophecy: Prophecy) => void): void {
     this.oracleModule.setOnProphecy((prophecy) => callback(prophecy));
   }
 
