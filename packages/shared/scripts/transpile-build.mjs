@@ -14,6 +14,7 @@ const shouldEmitDeclarations = process.env.WASD_EMIT_DECLARATIONS === '1' || pro
 const compilerOptions = {
   target: ts.ScriptTarget.ES2022,
   module: ts.ModuleKind.ES2022,
+  moduleResolution: ts.ModuleResolutionKind.Bundler,
   esModuleInterop: true,
   experimentalDecorators: true,
   emitDecoratorMetadata: false,
