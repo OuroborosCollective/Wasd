@@ -5,7 +5,7 @@
  * falls back to legacy emit() for backward compatibility.
  */
 
-import type { WorldEventBus } from "../ouroboros/WorldEventBus.js";
+import type { WorldEvent, WorldEventBus } from "../ouroboros/WorldEventBus.js";
 import type {
   BroadcastFn,
   ChatChannelRouter,
@@ -71,9 +71,10 @@ export interface OracleChatBridgeInstallTarget {
  * This enables Oracle prophecies to be broadcast to players via chat.
  */
 export function installOracleChatBridge(tick: OracleChatBridgeInstallTarget): OracleChatBridge | null {
-  // Try to get deterministic event bus first, fall back to regular
-  const deterministicBus = tick.eventBus as DeterministicEventBus | undefined
-    ?? tick.ouroborosEngine?.eventBus as DeterministicEventBus | undefined;
+  // Try to get deterministic event bus first, fall back to regular.
+  const deterministicBus =
+    (tick.eventBus as DeterministicEventBus | undefined) ??
+    (tick.ouroborosEngine?.eventBus as DeterministicEventBus | undefined);
   const eventBus = deterministicBus ?? tick.eventBus ?? tick.ouroborosEngine?.eventBus;
 
   const chatRouter = tick.chatSystem?.chatRouter ?? tick.chatRouter;
