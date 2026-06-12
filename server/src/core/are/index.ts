@@ -253,3 +253,22 @@ export {
   getDeterministicSeed,
   type TickContext,
 } from './TickSystemContextProvider.js';
+
+// Phase 11: KappaLayers - Unified 13-layer definition with Kappa1000 hashing
+export {
+  KAPPA_LAYER_NAMES,
+  KAPPA_LAYER_CONSTANTS,
+  LEGACY_LAYER_MAPPING,
+  kappa1000Hash,
+  hashChunkKappa1000,
+  verifyChunkKappaHash,
+  checksumKappaLayers,
+  createEmptyKappaLayers,
+  createKappaLayers,
+  cloneKappaLayers,
+  getKappaLayerValues,
+  fromChunkLayerState,
+  toChunkLayerState,
+  type KappaLayerKey,
+  type KappaLayers,
+} from './KappaLayers.js';
