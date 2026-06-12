@@ -84,6 +84,10 @@ export class OuroborosTickSystem implements TickSystem {
     this.tickInterval = options.tickInterval ?? 10;
   }
 
+  getEngine(): OuroborosEngine {
+    return this.engine;
+  }
+
   tick(context: TickSystemContext): void {
     this.tickCounter += 1;
     if (this.tickCounter % this.tickInterval !== 0) return;
