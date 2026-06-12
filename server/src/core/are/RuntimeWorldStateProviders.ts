@@ -17,6 +17,26 @@ import type { NPCSystem } from "../../modules/npc/NPCSystem.js";
 import type { RuntimePlayerSystem } from "./RuntimeDomainPorts.js";
 import type { LootDirector } from "../../modules/world/LootDirector.js";
 
+type MutableWorldStateProviderSlice = {
+  npcs?: unknown[];
+  players?: unknown[];
+  loot?: unknown[];
+  warfronts?: unknown[];
+  economy?: unknown[];
+  factions?: unknown[];
+  quests?: unknown[];
+  worldEvents?: unknown[];
+};
+
+function appendSliceField(
+  target: MutableWorldStateProviderSlice,
+  key: keyof MutableWorldStateProviderSlice,
+  source: readonly unknown[] | undefined,
+): void {
+  if (!source || source.length === 0) return;
+  target[key] = [...(target[key] ?? []), ...source];
+}
+
 /**
  * NPC World State Provider
  * Provides NPCs from the NPCSystem
@@ -80,21 +100,21 @@ export class CompositeWorldStateProvider implements WorldStateProvider {
   }
 
   getWorldState(context: TickSystemContext): WorldStateProviderSlice {
-    const merged: WorldStateProviderSlice = {};
+    const merged: MutableWorldStateProviderSlice = {};
 
     for (const provider of this.providers) {
       const slice = provider.getWorldState(context);
 
-      if (slice.npcs) merged.npcs = [...(merged.npcs ?? []), ...slice.npcs];
-      if (slice.players) merged.players = [...(merged.players ?? []), ...slice.players];
-      if (slice.loot) merged.loot = [...(merged.loot ?? []), ...slice.loot];
-      if (slice.warfronts) merged.warfronts = [...(merged.warfronts ?? []), ...slice.warfronts];
-      if (slice.economy) merged.economy = [...(merged.economy ?? []), ...slice.economy];
-      if (slice.factions) merged.factions = [...(merged.factions ?? []), ...slice.factions];
-      if (slice.quests) merged.quests = [...(merged.quests ?? []), ...slice.quests];
-      if (slice.worldEvents) merged.worldEvents = [...(merged.worldEvents ?? []), ...slice.worldEvents];
+      appendSliceField(merged, "npcs", slice.npcs);
+      appendSliceField(merged, "players", slice.players);
+      appendSliceField(merged, "loot", slice.loot);
+      appendSliceField(merged, "warfronts", slice.warfronts);
+      appendSliceField(merged, "economy", slice.economy);
+      appendSliceField(merged, "factions", slice.factions);
+      appendSliceField(merged, "quests", slice.quests);
+      appendSliceField(merged, "worldEvents", slice.worldEvents);
     }
 
-    return merged;
+    return Object.freeze(merged);
   }
 }
