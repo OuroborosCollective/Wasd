@@ -1,4 +1,4 @@
-/**
+/** @are-telemetry-side-channel Non-deterministic timestamps for identity/persistence only.
  * Phase 7: Session Token Service
  * 
  * Creates and verifies server-side session tokens.
