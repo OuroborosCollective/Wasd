@@ -129,7 +129,7 @@ export class WatchdogEmitter {
 
     const origin = this.normalizeText(source, this.defaultSource);
     const eventType = this.normalizeText(type, 'watchdog.event');
-    const stamp = createWatchdogTickStamp(this.tick, ++this.seq);
+    const stamp = createWatchdogTickStamp(this.tick, this.nextSeq());
 
     const event = normalizeWatchdogEvent(
       {
@@ -169,7 +169,7 @@ export class WatchdogEmitter {
     );
 
     const channel = this.normalizeText(runtimeEvent.channel, this.channelFor(origin));
-    const stamp = createWatchdogTickStamp(this.tick, ++this.seq);
+    const stamp = createWatchdogTickStamp(this.tick, this.nextSeq());
 
     const normalized = normalizeWatchdogEvent(
       {
@@ -196,6 +196,18 @@ export class WatchdogEmitter {
 
   public clearListeners(): void {
     this.listeners.clear();
+  }
+
+  private nextSeq(): number {
+    const busSeq = this.bus.getLedgerStats().currentTickSequence;
+    const next = Math.max(this.seq, busSeq) + 1;
+
+    if (!Number.isSafeInteger(next)) {
+      throw new RangeError('[WatchdogEmitter] sequence overflow would exceed Number.MAX_SAFE_INTEGER.');
+    }
+
+    this.seq = next;
+    return next;
   }
 
   private broadcast(event: DeterministicWatchdogEvent): void {
