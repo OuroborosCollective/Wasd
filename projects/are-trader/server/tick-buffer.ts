@@ -6,6 +6,8 @@
  * for O(1) frontend lookups.
  * 
  * No floating-point drift for RSI/MACD indicator calculations.
+ * 
+ * ARE Determinism: Uses tickCount for timestamps, no Date.now, no Math.random.
  */
 
 import { EventEmitter } from 'events';
@@ -16,9 +18,10 @@ import { EventEmitter } from 'events';
 export interface CryptoTick {
   symbol: string;      // e.g., "BTCUSDT"
   price: number;        // Raw price from exchange
-  timestamp: number;    // Unix timestamp ms
+  timestamp: number;    // Deterministic tick-derived timestamp (not wall-clock)
   exchange: 'binance' | 'kraken';
   volume?: number;
+  tickCount?: number;  // Deterministic tick counter for ARE synchronization
 }
 
 /**
@@ -29,6 +32,7 @@ export interface NormalizedTick {
   symbol: string;
   priceScaled: number;  // price * KAPPA_POS (integer)
   timestamp: number;
+  tickCount: number;
   exchange: 'binance' | 'kraken';
 }
 
@@ -85,19 +89,37 @@ export enum TickEventType {
 /**
  * Core tick buffer that collects ticks in fixed 100ms windows
  * Uses kappaPos integer scaling to prevent floating-point drift
+ * 
+ * ARE Determinism: All timestamps derived from tick count, no Date.now.
  */
 export class TickBuffer extends EventEmitter {
   private config: TickPipelineConfig;
   private windowBuffers: Map<string, TickWindowState> = new Map();
   private pendingTicks: Map<string, CryptoTick[]> = new Map();
   private lastWindowIndex: number = 0;
-  private currentTime: number = 0;
+  private currentTickCount: number = 0;
 
   constructor(config: Partial<TickPipelineConfig> = {}) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.currentTime = Date.now();
-    this.lastWindowIndex = this.getWindowIndex(this.currentTime);
+    // Initialize with tick count 0, not Date.now()
+    this.currentTickCount = 0;
+    this.lastWindowIndex = 0;
+  }
+
+  /**
+   * Get the current deterministic tick count
+   */
+  getTickCount(): number {
+    return this.currentTickCount;
+  }
+
+  /**
+   * Increment tick count (called by pipeline on each incoming tick)
+   */
+  incrementTickCount(): number {
+    this.currentTickCount++;
+    return this.currentTickCount;
   }
 
   /**
@@ -216,10 +238,14 @@ export class TickBuffer extends EventEmitter {
   /**
    * Force compile current window and move to next
    * Call this when window interval has passed
+   * 
+   * ARE Determinism: Uses tickCount for timestamps, no Date.now
    */
-  compileWindow(): Map<string, ChainString> {
+  compileWindow(tickCount?: number): Map<string, ChainString> {
     const compiledChains = new Map<string, ChainString>();
-    const newWindowIndex = this.getWindowIndex(Date.now());
+    // Use deterministic tick count to derive window, not Date.now
+    const currentTick = tickCount ?? this.currentTickCount;
+    const newWindowIndex = this.getWindowIndexFromTick(currentTick);
 
     if (newWindowIndex > this.lastWindowIndex) {
       // Compile all active windows
@@ -237,6 +263,16 @@ export class TickBuffer extends EventEmitter {
     }
 
     return compiledChains;
+  }
+
+  /**
+   * Calculate window index from tick count
+   * windowIndex = floor(tickCount / (windowIntervalMs / 1000 * 10))
+   * Since 100ms = 10 ticks at 10Hz
+   */
+  getWindowIndexFromTick(tickCount: number): number {
+    const ticksPerWindow = Math.floor(this.config.windowIntervalMs / 100) * 10;
+    return Math.floor(tickCount / ticksPerWindow);
   }
 
   /**

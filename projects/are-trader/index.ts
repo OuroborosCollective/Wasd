@@ -4,7 +4,8 @@
  * Exports all public API for the tick pipeline module
  */
 
-export { TickBuffer } from './server/tick-buffer';
+// Class and value exports from server modules
+export { TickBuffer, DEFAULT_CONFIG } from './server/tick-buffer';
 export { 
   TickPipeline, 
   createTickPipeline,
@@ -37,17 +38,20 @@ export {
   PriceHistory
 } from './logic/indicators';
 
-// Re-export type-only types
+// Re-export type-only exports from their canonical locations
+export type {
+  RSIResult,
+  MACDResult,
+  IndicatorResult
+} from './logic/indicators';
+
 export type {
   CryptoTick,
   NormalizedTick,
   TickWindowState,
   ChainString,
-  TickPipelineConfig,
-  RSIResult,
-  MACDResult,
-  IndicatorResult
-} from './logic/indicators';
+  TickPipelineConfig
+} from './server/tick-buffer';
 
 export type {
   PipelineEvent as PipelineEventType,

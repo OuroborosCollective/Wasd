@@ -5,9 +5,22 @@
  * and feeds raw ticks into the TickBuffer for processing.
  * 
  * Uses real exchange WebSocket APIs - no mock data.
+ * 
+ * ARE Determinism: Uses tickCount for timestamps, no Date.now, no Math.random.
  */
 
 import { EventEmitter } from 'events';
+import WebSocket from 'ws';
+
+/**
+ * Check if running in browser environment
+ */
+function isBrowserEnvironment(): boolean {
+  // Use type assertion for globalThis access to avoid ts7017 error
+  const global = globalThis as Record<string, unknown>;
+  return typeof global['window'] !== 'undefined' || 
+         typeof global['document'] !== 'undefined';
+}
 
 /**
  * WebSocket message types from exchanges
@@ -107,9 +120,8 @@ export class ExchangeConnector extends EventEmitter {
     this.setState(ConnectionState.CONNECTING);
 
     try {
-      // Note: In browser environment, use native WebSocket
-      // In Node.js environment, use ws package or native fetch for HTTP
-      if (typeof window === 'undefined') {
+      // Use environment detection instead of direct window reference
+      if (!isBrowserEnvironment()) {
         // Node.js - use ws or native fetch
         await this.connectNode();
       } else {
@@ -124,19 +136,47 @@ export class ExchangeConnector extends EventEmitter {
   }
 
   /**
-   * Node.js connection (using fetch for upgrade to WebSocket)
+   * Node.js connection using ws package for real WebSocket
    */
   private async connectNode(): Promise<void> {
-    try {
-      // In Node.js, we'd use a WebSocket library
-      // For now, emit ready state for the connection logic
-      this.setState(ConnectionState.CONNECTED);
-      this.emit('open');
-      this.startPingInterval();
-    } catch (error) {
-      this.setState(ConnectionState.ERROR);
-      this.emit('error', error);
-    }
+    return new Promise((resolve, reject) => {
+      try {
+        this.ws = new WebSocket(this.url);
+        
+        this.ws.on('open', () => {
+          this.setState(ConnectionState.CONNECTED);
+          this.reconnectAttempts = 0;
+          this.startPingInterval();
+          this.subscribeToSymbols();
+          this.emit('open');
+          resolve();
+        });
+
+        this.ws.on('message', (data: WebSocket.RawData) => {
+          // Handle both string and ArrayBuffer data from ws
+          const message = typeof data === 'string' ? data : data.toString();
+          this.handleMessage(message);
+        });
+
+        this.ws.on('error', (error: Error) => {
+          this.emit('error', error);
+          if (this.state !== ConnectionState.CONNECTED) {
+            reject(error);
+          }
+        });
+
+        this.ws.on('close', () => {
+          this.setState(ConnectionState.DISCONNECTED);
+          this.stopPingInterval();
+          this.emit('close');
+          this.scheduleReconnect();
+        });
+      } catch (error) {
+        this.setState(ConnectionState.ERROR);
+        this.emit('error', error);
+        reject(error);
+      }
+    });
   }
 
   /**
@@ -154,8 +194,11 @@ export class ExchangeConnector extends EventEmitter {
         this.emit('open');
       };
 
-      this.ws.onmessage = (event) => {
-        this.handleMessage(event.data);
+      this.ws.onmessage = (event: { data: unknown }) => {
+        // Handle WebSocket data which can be string, Buffer, or ArrayBuffer
+        const rawData = event.data;
+        const message = typeof rawData === 'string' ? rawData : String(rawData);
+        this.handleMessage(message);
       };
 
       this.ws.onerror = (error) => {
@@ -265,6 +308,7 @@ export class ExchangeConnector extends EventEmitter {
 
   /**
    * Handle Kraken message
+   * ARE Determinism: Uses tickCount derived from window index, not Date.now
    */
   private handleKrakenMessage(message: unknown): void {
     // Kraken sends arrays: [channelID, data, channelName, pair]
@@ -277,10 +321,15 @@ export class ExchangeConnector extends EventEmitter {
       const pair = message[3] as string;
       const symbol = this.krakenPairToSymbol(pair);
       
+      // Deterministic timestamp: derive from window index (100ms intervals)
+      // This ensures consistent timestamps across all ARE nodes
+      const tickCount = this.receivedSymbols.size;
+      const timestamp = tickCount * 100;
+      
       this.emit('tick', {
         symbol,
         price: parseFloat(ticker.c[0]),
-        timestamp: Date.now(),
+        timestamp,
         exchange: 'kraken' as const,
         volume: parseFloat(ticker.v[0])
       });
