@@ -14,13 +14,12 @@ import {
   createDeterministicEvent,
   type DeterministicEventContext,
   type WorldEventInput,
-  TICK_MS,
-} from "../are/DeterministicEventFactory.js";
+} from "../../core/are/DeterministicEventFactory.js";
 
 export interface WorldEvent {
   id: string;
   type: WorldEventType;
-  /** Logical time in milliseconds (tick * TICK_MS). NOT wall-clock time. */
+  /** Logical time in milliseconds (tick * 100). NOT wall-clock time. */
   ts: number;
   /** Position where the event occurred. */
   position: { x: number; y: number };
@@ -126,7 +125,7 @@ export class WorldEventBus {
       position,
       actorId: deterministic.actorId,
       actorName,
-      targetId: target?.id ?? deterministic.targetId || undefined,
+      targetId: target?.id ?? (deterministic.targetId || undefined),
       targetName: target?.name,
       data: deterministic.data as Record<string, unknown>,
       intensity,
