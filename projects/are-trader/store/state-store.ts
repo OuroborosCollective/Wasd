@@ -3,10 +3,26 @@
  * 
  * Provides O(1) lookups for React frontend through
  * compiled chain strings from the tick pipeline.
+ * 
+ * ARE Determinism: All state derived from tick pipeline output, no Math.random, no Date.now.
  */
 
 import { EventEmitter } from 'events';
-import { ChainString, PipelineState, SymbolState, PipelineEvent } from './tick-pipeline';
+import { 
+  TickBuffer, 
+  TickPipelineConfig, 
+  DEFAULT_CONFIG, 
+  ChainString, 
+  TickWindowState,
+  CryptoTick 
+} from '../server/tick-buffer';
+import { 
+  TickPipeline, 
+  createTickPipeline, 
+  PipelineEvent, 
+  PipelineState,
+  SymbolState 
+} from '../server/tick-pipeline';
 
 /**
  * Store event types

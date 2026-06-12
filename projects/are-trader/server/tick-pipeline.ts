@@ -4,6 +4,8 @@
  * Orchestrates WebSocket connections to crypto exchanges,
  * collects ticks in 100ms windows using kappaPos integer scaling,
  * and compiles chain strings for O(1) frontend lookups.
+ * 
+ * ARE Determinism: All timestamps derived from tick count, no Date.now, no Math.random.
  */
 
 import { EventEmitter } from 'events';
@@ -73,6 +75,7 @@ export class TickPipeline extends EventEmitter implements AREStateCompiler {
   private windowTimer: NodeJS.Timeout | null = null;
   private isRunning: boolean = false;
   private symbols: string[];
+  private globalTickCount: number = 0;
 
   constructor(config: Partial<TickPipelineConfig> = {}) {
     super();
@@ -98,6 +101,22 @@ export class TickPipeline extends EventEmitter implements AREStateCompiler {
     }
 
     this.setupTickBufferHandlers();
+  }
+
+  /**
+   * Get global deterministic tick count
+   */
+  getGlobalTickCount(): number {
+    return this.globalTickCount;
+  }
+
+  /**
+   * Increment global tick count
+   */
+  incrementGlobalTickCount(): number {
+    this.globalTickCount++;
+    this.tickBuffer.incrementTickCount();
+    return this.globalTickCount;
   }
 
   /**
@@ -169,11 +188,16 @@ export class TickPipeline extends EventEmitter implements AREStateCompiler {
   /**
    * Compile current window state
    * Called every 100ms
+   * 
+   * ARE Determinism: Uses tickCount for timestamps, no Date.now
    */
   private compileWindow(): void {
-    const chains = this.tickBuffer.compileWindow();
-    const now = Date.now();
-    const windowIndex = this.tickBuffer.getWindowIndex(now);
+    const tickCount = this.incrementGlobalTickCount();
+    const chains = this.tickBuffer.compileWindow(tickCount);
+    
+    // Deterministic timestamp: derive from tick count (10 Hz = 100ms per tick)
+    const compiledAt = tickCount * 100;
+    const windowIndex = this.tickBuffer.getWindowIndexFromTick(tickCount);
 
     for (const symbol of this.symbols) {
       const chain = chains.get(symbol);
@@ -184,13 +208,13 @@ export class TickPipeline extends EventEmitter implements AREStateCompiler {
           symbol,
           chain,
           priceScaled: windowState.closeScaled,
-          lastUpdate: now,
+          lastUpdate: compiledAt,
           exchange: windowState.tickCount > 0 ? 'binance' : 'binance' // Use actual exchange from tick
         };
       }
     }
 
-    this.state.compiledAt = now;
+    this.state.compiledAt = compiledAt;
     this.state.windowIndex = windowIndex;
 
     this.emit(PipelineEvent.WINDOW, this.state);

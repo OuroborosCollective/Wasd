@@ -7,9 +7,11 @@
     "lint": "tsc --noEmit"
   },
   "devDependencies": {
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "@types/ws": "^8.18.1"
   },
   "dependencies": {
-    "@wasd/shared": "workspace:*"
+    "@wasd/shared": "workspace:*",
+    "ws": "^8.18.1"
   }
 }

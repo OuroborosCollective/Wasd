@@ -6,9 +6,12 @@
  * 
  * All calculations use scaled integers, only convert to
  * decimal for final display.
+ * 
+ * ARE Determinism: All state derives from tick count, no Math.random, no Date.now.
  */
 
-import { ChainString, TickWindowState } from './tick-buffer';
+// Types are now defined inline in this file for deterministic import
+// (avoids circular dependency with tick-buffer which uses these types)
 
 /**
  * RSI calculation period
@@ -267,8 +270,8 @@ export class MACDCalculator {
       return 0;
     }
 
-    // First EMA is SMA
     let ema: number;
+    // First EMA is SMA (Simple Moving Average)
     if (values.length === period) {
       let sum = 0;
       for (let i = 0; i < period; i++) {
@@ -277,7 +280,7 @@ export class MACDCalculator {
       ema = Math.round(sum / period);
     } else {
       // Subsequent EMA: (Price - EMA(prev)) * multiplier + EMA(prev)
-      const prevEMA = ema || values[0];
+      const prevEMA = values[values.length - period - 1] || 0;
       const price = values[values.length - 1];
       const emaChange = ((price - prevEMA) * multiplier) / period;
       ema = prevEMA + emaChange;
@@ -428,8 +431,9 @@ export class IndicatorEngine {
 
   /**
    * Process tick and update indicators
+   * ARE Determinism: Uses tickCount for timestamp derivation, no Date.now
    */
-  processTick(symbol: string, closeScaled: number): IndicatorResult | undefined {
+  processTick(symbol: string, closeScaled: number, tickCount: number = 0): IndicatorResult | undefined {
     const rsiCalc = this.rsiCalculators.get(symbol);
     const macdCalc = this.macdCalculators.get(symbol);
 
@@ -440,11 +444,15 @@ export class IndicatorEngine {
     const rsi = rsiCalc.calculate(closeScaled);
     const macd = macdCalc.calculate(closeScaled);
 
+    // Deterministic timestamp: derive from tickCount using world tick rate (10 Hz = 100ms)
+    // This ensures consistent timestamps across all ARE nodes
+    const timestamp = tickCount * 100;
+
     return {
       symbol,
       rsi,
       macd,
-      timestamp: Date.now()
+      timestamp
     };
   }
 
