@@ -13,9 +13,9 @@
 
 import type { TickSystemContext } from "./TickSystem.js";
 import type { WorldStateProvider, WorldStateProviderSlice } from "./WorldTickThinShell.js";
-import { NPCSystem, type NPC } from "../npc/NPCSystem.js";
-import { RuntimePlayerSystem } from "./RuntimeDomainPorts.js";
-import { LootDirector, type LootEntity } from "../world/LootDirector.js";
+import type { NPCSystem } from "../../modules/npc/NPCSystem.js";
+import type { RuntimePlayerSystem } from "./RuntimeDomainPorts.js";
+import type { LootDirector } from "../../modules/world/LootDirector.js";
 
 /**
  * NPC World State Provider
