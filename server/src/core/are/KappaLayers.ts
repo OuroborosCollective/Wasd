@@ -249,22 +249,32 @@ export function checksumKappaLayers(layers: KappaLayers): KappaInt {
 
 /**
  * Convert legacy ChunkLayerState to canonical KappaLayers
+ * 
+ * Layer name mapping (from legacy ChunkLayerState to canonical IARELogicLayers):
+ * - ecology -> ecology
+ * - economy -> market (local prices, Angebot/Nachfrage)
+ * - conjuncture -> economy (structural growth)
+ * - npc_vitality -> physiology
+ * - social_memory -> memory
+ * - aggression -> conflict
+ * - kingdom -> kingdoms
+ * - resurrection -> cycles
  */
 export function fromChunkLayerState(legacy: Record<string, number>): KappaLayers {
   return Object.freeze({
     ecology: (legacy['ecology'] ?? 0) as KappaInt,
-    market: (legacy['market'] ?? legacy['economy'] ?? 0) as KappaInt,
-    physiology: (legacy['physiology'] ?? legacy['npc_vitality'] ?? 0) as KappaInt,
+    market: (legacy['economy'] ?? 0) as KappaInt,         // economy -> market
+    physiology: (legacy['npc_vitality'] ?? 0) as KappaInt,
     trade: (legacy['trade'] ?? 0) as KappaInt,
-    memory: (legacy['memory'] ?? legacy['social_memory'] ?? 0) as KappaInt,
+    memory: (legacy['social_memory'] ?? 0) as KappaInt,
     politics: (legacy['politics'] ?? 0) as KappaInt,
-    conflict: (legacy['conflict'] ?? legacy['aggression'] ?? 0) as KappaInt,
-    economy: (legacy['economy'] ?? legacy['conjuncture'] ?? 0) as KappaInt,
-    kingdoms: (legacy['kingdoms'] ?? legacy['kingdom'] ?? 0) as KappaInt,
+    conflict: (legacy['aggression'] ?? 0) as KappaInt,
+    economy: (legacy['conjuncture'] ?? 0) as KappaInt,       // conjuncture -> economy
+    kingdoms: (legacy['kingdom'] ?? 0) as KappaInt,
     faith: (legacy['faith'] ?? 0) as KappaInt,
     dungeon: (legacy['dungeon'] ?? 0) as KappaInt,
     fear: (legacy['fear'] ?? 0) as KappaInt,
-    cycles: (legacy['cycles'] ?? legacy['resurrection'] ?? 0) as KappaInt
+    cycles: (legacy['resurrection'] ?? 0) as KappaInt
   });
 }
 

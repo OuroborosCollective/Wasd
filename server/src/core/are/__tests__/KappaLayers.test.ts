@@ -294,35 +294,35 @@ describe('KappaLayers', () => {
     it('should convert legacy layer names to canonical', () => {
       const legacy = {
         ecology: 500,
-        economy: 600, // conjuncture in legacy
-        npc_vitality: 700, // physiology in canonical
+        economy: 600,        // maps to canonical.market
+        npc_vitality: 700,   // maps to canonical.physiology
         trade: 800,
-        social_memory: 100, // memory in canonical
+        social_memory: 100,  // maps to canonical.memory
         politics: 200,
-        aggression: 300, // conflict in canonical
-        conjuncture: 400, // economy in canonical
-        kingdom: 500, // kingdoms in canonical
+        aggression: 300,     // maps to canonical.conflict
+        conjuncture: 400,     // maps to canonical.economy
+        kingdom: 500,         // maps to canonical.kingdoms
         faith: 600,
         dungeon: 700,
         fear: 800,
-        resurrection: 900, // cycles in canonical
+        resurrection: 900,   // maps to canonical.cycles
       };
       
       const canonical = fromChunkLayerState(legacy);
       
       expect(canonical.ecology).toBe(500);
-      expect(canonical.market).toBe(600);
-      expect(canonical.physiology).toBe(700);
+      expect(canonical.market).toBe(600);      // economy -> market
+      expect(canonical.physiology).toBe(700);   // npc_vitality -> physiology
       expect(canonical.trade).toBe(800);
-      expect(canonical.memory).toBe(100);
+      expect(canonical.memory).toBe(100);      // social_memory -> memory
       expect(canonical.politics).toBe(200);
-      expect(canonical.conflict).toBe(300);
-      expect(canonical.economy).toBe(400);
-      expect(canonical.kingdoms).toBe(500);
+      expect(canonical.conflict).toBe(300);    // aggression -> conflict
+      expect(canonical.economy).toBe(400);      // conjuncture -> economy
+      expect(canonical.kingdoms).toBe(500);     // kingdom -> kingdoms
       expect(canonical.faith).toBe(600);
       expect(canonical.dungeon).toBe(700);
       expect(canonical.fear).toBe(800);
-      expect(canonical.cycles).toBe(900);
+      expect(canonical.cycles).toBe(900);       // resurrection -> cycles
     });
   });
 

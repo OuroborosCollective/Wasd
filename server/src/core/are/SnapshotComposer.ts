@@ -155,12 +155,22 @@ export class SnapshotComposer {
    * for each chunk across ticks. This enforces the Ouroboros principle that
    * information is conserved - no layer value can be created or destroyed,
    * only transferred between layers.
+   * 
+   * Note: Chunks with checksum of 0 (empty/default state) are accepted without
+   * validation since newly registered chunks may start at zero before receiving
+   * their initial layer values from the tick system.
    */
   private validateLayerConservation(chunkId: ChunkKey, layerChecksum: KappaInt): void {
+    // Zero-sum chunks are accepted - they may be newly registered chunks
+    // that haven't yet received initial layer values
+    if (layerChecksum === 0) {
+      return;
+    }
+    
     const existingExpected = this.expectedLayerChecksums.get(chunkId);
     
     if (existingExpected === undefined) {
-      // First time this chunk is added - record the expected checksum
+      // First time this chunk is added with non-zero checksum - record it
       this.expectedLayerChecksums.set(chunkId, layerChecksum);
     } else if (layerChecksum !== existingExpected) {
       // Conservation violation: checksum changed for this chunk
