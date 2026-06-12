@@ -1,33 +1,61 @@
 /**
- * OracleChatBridge - Chat integration for Oracle prophecies
- * 
- * Subscribes to WorldEventBus `oracle_critical` events and broadcasts
- * them to players via ChatChannelRouter.
- * 
- * Usage:
- * ```typescript
- * const bridge = new OracleChatBridge(eventBus, chatRouter, recipients, sendToPlayer, broadcast, resolveSocketId);
- * ```
+ * OracleChatBridge - Chat integration for Oracle prophecies.
+ *
+ * Subscribes to WorldEventBus oracle events and forwards selected messages to
+ * the server chat router. This bridge is a side-channel only: it must not alter
+ * gameplay state or simulation truth.
  */
 
 import type { WorldEventBus, WorldEvent } from "../ouroboros/WorldEventBus.js";
-import type { ChatChannelRouter, ChatRecipient, SendToPlayerFn, BroadcastFn, ResolveSocketIdFn } from "./ChatChannelRouter.js";
+import type {
+  ChatChannelRouter,
+  ChatRecipient,
+  SendToPlayerFn,
+  BroadcastFn,
+  ResolveSocketIdFn,
+} from "../chat/ChatChannelRouter.js";
 
 export interface OracleChatBridgeConfig {
-  /** Emit critical prophecies to global chat (default: true) */
+  /** Emit critical prophecies to global chat. Default: true. */
   broadcastCritical?: boolean;
-  /** Include low/medium severity prophecies in status channel (default: false) */
+  /** Include low/medium severity prophecies in status channel. Default: false. */
   emitStatusForAll?: boolean;
-  /** Cooldown between broadcasts in ms (default: 30000 = 30 seconds) */
+  /** Cooldown in deterministic ticks. Legacy ms config is treated as a tick count. */
   broadcastCooldownMs?: number;
 }
 
+type OracleCriticalWireData = {
+  readonly message?: unknown;
+  readonly tick?: unknown;
+};
+
+type OracleProphecyWireData = {
+  readonly statement?: unknown;
+};
+
+type OracleRecommendationWireData = {
+  readonly type?: unknown;
+  readonly target?: unknown;
+  readonly priority?: unknown;
+  readonly reason?: unknown;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function asFiniteNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function asMessage(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 /**
- * OracleChatBridge connects Oracle prophecies to the Chat system
- * 
- * Listens to:
- * - oracle_critical → broadcasts to global chat as [ORACLE] messages
- * - oracle_prophecy → can emit to status channel if configured
+ * Connects Oracle events to chat without wall-clock timing.
  */
 export class OracleChatBridge {
   private readonly eventBus: WorldEventBus;
@@ -37,13 +65,9 @@ export class OracleChatBridge {
   private readonly broadcast: BroadcastFn;
   private readonly resolveSocketId: ResolveSocketIdFn;
   private readonly config: Required<OracleChatBridgeConfig>;
-  
-  // Cooldown tracking
-  private lastBroadcastTime: number = 0;
-  private readonly broadcastCooldownMs: number;
-  
-  // Event unsubscribe functions
-  private unsubscribes: (() => void)[] = [];
+  private readonly broadcastCooldownTicks: number;
+  private lastBroadcastTick = Number.NEGATIVE_INFINITY;
+  private unsubscribes: Array<() => void> = [];
 
   constructor(
     eventBus: WorldEventBus,
@@ -60,62 +84,44 @@ export class OracleChatBridge {
     this.sendToPlayer = sendToPlayer;
     this.broadcast = broadcast;
     this.resolveSocketId = resolveSocketId;
-    
     this.config = {
       broadcastCritical: config.broadcastCritical ?? true,
       emitStatusForAll: config.emitStatusForAll ?? false,
-      broadcastCooldownMs: config.broadcastCooldownMs ?? 30000,
+      broadcastCooldownMs: config.broadcastCooldownMs ?? 300,
     };
-    this.broadcastCooldownMs = this.config.broadcastCooldownMs;
-    
+    this.broadcastCooldownTicks = Math.max(0, Math.trunc(this.config.broadcastCooldownMs));
     this.subscribe();
   }
 
-  /**
-   * Subscribe to WorldEventBus events
-   */
   private subscribe(): void {
-    // Subscribe to critical prophecies - broadcast to global chat
     if (this.config.broadcastCritical) {
-      const unsubCritical = this.eventBus.on("oracle_critical", (event: WorldEvent) => {
-        this.handleCriticalEvent(event);
-      });
-      this.unsubscribes.push(unsubCritical);
+      this.unsubscribes.push(this.eventBus.on("oracle_critical", (event) => this.handleCriticalEvent(event)));
     }
-    
-    // Subscribe to all prophecies - emit to status channel
+
     if (this.config.emitStatusForAll) {
-      const unsubProphecy = this.eventBus.on("oracle_prophecy", (event: WorldEvent) => {
-        this.handleProphecyEvent(event);
-      });
-      this.unsubscribes.push(unsubProphecy);
+      this.unsubscribes.push(this.eventBus.on("oracle_prophecy", (event) => this.handleProphecyEvent(event)));
     }
-    
-    // Subscribe to recommendations - log for admin awareness
-    const unsubRecommendation = this.eventBus.on("oracle_recommendation", (event: WorldEvent) => {
-      this.handleRecommendationEvent(event);
-    });
-    this.unsubscribes.push(unsubRecommendation);
+
+    this.unsubscribes.push(this.eventBus.on("oracle_recommendation", (event) => this.handleRecommendationEvent(event)));
   }
 
-  /**
-   * Handle oracle_critical event - broadcast to global chat
-   */
+  private eventTick(event: WorldEvent): number {
+    const data = asRecord(event.data) as OracleCriticalWireData | null;
+    return asFiniteNumber(data?.tick, event.ts);
+  }
+
   private handleCriticalEvent(event: WorldEvent): void {
-    const data = event.data as any;
-    const message = data?.message;
-    
+    const data = asRecord(event.data) as OracleCriticalWireData | null;
+    const message = asMessage(data?.message);
     if (!message) return;
-    
-    // Check cooldown
-    const now = Date.now();
-    if (now - this.lastBroadcastTime < this.broadcastCooldownMs) {
-      console.log(`[OracleChatBridge] Cooldown active, skipping broadcast: ${message}`);
+
+    const tick = this.eventTick(event);
+    if (tick - this.lastBroadcastTick < this.broadcastCooldownTicks) {
+      console.log(`[OracleChatBridge] Cooldown active at tick ${tick}, skipping broadcast: ${message}`);
       return;
     }
-    this.lastBroadcastTime = now;
-    
-    // Broadcast to global chat
+    this.lastBroadcastTick = tick;
+
     this.chatRouter.publish(
       {
         channel: "global",
@@ -130,20 +136,15 @@ export class OracleChatBridge {
       this.broadcast,
       this.resolveSocketId,
     );
-    
-    console.log(`[OracleChatBridge] Broadcast critical prophecy: ${message}`);
+
+    console.log(`[OracleChatBridge] Broadcast critical prophecy at tick ${tick}: ${message}`);
   }
 
-  /**
-   * Handle oracle_prophecy event - emit to nearby players
-   */
   private handleProphecyEvent(event: WorldEvent): void {
-    const data = event.data as any;
-    const statement = data?.statement;
-    
+    const data = asRecord(event.data) as OracleProphecyWireData | null;
+    const statement = asMessage(data?.statement);
     if (!statement) return;
-    
-    // Emit as status message to nearby players
+
     this.chatRouter.emitStatus(
       `[Prophecy] ${statement}`,
       event.position,
@@ -153,23 +154,16 @@ export class OracleChatBridge {
     );
   }
 
-  /**
-   * Handle oracle_recommendation event - log for admin
-   */
   private handleRecommendationEvent(event: WorldEvent): void {
-    const data = event.data as any;
+    const data = asRecord(event.data) as OracleRecommendationWireData | null;
     if (!data) return;
-    
-    // Log recommendation for admin awareness (could be sent to admin panel)
+
     console.log(
-      `[OracleChatBridge] Oracle Recommendation: ${data.type} -> ${data.target} ` +
-      `(priority: ${data.priority}, reason: ${data.reason})`
+      `[OracleChatBridge] Oracle Recommendation: ${String(data.type ?? "unknown")} -> ${String(data.target ?? "unknown")} ` +
+        `(priority: ${String(data.priority ?? "?")}, reason: ${String(data.reason ?? "")})`,
     );
   }
 
-  /**
-   * Unsubscribe from all events
-   */
   destroy(): void {
     for (const unsub of this.unsubscribes) {
       unsub();
@@ -178,13 +172,6 @@ export class OracleChatBridge {
   }
 }
 
-// ============================================================================
-// Factory function for quick setup
-// ============================================================================
-
-/**
- * Create OracleChatBridge with standard configuration
- */
 export function createOracleChatBridge(
   eventBus: WorldEventBus,
   chatRouter: ChatChannelRouter,
