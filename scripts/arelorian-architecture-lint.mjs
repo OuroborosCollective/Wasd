@@ -63,11 +63,36 @@ function allCodeFiles() {
   return ['server/src', 'apps/client-2d/src', 'packages'].flatMap((dir) => walk(dir));
 }
 
+function gitRefExists(ref) {
+  try {
+    execFileSync('git', ['rev-parse', '--verify', '--quiet', ref], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveDiffBaseRef() {
+  if (process.env.GITHUB_BASE_REF) {
+    const remoteBase = `origin/${process.env.GITHUB_BASE_REF}`;
+    if (gitRefExists(remoteBase)) return remoteBase;
+    if (gitRefExists(process.env.GITHUB_BASE_REF)) return process.env.GITHUB_BASE_REF;
+  }
+  if (gitRefExists('origin/main')) return 'origin/main';
+  if (gitRefExists('main')) return 'main';
+  if (gitRefExists('HEAD~1')) return 'HEAD~1';
+  return null;
+}
+
 function checkWorldTickTouched() {
   if (!process.env.GITHUB_BASE_REF && !process.env.GITHUB_SHA) return;
+  const base = resolveDiffBaseRef();
+  if (!base) {
+    warn('worldtick-touch', 'Could not inspect git diff for WorldTick.ts.', 'No valid base ref was available in this checkout. Fetch the base branch or provide a full checkout.');
+    return;
+  }
   try {
-    const base = process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : 'HEAD~1';
-    const changed = execFileSync('git', ['diff', '--name-only', base, 'HEAD'], { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
+    const changed = execFileSync('git', ['diff', '--name-only', base, 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split(/\r?\n/).filter(Boolean);
     if (changed.includes('server/src/core/WorldTick.ts')) {
       warn('worldtick-touch', 'server/src/core/WorldTick.ts is changed in this diff.', 'Move gameplay logic into subsystems or runtime hooks unless an explicit maintainer whitelist is present.');
     }
