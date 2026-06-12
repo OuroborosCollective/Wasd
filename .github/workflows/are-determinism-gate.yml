@@ -30,6 +30,8 @@ jobs:
   determinism-gate:
     name: ARE Determinism Firewall (Level 3)
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 10
     steps:
       - name: Checkout repository

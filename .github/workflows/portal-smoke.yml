@@ -26,6 +26,8 @@ jobs:
   portal-smoke:
     name: Build and verify public route hub
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 25
 
     steps:
