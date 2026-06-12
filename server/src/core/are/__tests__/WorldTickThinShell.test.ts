@@ -1,7 +1,22 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { WorldTickThinShell, worldTickThinShell, registerWorldTickThinShell, type WorldStateProvider, type WorldStateProviderSlice } from '../WorldTickThinShell.js';
-import { tickSystemRegistry } from '../TickSystemRegistry.js';
-import { createChunkKey, type TickSystemContext } from '../types.js';
+import {
+  WorldTickThinShell,
+  worldTickThinShell,
+  registerWorldTickThinShell,
+  type WorldStateProvider,
+} from '../WorldTickThinShell.js';
+import { createChunkKey } from '../types.js';
+
+function registerDeterministicTestProvider(shell: WorldTickThinShell): void {
+  shell.registerWorldStateProvider({
+    id: 'test-runtime-provider',
+    getWorldState: () => ({
+      npcs: [{ id: 'npc-test', position: { x: 0, y: 0 }, health: 100 }],
+      players: [{ id: 'player-test', position: { x: 1, y: 1 } }],
+      loot: [],
+    }),
+  });
+}
 
 describe('WorldTickThinShell', () => {
   let shell: WorldTickThinShell;
@@ -41,7 +56,8 @@ describe('WorldTickThinShell', () => {
   });
 
   describe('tick execution', () => {
-    it('should increment tick count', () => {
+    it('should increment tick count when a runtime provider is registered', () => {
+      registerDeterministicTestProvider(shell);
       shell.registerChunk('0:0');
 
       shell.tick();
@@ -49,7 +65,8 @@ describe('WorldTickThinShell', () => {
       expect(shell.getTickCount()).toBe(1);
     });
 
-    it('should execute without error', () => {
+    it('should execute without error when a runtime provider is registered', () => {
+      registerDeterministicTestProvider(shell);
       shell.registerChunk('0:0');
 
       expect(() => shell.tick()).not.toThrow();
@@ -65,6 +82,7 @@ describe('WorldTickThinShell', () => {
 
     it('should stop gracefully', async () => {
       const newShell = new WorldTickThinShell();
+      registerDeterministicTestProvider(newShell);
       newShell.start();
 
       await newShell.stop();
@@ -91,7 +109,8 @@ describe('WorldTickThinShell', () => {
   });
 
   describe('world brain snapshot', () => {
-    it('should return valid snapshot structure', () => {
+    it('should return valid snapshot structure after a provider-backed tick', () => {
+      registerDeterministicTestProvider(shell);
       shell.registerChunk('0:0');
       shell.tick();
 
