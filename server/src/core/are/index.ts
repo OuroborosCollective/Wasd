@@ -203,6 +203,14 @@ export {
   type WorldEventInput,
 } from './DeterministicEventFactory.js';
 
+// Runtime World State Providers (ARE-RUNTIME-TRUTH)
+export {
+  NPCWorldStateProvider,
+  PlayerWorldStateProvider,
+  LootWorldStateProvider,
+  CompositeWorldStateProvider,
+} from './RuntimeWorldStateProviders.js';
+
 // Phase 11: WorldBrainTickSystem - Clean TickSystem integration
 export {
   WORLD_BRAIN_TICK_SYSTEM_NAME,

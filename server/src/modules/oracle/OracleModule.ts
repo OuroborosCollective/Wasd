@@ -219,14 +219,30 @@ export class OracleModule {
       confidence: prophecy.confidence,
     };
 
-    this.eventBus.emit({
-      type: "oracle_prophecy",
-      actorId: "oracle",
-      actorName: "Oracle",
-      position: { x: prophecy.sector * 64, y: 0 },
-      data,
-      intensity: prophecy.confidence,
-    });
+    // Use deterministic createEvent if eventBus supports it, otherwise fallback to emit
+    if ('createEvent' in this.eventBus && typeof this.eventBus.createEvent === 'function') {
+      const context = { tick, localIndex: this.getNextEventIndex(tick), stateHash: prophecy.worldHash ?? undefined };
+      (this.eventBus as any).createEvent(
+        {
+          type: 'oracle_prophecy',
+          actorId: 'oracle',
+          data,
+        },
+        context,
+        { x: prophecy.sector * 64, y: 0 },
+        'Oracle',
+        prophecy.confidence,
+      );
+    } else {
+      this.eventBus.emit({
+        type: 'oracle_prophecy',
+        actorId: 'oracle',
+        actorName: 'Oracle',
+        position: { x: prophecy.sector * 64, y: 0 },
+        data,
+        intensity: prophecy.confidence,
+      });
+    }
 
     this.totalPropheciesEmitted++;
     this.onProphecy?.(prophecy, tick);
@@ -242,17 +258,73 @@ export class OracleModule {
       ticksUntil: prophecy.ticksUntil,
     };
 
-    this.eventBus.emit({
-      type: "oracle_critical",
-      actorId: "oracle",
-      actorName: "ORACLE",
-      position: { x: prophecy.sector * 64, y: 0 },
-      data,
-      intensity: 1,
-    });
+    // Use deterministic createEvent if eventBus supports it, otherwise fallback to emit
+    if ('createEvent' in this.eventBus && typeof this.eventBus.createEvent === 'function') {
+      const context = { tick, localIndex: this.getNextEventIndex(tick), stateHash: prophecy.worldHash ?? undefined };
+      (this.eventBus as any).createEvent(
+        {
+          type: 'oracle_critical',
+          actorId: 'oracle',
+          data,
+        },
+        context,
+        { x: prophecy.sector * 64, y: 0 },
+        'ORACLE',
+        1,
+      );
+    } else {
+      this.eventBus.emit({
+        type: 'oracle_critical',
+        actorId: 'oracle',
+        actorName: 'ORACLE',
+        position: { x: prophecy.sector * 64, y: 0 },
+        data,
+        intensity: 1,
+      });
+    }
 
     this.totalCriticalEmitted++;
     this.onCritical?.(data, tick);
+  }
+
+  private emitRecommendationEvent(rec: OracleRecommendationEventData, tick: number): void {
+    // Use deterministic createEvent if eventBus supports it, otherwise fallback to emit
+    if ('createEvent' in this.eventBus && typeof this.eventBus.createEvent === 'function') {
+      const context = { tick, localIndex: this.getNextEventIndex(tick) };
+      (this.eventBus as any).createEvent(
+        {
+          type: 'oracle_recommendation',
+          actorId: 'oracle',
+          data: rec,
+        },
+        context,
+        { x: Number(rec.target.split(':')[1] ?? 0) * 64, y: 0 },
+        'Oracle',
+        rec.priority / 3,
+      );
+    } else {
+      this.eventBus.emit({
+        type: 'oracle_recommendation',
+        actorId: 'oracle',
+        actorName: 'Oracle',
+        position: { x: Number(rec.target.split(':')[1] ?? 0) * 64, y: 0 },
+        data: rec,
+        intensity: rec.priority / 3,
+      });
+    }
+
+    this.totalRecommendationsEmitted++;
+    this.onRecommendation?.(rec, tick);
+  }
+
+  /** Per-tick event index counter for deterministic localIndex */
+  private tickEventIndices = new Map<number, number>();
+
+  private getNextEventIndex(tick: number): number {
+    const current = this.tickEventIndices.get(tick) ?? -1;
+    const next = current + 1;
+    this.tickEventIndices.set(tick, next);
+    return next;
   }
 
   private formatCriticalMessage(prophecy: Prophecy): string {
@@ -310,20 +382,6 @@ export class OracleModule {
     return recommendations.sort((a, b) => b.priority - a.priority);
   }
 
-  private emitRecommendationEvent(rec: OracleRecommendationEventData, tick: number): void {
-    this.eventBus.emit({
-      type: "oracle_recommendation",
-      actorId: "oracle",
-      actorName: "Oracle",
-      position: { x: Number(rec.target.split(":")[1] ?? 0) * 64, y: 0 },
-      data: rec,
-      intensity: rec.priority / 3,
-    });
-
-    this.totalRecommendationsEmitted++;
-    this.onRecommendation?.(rec, tick);
-  }
-
   getReport(): OracleReport | null {
     return this.currentReport;
   }
@@ -362,6 +420,7 @@ export class OracleModule {
     this.totalPropheciesEmitted = 0;
     this.totalCriticalEmitted = 0;
     this.totalRecommendationsEmitted = 0;
+    this.tickEventIndices.clear();
   }
 }
 
