@@ -182,10 +182,10 @@ export class OuroborosCycleSystem implements TickSystem {
       // Clear kingdom state, release energy to cycles
       this.pendingErdos.set(key, newErdos);
       this.pendingLayers.set(key, {
-        kingdoms: 0,
-        economy: 0,
-        conflict: 0,
-        physiology: 0,
+        kingdoms: 0 as unknown as KappaInt,
+        economy: 0 as unknown as KappaInt,
+        conflict: 0 as unknown as KappaInt,
+        physiology: 0 as unknown as KappaInt,
         cycles: kAdd(layers.cycles, releasedEnergy)
       });
       this.pendingMythos.set(key, dungeonSeed);
@@ -228,9 +228,9 @@ export class OuroborosCycleSystem implements TickSystem {
       const newErdos = appendEvent(erdos, OuroborosEventType.RESURRECT, tick);
       this.pendingErdos.set(key, newErdos);
       this.pendingLayers.set(key, {
-        ecology: kAdd(layers.ecology, radiation),
-        economy: kAdd(layers.economy, radiation),
-        cycles: kSub(layers.cycles, radiation)
+        ecology: kAdd(layers.ecology, radiation) as unknown as KappaInt,
+        economy: kAdd(layers.economy, radiation) as unknown as KappaInt,
+        cycles: kSub(layers.cycles, radiation) as unknown as KappaInt
       });
       
       // Spread to neighbors
@@ -249,13 +249,13 @@ export class OuroborosCycleSystem implements TickSystem {
         if (existing) {
           this.pendingLayers.set(nKey as ChunkKey, {
             ...existing,
-            ecology: kAdd(existing.ecology ?? nLayers.ecology, radiation),
-            economy: kAdd(existing.economy ?? nLayers.economy, radiation)
+            ecology: kAdd(existing.ecology ?? nLayers.ecology, radiation) as unknown as KappaInt,
+            economy: kAdd(existing.ecology ?? nLayers.economy, radiation) as unknown as KappaInt
           });
         } else {
           this.pendingLayers.set(nKey as ChunkKey, {
-            ecology: kAdd(nLayers.ecology, radiation),
-            economy: kAdd(nLayers.economy, radiation)
+            ecology: kAdd(nLayers.ecology, radiation) as unknown as KappaInt,
+            economy: kAdd(nLayers.economy, radiation) as unknown as KappaInt
           });
         }
       }

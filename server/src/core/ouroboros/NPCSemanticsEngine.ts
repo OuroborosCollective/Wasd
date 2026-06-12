@@ -21,7 +21,7 @@ import {
   type ErdősString,
   OuroborosEventType
 } from './OuroborosTypes.js';
-import { parseErdosString, hasEvent } from './ErdosStringManager.js';
+import { parseErdosString } from './ErdosStringManager.js';
 
 /**
  * Semantic graph node types
@@ -75,7 +75,7 @@ const SEMANTIC_GRAPH: Readonly<{
     ['War approaches from the east.', 'Famine stalks the land.']
   ]),
   
-  [SemanticNodeType.STORY]: Object冻结([
+  [SemanticNodeType.STORY]: Object.freeze([
     ['Our kingdom stood for generations.', 'The old king was just and wise.'],
     ['Legends speak of treasures untold.', 'The dragon slept beneath the mountain.'],
     ['Witches once gathered at the crossroads.', 'The river spirits demand tribute.']

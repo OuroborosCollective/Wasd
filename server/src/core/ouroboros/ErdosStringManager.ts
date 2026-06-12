@@ -69,7 +69,7 @@ export function createGenesisErdos(
  * @param eventsStr - Pipe-separated event string
  * @returns Array of parsed events in chronological order
  */
-export function parseErdosString(eventsStr: string): ParsedErdősEvent[] {
+export function parseErdosString(eventsStr: string): readonly ParsedErdősEvent[] {
   if (!eventsStr || eventsStr.length === 0) {
     return [];
   }
@@ -273,20 +273,20 @@ export function reconstructLayersFromErdos(
   const cycles = influence.cyclesBonus;
   
   return Object.freeze({
-    ecology: baseLayers?.ecology ?? ecology,
-    market: baseLayers?.market ?? market,
-    physiology: baseLayers?.physiology ?? physiology,
-    trade: baseLayers?.trade ?? trade,
-    memory: baseLayers?.memory ?? memory,
-    politics: baseLayers?.politics ?? politics,
-    conflict: baseLayers?.conflict ?? conflict,
-    economy: baseLayers?.economy ?? economy,
-    kingdoms: baseLayers?.kingdoms ?? kingdoms,
-    faith: baseLayers?.faith ?? faith,
-    dungeon: baseLayers?.dungeon ?? dungeon,
-    fear: baseLayers?.fear ?? fear,
-    cycles: baseLayers?.cycles ?? cycles
-  });
+    ecology: (baseLayers?.ecology ?? ecology) as unknown as KappaInt,
+    market: (baseLayers?.market ?? market) as unknown as KappaInt,
+    physiology: (baseLayers?.physiology ?? physiology) as unknown as KappaInt,
+    trade: (baseLayers?.trade ?? trade) as unknown as KappaInt,
+    memory: (baseLayers?.memory ?? memory) as unknown as KappaInt,
+    politics: (baseLayers?.politics ?? politics) as unknown as KappaInt,
+    conflict: (baseLayers?.conflict ?? conflict) as unknown as KappaInt,
+    economy: (baseLayers?.economy ?? economy) as unknown as KappaInt,
+    kingdoms: (baseLayers?.kingdoms ?? kingdoms) as unknown as KappaInt,
+    faith: (baseLayers?.faith ?? faith) as unknown as KappaInt,
+    dungeon: (baseLayers?.dungeon ?? dungeon) as unknown as KappaInt,
+    fear: (baseLayers?.fear ?? fear) as unknown as KappaInt,
+    cycles: (baseLayers?.cycles ?? cycles) as unknown as KappaInt
+  }) as unknown as OuroborosLayerVector;
 }
 
 /**

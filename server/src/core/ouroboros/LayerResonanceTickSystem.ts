@@ -17,7 +17,7 @@ import { tickSystemRegistry, type TickSystemRegistry } from '../are/TickSystemRe
 import { TickSystemCategory, type ChunkKey, type TickId } from '../are/types.js';
 import { getNeighborChunkKeys } from '../are/types.js';
 import { kappa1000Hash, type KappaLayers, type KappaLayerKey } from '../are/KappaLayers.js';
-import { kAdd, kSub, kDiv, type KappaInt } from '../are/Kappa.js';
+import { kAdd, kSub, kDiv, KAPPA, type KappaInt } from '../are/Kappa.js';
 import {
   OUROBOROS_CONFIG,
   OuroborosEventType,
@@ -182,7 +182,7 @@ export class LayerResonanceTickSystem implements TickSystem {
       
       // Buffer mutation (Axiom 1: no mutation during iteration)
       this.bufferMutation(key, newErdos, {
-        kingdoms: kingdomId as KappaInt,
+        kingdoms: kingdomId as unknown as KappaInt,
         economy: kAdd(layers.economy, 50000), // Energy flows to kingdom
         memory: kAdd(layers.memory, 30000)    // Social cohesion
       });
@@ -233,7 +233,7 @@ export class LayerResonanceTickSystem implements TickSystem {
         const conflictAdd = kAdd(nLayers.conflict, 5000); // +5 aggression spread
         
         this.bufferMutation(nKey as ChunkKey, undefined, {
-          memory: memoryXor as KappaInt,
+          memory: memoryXor as unknown as KappaInt,
           conflict: conflictAdd
         });
       }
