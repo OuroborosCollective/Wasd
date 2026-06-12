@@ -183,8 +183,25 @@ export {
 export {
   WorldTickThinShell,
   worldTickThinShell,
-  registerWorldTickThinShell
+  registerWorldTickThinShell,
+  type WorldStateProviderSlice,
+  type WorldStateProvider,
+  type TickContextWorldState,
 } from './WorldTickThinShell.js';
+
+// Deterministic Event Factory (ARE-RUNTIME-TRUTH)
+export {
+  TICK_MS,
+  stableStringify,
+  deterministicHash,
+  hashData,
+  createDeterministicEventId,
+  createDeterministicEvent,
+  stableEntityKey,
+  stableSort,
+  type DeterministicEventContext,
+  type WorldEventInput,
+} from './DeterministicEventFactory.js';
 
 // Phase 11: WorldBrainTickSystem - Clean TickSystem integration
 export {
