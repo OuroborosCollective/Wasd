@@ -1,6 +1,5 @@
 import {
   TickSystemPriority,
-  createDefaultTickContext,
   type TickSystem,
   type TickSystemContext,
 } from "./TickSystem.js";
@@ -14,14 +13,12 @@ import {
 } from "./types.js";
 import {
   OracleModule,
-  getOracleModule,
-  setOracleModuleEventBus,
   type OracleModuleConfig,
   type OracleCriticalEventData,
   type OracleRecommendationEventData,
 } from "../../modules/oracle/OracleModule.js";
 import type { Prophecy } from "../../are/OuroborosOracle.js";
-import type { WorldEventBus } from "../../modules/ouroboros/WorldEventBus.js";
+import { WorldEventBus } from "../../modules/ouroboros/WorldEventBus.js";
 
 export const ORACLE_TICK_SYSTEM_NAME = "oracle" as const;
 export const ORACLE_TICK_PRIORITY = TickSystemPriority.INFRASTRUCTURE;
@@ -52,14 +49,9 @@ export class OracleTickSystem implements TickSystem {
 
   constructor(
     options: OracleModuleConfig = {},
-    eventBus?: WorldEventBus,
+    eventBus: WorldEventBus = new WorldEventBus(),
   ) {
-    if (eventBus) {
-      setOracleModuleEventBus(eventBus);
-    }
-
-    this.oracleModule = getOracleModule();
-    this.oracleModule.tick(createDefaultTickContext(0));
+    this.oracleModule = new OracleModule(eventBus, options);
   }
 
   tick(context: TickSystemContext): void {
@@ -151,6 +143,8 @@ export class OracleTickSystem implements TickSystem {
   }
 
   shutdown?(_context?: TickSystemContext): void {
+    this.oracleModule.reset();
+    this.lastReportTick = 0;
     console.log("[OracleTickSystem] Shutting down");
   }
 }
