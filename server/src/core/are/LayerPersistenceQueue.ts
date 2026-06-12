@@ -153,4 +153,6 @@ export function createLayerPersistenceEvent(
 export const PERSISTENCE_CONSTANTS = {
   DEFAULT_FLUSH_INTERVAL_TICKS: 300,
   DEFAULT_MAX_QUEUE_SIZE: 1000,
+  MAX_QUEUE_SIZE: 1000,
+  MIN_FLUSH_INTERVAL_MS: 100,
 } as const;
