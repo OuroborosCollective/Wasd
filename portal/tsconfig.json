@@ -5,7 +5,7 @@
     "lib": ["DOM", "DOM.Iterable", "ESNext"], "types": ["node", "vitest"],
     "allowJs": false,
     "skipLibCheck": true,
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
