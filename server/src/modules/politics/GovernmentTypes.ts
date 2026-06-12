@@ -1,7 +1,20 @@
-export const GovernmentTypes = {
-  monarchy: { id: "monarchy", succession: "inheritance", stabilityBase: 0.7 },
-  council: { id: "council", succession: "vote", stabilityBase: 0.6 },
-  theocracy: { id: "theocracy", succession: "religious_selection", stabilityBase: 0.65 },
-  trade_republic: { id: "trade_republic", succession: "merchant_vote", stabilityBase: 0.55 },
-  warband: { id: "warband", succession: "strength", stabilityBase: 0.4 }
-};
+import {
+  getGovernmentType,
+  getGovernmentTypes,
+  listGovernmentTypes,
+  scoreGovernmentDiplomacyFit,
+  type GovernmentTypeDefinition,
+  type GovernmentTypeId,
+} from "./PoliticsDataRegistry.js";
+
+/**
+ * Backwards-compatible export for older module callers.
+ *
+ * The source of truth is now `game-data/politics/government-types.json`, loaded and
+ * normalized by `PoliticsDataRegistry`. Keep module logic here; keep balancing/content
+ * in game-data so server, 2D, 3D and tooling can agree on the same definitions.
+ */
+export const GovernmentTypes = getGovernmentTypes();
+
+export type { GovernmentTypeDefinition, GovernmentTypeId };
+export { getGovernmentType, listGovernmentTypes, scoreGovernmentDiplomacyFit };
