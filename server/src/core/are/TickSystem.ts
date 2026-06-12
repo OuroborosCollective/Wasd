@@ -24,7 +24,7 @@ export interface TickSystem {
   readonly name: string;
   readonly priority: TickSystemPriority;
   enabled: boolean;
-  tick(context: TickSystemContext): void | Promise<void>;
+  tick(context: TickSystemContext): unknown;
   onStart?(): void;
   onEnd?(): void;
   onShutdown?(): void;
