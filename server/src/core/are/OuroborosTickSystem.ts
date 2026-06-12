@@ -106,15 +106,24 @@ export class OuroborosTickSystem implements TickSystem {
   }
 }
 
+let ouroborosTickSystemInstance: OuroborosTickSystem | null = null;
+
 export function createOuroborosTickSystem(options: OuroborosTickSystemOptions = {}): OuroborosTickSystem {
   return new OuroborosTickSystem(options);
+}
+
+export function getOuroborosTickSystem(options: OuroborosTickSystemOptions = {}): OuroborosTickSystem {
+  if (!ouroborosTickSystemInstance) {
+    ouroborosTickSystemInstance = createOuroborosTickSystem(options);
+  }
+  return ouroborosTickSystemInstance;
 }
 
 export function registerOuroborosTickSystem(
   options: OuroborosTickSystemOptions = {},
   registry: TickSystemRegistry = tickSystemRegistry,
 ): OuroborosTickSystem {
-  const system = createOuroborosTickSystem(options);
+  const system = getOuroborosTickSystem(options);
   registry.register({ system, dependencies: ["world-brain"], tags: ["ouroboros", "npc", "living-world"] });
   return system;
 }
