@@ -11,7 +11,7 @@
  */
 
 import { createHash } from "node:crypto";
-import type { TickId, StateHash, ChunkKey } from "./types.js";
+import type { TickId } from "./types.js";
 import { GENESIS_STATE_HASH } from "./types.js";
 
 /** 10 Hz tick rate */
