@@ -6,13 +6,14 @@ import { sharedWorldEventBus } from '../../modules/ouroboros/sharedWorldEventBus
 import { ChatChannelRouter, type ChatRecipient } from '../../modules/chat/ChatChannelRouter.js';
 import { getActiveGameWebSocketServer } from '../../networking/WebSocketServer.js';
 import type { TickSystemContext } from './TickSystem.js';
-import type { NPC } from '../../modules/npc/NPCSystem.js';
+import type { NPC, NPCSystem } from '../../modules/npc/NPCSystem.js';
+import { NPCSystem as RealNPCSystem } from '../../modules/npc/NPCSystem.js';
 import type { LootEntity } from '../../modules/world/LootDirector.js';
+import { lootDirector as realLootDirector } from '../../modules/world/LootDirector.js';
 
 type AutoRepairStatus = { ok: boolean; status: string };
 type DeterministicRecorderStats = { recordedTicks: number; replayBufferSize: number };
 type DeterministicReplaySnapshot = { tick: number; snapshot: unknown };
-type WorldHashSnapshot = { tick: number; worldHash: string; chunkCount: number; entityCount: number; timestamp: number };
 type AREInvariantGuardStatus = { ok: boolean; invariant: string };
 type NetworkBridge = { broadcast(data: unknown): void; sendToPlayer(id: string, data: unknown): void };
 
@@ -34,26 +35,6 @@ class StubCombatSystem {}
 class StubCombatService {}
 class StubInventorySystem {}
 
-/**
- * Stub NPC System - returns empty arrays by default.
- * Replace via setRealNPCSystem() for actual NPC data.
- */
-class StubNPCSystem {
-  private realSystem: { getAllNPCs(): NPC[] } | null = null;
-
-  setRealSystem(system: { getAllNPCs(): NPC[] }): void {
-    this.realSystem = system;
-  }
-
-  getNPC(_id: string): NPC | null {
-    return this.realSystem?.getAllNPCs().find(npc => npc.id === _id) ?? null;
-  }
-
-  getAllNPCs(): NPC[] {
-    return this.realSystem?.getAllNPCs() ?? [];
-  }
-}
-
 class StubGuildSystem {}
 class StubEconomySystem {}
 class StubQuestEngine {}
@@ -61,26 +42,6 @@ class StubWorldSystem {}
 class StubPersistenceManager { getStats() { return {}; } }
 class StubGLBRegistry { scanModels() { return []; } getLinks() { return []; } }
 class StubAssetPoolResolver { getDocument() { return {}; } }
-
-/**
- * Stub Loot System - returns empty arrays by default.
- * Replace via setRealLootDirector() for actual loot data.
- */
-class StubLootSystem {
-  private realDirector: { getAllLoot(): LootEntity[] } | null = null;
-
-  setRealDirector(director: { getAllLoot(): LootEntity[] }): void {
-    this.realDirector = director;
-  }
-
-  rollLoot(): { items: unknown[]; gold: number } {
-    return { items: [], gold: 0 };
-  }
-
-  getAllLoot(): LootEntity[] {
-    return this.realDirector?.getAllLoot() ?? [];
-  }
-}
 
 function createManifestManager(adapter: WorldTickAdapter) {
   const replayGuard = { getHighestTick: () => adapter.tickCount, getNonceCount: () => 0 };
@@ -103,13 +64,16 @@ export class WorldTickAdapter {
   private readonly warfrontDomain = createRuntimeWarfrontSystem();
   readonly warfrontTickSystem: WarfrontTickSystem;
 
+  // Real game systems - wired for ARE truth path
+  private readonly realNPCSystem: NPCSystem;
+  readonly realLootDirector: { getAllLoot(): LootEntity[] } | null;
+
   readonly chunkSystem = new StubChunkSystem();
   readonly observerEngine = new StubObserverEngine();
   readonly playerSystem = new RuntimePlayerSystem();
   readonly combatSystem = new StubCombatSystem();
   readonly combatService = new StubCombatService();
   readonly inventorySystem = new StubInventorySystem();
-  readonly npcSystem = new StubNPCSystem();
   readonly guildSystem = new StubGuildSystem();
   readonly economySystem = new StubEconomySystem();
   readonly questSystem = new StubQuestEngine();
@@ -138,7 +102,7 @@ export class WorldTickAdapter {
       this.resolveSocketId,
     ),
   };
-  readonly lootSystem = new StubLootSystem();
+  readonly lootSystem: { getAllLoot(): LootEntity[] };
   readonly ws = {
     broadcast: (payload: unknown) => this.broadcast(payload),
     sendToPlayer: (socketId: string, payload: unknown) => this.sendToPlayer(socketId, payload),
@@ -151,19 +115,27 @@ export class WorldTickAdapter {
   readonly assetHealthService = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
 
   constructor() {
+    // Create real NPC system for ARE truth path
+    this.realNPCSystem = new RealNPCSystem();
+
+    // Wire real loot director if available
+    this.realLootDirector = realLootDirector ?? null;
+    this.lootSystem = this.realLootDirector ?? { getAllLoot: () => [] };
+
     this.warfrontTickSystem = registerWarfrontSystem(this.warfrontDomain);
 
-    // Register adapter's own systems as WorldStateProvider for ARE truth path
-    // This provides npcs, players, and loot from the adapter's systems
-    // Use a stable provider ID that sorts first
+    // Register adapter's systems as WorldStateProvider for ARE truth path
+    // This ensures WorldTickThinShell.getWorldStateForTick() always has data
     this.thinShell.registerWorldStateProvider({
       id: 'adapter-internal',
       getWorldState: (_context) => ({
-        npcs: this.npcSystem.getAllNPCs(),
+        npcs: this.realNPCSystem.getAllNPCs(),
         players: this.playerSystem.getAllPlayers(),
         loot: this.lootSystem.getAllLoot(),
       }),
     });
+
+    console.log('[WorldTickAdapter] Initialized with real NPC system and loot director');
   }
 
   attachNetworkBridge(networkBridge: NetworkBridge): void {
@@ -185,21 +157,10 @@ export class WorldTickAdapter {
   resolveSocketId = (playerId: string): string | undefined => this.playerToSocket.get(playerId);
 
   /**
-   * Register real NPC system for ARE truth path.
-   * Call this during server bootstrap to enable real NPC data.
+   * Get the real NPC system for external access.
    */
-  setRealNPCSystem(system: { getAllNPCs(): NPC[] }): void {
-    (this.npcSystem as StubNPCSystem).setRealSystem(system);
-    console.log('[WorldTickAdapter] Real NPC system registered for ARE truth path');
-  }
-
-  /**
-   * Register real loot director for ARE truth path.
-   * Call this during server bootstrap to enable real loot data.
-   */
-  setRealLootDirector(director: { getAllLoot(): LootEntity[] }): void {
-    (this.lootSystem as StubLootSystem).setRealDirector(director);
-    console.log('[WorldTickAdapter] Real loot director registered for ARE truth path');
+  getRealNPCSystem(): NPCSystem {
+    return this.realNPCSystem;
   }
 
   async init(): Promise<void> {
