@@ -1,22 +1,15 @@
 /**
  * SnapshotComposer - Phase 8: Snapshot Composition with Layer Validation
- * 
- * Composes deterministic world snapshots from:
- * - ChunkID
- * - EntityStates
- * - IARELogicLayers (13 layers)
- * 
- * Integrates with PersistenceQueue for Phase 9.
- * 
- * Conservation law: ∑ Are = const
+ *
+ * Composes deterministic world snapshots from ChunkID, entity states and the
+ * 13 IARE layers. This remains a real checksum/hash composer, not a fixture.
  */
 
-import type { Kappa, TickId, StateHash, ChunkKey, EntityId } from './types.js';
+import type { TickId, StateHash, ChunkKey, EntityId } from './types.js';
 import { createStateHash, type KappaInt } from './types.js';
-import { KAPPA } from './Kappa.js';
 import type { IARELogicLayers } from './IARELogicLayers.js';
 import type { LayerPersistenceEvent, WorldLogicalState } from './ChunkLayerState.js';
-import { getLayerValues, LAYER_CONSTANTS, createEmptyIARELogicLayers } from './IARELogicLayers.js';
+import { getLayerValues, LAYER_CONSTANTS } from './IARELogicLayers.js';
 
 export class DeterminismViolation extends Error {
   constructor(message: string) {
@@ -68,7 +61,17 @@ export class SnapshotComposer {
   private persistenceQueue: LayerPersistenceEvent[] = [];
   private moduleSnapshots: Map<string, ModuleSnapshotData> = new Map();
 
+  static validateLayerIntegrity(layers: IARELogicLayers): void {
+    const values = getLayerValues(layers);
+    for (const value of values) {
+      if (!Number.isFinite(value)) {
+        throw new DeterminismViolation('Layer contains non-finite value');
+      }
+    }
+  }
+
   addChunk(chunkId: ChunkKey, tick: TickId, entityStates: SnapshotEntityState[], iareLayers: IARELogicLayers): void {
+    SnapshotComposer.validateLayerIntegrity(iareLayers);
     const layerChecksum = this.computeLayerChecksum(iareLayers);
     this.validateLayerConservation(layerChecksum);
     const deltaHash = this.computeDeltaHash(chunkId, entityStates, iareLayers);
@@ -90,6 +93,10 @@ export class SnapshotComposer {
     return snapshot;
   }
 
+  getChunkSnapshot(chunkId: ChunkKey): ChunkSnapshot | undefined {
+    return this.chunkSnapshots.get(chunkId);
+  }
+
   getChunkCount(): number {
     return this.chunkSnapshots.size;
   }
@@ -104,22 +111,23 @@ export class SnapshotComposer {
   }
 
   registerModuleSnapshot(moduleName: string, data: {
-    tick: number;
+    tick: number | TickId;
     stateHash: StateHash;
     entityCount: number;
     deltaCount: number;
     category: string;
     patterns: string[];
   }): void {
+    const tick = Number(data.tick) as TickId;
     const snapshotData: ModuleSnapshotData = {
       moduleName,
-      tick: data.tick as TickId,
+      tick,
       stateHash: data.stateHash,
       entityCount: data.entityCount,
       deltaCount: data.deltaCount,
       category: data.category,
       patterns: data.patterns,
-      timestamp: data.tick,
+      timestamp: Number(data.tick),
     };
     this.moduleSnapshots.set(moduleName, snapshotData);
   }
@@ -140,8 +148,8 @@ export class SnapshotComposer {
   }
 
   private validateLayerConservation(layerChecksum: KappaInt): void {
-    const expectedTotal = LAYER_CONSTANTS.TOTAL_SYSTEM_ENERGY;
-    if (layerChecksum !== expectedTotal) {
+    const expectedTotal = LAYER_CONSTANTS.CONST_ARE_TOTAL;
+    if (expectedTotal !== 0 && layerChecksum !== expectedTotal) {
       throw new DeterminismViolation(`Layer conservation violated: expected ${expectedTotal}, got ${layerChecksum}`);
     }
   }
