@@ -7,7 +7,7 @@
  * - stateHash (world state fingerprint)
  * - dataHash (event data fingerprint)
  *
- * NO Date.now(), NO Math.random(), NO crypto.randomUUID() in this file.
+ * Truth-path invariant: no wall-clock reads, no entropy reads, no generated UUIDs.
  */
 
 import { createHash } from "node:crypto";
