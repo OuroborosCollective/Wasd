@@ -20,20 +20,27 @@
 
 import { TickSystemPriority, type TickSystem, type TickSystemContext } from '../are/TickSystem.js';
 import { tickSystemRegistry, type TickSystemRegistry } from '../are/TickSystemRegistry.js';
-import { TickSystemCategory, type ChunkKey, type TickId } from '../are/types.js';
+import {
+  TickSystemCategory,
+  createTickId,
+  createKappaInt,
+  type ChunkKey,
+  type TickId,
+  type KappaInt,
+} from '../are/types.js';
 import { getNeighborChunkKeys } from '../are/types.js';
 import { kappa1000Hash, type KappaLayers } from '../are/KappaLayers.js';
-import { kAdd, kSub, kDiv, type KappaInt } from '../are/Kappa.js';
+import { kAdd, kSub, kDiv } from '../are/Kappa.js';
 import {
   OUROBOROS_CONFIG,
   OuroborosEventType,
   OuroborosPhase,
-  type ErdősString
+  type ErdősString,
 } from './OuroborosTypes.js';
 import {
   appendEvent,
   getOuroborosPhase,
-  hasEvent
+  hasEvent,
 } from './ErdosStringManager.js';
 import { LayerResonanceTickSystem } from './LayerResonanceTickSystem.js';
 
@@ -90,7 +97,7 @@ export class OuroborosCycleSystem implements TickSystem {
       chunkKey,
       erdos,
       layers,
-      mythosSeed: existing?.mythosSeed ?? 0
+      mythosSeed: existing?.mythosSeed ?? 0,
     });
   }
 
@@ -111,6 +118,7 @@ export class OuroborosCycleSystem implements TickSystem {
     
     // Snapshot for iteration (Axiom 1)
     const snapshot = new Map(this.activeChunks);
+    const tickId = createTickId(tickCount);
     
     // Clear pending mutations
     this.pendingErdos.clear();
@@ -119,12 +127,12 @@ export class OuroborosCycleSystem implements TickSystem {
     
     // Process Ouroboros fall
     if (tickCount % this.ouroborosCheckInterval === 0) {
-      this.processOuroborosFall(snapshot, tickCount);
+      this.processOuroborosFall(snapshot, tickId);
     }
     
     // Process resurrection wave
     if (tickCount % this.resurrectionInterval === 0) {
-      this.processResurrectionWave(snapshot, tickCount);
+      this.processResurrectionWave(snapshot, tickId);
     }
     
     // Apply mutations
@@ -152,7 +160,7 @@ export class OuroborosCycleSystem implements TickSystem {
    */
   private processOuroborosFall(
     snapshot: Map<ChunkKey, OuroborosCycleChunkState>,
-    tick: TickId
+    tick: TickId,
   ): void {
     const config = OUROBOROS_CONFIG.LAYER_RESONANCE;
     
@@ -171,7 +179,7 @@ export class OuroborosCycleSystem implements TickSystem {
       if (phase !== OuroborosPhase.KINGDOM && phase !== OuroborosPhase.WAR) continue;
       
       // Calculate released energy (Axiom 4: Conservation)
-      const releasedEnergy = kAdd(layers.economy, layers.kingdoms);
+      const releasedEnergy = createKappaInt(kAdd(layers.economy, layers.kingdoms));
       
       // Generate deterministic dungeon seed
       const dungeonSeed = kappa1000Hash(`${key}_${layers.kingdoms}_${tick}`);
@@ -182,11 +190,11 @@ export class OuroborosCycleSystem implements TickSystem {
       // Clear kingdom state, release energy to cycles
       this.pendingErdos.set(key, newErdos);
       this.pendingLayers.set(key, {
-        kingdoms: 0 as unknown as KappaInt,
-        economy: 0 as unknown as KappaInt,
-        conflict: 0 as unknown as KappaInt,
-        physiology: 0 as unknown as KappaInt,
-        cycles: kAdd(layers.cycles, releasedEnergy)
+        kingdoms: createKappaInt(0),
+        economy: createKappaInt(0),
+        conflict: createKappaInt(0),
+        physiology: createKappaInt(0),
+        cycles: createKappaInt(kAdd(layers.cycles, releasedEnergy)),
       });
       this.pendingMythos.set(key, dungeonSeed);
       
@@ -203,7 +211,7 @@ export class OuroborosCycleSystem implements TickSystem {
    */
   private processResurrectionWave(
     snapshot: Map<ChunkKey, OuroborosCycleChunkState>,
-    tick: TickId
+    tick: TickId,
   ): void {
     const config = OUROBOROS_CONFIG.LAYER_RESONANCE;
     
@@ -222,15 +230,15 @@ export class OuroborosCycleSystem implements TickSystem {
       
       // Calculate radiation per neighbor (equal distribution)
       const neighborCount = neighbors.length + 1; // Include self
-      const radiation = kDiv(layers.cycles, neighborCount);
+      const radiation = createKappaInt(kDiv(layers.cycles, neighborCount));
       
       // Apply to self first
       const newErdos = appendEvent(erdos, OuroborosEventType.RESURRECT, tick);
       this.pendingErdos.set(key, newErdos);
       this.pendingLayers.set(key, {
-        ecology: kAdd(layers.ecology, radiation) as unknown as KappaInt,
-        economy: kAdd(layers.economy, radiation) as unknown as KappaInt,
-        cycles: kSub(layers.cycles, radiation) as unknown as KappaInt
+        ecology: createKappaInt(kAdd(layers.ecology, radiation)),
+        economy: createKappaInt(kAdd(layers.economy, radiation)),
+        cycles: createKappaInt(kSub(layers.cycles, radiation)),
       });
       
       // Spread to neighbors
@@ -249,13 +257,13 @@ export class OuroborosCycleSystem implements TickSystem {
         if (existing) {
           this.pendingLayers.set(nKey as ChunkKey, {
             ...existing,
-            ecology: kAdd(existing.ecology ?? nLayers.ecology, radiation) as unknown as KappaInt,
-            economy: kAdd(existing.ecology ?? nLayers.economy, radiation) as unknown as KappaInt
+            ecology: createKappaInt(kAdd(existing.ecology ?? nLayers.ecology, radiation)),
+            economy: createKappaInt(kAdd(existing.economy ?? nLayers.economy, radiation)),
           });
         } else {
           this.pendingLayers.set(nKey as ChunkKey, {
-            ecology: kAdd(nLayers.ecology, radiation) as unknown as KappaInt,
-            economy: kAdd(nLayers.economy, radiation) as unknown as KappaInt
+            ecology: createKappaInt(kAdd(nLayers.ecology, radiation)),
+            economy: createKappaInt(kAdd(nLayers.economy, radiation)),
           });
         }
       }
@@ -282,7 +290,7 @@ export class OuroborosCycleSystem implements TickSystem {
       if (state) {
         this.activeChunks.set(key, {
           ...state,
-          layers: { ...state.layers, ...changes } as KappaLayers
+          layers: { ...state.layers, ...changes } as KappaLayers,
         });
       }
     }
@@ -333,27 +341,27 @@ export class OuroborosCycleSystem implements TickSystem {
 export const DEFAULT_OUROBOROS_CYCLE_OPTIONS: OuroborosCycleSystemOptions = {
   tickInterval: OUROBOROS_CONFIG.TICK.TICK_INTERVAL,
   ouroborosCheckInterval: OUROBOROS_CONFIG.TICK.OUROBOROS_CHECK_INTERVAL,
-  resurrectionInterval: OUROBOROS_CONFIG.TICK.RESURRECTION_INTERVAL
+  resurrectionInterval: OUROBOROS_CONFIG.TICK.RESURRECTION_INTERVAL,
 };
 
 export function createOuroborosCycleSystem(
-  options: OuroborosCycleSystemOptions = {}
+  options: OuroborosCycleSystemOptions = {},
 ): OuroborosCycleSystem {
   return new OuroborosCycleSystem({
     ...DEFAULT_OUROBOROS_CYCLE_OPTIONS,
-    ...options
+    ...options,
   });
 }
 
 export function registerOuroborosCycleSystem(
   options: OuroborosCycleSystemOptions = {},
-  registry: TickSystemRegistry = tickSystemRegistry
+  registry: TickSystemRegistry = tickSystemRegistry,
 ): OuroborosCycleSystem {
   const system = createOuroborosCycleSystem(options);
   registry.register({
     system,
     dependencies: [],
-    tags: ['ouroboros', 'cycle', 'fall', 'resurrection', 'dungeon']
+    tags: ['ouroboros', 'cycle', 'fall', 'resurrection', 'dungeon'],
   });
   console.log(`[OuroborosCycleSystem] Registered with priority ${system.priority}`);
   return system;
@@ -362,7 +370,7 @@ export function registerOuroborosCycleSystem(
 let ouroborosCycleSystemInstance: OuroborosCycleSystem | null = null;
 
 export function getOuroborosCycleSystem(
-  options: OuroborosCycleSystemOptions = {}
+  options: OuroborosCycleSystemOptions = {},
 ): OuroborosCycleSystem {
   if (!ouroborosCycleSystemInstance) {
     ouroborosCycleSystemInstance = createOuroborosCycleSystem(options);
