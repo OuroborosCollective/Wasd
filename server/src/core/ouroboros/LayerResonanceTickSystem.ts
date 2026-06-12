@@ -14,23 +14,27 @@
 
 import { TickSystemPriority, type TickSystem, type TickSystemContext } from '../are/TickSystem.js';
 import { tickSystemRegistry, type TickSystemRegistry } from '../are/TickSystemRegistry.js';
-import { TickSystemCategory, type ChunkKey, type TickId } from '../are/types.js';
+import {
+  TickSystemCategory,
+  createTickId,
+  createKappaInt,
+  type ChunkKey,
+  type TickId,
+  type KappaInt,
+} from '../are/types.js';
 import { getNeighborChunkKeys } from '../are/types.js';
-import { kappa1000Hash, type KappaLayers, type KappaLayerKey } from '../are/KappaLayers.js';
-import { kAdd, kSub, kDiv, KAPPA, type KappaInt } from '../are/Kappa.js';
+import { kappa1000Hash, type KappaLayers } from '../are/KappaLayers.js';
+import { kAdd, KAPPA } from '../are/Kappa.js';
 import {
   OUROBOROS_CONFIG,
   OuroborosEventType,
   OuroborosPhase,
   type ErdősString,
-  type OuroborosLayerVector
 } from './OuroborosTypes.js';
 import {
   appendEvent,
-  createGenesisErdos,
   getOuroborosPhase,
-  parseErdosString,
-  hasEvent
+  hasEvent,
 } from './ErdosStringManager.js';
 
 export const LAYER_RESONANCE_TICK_SYSTEM_NAME = 'layer-resonance' as const;
@@ -76,7 +80,7 @@ export class LayerResonanceTickSystem implements TickSystem {
   // Pending mutations (applied atomically at tick end)
   private mutationBuffer: MutationBuffer = {
     erdosMutations: new Map(),
-    layerMutations: new Map()
+    layerMutations: new Map(),
   };
 
   constructor(options: LayerResonanceTickSystemOptions = {}) {
@@ -92,7 +96,7 @@ export class LayerResonanceTickSystem implements TickSystem {
     this.activeChunks.set(chunkKey, {
       chunkKey,
       erdos,
-      layers
+      layers,
     });
   }
 
@@ -113,21 +117,22 @@ export class LayerResonanceTickSystem implements TickSystem {
     
     // Create snapshot for this tick (Axiom 1: Snapshot-Prinzip)
     const snapshot = new Map(this.activeChunks);
+    const tickId = createTickId(tickCount);
     
     // Clear mutation buffer for new tick
     this.mutationBuffer = {
       erdosMutations: new Map(),
-      layerMutations: new Map()
+      layerMutations: new Map(),
     };
     
     // Process kingdom emergence (slow check)
     if (tickCount % this.kingdomCheckInterval === 0) {
-      this.processKingdomEmergence(snapshot, tickCount);
+      this.processKingdomEmergence(snapshot, tickId);
     }
     
     // Process legend spread (medium check)
     if (tickCount % this.legendSpreadInterval === 0) {
-      this.processLegendWave(snapshot, tickCount);
+      this.processLegendWave(snapshot, tickId);
     }
     
     // Apply all mutations atomically
@@ -143,7 +148,7 @@ export class LayerResonanceTickSystem implements TickSystem {
     this.activeChunks.clear();
     this.mutationBuffer = {
       erdosMutations: new Map(),
-      layerMutations: new Map()
+      layerMutations: new Map(),
     };
   }
 
@@ -155,7 +160,7 @@ export class LayerResonanceTickSystem implements TickSystem {
    */
   private processKingdomEmergence(
     snapshot: Map<ChunkKey, ResonanceChunkState>,
-    tick: TickId
+    tick: TickId,
   ): void {
     const config = OUROBOROS_CONFIG.LAYER_RESONANCE;
     
@@ -175,16 +180,16 @@ export class LayerResonanceTickSystem implements TickSystem {
       if (phase === OuroborosPhase.KINGDOM || phase === OuroborosPhase.WAR) continue;
       
       // Generate deterministic kingdom ID
-      const kingdomId = kappa1000Hash(`${key}_${tick}_${KAPPA}`);
+      const kingdomId = createKappaInt(kappa1000Hash(`${key}_${tick}_${KAPPA}`));
       
       // Create new Erdős-String with KINGDOM event
       const newErdos = appendEvent(erdos, OuroborosEventType.KINGDOM, tick, String(kingdomId));
       
       // Buffer mutation (Axiom 1: no mutation during iteration)
       this.bufferMutation(key, newErdos, {
-        kingdoms: kingdomId as unknown as KappaInt,
-        economy: kAdd(layers.economy, 50000), // Energy flows to kingdom
-        memory: kAdd(layers.memory, 30000)    // Social cohesion
+        kingdoms: kingdomId,
+        economy: createKappaInt(kAdd(layers.economy, 50000)), // Energy flows to kingdom
+        memory: createKappaInt(kAdd(layers.memory, 30000)),   // Social cohesion
       });
       
       console.log(`[LayerResonance] Kingdom emerged at ${key}: ${kingdomId}`);
@@ -199,7 +204,7 @@ export class LayerResonanceTickSystem implements TickSystem {
    */
   private processLegendWave(
     snapshot: Map<ChunkKey, ResonanceChunkState>,
-    tick: TickId
+    tick: TickId,
   ): void {
     const config = OUROBOROS_CONFIG.LAYER_RESONANCE;
     
@@ -230,11 +235,11 @@ export class LayerResonanceTickSystem implements TickSystem {
         
         // Buffer mutation with XOR spread (Axiom 4: Conservation)
         const memoryXor = nLayers.memory ^ legendWavelength;
-        const conflictAdd = kAdd(nLayers.conflict, 5000); // +5 aggression spread
+        const conflictAdd = createKappaInt(kAdd(nLayers.conflict, 5000)); // +5 aggression spread
         
         this.bufferMutation(nKey as ChunkKey, undefined, {
-          memory: memoryXor as unknown as KappaInt,
-          conflict: conflictAdd
+          memory: createKappaInt(memoryXor),
+          conflict: conflictAdd,
         });
       }
       
@@ -254,7 +259,7 @@ export class LayerResonanceTickSystem implements TickSystem {
   private bufferMutation(
     chunkKey: ChunkKey,
     newErdos?: ErdősString,
-    layerChanges?: Partial<KappaLayers>
+    layerChanges?: Partial<KappaLayers>,
   ): void {
     if (newErdos) {
       this.mutationBuffer.erdosMutations.set(chunkKey, newErdos);
@@ -280,7 +285,7 @@ export class LayerResonanceTickSystem implements TickSystem {
       if (state) {
         this.activeChunks.set(key, {
           ...state,
-          erdos: newErdos
+          erdos: newErdos,
         });
       }
     }
@@ -291,7 +296,7 @@ export class LayerResonanceTickSystem implements TickSystem {
       if (state) {
         this.activeChunks.set(key, {
           ...state,
-          layers: { ...state.layers, ...changes } as KappaLayers
+          layers: { ...state.layers, ...changes } as KappaLayers,
         });
       }
     }
@@ -330,27 +335,27 @@ export class LayerResonanceTickSystem implements TickSystem {
 export const DEFAULT_LAYER_RESONANCE_OPTIONS: LayerResonanceTickSystemOptions = {
   tickInterval: OUROBOROS_CONFIG.TICK.TICK_INTERVAL,
   kingdomCheckInterval: OUROBOROS_CONFIG.TICK.KINGDOM_CHECK_INTERVAL,
-  legendSpreadInterval: OUROBOROS_CONFIG.TICK.LEGEND_SPREAD_INTERVAL
+  legendSpreadInterval: OUROBOROS_CONFIG.TICK.LEGEND_SPREAD_INTERVAL,
 };
 
 export function createLayerResonanceTickSystem(
-  options: LayerResonanceTickSystemOptions = {}
+  options: LayerResonanceTickSystemOptions = {},
 ): LayerResonanceTickSystem {
   return new LayerResonanceTickSystem({
     ...DEFAULT_LAYER_RESONANCE_OPTIONS,
-    ...options
+    ...options,
   });
 }
 
 export function registerLayerResonanceTickSystem(
   options: LayerResonanceTickSystemOptions = {},
-  registry: TickSystemRegistry = tickSystemRegistry
+  registry: TickSystemRegistry = tickSystemRegistry,
 ): LayerResonanceTickSystem {
   const system = createLayerResonanceTickSystem(options);
   registry.register({
     system,
     dependencies: [],
-    tags: ['ouroboros', 'resonance', 'kingdom', 'legend']
+    tags: ['ouroboros', 'resonance', 'kingdom', 'legend'],
   });
   console.log(`[LayerResonanceTickSystem] Registered with priority ${system.priority}`);
   return system;
@@ -359,7 +364,7 @@ export function registerLayerResonanceTickSystem(
 let layerResonanceTickSystemInstance: LayerResonanceTickSystem | null = null;
 
 export function getLayerResonanceTickSystem(
-  options: LayerResonanceTickSystemOptions = {}
+  options: LayerResonanceTickSystemOptions = {},
 ): LayerResonanceTickSystem {
   if (!layerResonanceTickSystemInstance) {
     layerResonanceTickSystemInstance = createLayerResonanceTickSystem(options);
