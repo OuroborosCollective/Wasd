@@ -367,7 +367,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
@@ -457,7 +457,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
