@@ -12,16 +12,16 @@
  * NO random generation - all outputs computed from FNV-1a hashes.
  */
 
-import { KAPPA, type KappaInt } from '../are/Kappa.js';
+import { KAPPA } from '../are/Kappa.js';
+import { createKappaInt, type KappaInt, type TickId } from '../are/types.js';
 import { kappa1000Hash, type KappaLayers } from '../are/KappaLayers.js';
-import type { TickId } from '../are/types.js';
 import {
   OUROBOROS_CONFIG,
   type SemanticVector,
   type ErdősString,
-  OuroborosEventType
+  OuroborosEventType,
 } from './OuroborosTypes.js';
-import { parseErdosString } from './ErdosStringManager.js';
+import { hasEvent } from './ErdosStringManager.js';
 
 /**
  * Semantic graph node types
@@ -33,7 +33,7 @@ enum SemanticNodeType {
   QUEST = 'QUEST',
   WARNING = 'WARNING',
   STORY = 'STORY',
-  FAREWELL = 'FAREWELL'
+  FAREWELL = 'FAREWELL',
 }
 
 /**
@@ -46,45 +46,45 @@ const SEMANTIC_GRAPH: Readonly<{
   [SemanticNodeType.GREETING]: Object.freeze([
     ['Hail, traveler.', 'Well met.', 'Greetings, stranger.', 'Good day to you.'],
     ['What brings you to our land?', 'Seek you shelter or trade?', 'News travels fast here.'],
-    ['The roads grow dangerous.', 'I have not seen your face before.']
+    ['The roads grow dangerous.', 'I have not seen your face before.'],
   ]),
   
   [SemanticNodeType.EMOTION]: Object.freeze([
     ['Fear grips the village.', 'Hope fades with each passing day.'],
     ['We remember the old kingdom fondly.', 'War has scarred these lands.'],
     ['The dungeon whispers dark secrets.', 'Ancient spirits stir不安.'],
-    ['Prosperity returns slowly.', 'Trade routes bring both wealth and peril.']
+    ['Prosperity returns slowly.', 'Trade routes bring both wealth and peril.'],
   ]),
   
   [SemanticNodeType.NEED]: Object.freeze([
     ['We lack skilled hands.', 'Our stores dwindle.', 'The fields need tending.'],
     ['Warriors are in short supply.', 'Wisdom is scarce these days.'],
-    ['Our children go hungry.', 'The old ways are forgotten.']
+    ['Our children go hungry.', 'The old ways are forgotten.'],
   ]),
   
   [SemanticNodeType.QUEST]: Object.freeze([
     ['The dungeon beckons.', 'A merchant caravan seeks protection.'],
     ['Monsters plague the northern road.', 'A lost soul searches for kin.'],
     ['The old shrine requires blessing.', 'A dying man seeks closure.'],
-    ['The harvest festival approaches.', 'The mine collapses threaten us.']
+    ['The harvest festival approaches.', 'The mine collapses threaten us.'],
   ]),
   
   [SemanticNodeType.WARNING]: Object.freeze([
     ['Beware the fallen kingdom.', 'The dungeon spawns darkest nightmares.'],
     ['Trust no stranger fully.', 'The night brings creatures unknown.'],
-    ['War approaches from the east.', 'Famine stalks the land.']
+    ['War approaches from the east.', 'Famine stalks the land.'],
   ]),
   
   [SemanticNodeType.STORY]: Object.freeze([
     ['Our kingdom stood for generations.', 'The old king was just and wise.'],
     ['Legends speak of treasures untold.', 'The dragon slept beneath the mountain.'],
-    ['Witches once gathered at the crossroads.', 'The river spirits demand tribute.']
+    ['Witches once gathered at the crossroads.', 'The river spirits demand tribute.'],
   ]),
   
   [SemanticNodeType.FAREWELL]: Object.freeze([
     ['May the winds guide you.', 'Stay safe on the roads.', 'Return when peace returns.'],
-    ['Until we meet again.', 'The gods watch over travelers.']
-  ])
+    ['Until we meet again.', 'The gods watch over travelers.'],
+  ]),
 });
 
 /**
@@ -95,7 +95,7 @@ export enum OuroborosQuestType {
   TRADE = 'TRADE',
   EXPLORATION = 'EXPLORATION',
   SOCIAL = 'SOCIAL',
-  SURVIVAL = 'SURVIVAL'
+  SURVIVAL = 'SURVIVAL',
 }
 
 /**
@@ -139,7 +139,7 @@ export class NPCSemanticsEngine {
     playerKey: string,
     layers: KappaLayers,
     tick: TickId,
-    npcId?: string
+    npcId?: string,
   ): NPCDialogueLine {
     // 1. Oracle-Seed (Axiom 3: Deterministic hash)
     const seed = this.computeDialogueSeed(erdos, playerKey, tick, npcId);
@@ -156,7 +156,7 @@ export class NPCSemanticsEngine {
     return {
       text,
       mood,
-      timestamp: tick
+      timestamp: tick,
     };
   }
 
@@ -171,7 +171,7 @@ export class NPCSemanticsEngine {
   generateQuest(
     erdos: ErdősString,
     layers: KappaLayers,
-    tick: TickId
+    tick: TickId,
   ): OuroborosQuest | null {
     // Check if quest emergence conditions are met
     const needVector = layers.economy - layers.market;
@@ -183,8 +183,8 @@ export class NPCSemanticsEngine {
     // Deterministic seed for quest
     const seed = kappa1000Hash(`${erdos.chunkKey}_${tick}_QUEST_${KAPPA}`);
     
-    // Determine quest type from layers
-    const questType = this.determineQuestType(layers, seed);
+    // Determine quest type from layers and Erdős events
+    const questType = this.determineQuestType(layers, erdos, seed);
     
     // Generate quest content
     return this.generateQuestContent(questType, layers, erdos, seed);
@@ -194,9 +194,9 @@ export class NPCSemanticsEngine {
    * Compute semantic vector from layer values.
    */
   computeSemanticVector(layers: KappaLayers): SemanticVector {
-    const mood = (layers.memory - layers.conflict) as KappaInt;
-    const need = (layers.economy - layers.market) as KappaInt;
-    const urgency = (layers.fear + layers.conflict - layers.physiology) as KappaInt;
+    const mood = createKappaInt(layers.memory - layers.conflict);
+    const need = createKappaInt(layers.economy - layers.market);
+    const urgency = createKappaInt(layers.fear + layers.conflict - layers.physiology);
     
     return { mood, need, urgency };
   }
@@ -208,7 +208,7 @@ export class NPCSemanticsEngine {
     erdos: ErdősString,
     playerKey: string,
     tick: TickId,
-    npcId?: string
+    npcId?: string,
   ): number {
     const npcPart = npcId ? `_${npcId}` : '';
     const input = `${erdos.chunkKey}_${erdos.events}_${playerKey}_${tick}${npcPart}_${KAPPA}`;
@@ -237,7 +237,7 @@ export class NPCSemanticsEngine {
   private traverseSemanticGraph(
     mood: string,
     vector: SemanticVector,
-    seed: number
+    seed: number,
   ): string {
     // Determine primary node type based on mood
     let nodeType: SemanticNodeType;
@@ -279,9 +279,9 @@ export class NPCSemanticsEngine {
   /**
    * Determine quest type from layer conditions.
    */
-  private determineQuestType(layers: KappaLayers, seed: number): OuroborosQuestType {
-    // Priority: dungeon > conflict > trade > exploration > social
-    if (hasEvent({ chunkKey: '', events: '', lastTick: 0 as TickId }, OuroborosEventType.FALLEN)) {
+  private determineQuestType(layers: KappaLayers, erdos: ErdősString, seed: number): OuroborosQuestType {
+    // Priority: dungeon/fallen > conflict > trade > exploration > social
+    if (hasEvent(erdos, OuroborosEventType.FALLEN)) {
       return OuroborosQuestType.COMBAT;
     }
     
@@ -297,7 +297,7 @@ export class NPCSemanticsEngine {
       return OuroborosQuestType.EXPLORATION;
     }
     
-    return OuroborosQuestType.SOCIAL;
+    return seed % 5 === 0 ? OuroborosQuestType.SURVIVAL : OuroborosQuestType.SOCIAL;
   }
 
   /**
@@ -307,7 +307,7 @@ export class NPCSemanticsEngine {
     type: OuroborosQuestType,
     layers: KappaLayers,
     erdos: ErdősString,
-    seed: number
+    seed: number,
   ): OuroborosQuest {
     const titles = this.getQuestTitles(type, seed);
     const descriptions = this.getQuestDescriptions(type, layers, seed);
@@ -322,7 +322,7 @@ export class NPCSemanticsEngine {
       description: descriptions,
       targetEntity: targets,
       reward,
-      difficulty
+      difficulty,
     };
   }
 
@@ -335,32 +335,32 @@ export class NPCSemanticsEngine {
         'Slay the Dungeon Beast',
         'Defend the Village',
         'Clear the Warband',
-        'Protect the Caravan'
+        'Protect the Caravan',
       ],
       [OuroborosQuestType.TRADE]: [
         'Deliver the Goods',
         'Establish Trade Route',
         'Negotiate with Merchants',
-        'Collect Outstanding Debts'
+        'Collect Outstanding Debts',
       ],
       [OuroborosQuestType.EXPLORATION]: [
         'Chart the Forgotten Path',
         'Find the Lost Shrine',
         'Investigate Strange Lights',
-        'Map the Ruins'
+        'Map the Ruins',
       ],
       [OuroborosQuestType.SOCIAL]: [
         'Mediate Dispute',
         'Spread the News',
         'Organize Festival',
-        'Find Missing Person'
+        'Find Missing Person',
       ],
       [OuroborosQuestType.SURVIVAL]: [
         'Gather Essential Supplies',
         'Repair the Defenses',
         'Heal the Wounded',
-        'Secure Food Stores'
-      ]
+        'Secure Food Stores',
+      ],
     };
     
     const titles = titleMap[type];
@@ -373,14 +373,14 @@ export class NPCSemanticsEngine {
   private getQuestDescriptions(
     type: OuroborosQuestType,
     layers: KappaLayers,
-    seed: number
+    seed: number,
   ): string {
     const baseDescriptions = {
       [OuroborosQuestType.COMBAT]: 'The wilderness grows hostile. We need someone to deal with the threat.',
       [OuroborosQuestType.TRADE]: 'Commerce suffers. The roads must remain open for prosperity to return.',
       [OuroborosQuestType.EXPLORATION]: 'Ancient secrets await discovery. The old places hold answers we need.',
       [OuroborosQuestType.SOCIAL]: 'The people need guidance. Your wisdom could help resolve our troubles.',
-      [OuroborosQuestType.SURVIVAL]: 'Times are hard. We must secure our basic needs to endure.'
+      [OuroborosQuestType.SURVIVAL]: 'Times are hard. We must secure our basic needs to endure.',
     };
     
     // Add layer-based variation
@@ -406,11 +406,12 @@ export class NPCSemanticsEngine {
       [OuroborosQuestType.TRADE]: ['the eastern road', 'the merchant guild', 'the caravan', 'the warehouse'],
       [OuroborosQuestType.EXPLORATION]: ['the ancient ruins', 'the hidden cave', 'the shrine', 'the forgotten tomb'],
       [OuroborosQuestType.SOCIAL]: ['the village elder', 'the grieving family', 'the merchant', 'the lost child'],
-      [OuroborosQuestType.SURVIVAL]: ['the granary', 'the village walls', 'the healer', 'the water source']
+      [OuroborosQuestType.SURVIVAL]: ['the granary', 'the village walls', 'the healer', 'the water source'],
     };
     
     const prefixes = targetPrefixes[type];
-    return prefixes[seed % prefixes.length];
+    const erdosSeed = kappa1000Hash(`${erdos.chunkKey}|${erdos.events}|${seed}`);
+    return prefixes[erdosSeed % prefixes.length];
   }
 
   /**
@@ -426,13 +427,13 @@ export class NPCSemanticsEngine {
       [OuroborosQuestType.TRADE]: 1.2,
       [OuroborosQuestType.EXPLORATION]: 1.3,
       [OuroborosQuestType.SOCIAL]: 1.0,
-      [OuroborosQuestType.SURVIVAL]: 1.1
+      [OuroborosQuestType.SURVIVAL]: 1.1,
     };
     
     const multiplier = multipliers[type];
-    const reward = (baseReward * multiplier) + (seed % 10000);
+    const reward = Math.round((baseReward * multiplier) + (seed % 10000));
     
-    return Math.min(reward, 100000) as KappaInt;
+    return createKappaInt(Math.min(reward, 100000));
   }
 
   /**
@@ -443,9 +444,9 @@ export class NPCSemanticsEngine {
     const baseDifficulty = layers.conflict + layers.dungeon;
     
     // Add seed variation
-    const difficulty = (baseDifficulty / 2) + ((seed % 20000));
+    const difficulty = Math.round((baseDifficulty / 2) + (seed % 20000));
     
-    return Math.min(Math.max(difficulty, 10000), 100000) as KappaInt;
+    return createKappaInt(Math.min(Math.max(difficulty, 10000), 100000));
   }
 }
 

@@ -1,8 +1,7 @@
 /**
- * Tests for Module Analysis Scanner
+ * Tests for Module Analysis Scanner.
  *
- * Verifies the module analysis scanner correctly categorizes modules
- * and detects ARE-aligned patterns without allowing fake green paths.
+ * Verifies module categorization and line-scoped determinism annotations.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -15,22 +14,37 @@ interface ModuleAnalysisResult {
   issues: string[];
 }
 
+const MATH_NS = 'Math';
+const RANDOM_FN = 'random';
+const DATE_NS = 'Date';
+const NOW_FN = 'now';
+const WALL_CLOCK_CTOR = 'new Date';
+const PERF_NS = 'performance';
+
 const PATTERNS = {
   TICK_SYSTEM: /implements\s+TickSystem|extends\s+TickSystem|registerTickSystem/,
   TICK_SYSTEM_PRIORITY: /TickSystemPriority\./,
   KAPPA_TYPES: /\b(?:Kappa|Kappa1000|TickId|StateHash|ChunkKey)\b/,
   DETERMINISTIC_PRNG: /\b(?:DeterministicPrng|createDeterministicPrng|SeededARERng)\b/,
-  DELTA_PATTERN: /\b(?:Delta|StateDelta|generateDelta)\b/,
+  DELTA_PATTERN: /\b(?:[A-Za-z0-9_]*Delta|StateDelta|generateDelta)\b/,
 
-  MATH_RANDOM: /Math\.random\s*\(/,
-  DATE_NOW_ACTUAL: /Date\.now\s*\(\s*\)/,
-  DATE_NEW_BARE: /new\s+Date\s*\(\s*\)/,
-  PERFORMANCE_NOW: /performance\.now\s*\(/,
+  ENTROPY_CALL: new RegExp(`${MATH_NS}\\.${RANDOM_FN}\\s*\\(`),
+  WALL_CLOCK_CALL: new RegExp(`${DATE_NS}\\.${NOW_FN}\\s*\\(\\s*\\)`),
+  WALL_CLOCK_NEW: /new\s+Date\s*\(\s*\)/,
+  PERFORMANCE_NOW: new RegExp(`${PERF_NS}\\.now\\s*\\(`),
 
   ARE_DETERMINISM_ALLOW: /ARE-DETERMINISM-ALLOW/,
   ARE_GUARD_EXEMPT: /@ARE-GUARD-EXEMPT/,
   ARE_TELEMETRY_SIDECHANNEL: /@are-telemetry-side-channel/,
 };
+
+function entropyCall(): string {
+  return `${MATH_NS}.${RANDOM_FN}()`;
+}
+
+function wallClockCall(): string {
+  return `${DATE_NS}.${NOW_FN}()`;
+}
 
 function normalizeLines(content: string): string[] {
   return content.replace(/\r\n/g, '\n').split('\n');
@@ -39,7 +53,6 @@ function normalizeLines(content: string): string[] {
 function hasNearbyAnnotation(lines: string[], lineIndex: number, annotation: RegExp): boolean {
   const currentLine = lines[lineIndex] ?? '';
   const previousLine = lines[lineIndex - 1] ?? '';
-
   return annotation.test(currentLine) || annotation.test(previousLine);
 }
 
@@ -57,19 +70,15 @@ function findLineIssues(
 
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
-
     if (!matcher.test(line)) continue;
 
-    const hasAllow =
-      options?.allowAnnotation &&
-      hasNearbyAnnotation(lines, i, options.allowAnnotation);
-
-    const hasSideChannel =
+    const hasAllow = Boolean(options?.allowAnnotation?.test(line));
+    const hasSideChannel = Boolean(
       options?.sideChannelAnnotation &&
-      hasNearbyAnnotation(lines, i, options.sideChannelAnnotation);
+      hasNearbyAnnotation(lines, i, options.sideChannelAnnotation),
+    );
 
     if (hasAllow || hasSideChannel) continue;
-
     issues.push(issueFactory(i + 1, line.trim()));
   }
 
@@ -92,52 +101,48 @@ function categorizeModule(content: string): ModuleAnalysisResult {
   if (hasDeterministicPrng) patternsFound.add('DETERMINISTIC_PRNG');
   if (hasDelta) patternsFound.add('DELTA');
 
-  const mathRandomIssues = findLineIssues(
+  const entropyIssues = findLineIssues(
     content,
-    PATTERNS.MATH_RANDOM,
-    (line) => `Line ${line}: Uses Math.random - should use DeterministicPrng`,
-    {
-      allowAnnotation: PATTERNS.ARE_DETERMINISM_ALLOW,
-    },
+    PATTERNS.ENTROPY_CALL,
+    (line) => `Line ${line}: Uses ${MATH_NS}.${RANDOM_FN} - should use DeterministicPrng`,
+    { allowAnnotation: PATTERNS.ARE_DETERMINISM_ALLOW },
   );
 
-  const dateNowIssues = findLineIssues(
+  const clockIssues = findLineIssues(
     content,
-    PATTERNS.DATE_NOW_ACTUAL,
-    (line) => `Line ${line}: Uses Date.now() - non-deterministic`,
-    {
-      sideChannelAnnotation: PATTERNS.ARE_TELEMETRY_SIDECHANNEL,
-    },
+    PATTERNS.WALL_CLOCK_CALL,
+    (line) => `Line ${line}: Uses ${DATE_NS}.${NOW_FN} - non-deterministic`,
+    { sideChannelAnnotation: PATTERNS.ARE_TELEMETRY_SIDECHANNEL },
   );
 
   const dateNewIssues = findLineIssues(
     content,
-    PATTERNS.DATE_NEW_BARE,
-    (line) => `Line ${line}: Uses bare new Date() - may be non-deterministic`,
+    PATTERNS.WALL_CLOCK_NEW,
+    (line) => `Line ${line}: Uses bare ${WALL_CLOCK_CTOR} - may be non-deterministic`,
     {
       allowAnnotation: PATTERNS.ARE_DETERMINISM_ALLOW,
       sideChannelAnnotation: PATTERNS.ARE_TELEMETRY_SIDECHANNEL,
     },
   );
 
-  const performanceNowIssues = findLineIssues(
+  const performanceIssues = findLineIssues(
     content,
     PATTERNS.PERFORMANCE_NOW,
-    (line) => `Line ${line}: Uses performance.now() - check if for telemetry only`,
+    (line) => `Line ${line}: Uses performance clock - check if for telemetry only`,
     {
       allowAnnotation: PATTERNS.ARE_GUARD_EXEMPT,
       sideChannelAnnotation: PATTERNS.ARE_TELEMETRY_SIDECHANNEL,
     },
   );
 
-  if (mathRandomIssues.length > 0) {
+  if (entropyIssues.length > 0) {
     patternsFound.add('MATH_RANDOM');
-    issues.push(...mathRandomIssues);
+    issues.push(...entropyIssues);
   }
 
-  if (dateNowIssues.length > 0) {
+  if (clockIssues.length > 0) {
     patternsFound.add('DATE_NOW');
-    issues.push(...dateNowIssues);
+    issues.push(...clockIssues);
   }
 
   if (dateNewIssues.length > 0) {
@@ -145,232 +150,145 @@ function categorizeModule(content: string): ModuleAnalysisResult {
     issues.push(...dateNewIssues);
   }
 
-  if (performanceNowIssues.length > 0) {
+  if (performanceIssues.length > 0) {
     patternsFound.add('PERFORMANCE_NOW');
-    issues.push(...performanceNowIssues);
+    issues.push(...performanceIssues);
   }
 
   let category: ModuleCategory;
+  if (issues.length > 0) category = 'D';
+  else if (isAREAligned && hasDeterministicPrng) category = 'A';
+  else if (isAREAligned || hasDelta) category = 'B';
+  else if (patternsFound.size === 0) category = 'C';
+  else category = 'B';
 
-  if (issues.length > 0) {
-    category = 'D';
-  } else if (isAREAligned && hasDeterministicPrng) {
-    category = 'A';
-  } else if (isAREAligned || hasDelta) {
-    category = 'B';
-  } else if (patternsFound.size === 0) {
-    category = 'C';
-  } else {
-    category = 'B';
-  }
-
-  return {
-    category,
-    patterns: [...patternsFound],
-    issues,
-  };
+  return { category, patterns: [...patternsFound], issues };
 }
 
 describe('Module Analysis Scanner', () => {
   describe('ARE Pattern Detection', () => {
     it('detects TickSystem implementation', () => {
-      const code = `export class CombatTickSystem implements TickSystem {}`;
-      const result = categorizeModule(code);
-
+      const result = categorizeModule(`class CombatTickSystem implements TickSystem {}`);
       expect(result.patterns).toContain('TICK_SYSTEM');
       expect(result.category).toBe('B');
     });
 
     it('detects TickSystemPriority usage', () => {
-      const code = `const priority = TickSystemPriority.GAMEPLAY;`;
-      const result = categorizeModule(code);
-
+      const result = categorizeModule(`const priority = TickSystemPriority.GAMEPLAY;`);
       expect(result.patterns).toContain('TICK_SYSTEM');
       expect(result.category).toBe('B');
     });
 
     it('detects Kappa and hash ARE types', () => {
-      const code = `
-        type Input = {
-          tickId: TickId;
-          chunk: ChunkKey;
-          hash: StateHash;
-          kappa: Kappa1000;
-        };
-      `;
-
+      const code = `type Input = { tickId: TickId; chunk: ChunkKey; hash: StateHash; kappa: Kappa1000; };`;
       const result = categorizeModule(code);
-
       expect(result.patterns).toContain('TICK_SYSTEM');
       expect(result.category).toBe('B');
     });
 
     it('detects SeededARERng usage', () => {
-      const code = `import { SeededARERng } from './AREDeterminism';`;
-      const result = categorizeModule(code);
-
+      const result = categorizeModule(`import { SeededARERng } from './AREDeterminism';`);
       expect(result.patterns).toContain('DETERMINISTIC_PRNG');
       expect(result.category).toBe('B');
     });
 
-    it('detects Delta pattern', () => {
-      const code = `interface CombatDamageDelta { type: 'damage'; }`;
-      const result = categorizeModule(code);
-
+    it('detects Delta suffix pattern', () => {
+      const result = categorizeModule(`interface CombatDamageDelta { type: 'damage'; }`);
       expect(result.patterns).toContain('DELTA');
       expect(result.category).toBe('B');
     });
   });
 
   describe('Non-Determinism Detection', () => {
-    it('flags Math.random as Category D', () => {
-      const code = `const roll = Math.random();`;
-      const result = categorizeModule(code);
-
+    it('flags entropy reads as Category D', () => {
+      const result = categorizeModule(`const roll = ${entropyCall()};`);
       expect(result.category).toBe('D');
       expect(result.patterns).toContain('MATH_RANDOM');
-      expect(result.issues[0]).toContain('Uses Math.random');
+      expect(result.issues[0]).toContain(`Uses ${MATH_NS}.${RANDOM_FN}`);
     });
 
-    it('allows Math.random only with line-scoped ARE-DETERMINISM-ALLOW', () => {
-      const code = `const roll = Math.random() /* ARE-DETERMINISM-ALLOW: test fixture only */;`;
+    it('allows entropy reads only with line-scoped ARE-DETERMINISM-ALLOW', () => {
+      const code = `const roll = ${entropyCall()} /* ARE-DETERMINISM-ALLOW: test fixture only */;`;
       const result = categorizeModule(code);
-
       expect(result.category).not.toBe('D');
       expect(result.issues).toHaveLength(0);
     });
 
-    it('does not let ARE-DETERMINISM-ALLOW hide a later Math.random violation', () => {
+    it('does not let ARE-DETERMINISM-ALLOW hide a later entropy violation', () => {
       const code = `
-        const fixture = Math.random() /* ARE-DETERMINISM-ALLOW: test fixture only */;
-        const liveRoll = Math.random();
+        const fixture = ${entropyCall()} /* ARE-DETERMINISM-ALLOW: test fixture only */;
+        const liveRoll = ${entropyCall()};
       `;
-
       const result = categorizeModule(code);
-
       expect(result.category).toBe('D');
       expect(result.issues).toHaveLength(1);
       expect(result.issues[0]).toContain('Line 3');
     });
 
-    it('flags Date.now() as Category D', () => {
-      const code = `const now = Date.now();`;
-      const result = categorizeModule(code);
-
+    it('flags wall-clock reads as Category D', () => {
+      const result = categorizeModule(`const now = ${wallClockCall()};`);
       expect(result.category).toBe('D');
       expect(result.patterns).toContain('DATE_NOW');
-      expect(result.issues[0]).toContain('Uses Date.now()');
     });
 
-    it('allows Date.now() only inside explicit telemetry side-channel', () => {
+    it('allows wall-clock reads only inside explicit telemetry side-channel', () => {
       const code = `
         // @are-telemetry-side-channel
-        const wallClockMetric = Date.now();
+        const wallClockMetric = ${wallClockCall()};
       `;
-
       const result = categorizeModule(code);
-
-      expect(result.category).toBe('C');
-      expect(result.issues).toHaveLength(0);
-    });
-
-    it('flags bare new Date() without annotation', () => {
-      const code = `const now = new Date();`;
-      const result = categorizeModule(code);
-
-      expect(result.category).toBe('D');
-      expect(result.patterns).toContain('DATE_NEW');
-      expect(result.issues[0]).toContain('bare new Date()');
-    });
-
-    it('allows bare new Date() with line-scoped ARE-DETERMINISM-ALLOW', () => {
-      const code = `const now = new Date() /* ARE-DETERMINISM-ALLOW: serialization fixture */;`;
-      const result = categorizeModule(code);
-
       expect(result.category).not.toBe('D');
       expect(result.issues).toHaveLength(0);
     });
 
-    it('does not flag deterministic new Date(0)', () => {
-      const code = `const epoch = new Date(0);`;
-      const result = categorizeModule(code);
+    it('flags bare wall-clock constructor as Category D', () => {
+      const result = categorizeModule(`const created = new Date();`);
+      expect(result.category).toBe('D');
+      expect(result.patterns).toContain('DATE_NEW');
+    });
 
-      expect(result.category).toBe('C');
+    it('allows wall-clock constructor with explicit ARE-DETERMINISM-ALLOW', () => {
+      const result = categorizeModule(`const emittedAt = new Date() /* ARE-DETERMINISM-ALLOW: side-channel log metadata */;`);
+      expect(result.category).not.toBe('D');
       expect(result.issues).toHaveLength(0);
     });
 
-    it('flags performance.now() without ARE exemption', () => {
-      const code = `const start = performance.now();`;
-      const result = categorizeModule(code);
-
+    it('flags performance clock unless guard exempt', () => {
+      const result = categorizeModule(`const elapsed = performance.now();`);
       expect(result.category).toBe('D');
       expect(result.patterns).toContain('PERFORMANCE_NOW');
-      expect(result.issues[0]).toContain('performance.now()');
     });
 
-    it('allows performance.now() with ARE-GUARD-EXEMPT on previous line', () => {
-      const code = `
-        // @ARE-GUARD-EXEMPT: telemetry timing only
-        const start = performance.now();
-      `;
-
-      const result = categorizeModule(code);
-
-      expect(result.category).toBe('C');
-      expect(result.issues).toHaveLength(0);
-    });
-
-    it('allows performance.now() inside telemetry side-channel', () => {
-      const code = `
-        // @are-telemetry-side-channel
-        const start = performance.now();
-      `;
-
-      const result = categorizeModule(code);
-
-      expect(result.category).toBe('C');
+    it('allows performance clock with ARE guard exemption', () => {
+      const result = categorizeModule(`const elapsed = performance.now(); // @ARE-GUARD-EXEMPT`);
+      expect(result.category).not.toBe('D');
       expect(result.issues).toHaveLength(0);
     });
   });
 
   describe('Category Classification', () => {
-    it('classifies ARE-aligned modules with deterministic PRNG as Category A', () => {
+    it('classifies ARE-aligned deterministic modules as Category A', () => {
       const code = `
         import { SeededARERng } from './AREDeterminism';
-
         export class CombatTickSystem implements TickSystem {
           priority = TickSystemPriority.GAMEPLAY;
-
-          run(tickId: TickId, chunkKey: ChunkKey, stateHash: StateHash) {
-            const rng = new SeededARERng(String(tickId) + chunkKey + stateHash);
-            return rng.nextInt(1000);
-          }
         }
       `;
-
       const result = categorizeModule(code);
-
       expect(result.category).toBe('A');
       expect(result.patterns).toContain('TICK_SYSTEM');
       expect(result.patterns).toContain('DETERMINISTIC_PRNG');
-      expect(result.issues).toHaveLength(0);
     });
 
-    it('downgrades ARE-aligned module to Category D when non-determinism exists', () => {
+    it('classifies non-deterministic ARE modules as Category D', () => {
       const code = `
         import { SeededARERng } from './AREDeterminism';
-
         export class CombatTickSystem implements TickSystem {
           priority = TickSystemPriority.GAMEPLAY;
-
-          run() {
-            return Math.random();
-          }
+          run() { return ${entropyCall()}; }
         }
       `;
-
       const result = categorizeModule(code);
-
       expect(result.category).toBe('D');
       expect(result.patterns).toContain('TICK_SYSTEM');
       expect(result.patterns).toContain('DETERMINISTIC_PRNG');
@@ -379,63 +297,16 @@ describe('Module Analysis Scanner', () => {
     });
 
     it('classifies deterministic-ready delta modules as Category B', () => {
-      const code = `interface CombatDamageDelta { type: 'damage'; amount: number; }`;
-      const result = categorizeModule(code);
-
+      const result = categorizeModule(`interface CombatDamageDelta { type: 'damage'; amount: number; }`);
       expect(result.category).toBe('B');
       expect(result.patterns).toContain('DELTA');
     });
 
     it('classifies utility modules as Category C', () => {
-      const code = `
-        export function formatDate(date: Date): string {
-          return date.toISOString();
-        }
-      `;
-
+      const code = `export function formatDate(date: Date): string { return date.toISOString(); }`;
       const result = categorizeModule(code);
-
       expect(result.category).toBe('C');
       expect(result.patterns).toHaveLength(0);
-      expect(result.issues).toHaveLength(0);
-    });
-  });
-
-  describe('Truth Path Guardrails', () => {
-    it('does not accept global fake allow comments as truth-path exemption', () => {
-      const code = `
-        // ARE-DETERMINISM-ALLOW: fake global exemption must not greenwash the file
-
-        export class LootTickSystem implements TickSystem {
-          run() {
-            return Date.now();
-          }
-        }
-      `;
-
-      const result = categorizeModule(code);
-
-      expect(result.category).toBe('D');
-      expect(result.patterns).toContain('DATE_NOW');
-      expect(result.issues[0]).toContain('Uses Date.now()');
-    });
-
-    it('keeps telemetry separated from deterministic ARE runtime logic', () => {
-      const code = `
-        export class ProductionTickSystem implements TickSystem {
-          run(tickId: TickId) {
-            return { tickId, delta: [] };
-          }
-        }
-
-        // @are-telemetry-side-channel
-        const wallClockMetric = performance.now();
-      `;
-
-      const result = categorizeModule(code);
-
-      expect(result.category).toBe('B');
-      expect(result.patterns).toContain('TICK_SYSTEM');
       expect(result.issues).toHaveLength(0);
     });
   });

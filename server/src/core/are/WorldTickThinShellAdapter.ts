@@ -1,17 +1,27 @@
 import type { WorldLogicalState } from './ChunkLayerState.js';
-import { worldTickThinShell, type ThinShellWorldState, type WorldTickThinShell } from './WorldTickThinShell.js';
+import { worldTickThinShell, type WorldTickThinShell } from './WorldTickThinShell.js';
 import { RuntimePlayerSystem, RuntimeWarfrontPort, createRuntimeWarfrontSystem } from './RuntimeDomainPorts.js';
 import { registerWarfrontSystem, type WarfrontTickSystem } from './WarfrontTickSystem.js';
 import { sharedWorldEventBus } from '../../modules/ouroboros/sharedWorldEventBus.js';
 import { ChatChannelRouter, type ChatRecipient } from '../../modules/chat/ChatChannelRouter.js';
 import { getActiveGameWebSocketServer } from '../../networking/WebSocketServer.js';
+import type { NPCSystem } from '../../modules/npc/NPCSystem.js';
+import { NPCSystem as RealNPCSystem } from '../../modules/npc/NPCSystem.js';
+import type { LootEntity } from '../../modules/world/LootDirector.js';
+import { lootDirector as deterministicLootDirector } from '../../modules/world/LootDirector.js';
 
 type AutoRepairStatus = { ok: boolean; status: string };
 type DeterministicRecorderStats = { recordedTicks: number; replayBufferSize: number };
 type DeterministicReplaySnapshot = { tick: number; snapshot: unknown };
-type WorldHashSnapshot = { tick: number; worldHash: string; chunkCount: number; entityCount: number; timestamp: number };
 type AREInvariantGuardStatus = { ok: boolean; invariant: string };
 type NetworkBridge = { broadcast(data: unknown): void; sendToPlayer(id: string, data: unknown): void };
+type WorldHashSnapshot = {
+  tick: number;
+  worldHash: string;
+  chunkCount: number;
+  entityCount: number;
+  timestamp: number;
+};
 
 const validationState = { getSnapshot: () => ({ guard: { ok: true, invariant: 'WorldThinShell' } as AREInvariantGuardStatus }) };
 const tickRecorder = {
@@ -30,7 +40,7 @@ class StubObserverEngine {
 class StubCombatSystem {}
 class StubCombatService {}
 class StubInventorySystem {}
-class StubNPCSystem { getNPC(_id: string) { return null; } getAllNPCs() { return []; } }
+
 class StubGuildSystem {}
 class StubEconomySystem {}
 class StubQuestEngine {}
@@ -60,13 +70,18 @@ export class WorldTickAdapter {
   private readonly warfrontDomain = createRuntimeWarfrontSystem();
   readonly warfrontTickSystem: WarfrontTickSystem;
 
+  // Real game systems - wired for ARE truth path
+  private readonly realNPCSystem: NPCSystem;
+  /** Backward-compatible public surface used by combat/persistence/skill integrations. */
+  readonly npcSystem: NPCSystem;
+  readonly deterministicLootDirector: { getAllLoot(): LootEntity[] };
+
   readonly chunkSystem = new StubChunkSystem();
   readonly observerEngine = new StubObserverEngine();
   readonly playerSystem = new RuntimePlayerSystem();
   readonly combatSystem = new StubCombatSystem();
   readonly combatService = new StubCombatService();
   readonly inventorySystem = new StubInventorySystem();
-  readonly npcSystem = new StubNPCSystem();
   readonly guildSystem = new StubGuildSystem();
   readonly economySystem = new StubEconomySystem();
   readonly questSystem = new StubQuestEngine();
@@ -95,7 +110,6 @@ export class WorldTickAdapter {
       this.resolveSocketId,
     ),
   };
-  readonly lootSystem: any = { rollLoot: () => ({ items: [], gold: 0 }) };
   readonly ws = {
     broadcast: (payload: unknown) => this.broadcast(payload),
     sendToPlayer: (socketId: string, payload: unknown) => this.sendToPlayer(socketId, payload),
@@ -108,8 +122,28 @@ export class WorldTickAdapter {
   readonly assetHealthService = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
 
   constructor() {
+    // Create real NPC system for ARE truth path and preserve legacy adapter alias.
+    this.realNPCSystem = new RealNPCSystem();
+    this.npcSystem = this.realNPCSystem;
+
+    // Wire deterministic LootDirector for ARE truth path
+    // This is the ARE-style loot system from modules/world/LootDirector
+    this.deterministicLootDirector = deterministicLootDirector;
+
     this.warfrontTickSystem = registerWarfrontSystem(this.warfrontDomain);
-    this.thinShell.registerWorldStateProvider(() => this.buildThinShellWorldState());
+
+    // Register adapter's systems as WorldStateProvider for ARE truth path
+    // This ensures WorldTickThinShell.getWorldStateForTick() always has data
+    this.thinShell.registerWorldStateProvider({
+      id: 'adapter-internal',
+      getWorldState: (_context) => ({
+        npcs: this.npcSystem.getAllNPCs(),
+        players: this.playerSystem.getAllPlayers(),
+        loot: this.deterministicLootDirector.getAllLoot(),
+      }),
+    });
+
+    console.log('[WorldTickAdapter] Initialized with RealNPCSystem and deterministicLootDirector');
   }
 
   attachNetworkBridge(networkBridge: NetworkBridge): void {
@@ -130,12 +164,11 @@ export class WorldTickAdapter {
 
   resolveSocketId = (playerId: string): string | undefined => this.playerToSocket.get(playerId);
 
-  private buildThinShellWorldState(): ThinShellWorldState {
-    return {
-      npcs: this.npcSystem.getAllNPCs(),
-      players: this.playerSystem.getAllPlayers(),
-      loot: [],
-    };
+  /**
+   * Get the real NPC system for external access.
+   */
+  getRealNPCSystem(): NPCSystem {
+    return this.realNPCSystem;
   }
 
   async init(): Promise<void> {

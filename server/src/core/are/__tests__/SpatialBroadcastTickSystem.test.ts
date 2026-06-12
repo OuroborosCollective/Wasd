@@ -132,10 +132,11 @@ describe('SpatialBroadcastGrid', () => {
 
   describe('getStats', () => {
     it('should return correct statistics', () => {
+      // All coordinates intentionally stay in chunk (1, 3) with 64-tile chunks.
       grid.upsert('player1', 100, 200, 'player', {});
       grid.upsert('player2', 110, 210, 'player', {});
       grid.upsert('npc1', 120, 220, 'npc', {});
-      grid.upsert('loot1', 130, 230, 'loot', {});
+      grid.upsert('loot1', 126, 230, 'loot', {});
       
       const stats = grid.getStats();
       

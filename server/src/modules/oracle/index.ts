@@ -1,8 +1,11 @@
 /**
  * Oracle Module - Living World System with WorldEventBus Integration.
+ *
+ * ARE Determinism: Uses deterministic createEvent() when available,
+ * falls back to legacy emit() for backward compatibility.
  */
 
-import type { WorldEventBus } from "../ouroboros/WorldEventBus.js";
+import type { WorldEvent, WorldEventBus } from "../ouroboros/WorldEventBus.js";
 import type {
   BroadcastFn,
   ChatChannelRouter,
@@ -29,9 +32,27 @@ export {
   type OracleChatBridgeConfig,
 } from "./OracleChatBridge.js";
 
+/**
+ * Extended event bus interface that supports deterministic createEvent().
+ * Used by OracleChatBridge to determine which method to use.
+ */
+export interface DeterministicEventBus extends WorldEventBus {
+  createEvent<TData = Record<string, unknown>>(
+    input: { type: string; actorId?: string; data: TData },
+    context: { tick: number; localIndex: number; stateHash?: string },
+    position: { x: number; y: number },
+    actorName: string,
+    intensity?: number,
+  ): WorldEvent;
+}
+
+/**
+ * Target for Oracle Chat Bridge installation.
+ * The bridge connects oracle events from the eventBus to chat broadcasts.
+ */
 export interface OracleChatBridgeInstallTarget {
-  readonly eventBus?: WorldEventBus;
-  readonly ouroborosEngine?: { readonly eventBus?: WorldEventBus };
+  readonly eventBus?: WorldEventBus | DeterministicEventBus;
+  readonly ouroborosEngine?: { readonly eventBus?: WorldEventBus | DeterministicEventBus };
   readonly chatRouter?: ChatChannelRouter;
   readonly chatSystem?: { readonly chatRouter?: ChatChannelRouter };
   readonly players?: ChatRecipient[];
@@ -47,9 +68,15 @@ export interface OracleChatBridgeInstallTarget {
 
 /**
  * Install the Oracle Chat Bridge into the server shell/adapter.
+ * This enables Oracle prophecies to be broadcast to players via chat.
  */
 export function installOracleChatBridge(tick: OracleChatBridgeInstallTarget): OracleChatBridge | null {
-  const eventBus = tick.ouroborosEngine?.eventBus ?? tick.eventBus;
+  // Try to get deterministic event bus first, fall back to regular.
+  const deterministicBus =
+    (tick.eventBus as DeterministicEventBus | undefined) ??
+    (tick.ouroborosEngine?.eventBus as DeterministicEventBus | undefined);
+  const eventBus = deterministicBus ?? tick.eventBus ?? tick.ouroborosEngine?.eventBus;
+
   const chatRouter = tick.chatSystem?.chatRouter ?? tick.chatRouter;
 
   if (!eventBus || !chatRouter) {
@@ -66,6 +93,7 @@ export function installOracleChatBridge(tick: OracleChatBridgeInstallTarget): Or
   });
   const resolveSocketId: ResolveSocketIdFn = tick.resolveSocketId ?? ((playerId) => tick.playerToSocket?.get(playerId));
 
+  // Create bridge with the event bus (deterministic or legacy)
   const bridge = createOracleChatBridge(
     eventBus,
     chatRouter,
@@ -76,6 +104,6 @@ export function installOracleChatBridge(tick: OracleChatBridgeInstallTarget): Or
     { broadcastCritical: true, broadcastCooldownMs: 300 },
   );
 
-  console.log("[OracleChatBridge] Installed successfully");
+  console.log(`[OracleChatBridge] Installed successfully (deterministic: ${deterministicBus ? 'yes' : 'legacy fallback'})`);
   return bridge;
 }

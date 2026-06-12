@@ -9,7 +9,7 @@ import type { TickId, StateHash, ChunkKey, EntityId } from './types.js';
 import { createStateHash, type KappaInt } from './types.js';
 import type { IARELogicLayers } from './IARELogicLayers.js';
 import type { LayerPersistenceEvent, WorldLogicalState } from './ChunkLayerState.js';
-import { getLayerValues, LAYER_CONSTANTS } from './IARELogicLayers.js';
+import { getLayerValues } from './IARELogicLayers.js';
 
 export class DeterminismViolation extends Error {
   constructor(message: string) {
@@ -55,9 +55,11 @@ export interface ModuleSnapshotData {
   timestamp: number;
 }
 
+const ZERO_STATE_HASH = createStateHash('0'.repeat(64));
+
 export class SnapshotComposer {
   private chunkSnapshots: Map<ChunkKey, ChunkSnapshot> = new Map();
-  private previousWorldHash: StateHash = createStateHash('0'.repeat(64));
+  private previousWorldHash: StateHash = ZERO_STATE_HASH;
   private persistenceQueue: LayerPersistenceEvent[] = [];
   private moduleSnapshots: Map<string, ModuleSnapshotData> = new Map();
   // Track expected layer checksum per chunk for conservation validation
@@ -107,6 +109,8 @@ export class SnapshotComposer {
     this.chunkSnapshots.clear();
     this.moduleSnapshots.clear();
     this.expectedLayerChecksums.clear();
+    this.persistenceQueue = [];
+    this.previousWorldHash = ZERO_STATE_HASH;
   }
 
   addModuleState(moduleName: string, data: ModuleSnapshotData): void {

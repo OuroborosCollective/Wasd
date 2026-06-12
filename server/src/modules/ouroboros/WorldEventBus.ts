@@ -4,11 +4,22 @@
  * Every module publishes events here; every subscriber reacts.
  * Events feed into WorldHistory, agent memory, heuristic updates,
  * and the legend generator.
+ *
+ * ARE Determinism: Events can be created with deterministic IDs using
+ * createDeterministicEvent(). This requires tick context to be passed.
+ * The legacy emit() method still works but uses placeholder values.
  */
+
+import {
+  createDeterministicEvent,
+  type DeterministicEventContext,
+  type WorldEventInput,
+} from "../../core/are/DeterministicEventFactory.js";
 
 export interface WorldEvent {
   id: string;
   type: WorldEventType;
+  /** Logical time in milliseconds (tick * 100). NOT wall-clock time. */
   ts: number;
   /** Position where the event occurred. */
   position: { x: number; y: number };
@@ -58,11 +69,13 @@ export type WorldEventType =
 
 export type WorldEventHandler = (event: WorldEvent) => void;
 
-let counter = 0;
+let legacyCounter = 0;
 
 export class WorldEventBus {
   private handlers = new Map<string, WorldEventHandler[]>();
   private allHandlers: WorldEventHandler[] = [];
+  /** Per-tick event indices for deterministic localIndex assignment */
+  private tickEventIndices = new Map<number, number>();
 
   /** Subscribe to a specific event type. */
   on(type: WorldEventType, handler: WorldEventHandler): () => void {
@@ -84,14 +97,64 @@ export class WorldEventBus {
     };
   }
 
-  /** Publish an event to all subscribers. */
+  /**
+   * Create a deterministic event with proper tick context.
+   * Use this method when you have tick information available.
+   *
+   * @param input Event input data
+   * @param context Tick context with tick and optional stateHash
+   * @param position Event position
+   * @param actorName Actor display name
+   * @param intensity Event intensity (0-1)
+   * @param target Optional target info
+   */
+  createEvent<TData = Record<string, unknown>>(
+    input: WorldEventInput<TData>,
+    context: DeterministicEventContext,
+    position: { x: number; y: number },
+    actorName: string,
+    intensity = 0.5,
+    target?: { id: string; name: string },
+  ): WorldEvent {
+    const deterministic = createDeterministicEvent(input, context);
+
+    const full: WorldEvent = {
+      id: deterministic.id,
+      type: input.type as WorldEventType,
+      ts: deterministic.logicalTimeMs,
+      position,
+      actorId: deterministic.actorId,
+      actorName,
+      targetId: target?.id ?? (deterministic.targetId || undefined),
+      targetName: target?.name,
+      data: deterministic.data as Record<string, unknown>,
+      intensity,
+    };
+
+    this.dispatch(full);
+    return full;
+  }
+
+  /**
+   * Publish an event to all subscribers.
+   *
+   * DEPRECATED: This method uses placeholder values for id and ts.
+   * Use createEvent() with proper tick context instead.
+   *
+   * @deprecated Use createEvent() with DeterministicEventContext
+   */
   emit(event: Omit<WorldEvent, "id" | "ts">): WorldEvent {
     const full: WorldEvent = {
       ...event,
-      id: `we_${++counter}_${0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */.toString(36)}`,
-      ts: 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
+      id: `legacy_${++legacyCounter}_0`,
+      ts: 0, // Legacy placeholder - use createEvent() for proper ts
     };
 
+    this.dispatch(full);
+    return full;
+  }
+
+  private dispatch(full: WorldEvent): void {
     const typed = this.handlers.get(full.type);
     if (typed) {
       for (const h of typed) {
@@ -101,8 +164,6 @@ export class WorldEventBus {
     for (const h of this.allHandlers) {
       try { h(full); } catch (e) { console.error("[WorldEventBus:all]", full.type, e); }
     }
-
-    return full;
   }
 
   /** Helper: create a typed event with minimal boilerplate. */
@@ -125,5 +186,18 @@ export class WorldEventBus {
       targetId: target?.id,
       targetName: target?.name,
     };
+  }
+
+  /** Get next local index for a given tick (for deterministic event ordering) */
+  getNextLocalIndex(tick: number): number {
+    const current = this.tickEventIndices.get(tick) ?? -1;
+    const next = current + 1;
+    this.tickEventIndices.set(tick, next);
+    return next;
+  }
+
+  /** Reset tick event indices (useful for testing) */
+  resetTickIndices(): void {
+    this.tickEventIndices.clear();
   }
 }
