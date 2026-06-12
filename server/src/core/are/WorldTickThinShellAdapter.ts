@@ -152,7 +152,18 @@ export class WorldTickAdapter {
 
   constructor() {
     this.warfrontTickSystem = registerWarfrontSystem(this.warfrontDomain);
-    this.thinShell.registerWorldStateProvider(() => this.buildThinShellWorldState());
+
+    // Register adapter's own systems as WorldStateProvider for ARE truth path
+    // This provides npcs, players, and loot from the adapter's systems
+    // Use a stable provider ID that sorts first
+    this.thinShell.registerWorldStateProvider({
+      id: 'adapter-internal',
+      getWorldState: (_context) => ({
+        npcs: this.npcSystem.getAllNPCs(),
+        players: this.playerSystem.getAllPlayers(),
+        loot: this.lootSystem.getAllLoot(),
+      }),
+    });
   }
 
   attachNetworkBridge(networkBridge: NetworkBridge): void {
@@ -172,14 +183,6 @@ export class WorldTickAdapter {
   };
 
   resolveSocketId = (playerId: string): string | undefined => this.playerToSocket.get(playerId);
-
-  private buildThinShellWorldState(): ThinShellWorldState {
-    return {
-      npcs: this.npcSystem.getAllNPCs(),
-      players: this.playerSystem.getAllPlayers(),
-      loot: this.lootSystem.getAllLoot(),
-    };
-  }
 
   /**
    * Register real NPC system for ARE truth path.
