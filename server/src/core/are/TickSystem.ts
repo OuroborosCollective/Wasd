@@ -1,14 +1,20 @@
 /**
  * TickSystem - legacy import surface for ARE tick systems.
  *
- * This file reuses the canonical priority enum from `types.ts` so registry,
- * auto-generated systems and WorldThinShell systems all share one priority type.
+ * This file intentionally keeps the compact 10Hz scheduler priority scale used
+ * by WorldBrain: GAMEPLAY=20, world-brain=25, BROADCAST=30.
  */
 
-import { TickSystemPriority } from './types.js';
 import type { TickId, TickSystemContext as CanonicalTickSystemContext } from './types.js';
 
-export { TickSystemPriority };
+export enum TickSystemPriority {
+  CRITICAL = 0,
+  INFRASTRUCTURE = 10,
+  GAMEPLAY = 20,
+  BROADCAST = 30,
+  PERSISTENCE = 40,
+  BACKGROUND = 50,
+}
 
 export interface TickSystemContext extends CanonicalTickSystemContext {
   readonly tickCount: TickId;
