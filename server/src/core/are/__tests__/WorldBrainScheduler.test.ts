@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { WorldBrainScheduler, registerWorldBrainScheduler } from '../WorldBrainScheduler.js';
-import { TickSystemPriority } from '../TickSystem.js';
-import { createChunkKey } from '../types.js';
+import { createKappa, createChunkKey } from '../types.js';
+import { ChunkLayerIndex, ATTRACTOR_TYPES } from '../ChunkLayerState.js';
 
 describe('WorldBrainScheduler', () => {
   let scheduler: WorldBrainScheduler;
@@ -16,7 +16,7 @@ describe('WorldBrainScheduler', () => {
     });
 
     it('should have INFRASTRUCTURE priority', () => {
-      expect(scheduler.priority).toBe(TickSystemPriority.INFRASTRUCTURE);
+      expect(scheduler.priority).toBe(0); // INFRASTRUCTURE = 0
     });
 
     it('should be enabled by default', () => {
