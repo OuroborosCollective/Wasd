@@ -54,6 +54,8 @@ RUN --mount=type=cache,id=wasd-vps-pnpm-store,target=/pnpm/store \
       '  - packages/core-logic' \
       '  - packages/shared' \
       'allowBuilds: true' \
+      'minimumReleaseAgeExclude:' \
+      "  - '@nodable/entities'" \
       > pnpm-workspace.yaml && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py && \
     # Exclude client-2d - it's prebuilt on GitHub Actions
@@ -72,6 +74,8 @@ RUN rm -rf packages/sdk-examples || true && \
       '  - packages/core-logic' \
       '  - packages/shared' \
       'allowBuilds: true' \
+      'minimumReleaseAgeExclude:' \
+      "  - '@nodable/entities'" \
       > pnpm-workspace.yaml && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py && \
     pnpm config set verify-deps-before-run false
