@@ -47,6 +47,14 @@ Primary source-of-truth docs:
   - Validate content: `pnpm run validate --prefix server`
   - Model-path audit: `pnpm run audit:model-paths`
 
+### AutoHeal Module System (ARE)
+- **Scanner:** `pnpm modules:scan` / `pnpm modules:scan:ci` (fails on D,E categories)
+- **Safe Autofix:** `pnpm modules:fix` / `pnpm modules:fix:dry` (type typos, category typos)
+- **AutoHeal Plan:** `pnpm autoheal:plan` / `pnpm autoheal:plan:verbose`
+- **AutoHeal Apply:** `pnpm autoheal:apply` (SAFE_MECHANICAL) / `pnpm autoheal:apply:low` (LOW_SEMANTIC)
+- **Risk levels:** SAFE_MECHANICAL → LOW_SEMANTIC → MEDIUM_SEMANTIC → HIGH_SEMANTIC → FORBIDDEN
+- **Core rule:** Green only through proof. No stub filling, no fake determinism, no Math.random without ctx.rng.
+
 ### Environment variables (important)
 - General defaults and descriptions: `.env.example`
 - Production template: `deploy/.env.production.template`
@@ -209,6 +217,8 @@ When working on specific topics, check the skills in `docs/ai-skills/`:
 - `wasd-health-endpoint-verification.md` - Health check patterns for VPS verification
 - `wasd-production-activation-workflow.md` - Complete workflow for production activation
 - `wasd-npc-autonomous-brain.md` - NPC autonomous brain system (memory, decisions, learning)
+- `wasd-autoheal-system.md` - AutoHeal module system (4-phase pipeline, risk levels, policy)
+- `wasd-autoheal-best-practices.md` - AutoHeal best practices (workflow patterns, anti-patterns, verification)
 
 ### VPS & Deployment Skills
 - `vps-ssh-paramiko-patterns.md` - SSH access to VPS via Paramiko

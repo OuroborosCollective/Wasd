@@ -56,8 +56,10 @@ const PATTERNS = {
 const args = argv.slice(2);
 const options = {
   verbose: args.includes('--verbose'),
+  ci: args.includes('--ci'),
   category: args.find(a => a.startsWith('--category='))?.split('=')[1],
   module: args.find(a => a.startsWith('--module='))?.split('=')[1],
+  failOn: args.find(a => a.startsWith('--fail-on='))?.split('=')[1]?.split(',') || [],
 };
 
 const ModuleAnalysis = {
@@ -280,10 +282,26 @@ function printResults(results) {
   console.log(`\nActionable: ${categories.B.length + categories.C.length + categories.D.length + categories.E.length} modules need attention`);
   console.log(`Immediate delete candidates: ${categories.E.length} stubs`);
   console.log(`Critical fixes needed: ${categories.D.length} non-deterministic`);
+
+  // CI mode: exit non-zero if blocked categories found
+  if (options.ci || options.failOn.length > 0) {
+    const blockedCats = options.failOn.length > 0 ? options.failOn : ['D', 'E'];
+    const blocked = blockedCats.flatMap(c => categories[c] || []);
+    const nonBlocked = blockedCats.filter(c => categories[c]?.length > 0);
+
+    if (nonBlocked.length > 0) {
+      console.log(`\n❌ CI GATE FAILED: Found ${blocked.length} module(s) in blocked categories: ${nonBlocked.join(', ')}`);
+      console.log('   Use --fail-on=D,E to block D and E categories (default in CI mode)');
+      console.log('   Use --fail-on=D to block only non-deterministic modules');
+      if (options.ci) {
+        console.log('\n=== CI MODE: EXIT 1 ===');
+        process.exit(1);
+      }
+    } else {
+      console.log('\n✅ CI GATE PASSED: No blocked categories found');
+    }
+  }
 }
 
 const results = analyzeModules();
 printResults(results);
-
-// Export for programmatic use
-// module.exports = { analyzeModules, categorizeModule };

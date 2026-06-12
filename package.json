@@ -32,6 +32,15 @@
     "guard:all": "pnpm guard:monorepo && pnpm guard:architecture && pnpm guard:worldtick && pnpm guard:entrypoints && pnpm audit:core-alignment",
     "audit:core-alignment": "node scripts/audit-core-reality-alignment.mjs",
     "audit:core-alignment:fail": "node scripts/audit-core-reality-alignment.mjs --fail",
+    "modules:scan": "node scripts/analyze-modules.mjs --verbose",
+    "modules:scan:ci": "node scripts/analyze-modules.mjs --ci --verbose --fail-on=D,E",
+    "modules:fix:dry": "node scripts/autofix-modules.mjs --manifest",
+    "modules:fix": "node scripts/autofix-modules.mjs --write --manifest",
+    "modules:fix:headers": "node scripts/autofix-modules.mjs --write --manifest --headers",
+    "autoheal:plan": "node scripts/autoheal-modules.mjs --plan",
+    "autoheal:plan:verbose": "node scripts/autoheal-modules.mjs --plan --verbose",
+    "autoheal:apply": "node scripts/autoheal-modules.mjs --apply --max-risk=SAFE_MECHANICAL",
+    "autoheal:apply:low": "node scripts/autoheal-modules.mjs --apply --max-risk=LOW_SEMANTIC",
     "clean": "pnpm -r exec rm -rf dist node_modules"
   },
   "engines": {
