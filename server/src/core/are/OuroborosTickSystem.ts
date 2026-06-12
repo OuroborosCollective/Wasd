@@ -21,7 +21,7 @@ import {
   OuroborosEngine,
   type OuroborosEngineConfig,
 } from "../../modules/ouroboros/OuroborosEngine.js";
-import { NPCMemoryCache } from "../../modules/npc/NPCMemoryCache.js";
+import type { NPCMemoryCache, Memory, MemoryEvent } from "../../modules/npc/NPCMemoryCache.js";
 import type { NPCRelationshipSystem } from "../../modules/npc/NPCRelationshipSystem.js";
 import type {
   ChatChannelRouter,
@@ -44,6 +44,132 @@ export interface OuroborosTickSystemOptions {
 
 type EngineNpc = { id: string; name: string; position: { x: number; y: number }; faction?: string };
 type EnginePlayer = { id: string; name: string; position: { x: number; y: number } };
+
+type RuntimeMemory = Memory & { persistent: boolean };
+
+function createInMemoryNpcMemoryCache(): NPCMemoryCache {
+  const memories = new Map<string, RuntimeMemory[]>();
+  let logicalClock = 0;
+
+  const nextTick = (npcId: string, tag: string): number => {
+    logicalClock += 1;
+    let h = 0x811c9dc5;
+    const input = `${npcId}:${tag}:${logicalClock}`;
+    for (let i = 0; i < input.length; i += 1) {
+      h ^= input.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h >>> 0;
+  };
+
+  const addMemory = (npcId: string, memoryData: Omit<Memory, "npcId" | "persistent">): void => {
+    const memory: RuntimeMemory = {
+      ...memoryData,
+      npcId,
+      persistent: false,
+    };
+    const list = memories.get(npcId) ?? [];
+    list.push(memory);
+    memories.set(npcId, list);
+  };
+
+  const cache = {
+    recordChat(npcId: string, chat: { text: string; sender: string; channel: string; ts: number }): void {
+      addMemory(npcId, {
+        content: `[${chat.channel}] ${chat.sender}: ${chat.text}`,
+        importance: 1,
+        timestamp: chat.ts,
+        tags: ["chat", chat.channel],
+      });
+    },
+    addMemory,
+    getWeightedMemories(npcId: string): Memory[] {
+      return [...(memories.get(npcId) ?? [])].sort((a, b) => {
+        if (b.importance !== a.importance) return b.importance - a.importance;
+        if (a.timestamp !== b.timestamp) return a.timestamp - b.timestamp;
+        return a.content.localeCompare(b.content);
+      });
+    },
+    async flushToDatabase(): Promise<void> {},
+    clearCache(npcId?: string): void {
+      if (npcId) memories.delete(npcId);
+      else memories.clear();
+    },
+    getBufferSize(): number {
+      let count = 0;
+      for (const list of memories.values()) count += list.filter((memory) => !memory.persistent).length;
+      return count;
+    },
+    get(npcId: string): Memory[] {
+      return [...(memories.get(npcId) ?? [])];
+    },
+    observe(npcId: string, observation: string): void {
+      addMemory(npcId, {
+        content: observation,
+        importance: 1,
+        timestamp: nextTick(npcId, "observation"),
+        tags: ["observation"],
+      });
+    },
+    setGoal(npcId: string, goal: string): void {
+      addMemory(npcId, {
+        content: goal,
+        importance: 2,
+        timestamp: nextTick(npcId, "goal"),
+        tags: ["goal"],
+      });
+    },
+    logEvent(npcId: string, event: string): void {
+      addMemory(npcId, {
+        content: event,
+        importance: 1,
+        timestamp: nextTick(npcId, "event"),
+        tags: ["event"],
+      });
+    },
+    getEvents(npcId: string): MemoryEvent[] {
+      return [...(memories.get(npcId) ?? [])]
+        .map((memory, index) => ({
+          id: memory.id ?? `${memory.npcId}:memory:${memory.timestamp}:${index}`,
+          npcId: memory.npcId,
+          tags: [...memory.tags].sort(),
+          timestamp: memory.timestamp,
+          content: memory.content,
+        }))
+        .sort((a, b) => {
+          if (a.timestamp !== b.timestamp) return a.timestamp - b.timestamp;
+          return a.id.localeCompare(b.id);
+        });
+    },
+    hydrate(snapshot: unknown): void {
+      if (!snapshot || typeof snapshot !== "object") return;
+      const entries = Array.isArray((snapshot as { memories?: unknown }).memories)
+        ? (snapshot as { memories: unknown[] }).memories
+        : [];
+      for (const entry of entries) {
+        if (!entry || typeof entry !== "object") continue;
+        const record = entry as Record<string, unknown>;
+        const npcId = String(record.npcId ?? "");
+        if (!npcId) continue;
+        addMemory(npcId, {
+          id: record.id ? String(record.id) : undefined,
+          content: String(record.content ?? ""),
+          importance: Number.isFinite(Number(record.importance)) ? Number(record.importance) : 1,
+          timestamp: Number.isFinite(Number(record.timestamp)) ? Number(record.timestamp) : nextTick(npcId, "hydrate"),
+          tags: Array.isArray(record.tags) ? record.tags.map(String).sort() : ["hydrated"],
+        });
+      }
+    },
+    getDirtyEntries(): Array<{ npcId: string }> {
+      return [...memories.keys()].sort().map((npcId) => ({ npcId }));
+    },
+    markSaved(npcId: string): void {
+      for (const memory of memories.get(npcId) ?? []) memory.persistent = true;
+    },
+  };
+
+  return cache as unknown as NPCMemoryCache;
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
@@ -119,7 +245,7 @@ export class OuroborosTickSystem implements TickSystem {
     if (options.enableNPCBrain !== undefined) engineConfig.enableNPCBrain = options.enableNPCBrain;
 
     this.engine = new OuroborosEngine(engineConfig);
-    this.memoryCache = new NPCMemoryCache();
+    this.memoryCache = createInMemoryNpcMemoryCache();
     this.relationships = {
       getRelationship: () => 0,
       setRelationship: () => {},
