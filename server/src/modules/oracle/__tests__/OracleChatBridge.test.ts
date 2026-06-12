@@ -6,18 +6,18 @@ import { ChatChannelRouter, type ChatRecipient, type SendToPlayerFn, type Broadc
 describe('OracleChatBridge', () => {
   let eventBus: WorldEventBus;
   let chatRouter: ChatChannelRouter;
-  let mockSendToPlayer: ReturnType<typeof vi.fn<Parameters<SendToPlayerFn>, ReturnType<SendToPlayerFn>>>;
-  let mockBroadcast: ReturnType<typeof vi.fn<Parameters<BroadcastFn>, ReturnType<BroadcastFn>>>;
-  let mockResolveSocketId: ReturnType<typeof vi.fn<Parameters<ResolveSocketIdFn>, ReturnType<ResolveSocketIdFn>>>;
+  let mockSendToPlayer: ReturnType<typeof vi.fn<SendToPlayerFn>>;
+  let mockBroadcast: ReturnType<typeof vi.fn<BroadcastFn>>;
+  let mockResolveSocketId: ReturnType<typeof vi.fn<ResolveSocketIdFn>>;
   let recipients: ChatRecipient[];
   let bridge: OracleChatBridge;
 
   beforeEach(() => {
     eventBus = new WorldEventBus();
     chatRouter = new ChatChannelRouter();
-    mockSendToPlayer = vi.fn<Parameters<SendToPlayerFn>, ReturnType<SendToPlayerFn>>();
-    mockBroadcast = vi.fn<Parameters<BroadcastFn>, ReturnType<BroadcastFn>>();
-    mockResolveSocketId = vi.fn<Parameters<ResolveSocketIdFn>, ReturnType<ResolveSocketIdFn>>();
+    mockSendToPlayer = vi.fn<SendToPlayerFn>();
+    mockBroadcast = vi.fn<BroadcastFn>();
+    mockResolveSocketId = vi.fn<ResolveSocketIdFn>();
     recipients = [
       { id: 'player1', position: { x: 0, y: 0 } },
       { id: 'player2', position: { x: 100, y: 100 } },
