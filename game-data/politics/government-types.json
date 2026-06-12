@@ -1,7 +1,67 @@
 {
-  "monarchy": {},
-  "council": {},
-  "theocracy": {},
-  "trade_republic": {},
-  "warband": {}
+  "monarchy": {
+    "id": "monarchy",
+    "label": "Monarchy",
+    "succession": "inheritance",
+    "stabilityBase": 0.7,
+    "electionCycleTicks": 0,
+    "taxAuthority": "crown",
+    "warAuthority": "ruler",
+    "tradeBias": 0.35,
+    "warBias": 0.45,
+    "civicRights": ["petition", "guild_charter"],
+    "description": "Hereditary ruler with high continuity, fast wartime decisions, and limited civic voting."
+  },
+  "council": {
+    "id": "council",
+    "label": "Council",
+    "succession": "vote",
+    "stabilityBase": 0.6,
+    "electionCycleTicks": 72000,
+    "taxAuthority": "council_vote",
+    "warAuthority": "council_vote",
+    "tradeBias": 0.55,
+    "warBias": 0.25,
+    "civicRights": ["petition", "vote", "guild_charter", "public_hearing"],
+    "description": "Shared civic rule with slower decisions, broader legitimacy, and stronger settlement diplomacy."
+  },
+  "theocracy": {
+    "id": "theocracy",
+    "label": "Theocracy",
+    "succession": "religious_selection",
+    "stabilityBase": 0.65,
+    "electionCycleTicks": 0,
+    "taxAuthority": "temple",
+    "warAuthority": "doctrine",
+    "tradeBias": 0.25,
+    "warBias": 0.35,
+    "civicRights": ["petition", "sanctuary"],
+    "description": "Doctrine-led rule with strong internal cohesion and faith-bound diplomatic pressure."
+  },
+  "trade_republic": {
+    "id": "trade_republic",
+    "label": "Trade Republic",
+    "succession": "merchant_vote",
+    "stabilityBase": 0.55,
+    "electionCycleTicks": 54000,
+    "taxAuthority": "merchant_senate",
+    "warAuthority": "senate_contract",
+    "tradeBias": 0.85,
+    "warBias": 0.15,
+    "civicRights": ["petition", "vote", "guild_charter", "market_contract"],
+    "description": "Merchant-led government optimized for trade routes, contracts, tariffs, and diplomacy."
+  },
+  "warband": {
+    "id": "warband",
+    "label": "Warband",
+    "succession": "strength",
+    "stabilityBase": 0.4,
+    "electionCycleTicks": 0,
+    "taxAuthority": "tribute",
+    "warAuthority": "chieftain",
+    "tradeBias": 0.1,
+    "warBias": 0.9,
+    "civicRights": ["challenge", "spoils_claim"],
+    "description": "Force-based rule with low stability, high aggression, and tribute-driven diplomacy."
+  }
 }
