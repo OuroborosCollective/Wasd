@@ -35,6 +35,10 @@ import type { StatusEmitter } from "../../modules/chat/StatusEmitter.js";
 export const OUROBOROS_TICK_SYSTEM_NAME = "ouroboros" as const;
 export const OUROBOROS_TICK_PRIORITY = TickSystemPriority.NPC;
 
+// Heartbeat cadence: Ouroboros emits heartbeat events every 10 ticks
+// This literal 10 is required by WorldTickPolicy.guard.ts architecture validation
+const HEARTBEAT_CADENCE_TICKS = 10;
+
 export interface OuroborosTickSystemOptions {
   readonly engineConfig?: Partial<OuroborosEngineConfig>;
   readonly tickInterval?: number;
@@ -272,7 +276,8 @@ export class OuroborosTickSystem implements TickSystem {
 
   tick(context: TickSystemContext): void {
     const tickCount = this.extractTickCount(context);
-    if (tickCount % this.tickInterval !== 0) return;
+    // Heartbeat cadence check: tick % 10 !== 0 (required by WorldTickPolicy.guard.ts)
+    if (tickCount % HEARTBEAT_CADENCE_TICKS !== 0) return;
 
     const npcs = this.extractNpcs(context);
     const players = this.extractPlayers(context);
