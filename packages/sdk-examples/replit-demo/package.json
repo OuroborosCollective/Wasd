@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "vite": "^6.4.2",
-    "typescript": "^6.0.3",
+    "typescript": "^5.8.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "@wasd/core-logic": "workspace:*"
