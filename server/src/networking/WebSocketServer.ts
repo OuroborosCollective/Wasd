@@ -6,6 +6,12 @@ import { collectiveIngressRuntime } from "../collective/CollectiveIngressRuntime
 
 const WS_RL_WINDOW_MS = 1000;
 
+let activeGameWebSocketServer: GameWebSocketServer | null = null;
+
+export function getActiveGameWebSocketServer(): GameWebSocketServer | null {
+  return activeGameWebSocketServer;
+}
+
 type TrackedSocket = WebSocket & {
   id?: string;
   _entitySyncIntervalMs?: number;
@@ -24,7 +30,6 @@ export class GameWebSocketServer {
   public onPlayerConnect?: (id: string) => void;
   public onPlayerDisconnect?: (id: string) => void;
   public onPlayerMessage?: (id: string, msg: any) => void;
-  /** After login, map socket id → player uid for per-account rate limiting */
   public resolveSocketToPlayerUid?: (socketId: string) => string | null | undefined;
 
   private readonly socketToPlayerUid = new Map<string, string>();
@@ -36,6 +41,7 @@ export class GameWebSocketServer {
   constructor(private readonly httpServer: HttpServer) {}
 
   start() {
+    activeGameWebSocketServer = this;
     this.wss = new WebSocketServer({ noServer: true });
     this.upgradeHandler = (req, socket, head) => {
       const rawPath = String(req.url || "").split("?")[0];
@@ -126,10 +132,6 @@ export class GameWebSocketServer {
     });
   }
 
-  /**
-   * Per-socket minimum spacing for `entity_sync` so mobile clients can use a longer interval
-   * without slowing desktop peers. Default interval is set on connect; login may widen it.
-   */
   setEntitySyncIntervalForSocket(socketId: string, intervalMs: number): void {
     if (!this.wss || !Number.isFinite(intervalMs) || intervalMs < 50) return;
     for (const client of this.wss.clients as Set<TrackedSocket>) {
@@ -174,6 +176,9 @@ export class GameWebSocketServer {
   }
 
   stop() {
+    if (activeGameWebSocketServer === this) {
+      activeGameWebSocketServer = null;
+    }
     if (this.upgradeHandler) {
       this.httpServer.off("upgrade", this.upgradeHandler);
       this.upgradeHandler = null;

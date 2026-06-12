@@ -1,5 +1,7 @@
-import { WarfrontSystem } from '../../modules/warfront/WarfrontSystem.js';
-import type { WarfrontSectorKind } from '../../modules/warfront/warfrontTypes.js';
+import { WarfrontSystem } from "../../modules/warfront/WarfrontSystem.js";
+import type { WarfrontSectorKind } from "../../modules/warfront/warfrontTypes.js";
+
+export type RuntimeWarfrontSectorKind = WarfrontSectorKind;
 
 export class RuntimePlayerSystem {
   private readonly players = new Map<string, any>();
@@ -30,20 +32,16 @@ export class RuntimeWarfrontPort {
     return Number.isFinite(now) ? Math.floor(Number(now)) : this.tickNow();
   }
 
+  initialize(now?: number): void { this.system.initialize(this.resolveNow(now)); }
   tick(now?: number) { return this.system.tick(this.resolveNow(now)); }
   getCycleSnapshot(now?: number) { return this.system.getCycleSnapshot(this.resolveNow(now)); }
   getRewardTiers() { return this.system.getRewardTiers(); }
   getFrontBossSpawnPoint() { return this.system.getFrontBossSpawnPoint(); }
   getStatusForPlayer(player: any, now?: number) { return this.system.getStatusForPlayer(player, this.resolveNow(now)); }
-
-  registerContribution(player: any, kind: WarfrontSectorKind, amount: number, now?: number) {
+  registerContribution(player: any, kind: RuntimeWarfrontSectorKind, amount: number, now?: number) {
     return this.system.registerContribution(player, kind, amount, this.resolveNow(now));
   }
-
-  claimSeasonRewards(player: any, now?: number) {
-    return this.system.claimSeasonRewards(player, this.resolveNow(now));
-  }
-
+  claimSeasonRewards(player: any, now?: number) { return this.system.claimSeasonRewards(player, this.resolveNow(now)); }
   markFrontBossSpawned(npcId: string, now?: number): void { this.system.markFrontBossSpawned(npcId, this.resolveNow(now)); }
   markFrontBossDefeated(now?: number): void { this.system.markFrontBossDefeated(this.resolveNow(now)); }
   markFrontBossDespawned(now?: number): void { this.system.markFrontBossDespawned(this.resolveNow(now)); }
