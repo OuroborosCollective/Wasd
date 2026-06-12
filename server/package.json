@@ -19,7 +19,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@nestjs/common": "^11.1.24",
     "@opentelemetry/resources": "^2.7.1",
-    "@opentelemetry/sdk-node": "^0.218.0",
+    "@opentelemetry/sdk-node": "^0.219.0",
     "@posthog/ai": "^7.20.1",
     "@traceloop/instrumentation-google-generativeai": "^0.26.0",
     "@wasd/core-logic": "workspace:*",
