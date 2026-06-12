@@ -4,6 +4,7 @@ import { RuntimePlayerSystem, RuntimeWarfrontPort, createRuntimeWarfrontSystem }
 import { registerWarfrontSystem, type WarfrontTickSystem } from './WarfrontTickSystem.js';
 import { sharedWorldEventBus } from '../../modules/ouroboros/sharedWorldEventBus.js';
 import { ChatChannelRouter, type ChatRecipient } from '../../modules/chat/ChatChannelRouter.js';
+import { getActiveGameWebSocketServer } from '../../networking/WebSocketServer.js';
 
 type AutoRepairStatus = { ok: boolean; status: string };
 type DeterministicRecorderStats = { recordedTicks: number; replayBufferSize: number };
@@ -115,12 +116,16 @@ export class WorldTickAdapter {
     this.networkBridge = networkBridge;
   }
 
+  private resolveNetworkBridge(): NetworkBridge | null {
+    return this.networkBridge ?? getActiveGameWebSocketServer();
+  }
+
   sendToPlayer = (socketId: string, payload: unknown): void => {
-    this.networkBridge?.sendToPlayer(socketId, payload);
+    this.resolveNetworkBridge()?.sendToPlayer(socketId, payload);
   };
 
   broadcast = (payload: unknown): void => {
-    this.networkBridge?.broadcast(payload);
+    this.resolveNetworkBridge()?.broadcast(payload);
   };
 
   resolveSocketId = (playerId: string): string | undefined => this.playerToSocket.get(playerId);
