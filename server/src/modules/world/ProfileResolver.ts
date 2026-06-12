@@ -1,4 +1,4 @@
-import type { InputType } from 'type-graphql.js';
+import type { InputType } from 'type-graphql';
 
 @InputType()
 export class Vector3 {
