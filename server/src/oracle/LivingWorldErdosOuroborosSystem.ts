@@ -81,6 +81,11 @@ export interface BrainInformation {
   readonly energyFlow: readonly number[];
 }
 
+export type BrainInformationFlow = BrainInformation;
+export type SystemRecommendation = BrainRecommendation;
+export type CivilizationalMood = number;
+export type WorldEventTemplate = WorldEvent;
+
 export interface CycleState {
   readonly tick: number;
   readonly organs: readonly WorldOrgan[];
