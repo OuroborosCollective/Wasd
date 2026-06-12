@@ -72,6 +72,8 @@ export class WorldTickAdapter {
 
   // Real game systems - wired for ARE truth path
   private readonly realNPCSystem: NPCSystem;
+  /** Backward-compatible public surface used by combat/persistence/skill integrations. */
+  readonly npcSystem: NPCSystem;
   readonly deterministicLootDirector: { getAllLoot(): LootEntity[] };
 
   readonly chunkSystem = new StubChunkSystem();
@@ -120,8 +122,9 @@ export class WorldTickAdapter {
   readonly assetHealthService = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
 
   constructor() {
-    // Create real NPC system for ARE truth path
+    // Create real NPC system for ARE truth path and preserve legacy adapter alias.
     this.realNPCSystem = new RealNPCSystem();
+    this.npcSystem = this.realNPCSystem;
 
     // Wire deterministic LootDirector for ARE truth path
     // This is the ARE-style loot system from modules/world/LootDirector
@@ -134,7 +137,7 @@ export class WorldTickAdapter {
     this.thinShell.registerWorldStateProvider({
       id: 'adapter-internal',
       getWorldState: (_context) => ({
-        npcs: this.realNPCSystem.getAllNPCs(),
+        npcs: this.npcSystem.getAllNPCs(),
         players: this.playerSystem.getAllPlayers(),
         loot: this.deterministicLootDirector.getAllLoot(),
       }),
