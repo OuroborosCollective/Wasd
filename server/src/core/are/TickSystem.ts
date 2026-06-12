@@ -10,10 +10,20 @@ import type { TickId, TickSystemContext as CanonicalTickSystemContext } from './
 export enum TickSystemPriority {
   CRITICAL = 0,
   INFRASTRUCTURE = 10,
+  FOUNDATION = 10,
+  HIGH = 10,
+  WORLD = 15,
   GAMEPLAY = 20,
+  NORMAL = 20,
   BROADCAST = 30,
+  COMBAT = 30,
+  NPC = 30,
+  ECONOMY = 30,
+  QUEST = 30,
+  GUILD = 30,
   PERSISTENCE = 40,
   BACKGROUND = 50,
+  LOW = 50,
 }
 
 export interface TickSystemContext extends CanonicalTickSystemContext {
