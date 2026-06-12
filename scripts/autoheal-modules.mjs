@@ -620,6 +620,19 @@ function applyAction(action, dryRun = true) {
       break;
     }
 
+    case ActionKind.FIX_TYPE_ONLY_IMPORT: {
+      const { current, suggested } = rest;
+      if (current && suggested) {
+        const re = new RegExp(current.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        const next = source.replace(re, suggested);
+        if (next !== source) {
+          source = next;
+          modified = true;
+        }
+      }
+      break;
+    }
+
     default:
       return { success: false, error: `Unknown action kind: ${kind}` };
   }
