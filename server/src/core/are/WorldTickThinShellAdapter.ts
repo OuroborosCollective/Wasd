@@ -133,7 +133,7 @@ export class WorldTickAdapter {
   private buildThinShellWorldState(): ThinShellWorldState {
     return {
       npcs: this.npcSystem.getAllNPCs(),
-      players: this.players,
+      players: this.playerSystem.getAllPlayers(),
       loot: [],
     };
   }
