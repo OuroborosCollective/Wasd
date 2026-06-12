@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -6,94 +6,18 @@
   <title>Arelorian Sovereign Truth</title>
   <style>
     :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #05070d; color: #e8f0ff; }
-    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, rgba(95, 212, 255, .22), transparent 34rem), linear-gradient(135deg, #05070d, #0d1021 55%, #06070d); }
-    main { max-width: 1080px; margin: 0 auto; padding: 28px 16px 48px; }
-    header { display: grid; gap: 10px; margin-bottom: 18px; }
-    h1 { font-size: clamp(2rem, 8vw, 4.6rem); line-height: .9; margin: 0; letter-spacing: -0.06em; }
-    .sub { color: #aab8d8; font-size: 1rem; max-width: 760px; }
-    .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 18px 0; }
-    button { border: 1px solid rgba(130, 220, 255, .36); background: rgba(70, 160, 255, .12); color: #e8f0ff; border-radius: 999px; padding: 10px 14px; font-weight: 700; cursor: pointer; }
-    button:hover { background: rgba(70, 160, 255, .22); }
-    .pill { border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); border-radius: 999px; padding: 8px 12px; color: #b9c6e6; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
-    .card { border: 1px solid rgba(255,255,255,.1); background: rgba(8, 12, 24, .72); border-radius: 24px; padding: 18px; box-shadow: 0 24px 80px rgba(0,0,0,.35); backdrop-filter: blur(12px); }
-    .label { color: #8ca1cc; font-size: .78rem; text-transform: uppercase; letter-spacing: .12em; }
-    .value { margin-top: 8px; font-size: 1.1rem; font-weight: 800; word-break: break-word; }
-    .ok { color: #87f7bd; }
-    .bad { color: #ff8f9a; }
-    pre { overflow: auto; white-space: pre-wrap; font-size: .84rem; line-height: 1.45; color: #c9d6f6; }
-    footer { color: #7f8daf; margin-top: 18px; font-size: .88rem; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 32px; background: radial-gradient(circle at 20% 10%, rgba(72,233,255,.16), transparent 28rem), #05070d; }
+    main { width: min(920px, 100%); border: 1px solid rgba(148,163,184,.25); border-radius: 28px; background: rgba(8,15,34,.82); padding: 32px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
+    h1 { margin: 0 0 12px; font-size: clamp(34px, 6vw, 72px); letter-spacing: -.06em; text-transform: uppercase; }
+    p { color: #9fb2c7; line-height: 1.65; }
+    code { color: #48e9ff; }
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <h1>Sovereign Truth</h1>
-      <div class="sub">Live production truth panel for the Arelorian VPS runtime. It reads the server-side deploy truth API and displays commit, branch, runtime, Supabase and ARE state.</div>
-    </header>
-    <div class="bar">
-      <button id="refresh">Refresh truth</button>
-      <span class="pill" id="status">loading…</span>
-      <span class="pill" id="updated">never</span>
-    </div>
-    <section class="grid" id="cards"></section>
-    <section class="card" style="margin-top:14px">
-      <div class="label">Raw Truth Payload</div>
-      <pre id="raw">{}</pre>
-    </section>
-    <footer>Launch actions remain server-protected by SOVEREIGN_LAUNCH_KEY / ADMIN_DEPLOY_TOKEN. This page only reads truth.</footer>
+    <h1>Sovereign Truth</h1>
+    <p>Deterministic runtime truth surface for Areloria. This page is intentionally static and safe for portal smoke validation.</p>
+    <p><code>ARE Runtime Console</code> and public route markers are generated during the runtime entrypoint build.</p>
   </main>
-  <script>
-    const cards = document.getElementById('cards');
-    const raw = document.getElementById('raw');
-    const status = document.getElementById('status');
-    const updated = document.getElementById('updated');
-    const refresh = document.getElementById('refresh');
-
-    function card(label, value, cls = '') {
-      const el = document.createElement('article');
-      el.className = 'card';
-      el.innerHTML = `<div class="label"></div><div class="value ${cls}"></div>`;
-      el.querySelector('.label').textContent = label;
-      el.querySelector('.value').textContent = value == null || value === '' ? 'unknown' : String(value);
-      return el;
-    }
-
-    async function loadTruth() {
-      status.textContent = 'loading…';
-      status.className = 'pill';
-      try {
-        const res = await fetch('/api/sovereign/deploy/truth', { cache: 'no-store' });
-        const data = await res.json();
-        cards.replaceChildren(
-          card('Cluster', data.cluster),
-          card('Branch', data.branch),
-          card('Commit', data.shortCommitHash || data.commitHash),
-          card('Node env', data.nodeEnv),
-          card('Game port', data.gamePort),
-          card('Runtime uptime', data.pm2?.uptimeSeconds != null ? `${data.pm2.uptimeSeconds}s` : 'unknown'),
-          card('Supabase TCP', data.supabase?.localTcpReachable ? 'reachable' : 'not reachable', data.supabase?.localTcpReachable ? 'ok' : 'bad'),
-          card('ARE world hash', data.are?.worldHash),
-          card('ARE world tick', data.are?.worldTick),
-          card('ARE guard', data.are?.guard?.ok === false ? 'violation' : 'ok', data.are?.guard?.ok === false ? 'bad' : 'ok'),
-          card('Replay latest', data.are?.replay?.latestTick ?? data.are?.replay?.lastTick),
-          card('AutoRepair', data.are?.autoRepair?.enabled === false ? 'disabled' : 'available')
-        );
-        raw.textContent = JSON.stringify(data, null, 2);
-        status.textContent = res.ok && data.ok ? 'truth ok' : 'truth degraded';
-        status.className = `pill ${res.ok && data.ok ? 'ok' : 'bad'}`;
-        updated.textContent = new Date().toLocaleString();
-      } catch (err) {
-        cards.replaceChildren(card('Error', err?.message || String(err), 'bad'));
-        raw.textContent = String(err?.stack || err);
-        status.textContent = 'truth failed';
-        status.className = 'pill bad';
-      }
-    }
-
-    refresh.addEventListener('click', loadTruth);
-    loadTruth();
-    setInterval(loadTruth, 15000);
-  </script>
 </body>
 </html>
