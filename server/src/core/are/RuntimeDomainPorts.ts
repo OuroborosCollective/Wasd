@@ -1,4 +1,7 @@
-export type RuntimeWarfrontSectorKind = string;
+import { WarfrontSystem } from "../../modules/warfront/WarfrontSystem.js";
+import type { WarfrontSectorKind } from "../../modules/warfront/warfrontTypes.js";
+
+export type RuntimeWarfrontSectorKind = WarfrontSectorKind;
 
 export class RuntimePlayerSystem {
   private readonly players = new Map<string, any>();
@@ -19,47 +22,9 @@ export class RuntimePlayerSystem {
   }
 }
 
-interface RuntimeWarfrontSystemLike {
-  tick(now: number): unknown;
-  getCycleSnapshot(now: number): unknown;
-  getRewardTiers(): unknown;
-  getFrontBossSpawnPoint(): unknown;
-  getStatusForPlayer(player: any, now: number): unknown;
-  registerContribution(player: any, kind: RuntimeWarfrontSectorKind, amount: number, now: number): unknown;
-  claimSeasonRewards(player: any, now: number): unknown;
-  markFrontBossSpawned(npcId: string, now: number): void;
-  markFrontBossDefeated(now: number): void;
-  markFrontBossDespawned(now: number): void;
-  getFrontBossNpcId(): string | null;
-  isFrontBossNpc(npcId: string): boolean;
-  canSpawnFrontBoss(now: number): unknown;
-  getActiveFrontBossMutator(): string | null;
-  getCurrentSeasonId(now: number): string;
-}
-
-class RuntimeWarfrontStub implements RuntimeWarfrontSystemLike {
-  private frontBossNpcId: string | null = null;
-
-  tick(now: number): unknown { return { now, active: false }; }
-  getCycleSnapshot(now: number): unknown { return { now, phase: 'idle', sectors: [], frontBossActive: false }; }
-  getRewardTiers(): unknown { return []; }
-  getFrontBossSpawnPoint(): unknown { return null; }
-  getStatusForPlayer(player: any, now: number): unknown { return { playerId: player?.id ?? null, now, active: false }; }
-  registerContribution(_player: any, kind: RuntimeWarfrontSectorKind, amount: number, now: number): unknown { return { kind, amount, now, accepted: false }; }
-  claimSeasonRewards(_player: any, now: number): unknown { return { now, rewards: [] }; }
-  markFrontBossSpawned(npcId: string, _now: number): void { this.frontBossNpcId = npcId; }
-  markFrontBossDefeated(_now: number): void { this.frontBossNpcId = null; }
-  markFrontBossDespawned(_now: number): void { this.frontBossNpcId = null; }
-  getFrontBossNpcId(): string | null { return this.frontBossNpcId; }
-  isFrontBossNpc(npcId: string): boolean { return this.frontBossNpcId === npcId; }
-  canSpawnFrontBoss(now: number): unknown { return { now, canSpawn: false }; }
-  getActiveFrontBossMutator(): string | null { return null; }
-  getCurrentSeasonId(now: number): string { return `runtime-season-${Math.floor(now / 100000)}`; }
-}
-
 export class RuntimeWarfrontPort {
   constructor(
-    private readonly system: RuntimeWarfrontSystemLike,
+    private readonly system: WarfrontSystem,
     private readonly tickNow: () => number,
   ) {}
 
@@ -67,12 +32,15 @@ export class RuntimeWarfrontPort {
     return Number.isFinite(now) ? Math.floor(Number(now)) : this.tickNow();
   }
 
+  initialize(now?: number): void { this.system.initialize(this.resolveNow(now)); }
   tick(now?: number) { return this.system.tick(this.resolveNow(now)); }
   getCycleSnapshot(now?: number) { return this.system.getCycleSnapshot(this.resolveNow(now)); }
   getRewardTiers() { return this.system.getRewardTiers(); }
   getFrontBossSpawnPoint() { return this.system.getFrontBossSpawnPoint(); }
   getStatusForPlayer(player: any, now?: number) { return this.system.getStatusForPlayer(player, this.resolveNow(now)); }
-  registerContribution(player: any, kind: RuntimeWarfrontSectorKind, amount: number, now?: number) { return this.system.registerContribution(player, kind, amount, this.resolveNow(now)); }
+  registerContribution(player: any, kind: RuntimeWarfrontSectorKind, amount: number, now?: number) {
+    return this.system.registerContribution(player, kind, amount, this.resolveNow(now));
+  }
   claimSeasonRewards(player: any, now?: number) { return this.system.claimSeasonRewards(player, this.resolveNow(now)); }
   markFrontBossSpawned(npcId: string, now?: number): void { this.system.markFrontBossSpawned(npcId, this.resolveNow(now)); }
   markFrontBossDefeated(now?: number): void { this.system.markFrontBossDefeated(this.resolveNow(now)); }
@@ -84,6 +52,6 @@ export class RuntimeWarfrontPort {
   getCurrentSeasonId(now?: number): string { return this.system.getCurrentSeasonId(this.resolveNow(now)); }
 }
 
-export function createRuntimeWarfrontSystem(): RuntimeWarfrontSystemLike {
-  return new RuntimeWarfrontStub();
+export function createRuntimeWarfrontSystem(): WarfrontSystem {
+  return new WarfrontSystem();
 }
