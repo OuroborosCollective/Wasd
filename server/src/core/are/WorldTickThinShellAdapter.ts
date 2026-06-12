@@ -9,7 +9,7 @@ import type { TickSystemContext } from './TickSystem.js';
 import type { NPC, NPCSystem } from '../../modules/npc/NPCSystem.js';
 import { NPCSystem as RealNPCSystem } from '../../modules/npc/NPCSystem.js';
 import type { LootEntity } from '../../modules/world/LootDirector.js';
-import { lootDirector as realLootDirector } from '../../modules/world/LootDirector.js';
+import { lootDirector as deterministicLootDirector } from '../../modules/world/LootDirector.js';
 
 type AutoRepairStatus = { ok: boolean; status: string };
 type DeterministicRecorderStats = { recordedTicks: number; replayBufferSize: number };
@@ -66,7 +66,7 @@ export class WorldTickAdapter {
 
   // Real game systems - wired for ARE truth path
   private readonly realNPCSystem: NPCSystem;
-  readonly realLootDirector: { getAllLoot(): LootEntity[] } | null;
+  readonly deterministicLootDirector: { getAllLoot(): LootEntity[] };
 
   readonly chunkSystem = new StubChunkSystem();
   readonly observerEngine = new StubObserverEngine();
@@ -102,7 +102,6 @@ export class WorldTickAdapter {
       this.resolveSocketId,
     ),
   };
-  readonly lootSystem: { getAllLoot(): LootEntity[] };
   readonly ws = {
     broadcast: (payload: unknown) => this.broadcast(payload),
     sendToPlayer: (socketId: string, payload: unknown) => this.sendToPlayer(socketId, payload),
@@ -118,9 +117,9 @@ export class WorldTickAdapter {
     // Create real NPC system for ARE truth path
     this.realNPCSystem = new RealNPCSystem();
 
-    // Wire real loot director if available
-    this.realLootDirector = realLootDirector ?? null;
-    this.lootSystem = this.realLootDirector ?? { getAllLoot: () => [] };
+    // Wire deterministic LootDirector for ARE truth path
+    // This is the ARE-style loot system from modules/world/LootDirector
+    this.deterministicLootDirector = deterministicLootDirector;
 
     this.warfrontTickSystem = registerWarfrontSystem(this.warfrontDomain);
 
@@ -131,11 +130,11 @@ export class WorldTickAdapter {
       getWorldState: (_context) => ({
         npcs: this.realNPCSystem.getAllNPCs(),
         players: this.playerSystem.getAllPlayers(),
-        loot: this.lootSystem.getAllLoot(),
+        loot: this.deterministicLootDirector.getAllLoot(),
       }),
     });
 
-    console.log('[WorldTickAdapter] Initialized with real NPC system and loot director');
+    console.log('[WorldTickAdapter] Initialized with RealNPCSystem and deterministicLootDirector');
   }
 
   attachNetworkBridge(networkBridge: NetworkBridge): void {
