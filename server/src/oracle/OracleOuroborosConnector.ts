@@ -67,6 +67,21 @@ function entryCause(entry: HistoryEntry): string {
   return entry.summary || entry.type || "unknown";
 }
 
+function allCompleteOracleVisions(result: ReturnType<typeof OracleVisionEngine.generateCompleteVision>): OracleVision[] {
+  return [
+    ...result.warfrontVisions,
+    ...result.ghostTownWarnings,
+    ...result.fallenEntityVisions,
+    ...result.ancientSecrets,
+  ].sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id));
+}
+
+function npcVisionType(oracleVision: OracleVision): NPCVision["type"] {
+  if (oracleVision.type === "dungeon_revelation" || oracleVision.type === "ghost_town_warning") return "warning";
+  if (oracleVision.type === "ancient_secret") return "ancient_knowledge";
+  return "prophecy";
+}
+
 export class OracleOuroborosConnector {
   private historySnapshot: Map<number, OuroborosObservation> = new Map();
   private npcVisions: Map<string, NPCVision[]> = new Map();
@@ -89,8 +104,8 @@ export class OracleOuroborosConnector {
   observeOuroborosTick(
     tick: number,
     worldHistory: WorldHistory,
-    factions: DynamicFactions,
-    market: EmergentMarket,
+    _factions: DynamicFactions,
+    _market: EmergentMarket,
     stateHash: string
   ): OuroborosObservation {
     const observation: OuroborosObservation = {
@@ -199,7 +214,7 @@ export class OracleOuroborosConnector {
     const civilizationInsights = this.generateCivilizationInsights(observation);
 
     return {
-      oracleVisions: result.oracleVisions,
+      oracleVisions: allCompleteOracleVisions(result),
       dungeonProphecies: result.dungeonProphecies,
       civilizationInsights,
     };
@@ -238,9 +253,10 @@ export class OracleOuroborosConnector {
       visionId: `npc_vision_${npcId}_${tick}_${visionHash.slice(0, 8)}`,
       npcId,
       tick,
-      type: oracleVision.type === "dungeon_emergence" ? "warning" : "prophecy",
-      strength: oracleVision.intensity,
-      message: oracleVision.message,
+      type: npcVisionType(oracleVision),
+      strength: oracleVision.priority,
+      message: oracleVision.prophecy,
+      subject: oracleVision.subject,
       certainty: oracleVision.certainty,
       visionHash,
     };
@@ -272,6 +288,7 @@ export class OracleOuroborosConnector {
         tick: vision.tick,
         importance: vision.strength / 1000,
         metadata: {
+          npcId,
           visionId: vision.visionId,
           certainty: vision.certainty,
           hash: vision.visionHash,
@@ -283,7 +300,7 @@ export class OracleOuroborosConnector {
   applyVisionToNPCBrain(npcId: string, vision: NPCVision, brain: NPCBrainRunner): void {
     const anyBrain = brain as any;
     if (typeof anyBrain.receiveOracleVision === "function") {
-      anyBrain.receiveOracleVision(vision);
+      anyBrain.receiveOracleVision({ ...vision, npcId });
     }
   }
 }
