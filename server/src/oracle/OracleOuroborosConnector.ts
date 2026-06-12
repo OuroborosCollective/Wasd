@@ -2,16 +2,6 @@
  * OracleOuroborosConnector.ts
  *
  * Verbindet das Oracle-System mit dem Ouroboros-System.
- *
- * Die Idee:
- * - Ouroboros = dezentrale, autonome NPC-Intelligenz (unten-nach-oben)
- * - Oracle = zentrales Weltbewusstsein, das Muster in Ouroboros sieht (oben-nach-unten)
- * - Zusammen: Das Oracle "sieht" was die NPC-Zivilisation tut und gibt Visionen zurück
- *
- * Der Kreislauf:
- *   Ouroboros tickt → NPC-Aktionen → WorldHistory → Oracle analysiert → Visionen
- *                                                           ↓
- *   NPC-Brain erhält Vision → NPC-Entscheidungen beeinflusst ←┘
  */
 
 import {
@@ -26,63 +16,34 @@ import {
   type FallenEntity,
 } from "./index.js";
 
-import type { WorldHistory } from "../modules/ouroboros/WorldHistory.js";
+import type { WorldHistory, HistoryEntry } from "../modules/ouroboros/WorldHistory.js";
 import type { DynamicFactions } from "../modules/ouroboros/DynamicFactions.js";
 import type { EmergentMarket } from "../modules/ouroboros/EmergentMarket.js";
 import type { NPCBrainRunner } from "../modules/npc/brain/index.js";
 import type { NPCMemoryV3 } from "../modules/npc/brain/index.js";
 
-// ============================================================================
-// Oracle Observations aus Ouroboros
-// ============================================================================
-
-/**
- * Beobachtete Events von Ouroboros, die das Oracle analysieren kann
- */
 export interface OuroborosObservation {
   tick: number;
   stateHash: string;
-
-  // Fraktions-Events
   factionWars: { factionA: string; factionB: string; intensity: number }[];
   factionAlliances: { factionA: string; factionB: string }[];
   factionCollapses: { factionId: string; cause: string }[];
-
-  // Markt-Events
   priceAnomalies: { resource: string; region: string; priceChange: number }[];
   tradeRouteClosures: { routeId: string; reason: string }[];
-
-  // NPC-Massen-Events
   npcMigrations: { fromRegion: string; toRegion: string; count: number }[];
   npcMassDeaths: { regionId: string; cause: string; count: number }[];
-
-  // Legendäre Events
   legendsBorn: { legendId: string; subject: string; spread: number }[];
   legendsFading: { legendId: string; age: number }[];
-
-  // Kriegs-Front Status
   warfrontActive: boolean;
   warfrontPhase: string;
 }
 
-// ============================================================================
-// NPC Vision - Vision die ein NPC vom Oracle erhält
-// ============================================================================
-
-/**
- * Eine Vision, die ein bestimmter NPC vom Oracle erhält.
- * Dies wird in die NPC-Memory integriert und beeinflusst zukünftige Entscheidungen.
- */
 export interface NPCVision {
   visionId: string;
   npcId: string;
   tick: number;
-
-  // Vision-Inhalt
   type: "omen" | "prophecy" | "warning" | "guidance" | "ancient_knowledge";
-  strength: number; // 0-1000
-
-  // Was der NPC "sieht"
+  strength: number;
   message: string;
   subject?: {
     type: string;
@@ -90,26 +51,22 @@ export interface NPCVision {
     name: string;
     position?: { x: number; y: number };
   };
-
-  // Wie sicher die Vision ist
   certainty: number;
-
-  // Deterministischer Hash
   visionHash: string;
 }
 
-// ============================================================================
-// OracleOuroborosConnector
-// ============================================================================
+function entryRegion(entry: HistoryEntry): string {
+  return entry.regionId ?? "unknown";
+}
 
-/**
- * Verbindet Oracle mit Ouroboros für bidirektionale Kommunikation.
- *
- * Funktionen:
- * 1. Beobachte Ouroboros-Events und erstelle prophetische Visionen
- * 2. Transformiere Visionen für NPC-Brain und beeinflusse NPC-Entscheidungen
- * 3. Erkenne Muster in der NPC-Zivilisation
- */
+function entryCount(entry: HistoryEntry): number {
+  return Math.max(1, Math.round(entry.impactScore * 10));
+}
+
+function entryCause(entry: HistoryEntry): string {
+  return entry.summary || entry.type || "unknown";
+}
+
 export class OracleOuroborosConnector {
   private historySnapshot: Map<number, OuroborosObservation> = new Map();
   private npcVisions: Map<string, NPCVision[]> = new Map();
@@ -117,7 +74,7 @@ export class OracleOuroborosConnector {
 
   constructor(
     private readonly config: {
-      visionInterval?: number; // Alle wie viele Ticks Oracle-Visionen generiert
+      visionInterval?: number;
       maxVisionsPerNpc?: number;
       prophecyStrengthBase?: number;
     } = {}
@@ -129,13 +86,6 @@ export class OracleOuroborosConnector {
     };
   }
 
-  // ==========================================================================
-  // SCHRITT 1: Ouroboros beobachten
-  // ==========================================================================
-
-  /**
-   * Beobachte einen Ouroboros-Tick und sammle Events
-   */
   observeOuroborosTick(
     tick: number,
     worldHistory: WorldHistory,
@@ -159,8 +109,7 @@ export class OracleOuroborosConnector {
       warfrontPhase: "unknown",
     };
 
-    // Sammle Fraktions-Events aus History
-    const recentEvents = worldHistory.getRecentEvents(100); // Letzte 100 Events
+    const recentEvents = worldHistory.getRecentEvents(100);
 
     for (const event of recentEvents) {
       switch (event.type) {
@@ -171,50 +120,45 @@ export class OracleOuroborosConnector {
             intensity: event.intensity ?? 0.5,
           });
           break;
-
         case "alliance_formed":
           observation.factionAlliances.push({
             factionA: event.actorName ?? "unknown",
             factionB: event.targetName ?? "unknown",
           });
           break;
-
         case "faction_collapsed":
           observation.factionCollapses.push({
-            factionId: event.actorId ?? "unknown",
-            cause: event.data?.cause ?? "unknown",
+            factionId: event.actorName ?? event.eventId,
+            cause: entryCause(event),
           });
           break;
-
         case "legend_born":
+        case "legend_created":
           observation.legendsBorn.push({
-            legendId: event.actorId ?? "unknown",
+            legendId: event.eventId,
             subject: event.actorName ?? "unknown",
-            spread: event.intensity ?? 0.5,
+            spread: event.intensity ?? event.impactScore ?? 0.5,
           });
           break;
-
         case "npc_migration":
           observation.npcMigrations.push({
-            fromRegion: event.data?.from ?? "unknown",
-            toRegion: event.data?.to ?? "unknown",
-            count: event.data?.count ?? 1,
+            fromRegion: entryRegion(event),
+            toRegion: event.targetName ?? "unknown",
+            count: entryCount(event),
           });
           break;
-
         case "npc_mass_death":
+        case "agent_died":
           observation.npcMassDeaths.push({
-            regionId: event.data?.regionId ?? "unknown",
-            cause: event.data?.cause ?? "unknown",
-            count: event.data?.count ?? 1,
+            regionId: entryRegion(event),
+            cause: entryCause(event),
+            count: entryCount(event),
           });
           break;
-
         case "warfront_boss_active":
           observation.warfrontActive = true;
           observation.warfrontPhase = "boss_active";
           break;
-
         case "warfront_boss_defeated":
           observation.warfrontActive = false;
           observation.warfrontPhase = "cooldown";
@@ -222,19 +166,10 @@ export class OracleOuroborosConnector {
       }
     }
 
-    // Speichere Beobachtung
     this.historySnapshot.set(tick, observation);
-
     return observation;
   }
 
-  // ==========================================================================
-  // SCHRITT 2: Prophetische Analyse
-  // ==========================================================================
-
-  /**
-   * Generiere prophetische Visionen basierend auf Ouroboros-Beobachtungen
-   */
   generatePropheticVisions(
     observation: OuroborosObservation,
     bloodOfferings: BloodOffering[],
@@ -246,8 +181,6 @@ export class OracleOuroborosConnector {
     civilizationInsights: string[];
   } {
     const state = { tick: observation.tick, stateHash: observation.stateHash };
-
-    // Nutze die VisionEngine für die Analyse
     const warfrontSnapshot = {
       cycleId: `warfront_${observation.tick}`,
       phase: observation.warfrontPhase,
@@ -263,340 +196,98 @@ export class OracleOuroborosConnector {
       state
     );
 
-    // Zusätzliche Zivilisations-Insights
-    const civilizationInsights = this.analyzeCivilizationPatterns(observation);
+    const civilizationInsights = this.generateCivilizationInsights(observation);
 
     return {
-      oracleVisions: result.warfrontVisions,
+      oracleVisions: result.oracleVisions,
       dungeonProphecies: result.dungeonProphecies,
       civilizationInsights,
     };
   }
 
-  /**
-   * Analysiere Zivilisations-Muster
-   */
-  private analyzeCivilizationPatterns(observation: OuroborosObservation): string[] {
+  private generateCivilizationInsights(observation: OuroborosObservation): string[] {
     const insights: string[] = [];
 
-    // Fraktions-Konflikte analysieren
-    if (observation.factionWars.length >= 3) {
-      insights.push(
-        `Die Welt steht am Rand eines großen Krieges. ${observation.factionWars.length} Fraktionskonflikte toben.`
-      );
-    }
-
-    // Fraktions-Kollaps
-    if (observation.factionCollapses.length > 0) {
-      insights.push(
-        `${observation.factionCollapses.length} Fraktion(en) ist/sind zusammengebrochen. Die Machtverhältnisse verschieben sich.`
-      );
-    }
-
-    // Legendäre Events
-    if (observation.legendsBorn.length >= 5) {
-      insights.push(
-        "Neue Legenden entstehen. Die NPC-Zivilisation erzählt Geschichten von Helden und Schurken."
-      );
-    }
-
-    // Massen-Migration
-    if (observation.npcMigrations.length >= 2) {
-      const totalMigrants = observation.npcMigrations.reduce((sum, m) => sum + m.count, 0);
-      insights.push(
-        `${totalMigrants} NPCs haben ihre Heimat verlassen. Eine Völkerwanderung beginnt.`
-      );
-    }
-
-    // Massen-Tode
-    if (observation.npcMassDeaths.length > 0) {
-      const totalDeaths = observation.npcMassDeaths.reduce((sum, d) => sum + d.count, 0);
-      insights.push(
-        `${totalDeaths} NPCs sind gestorben. Die Blutopfer sammeln sich an...`
-      );
-    }
+    if (observation.factionWars.length > 0) insights.push(`${observation.factionWars.length} wars destabilize civilization.`);
+    if (observation.factionAlliances.length > 0) insights.push(`${observation.factionAlliances.length} alliances reshape power.`);
+    if (observation.npcMigrations.length > 0) insights.push(`${observation.npcMigrations.length} migrations change regional pressure.`);
+    if (observation.npcMassDeaths.length > 0) insights.push(`${observation.npcMassDeaths.length} mass death signals feed dungeon pressure.`);
+    if (observation.legendsBorn.length > 0) insights.push(`${observation.legendsBorn.length} legends become persistent cultural memory.`);
 
     return insights;
   }
 
-  // ==========================================================================
-  // SCHRITT 3: Visionen für NPCs transformieren
-  // ==========================================================================
-
-  /**
-   * Transformiere Oracle-Visionen für NPC-Brain
-   */
-  transformVisionForNPC(
-    vision: OracleVision,
-    npcId: string,
-    npcPosition: { x: number; y: number }
-  ): NPCVision {
-    // Berechne Distanz zum Vision-Subject
-    const distance = vision.subject?.position
-      ? Math.sqrt(
-          Math.pow(vision.subject.position.x - npcPosition.x, 2) +
-            Math.pow(vision.subject.position.y - npcPosition.y, 2)
-        )
-      : 1000; // Default weit weg
-
-    // Stärke nimmt mit Distanz ab
-    const distanceFactor = Math.max(0.1, 1 - distance / 500);
-    const strength = Math.floor(
-      (this.config.prophecyStrengthBase ?? 500) * distanceFactor * (vision.certainty / 1000)
-    );
-
-    // Bestimme Vision-Typ
-    let visionType: NPCVision["type"] = "guidance";
-    if (vision.type === "dungeon_revelation" || vision.type === "ghost_town_warning") {
-      visionType = "warning";
-    } else if (vision.type === "ancient_secret") {
-      visionType = "ancient_knowledge";
-    } else if (vision.type === "faction_collapse" || vision.type === "warfront_forecast") {
-      visionType = "omen";
-    }
-
-    const npcVision: NPCVision = {
-      visionId: vision.id,
-      npcId,
-      tick: vision.tick,
-      type: visionType,
-      strength: Math.max(100, strength), // Minimum 100
-      message: vision.prophecy,
-      subject: vision.subject,
-      certainty: vision.certainty,
-      visionHash: vision.visionHash,
+  async syncWithOracle(observation: OuroborosObservation): Promise<OraclePulse> {
+    const state: OracleSyncState = {
+      tick: observation.tick,
+      stateHash: observation.stateHash,
+      world: {
+        dangerLevel: observation.factionWars.length * 100 + observation.npcMassDeaths.length * 150,
+        socialHeat: observation.legendsBorn.length * 100 + observation.factionAlliances.length * 80,
+        marketHeat: observation.priceAnomalies.length * 100,
+        factionTension: observation.factionWars.length * 200,
+      },
     };
 
-    return npcVision;
+    return OracleEndpoint.syncWithCreator(state);
   }
 
-  /**
-   * Verteile Visionen an relevante NPCs basierend auf Position
-   */
-  distributeVisionsToNPCs(
-    visions: OracleVision[],
-    npcs: Array<{ id: string; name: string; position: { x: number; y: number } }>
-  ): void {
-    for (const npc of npcs) {
-      // Finde relevante Visionen für diesen NPC
-      const relevantVisions = visions
-        .map((v) => this.transformVisionForNPC(v, npc.id, npc.position))
-        .filter((v) => v.strength >= 200); // Nur starke Visionen
+  generateNPCVision(npcId: string, oracleVision: OracleVision, tick: number): NPCVision {
+    const visionHash = OracleEndpoint.hashDeterministic({ npcId, vision: oracleVision.visionHash, tick });
+    const vision: NPCVision = {
+      visionId: `npc_vision_${npcId}_${tick}_${visionHash.slice(0, 8)}`,
+      npcId,
+      tick,
+      type: oracleVision.type === "dungeon_emergence" ? "warning" : "prophecy",
+      strength: oracleVision.intensity,
+      message: oracleVision.message,
+      certainty: oracleVision.certainty,
+      visionHash,
+    };
 
-      if (relevantVisions.length > 0) {
-        // Beste Vision auswählen
-        const bestVision = relevantVisions.reduce((best, v) =>
-          v.strength > best.strength ? v : best
-        );
-
-        this.addVisionToNPC(npc.id, bestVision);
-      }
-    }
-  }
-
-  /**
-   * Füge eine Vision zu einem NPC hinzu
-   */
-  private addVisionToNPC(npcId: string, vision: NPCVision): void {
     const visions = this.npcVisions.get(npcId) ?? [];
     visions.push(vision);
-
-    // Limit visions per NPC
-    if (visions.length > (this.config.maxVisionsPerNpc ?? 5)) {
-      visions.shift(); // Remove oldest
-    }
-
+    while (visions.length > (this.config.maxVisionsPerNpc ?? 5)) visions.shift();
     this.npcVisions.set(npcId, visions);
     this.pendingVisions.push(vision);
+    return vision;
   }
 
-  /**
-   * Hole alle Visionen für einen NPC (für NPC-Brain)
-   */
+  getPendingVisions(): NPCVision[] {
+    const visions = [...this.pendingVisions];
+    this.pendingVisions = [];
+    return visions;
+  }
+
   getNPCVisions(npcId: string): NPCVision[] {
     return this.npcVisions.get(npcId) ?? [];
   }
 
-  /**
-   * Hole die aktuellste Vision eines bestimmten Typs für einen NPC
-   */
-  getLatestVisionOfType(npcId: string, type: NPCVision["type"]): NPCVision | null {
-    const visions = this.npcVisions.get(npcId) ?? [];
-    return visions.filter((v) => v.type === type).pop() ?? null;
-  }
-
-  // ==========================================================================
-  // SCHRITT 4: NPC-Brain Integration
-  // ==========================================================================
-
-  /**
-   * Integriere Visionen in NPC-Memory für Entscheidungsfindung
-   */
-  integrateVisionIntoMemory(memory: NPCMemoryV3, visions: NPCVision[]): NPCMemoryV3 {
-    // Füge Visionen als "Erinnerungen" hinzu
-    const latestVision = visions[visions.length - 1];
-    if (!latestVision) return memory;
-
-    // Vision beeinflusst den "Glauben" des NPC
-    const beliefMod = latestVision.strength / 1000;
-
-    // Hier würde die Memory aktualisiert werden
-    // (Abhängig von der konkreten NPCMemoryV3 Implementierung)
-    return memory;
-  }
-
-  /**
-   * Verarbeite NPC-Brain-Output und beeinflusse mit Visionen
-   */
-  processNPCDecision(
-    npcId: string,
-    proposedAction: string,
-    context: { tick: number; dangerLevel: number }
-  ): {
-    action: string;
-    modified: boolean;
-    reason: string;
-  } {
-    const visions = this.getNPCVisions(npcId);
-    if (visions.length === 0) {
-      return { action: proposedAction, modified: false, reason: "Keine Visionen" };
+  injectVisionIntoNPCMemory(npcId: string, vision: NPCVision, memory: NPCMemoryV3): void {
+    const anyMemory = memory as any;
+    if (typeof anyMemory.addMemory === "function") {
+      anyMemory.addMemory({
+        type: "oracle_vision",
+        content: vision.message,
+        tick: vision.tick,
+        importance: vision.strength / 1000,
+        metadata: {
+          visionId: vision.visionId,
+          certainty: vision.certainty,
+          hash: vision.visionHash,
+        },
+      });
     }
-
-    const latestVision = visions[visions.length - 1];
-
-    // Wenn Vision ein "Warning" ist und DangerLevel niedrig → sei vorsichtiger
-    if (latestVision.type === "warning" && context.dangerLevel < 0.3) {
-      if (proposedAction === "explore" || proposedAction === "wander") {
-        return {
-          action: "idle",
-          modified: true,
-          reason: `Oracle warnt: ${latestVision.message.slice(0, 50)}...`,
-        };
-      }
-    }
-
-    // Wenn Vision ein "Omen" ist → erhöhe Aggressivität
-    if (latestVision.type === "omen" && latestVision.strength > 600) {
-      if (proposedAction === "idle") {
-        return {
-          action: "patrol",
-          modified: true,
-          reason: `Omen empfunden: ${latestVision.message.slice(0, 50)}...`,
-        };
-      }
-    }
-
-    // Ancient Knowledge → erlaubt besondere Aktionen
-    if (latestVision.type === "ancient_knowledge") {
-      return {
-        action: proposedAction,
-        modified: true,
-        reason: `Wissen der Ahnen: ${latestVision.message.slice(0, 50)}...`,
-      };
-    }
-
-    return { action: proposedAction, modified: false, reason: "Vision nicht relevant" };
   }
 
-  // ==========================================================================
-  // Hilfsmethoden
-  // ==========================================================================
-
-  /**
-   * Hole alle akkumulierten Beobachtungen
-   */
-  getAllObservations(): Map<number, OuroborosObservation> {
-    return new Map(this.historySnapshot);
-  }
-
-  /**
-   * Hole aggregierte Statistiken
-   */
-  getStats(): {
-    totalObservations: number;
-    totalNPCVisions: number;
-    pendingVisions: number;
-    observationsByTick: number;
-  } {
-    return {
-      totalObservations: this.historySnapshot.size,
-      totalNPCVisions: Array.from(this.npcVisions.values()).reduce(
-        (sum, v) => sum + v.length,
-        0
-      ),
-      pendingVisions: this.pendingVisions.length,
-      observationsByTick: this.historySnapshot.size,
-    };
-  }
-
-  /**
-   * Reset
-   */
-  reset(): void {
-    this.historySnapshot.clear();
-    this.npcVisions.clear();
-    this.pendingVisions = [];
+  applyVisionToNPCBrain(npcId: string, vision: NPCVision, brain: NPCBrainRunner): void {
+    const anyBrain = brain as any;
+    if (typeof anyBrain.receiveOracleVision === "function") {
+      anyBrain.receiveOracleVision(vision);
+    }
   }
 }
 
-// ============================================================================
-// Vereinfachter Observer für direkte Integration
-// ============================================================================
-
-/**
- * Einfache Funktion um Ouroboros-Events zu beobachten und Oracle-Visionen zu generieren
- */
-export function createOracleObserver(config?: {
-  visionInterval?: number;
-  maxVisionsPerNpc?: number;
-}): {
-  observe: (tick: number, stateHash: string) => OuroborosObservation;
-  getVisions: () => OracleVision[];
-  getNPCVision: (npcId: string) => NPCVision[];
-  processTick: (
-    tick: number,
-    worldHistory: WorldHistory,
-    factions: DynamicFactions,
-    market: EmergentMarket,
-    npcs: Array<{ id: string; position: { x: number; y: number } }>
-  ) => void;
-} {
-  const connector = new OracleOuroborosConnector(config);
-  let lastVisions: OracleVision[] = [];
-
-  return {
-    observe: (tick: number, stateHash: string) => {
-      // Placeholder - würde WorldHistory, Factions, Market benötigen
-      return {
-        tick,
-        stateHash,
-        factionWars: [],
-        factionAlliances: [],
-        factionCollapses: [],
-        priceAnomalies: [],
-        tradeRouteClosures: [],
-        npcMigrations: [],
-        npcMassDeaths: [],
-        legendsBorn: [],
-        legendsFading: [],
-        warfrontActive: false,
-        warfrontPhase: "unknown",
-      };
-    },
-
-    getVisions: () => lastVisions,
-
-    getNPCVision: (npcId: string) => connector.getNPCVisions(npcId),
-
-    processTick: (
-      tick: number,
-      _worldHistory: WorldHistory,
-      _factions: DynamicFactions,
-      _market: EmergentMarket,
-      _npcs: Array<{ id: string; position: { x: number; y: number } }>
-    ) => {
-      // Hier würde die vollständige Verarbeitung stattfinden
-      // Für Demo-Zwecke vereinfacht
-    },
-  };
+export function createOracleObserver(config?: ConstructorParameters<typeof OracleOuroborosConnector>[0]): OracleOuroborosConnector {
+  return new OracleOuroborosConnector(config);
 }
