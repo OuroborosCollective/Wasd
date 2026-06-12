@@ -5,17 +5,13 @@
  * TickSystems führen Fachlogik aus; der ThinShell koordiniert nur.
  */
 
-import {
-  tickSystemRegistry,
-  createDefaultTickContext,
-  WorldBrainScheduler,
-  SnapshotComposer,
-  LayerPersistenceQueue,
-  layerPersistenceQueue,
-  registerOuroborosTickSystem,
-  registerOracleTickSystem,
-  type TickSystemContext,
-} from "./index.js";
+import { tickSystemRegistry } from "./TickSystemRegistry.js";
+import { createDefaultTickContext, type TickSystemContext } from "./TickSystem.js";
+import { WorldBrainScheduler } from "./WorldBrainScheduler.js";
+import { SnapshotComposer } from "./SnapshotComposer.js";
+import { LayerPersistenceQueue, layerPersistenceQueue } from "./LayerPersistenceQueue.js";
+import { registerOuroborosTickSystem } from "./OuroborosTickSystem.js";
+import { registerOracleTickSystem } from "./OracleTickSystem.js";
 import { sharedWorldEventBus } from "../../modules/ouroboros/sharedWorldEventBus.js";
 
 export interface ThinShellWorldState {
@@ -41,12 +37,6 @@ function normalizeWorldState(value: ThinShellWorldState | null | undefined): Thi
   };
 }
 
-/**
- * WorldTickThinShell - slim coordinator:
- * 1. Creates deterministic tick context
- * 2. Runs registered TickSystems
- * 3. Advances WorldBrain/Snapshot/Persistence side channels
- */
 export class WorldTickThinShell {
   private tickCount = 0;
   static readonly TICK_INTERVAL_MS = 100;
