@@ -1,4 +1,4 @@
-import { AxiomaticEventBus } from './axiomatic-event-bus';
+import { AxiomaticEventBus } from './axiomatic-event-bus.js';
 import {
   createWatchdogTickStamp,
   normalizePositiveInteger,
@@ -6,7 +6,7 @@ import {
   type CanonicalWatchdogSeverity,
   type DeterministicWatchdogEvent,
   type WatchdogEvent,
-} from './watchdog-determinism';
+} from './watchdog-determinism.js';
 
 export type WatchdogSeverity = CanonicalWatchdogSeverity;
 export type { WatchdogEvent, DeterministicWatchdogEvent };
@@ -105,10 +105,6 @@ export class WatchdogEmitter {
       );
     }
 
-    /**
-     * Strict mode: bus accepts the tick first.
-     * Non-strict mode: local emitter proceeds and bus failure is side-channel only.
-     */
     if (this.throwOnBusError) {
       this.beginBusTick(safeTick);
       this.tick = safeTick;
@@ -133,7 +129,7 @@ export class WatchdogEmitter {
 
     const origin = this.normalizeText(source, this.defaultSource);
     const eventType = this.normalizeText(type, 'watchdog.event');
-    const stamp = createWatchdogTickStamp(this.tick, ++this.seq);
+    const stamp = createWatchdogTickStamp(this.tick, this.nextSeq());
 
     const event = normalizeWatchdogEvent(
       {
@@ -173,7 +169,7 @@ export class WatchdogEmitter {
     );
 
     const channel = this.normalizeText(runtimeEvent.channel, this.channelFor(origin));
-    const stamp = createWatchdogTickStamp(this.tick, ++this.seq);
+    const stamp = createWatchdogTickStamp(this.tick, this.nextSeq());
 
     const normalized = normalizeWatchdogEvent(
       {
@@ -202,6 +198,18 @@ export class WatchdogEmitter {
     this.listeners.clear();
   }
 
+  private nextSeq(): number {
+    const busSeq = this.bus.getLedgerStats().currentTickSequence;
+    const next = Math.max(this.seq, busSeq) + 1;
+
+    if (!Number.isSafeInteger(next)) {
+      throw new RangeError('[WatchdogEmitter] sequence overflow would exceed Number.MAX_SAFE_INTEGER.');
+    }
+
+    this.seq = next;
+    return next;
+  }
+
   private broadcast(event: DeterministicWatchdogEvent): void {
     if (this.queue.length >= this.maxQueuedEvents) {
       const error = new RangeError(
@@ -223,13 +231,8 @@ export class WatchdogEmitter {
         const next = this.queue.shift();
         if (!next) continue;
 
-        /**
-         * Truth path first.
-         * Local listeners are side observers and only receive events after
-         * the axiomatic bus accepted the canonical event.
-         */
         this.publishToBus(next);
-        this.notifyListeners(next);
+        this.notifyListeners(Object.freeze(next));
       }
     } finally {
       this.isFlushing = false;
@@ -244,10 +247,6 @@ export class WatchdogEmitter {
       try {
         listener(event);
       } catch (error) {
-        /**
-         * Listener failure is intentionally side-channel only.
-         * No synthetic fake-success event is emitted here.
-         */
         this.reportSideChannelError('watchdog.listener_failed', error, event);
       }
     }

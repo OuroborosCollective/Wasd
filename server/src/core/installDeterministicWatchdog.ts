@@ -1,6 +1,6 @@
-import { eventBus } from './axiomatic-event-bus';
-import { serverWatchdogEmitter } from './watchdog-emitter';
-import { WATCHDOG_TICK_HZ, WATCHDOG_TICK_MS } from './watchdog-determinism';
+import { eventBus } from './axiomatic-event-bus.js';
+import { serverWatchdogEmitter } from './watchdog-emitter.js';
+import { WATCHDOG_TICK_HZ, WATCHDOG_TICK_MS } from './watchdog-determinism.js';
 import { installWorldTickWatchdogBridge } from './installWorldTickWatchdogBridge.js';
 
 let installed = false;
