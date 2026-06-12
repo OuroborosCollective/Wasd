@@ -269,10 +269,11 @@ describe('KappaLayers', () => {
       const original = createKappaLayers({ ecology: 500 });
       const clone = cloneKappaLayers(original);
       
-      clone.ecology = 999;
+      // Modify the clone
+      (clone as any).ecology = 999;
       
       expect(original.ecology).toBe(500);
-      expect(clone.ecology).toBe(999);
+      expect((clone as any).ecology).toBe(999);
     });
 
     it('should preserve all values', () => {
