@@ -1,12 +1,11 @@
 import type { WorldLogicalState } from './ChunkLayerState.js';
-import { worldTickThinShell, type ThinShellWorldState, type WorldTickThinShell, type WorldStateProvider } from './WorldTickThinShell.js';
+import { worldTickThinShell, type WorldTickThinShell } from './WorldTickThinShell.js';
 import { RuntimePlayerSystem, RuntimeWarfrontPort, createRuntimeWarfrontSystem } from './RuntimeDomainPorts.js';
 import { registerWarfrontSystem, type WarfrontTickSystem } from './WarfrontTickSystem.js';
 import { sharedWorldEventBus } from '../../modules/ouroboros/sharedWorldEventBus.js';
 import { ChatChannelRouter, type ChatRecipient } from '../../modules/chat/ChatChannelRouter.js';
 import { getActiveGameWebSocketServer } from '../../networking/WebSocketServer.js';
-import type { TickSystemContext } from './TickSystem.js';
-import type { NPC, NPCSystem } from '../../modules/npc/NPCSystem.js';
+import type { NPCSystem } from '../../modules/npc/NPCSystem.js';
 import { NPCSystem as RealNPCSystem } from '../../modules/npc/NPCSystem.js';
 import type { LootEntity } from '../../modules/world/LootDirector.js';
 import { lootDirector as deterministicLootDirector } from '../../modules/world/LootDirector.js';
@@ -16,6 +15,13 @@ type DeterministicRecorderStats = { recordedTicks: number; replayBufferSize: num
 type DeterministicReplaySnapshot = { tick: number; snapshot: unknown };
 type AREInvariantGuardStatus = { ok: boolean; invariant: string };
 type NetworkBridge = { broadcast(data: unknown): void; sendToPlayer(id: string, data: unknown): void };
+type WorldHashSnapshot = {
+  tick: number;
+  worldHash: string;
+  chunkCount: number;
+  entityCount: number;
+  timestamp: number;
+};
 
 const validationState = { getSnapshot: () => ({ guard: { ok: true, invariant: 'WorldThinShell' } as AREInvariantGuardStatus }) };
 const tickRecorder = {
