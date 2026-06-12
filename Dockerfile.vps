@@ -54,6 +54,36 @@ RUN --mount=type=cache,id=wasd-vps-pnpm-store,target=/pnpm/store \
       '  - packages/core-logic' \
       '  - packages/shared' \
       'allowBuilds: true' \
+      'minimumReleaseAgeExclude:' \
+      "  - '@nodable/entities'" \
+      "  - 'acorn'" \
+      "  - '@opentelemetry/api-logs'" \
+      "  - '@opentelemetry/configuration'" \
+      "  - '@opentelemetry/context-async-hooks'" \
+      "  - '@opentelemetry/core'" \
+      "  - '@opentelemetry/exporter-logs-otlp-grpc'" \
+      "  - '@opentelemetry/exporter-logs-otlp-http'" \
+      "  - '@opentelemetry/exporter-logs-otlp-proto'" \
+      "  - '@opentelemetry/exporter-metrics-otlp-grpc'" \
+      "  - '@opentelemetry/exporter-metrics-otlp-http'" \
+      "  - '@opentelemetry/exporter-metrics-otlp-proto'" \
+      "  - '@opentelemetry/exporter-prometheus'" \
+      "  - '@opentelemetry/exporter-trace-otlp-grpc'" \
+      "  - '@opentelemetry/exporter-trace-otlp-http'" \
+      "  - '@opentelemetry/exporter-trace-otlp-proto'" \
+      "  - '@opentelemetry/exporter-zipkin'" \
+      "  - '@opentelemetry/instrumentation'" \
+      "  - '@opentelemetry/otlp-exporter-base'" \
+      "  - '@opentelemetry/otlp-grpc-exporter-base'" \
+      "  - '@opentelemetry/otlp-transformer'" \
+      "  - '@opentelemetry/propagator-b3'" \
+      "  - '@opentelemetry/propagator-jaeger'" \
+      "  - '@opentelemetry/resources'" \
+      "  - '@opentelemetry/sdk-logs'" \
+      "  - '@opentelemetry/sdk-metrics'" \
+      "  - '@opentelemetry/sdk-node'" \
+      "  - '@opentelemetry/sdk-trace-base'" \
+      "  - '@opentelemetry/sdk-trace-node'" \
       > pnpm-workspace.yaml && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py && \
     # Exclude client-2d - it's prebuilt on GitHub Actions
@@ -72,6 +102,36 @@ RUN rm -rf packages/sdk-examples || true && \
       '  - packages/core-logic' \
       '  - packages/shared' \
       'allowBuilds: true' \
+      'minimumReleaseAgeExclude:' \
+      "  - '@nodable/entities'" \
+      "  - 'acorn'" \
+      "  - '@opentelemetry/api-logs'" \
+      "  - '@opentelemetry/configuration'" \
+      "  - '@opentelemetry/context-async-hooks'" \
+      "  - '@opentelemetry/core'" \
+      "  - '@opentelemetry/exporter-logs-otlp-grpc'" \
+      "  - '@opentelemetry/exporter-logs-otlp-http'" \
+      "  - '@opentelemetry/exporter-logs-otlp-proto'" \
+      "  - '@opentelemetry/exporter-metrics-otlp-grpc'" \
+      "  - '@opentelemetry/exporter-metrics-otlp-http'" \
+      "  - '@opentelemetry/exporter-metrics-otlp-proto'" \
+      "  - '@opentelemetry/exporter-prometheus'" \
+      "  - '@opentelemetry/exporter-trace-otlp-grpc'" \
+      "  - '@opentelemetry/exporter-trace-otlp-http'" \
+      "  - '@opentelemetry/exporter-trace-otlp-proto'" \
+      "  - '@opentelemetry/exporter-zipkin'" \
+      "  - '@opentelemetry/instrumentation'" \
+      "  - '@opentelemetry/otlp-exporter-base'" \
+      "  - '@opentelemetry/otlp-grpc-exporter-base'" \
+      "  - '@opentelemetry/otlp-transformer'" \
+      "  - '@opentelemetry/propagator-b3'" \
+      "  - '@opentelemetry/propagator-jaeger'" \
+      "  - '@opentelemetry/resources'" \
+      "  - '@opentelemetry/sdk-logs'" \
+      "  - '@opentelemetry/sdk-metrics'" \
+      "  - '@opentelemetry/sdk-node'" \
+      "  - '@opentelemetry/sdk-trace-base'" \
+      "  - '@opentelemetry/sdk-trace-node'" \
       > pnpm-workspace.yaml && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py && \
     pnpm config set verify-deps-before-run false
