@@ -20,6 +20,8 @@ allowBuilds:
   "sharp": true
   "ssh2": true
 minimumReleaseAgeExclude:
+  - '@nodable/entities'
+  - 'acorn'
   - '@opentelemetry/api-logs'
   - '@opentelemetry/configuration'
   - '@opentelemetry/context-async-hooks'
