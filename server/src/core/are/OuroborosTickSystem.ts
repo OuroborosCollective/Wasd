@@ -1,18 +1,5 @@
 /**
  * OuroborosTickSystem - Ouroboros autonomous agent cycle integration
- * 
- * Phase 11: Ouroboros Grand Unification with ARE-Logic
- * 
- * This TickSystem wraps OuroborosEngine and integrates it into the
- * WorldTickThinShell/WorldTickScheduler deterministic tick loop.
- * 
- * Ouroboros cycle: PERCEIVE → EVALUATE → ACT → REMEMBER → UPDATE → PERCEIVE
- * 
- * Contract:
- * - Implements TickSystem interface
- * - Uses deterministic FNV-1a hashing instead of ambient randomness
- * - Runs at NPC priority after gameplay and before broadcast
- * - Accepts ChunkKey|string for compatibility
  */
 
 import {
@@ -24,15 +11,7 @@ import {
   tickSystemRegistry,
   type TickSystemRegistry,
 } from "./TickSystemRegistry.js";
-import {
-  type TickId,
-  type ChunkKey,
-  coerceChunkKey,
-  parseChunkKey,
-  TickSystemCategory,
-} from "./types.js";
-
-// Ouroboros imports
+import { TickSystemCategory } from "./types.js";
 import {
   OuroborosEngine,
   type OuroborosEngineConfig,
@@ -58,15 +37,11 @@ export interface OuroborosTickSystemOptions {
   readonly enableNPCBrain?: boolean;
 }
 
-/**
- * OuroborosTickSystem - Wraps OuroborosEngine for ARE tick system integration
- * 
- * This class:
- * 1. Implements the TickSystem interface
- * 2. Wraps OuroborosEngine for deterministic NPC behavior
- * 3. Runs at NPC priority in the tick scheduler
- * 4. Uses spatial partitioning for O(1) proximity checks
- */
+function toTickNumber(value: unknown, fallback: number): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.trunc(n) : fallback;
+}
+
 export class OuroborosTickSystem implements TickSystem {
   readonly id = OUROBOROS_TICK_SYSTEM_NAME;
   readonly name = OUROBOROS_TICK_SYSTEM_NAME;
@@ -82,31 +57,52 @@ export class OuroborosTickSystem implements TickSystem {
   private readonly sendToPlayer: SendToPlayerFn;
   private readonly broadcast: BroadcastFn;
   private readonly resolveSocketId: ResolveSocketIdFn;
-  private readonly statusEmitter?: StatusEmitter;
+  private readonly statusEmitter: StatusEmitter;
   private readonly tickInterval: number;
-  private readonly npcBrainInterval: number;
-  private readonly enableNPCBrain: boolean;
   private tickCounter = 0;
 
   constructor(options: OuroborosTickSystemOptions = {}) {
-    this.engine = new OuroborosEngine(options.engineConfig ?? {});
+    this.engine = new OuroborosEngine({
+      ...(options.engineConfig ?? {}),
+      tickInterval: options.tickInterval ?? options.engineConfig?.tickInterval ?? 10,
+      npcBrainInterval: options.npcBrainInterval ?? options.engineConfig?.npcBrainInterval ?? 10,
+      enableNPCBrain: options.enableNPCBrain ?? options.engineConfig?.enableNPCBrain ?? true,
+    });
     this.memoryCache = new NPCMemoryCache();
-    this.relationships = {} as NPCRelationshipSystem;
+    this.relationships = {
+      getRelationship: () => 0,
+      adjustAffinity: () => {},
+    } as unknown as NPCRelationshipSystem;
     this.chatRouter = {} as ChatChannelRouter;
     this.recipients = [];
     this.sendToPlayer = () => {};
     this.broadcast = () => {};
     this.resolveSocketId = () => undefined;
+    this.statusEmitter = {
+      emitNpcThinking: () => {},
+    } as unknown as StatusEmitter;
     this.tickInterval = options.tickInterval ?? 10;
-    this.npcBrainInterval = options.npcBrainInterval ?? 10;
-    this.enableNPCBrain = options.enableNPCBrain ?? true;
   }
 
   tick(context: TickSystemContext): void {
     this.tickCounter += 1;
     if (this.tickCounter % this.tickInterval !== 0) return;
-    const tick = Number(context.tickCount ?? this.tickCounter) as TickId;
-    this.engine.tick?.({ tickCount: tick } as any);
+
+    const tick = toTickNumber(context.tickCount, this.tickCounter);
+    this.engine.tick(
+      tick,
+      [],
+      [],
+      this.memoryCache,
+      this.relationships,
+      tick,
+      this.chatRouter,
+      this.statusEmitter,
+      this.recipients,
+      this.sendToPlayer,
+      this.broadcast,
+      this.resolveSocketId,
+    );
   }
 }
 
