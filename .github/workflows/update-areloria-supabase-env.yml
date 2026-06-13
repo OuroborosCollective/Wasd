@@ -107,26 +107,26 @@ jobs:
             upsert_env REQUIRE_SUPABASE_AUTH '1'
 
             python3 - <<'PY' "$ENV_PATH"
-            import re
-            import sys
+import re
+import sys
 
-            path = sys.argv[1]
-            text = open(path, 'r', encoding='utf-8').read()
-            match = re.search(r'^DATABASE_URL=(.*)$', text, flags=re.M)
-            if not match or not match.group(1).strip():
-                print('WARN: DATABASE_URL is missing; not creating it because the DB password is not known here.')
-                print('WARN: Add DATABASE_URL=postgresql://postgres:<password>@supabase-db:5432/postgres to the env file if needed.')
-                sys.exit(0)
+path = sys.argv[1]
+text = open(path, 'r', encoding='utf-8').read()
+match = re.search(r'^DATABASE_URL=(.*)$', text, flags=re.M)
+if not match or not match.group(1).strip():
+    print('WARN: DATABASE_URL is missing; not creating it because the DB password is not known here.')
+    print('WARN: Add DATABASE_URL=postgresql://postgres:<password>@supabase-db:5432/postgres to the env file if needed.')
+    sys.exit(0)
 
-            old = match.group(1).strip()
-            new = re.sub(r'@[^/@:]+(?::\d+)?/', '@supabase-db:5432/', old, count=1)
-            if new == old and '@supabase-db:5432/' not in old:
-                print('WARN: DATABASE_URL format was not recognized; leaving it unchanged.')
-            else:
-                text = re.sub(r'^DATABASE_URL=.*$', 'DATABASE_URL=' + new, text, flags=re.M)
-                open(path, 'w', encoding='utf-8').write(text)
-                print('DATABASE_URL host normalized to supabase-db:5432')
-            PY
+old = match.group(1).strip()
+new = re.sub(r'@[^/@:]+(?::\d+)?/', '@supabase-db:5432/', old, count=1)
+if new == old and '@supabase-db:5432/' not in old:
+    print('WARN: DATABASE_URL format was not recognized; leaving it unchanged.')
+else:
+    text = re.sub(r'^DATABASE_URL=.*$', 'DATABASE_URL=' + new, text, flags=re.M)
+    open(path, 'w', encoding='utf-8').write(text)
+    print('DATABASE_URL host normalized to supabase-db:5432')
+PY
 
             echo "=== Sanitized env preview ==="
             grep -E '^(SUPABASE_URL|PERSISTENCE_DRIVER|USE_SUPABASE_WS_LOGIN|REQUIRE_SUPABASE_AUTH|DATABASE_URL)=' "$ENV_PATH" | sed -E 's#(postgresql://[^:]+:)[^@]+@#\1***@#; s#(SERVICE_ROLE_KEY=).*#\1***#; s#(ANON_KEY=).*#\1***#' || true
