@@ -17,6 +17,10 @@ import { QuestDerivationEngine } from './QuestDerivationEngine.js';
 import { CMLS as CombatSystem } from './CombatSystem.js';
 import { EvolutionSystem } from './EvolutionSystem.js';
 import { worldStateRegistry } from '../state/WorldStateRegistry.js';
+import { processLinguisticUpdate, buildNpcLanguageState } from '../language/ArelorianLinguisticKernel.js';
+import type { NpcLanguageState } from '../language/LanguageTypes.js';
+import { createKappaInt } from '../language/LanguageTypes.js';
+import { emitNpcDialogueEvents } from '../language/LivingLanguageChatBridge.js';
 
 /**
  * Phase execution order for Arelorian tick loop
@@ -31,7 +35,8 @@ export enum AtoPhase {
   ECONOMY_TERRITORY = '2.7',
   SPAWN_SIMULATION = '2.8',
   QUEST_DERIVATION = '2.9',
-  CLIENT_SYNC = '2.10',
+  LINGUISTIC_PROCESSING = '2.10', // Living Language System - every 10 ticks
+  CLIENT_SYNC = '2.11',
   REGIONAL_EVOLUTION = '2.13',
 }
 
@@ -114,7 +119,15 @@ export class ArelorianKernel {
         this.questEngine.deriveQuests();
       });
       
-      // Phase 2.10: Client Sync
+      // Phase 2.10: Living Language System - Linguistic Processing (every 10 ticks)
+      // Process NPC speech generation, dialogue decisions, and language evolution
+      await this.measurePhase(AtoPhase.LINGUISTIC_PROCESSING, async () => {
+        if (this.tickCount % BigInt(10) === BigInt(0)) {
+          await this.processLinguisticTick();
+        }
+      });
+      
+      // Phase 2.11: Client Sync
       await this.measurePhase(AtoPhase.CLIENT_SYNC, async () => {});
       
       // Phase 2.13: Regional Evolution (every 600 ticks)
@@ -171,6 +184,94 @@ export class ArelorianKernel {
 
   public getTickRate(): number {
     return 10; // 10Hz
+  }
+
+  /**
+   * Process Living Language System linguistic update every 10 ticks.
+   * This handles NPC speech generation, dialogue decisions, and language evolution.
+   */
+  private async processLinguisticTick(): Promise<void> {
+    try {
+      // Build world state for linguistic processing
+      const tickNum = Number(this.tickCount);
+      
+      // Get NPC states from NPCSimulation
+      const npcStates = this.buildNpcLanguageStates();
+      
+      // World state context for linguistic decisions
+      const worldState = {
+        threatLevel: createKappaInt(0.3), // TODO: Get from actual world state
+        villageSafety: createKappaInt(0.7), // TODO: Get from actual world state
+        factionPressure: createKappaInt(0.5), // TODO: Get from actual world state
+        politicalTension: createKappaInt(0.4), // TODO: Get from actual world state
+      };
+
+      // Process linguistic updates for selected NPCs
+      const utterances = processLinguisticUpdate(
+        BigInt(tickNum),
+        npcStates,
+        worldState
+      );
+
+      // Build NPC ID to name map for chat bridge
+      const npcIdToName = this.buildNpcIdToNameMap();
+
+      // Emit npc_dialogue events via WebSocket for 2D client chat
+      if (utterances.length > 0) {
+        emitNpcDialogueEvents(utterances, npcIdToName, tickNum);
+      }
+
+      // Log utterance count for debugging (every 100 ticks)
+      if (tickNum % 100 === 0 && utterances.length > 0) {
+        console.log(`[ATO] Linguistic tick ${tickNum}: ${utterances.length} utterances generated`);
+      }
+    } catch (error) {
+      // Log but don't fail the tick - linguistic system is non-critical
+      console.error('[ATO] Linguistic processing error:', error);
+    }
+  }
+
+  /**
+   * Build NPC ID to name map for chat bridge.
+   */
+  private buildNpcIdToNameMap(): Map<string, string> {
+    const npcIdToName = new Map<string, string>();
+    const npcs = this.npcSim.getAllNpcs?.() ?? [];
+    
+    for (const npc of npcs) {
+      npcIdToName.set(npc.id, npc.name ?? npc.id);
+    }
+    
+    return npcIdToName;
+  }
+
+  /**
+   * Build NPC language states from NPCSimulation for linguistic processing.
+   * This provides the Living Language System with NPC emotional/relationship data.
+   */
+  private buildNpcLanguageStates(): readonly NpcLanguageState[] {
+    const npcs = this.npcSim.getAllNpcs?.() ?? [];
+    const states: NpcLanguageState[] = [];
+
+    for (const npc of npcs) {
+      try {
+        const state = buildNpcLanguageState(npc.id, {
+          factionId: npc.faction ?? 'neutral',
+          role: npc.role ?? 'citizen',
+          hunger: 0.3, // TODO: Get from actual NPC state
+          trust: 0.5, // TODO: Get from actual NPC state
+          fear: 0.2, // TODO: Get from actual NPC state
+          duty: 0.6, // TODO: Get from actual NPC state
+          pride: 0.4, // TODO: Get from actual NPC state
+          revenge: 0.1, // TODO: Get from actual NPC state
+        });
+        states.push(state);
+      } catch {
+        // Skip NPCs that fail to build language state
+      }
+    }
+
+    return Object.freeze(states);
   }
 }
 

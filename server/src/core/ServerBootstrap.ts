@@ -52,6 +52,7 @@ import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRT
 import { initRedisClient } from "./RedisClient.js";
 import { installARELootIntegration } from "../modules/loot/installARELootIntegration.js";
 import { installOracleChatBridge } from "../modules/oracle/index.js";
+import { initializeLivingLanguageSystem } from "./language/LivingLanguageInitializer.js";
 import { URL } from "node:url";
 
 const currentDir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
@@ -198,6 +199,10 @@ export class ServerBootstrap {
     installClient2DPublicKeyLoginBridge(ws, tick);
     (this as any)._tick = tick;
     await tick.init();
+    
+    // Initialize Living Language System (NPC dialogue + speech generation)
+    await initializeLivingLanguageSystem();
+    
     this.initializing = false;
     app.use("/api/v1/warfront", warfrontRouter(tick));
     app.use("/api/are/validation", areValidationRouter(tick));

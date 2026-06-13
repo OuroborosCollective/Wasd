@@ -361,6 +361,7 @@ export interface NpcLanguageState {
 // =============================================================================
 
 export interface UtteranceDecision {
+  readonly npcId: string;
   readonly speechHash: string;
   readonly intent: SpeechIntent;
   readonly phraseGenomeId: string;

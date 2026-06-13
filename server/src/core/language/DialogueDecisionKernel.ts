@@ -369,6 +369,7 @@ export function decideUtterance(
   updateKernelState(npcState.npcId, tick, intent, construction.hash ?? '');
 
   return Object.freeze({
+    npcId: npcState.npcId,
     speechHash: construction.hash ?? stableHash32(seed.toString()).toString(16),
     intent,
     phraseGenomeId: genome.id,
@@ -636,6 +637,7 @@ function buildFallbackUtterance(
   const speechHash = stableHash32(`${KERNEL_TAG}:${npcState.npcId}:${intent}:${seed}`).toString(16);
 
   return Object.freeze({
+    npcId: npcState.npcId,
     speechHash,
     intent,
     phraseGenomeId: `fallback_${intent}`,

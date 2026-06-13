@@ -175,3 +175,9 @@ export {
   type DialogueChoice,
   type EntryNode,
 } from './DialogueBridge.js';
+
+// Living Language System Initializer (server startup integration)
+export {
+  initializeLivingLanguageSystem,
+  isLivingLanguageSystemInitialized,
+} from './LivingLanguageInitializer.js';
