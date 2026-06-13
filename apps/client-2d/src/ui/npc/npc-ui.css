@@ -1,0 +1,233 @@
+/**
+ * NPC UI Styles
+ * Diamond Glass Design System for Areloria 2D Client
+ */
+
+/* ============================================
+   NPC Portrait Styles
+   ============================================ */
+
+.npc-portrait-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.npc-portrait {
+  position: relative;
+  padding: 4px;
+  background: linear-gradient(135deg, #192122 0%, #0d1516 100%);
+}
+
+.npc-portrait-svg {
+  display: block;
+}
+
+.npc-portrait-svg svg {
+  display: block;
+}
+
+/* Portrait Frame Styles */
+.npc-portrait-frame--common {
+  border: 1px solid rgba(132, 147, 150, 0.4);
+  box-shadow: 0 0 8px rgba(132, 147, 150, 0.2);
+}
+
+.npc-portrait-frame--uncommon {
+  border: 1px solid #50c878;
+  box-shadow: 0 0 8px rgba(80, 200, 120, 0.3);
+}
+
+.npc-portrait-frame--rare {
+  border: 1px solid #00e5ff;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+}
+
+.npc-portrait-frame--epic {
+  border: 1px solid #9d00ff;
+  box-shadow: 0 0 16px rgba(157, 0, 255, 0.5);
+}
+
+.npc-portrait-frame--legendary {
+  border: 2px solid #ff7a00;
+  box-shadow: 0 0 20px rgba(255, 122, 0, 0.6);
+  animation: legendary-pulse 2s ease-in-out infinite;
+}
+
+@keyframes legendary-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(255, 122, 0, 0.6); }
+  50% { box-shadow: 0 0 30px rgba(255, 122, 0, 0.8); }
+}
+
+/* ============================================
+   NPC Speech Bubble Styles
+   ============================================ */
+
+.npc-speech-bubble {
+  position: absolute;
+  z-index: 100;
+  pointer-events: auto;
+  animation: speech-bubble-appear 0.3s ease-out;
+}
+
+@keyframes speech-bubble-appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.npc-speech-bubble--speaking {
+  border-color: #00e5ff;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+}
+
+.npc-speech-bubble--thinking {
+  border-color: #9d00ff;
+  box-shadow: 0 0 12px rgba(157, 0, 255, 0.4);
+}
+
+/* ============================================
+   NPC Context Window Styles
+   ============================================ */
+
+.npc-context-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 15, 17, 0.8);
+  backdrop-filter: blur(4px);
+  animation: overlay-fade-in 0.2s ease-out;
+}
+
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.npc-context-window {
+  width: min(90vw, 520px);
+  max-height: 80vh;
+  background: rgba(13, 21, 22, 0.95);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  backdrop-filter: blur(24px);
+  overflow: hidden;
+  animation: window-appear 0.3s ease-out;
+}
+
+@keyframes window-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ============================================
+   World Loading Screen Styles
+   ============================================ */
+
+.world-loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #0a0f11;
+}
+
+.world-loading-screen--visible {
+  opacity: 1;
+  transition: opacity 0.5s ease-out;
+}
+
+.world-loading-screen--hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease-in;
+}
+
+/* ============================================
+   NPC Interaction Menu Styles
+   ============================================ */
+
+.npc-menu-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(21, 29, 30, 0.6);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.npc-menu-item:hover {
+  background: rgba(0, 229, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.npc-menu-item--selected {
+  background: rgba(0, 229, 255, 0.2);
+  border-color: #00e5ff;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+  transform: scale(1.02);
+}
+
+.npc-menu-item--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.npc-menu-item--disabled:hover {
+  transform: none;
+}
+
+/* Menu item color variants */
+.npc-menu-item--cyan .npc-menu-indicator { background: #00e5ff; }
+.npc-menu-item--green .npc-menu-indicator { background: #50c878; }
+.npc-menu-item--orange .npc-menu-indicator { background: #ff7a00; }
+.npc-menu-item--violet .npc-menu-indicator { background: #9d00ff; }
+.npc-menu-item--gray .npc-menu-indicator { background: #849396; }
+
+.npc-menu-indicator {
+  width: 3px;
+  height: 16px;
+}
+
+.npc-menu-shortcut {
+  font-family: "Epilogue", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: #3b494c;
+  padding: 2px 6px;
+  border: 1px solid #3b494c;
+}
+
+.npc-notification-dot {
+  width: 6px;
+  height: 6px;
+  background: #50c878;
+  animation: notification-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes notification-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.2); }
+}
