@@ -12,11 +12,14 @@
  * - Empty/null states are honest and allowed
  */
 
-import type { EquipmentSlotId } from "../equipment/EquipmentTypes.js";
+import {
+  EQUIPMENT_DEFINITIONS,
+  EQUIPMENT_SLOT_DEFINITIONS,
+  compareEquipmentSlotIds,
+  type EquipmentNumberEntry,
+  type EquipmentSlotId,
+} from "../equipment/EquipmentTypes.js";
 
-/**
- * Quest Objective shape
- */
 export interface QuestObjectiveSnapshot {
   id: string;
   label: string;
@@ -25,9 +28,6 @@ export interface QuestObjectiveSnapshot {
   completed: boolean;
 }
 
-/**
- * Quest shape
- */
 export interface QuestSnapshot {
   id: string;
   title: string;
@@ -36,9 +36,6 @@ export interface QuestSnapshot {
   objectives: QuestObjectiveSnapshot[];
 }
 
-/**
- * Guild shape
- */
 export interface GuildSnapshot {
   id: string | null;
   name: string | null;
@@ -48,9 +45,6 @@ export interface GuildSnapshot {
   treasury: number | null;
 }
 
-/**
- * Faction Standing shape
- */
 export interface FactionStandingSnapshot {
   id: string;
   name: string;
@@ -58,9 +52,6 @@ export interface FactionStandingSnapshot {
   label: "hostile" | "neutral" | "trusted" | "allied";
 }
 
-/**
- * Skill Snapshot shape
- */
 export interface SkillSnapshot {
   id: string;
   title: string;
@@ -70,9 +61,6 @@ export interface SkillSnapshot {
   progressRatio: number;
 }
 
-/**
- * Map shape
- */
 export interface MapSnapshot {
   regionName: string;
   chunkX: number | null;
@@ -82,9 +70,6 @@ export interface MapSnapshot {
   worldPois: WorldPoiSnapshot[];
 }
 
-/**
- * World POI shape
- */
 export interface WorldPoiSnapshot {
   id: string;
   type: "logging_camp" | "mining_camp" | "fishing_camp" | "campfire" | "furnace" | "workbench" | "village_trader";
@@ -95,9 +80,6 @@ export interface WorldPoiSnapshot {
   tags: readonly string[];
 }
 
-/**
- * Resource Node Snapshot shape
- */
 export interface ResourceNodeSnapshot {
   id: string;
   kind: "tree" | "ore" | "fish_spot";
@@ -114,9 +96,6 @@ export interface ResourceNodeSnapshot {
   remainingTicks: number;
 }
 
-/**
- * Inventory Slot shape (server-authoritative)
- */
 export interface InventorySlotSnapshot {
   slotId: string;
   itemId: string;
@@ -127,9 +106,6 @@ export interface InventorySlotSnapshot {
   maxStack: number;
 }
 
-/**
- * Player Inventory Snapshot shape
- */
 export interface PlayerInventorySnapshot {
   playerId: string;
   schemaVersion: 1;
@@ -137,25 +113,16 @@ export interface PlayerInventorySnapshot {
   capacity: number;
 }
 
-/**
- * Crafting Recipe Ingredient Snapshot shape
- */
 export interface CraftingRecipeIngredientSnapshot {
   itemId: string;
   quantity: number;
 }
 
-/**
- * Crafting Recipe Output Snapshot shape
- */
 export interface CraftingRecipeOutputSnapshot {
   itemId: string;
   quantity: number;
 }
 
-/**
- * Crafting Recipe Snapshot shape
- */
 export interface CraftingRecipeSnapshot {
   id: string;
   title: string;
@@ -169,34 +136,27 @@ export interface CraftingRecipeSnapshot {
   blockedReason?: "level_too_low" | "missing_ingredients" | "station_too_far" | "missing_player_position";
 }
 
-/**
- * Crafting Snapshot shape
- */
 export interface CraftingSnapshot {
   recipes: CraftingRecipeSnapshot[];
 }
 
-/**
- * Equipped Slot Snapshot shape
- */
 export interface EquippedSlotSnapshot {
   slotId: EquipmentSlotId;
   itemId: string;
   title: string;
+  tier?: number;
+  displayId?: string;
+  iconId?: string;
+  stats?: readonly EquipmentNumberEntry[];
+  requirements?: readonly EquipmentNumberEntry[];
 }
 
-/**
- * Player Equipment Snapshot shape
- */
 export interface PlayerEquipmentSnapshot {
   playerId: string;
   schemaVersion: 1;
   slots: EquippedSlotSnapshot[];
 }
 
-/**
- * Character Profile Snapshot shape
- */
 export interface CharacterProfileSnapshot {
   playerId: string;
   characterId: string;
@@ -205,26 +165,21 @@ export interface CharacterProfileSnapshot {
   selected: boolean;
 }
 
-/**
- * Paperdoll Slot Snapshot shape
- */
 export interface PaperdollSlotSnapshot {
-  slotId: string;
+  slotId: EquipmentSlotId;
   itemId: string | null;
   title: string;
+  displayId?: string;
+  iconId?: string;
+  stats?: readonly EquipmentNumberEntry[];
+  requirements?: readonly EquipmentNumberEntry[];
 }
 
-/**
- * Paperdoll Snapshot shape
- */
 export interface PaperdollSnapshot {
   character: CharacterProfileSnapshot | null;
   slots: PaperdollSlotSnapshot[];
 }
 
-/**
- * Live Gameplay Snapshot shape (includes skills, resources, inventory, crafting, equipment, character and paperdoll)
- */
 export interface LiveGameplaySnapshot {
   status: "live";
   serverTick: number;
@@ -241,9 +196,6 @@ export interface LiveGameplaySnapshot {
   map: MapSnapshot;
 }
 
-/**
- * Input for creating a gameplay snapshot (includes skills, resources, inventory, crafting, equipment, character and paperdoll)
- */
 export interface GameplaySnapshotInput {
   serverTick: number;
   character?: CharacterProfileSnapshot | null;
@@ -259,27 +211,80 @@ export interface GameplaySnapshotInput {
   map?: Partial<MapSnapshot>;
 }
 
-/**
- * Create a gameplay snapshot from server-authoritative input.
- * Arrays are sorted by id for deterministic output.
- * Empty/null values are honest and allowed.
- */
+function cloneEntries(entries: readonly EquipmentNumberEntry[] | undefined): readonly EquipmentNumberEntry[] | undefined {
+  return entries ? entries.map((entry) => ({ key: entry.key, value: entry.value })) : undefined;
+}
+
+function enrichPaperdollSlot(slot: PaperdollSlotSnapshot): PaperdollSlotSnapshot {
+  if (slot.itemId === null) return slot;
+  const definition = EQUIPMENT_DEFINITIONS[slot.itemId];
+  const stats = cloneEntries(definition?.stats ?? slot.stats);
+  const requirements = cloneEntries(definition?.requirements ?? slot.requirements);
+
+  return {
+    slotId: slot.slotId,
+    itemId: definition?.itemId ?? slot.itemId,
+    title: definition?.title ?? slot.title,
+    ...(definition?.displayId || slot.displayId ? { displayId: definition?.displayId ?? slot.displayId } : {}),
+    ...(definition?.iconId || slot.iconId ? { iconId: definition?.iconId ?? slot.iconId } : {}),
+    ...(stats ? { stats } : {}),
+    ...(requirements ? { requirements } : {}),
+  };
+}
+
+function normalizePaperdoll(input: PaperdollSnapshot | null | undefined, character: CharacterProfileSnapshot | null | undefined): PaperdollSnapshot {
+  const bySlot = new Map<EquipmentSlotId, PaperdollSlotSnapshot>();
+  for (const slot of input?.slots ?? []) {
+    bySlot.set(slot.slotId, slot);
+  }
+
+  return {
+    character: input?.character ?? character ?? null,
+    slots: EQUIPMENT_SLOT_DEFINITIONS.map((definition) => {
+      const existing = bySlot.get(definition.slotId);
+      return enrichPaperdollSlot(existing ?? {
+        slotId: definition.slotId,
+        itemId: null,
+        title: definition.emptyTitle,
+      });
+    }).sort((a, b) => compareEquipmentSlotIds(a.slotId, b.slotId)),
+  };
+}
+
+function normalizeEquipment(equipment: PlayerEquipmentSnapshot | null | undefined): PlayerEquipmentSnapshot | null {
+  if (!equipment) return null;
+
+  return {
+    ...equipment,
+    slots: [...equipment.slots].sort((a, b) => compareEquipmentSlotIds(a.slotId, b.slotId)).map((slot) => {
+      const definition = EQUIPMENT_DEFINITIONS[slot.itemId];
+      const stats = cloneEntries(definition?.stats ?? slot.stats);
+      const requirements = cloneEntries(definition?.requirements ?? slot.requirements);
+
+      return {
+        slotId: definition?.slotId ?? slot.slotId,
+        itemId: definition?.itemId ?? slot.itemId,
+        title: definition?.title ?? slot.title,
+        ...(definition?.tier ?? slot.tier ? { tier: definition?.tier ?? slot.tier } : {}),
+        ...(definition?.displayId || slot.displayId ? { displayId: definition?.displayId ?? slot.displayId } : {}),
+        ...(definition?.iconId || slot.iconId ? { iconId: definition?.iconId ?? slot.iconId } : {}),
+        ...(stats ? { stats } : {}),
+        ...(requirements ? { requirements } : {}),
+      };
+    }),
+  };
+}
+
 export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGameplaySnapshot {
   const sortedQuests = [...(input.quests ?? [])].sort((a, b) => a.id.localeCompare(b.id));
   const sortedSkills = [...(input.skills ?? [])].sort((a, b) => a.id.localeCompare(b.id));
   const sortedResources = [...(input.resources ?? [])].sort((a, b) => a.id.localeCompare(b.id));
   const sortedFactions = [...(input.factions ?? [])].sort((a, b) => a.id.localeCompare(b.id));
-
-  // Sort inventory slots by itemId for deterministic output
   const sortedSlots = [...(input.inventory?.slots ?? [])].sort((a, b) => a.itemId.localeCompare(b.itemId));
-
-  // Sort crafting recipes by id for deterministic output
   const sortedRecipes = [...(input.crafting?.recipes ?? [])].sort((a, b) => a.id.localeCompare(b.id));
+  const paperdoll = normalizePaperdoll(input.paperdoll, input.character);
+  const equipment = normalizeEquipment(input.equipment);
 
-  // Sort paperdoll slots by slotId for deterministic output
-  const sortedPaperdollSlots = [...(input.paperdoll?.slots ?? [])].sort((a, b) => a.slotId.localeCompare(b.slotId));
-
-  // Sort world POIs by id for deterministic output
   const sortedWorldPois: WorldPoiSnapshot[] = [...(input.map?.worldPois ?? [])].sort((a, b) => a.id.localeCompare(b.id)).map(poi => ({
     ...poi,
     tags: [...poi.tags] as readonly string[],
@@ -289,14 +294,11 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGamepl
     status: "live",
     serverTick: input.serverTick,
     character: input.character ?? null,
-    paperdoll: input.paperdoll ?? {
-      character: null,
-      slots: sortedPaperdollSlots,
-    },
+    paperdoll,
     quests: sortedQuests,
     skills: sortedSkills,
     resources: sortedResources,
-    inventory: input.inventory ?? {
+    inventory: input.inventory ? { ...input.inventory, slots: sortedSlots } : {
       playerId: "unknown",
       schemaVersion: 1,
       slots: sortedSlots,
@@ -305,7 +307,7 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGamepl
     crafting: {
       recipes: sortedRecipes,
     },
-    equipment: input.equipment ?? null,
+    equipment,
     guild: input.guild ?? {
       id: null,
       name: null,
@@ -326,11 +328,6 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGamepl
   };
 }
 
-/**
- * Create an empty gameplay snapshot.
- * Used when server is available but no gameplay data exists yet.
- * status="empty" indicates server is reachable but no data.
- */
 export function createEmptyGameplaySnapshot(serverTick: number): LiveGameplaySnapshot {
   return createGameplaySnapshot({
     serverTick,
