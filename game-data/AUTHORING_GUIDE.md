@@ -18,6 +18,13 @@ This guide describes how to add new content to Areloria.
 2. Define `id`, `title`, `objective`, `giverNpcId`.
 3. Add prerequisites or rewards if needed.
 
+## Adding Equipment / Paperdoll Slots
+1. Add canonical equipment slots to `game-data/equipment/equipment-slots.json`.
+2. Define `slotId`, `title`, `emptyTitle`, `kind`, and deterministic `order`.
+3. Add authored equippable item metadata to `game-data/equipment/equipment-items.json`.
+4. Every authored equipment `itemId` must already exist in server inventory definitions.
+5. Paperdoll and gameplay snapshots load this metadata from `game-data`; do not create UI-only slots or fake paperdoll data.
+
 ## Placing Spawns
 1. Add an entry to `game-data/spawns/npc-spawns.json`.
 2. Define `npcId`, `position` (x, y).
@@ -26,4 +33,6 @@ This guide describes how to add new content to Areloria.
 - **Broken References**: Ensure `dialogueId` in `npcs.json` matches an `id` in `dialogues.json`.
 - **Missing Nodes**: Ensure `nextNodeId` in `dialogues.json` exists in the `nodes` object of that dialogue.
 - **Invalid Quest IDs**: Ensure `prerequisiteQuestIds` in `quests.json` matches an `id` in `quests.json`.
+- **Invalid Equipment Item IDs**: Ensure every `game-data/equipment/equipment-items.json` `itemId` exists in inventory definitions.
+- **Invalid Equipment Slot IDs**: Ensure equipment item `slotId` values exist in `game-data/equipment/equipment-slots.json`.
 - **Validation**: Run `npx ts-node server/src/tools/validateContent.ts` to check for errors.

@@ -17,7 +17,7 @@ import { Router } from "express";
 import { json } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { equipmentService } from "../equipment/equipmentRuntime.js";
-import { EQUIPMENT_DEFINITIONS } from "../equipment/EquipmentTypes.js";
+import { isEquipmentSlotId } from "../equipment/EquipmentTypes.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
 const router = Router();
@@ -141,12 +141,7 @@ router.post("/unequip", async (req, res) => {
     return;
   }
 
-  // Validate slotId is a known equipment slot
-  const validSlots = Object.keys(EQUIPMENT_DEFINITIONS).map(
-    (itemId) => EQUIPMENT_DEFINITIONS[itemId as keyof typeof EQUIPMENT_DEFINITIONS].slotId
-  );
-  const uniqueSlots = [...new Set(validSlots)];
-  if (!uniqueSlots.includes(slotId as any)) {
+  if (!isEquipmentSlotId(slotId)) {
     res.status(400).json({ ok: false, error: "invalid_slot" });
     return;
   }
@@ -154,7 +149,7 @@ router.post("/unequip", async (req, res) => {
   try {
     const result = await equipmentService.unequipItem({
       playerId: identity.playerId,
-      slotId: slotId as any,
+      slotId,
     });
 
     // Phase 11: Include deterministic tick context for Ouroboros integration
