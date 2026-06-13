@@ -36,7 +36,8 @@ describe('NPC game-data + Living Duden runtime proof', () => {
     const guide = npcSystem.getNPC('npc_guide');
     expect(guide).toBeDefined();
     expect(guide?.name).toBe('Linnea');
-    expect(guide?.position).toEqual({ x: 1.5, y: 1.5, z: 0 });
+    expect(guide?.position).toEqual({ x: 1.5, y: 0, z: 1.5 });
+    expect(guide?.memory?.spawn).toEqual({ x: 1.5, y: 1.5, z: 1.5 });
     expect(guide?.memory?.source).toBe('game-data/npc');
     expect(guide?.memory?.dialogueId).toBe('dialogue_guide');
 
