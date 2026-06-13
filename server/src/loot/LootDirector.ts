@@ -1,14 +1,14 @@
 'use strict';
 
-import { ProceduralLootMachine } from './ProceduralLootMachine';
-import { LootAxioms } from './LootAxioms';
+import { ProceduralLootMachine } from './ProceduralLootMachine.js';
+import { LootAxioms } from './LootAxioms.js';
 import {
   type LootDelta,
   type LootDeltaItem,
   type LootRollContextCanonical,
   createIdempotencyKey,
   createLootSeed
-} from './LootDelta';
+} from './LootDelta.js';
 
 interface LootDirectorDeps {
   db: any;
