@@ -3,10 +3,13 @@
  * @description Bridge between Living Language System and existing dialogues.json
  *
  * Integrates the procedural Living Language System with the static dialogue data
- * in game-data/dialogue/dialogues.json. The dialogue.json serves as:
- * 1. Seed data for phrase genomes
- * 2. Fallback for NPCs without language system support
- * 3. Quest-specific dialogue templates
+ * in game-data/dialogue/dialogues.json and the existing DialogueDirector/NPCDialogueSystem.
+ *
+ * Architecture:
+ * 1. dialogues.json - Static quest dialogue (source of truth for quest content)
+ * 2. DialogueDirector - Deterministic context-aware dialogue responses
+ * 3. NPCDialogueSystem - Simple deterministic line selection
+ * 4. Living Language System (this module) - Procedural lexeme/phrase genome layer
  *
  * HARD CONSTRAINTS:
  * - NO Date.now(), new Date(), Math.random(), crypto.randomUUID()
@@ -17,19 +20,17 @@ import { stableHash32 } from '../determinism/AREDeterminism.js';
 import type {
   SpeechIntent,
   PhraseGenome,
-  LivingLexeme,
-  KappaInt,
 } from './LanguageTypes.js';
 import { createKappaInt } from './LanguageTypes.js';
-import { registerCanonicalLexeme, getLexemesByConcept, type LexemeBlueprint } from './LivingDudenArchive.js';
-import { registerPhraseGenome, getRegisteredGenome } from './DialogueDecisionKernel.js';
+import { registerCanonicalLexeme, type LexemeBlueprint } from './LivingDudenArchive.js';
+import { registerPhraseGenome } from './DialogueDecisionKernel.js';
 import { seedDefaultDialects } from './DialectStores.js';
 
 // =============================================================================
 // DIALOGUE JSON TYPES (from game-data/dialogue/dialogues.json)
 // =============================================================================
 
-interface DialogueEntry {
+export interface DialogueEntry {
   id: string;
   greeting?: string;
   fallback?: string;
@@ -41,20 +42,20 @@ interface DialogueEntry {
   entryNodes?: EntryNode[];
 }
 
-interface DialogueNode {
+export interface DialogueNode {
   text: string;
   choices?: DialogueChoice[];
   setFlag?: string;
 }
 
-interface DialogueChoice {
+export interface DialogueChoice {
   id: string;
   text: string;
   nextNodeId: string;
   changeReputation?: { factionId: string; amount: number };
 }
 
-interface EntryNode {
+export interface EntryNode {
   nodeId: string;
   conditionFlag?: string;
   conditionReputation?: { factionId: string; min?: number; max?: number };
@@ -101,9 +102,6 @@ export function initializeDialogueBridge(dialogues: DialogueEntry[]): void {
   console.log(`[DialogueBridge] Initialized with ${dialogueData.size} entries`);
 }
 
-/**
- * Check if bridge is initialized.
- */
 export function isDialogueBridgeInitialized(): boolean {
   return bridgeInitialized;
 }
@@ -112,10 +110,6 @@ export function isDialogueBridgeInitialized(): boolean {
 // PHRASE GENOME SEEDING FROM DIALOGUES
 // =============================================================================
 
-/**
- * Convert dialogue.json entries to phrase genomes.
- * This bridges the static dialogue system to the procedural language system.
- */
 function seedPhraseGenomesFromDialogues(dialogues: DialogueEntry[]): void {
   for (const dialogue of dialogues) {
     const npcId = dialogue.id.replace('dialogue_', 'npc_');
@@ -127,26 +121,10 @@ function seedPhraseGenomesFromDialogues(dialogues: DialogueEntry[]): void {
         intent: 'greet',
         languageMode: 'de',
         structure: ['subject'],
-        slots: [
-          {
-            role: 'subject',
-            required: true,
-            semanticRequirements: ['greeting'],
-          },
-        ],
+        slots: [{ role: 'subject', required: true, semanticRequirements: ['greeting'] }],
         constraints: {},
-        outcomeStats: {
-          uses: 0,
-          successfulUses: 0,
-          failedUses: 0,
-          averageKappaScore: createKappaInt(1.0),
-        },
-        mutation: {
-          parentGenomeIds: [],
-          generation: 0,
-          stability: createKappaInt(1.0),
-          novelty: createKappaInt(0),
-        },
+        outcomeStats: { uses: 0, successfulUses: 0, failedUses: 0, averageKappaScore: createKappaInt(1.0) },
+        mutation: { parentGenomeIds: [], generation: 0, stability: createKappaInt(1.0), novelty: createKappaInt(0) },
         truthMode: 'known_fact',
       };
       registerPhraseGenome(greetingGenome);
@@ -170,77 +148,17 @@ function seedPhraseGenomesFromDialogues(dialogues: DialogueEntry[]): void {
             languageMode: 'de',
             structure: ['subject', 'verb', 'object'],
             slots: [
-              {
-                role: 'subject',
-                required: true,
-              },
-              {
-                role: 'verb',
-                required: true,
-                semanticRequirements: extractConceptsFromText(text),
-              },
-              {
-                role: 'object',
-                required: false,
-              },
+              { role: 'subject', required: true },
+              { role: 'verb', required: true, semanticRequirements: extractConceptsFromText(text) },
+              { role: 'object', required: false },
             ],
-            constraints: {
-              requiredRole: extractRoleFromDialogue(dialogue),
-            },
-            outcomeStats: {
-              uses: 0,
-              successfulUses: 0,
-              failedUses: 0,
-              averageKappaScore: createKappaInt(1.0),
-            },
-            mutation: {
-              parentGenomeIds: [],
-              generation: 0,
-              stability: createKappaInt(1.0),
-              novelty: createKappaInt(0),
-            },
+            constraints: { requiredRole: extractRoleFromDialogue(dialogue) },
+            outcomeStats: { uses: 0, successfulUses: 0, failedUses: 0, averageKappaScore: createKappaInt(1.0) },
+            mutation: { parentGenomeIds: [], generation: 0, stability: createKappaInt(1.0), novelty: createKappaInt(0) },
             truthMode: 'known_fact',
           };
           registerPhraseGenome(questGenome);
         }
-      }
-    }
-
-    // Create dialogue tree node genomes
-    if (dialogue.nodes) {
-      for (const [nodeId, node] of Object.entries(dialogue.nodes)) {
-        const nodeGenome: PhraseGenome = {
-          id: `${npcId}_node_${nodeId}`,
-          intent: mapDialogueNodeToIntent(node.text),
-          languageMode: 'de',
-          structure: ['subject', 'verb'],
-          slots: [
-            {
-              role: 'subject',
-              required: true,
-              semanticRequirements: extractConceptsFromText(node.text),
-            },
-            {
-              role: 'verb',
-              required: true,
-            },
-          ],
-          constraints: {},
-          outcomeStats: {
-            uses: 0,
-            successfulUses: 0,
-            failedUses: 0,
-            averageKappaScore: createKappaInt(1.0),
-          },
-          mutation: {
-            parentGenomeIds: [],
-            generation: 0,
-            stability: createKappaInt(1.0),
-            novelty: createKappaInt(0),
-          },
-          truthMode: 'known_fact',
-        };
-        registerPhraseGenome(nodeGenome);
       }
     }
   }
@@ -250,9 +168,6 @@ function seedPhraseGenomesFromDialogues(dialogues: DialogueEntry[]): void {
 // LEXEME SEEDING FROM DIALOGUES
 // =============================================================================
 
-/**
- * Extract key lexemes from dialogue content.
- */
 function seedLexemesFromDialogues(dialogues: DialogueEntry[]): void {
   const seenLemmas = new Set<string>();
 
@@ -272,28 +187,12 @@ function seedLexemesFromDialogues(dialogues: DialogueEntry[]): void {
         }
       }
     }
-
-    // Extract from dialogue nodes
-    if (dialogue.nodes) {
-      for (const node of Object.values(dialogue.nodes)) {
-        extractLexemesFromText(node.text, dialogue.id, seenLemmas);
-        if (node.choices) {
-          for (const choice of node.choices) {
-            extractLexemesFromText(choice.text, dialogue.id, seenLemmas);
-          }
-        }
-      }
-    }
   }
 }
 
-/**
- * Extract meaningful words as lexemes from text.
- */
 function extractLexemesFromText(text: string, dialogueId: string, seenLemmas: Set<string>): void {
-  // Key concept words to extract
   const conceptWords: Record<string, string[]> = {
-    greeting: ['grüßen', 'greeting', 'hallo', 'willkommen', 'welcome', 'greet'],
+    greeting: ['grüßen', 'greeting', 'hallo', 'willkommen', 'welcome'],
     farewell: ['farewell', 'goodbye', 'leben', 'go', 'leave'],
     quest: ['quest', 'task', 'arbeit', 'auftrag', 'help', 'helfen'],
     trade: ['trade', 'handel', 'buy', 'sell', 'kaufen', 'verkaufen'],
@@ -322,10 +221,7 @@ function extractLexemesFromText(text: string, dialogueId: string, seenLemmas: Se
           concepts: [concept],
           invented: false,
           baseWeight: 1.0,
-          grammar: {
-            partOfSpeech: 'noun',
-            allowedPositions: ['subject', 'object'],
-          },
+          grammar: { partOfSpeech: 'noun', allowedPositions: ['subject', 'object'] },
         };
 
         registerCanonicalLexeme(lexeme);
@@ -338,38 +234,19 @@ function extractLexemesFromText(text: string, dialogueId: string, seenLemmas: Se
 // UTILITY FUNCTIONS
 // =============================================================================
 
-/**
- * Map dialogue text to speech intent.
- */
 function mapDialogueNodeToIntent(text: string): SpeechIntent {
   const textLower = text.toLowerCase();
-
-  if (textLower.includes('?') && (textLower.includes('can you') || textLower.includes('would you'))) {
-    return 'request';
-  }
-  if (textLower.includes('thank') || textLower.includes('danke')) {
-    return 'thank';
-  }
-  if (textLower.includes('beware') || textLower.includes('warn') || textLower.includes('vorsicht')) {
-    return 'warn';
-  }
-  if (textLower.includes('join') || textLower.includes('recruit')) {
-    return 'recruit';
-  }
-  if (textLower.includes('rumor') || textLower.includes('heard')) {
-    return 'rumor_share';
-  }
-
+  if (textLower.includes('?') && (textLower.includes('can you') || textLower.includes('would you'))) return 'request';
+  if (textLower.includes('thank') || textLower.includes('danke')) return 'thank';
+  if (textLower.includes('beware') || textLower.includes('warn') || textLower.includes('vorsicht'))) return 'warn';
+  if (textLower.includes('join') || textLower.includes('recruit')) return 'recruit';
+  if (textLower.includes('rumor') || textLower.includes('heard'))) return 'rumor_share';
   return 'greet';
 }
 
-/**
- * Extract concepts from text for semantic requirements.
- */
 function extractConceptsFromText(text: string): string[] {
   const concepts: string[] = [];
   const textLower = text.toLowerCase();
-
   const conceptPatterns: Record<string, RegExp[]> = {
     quest: [/quest/i, /task/i, /arbeit/i, /auftrag/i, /help/i],
     village: [/village/i, /dorf/i, /town/i, /stadt/i, /millbrook/i],
@@ -385,15 +262,10 @@ function extractConceptsFromText(text: string): string[] {
       concepts.push(concept);
     }
   }
-
   return concepts;
 }
 
-/**
- * Extract role from dialogue entry.
- */
 function extractRoleFromDialogue(dialogue: DialogueEntry): string | undefined {
-  // Map dialogue IDs to roles based on npcs.json
   const roleMap: Record<string, string> = {
     dialogue_guide: 'Village Guide',
     dialogue_npc_1: 'Quest Giver',
@@ -407,7 +279,6 @@ function extractRoleFromDialogue(dialogue: DialogueEntry): string | undefined {
     dialogue_wolf: 'Enemy',
     dialogue_dummy: 'Training',
   };
-
   return roleMap[dialogue.id];
 }
 
@@ -415,23 +286,14 @@ function extractRoleFromDialogue(dialogue: DialogueEntry): string | undefined {
 // DIALOGUE LOOKUP (for existing dialogue system integration)
 // =============================================================================
 
-/**
- * Get dialogue entry by ID.
- */
 export function getDialogueEntry(dialogueId: string): DialogueEntry | undefined {
   return dialogueData.get(dialogueId);
 }
 
-/**
- * Get greeting for dialogue ID.
- */
 export function getGreeting(dialogueId: string): string | undefined {
   return dialogueData.get(dialogueId)?.greeting;
 }
 
-/**
- * Get quest line text.
- */
 export function getQuestLine(
   dialogueId: string,
   questId: string,
@@ -450,64 +312,37 @@ export function getQuestLine(
   return lineMap[lineType]?.[questId];
 }
 
-/**
- * Get all quest IDs for a dialogue.
- */
 export function getQuestIds(dialogueId: string): string[] {
   const dialogue = dialogueData.get(dialogueId);
   if (!dialogue) return [];
 
   const ids = new Set<string>();
-
-  if (dialogue.questStartLines) {
-    for (const id of Object.keys(dialogue.questStartLines)) ids.add(id);
-  }
-  if (dialogue.questProgressLines) {
-    for (const id of Object.keys(dialogue.questProgressLines)) ids.add(id);
-  }
-  if (dialogue.questCompleteLines) {
-    for (const id of Object.keys(dialogue.questCompleteLines)) ids.add(id);
-  }
-  if (dialogue.questPrerequisiteLines) {
-    for (const id of Object.keys(dialogue.questPrerequisiteLines)) ids.add(id);
-  }
-
+  if (dialogue.questStartLines) for (const id of Object.keys(dialogue.questStartLines)) ids.add(id);
+  if (dialogue.questProgressLines) for (const id of Object.keys(dialogue.questProgressLines)) ids.add(id);
+  if (dialogue.questCompleteLines) for (const id of Object.keys(dialogue.questCompleteLines)) ids.add(id);
+  if (dialogue.questPrerequisiteLines) for (const id of Object.keys(dialogue.questPrerequisiteLines)) ids.add(id);
   return Array.from(ids);
 }
 
-/**
- * Check if dialogue has dynamic nodes.
- */
 export function hasDialogueNodes(dialogueId: string): boolean {
   const dialogue = dialogueData.get(dialogueId);
   return dialogue?.nodes !== undefined && Object.keys(dialogue.nodes).length > 0;
 }
 
-// =============================================================================
-// FALLBACK INTEGRATION
-// =============================================================================
-
-/**
- * Get fallback text for dialogue (last resort).
- */
 export function getFallbackText(dialogueId: string): string {
   const dialogue = dialogueData.get(dialogueId);
-  if (dialogue?.fallback) {
-    return dialogue.fallback;
-  }
+  if (dialogue?.fallback) return dialogue.fallback;
 
-  // Default fallbacks based on NPC type
   const defaults: Record<string, string> = {
     dialogue_wolf: 'Grrrrr...',
     dialogue_dummy: '...',
   };
-
   return defaults[dialogueId] ?? '...';
 }
 
 /**
- * Resolve dialogue entry for NPC.
- * This is the main entry point for NPC dialogue.
+ * Main entry point for NPC dialogue resolution.
+ * Used by DialogueDirector and NPCDialogueSystem.
  */
 export function resolveDialogue(
   dialogueId: string,
@@ -525,9 +360,7 @@ export function resolveDialogue(
   // Quest-specific dialogue
   if (context.questId && context.questPhase) {
     const questText = getQuestLine(dialogueId, context.questId, context.questPhase);
-    if (questText) {
-      return { text: questText };
-    }
+    if (questText) return { text: questText };
   }
 
   // Check entry nodes for condition-based routing
@@ -535,18 +368,14 @@ export function resolveDialogue(
     for (const entry of dialogue.entryNodes) {
       if (entry.conditionFlag && context.flags[entry.conditionFlag]) {
         const node = dialogue.nodes?.[entry.nodeId];
-        if (node) {
-          return { text: node.text, choices: node.choices };
-        }
+        if (node) return { text: node.text, choices: node.choices };
       }
       if (entry.conditionReputation) {
         const rep = context.reputation[entry.conditionReputation.factionId] ?? 0;
         const { min, max } = entry.conditionReputation;
         if ((min === undefined || rep >= min) && (max === undefined || rep <= max)) {
           const node = dialogue.nodes?.[entry.nodeId];
-          if (node) {
-            return { text: node.text, choices: node.choices };
-          }
+          if (node) return { text: node.text, choices: node.choices };
         }
       }
     }
@@ -559,11 +388,8 @@ export function resolveDialogue(
   }
 
   // Default to greeting
-  if (dialogue.greeting) {
-    return { text: dialogue.greeting };
-  }
+  if (dialogue.greeting) return { text: dialogue.greeting };
 
-  // Fallback
   return { text: getFallbackText(dialogueId) };
 }
 
@@ -571,9 +397,6 @@ export function resolveDialogue(
 // CLEANUP
 // =============================================================================
 
-/**
- * Clear bridge state (for testing).
- */
 export function clearDialogueBridge(): void {
   dialogueData.clear();
   bridgeInitialized = false;
