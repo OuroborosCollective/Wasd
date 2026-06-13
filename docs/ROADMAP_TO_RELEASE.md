@@ -29,6 +29,30 @@ The release focus is therefore no longer “prove the engine exists”. The focu
 5. replace placeholder content with audited assets,
 6. validate the whole loop through CI, E2E, replay, and live VPS verification.
 
+### 2026-06-13 release checkpoint
+
+The VPS deployment blocker caused by missing `game-data` inside the `arelorian-engine` container has been fixed and verified live.
+
+Verified chain:
+
+```text
+Host game-data exists
+→ docker-compose mounts ./game-data:/app/game-data:ro
+→ container sees /app/game-data
+→ NPCGameDataStore resolves npc/npcs.json
+→ arelorian-engine starts healthy
+→ /health reports ok
+→ external https://arelorian.de/health reports healthy
+```
+
+Observed runtime evidence:
+
+```text
+Container Status: Up (healthy)
+/health: {"ok":true,"status":"ok",...}
+Content root: "mode":"legacy","root":"/app/game-data"
+```
+
 ---
 
 ## Completed / live integrations
@@ -47,13 +71,15 @@ These are considered implemented or wired enough to be tracked as live foundatio
 | Persistence drivers | DONE | `PERSISTENCE_DRIVER=auto/postgres/file`, JSON fallback, and health summary are wired. |
 | Redis optional path | DONE | Optional Redis cache/chat relay paths degrade gracefully when unset. |
 | Health endpoint | DONE | `/health` summarizes auth, persistence, playtester, self-healing, and content-root status. |
+| VPS game-data mount | DONE | `docker-compose.yml` mounts `./game-data:/app/game-data:ro`; live VPS health reports content root `/app/game-data`. |
 | Player movement/combat | DONE | Movement, target selection, attacks, skills, cooldown/mana, death/respawn are wired. |
 | Inventory/equipment/loot | DONE | Inventory stacks, equip/unequip, loot drops, pickup, and sync are active. |
 | Anti-Ninja Loot Lock | DONE | Loot ownership lock is active via `LootDirector` with 60-second / 600 tick kill lock. |
 | Player stats sync | DONE | `PlayerStatsDirector` broadcasts server-authoritative XP/level snapshots. |
 | Quest system | DONE | Quest start, progression, sync, talk/collect/combat updates are active. |
 | Questline system | DONE | Questline engine, bridge, and unlock propagation are wired. |
-| NPC runtime | DONE | `NPCSystem`, memory cache/persistence, relationships, and proactive chat are wired. |
+| NPC runtime | DONE | `NPCSystem`, memory cache/persistence, relationships, proactive chat, game-data loading, and runtime language hooks are wired. |
+| Living Duden / NPC speech | DONE | Living Duden loads from `game-data/language`; 2D NPC interaction emits runtime `npc_dialogue` packets. |
 | Ouroboros agents | DONE | `OuroborosEngine` is instantiated and ticked from `WorldTick`. |
 | Chunk/world foundations | DONE | Chunks, observers, objects, weather/time, and terrain adapters are wired. |
 | Resource entities | DONE | Deterministic resource nodes are aligned through `ChunkModificationDirector` and `ResourcePopulator`. |
@@ -69,6 +95,7 @@ These are considered implemented or wired enough to be tracked as live foundatio
 | Pixi asset import scripts | DONE | Cozy/2D asset workflows are represented through import/validate scripts in root `package.json`. |
 | Monorepo/architecture guards | DONE | `guard:monorepo`, `guard:architecture`, `guard:worldtick`, and `guard:all` scripts exist. |
 | ARE deterministic primitives | DONE | `AREClock`, `SystemAREClock`, `FixedAREClock`, `ARERng`, `SeededARERng`, and `createARESeed` are documented primitives. |
+| Full-loop smoke proof | DONE / HARDENING | `e2e/full-loop-smoke.spec.ts` covers login, 2D world entry, snapshot, NPC/quest/movement/resource/combat/inventory checks, and reconnect. |
 | Determinism gate | DONE / HARDENING | Gate exists; Level A/B simulation paths still need strict migration verification before public release. |
 
 ---
@@ -79,14 +106,14 @@ These block a public release tag.
 
 | ID | Area | Release gap | Required outcome |
 |---|---|---|---|
-| A1 | Production deploy verification | VPS Docker deploy, Nginx routing, `/`, `/portal`, `/health`, `/client-config.json`, and WebSocket upgrade must be proven after each deploy. | One green deploy workflow plus one green final verification workflow against `arelorian.de`. |
+| A1 | Production deploy verification | VPS deploy is now proven healthy after the game-data mount fix, but release still needs repeatable deploy verification after each deploy. | One green deploy workflow plus one green final verification workflow against `arelorian.de`, `/`, `/portal`, `/health`, `/client-config.json`, and WebSocket upgrade. |
 | A2 | Persistence + backups | Postgres migration, backup, restore, and rollback story must be operational, not only configurable. | Documented migration SOP, automated backup check, restore drill, and JSON fallback policy. |
 | A3 | Auth/session hardening | Supabase is the live path, but public launch needs strict session rules and dev bypass lockdown. | Production env rejects unintended guest/dev auth; rate limits and session expiry are tested. |
 | A4 | Deterministic simulation hardening | All Level A/B combat, loot, oracle, warfront, boss, and gameplay-result paths must avoid hidden wall-clock/randomness. | Determinism gate passes for simulation-critical paths; exceptions are documented and reviewed. |
 | A5 | Mobile performance | Android/tablet/browser startup and runtime cost must stay stable with real assets. | Measured FPS/memory/startup budget, chunk loading budget, and fallback quality levels. |
 | A6 | Player-facing UI coverage | Many systems exist server-side, but not every critical action has clear player UI. | Quest tracker, map, settings, combat log, inventory/equipment, storage, crafting, voting, warfront, boss, and death/respawn flows usable without dev knowledge. |
 | A7 | Release content pack | Placeholder or broken assets must not be part of the first public impression. | Audited `published-content/current` pack with model-path audit green and asset licenses tracked. |
-| A8 | Smoke/E2E release gate | Public release must not depend on manual hope. | `pnpm run build`, `pnpm run guard:all`, model audit, unit tests, E2E smoke, and deploy verification are green. |
+| A8 | Smoke/E2E release gate | Full-loop smoke coverage now exists, but release still requires it to run as a stable required gate on every release candidate. | `pnpm run build`, `pnpm run guard:all`, model audit, unit tests, E2E smoke, deploy verification, and live health checks are green on the release commit. |
 
 ---
 
@@ -98,7 +125,7 @@ These do not necessarily block a closed alpha, but they define whether the proje
 |---|---|---|
 | Combat and skills | Server-authoritative combat, skills, cooldown/mana, loot and respawn are wired. | Balance stamina/mana/XP curves, improve combat feedback, revive/party edge cases, boss telegraphs, and combat log clarity. |
 | Quest and questlines | Quest/questline systems are active, with fusion echo hooks. | Add richer objective summaries, map pins, quest tracker, branching outcomes, and QA fixtures for multi-step chains. |
-| NPC autonomy | NPC system, memory, relationships, proactive chat, and personality beta exist. | Expand deterministic behavior scenarios, bounded shared memory, reputation effects, refusal/help rules, genealogy, faction memory, and large-NPC load budgets. |
+| NPC autonomy | NPC system, memory, relationships, proactive chat, personality beta, game-data loading, and Living Duden speech path exist. | Expand deterministic behavior scenarios, bounded shared memory, reputation effects, refusal/help rules, genealogy, faction memory, and large-NPC load budgets. |
 | Civilization | Bible defines guild -> village -> city -> kingdom -> nation and equal NPC/player civic rights. | Implement settlement lifecycle, law/tax/election flows, NPC/player political parity, territory/biome borders, and protected structure policies. |
 | Economy and Matrix Energy | Economy/Matrix are design pillars; construction contracts are active. | Implement deterministic local markets, scarcity pricing, taxes, trade routes, Matrix Energy sinks/sources, and public works budget flow. |
 | World systems | Chunks, resources, weather/time, terrain adapters, world objects, warfronts, and bosses are wired. | Expand biome depth, dungeon templates, ecological pressure, migration triggers, world boss distance constraints, and streaming boundary tests. |
@@ -106,7 +133,7 @@ These do not necessarily block a closed alpha, but they define whether the proje
 | Admin/GM content | Admin content API, content page, model needs, publish pack, and audits are active. | Improve audit transparency, content rollback, live moderation tools, edit history, and safe publish preview. |
 | Playtester monitor | WebRTC viewer/publisher and signaling are shipped. | Add stream-health dashboard, alerting, run history, deterministic scenario packs, and release-report export. |
 | Self-healing/runtime safeguards | Health endpoint includes self-healing summary; liveheal docs and patterns exist. | Tie safeguards to release dashboards, quarantine broken GLB/assets, add city-layout validators, and keep repair telemetry outside simulation truth. |
-| Observability | `/health` exists; deploy verification can check endpoints and logs. | Add SLOs for tick duration, WebSocket load, manifest divergence, playtester stream health, persistence failures, and asset audit failures. |
+| Observability | `/health` exists and live VPS verification has proven content-root visibility. | Add SLOs for tick duration, WebSocket load, manifest divergence, playtester stream health, persistence failures, and asset audit failures. |
 
 ---
 
@@ -161,11 +188,12 @@ node scripts/check-are-determinism.mjs
 Release CI should additionally include:
 
 - model-path audit,
-- E2E smoke test,
+- full-loop E2E smoke test,
 - manifest divergence/resync test,
 - WebSocket guest/login flow test,
 - content publish dry-run,
 - VPS deploy verification,
+- live `/health` verification that reports content root `/app/game-data`,
 - restore-drill proof for persistence backups.
 
 ---
@@ -194,11 +222,12 @@ Any auth, persistence, infra, deploy, gameplay, or architecture change must be r
 2. Green deterministic gate for Level A/B simulation paths.
 3. Green content/model/asset audits.
 4. Green E2E smoke with guest/login, movement, interaction, combat, loot, quest sync, and WebSocket reconnect.
-5. Green VPS Docker deploy to `/opt/areloria`.
-6. Green host verification for `arelorian.de`, `/`, `/portal`, `/health`, `/client-config.json`, and WebSocket upgrade.
-7. Backup and restore drill recorded.
-8. Public alpha release notes prepared.
+5. DONE 2026-06-13: VPS Docker container starts healthy after `game-data` mount fix.
+6. DONE 2026-06-13: Live external `/health` verification confirms healthy response and content root `/app/game-data`.
+7. Promote full-loop E2E smoke into a stable required release gate.
+8. Backup and restore drill recorded.
+9. Public alpha release notes prepared.
 
 ---
 
-Last refreshed: 2026-06-05
+Last refreshed: 2026-06-13
