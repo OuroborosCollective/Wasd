@@ -54,8 +54,12 @@ interface PlayerGatheringMomentum {
   streak: number;
 }
 
+function calculateMomentumPermille(streak: number): number {
+  return Math.max(0, Math.min(streak - 1, GATHERING_MOMENTUM_MAX_STREAK - 1)) * GATHERING_MOMENTUM_STEP_PERMILLE;
+}
+
 function calculateMomentumXp(baseXpReward: number, streak: number): number {
-  const bonusPermille = Math.min(streak, GATHERING_MOMENTUM_MAX_STREAK) * GATHERING_MOMENTUM_STEP_PERMILLE;
+  const bonusPermille = calculateMomentumPermille(streak);
   return Math.floor((baseXpReward * (PERMILLE_BASE + bonusPermille)) / PERMILLE_BASE);
 }
 
@@ -282,10 +286,7 @@ export class ResourceNodeStore {
 
     const momentum = this.updatePlayerMomentum(playerId, definition.skillId, currentTick);
     const xpReward = calculateMomentumXp(definition.xpReward, momentum.streak);
-    const gatheringMomentumPermille = Math.min(
-      momentum.streak,
-      GATHERING_MOMENTUM_MAX_STREAK,
-    ) * GATHERING_MOMENTUM_STEP_PERMILLE;
+    const gatheringMomentumPermille = calculateMomentumPermille(momentum.streak);
 
     // All checks passed - mark node as depleted
     const depletedUntilTick = currentTick + definition.respawnTicks;
