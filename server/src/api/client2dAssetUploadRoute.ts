@@ -1,4 +1,5 @@
 import express, { type Request, type Response, type Router } from "express";
+import { adminWriteBlocked } from "../middleware/adminAuthMiddleware.js";
 import { createWriteStream, existsSync, mkdirSync, rmSync } from "node:fs";
 import { pipeline } from "node:stream/promises";
 import { spawn } from "node:child_process";
@@ -64,7 +65,7 @@ export function client2dAssetUploadRouter(): Router {
     res.type("html").send(uploadPage());
   });
 
-  r.post("/upload", async (req: Request, res: Response) => {
+  r.post("/upload", adminWriteBlocked, async (req: Request, res: Response) => {
     const length = Number(req.headers["content-length"] || 0);
     if (!Number.isFinite(length) || length <= 0) return res.status(411).json({ error: "content-length required" });
     if (length > MAX_UPLOAD_BYTES) return res.status(413).json({ error: "zip too large", maxBytes: MAX_UPLOAD_BYTES });
