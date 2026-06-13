@@ -1,7 +1,59 @@
 {
   "schemaVersion": 1,
   "kind": "living-duden-seed",
-  "description": "Canonical seed lexemes for the Living Language system. Runtime learning is stored as deterministic deltas and only promoted here after review.",
-  "contentHash": "sha256:pending-generated-by-canonicalizer",
-  "lexemes": []
+  "description": "Canonical seed lexemes loaded by the Living Language runtime through game-data/language.",
+  "lexemes": [
+    {
+      "id": "arel_greeting_wacht",
+      "lemma": "Wacht",
+      "language": "arel",
+      "invented": false,
+      "morphemes": ["wacht"],
+      "concepts": ["greeting", "guard", "duty"],
+      "emotion": { "duty": 0.8, "trust": 0.35 },
+      "social": { "register": "military" },
+      "worldBindings": { "factionIds": ["forest_village"], "questTypes": ["patrol"] },
+      "grammar": { "partOfSpeech": "greeting", "allowedPositions": ["address", "subject"] },
+      "baseWeight": 1
+    },
+    {
+      "id": "arel_trade_handel",
+      "lemma": "Handel",
+      "language": "arel",
+      "invented": false,
+      "morphemes": ["han", "del"],
+      "concepts": ["trade", "market", "offer"],
+      "emotion": { "trust": 0.45, "pride": 0.2 },
+      "social": { "register": "guild" },
+      "worldBindings": { "factionIds": ["forest_village"], "questTypes": ["trade", "delivery"] },
+      "grammar": { "partOfSpeech": "noun", "allowedPositions": ["object", "reason"] },
+      "baseWeight": 1
+    },
+    {
+      "id": "arel_help_bitt",
+      "lemma": "Bitt",
+      "language": "arel",
+      "invented": false,
+      "morphemes": ["bitt"],
+      "concepts": ["request", "help", "need"],
+      "emotion": { "trust": 0.35, "hunger": 0.2 },
+      "social": { "register": "peasant" },
+      "worldBindings": { "questTypes": ["help", "gather", "delivery"] },
+      "grammar": { "partOfSpeech": "verb", "allowedPositions": ["verb", "reason"] },
+      "baseWeight": 1
+    },
+    {
+      "id": "arel_quest_auftrag",
+      "lemma": "Auftrag",
+      "language": "arel",
+      "invented": false,
+      "morphemes": ["auf", "trag"],
+      "concepts": ["quest", "task", "reward"],
+      "emotion": { "duty": 0.55, "trust": 0.4, "pride": 0.25 },
+      "social": { "register": "formal" },
+      "worldBindings": { "questTypes": ["gather", "delivery", "craft"] },
+      "grammar": { "partOfSpeech": "noun", "allowedPositions": ["object", "reason"] },
+      "baseWeight": 1
+    }
+  ]
 }
