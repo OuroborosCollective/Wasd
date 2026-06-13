@@ -12,14 +12,7 @@ describe('ARE-Logic: WorldTick shadow adapter', () => {
   });
 
   it('does nothing when ENABLE_SHADOW_TICK is false', () => {
-    const result = AREShadowAdapter.executeShadowTick({
-      entityId: 'shadow_01',
-      position: { x: 1.5 },
-      velocity: { y: 2.0 },
-      tick: 1,
-      buffer,
-    });
-
+    const result = AREShadowAdapter.executeShadowTick({ entityId: 'shadow_01', position: { x: 1.5 }, velocity: { y: 2.0 }, tick: 1, buffer });
     expect(result).toEqual({ skipped: true, recorded: false });
     expect(buffer.latest('shadow_01')).toBeUndefined();
     expect(buffer.size).toBe(0);
@@ -27,15 +20,7 @@ describe('ARE-Logic: WorldTick shadow adapter', () => {
 
   it('processes the full ARE cycle and stores it in the buffer when enabled', () => {
     ARE_CONFIG.ENABLE_SHADOW_TICK = true;
-
-    const result = AREShadowAdapter.executeShadowTick({
-      entityId: 'shadow_02',
-      position: { x: 1.25, y: 0 },
-      velocity: { x: 1, y: 0 },
-      tick: 100,
-      buffer,
-    });
-
+    const result = AREShadowAdapter.executeShadowTick({ entityId: 'shadow_02', position: { x: 1.25, y: 0 }, velocity: { x: 1, y: 0 }, tick: 100, buffer });
     const entry = buffer.get(100, 'shadow_02');
     expect(result.skipped).toBe(false);
     expect(result.recorded).toBe(true);
@@ -48,43 +33,25 @@ describe('ARE-Logic: WorldTick shadow adapter', () => {
 
   it('accepts kappa field whitelisting for additional state', () => {
     ARE_CONFIG.ENABLE_SHADOW_TICK = true;
-
-    AREShadowAdapter.executeShadowTick({
-      entityId: 'shadow_03',
-      position: { x: 0 },
-      velocity: { x: 0 },
-      tick: 101,
-      buffer,
-      additionalState: { stats: { manaRegen: 1.5, hp: 100 } },
-      normalization: { kappaFields: ['stats.manaRegen'] },
-    });
-
+    AREShadowAdapter.executeShadowTick({ entityId: 'shadow_03', position: { x: 0 }, velocity: { x: 0 }, tick: 101, buffer, additionalState: { stats: { manaRegen: 1.5, hp: 100 } }, normalization: { kappaFields: ['stats.manaRegen'] } });
     const entry = buffer.get(101, 'shadow_03');
     expect((entry?.payload.stats as any).manaRegen).toBe(1500);
     expect((entry?.payload.stats as any).hp).toBe(100);
   });
 
+  it('records test reality probes without mutating world replay state', () => {
+    const result = AREShadowAdapter.recordShadowProbe({ source: 'test', testFile: 'server/src/core/are/__tests__/AREShadowAdapter.test.ts', caseName: 'records test reality probes', tick: 777, status: 'warning', inputHash: 'npc-state-a', outputHash: 'actual-hash', expectedHash: 'expected-hash', discrepancy: 'hash mismatch in test reality', recommendation: 'inspect deterministic input ordering', metadata: { subsystem: 'language', severity: 2 } });
+    const repeat = AREShadowAdapter.recordShadowProbe({ source: 'test', testFile: 'server/src/core/are/__tests__/AREShadowAdapter.test.ts', caseName: 'records test reality probes', tick: 777, status: 'warning', inputHash: 'npc-state-a', outputHash: 'actual-hash', expectedHash: 'expected-hash', discrepancy: 'hash mismatch in test reality', recommendation: 'inspect deterministic input ordering', metadata: { severity: 2, subsystem: 'language' } });
+    expect(result.recorded).toBe(true);
+    expect(result.tick).toBe(777);
+    expect(result.probeHash).toBe(repeat.probeHash);
+    expect(buffer.size).toBe(0);
+  });
+
   it('catches ARE errors and does not crash legacy execution', () => {
     ARE_CONFIG.ENABLE_SHADOW_TICK = true;
-
-    expect(() => {
-      AREShadowAdapter.executeShadowTick({
-        entityId: 'shadow_04',
-        position: { x: 'corrupt' },
-        velocity: {},
-        tick: 102,
-        buffer,
-      });
-    }).not.toThrow();
-
-    const result = AREShadowAdapter.executeShadowTick({
-      entityId: 'shadow_04',
-      position: { x: 'corrupt' },
-      velocity: {},
-      tick: 102,
-      buffer,
-    });
-
+    expect(() => { AREShadowAdapter.executeShadowTick({ entityId: 'shadow_04', position: { x: 'corrupt' }, velocity: {}, tick: 102, buffer }); }).not.toThrow();
+    const result = AREShadowAdapter.executeShadowTick({ entityId: 'shadow_04', position: { x: 'corrupt' }, velocity: {}, tick: 102, buffer });
     expect(result.skipped).toBe(false);
     expect(result.recorded).toBe(false);
     expect(result.error).toBeDefined();

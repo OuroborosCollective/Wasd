@@ -28,6 +28,26 @@ export interface AREShadowTickResult {
   readonly error?: unknown;
 }
 
+export interface AREShadowProbeInput {
+  readonly source: 'test' | 'ci' | 'diagnostic';
+  readonly testFile: string;
+  readonly caseName: string;
+  readonly tick: number;
+  readonly status: 'pass' | 'fail' | 'warning';
+  readonly inputHash?: string | number;
+  readonly outputHash?: string | number;
+  readonly expectedHash?: string | number;
+  readonly discrepancy?: string;
+  readonly recommendation?: string;
+  readonly metadata?: Record<string, unknown>;
+}
+
+export interface AREShadowProbeResult {
+  readonly recorded: boolean;
+  readonly probeHash: number;
+  readonly tick: number;
+}
+
 function isNpcEntity(entityId: string): boolean {
   return entityId.startsWith('npc:');
 }
@@ -50,6 +70,40 @@ function kappaCellOf(position: unknown): string {
   return `${x}:${y}:${z}`;
 }
 
+function stableSerialize(value: unknown): string {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => stableSerialize(item)).join(',')}]`;
+  const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
+  return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableSerialize(entry)}`).join(',')}}`;
+}
+
+function probeHash(input: AREShadowProbeInput): number {
+  return whole(stableHashLike([
+    'ARE_SHADOW_PROBE_V1',
+    input.source,
+    input.testFile,
+    input.caseName,
+    input.tick,
+    input.status,
+    input.inputHash ?? '',
+    input.outputHash ?? '',
+    input.expectedHash ?? '',
+    input.discrepancy ?? '',
+    stableSerialize(input.metadata ?? {}),
+  ].join('|')));
+}
+
+function stableHashLike(text: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
 export class AREShadowAdapter {
   private static readonly defaultEcosystemState = new AREShadowState();
   private static readonly logSink = new AREShadowLogSink();
@@ -67,6 +121,31 @@ export class AREShadowAdapter {
       ...this.defaultEcosystemState.getTelemetry(),
       topology: areTopologyNetwork.snapshot(this.topologyTick ?? 0),
     };
+  }
+
+  static recordShadowProbe(input: AREShadowProbeInput): AREShadowProbeResult {
+    const tick = whole(input.tick);
+    const hash = probeHash({ ...input, tick });
+    const envelope = Object.freeze({
+      type: 'ARE_SHADOW_PROBE',
+      version: 1,
+      source: input.source,
+      testFile: input.testFile,
+      caseName: input.caseName,
+      tick,
+      status: input.status,
+      inputHash: input.inputHash ?? null,
+      outputHash: input.outputHash ?? null,
+      expectedHash: input.expectedHash ?? null,
+      discrepancy: input.discrepancy ?? null,
+      recommendation: input.recommendation ?? null,
+      metadataHash: stableHashLike(stableSerialize(input.metadata ?? {})),
+      probeHash: hash,
+      ecosystem: this.getEcosystemTelemetry(),
+      truthPath: 'shadow_only',
+    });
+    this.logSink.write(tick, envelope as any);
+    return Object.freeze({ recorded: true, probeHash: hash, tick });
   }
 
   private static flushTopologyCells(tick: number): void {

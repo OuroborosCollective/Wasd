@@ -1,0 +1,141 @@
+{
+  "$schema": "./phrase-genomes.schema.json",
+  "version": 1,
+  "phraseGenomes": [
+    {
+      "id": "greet_village_de",
+      "intent": "greet",
+      "languageMode": "de",
+      "structure": ["address", "subject", "verb"],
+      "slots": [
+        { "role": "address", "required": false, "semanticRequirements": ["friend"] },
+        { "role": "subject", "required": true, "semanticRequirements": ["greeting"] },
+        { "role": "verb", "required": true, "semanticRequirements": ["greeting"] }
+      ],
+      "constraints": { "minTrust": 300 },
+      "truthMode": "known_fact"
+    },
+    {
+      "id": "greet_guild_de",
+      "intent": "greet",
+      "languageMode": "de",
+      "structure": ["address", "emotion_marker", "subject"],
+      "slots": [
+        { "role": "address", "required": false, "semanticRequirements": ["guild"] },
+        { "role": "emotion_marker", "required": false, "semanticRequirements": ["joy"] },
+        { "role": "subject", "required": true, "semanticRequirements": ["greeting"] }
+      ],
+      "constraints": { "minTrust": 200 },
+      "truthMode": "known_fact"
+    },
+    {
+      "id": "warn_danger_de",
+      "intent": "warn",
+      "languageMode": "de",
+      "structure": ["address", "emotion_marker", "subject", "verb", "object"],
+      "slots": [
+        { "role": "address", "required": false },
+        { "role": "emotion_marker", "required": true, "semanticRequirements": ["fear"] },
+        { "role": "subject", "required": true, "semanticRequirements": ["danger"] },
+        { "role": "verb", "required": true },
+        { "role": "object", "required": true, "semanticRequirements": ["village", "friend"] }
+      ],
+      "constraints": { "minFear": 600, "minTrust": 100 },
+      "truthMode": "known_fact"
+    },
+    {
+      "id": "request_help_de",
+      "intent": "request",
+      "languageMode": "de",
+      "structure": ["subject", "verb", "object", "reason"],
+      "slots": [
+        { "role": "subject", "required": true },
+        { "role": "verb", "required": true, "semanticRequirements": ["hunger"] },
+        { "role": "object", "required": true },
+        { "role": "reason", "required": false, "semanticRequirements": ["hunger"] }
+      ],
+      "constraints": { "minHunger": 500 },
+      "truthMode": "known_fact"
+    },
+    {
+      "id": "request_food_de",
+      "intent": "request",
+      "languageMode": "de",
+      "structure": ["emotion_marker", "subject", "verb"],
+      "slots": [
+        { "role": "emotion_marker", "required": true, "semanticRequirements": ["hunger"] },
+        { "role": "subject", "required": true },
+        { "role": "verb", "required": true, "semanticRequirements": ["hunger"] }
+      ],
+      "constraints": { "minHunger": 700 },
+      "truthMode": "personal_memory"
+    },
+    {
+      "id": "trade_offer_de",
+      "intent": "trade",
+      "languageMode": "de",
+      "structure": ["subject", "verb", "object"],
+      "slots": [
+        { "role": "subject", "required": true },
+        { "role": "verb", "required": true, "semanticRequirements": ["trade"] },
+        { "role": "object", "required": false }
+      ],
+      "constraints": { "minTrust": 400 },
+      "truthMode": "known_fact"
+    },
+    {
+      "id": "threaten_warning_de",
+      "intent": "threaten",
+      "languageMode": "de",
+      "structure": ["emotion_marker", "subject", "verb", "object"],
+      "slots": [
+        { "role": "emotion_marker", "required": true, "semanticRequirements": ["fear", "anger"] },
+        { "role": "subject", "required": true },
+        { "role": "verb", "required": true },
+        { "role": "object", "required": false }
+      ],
+      "constraints": { "minFear": 800, "minDuty": 500 },
+      "truthMode": "belief"
+    },
+    {
+      "id": "rumor_share_de",
+      "intent": "rumor_share",
+      "languageMode": "de",
+      "structure": ["subject", "verb", "object", "myth"],
+      "slots": [
+        { "role": "subject", "required": true },
+        { "role": "verb", "required": true },
+        { "role": "object", "required": true },
+        { "role": "myth", "required": false }
+      ],
+      "constraints": { "maxTrust": 500, "maxFear": 400 },
+      "truthMode": "rumor"
+    },
+    {
+      "id": "thank_grateful_de",
+      "intent": "thank",
+      "languageMode": "de",
+      "structure": ["emotion_marker", "subject", "verb"],
+      "slots": [
+        { "role": "emotion_marker", "required": true, "semanticRequirements": ["trust", "joy"] },
+        { "role": "subject", "required": true },
+        { "role": "verb", "required": true }
+      ],
+      "constraints": { "minTrust": 700 },
+      "truthMode": "known_fact"
+    },
+    {
+      "id": "farewell_de",
+      "intent": "farewell",
+      "languageMode": "de",
+      "structure": ["subject", "verb", "closing"],
+      "slots": [
+        { "role": "subject", "required": false },
+        { "role": "verb", "required": true },
+        { "role": "closing", "required": false }
+      ],
+      "constraints": { "minTrust": 200 },
+      "truthMode": "known_fact"
+    }
+  ]
+}
