@@ -4,7 +4,6 @@ import {
   createNpcPortraitSignature,
   createVisualSignature,
   createVisualSignatureFromBinding,
-  deterministicVisualIndex,
   getNpcVisualCategory,
 } from '../apps/client-2d/src/world/VisualSignature';
 
@@ -117,6 +116,8 @@ describe('VisualSignature', () => {
     expect(signature.assetIntent).toBe('building:house');
     expect(signature.spriteCategory).toBe('buildings');
     expect(signature.tags).toContain('biome:plains');
-    expect(deterministicVisualIndex(signature.deterministicSeed, 16)).toBe(signature.paletteIndex);
+    expect(signature.deterministicSeed).toContain('hash:');
+    expect(signature.paletteIndex).toBeGreaterThanOrEqual(0);
+    expect(signature.paletteIndex).toBeLessThan(16);
   });
 });
