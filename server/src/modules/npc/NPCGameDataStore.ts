@@ -46,6 +46,12 @@ function finiteNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function positiveWholeNumber(value: unknown, fallback = 1): number {
+  const n = finiteNumber(value, fallback);
+  if (n < 1) return 1;
+  return n - (n % 1);
+}
+
 function stringList(value: unknown): readonly string[] {
   if (!Array.isArray(value)) return Object.freeze([]);
   return Object.freeze(value.map((entry) => text(entry)).filter(Boolean));
@@ -93,13 +99,10 @@ function readNpcSpawns(): readonly NpcSpawn[] {
       if (!isRecord(spawn)) throw new Error(`[${TAG}] ${regionId}.spawns[${spawnIndex}] must be an object`);
       const npcId = text(spawn.npcId);
       if (!npcId) throw new Error(`[${TAG}] ${regionId}.spawns[${spawnIndex}] requires npcId`);
-      spawns.push(Object.freeze({
-        npcId,
-        regionId,
-        x: finiteNumber(spawn.x),
-        y: finiteNumber(spawn.y),
-        z: finiteNumber(spawn.z),
-      }));
+      const x = finiteNumber(spawn.x);
+      const y = finiteNumber(spawn.y);
+      const z = finiteNumber(spawn.z, y);
+      spawns.push(Object.freeze({ npcId, regionId, x, y, z }));
     });
   });
   return Object.freeze(spawns);
@@ -108,11 +111,11 @@ function readNpcSpawns(): readonly NpcSpawn[] {
 function npcFromGameData(def: NpcDefinition, spawn: NpcSpawn): NPC {
   const health = finiteNumber(def.stats?.health, 90);
   const maxHealth = finiteNumber(def.stats?.maxHealth, health);
-  const combatLevel = Math.max(1, Math.trunc(finiteNumber(def.stats?.combatLevel, 1)));
+  const combatLevel = positiveWholeNumber(def.stats?.combatLevel, 1);
   const npc: NPC = {
     id: def.id,
     name: def.name,
-    position: { x: spawn.x, y: spawn.y, z: spawn.z },
+    position: { x: spawn.x, y: 0, z: spawn.z },
     rotation: 0,
     visionRange: 10,
     visionAngle: 90,
@@ -130,6 +133,7 @@ function npcFromGameData(def: NpcDefinition, spawn: NpcSpawn): NPC {
       questHooks: Object.freeze([...(def.questHooks ?? [])]),
       regionId: spawn.regionId,
       source: "game-data/npc",
+      spawn: Object.freeze({ x: spawn.x, y: spawn.y, z: spawn.z }),
     }),
   };
   if (def.dropTable && def.dropTable.length > 0) npc.dropTable = Object.freeze([...def.dropTable]);
