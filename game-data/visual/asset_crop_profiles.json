@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "kappa": 1000,
+  "truthPolicy": "static crop rules only; concrete bounds must come from manifest analysis",
+  "profiles": {
+    "tile_iso_96x48_anchor_center": {
+      "semanticUse": ["terrain", "road"],
+      "transparentBoundsPolicy": "trim_empty_pixels_then_pad",
+      "anchor": { "x": 0.5, "y": 0.5, "meaning": "tile_center" },
+      "cropPadding": { "x": 0, "y": 0 },
+      "atlasRectRequired": true
+    },
+    "building_foot_anchor_bottom_center": {
+      "semanticUse": ["building"],
+      "transparentBoundsPolicy": "trim_empty_pixels_then_pad",
+      "anchor": { "x": 0.5, "y": 1.0, "meaning": "front_foot_center" },
+      "cropPadding": { "x": 6, "y": 8 },
+      "atlasRectRequired": true
+    },
+    "actor_foot_anchor_bottom_center": {
+      "semanticUse": ["npc", "player", "portrait-source"],
+      "transparentBoundsPolicy": "trim_empty_pixels_keep_frame_grid",
+      "anchor": { "x": 0.5, "y": 1.0, "meaning": "feet_center" },
+      "cropPadding": { "x": 2, "y": 2 },
+      "atlasRectRequired": true
+    },
+    "prop_tree_canopy_anchor_trunk": {
+      "semanticUse": ["tree"],
+      "transparentBoundsPolicy": "trim_empty_pixels_then_pad",
+      "anchor": { "x": 0.5, "y": 1.0, "meaning": "trunk_foot" },
+      "cropPadding": { "x": 4, "y": 6 },
+      "atlasRectRequired": true
+    },
+    "prop_object_anchor_bottom_center": {
+      "semanticUse": ["prop"],
+      "transparentBoundsPolicy": "trim_empty_pixels_then_pad",
+      "anchor": { "x": 0.5, "y": 1.0, "meaning": "object_bottom_center" },
+      "cropPadding": { "x": 2, "y": 2 },
+      "atlasRectRequired": true
+    }
+  }
+}
