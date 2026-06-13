@@ -2,6 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolveContentFile } from "../../modules/content/contentDataRoot.js";
 import { loadSeedData, type LexemeBlueprint } from "./LivingDudenArchive.js";
 
+type BlueprintSocial = NonNullable<LexemeBlueprint["social"]>;
+type BlueprintGrammar = NonNullable<LexemeBlueprint["grammar"]>;
+
 const TAG = "LANGUAGE_GAME_DATA_STORE_V1";
 const FILES = Object.freeze([
   "language/living-duden.seed.json",
@@ -60,15 +63,15 @@ function normalizeBlueprint(raw: unknown, source: string, index: number): Lexeme
   const emotion = numericRecord(raw.emotion) as LexemeBlueprint["emotion"] | undefined;
   const worldBindings = stringArrayRecord(raw.worldBindings) as LexemeBlueprint["worldBindings"] | undefined;
   const social = socialInput && text(socialInput.register) ? {
-    register: text(socialInput.register) as LexemeBlueprint["social"]["register"],
-    ...(numericRecord(socialInput.overrides) ? { overrides: numericRecord(socialInput.overrides) as LexemeBlueprint["social"]["overrides"] } : {}),
+    register: text(socialInput.register) as BlueprintSocial["register"],
+    ...(numericRecord(socialInput.overrides) ? { overrides: numericRecord(socialInput.overrides) as BlueprintSocial["overrides"] } : {}),
   } : undefined;
   const grammar = grammarInput && text(grammarInput.partOfSpeech) ? {
-    partOfSpeech: text(grammarInput.partOfSpeech) as LexemeBlueprint["grammar"]["partOfSpeech"],
-    ...(text(grammarInput.gender) ? { gender: text(grammarInput.gender) as LexemeBlueprint["grammar"]["gender"] } : {}),
+    partOfSpeech: text(grammarInput.partOfSpeech) as BlueprintGrammar["partOfSpeech"],
+    ...(text(grammarInput.gender) ? { gender: text(grammarInput.gender) as BlueprintGrammar["gender"] } : {}),
     ...(text(grammarInput.plural) ? { plural: text(grammarInput.plural) } : {}),
     ...(text(grammarInput.conjugationClass) ? { conjugationClass: text(grammarInput.conjugationClass) } : {}),
-    allowedPositions: textList(grammarInput.allowedPositions) as LexemeBlueprint["grammar"]["allowedPositions"],
+    allowedPositions: textList(grammarInput.allowedPositions) as BlueprintGrammar["allowedPositions"],
   } : undefined;
   const baseWeight = Number(raw.baseWeight);
 
