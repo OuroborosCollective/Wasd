@@ -13,18 +13,55 @@
 import { KAPPA } from '../are/Kappa.js';
 import type { KappaInt, TickId, NpcId, PlayerId } from '../are/types.js';
 
+export type { KappaInt, TickId, NpcId, PlayerId } from '../are/types.js';
+
 // =============================================================================
 // LANGUAGE IDENTITIES
 // =============================================================================
 
 export type LanguageCode = 'de' | 'en' | 'arel' | 'guild' | 'mythic' | 'mixed';
-export type PartOfSpeech = 'noun' | 'verb' | 'adjective' | 'adverb' | 'pronoun' |
-  'preposition' | 'conjunction' | 'interjection' | 'article' | 'determiner';
+export type PartOfSpeech =
+  | 'noun'
+  | 'verb'
+  | 'adjective'
+  | 'adverb'
+  | 'pronoun'
+  | 'preposition'
+  | 'conjunction'
+  | 'interjection'
+  | 'article'
+  | 'determiner'
+  | 'title'
+  | 'curse'
+  | 'oath'
+  | 'greeting'
+  | 'threat'
+  | 'ritual_phrase';
 export type Gender = 'masculine' | 'feminine' | 'neutral' | 'none';
-export type SocialRegister = 'formal' | 'rude' | 'intimate' | 'noble' | 'peasant' |
-  'guild' | 'religious' | 'military' | 'criminal';
-export type SentencePosition = 'subject' | 'verb' | 'object' | 'modifier' |
-  'address' | 'closing' | 'emotion_marker';
+export type SocialRegister =
+  | 'formal'
+  | 'rude'
+  | 'intimate'
+  | 'noble'
+  | 'peasant'
+  | 'guild'
+  | 'religious'
+  | 'military'
+  | 'criminal';
+export type SentencePosition =
+  | 'subject'
+  | 'verb'
+  | 'object'
+  | 'modifier'
+  | 'address'
+  | 'closing'
+  | 'emotion_marker'
+  | 'emotionalMarker'
+  | 'reason'
+  | 'place'
+  | 'faction'
+  | 'myth'
+  | 'memory_reference';
 
 /** Speech truth modes - separates rumor/fact/belief in truth path */
 export type SpeechTruthMode =
@@ -190,8 +227,7 @@ export interface LivingLexeme {
 // =============================================================================
 
 export interface PhraseSlot {
-  readonly role: 'address' | 'subject' | 'verb' | 'object' | 'reason' |
-    'place' | 'faction' | 'myth' | 'emotionalMarker' | 'closing' | 'memory_reference';
+  readonly role: SentencePosition;
   readonly required: boolean;
   readonly lexemeIds?: readonly string[];
   readonly semanticRequirements?: readonly string[];
@@ -228,7 +264,7 @@ export interface PhraseGenome {
   readonly id: string;
   readonly intent: SpeechIntent;
   readonly languageMode: LanguageCode;
-  readonly structure: readonly string[];
+  readonly structure: readonly SentencePosition[];
   readonly slots: readonly PhraseSlot[];
   readonly constraints: PhraseConstraints;
   readonly outcomeStats: PhraseOutcomeStats;
@@ -378,7 +414,9 @@ export interface UtteranceDecision {
 // =============================================================================
 
 export function createKappaInt(value: number): KappaInt {
-  return Math.round(value * KAPPA) as KappaInt;
+  const normalized = Number.isFinite(value) ? value : 0;
+  const scaled = normalized <= 1 && normalized >= -1 ? normalized * KAPPA : normalized;
+  return Math.max(-KAPPA, Math.min(KAPPA, Math.round(scaled))) as KappaInt;
 }
 
 export function createEmotion(
@@ -421,13 +459,6 @@ export function createSocial(
     military: createKappaInt(register === 'military' ? 1 : 0),
     criminal: createKappaInt(register === 'criminal' ? 1 : 0),
   };
-  return Object.freeze({ ...base, ...overrides });
-}
 
-export function createLexemeIntegrity(contentHash: string): LexemeIntegrity {
-  return Object.freeze({
-    kappa: KAPPA,
-    schemaVersion: 1,
-    contentHash,
-  });
+  return Object.freeze({ ...base, ...overrides });
 }
