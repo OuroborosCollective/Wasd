@@ -60,8 +60,31 @@
         "forgotten_sigil",
         "guard_token",
         "minor_mana_draught",
-        "mega_iron_fist_frustinator"
+        "mega_iron_fist_frustinator",
+        "wood_log",
+        "copper_ore",
+        "raw_fish",
+        "wood_plank",
+        "copper_ingot",
+        "cooked_fish",
+        "wooden_axe",
+        "copper_pickaxe",
+        "simple_fishing_rod",
+        "copper_axe",
+        "reinforced_pickaxe",
+        "reinforced_fishing_rod"
       ],
+      "resourceNodeIds": [
+        "starter_tree_001",
+        "starter_ore_001",
+        "starter_fish_001"
+      ],
+      "gameplayTruthIds": [
+        "gathering_momentum_v1"
+      ],
+      "truthStatus": {
+        "gathering_momentum_v1": "runtime_truth"
+      },
       "validationResult": "passed"
     }
   ]
