@@ -1,24 +1,27 @@
 /**
  * World Plan Asset Binder
- * 
+ *
  * Client-only semantic asset binder. Translates world-plan roles into manifest entries.
- * Contains no placement logic and no ambient randomness - all choices are seeded by plan IDs.
- * 
+ * Contains no placement logic and no ambient randomness - all choices are seeded by
+ * plan IDs and VisualSignature metadata.
+ *
  * Supports both basic binding (backwards compatible) and context-aware binding with:
  * - Deterministic seeded selection (no Math.random, no Date.now)
  * - Biome/Culture/Faction visual adaptation
  * - Weighted scoring and candidate ranking
  * - Debug info for binding decisions
+ * - VisualSignature propagation for world sprite, portrait, crop and layer truth
  */
 
 import type { AssetManifest, AssetEntry } from "../assetManifest";
-import { fallbackEntry, pickCharacterVisual } from "../assetManifest";
+import { pickCharacterVisual } from "../assetManifest";
 import { pickGraphicRiverBuilding, pickGraphicRiverCharacter, pickGraphicRiverProp, pickGraphicRiverTile } from "../graphicRiverIsoPicker";
 import type { BuildingType, NpcRole, PropType, RoadType } from "@wasd/shared/world";
 import type { BoundAsset, WorldPlanAssetBinder } from "./WorldPlanRenderTypes";
 import type { BindingOptions, AssetBindingContext } from "./AssetBindingContext";
 import { createAssetBindingDirector, type BindingResult } from "./AssetBindingDirector";
 import { combineSeed } from "./DeterministicAssetRng";
+import { createVisualSignatureFromBinding, type VisualSignature, type VisualSubjectKind } from "./VisualSignature";
 
 function isCozyContext(context?: BindingOptions | AssetBindingContext | null): boolean {
   const biome = String(context?.biome ?? "").toLowerCase();
@@ -35,19 +38,17 @@ function isCozyEntry(entry: AssetEntry | null | undefined): boolean {
   return src.includes("cozy-spring") || id.includes("cozy_spring") || tags.includes("cozy-spring") || biomeTags.includes("cozy") || biomeTags.includes("spring");
 }
 
-function simpleSeed(seed: string | number): string {
-  return String(seed);
-}
-
 function toBoundAsset(
   semanticType: string,
   result: BindingResult,
   textureFor: (src: string | null | undefined) => BoundAsset["texture"],
+  visualSignature: VisualSignature,
 ): BoundAsset {
   return {
     semanticType: semanticType as BoundAsset["semanticType"],
     entry: result.entry,
     texture: result.entry ? textureFor(result.entry.src) : null,
+    visualSignature,
     debug: result.debug ? {
       seed: result.debug.seed,
       semanticType: result.debug.semanticType,
@@ -63,6 +64,24 @@ function toBoundAsset(
 function withCozyLog(kind: "road" | "prop", semanticType: string, bound: BoundAsset): BoundAsset {
   if (isCozyEntry(bound.entry)) console.log(`[CozySpring] visible ${kind} ${semanticType} -> ${bound.entry?.id ?? "unknown"}`);
   return bound;
+}
+
+function signatureFor(
+  subjectKind: VisualSubjectKind,
+  semanticType: string,
+  context: BindingOptions,
+  extra?: { readonly entityId?: string; readonly worldSeed?: string; readonly worldTick?: number; readonly stateHash?: string | null; readonly tileX?: number; readonly tileZ?: number; readonly kappaX?: number; readonly kappaZ?: number },
+): VisualSignature {
+  return createVisualSignatureFromBinding(subjectKind, semanticType, context, {
+    entityId: extra?.entityId ?? `${subjectKind}:${semanticType}:${String(context.seed)}`,
+    worldSeed: extra?.worldSeed ?? String(context.seed),
+    worldTick: extra?.worldTick ?? 0,
+    stateHash: extra?.stateHash ?? null,
+    tileX: extra?.tileX,
+    tileZ: extra?.tileZ,
+    kappaX: extra?.kappaX,
+    kappaZ: extra?.kappaZ,
+  });
 }
 
 export function createWorldPlanAssetBinder(
@@ -84,95 +103,112 @@ export function createWorldPlanAssetBinder(
     variantHint: options.variantHint,
   });
 
-  const simpleBindEntry = (semanticType: string, entry: AssetEntry | null): BoundAsset => ({
+  const simpleBindEntry = (semanticType: string, entry: AssetEntry | null, visualSignature: VisualSignature): BoundAsset => ({
     semanticType: semanticType as BoundAsset["semanticType"],
     entry,
     texture: entry ? textureFor(entry.src) : null,
+    visualSignature,
   });
 
   return {
     bindRoad: (roadType: RoadType, seed?: string) => {
       const roadSeed = seed ?? roadType;
-      const result = director.bindRoad(roadType, { seed: roadSeed, biome: "plains", variantHint: "cozy-spring" });
-      const cozyBound = toBoundAsset(roadType, result, textureFor);
+      const context: BindingOptions = { seed: roadSeed, biome: "plains", variantHint: "cozy-spring" };
+      const visualSignature = signatureFor("road", roadType, context);
+      const result = director.bindRoad(roadType, toContext(context));
+      const cozyBound = toBoundAsset(roadType, result, textureFor, visualSignature);
       if (isCozyEntry(cozyBound.entry)) return withCozyLog("road", roadType, cozyBound);
-      const grResult = pickGraphicRiverTile(manifest, `road:${roadType}:${roadSeed}`, roadKind(roadType));
-      if (grResult?.entry) return simpleBindEntry(roadType, grResult.entry);
+      const grResult = pickGraphicRiverTile(manifest, visualSignature.deterministicSeed, roadKind(roadType));
+      if (grResult?.entry) return simpleBindEntry(roadType, grResult.entry, visualSignature);
       return cozyBound;
     },
 
     bindBuilding: (buildingType: BuildingType, seed: string) => {
-      const grResult = pickGraphicRiverBuilding(manifest, `building:${buildingType}:${seed}`, buildingKind(buildingType));
-      if (grResult?.entry) return simpleBindEntry(buildingType, grResult.entry);
-      const result = director.bindBuilding(buildingType, { seed });
-      return toBoundAsset(buildingType, result, textureFor);
+      const context: BindingOptions = { seed };
+      const visualSignature = signatureFor("building", buildingType, context);
+      const grResult = pickGraphicRiverBuilding(manifest, visualSignature.deterministicSeed, buildingKind(buildingType));
+      if (grResult?.entry) return simpleBindEntry(buildingType, grResult.entry, visualSignature);
+      const result = director.bindBuilding(buildingType, toContext(context));
+      return toBoundAsset(buildingType, result, textureFor, visualSignature);
     },
 
     bindProp: (propType: PropType, seed: string) => {
-      const result = director.bindProp(propType, { seed, biome: "plains", variantHint: "cozy-spring" });
-      const cozyBound = toBoundAsset(propType, result, textureFor);
+      const context: BindingOptions = { seed, biome: "plains", variantHint: "cozy-spring" };
+      const visualSignature = signatureFor("prop", propType, context);
+      const result = director.bindProp(propType, toContext(context));
+      const cozyBound = toBoundAsset(propType, result, textureFor, visualSignature);
       if (isCozyEntry(cozyBound.entry)) return withCozyLog("prop", propType, cozyBound);
-      const grResult = pickGraphicRiverProp(manifest, `prop:${propType}:${seed}`, propKind(propType));
-      if (grResult?.entry) return simpleBindEntry(propType, grResult.entry);
+      const grResult = pickGraphicRiverProp(manifest, visualSignature.deterministicSeed, propKind(propType));
+      if (grResult?.entry) return simpleBindEntry(propType, grResult.entry, visualSignature);
       return cozyBound;
     },
 
     bindNpc: (role: NpcRole, seed: string) => {
-      const grResult = pickGraphicRiverCharacter(manifest, `npc:${role}:${seed}`, role);
-      if (grResult?.entry) return simpleBindEntry(role, grResult.entry);
+      const context: BindingOptions = { seed };
+      const visualSignature = signatureFor("npc", role, context, { entityId: `npc:${role}:${seed}` });
+      const grResult = pickGraphicRiverCharacter(manifest, visualSignature.deterministicSeed, role);
+      if (grResult?.entry) return simpleBindEntry(role, grResult.entry, visualSignature);
       const query = roleToCharacterQuery(role);
-      const picked = pickCharacterVisual(manifest, { tags: [...query.tags], group: query.group, kind: query.kind, seed: `npc:${role}:${seed}` });
-      if (picked?.entry) return simpleBindEntry(role, picked.entry);
-      const result = director.bindNpc(role, { seed });
-      return toBoundAsset(role, result, textureFor);
+      const picked = pickCharacterVisual(manifest, { tags: [...query.tags], group: query.group, kind: query.kind, seed: visualSignature.deterministicSeed });
+      if (picked?.entry) return simpleBindEntry(role, picked.entry, visualSignature);
+      const result = director.bindNpc(role, toContext(context));
+      return toBoundAsset(role, result, textureFor, visualSignature);
     },
 
     bindRoadWithContext: (roadType: RoadType, context: BindingOptions) => {
-      const seed = combineSeed('road', String(roadType), String(context.seed));
+      const seed = combineSeed("road", String(roadType), String(context.seed));
+      const nextContext: BindingOptions = { ...context, seed };
+      const visualSignature = signatureFor("road", roadType, nextContext);
       if (isCozyContext(context)) {
-        const result = director.bindRoad(roadType, toContext({ ...context, seed, biome: context.biome ?? "plains", variantHint: context.variantHint ?? "cozy-spring" }));
-        const bound = toBoundAsset(roadType, result, textureFor);
+        const result = director.bindRoad(roadType, toContext({ ...nextContext, biome: context.biome ?? "plains", variantHint: context.variantHint ?? "cozy-spring" }));
+        const bound = toBoundAsset(roadType, result, textureFor, visualSignature);
         if (isCozyEntry(bound.entry)) return withCozyLog("road", roadType, bound);
       }
       const grKind = roadKind(roadType);
-      const grResult = pickGraphicRiverTile(manifest, `road:${roadType}:${seed}`, grKind);
-      if (grResult?.entry) return simpleBindEntry(roadType, grResult.entry);
-      const result = director.bindRoad(roadType, toContext({ ...context, seed }));
-      return toBoundAsset(roadType, result, textureFor);
+      const grResult = pickGraphicRiverTile(manifest, visualSignature.deterministicSeed, grKind);
+      if (grResult?.entry) return simpleBindEntry(roadType, grResult.entry, visualSignature);
+      const result = director.bindRoad(roadType, toContext(nextContext));
+      return toBoundAsset(roadType, result, textureFor, visualSignature);
     },
 
     bindBuildingWithContext: (buildingType: BuildingType, context: BindingOptions) => {
-      const seed = combineSeed('building', String(buildingType), String(context.seed));
+      const seed = combineSeed("building", String(buildingType), String(context.seed));
+      const nextContext: BindingOptions = { ...context, seed };
+      const visualSignature = signatureFor("building", buildingType, nextContext);
       const grKind = buildingKind(buildingType);
-      const grResult = pickGraphicRiverBuilding(manifest, `building:${buildingType}:${seed}`, grKind);
-      if (grResult?.entry) return simpleBindEntry(buildingType, grResult.entry);
-      const result = director.bindBuilding(buildingType, toContext({ ...context, seed }));
-      return toBoundAsset(buildingType, result, textureFor);
+      const grResult = pickGraphicRiverBuilding(manifest, visualSignature.deterministicSeed, grKind);
+      if (grResult?.entry) return simpleBindEntry(buildingType, grResult.entry, visualSignature);
+      const result = director.bindBuilding(buildingType, toContext(nextContext));
+      return toBoundAsset(buildingType, result, textureFor, visualSignature);
     },
 
     bindPropWithContext: (propType: PropType, context: BindingOptions) => {
-      const seed = combineSeed('prop', String(propType), String(context.seed));
+      const seed = combineSeed("prop", String(propType), String(context.seed));
+      const nextContext: BindingOptions = { ...context, seed };
+      const visualSignature = signatureFor("prop", propType, nextContext);
       if (isCozyContext(context)) {
-        const result = director.bindProp(propType, toContext({ ...context, seed, biome: context.biome ?? "plains", variantHint: context.variantHint ?? "cozy-spring" }));
-        const bound = toBoundAsset(propType, result, textureFor);
+        const result = director.bindProp(propType, toContext({ ...nextContext, biome: context.biome ?? "plains", variantHint: context.variantHint ?? "cozy-spring" }));
+        const bound = toBoundAsset(propType, result, textureFor, visualSignature);
         if (isCozyEntry(bound.entry)) return withCozyLog("prop", propType, bound);
       }
       const grKind = propKind(propType);
-      const grResult = pickGraphicRiverProp(manifest, `prop:${propType}:${seed}`, grKind);
-      if (grResult?.entry) return simpleBindEntry(propType, grResult.entry);
-      const result = director.bindProp(propType, toContext({ ...context, seed }));
-      return toBoundAsset(propType, result, textureFor);
+      const grResult = pickGraphicRiverProp(manifest, visualSignature.deterministicSeed, grKind);
+      if (grResult?.entry) return simpleBindEntry(propType, grResult.entry, visualSignature);
+      const result = director.bindProp(propType, toContext(nextContext));
+      return toBoundAsset(propType, result, textureFor, visualSignature);
     },
 
     bindNpcWithContext: (role: NpcRole, context: BindingOptions) => {
-      const seed = combineSeed('npc', role, String(context.seed));
-      const grResult = pickGraphicRiverCharacter(manifest, `npc:${role}:${seed}`, role);
-      if (grResult?.entry) return simpleBindEntry(role, grResult.entry);
+      const seed = combineSeed("npc", role, String(context.seed));
+      const nextContext: BindingOptions = { ...context, seed };
+      const visualSignature = signatureFor("npc", role, nextContext, { entityId: `npc:${role}:${String(context.seed)}` });
+      const grResult = pickGraphicRiverCharacter(manifest, visualSignature.deterministicSeed, role);
+      if (grResult?.entry) return simpleBindEntry(role, grResult.entry, visualSignature);
       const query = roleToCharacterQuery(role);
-      const picked = pickCharacterVisual(manifest, { tags: [...query.tags], group: query.group, kind: query.kind, seed });
-      if (picked?.entry) return simpleBindEntry(role, picked.entry);
-      const result = director.bindNpc(role, toContext({ ...context, seed }));
-      return toBoundAsset(role, result, textureFor);
+      const picked = pickCharacterVisual(manifest, { tags: [...query.tags], group: query.group, kind: query.kind, seed: visualSignature.deterministicSeed });
+      if (picked?.entry) return simpleBindEntry(role, picked.entry, visualSignature);
+      const result = director.bindNpc(role, toContext(nextContext));
+      return toBoundAsset(role, result, textureFor, visualSignature);
     },
   };
 }
