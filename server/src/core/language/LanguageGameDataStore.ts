@@ -28,14 +28,50 @@ function textList(value: unknown, fallback: readonly string[] = []): readonly st
   return Object.freeze(value.map((entry) => text(entry)).filter(Boolean));
 }
 
+function numericRecord(value: unknown): Record<string, number> | undefined {
+  if (!isRecord(value)) return undefined;
+  const out: Record<string, number> = {};
+  for (const [key, raw] of Object.entries(value)) {
+    const n = Number(raw);
+    if (Number.isFinite(n)) out[key] = n;
+  }
+  return Object.keys(out).length > 0 ? Object.freeze(out) : undefined;
+}
+
+function stringArrayRecord(value: unknown): Record<string, readonly string[]> | undefined {
+  if (!isRecord(value)) return undefined;
+  const out: Record<string, readonly string[]> = {};
+  for (const [key, raw] of Object.entries(value)) {
+    const list = textList(raw);
+    if (list.length > 0) out[key] = list;
+  }
+  return Object.keys(out).length > 0 ? Object.freeze(out) : undefined;
+}
+
 function normalizeBlueprint(raw: unknown, source: string, index: number): LexemeBlueprint {
   if (!isRecord(raw)) throw new Error(`[${TAG}] ${source}.lexemes[${index}] must be an object`);
   const id = text(raw.id);
   const lemma = text(raw.lemma);
   const language = text(raw.language);
   if (!id || !lemma || !language) throw new Error(`[${TAG}] ${source}.lexemes[${index}] requires id, lemma, and language`);
-  const grammar = isRecord(raw.grammar) ? raw.grammar : undefined;
-  const social = isRecord(raw.social) ? raw.social : undefined;
+
+  const grammarInput = isRecord(raw.grammar) ? raw.grammar : undefined;
+  const socialInput = isRecord(raw.social) ? raw.social : undefined;
+  const emotion = numericRecord(raw.emotion) as LexemeBlueprint["emotion"] | undefined;
+  const worldBindings = stringArrayRecord(raw.worldBindings) as LexemeBlueprint["worldBindings"] | undefined;
+  const social = socialInput && text(socialInput.register) ? {
+    register: text(socialInput.register) as LexemeBlueprint["social"]["register"],
+    ...(numericRecord(socialInput.overrides) ? { overrides: numericRecord(socialInput.overrides) as LexemeBlueprint["social"]["overrides"] } : {}),
+  } : undefined;
+  const grammar = grammarInput && text(grammarInput.partOfSpeech) ? {
+    partOfSpeech: text(grammarInput.partOfSpeech) as LexemeBlueprint["grammar"]["partOfSpeech"],
+    ...(text(grammarInput.gender) ? { gender: text(grammarInput.gender) as LexemeBlueprint["grammar"]["gender"] } : {}),
+    ...(text(grammarInput.plural) ? { plural: text(grammarInput.plural) } : {}),
+    ...(text(grammarInput.conjugationClass) ? { conjugationClass: text(grammarInput.conjugationClass) } : {}),
+    allowedPositions: textList(grammarInput.allowedPositions) as LexemeBlueprint["grammar"]["allowedPositions"],
+  } : undefined;
+  const baseWeight = Number(raw.baseWeight);
+
   return Object.freeze({
     id,
     lemma,
@@ -43,17 +79,11 @@ function normalizeBlueprint(raw: unknown, source: string, index: number): Lexeme
     invented: Boolean(raw.invented),
     morphemes: textList(raw.morphemes, [lemma.toLowerCase()]),
     concepts: textList(raw.concepts),
-    emotion: isRecord(raw.emotion) ? raw.emotion as any : undefined,
-    social: social && text(social.register) ? { register: text(social.register) as any, overrides: isRecord(social.overrides) ? social.overrides as any : undefined } : undefined,
-    worldBindings: isRecord(raw.worldBindings) ? raw.worldBindings as any : undefined,
-    grammar: grammar && text(grammar.partOfSpeech) ? {
-      partOfSpeech: text(grammar.partOfSpeech) as any,
-      gender: text(grammar.gender) ? text(grammar.gender) as any : undefined,
-      plural: text(grammar.plural) || undefined,
-      conjugationClass: text(grammar.conjugationClass) || undefined,
-      allowedPositions: textList(grammar.allowedPositions) as any,
-    } : undefined,
-    baseWeight: Number.isFinite(Number(raw.baseWeight)) ? Number(raw.baseWeight) : undefined,
+    ...(emotion ? { emotion } : {}),
+    ...(social ? { social } : {}),
+    ...(worldBindings ? { worldBindings } : {}),
+    ...(grammar ? { grammar } : {}),
+    ...(Number.isFinite(baseWeight) ? { baseWeight } : {}),
   });
 }
 
