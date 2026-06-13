@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "itemId": "wooden_axe",
+      "slotId": "woodcutting_tool",
+      "title": "Wooden Axe",
+      "displayId": "equipment.wooden_axe",
+      "iconId": "item.wooden_axe",
+      "tier": 1,
+      "skillBonus": {
+        "skillId": "woodcutting",
+        "xpMultiplierPermille": 1100,
+        "gatherRespawnReductionTicks": 2
+      },
+      "stats": [
+        { "key": "woodcutting_xp_permille", "value": 1100 },
+        { "key": "gather_respawn_reduction_ticks", "value": 2 }
+      ],
+      "requirements": []
+    },
+    {
+      "itemId": "copper_pickaxe",
+      "slotId": "mining_tool",
+      "title": "Copper Pickaxe",
+      "displayId": "equipment.copper_pickaxe",
+      "iconId": "item.copper_pickaxe",
+      "tier": 1,
+      "skillBonus": {
+        "skillId": "mining",
+        "xpMultiplierPermille": 1100,
+        "gatherRespawnReductionTicks": 2
+      },
+      "stats": [
+        { "key": "mining_xp_permille", "value": 1100 },
+        { "key": "gather_respawn_reduction_ticks", "value": 2 }
+      ],
+      "requirements": []
+    },
+    {
+      "itemId": "simple_fishing_rod",
+      "slotId": "fishing_tool",
+      "title": "Simple Fishing Rod",
+      "displayId": "equipment.simple_fishing_rod",
+      "iconId": "item.simple_fishing_rod",
+      "tier": 1,
+      "skillBonus": {
+        "skillId": "fishing",
+        "xpMultiplierPermille": 1100,
+        "gatherRespawnReductionTicks": 2
+      },
+      "stats": [
+        { "key": "fishing_xp_permille", "value": 1100 },
+        { "key": "gather_respawn_reduction_ticks", "value": 2 }
+      ],
+      "requirements": []
+    },
+    {
+      "itemId": "copper_axe",
+      "slotId": "woodcutting_tool",
+      "title": "Copper Axe",
+      "displayId": "equipment.copper_axe",
+      "iconId": "item.copper_axe",
+      "tier": 2,
+      "skillBonus": {
+        "skillId": "woodcutting",
+        "xpMultiplierPermille": 1200,
+        "gatherRespawnReductionTicks": 3
+      },
+      "stats": [
+        { "key": "woodcutting_xp_permille", "value": 1200 },
+        { "key": "gather_respawn_reduction_ticks", "value": 3 }
+      ],
+      "requirements": [
+        { "key": "woodcutting_level", "value": 2 }
+      ]
+    },
+    {
+      "itemId": "reinforced_pickaxe",
+      "slotId": "mining_tool",
+      "title": "Reinforced Pickaxe",
+      "displayId": "equipment.reinforced_pickaxe",
+      "iconId": "item.reinforced_pickaxe",
+      "tier": 2,
+      "skillBonus": {
+        "skillId": "mining",
+        "xpMultiplierPermille": 1200,
+        "gatherRespawnReductionTicks": 3
+      },
+      "stats": [
+        { "key": "mining_xp_permille", "value": 1200 },
+        { "key": "gather_respawn_reduction_ticks", "value": 3 }
+      ],
+      "requirements": [
+        { "key": "mining_level", "value": 2 }
+      ]
+    },
+    {
+      "itemId": "reinforced_fishing_rod",
+      "slotId": "fishing_tool",
+      "title": "Reinforced Fishing Rod",
+      "displayId": "equipment.reinforced_fishing_rod",
+      "iconId": "item.reinforced_fishing_rod",
+      "tier": 2,
+      "skillBonus": {
+        "skillId": "fishing",
+        "xpMultiplierPermille": 1200,
+        "gatherRespawnReductionTicks": 3
+      },
+      "stats": [
+        { "key": "fishing_xp_permille", "value": 1200 },
+        { "key": "gather_respawn_reduction_ticks", "value": 3 }
+      ],
+      "requirements": [
+        { "key": "fishing_level", "value": 2 }
+      ]
+    }
+  ]
+}

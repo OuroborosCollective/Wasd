@@ -1,7 +1,7 @@
 /**
  * Paperdoll Panel — Character Equipment View
  *
- * Shows character profile and equipped tool slots.
+ * Shows character profile and equipped slots from the server-backed gameplay snapshot.
  * Follows the Panzerschrank brutalist design aesthetic.
  *
  * Determinism rule:
@@ -36,7 +36,12 @@ export function PaperdollPanel({ paperdoll }: Props) {
 
       <div className="paperdoll-slots">
         {(paperdoll.slots ?? []).map((slot) => (
-          <article key={slot.slotId} className="paperdoll-slot">
+          <article
+            key={slot.slotId}
+            className="paperdoll-slot"
+            data-slot-id={slot.slotId}
+            data-item-id={slot.itemId ?? "empty"}
+          >
             <span className="paperdoll-slot-label">{formatSlotLabel(slot.slotId)}</span>
             <strong className="paperdoll-slot-title">{slot.title}</strong>
           </article>
@@ -48,6 +53,12 @@ export function PaperdollPanel({ paperdoll }: Props) {
 
 function formatSlotLabel(slotId: string): string {
   const labels: Record<string, string> = {
+    weapon: "Weapon",
+    helmet: "Helmet",
+    armor: "Armor",
+    boots: "Boots",
+    ring: "Ring",
+    amulet: "Amulet",
     woodcutting_tool: "Woodcutting",
     mining_tool: "Mining",
     fishing_tool: "Fishing",

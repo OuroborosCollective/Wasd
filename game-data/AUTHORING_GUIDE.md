@@ -6,6 +6,7 @@ This guide describes how to add new content to Areloria.
 1. Add an entry to `game-data/npc/npcs.json`.
 2. Define `id`, `name`, `role`, `dialogueId`, `faction`.
 3. If the NPC gives quests, add their quest IDs to `questHooks`.
+4. Make sure `role` has a matching static visual rule in `game-data/visual/npc_visual_profiles.json` or intentionally falls back to `generic_npc`.
 
 ## Adding a New Dialogue
 1. Add an entry to `game-data/dialogue/dialogues.json`.
@@ -18,12 +19,32 @@ This guide describes how to add new content to Areloria.
 2. Define `id`, `title`, `objective`, `giverNpcId`.
 3. Add prerequisites or rewards if needed.
 
+## Adding Equipment / Paperdoll Slots
+1. Add canonical equipment slots to `game-data/equipment/equipment-slots.json`.
+2. Define `slotId`, `title`, `emptyTitle`, `kind`, and deterministic `order`.
+3. Add authored equippable item metadata to `game-data/equipment/equipment-items.json`.
+4. Every authored equipment `itemId` must already exist in server inventory definitions.
+5. Paperdoll and gameplay snapshots load this metadata from `game-data`; do not create UI-only slots or fake paperdoll data.
+
 ## Placing Spawns
 1. Add an entry to `game-data/spawns/npc-spawns.json`.
 2. Define `npcId`, `position` (x, y).
+
+## Adding Visual Truth Rules
+1. Add only static authoring rules under `game-data/visual/`.
+2. Visual selection must derive from `VisualSignature`: world seed, world tick epoch, chunk, kappa1000, entity ID, role or semantic type, biome, faction or culture, and optional state hash.
+3. Add new biome styles to `game-data/visual/biome_visual_profiles.json`.
+4. Add new NPC role styles to `game-data/visual/npc_visual_profiles.json`.
+5. Add new building styles to `game-data/visual/building_visual_profiles.json`.
+6. Add new crop or anchor rules to `game-data/visual/asset_crop_profiles.json`.
+7. Layer order belongs in `game-data/visual/world_render_layers.json`.
+8. Current runtime adapter in this change is client-2d. A future 3D adapter must consume the same `VisualSignature` contract instead of creating parallel truth.
 
 ## Common Mistakes
 - **Broken References**: Ensure `dialogueId` in `npcs.json` matches an `id` in `dialogues.json`.
 - **Missing Nodes**: Ensure `nextNodeId` in `dialogues.json` exists in the `nodes` object of that dialogue.
 - **Invalid Quest IDs**: Ensure `prerequisiteQuestIds` in `quests.json` matches an `id` in `quests.json`.
+- **Invalid Equipment Item IDs**: Ensure every `game-data/equipment/equipment-items.json` `itemId` exists in inventory definitions.
+- **Invalid Equipment Slot IDs**: Ensure equipment item `slotId` values exist in `game-data/equipment/equipment-slots.json`.
+- **Invalid Visual Role IDs**: Ensure authored NPC roles map to visual role profiles or fall back intentionally.
 - **Validation**: Run `npx ts-node server/src/tools/validateContent.ts` to check for errors.

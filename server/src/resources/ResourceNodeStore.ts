@@ -5,20 +5,25 @@
  * Deterministic: No Math.random(), no Date.now() for gameplay state.
  * Respawn based on serverTick, not wall-clock time.
  *
- * Supports both static starter nodes and procedural chunk-generated nodes.
+ * Supports both static starter nodes loaded from game-data and procedural chunk-generated nodes.
  */
 
-import { STARTER_RESOURCE_NODES } from "./StarterResourceNodes.js";
 import {
   generateChunkResourceNodes,
   getVisibleChunkCoords,
   isStarterChunk,
   getChunkBiome,
   CHUNK_RESOURCE_CONSTANTS,
-  type ChunkBiomeId,
 } from "./ChunkResourceGenerator.js";
+import {
+  loadGatheringMomentumRuleFromGameData,
+  loadResourceNodeDefinitionsFromGameData,
+} from "./ResourceGameData.js";
 import type {
   GatherResourceResult,
+  GatheringMomentumResult,
+  GatheringMomentumRule,
+  GatheringMomentumState,
   ResourceNodeDefinition,
   ResourceNodeRuntimeState,
   ResourceNodeSnapshot,
@@ -47,6 +52,7 @@ interface ChunkNodeRegistry {
 export class ResourceNodeStore {
   private readonly definitions = new Map<string, ResourceNodeDefinition>();
   private readonly runtime = new Map<string, ResourceNodeRuntimeState>();
+  private readonly gatheringMomentumByPlayer = new Map<string, GatheringMomentumState>();
 
   /** Registry for procedural chunk nodes */
   private readonly chunkRegistry: ChunkNodeRegistry = {
@@ -57,10 +63,14 @@ export class ResourceNodeStore {
   /** World seed for procedural generation */
   private readonly worldSeed: string;
 
-  constructor(nodes: readonly ResourceNodeDefinition[] = STARTER_RESOURCE_NODES, worldSeed?: string) {
+  constructor(
+    nodes: readonly ResourceNodeDefinition[] = loadResourceNodeDefinitionsFromGameData(),
+    worldSeed?: string,
+    private readonly gatheringMomentumRule: GatheringMomentumRule = loadGatheringMomentumRuleFromGameData(),
+  ) {
     this.worldSeed = worldSeed ?? CHUNK_RESOURCE_CONSTANTS.WORLD_SEED;
 
-    // Initialize with starter nodes
+    // Initialize with game-data backed starter nodes or explicit test nodes.
     for (const node of nodes) {
       this.definitions.set(node.id, node);
       this.runtime.set(node.id, {
@@ -97,7 +107,7 @@ export class ResourceNodeStore {
         continue;
       }
 
-      // Skip starter chunk - it uses STARTER_RESOURCE_NODES
+      // Skip starter chunk - it uses game-data/resource-nodes.json starter nodes
       if (isStarterChunk(chunkX, chunkZ)) {
         // Mark as registered but don't add procedural nodes
         this.chunkRegistry.registeredChunks.set(chunkKey, new Set());
@@ -273,16 +283,80 @@ export class ResourceNodeStore {
       lastGatheredBy: playerId,
     });
 
+    const momentum = this.applyGatheringMomentum({
+      playerId,
+      skillId: definition.skillId,
+      currentTick,
+      xpBeforeMomentum: definition.xpReward,
+    });
+
     return {
       ok: true,
       playerId,
       nodeId,
       reason: "gathered",
       skillId: definition.skillId,
-      xpReward: definition.xpReward,
+      xpReward: momentum.xpReward,
       itemRewardId: definition.itemRewardId,
       itemRewardName: definition.itemRewardName,
+      momentum: momentum.result,
       snapshot: this.getSnapshot(nodeId, currentTick),
+    };
+  }
+
+  /**
+   * Compute deterministic same-skill gathering momentum.
+   * Mutates only after successful gathers; failures never advance momentum.
+   */
+  private applyGatheringMomentum(input: {
+    playerId: string;
+    skillId: ResourceNodeDefinition["skillId"];
+    currentTick: number;
+    xpBeforeMomentum: number;
+  }): { xpReward: number; result?: GatheringMomentumResult } {
+    const { playerId, skillId, currentTick, xpBeforeMomentum } = input;
+    const rule = this.gatheringMomentumRule;
+
+    if (!rule.enabled || !rule.appliesToSkillIds.includes(skillId)) {
+      return { xpReward: xpBeforeMomentum };
+    }
+
+    const previous = this.gatheringMomentumByPlayer.get(playerId);
+    const sameSkillWithinWindow = Boolean(
+      previous &&
+        previous.lastSkillId === skillId &&
+        currentTick >= previous.lastGatherTick &&
+        currentTick - previous.lastGatherTick <= rule.windowTicks,
+    );
+
+    const streak = sameSkillWithinWindow
+      ? Math.min((previous?.streak ?? 1) + 1, rule.maxStreak)
+      : 1;
+
+    const bonusPermille = Math.max(0, (streak - 1) * rule.streakBonusPermille);
+    const xpReward = Math.floor((xpBeforeMomentum * (1000 + bonusPermille)) / 1000);
+
+    this.gatheringMomentumByPlayer.set(playerId, {
+      playerId,
+      lastSkillId: skillId,
+      lastGatherTick: currentTick,
+      streak,
+    });
+
+    return {
+      xpReward,
+      result: {
+        ruleId: rule.id,
+        truthStatus: rule.truthStatus,
+        skillId,
+        streak,
+        bonusPermille,
+        maxBonusPermille: Math.max(0, (rule.maxStreak - 1) * rule.streakBonusPermille),
+        windowTicks: rule.windowTicks,
+        xpBeforeMomentum,
+        xpReward,
+        expiresAtTick: currentTick + rule.windowTicks,
+      },
     };
   }
 
@@ -309,6 +383,7 @@ export class ResourceNodeStore {
         lastGatheredBy: null,
       });
     }
+    this.gatheringMomentumByPlayer.clear();
   }
 }
 

@@ -82,16 +82,16 @@
   .stitch-chat {
     left: calc(8px + env(safe-area-inset-left));
     right: calc(92px + env(safe-area-inset-right));
-    bottom: calc(80px + env(safe-area-inset-bottom));
+    bottom: calc(326px + env(safe-area-inset-bottom));
     width: auto;
-    max-height: min(42dvh, 280px);
+    max-height: min(26dvh, 180px);
     display: grid;
-    grid-template-rows: auto minmax(112px, 1fr) auto;
+    grid-template-rows: auto minmax(72px, 1fr) auto;
   }
 
   .stitch-chat-lines {
-    min-height: 112px;
-    max-height: min(24dvh, 170px);
+    min-height: 72px;
+    max-height: min(18dvh, 120px);
     overflow-y: auto;
   }
 

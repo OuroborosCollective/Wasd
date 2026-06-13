@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "slots": [
+    {
+      "slotId": "weapon",
+      "title": "Weapon",
+      "emptyTitle": "Empty Weapon Slot",
+      "kind": "combat",
+      "order": 10
+    },
+    {
+      "slotId": "helmet",
+      "title": "Helmet",
+      "emptyTitle": "Empty Helmet Slot",
+      "kind": "armor",
+      "order": 20
+    },
+    {
+      "slotId": "armor",
+      "title": "Armor",
+      "emptyTitle": "Empty Armor Slot",
+      "kind": "armor",
+      "order": 30
+    },
+    {
+      "slotId": "boots",
+      "title": "Boots",
+      "emptyTitle": "Empty Boots Slot",
+      "kind": "armor",
+      "order": 40
+    },
+    {
+      "slotId": "ring",
+      "title": "Ring",
+      "emptyTitle": "Empty Ring Slot",
+      "kind": "accessory",
+      "order": 50
+    },
+    {
+      "slotId": "amulet",
+      "title": "Amulet",
+      "emptyTitle": "Empty Amulet Slot",
+      "kind": "accessory",
+      "order": 60
+    },
+    {
+      "slotId": "woodcutting_tool",
+      "title": "Woodcutting Tool",
+      "emptyTitle": "Empty Woodcutting Tool Slot",
+      "kind": "gathering_tool",
+      "order": 70
+    },
+    {
+      "slotId": "mining_tool",
+      "title": "Mining Tool",
+      "emptyTitle": "Empty Mining Tool Slot",
+      "kind": "gathering_tool",
+      "order": 80
+    },
+    {
+      "slotId": "fishing_tool",
+      "title": "Fishing Tool",
+      "emptyTitle": "Empty Fishing Tool Slot",
+      "kind": "gathering_tool",
+      "order": 90
+    }
+  ]
+}
