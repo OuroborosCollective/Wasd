@@ -7,6 +7,7 @@ import { ChatChannelRouter, type ChatRecipient } from '../../modules/chat/ChatCh
 import { getActiveGameWebSocketServer } from '../../networking/WebSocketServer.js';
 import type { NPCSystem } from '../../modules/npc/NPCSystem.js';
 import { NPCSystem as RealNPCSystem } from '../../modules/npc/NPCSystem.js';
+import { loadGameDataNpcsIntoSystem, type NpcGameDataLoadReport } from '../../modules/npc/NPCGameDataStore.js';
 import type { LootEntity } from '../../modules/world/LootDirector.js';
 import { lootDirector as deterministicLootDirector } from '../../modules/world/LootDirector.js';
 
@@ -58,6 +59,16 @@ function createManifestManager(adapter: WorldTickAdapter) {
   };
 }
 
+function emptyNpcLoadReport(): NpcGameDataLoadReport {
+  return Object.freeze({
+    npcDefinitionsRead: 0,
+    spawnRowsRead: 0,
+    npcsLoaded: 0,
+    missingSpawnDefinitions: Object.freeze([]),
+    duplicateSpawnNpcIds: Object.freeze([]),
+  });
+}
+
 export class WorldTickAdapter {
   readonly thinShell: WorldTickThinShell = worldTickThinShell;
   get tickCount(): number { return this.thinShell.getTickCount(); }
@@ -75,6 +86,7 @@ export class WorldTickAdapter {
   /** Backward-compatible public surface used by combat/persistence/skill integrations. */
   readonly npcSystem: NPCSystem;
   readonly deterministicLootDirector: { getAllLoot(): LootEntity[] };
+  private npcGameDataReport: NpcGameDataLoadReport = emptyNpcLoadReport();
 
   readonly chunkSystem = new StubChunkSystem();
   readonly observerEngine = new StubObserverEngine();
@@ -116,7 +128,7 @@ export class WorldTickAdapter {
   };
 
   readonly liveHeal = {
-    getStatus: () => ({ tickCount: this.tickCount, autoRepair: autoRepairService.getStatus(), usage: { prompt_tokens: 0, completion_tokens: 0 }, areShadow: { replayBufferSize: 0, lastSnapshot: null }, electroweakPruning: { ttlTicks: 1200, stats: {} }, emergence: { events: [] } }),
+    getStatus: () => ({ tickCount: this.tickCount, autoRepair: autoRepairService.getStatus(), usage: { prompt_tokens: 0, completion_tokens: 0 }, areShadow: { replayBufferSize: 0, lastSnapshot: null }, electroweakPruning: { ttlTicks: 1200, stats: {} }, emergence: { events: [] }, npcGameData: this.npcGameDataReport }),
     flush: () => {},
   };
   readonly assetHealthService = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
@@ -125,6 +137,7 @@ export class WorldTickAdapter {
     // Create real NPC system for ARE truth path and preserve legacy adapter alias.
     this.realNPCSystem = new RealNPCSystem();
     this.npcSystem = this.realNPCSystem;
+    this.npcGameDataReport = loadGameDataNpcsIntoSystem(this.npcSystem);
 
     // Wire deterministic LootDirector for ARE truth path
     // This is the ARE-style loot system from modules/world/LootDirector
@@ -143,7 +156,7 @@ export class WorldTickAdapter {
       }),
     });
 
-    console.log('[WorldTickAdapter] Initialized with RealNPCSystem and deterministicLootDirector');
+    console.log(`[WorldTickAdapter] Initialized with RealNPCSystem, game-data NPCs=${this.npcGameDataReport.npcsLoaded}, and deterministicLootDirector`);
   }
 
   attachNetworkBridge(networkBridge: NetworkBridge): void {
@@ -171,6 +184,10 @@ export class WorldTickAdapter {
     return this.realNPCSystem;
   }
 
+  getNpcGameDataLoadReport(): NpcGameDataLoadReport {
+    return this.npcGameDataReport;
+  }
+
   async init(): Promise<void> {
     this.warfrontDomain.initialize(this.tickCount * 100);
   }
@@ -186,7 +203,7 @@ export class WorldTickAdapter {
   getVoteAdminDiagnostics(): any { return {}; }
   getPersistenceStats(): any { return this.thinShell.getPersistenceStats(); }
   debouncedSave(): void {}
-  createNPC(_id: string, _name: string, _x: number, _y: number): void {}
+  createNPC(id: string, name: string, x: number, y: number): void { this.npcSystem.createNPC(id, name, x, y); }
   updateLootCache(): void {}
   getPlaytesterDebugLogPath(): string { return ''; }
   buildPlaytesterMonitorPayload(_options?: any): any { return {}; }
@@ -194,14 +211,14 @@ export class WorldTickAdapter {
 
   getSpatialBroadcastStats(): { chunkCount: number; entityCount: number } {
     const snapshot = this.thinShell.getWorldBrainSnapshot();
-    return { chunkCount: snapshot?.active_chunks?.length ?? 0, entityCount: 0 };
+    return { chunkCount: snapshot?.active_chunks?.length ?? 0, entityCount: this.npcSystem.getAllNPCs().length + this.deterministicLootDirector.getAllLoot().length };
   }
 
   getAREGuardStatus(): AREInvariantGuardStatus | null { return validationState.getSnapshot().guard; }
   getWorldHashSnapshot(): WorldHashSnapshot | null {
     const snapshot = this.thinShell.getWorldBrainSnapshot();
     if (!snapshot) return null;
-    return { tick: this.tickCount, worldHash: snapshot.world_hash ?? '0'.repeat(64), chunkCount: snapshot.active_chunks?.length ?? 0, entityCount: 0, timestamp: this.tickCount };
+    return { tick: this.tickCount, worldHash: snapshot.world_hash ?? '0'.repeat(64), chunkCount: snapshot.active_chunks?.length ?? 0, entityCount: this.npcSystem.getAllNPCs().length + this.deterministicLootDirector.getAllLoot().length, timestamp: this.tickCount };
   }
   getReplayRecorderStats(): DeterministicRecorderStats { return tickRecorder.stats(); }
   getReplaySnapshot(tick: number): DeterministicReplaySnapshot | null { return tickRecorder.replay(tick); }
