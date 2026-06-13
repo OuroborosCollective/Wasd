@@ -201,7 +201,7 @@ def run_tests() -> bool:
         (root / "ignored.txt").write_text("not an image", encoding="utf-8")
 
         zip_source_image = root / "npc_guard_source.jpeg"
-        create_image(zip_source_image, size=(128, 128))
+        create_image(zip_source_image, size=(128, 128), color=(33, 90, 180, 255))
         zip_path = root / "pack.zip"
         with zipfile.ZipFile(zip_path, "w") as zf:
             zf.write(zip_source_image, "inside/npc_guard.jpeg")
