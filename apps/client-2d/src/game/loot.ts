@@ -11,8 +11,7 @@ export interface LootFeedEntry {
   itemId: string;
   quantity: number;
   atTick: number;
-  /** Server-provided roll hash for determinism */
-  rollHash?: string;
+  rollHash: string;
 }
 
 export interface LootFeedStore {
@@ -21,40 +20,26 @@ export interface LootFeedStore {
   prune(nowTick: number): void;
 }
 
-/**
- * LootFeedStore - Observes server loot_delta only
- * 
- * CANONICAL PATH:
- * - Receives loot entries ONLY from server-side loot.delta events
- * - No client-side roll logic, no Math.random(), no Date.now()
- * - Entries are identified by server-provided rollHash or tick-based ID
- */
+const EXPIRY_TICKS = 70;
+
+function hasServerStamp(tick: number, rollHash?: string): rollHash is string {
+  return Number.isSafeInteger(tick) && tick > 0 && typeof rollHash === "string" && rollHash.trim().length > 0;
+}
+
 export function createLootFeedStore(maxEntries = 12): LootFeedStore {
   const entries: LootFeedEntry[] = [];
+  const seen = new Set<string>();
 
   return {
-    /**
-     * Push a loot entry from server loot_delta event
-     * @param itemId - Server-provided item identifier
-     * @param quantity - Server-provided quantity
-     * @param tick - Server tick when loot was generated
-     * @param rollHash - Server-provided roll hash for stable ID
-     */
     push(itemId: string, quantity: number, tick: number, rollHash?: string) {
-      const id = rollHash 
-        ? `loot_${rollHash.slice(0, 16)}`
-        : `loot_tick_${tick}_${itemId}`;
-      
-      entries.unshift({
-        id,
-        itemId,
-        quantity,
-        atTick: tick,
-        rollHash
-      });
-
+      if (!hasServerStamp(tick, rollHash)) return;
+      const id = `loot_${rollHash.slice(0, 32)}`;
+      if (seen.has(id)) return;
+      entries.unshift({ id, itemId, quantity: Math.max(1, Math.trunc(quantity || 1)), atTick: tick, rollHash });
+      seen.add(id);
       while (entries.length > maxEntries) {
-        entries.pop();
+        const removed = entries.pop();
+        if (removed) seen.delete(removed.id);
       }
     },
 
@@ -62,14 +47,12 @@ export function createLootFeedStore(maxEntries = 12): LootFeedStore {
       return entries.map((entry) => ({ ...entry }));
     },
 
-    /**
-     * Prune entries older than 7000 ticks (approximately 7 seconds at 1000 tps)
-     */
     prune(nowTick: number) {
-      const EXPIRY_TICKS = 7000;
+      if (!Number.isSafeInteger(nowTick) || nowTick <= 0) return;
       for (let i = entries.length - 1; i >= 0; i -= 1) {
         if (nowTick - entries[i].atTick > EXPIRY_TICKS) {
-          entries.splice(i, 1);
+          const [removed] = entries.splice(i, 1);
+          if (removed) seen.delete(removed.id);
         }
       }
     }
