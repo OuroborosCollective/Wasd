@@ -18,16 +18,19 @@ interface LootDirectorDeps {
   auditStore?: any;
 }
 
+const MAX_PROCESSED_KEYS = 10_000;
+const TRIM_PROCESSED_KEYS_TO = 5_000;
+
 /**
  * LootDirector - Context Orchestrator + Deterministic loot_delta Writer
- * 
+ *
  * CANONICAL PATH:
- * 1. Receives loot_roll_context from combat defeat events
- * 2. Delegates to ProceduralLootMachine (ARELootEngine facade)
+ * 1. Receives canonical loot_roll_context from confirmed combat defeat events
+ * 2. Delegates to ProceduralLootMachine
  * 3. Writes deterministic loot_delta
  * 4. Emits loot_delta for inventory/equipment systems to consume
- * 
- * DO NOT: Roll own loot, create parallel drop truth, or emit loot before confirmed event
+ *
+ * DO NOT: Roll own loot, create parallel drop truth, or emit loot before confirmed event.
  */
 class LootDirector {
   private db: any;
@@ -36,11 +39,7 @@ class LootDirector {
   private worldDropService: any;
   private auditStore: any;
   private started: boolean = false;
-  
-  /** Idempotency guard - prevents duplicate loot for same event */
   private processedKeys = new Set<string>();
-  
-  /** Reference to the loot machine (ARELootEngine facade / Infinite Loot Machine) */
   private lootMachine: ProceduralLootMachine | null = null;
   private policy: any = null;
 
@@ -48,7 +47,9 @@ class LootDirector {
     generated: 0,
     byRarity: {},
     lastSeedHash: null,
-    idempotencyHits: 0
+    idempotencyHits: 0,
+    invalidContexts: 0,
+    failedRolls: 0
   };
 
   constructor({ db, eventBus, inventoryService, worldDropService, auditStore }: LootDirectorDeps) {
@@ -68,8 +69,13 @@ class LootDirector {
     });
 
     this.eventBus.onSafe('combat.npcKilled', async (payload: any) => {
-      // Legacy support - convert to defeat event context
-      await this.handleDefeatEvent(this.normalizeLegacyContext(payload));
+      const context = this.normalizeLegacyContext(payload);
+      if (!context) {
+        this.telemetry.invalidContexts++;
+        console.warn('[LootDirector] Legacy combat.npcKilled missing canonical loot context fields; loot skipped');
+        return;
+      }
+      await this.handleDefeatEvent(context);
     });
 
     this.eventBus.onSafe('world.tick', async (payload: any) => {
@@ -77,73 +83,67 @@ class LootDirector {
     });
   }
 
-  /**
-   * Normalize legacy npcKilled payload to defeat context
-   */
-  private normalizeLegacyContext(payload: any): LootRollContextCanonical {
+  private normalizeLegacyContext(payload: any): LootRollContextCanonical | null {
+    if (!payload || typeof payload !== 'object') return null;
+    const sourceTick = Number(payload.tickIndex ?? payload.sourceTick);
+    const sourceEntityId = this.requiredString(payload.playerId ?? payload.sourceEntityId);
+    const defeatedEntityId = this.requiredString(payload.npcId ?? payload.defeatedEntityId);
+    const actorId = this.requiredString(payload.actorId ?? payload.playerId ?? payload.sourceEntityId);
+    const chunkKey = this.requiredString(payload.chunkKey);
+    const worldHash = this.requiredString(payload.worldHash);
+    const chunkHash = this.requiredString(payload.chunkHash);
+    const kappa = this.requiredString(payload.kappa);
+
+    if (!sourceEntityId || !defeatedEntityId || !actorId || !Number.isSafeInteger(sourceTick) || sourceTick < 0 || !chunkKey || !worldHash || !chunkHash || !kappa) {
+      return null;
+    }
+
     return {
-      sourceEntityId: payload.playerId,
-      defeatedEntityId: payload.npcId,
-      actorId: payload.playerId,
-      sourceTick: payload.tickIndex,
-      chunkKey: payload.chunkKey || `chunk_${payload.tickIndex % 100}`,
-      worldHash: payload.worldHash || 'default_world',
-      chunkHash: payload.chunkHash || 'default_chunk',
-      kappa: payload.kappa || payload.playerId,
-      encounterId: payload.encounterId,
-      lootIndex: payload.lootIndex || 0,
-      treasureClassId: payload.treasureClassId || this.treasureClassForEntity(payload),
-      areaLevel: payload.areaLevel || 1,
-      magicFind: payload.magicFind || 0,
-      killStreak: payload.killStreak || 0,
-      sourceRank: payload.sourceRank || 'NORMAL',
-      biomeId: payload.biomeId || 'unknown',
-      factionId: payload.factionId || 'neutral',
-      socialString: payload.socialString || ''
+      sourceEntityId,
+      defeatedEntityId,
+      actorId,
+      sourceTick,
+      chunkKey,
+      worldHash,
+      chunkHash,
+      kappa,
+      encounterId: typeof payload.encounterId === 'string' ? payload.encounterId : undefined,
+      lootIndex: this.safeInteger(payload.lootIndex, 0),
+      treasureClassId: this.requiredString(payload.treasureClassId) || this.treasureClassForEntity(payload),
+      areaLevel: Math.max(1, this.safeInteger(payload.areaLevel, 1)),
+      magicFind: Math.max(0, this.safeInteger(payload.magicFind, 0)),
+      killStreak: Math.max(0, this.safeInteger(payload.killStreak, 0)),
+      sourceRank: this.requiredString(payload.sourceRank) || 'NORMAL',
+      biomeId: this.requiredString(payload.biomeId) || 'unknown',
+      factionId: this.requiredString(payload.factionId) || 'neutral',
+      socialString: typeof payload.socialString === 'string' ? payload.socialString : ''
     };
   }
 
-  /**
-   * Handle defeat event - canonical loot roll entry point
-   * 
-   * Flow:
-   * 1. Create stable LootRollContext
-   * 2. Check idempotency
-   * 3. Delegate to ProceduralLootMachine
-   * 4. Write deterministic loot_delta
-   * 5. Emit loot_delta for downstream consumption
-   */
-  async handleDefeatEvent(context: LootRollContextCanonical): Promise<LootDelta | null> {
-    // Create idempotency key
+  async handleDefeatEvent(rawContext: LootRollContextCanonical): Promise<LootDelta | null> {
+    const context = this.normalizeCanonicalContext(rawContext);
+    if (!context) {
+      this.telemetry.invalidContexts++;
+      console.warn('[LootDirector] combat.defeat missing canonical loot context fields; loot skipped');
+      return null;
+    }
+
     const idempotencyKey = createIdempotencyKey(context);
-    
-    // Idempotency check - prevent duplicate loot for same event
     if (this.processedKeys.has(idempotencyKey)) {
       this.telemetry.idempotencyHits++;
       console.debug('[LootDirector] Duplicate event blocked:', idempotencyKey);
       return null;
     }
-    
-    this.processedKeys.add(idempotencyKey);
-    
-    // Trim processed keys to prevent memory leak
-    if (this.processedKeys.size > 10000) {
-      const keysToRemove = Array.from(this.processedKeys).slice(0, 5000);
-      keysToRemove.forEach(k => this.processedKeys.delete(k));
-    }
 
-    // Ensure loot machine is initialized
     if (!this.lootMachine) {
       this.policy = await this.loadPolicy();
       this.lootMachine = new ProceduralLootMachine(this.db, this.policy);
     }
 
-    // Create deterministic seed
     const seed = createLootSeed(context);
     const seedHash = LootAxioms.shortHash(seed);
 
     try {
-      // Delegate to ProceduralLootMachine (ARELootEngine facade / Infinite Loot Machine)
       const result = await this.lootMachine.generate({
         playerId: context.sourceEntityId,
         tickIndex: context.sourceTick,
@@ -161,17 +161,17 @@ class LootDirector {
         playerReputation: 0
       });
 
-      // Build deterministic loot_delta
-      const lootDelta: LootDelta = {
+      const lootDelta: LootDelta = Object.freeze({
         idempotencyKey,
         lootRollContext: context,
         seedHash,
         items: this.buildLootDeltaItems(result.items, context),
         createdAtTick: context.sourceTick,
         playerId: context.sourceEntityId
-      };
+      });
 
-      // Observe and record
+      this.processedKeys.add(idempotencyKey);
+      this.trimProcessedKeys();
       this.observe(lootDelta);
 
       if (this.auditStore?.recordDrop) {
@@ -180,14 +180,12 @@ class LootDirector {
         }
       }
 
-      // Emit loot_delta for downstream systems (inventory, worldDropService)
       this.eventBus.emitSafe('loot.delta', {
         delta: lootDelta,
         playerId: context.sourceEntityId,
         tickIndex: context.sourceTick
       });
 
-      // Emit legacy event for backward compatibility
       this.eventBus.emitSafe('loot.generated', {
         playerId: context.sourceEntityId,
         tickIndex: context.sourceTick,
@@ -197,35 +195,70 @@ class LootDirector {
           itemId: item.itemId,
           name: item.name,
           rarity: item.rarity,
-          quantity: item.quantity
+          quantity: item.quantity,
+          rollHash: item.rollHash
         }))
       });
 
       return lootDelta;
     } catch (error) {
+      this.telemetry.failedRolls++;
       console.error('[LootDirector] Loot generation failed:', error);
       return null;
     }
   }
 
-  /**
-   * Build stable loot_delta items from machine result
-   * Items are sorted by rollHash for determinism
-   */
+  private normalizeCanonicalContext(context: LootRollContextCanonical): LootRollContextCanonical | null {
+    if (!context || typeof context !== 'object') return null;
+    const sourceTick = Number(context.sourceTick);
+    const sourceEntityId = this.requiredString(context.sourceEntityId);
+    const defeatedEntityId = this.requiredString(context.defeatedEntityId);
+    const actorId = this.requiredString(context.actorId);
+    const chunkKey = this.requiredString(context.chunkKey);
+    const worldHash = this.requiredString(context.worldHash);
+    const chunkHash = this.requiredString(context.chunkHash);
+    const kappa = this.requiredString(context.kappa);
+    const treasureClassId = this.requiredString(context.treasureClassId);
+
+    if (!sourceEntityId || !defeatedEntityId || !actorId || !Number.isSafeInteger(sourceTick) || sourceTick < 0 || !chunkKey || !worldHash || !chunkHash || !kappa || !treasureClassId) {
+      return null;
+    }
+
+    return Object.freeze({
+      ...context,
+      sourceEntityId,
+      defeatedEntityId,
+      actorId,
+      sourceTick,
+      chunkKey,
+      worldHash,
+      chunkHash,
+      kappa,
+      lootIndex: this.safeInteger(context.lootIndex, 0),
+      treasureClassId,
+      areaLevel: Math.max(1, this.safeInteger(context.areaLevel, 1)),
+      magicFind: Math.max(0, this.safeInteger(context.magicFind, 0)),
+      killStreak: Math.max(0, this.safeInteger(context.killStreak, 0)),
+      sourceRank: this.requiredString(context.sourceRank) || 'NORMAL',
+      biomeId: this.requiredString(context.biomeId) || 'unknown',
+      factionId: this.requiredString(context.factionId) || 'neutral',
+      socialString: typeof context.socialString === 'string' ? context.socialString : ''
+    });
+  }
+
   private buildLootDeltaItems(items: readonly any[], context: LootRollContextCanonical): readonly LootDeltaItem[] {
     const deltaItems: LootDeltaItem[] = items.map((item, index) => ({
-      uid: item.uid,
-      itemId: item.baseId || item.name,
-      name: item.name,
-      rarity: item.rarity,
-      quantity: item.amount || 1,
-      position: context.chunkKey ? { x: 0, y: 0, z: 0 } : { x: 0, y: 0, z: 0 },
-      rollHash: LootAxioms.shortHash(`${context.sourceTick}|${context.defeatedEntityId}|${index}|${item.uid}`)
+      uid: String(item.uid),
+      itemId: String(item.baseId || item.itemId || item.name),
+      name: String(item.name || item.baseId || item.uid),
+      rarity: String(item.rarity || 'COMMON'),
+      quantity: Math.max(1, this.safeInteger(item.amount ?? item.quantity, 1)),
+      position: { x: 0, y: 0, z: 0 },
+      rollHash: LootAxioms.shortHash(`${context.worldHash}|${context.chunkHash}|${context.sourceTick}|${context.defeatedEntityId}|${context.lootIndex}|${index}|${item.uid}`)
     }));
 
-    // Sort by rollHash for stable ordering
-    deltaItems.sort((a, b) => a.rollHash.localeCompare(b.rollHash));
-    return Object.freeze(deltaItems);
+    deltaItems.sort((a, b) => a.rollHash.localeCompare(b.rollHash) || a.uid.localeCompare(b.uid));
+    return Object.freeze(deltaItems.map((item) => Object.freeze(item)));
   }
 
   async handleWorldTick({ tickIndex }: { tickIndex: number }): Promise<void> {
@@ -280,6 +313,21 @@ class LootDirector {
       telemetry: this.telemetry,
       note: 'LootDirector is canonical - ProceduralLootMachine is the Infinite ARE Loot Machine'
     };
+  }
+
+  private trimProcessedKeys(): void {
+    if (this.processedKeys.size <= MAX_PROCESSED_KEYS) return;
+    const keysToRemove = Array.from(this.processedKeys).slice(0, Math.max(0, this.processedKeys.size - TRIM_PROCESSED_KEYS_TO));
+    keysToRemove.forEach((key) => this.processedKeys.delete(key));
+  }
+
+  private requiredString(value: unknown): string {
+    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '';
+  }
+
+  private safeInteger(value: unknown, fallback: number): number {
+    const next = Number(value);
+    return Number.isSafeInteger(next) ? next : fallback;
   }
 }
 
