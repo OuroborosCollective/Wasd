@@ -39,44 +39,44 @@ jobs:
           RAW_CHUNK_KEY: ${{ github.event.client_payload.chunkKey }}
         run: |
           python3 <<'PY'
-import hashlib
-import os
-import re
-import sys
-from pathlib import Path
+          import hashlib
+          import os
+          import re
+          import sys
+          from pathlib import Path
 
-aggression_raw = os.environ.get("RAW_AGGRESSION", "").strip()
-chunk_key_raw = os.environ.get("RAW_CHUNK_KEY", "").strip()
+          aggression_raw = os.environ.get("RAW_AGGRESSION", "").strip()
+          chunk_key_raw = os.environ.get("RAW_CHUNK_KEY", "").strip()
 
-errors = []
+          errors = []
 
-try:
-    aggression = float(aggression_raw)
-except ValueError:
-    aggression = None
-    errors.append("client_payload.aggression must be a float between 0.0 and 1.0")
+          try:
+              aggression = float(aggression_raw)
+          except ValueError:
+              aggression = None
+              errors.append("client_payload.aggression must be a float between 0.0 and 1.0")
 
-if aggression is not None and not (0.0 <= aggression <= 1.0):
-    errors.append("client_payload.aggression must be in range 0.0..1.0")
+          if aggression is not None and not (0.0 <= aggression <= 1.0):
+              errors.append("client_payload.aggression must be in range 0.0..1.0")
 
-if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", chunk_key_raw):
-    errors.append("client_payload.chunkKey must match [A-Za-z0-9_.:-]{1,80}")
+          if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}", chunk_key_raw):
+              errors.append("client_payload.chunkKey must match [A-Za-z0-9_.:-]{1,80}")
 
-if errors:
-    for error in errors:
-        print(f"::error::{error}")
-    sys.exit(1)
+          if errors:
+              for error in errors:
+                  print(f"::error::{error}")
+              sys.exit(1)
 
-aggression_norm = f"{aggression:.6f}"
-seed_material = f"generate_new_biome_quests|{chunk_key_raw}|{aggression_norm}"
-deterministic_seed = hashlib.sha256(seed_material.encode("utf-8")).hexdigest()[:32]
+          aggression_norm = f"{aggression:.6f}"
+          seed_material = f"generate_new_biome_quests|{chunk_key_raw}|{aggression_norm}"
+          deterministic_seed = hashlib.sha256(seed_material.encode("utf-8")).hexdigest()[:32]
 
-output_path = Path(os.environ["GITHUB_OUTPUT"])
-with output_path.open("a", encoding="utf-8") as output:
-    output.write(f"aggression={aggression_norm}\n")
-    output.write(f"chunk_key={chunk_key_raw}\n")
-    output.write(f"deterministic_seed={deterministic_seed}\n")
-PY
+          output_path = Path(os.environ["GITHUB_OUTPUT"])
+          with output_path.open("a", encoding="utf-8") as output:
+              output.write(f"aggression={aggression_norm}\n")
+              output.write(f"chunk_key={chunk_key_raw}\n")
+              output.write(f"deterministic_seed={deterministic_seed}\n")
+          PY
 
       - name: Trigger Jules Coding Agent via Invoke Action
         # Production-Härtung:

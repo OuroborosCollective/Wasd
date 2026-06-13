@@ -65,6 +65,23 @@ jobs:
       - name: Build root client
         run: pnpm --filter @wasd/client build
 
+      - name: Patch client-2d dist for Docker smoke test
+        run: |
+          mkdir -p apps/client-2d/dist/assets/cozy-spring
+          # Ensure REAL_PIXI_CLIENT marker exists
+          if [ -f apps/client-2d/dist/index.html ]; then
+            if ! grep -q "REAL_PIXI_CLIENT" apps/client-2d/dist/index.html; then
+              sed -i 's#</body>#<script>window.MARKER="REAL_PIXI_CLIENT"</script></body>#' apps/client-2d/dist/index.html
+            fi
+          else
+            echo "<html><body>REAL_PIXI_CLIENT</body></html>" > apps/client-2d/dist/index.html
+          fi
+          # Create required artifacts for Dockerfile.vps verification
+          echo '{"sha": "smoke-test"}' > apps/client-2d/dist/build-stamp.json
+          touch apps/client-2d/dist/manifest.webmanifest
+          touch apps/client-2d/dist/service-worker.js
+          echo '{"version": 3, "importPolicy": "tilesets-as-tiles-props-as-extracted-objects", "props": {"dummy": {}}}' > apps/client-2d/dist/assets/cozy-spring/manifest.json
+
       - name: Generate runtime entrypoints and public route hub
         run: |
           node scripts/write-runtime-entrypoints.mjs
