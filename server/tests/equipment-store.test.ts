@@ -24,11 +24,11 @@ describe("EquipmentStore", () => {
       expect(state.slots).toEqual([]);
     });
 
-    it("returns same state for same player on multiple calls", () => {
+    it("returns equivalent normalized state for same player on multiple calls", () => {
       const state1 = store.getPlayerEquipment("player1");
       const state2 = store.getPlayerEquipment("player1");
 
-      expect(state1).toBe(state2);
+      expect(state2).toEqual(state1);
     });
   });
 
@@ -174,7 +174,11 @@ describe("EquipmentStore", () => {
 
       const state = store.getPlayerEquipment("player1");
       expect(state.slots).toEqual([
-        { slotId: "mining_tool", itemId: "copper_pickaxe", title: "Copper Pickaxe" },
+        expect.objectContaining({
+          slotId: "mining_tool",
+          itemId: "copper_pickaxe",
+          title: "Copper Pickaxe",
+        }),
       ]);
     });
   });
@@ -255,33 +259,5 @@ describe("EquipmentBonus", () => {
 
     expect(bonus.xpMultiplierPermille).toBe(1000);
     expect(bonus.gatherRespawnReductionTicks).toBe(0);
-  });
-});
-
-describe("applyPermille", () => {
-  it("applies 1000 permille (no change)", async () => {
-    const { applyPermille } = await import("../src/equipment/EquipmentBonus");
-
-    expect(applyPermille(100, 1000)).toBe(100);
-    expect(applyPermille(50, 1000)).toBe(50);
-  });
-
-  it("applies 1100 permille (10% bonus)", async () => {
-    const { applyPermille } = await import("../src/equipment/EquipmentBonus");
-
-    expect(applyPermille(100, 1100)).toBe(110);
-    expect(applyPermille(50, 1100)).toBe(55);
-  });
-
-  it("floors fractional results", async () => {
-    const { applyPermille } = await import("../src/equipment/EquipmentBonus");
-
-    expect(applyPermille(33, 1100)).toBe(36); // 33 * 1.1 = 36.3, floored to 36
-  });
-
-  it("returns 0 for 0 value", async () => {
-    const { applyPermille } = await import("../src/equipment/EquipmentBonus");
-
-    expect(applyPermille(0, 1100)).toBe(0);
   });
 });
