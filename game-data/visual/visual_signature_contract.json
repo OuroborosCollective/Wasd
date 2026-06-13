@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "contractId": "areloria.visual.signature.v1",
+  "kappa": 1000,
+  "truthPolicy": {
+    "mode": "static-authoring-rules-only",
+    "runtimeTruthOwner": "apps/client-2d/src/world/VisualSignature.ts",
+    "forbiddenTruthSources": [
+      "Date.now",
+      "performance.now",
+      "Math.random",
+      "localStorage",
+      "screenshot",
+      "mock_snapshot",
+      "smoke_proof_spawn"
+    ],
+    "allowedRuntimeInputs": [
+      "worldSeed",
+      "worldTick",
+      "chunkX",
+      "chunkZ",
+      "tileX",
+      "tileZ",
+      "kappaX",
+      "kappaZ",
+      "entityId",
+      "semanticType",
+      "role",
+      "biomeId",
+      "factionId",
+      "culture",
+      "stateHash"
+    ]
+  },
+  "visualEpoch": {
+    "source": "worldTick",
+    "epochSizeTicks": 100000,
+    "reason": "prevents raw tick flicker while keeping long-term deterministic world evolution"
+  },
+  "requiredOutputs": [
+    "signatureId",
+    "sourceKey",
+    "deterministicSeed",
+    "assetIntent",
+    "spriteCategory",
+    "portraitCategory",
+    "cropProfileId",
+    "shadowProfileId",
+    "renderLayer",
+    "zLayer",
+    "paletteIndex",
+    "tags",
+    "hash32"
+  ],
+  "sideChannelPolicy": {
+    "animationTiming": "may use render timing only after visual truth is selected",
+    "networkLoading": "may affect availability, never semantic selection",
+    "uiTransitions": "cosmetic only"
+  }
+}
