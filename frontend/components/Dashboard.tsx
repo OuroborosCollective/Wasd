@@ -30,6 +30,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import LivingDudenShadowWindow from "./LivingDudenShadowWindow";
+
 interface WeightTrend {
   readonly timestamp: string;
   readonly weightA: number;
@@ -736,6 +738,12 @@ export default function Dashboard() {
             </div>
           </section>
         </div>
+
+        {/* Living Duden Shadow Telemetry Window */}
+        <LivingDudenShadowWindow
+          status="empty"
+          endpoint="/api/arelogic/living-duden"
+        />
       </div>
     </div>
   );
