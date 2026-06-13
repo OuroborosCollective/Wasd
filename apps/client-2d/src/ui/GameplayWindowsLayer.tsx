@@ -92,6 +92,7 @@ export function GameplayWindowsLayer({ snapshot, openPanels }: Props) {
           <EquipmentPanel
             equipment={snapshot.equipment ?? null}
             inventory={snapshot.inventory ?? null}
+            paperdoll={snapshot.paperdoll ?? null}
           />
         </WindowFrame>
       )}
