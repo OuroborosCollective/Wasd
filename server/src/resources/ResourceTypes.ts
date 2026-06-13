@@ -81,6 +81,14 @@ export interface GatherResourceResult {
   requiredTool?: RequiredToolSlot;
   skillId?: ResourceNodeDefinition["skillId"];
   xpReward?: number;
+  /** Base XP before deterministic gathering momentum is applied. */
+  baseXpReward?: number;
+  /** Consecutive same-skill successful gathers inside the momentum window. */
+  gatheringStreak?: number;
+  /** XP bonus applied from gathering momentum, in permille. */
+  gatheringMomentumPermille?: number;
+  /** Tick window used to preserve the current gathering momentum chain. */
+  gatheringMomentumWindowTicks?: number;
   itemRewardId?: string;
   itemRewardName?: string;
   /** Bonus yield from Tier 2 tool (+1 quantity when applicable) */
