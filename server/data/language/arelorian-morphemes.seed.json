@@ -1,0 +1,72 @@
+{
+  "$schema": "./arelorian-morphemes.schema.json",
+  "version": 1,
+  "language": "arel",
+  "phonotactics": {
+    "onsets": ["", "k", "g", "t", "d", "p", "b", "m", "n", "r", "l", "s", "sh", "v", "th", "kr", "gr", "tr", "dr", "pr", "br", "st", "sp", "sk", "sl", "sv"],
+    "nuclei": ["a", "e", "i", "o", "u", "ae", "ai", "ei", "ou"],
+    "codas": ["", "k", "g", "t", "d", "p", "b", "m", "n", "r", "l", "s", "sh", "th", "st", "rt", "rk", "lg", "nd", "mp", "nt"],
+    "maxSyllables": 4,
+    "minSyllables": 1
+  },
+  "morphemes": {
+    "prefixes": [
+      { "morpheme": "ae-", "meaning": "toward", "phonologicalConstraint": "prevMustBeVowel" },
+      { "morpheme": "dre-", "meaning": "away" },
+      { "morpheme": "kel-", "meaning": "above" },
+      { "morpheme": "mor-", "meaning": "below" },
+      { "morpheme": "tha-", "meaning": "through" },
+      { "morpheme": "ven-", "meaning": "within" },
+      { "morpheme": "ash-", "meaning": "between" },
+      { "morpheme": "elu-", "meaning": "beyond" },
+      { "morpheme": "ira-", "meaning": "before" },
+      { "morpheme": "ora-", "meaning": "after" }
+    ],
+    "roots": [
+      { "morpheme": "gor", "meaning": "fire" },
+      { "morpheme": "thal", "meaning": "stone" },
+      { "morpheme": "ven", "meaning": "water" },
+      { "morpheme": "sar", "meaning": "wind" },
+      { "morpheme": "kel", "meaning": "light" },
+      { "morpheme": "mor", "meaning": "shadow" },
+      { "morpheme": "den", "meaning": "earth" },
+      { "morpheme": "asha", "meaning": "life" },
+      { "morpheme": "elu", "meaning": "death" },
+      { "morpheme": "ira", "meaning": "time" },
+      { "morpheme": "ora", "meaning": "space" },
+      { "morpheme": "etha", "meaning": "mind" },
+      { "morpheme": "ama", "meaning": "body" },
+      { "morpheme": "ena", "meaning": "spirit" },
+      { "morpheme": "tha", "meaning": "path" },
+      { "morpheme": "vash", "meaning": "quest" },
+      { "morpheme": "dren", "meaning": "blood" },
+      { "morpheme": "keth", "meaning": "crown" },
+      { "morpheme": "goth", "meaning": "throne" },
+      { "morpheme": "sel", "meaning": "sworn" }
+    ],
+    "suffixes": [
+      { "morpheme": "-ash", "meaning": "plural" },
+      { "morpheme": "-el", "meaning": "agent" },
+      { "morpheme": "-ir", "meaning": "action" },
+      { "morpheme": "-en", "meaning": "state" },
+      { "morpheme": "-eth", "meaning": "quality" },
+      { "morpheme": "-am", "meaning": "place" },
+      { "morpheme": "-ar", "meaning": "tool" },
+      { "morpheme": "-os", "meaning": "divine" },
+      { "morpheme": "-is", "meaning": "mortal" },
+      { "morpheme": "-un", "meaning": "shadow" }
+    ]
+  },
+  "canonicalTerms": [
+    { "term": "kelas", "meaning": "light-blessed", "origin": "sun_order", "tick": 0 },
+    { "term": "morun", "meaning": "shadow-touched", "origin": "shadow_register", "tick": 0 },
+    { "term": "gorethal", "meaning": "fire-stone", "origin": "blacksmith_guild", "tick": 0 },
+    { "term": "venasha", "meaning": "life-water", "origin": "millbrook", "tick": 0 },
+    { "term": "kelgor", "meaning": "light-fire", "origin": "sun_order", "tick": 0 },
+    { "term": "thavash", "meaning": "path-quest", "origin": "sun_order", "tick": 0 },
+    { "term": "enasel", "meaning": "spirit-sworn", "origin": "sun_order", "tick": 0 },
+    { "term": "denmor", "meaning": "earth-shadow", "origin": "shadow_register", "tick": 0 },
+    { "term": "saren", "meaning": "wind-state", "origin": "millbrook", "tick": 0 },
+    { "term": "orair", "meaning": "space-time", "origin": "sun_order", "tick": 0 }
+  ]
+}
