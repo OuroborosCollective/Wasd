@@ -15,6 +15,11 @@ function clampInt(value: unknown, fallback: number, min: number, max: number): n
   return Number.isFinite(n) ? Math.max(min, Math.min(max, Math.trunc(n))) : fallback;
 }
 
+function finiteNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function sanitizeIdentityPart(value: unknown, fallback: string): string {
   const cleaned = str(value, fallback).toLowerCase().replace(/[^a-z0-9:_-]+/g, "-").replace(/-+/g, "-").slice(0, 96);
   return cleaned || fallback;
@@ -173,6 +178,54 @@ function positionPayload(player: any): Pos3 {
   return { x: player.position.x, y: player.position.y, z: player.position.z ?? 0 };
 }
 
+function npcPositionPayload(npc: any): Pos3 {
+  const position = npc?.position ?? {};
+  const y = finiteNumber(position.y, 0);
+  const z = finiteNumber(position.z, y);
+  return { x: finiteNumber(position.x, 0), y, z };
+}
+
+function npcHeartbeatPayload(tick: WorldTick): Record<string, unknown> {
+  const npcs = (tick as any).npcSystem?.getAllNPCs?.() ?? [];
+  return Object.fromEntries(npcs.map((npc: any) => {
+    const position = npcPositionPayload(npc);
+    return [String(npc.id), {
+      id: npc.id,
+      npcId: npc.id,
+      name: npc.name ?? npc.id,
+      role: npc.role ?? npc.fusionProfileTag ?? "npc",
+      faction: npc.faction ?? "Neutral",
+      state: npc.state ?? "idle",
+      position,
+      x: position.x,
+      y: position.y,
+      z: position.z,
+      rotation: finiteNumber(npc.rotation, 0),
+      health: finiteNumber(npc.health, 90),
+      maxHealth: finiteNumber(npc.maxHealth, 90),
+      source: npc.memory?.source ?? "runtime_npc_system",
+      dialogueId: npc.memory?.dialogueId ?? null,
+      shopId: npc.shopId ?? null,
+    }];
+  }));
+}
+
+function worldHeartbeatPayload(player: any, tick: WorldTick, uid: string): Record<string, unknown> {
+  const position = positionPayload(player);
+  return {
+    tick: tickNumber(tick),
+    serverTick: tickNumber(tick),
+    players: { [uid]: { id: uid, name: player.name, x: position.x, y: position.y, z: position.z } },
+    self: { id: uid, name: player.name, x: position.x, y: position.y, z: position.z },
+    npcs: npcHeartbeatPayload(tick),
+    npcGameData: (tick as any).getNpcGameDataLoadReport?.() ?? (tick as any).liveHeal?.getStatus?.()?.npcGameData ?? null,
+  };
+}
+
+function sendWorldHeartbeat(ws: GameWebSocketServer, socketId: string, tick: WorldTick, uid: string, player: any): void {
+  ws.sendToPlayer(socketId, { type: "WORLD_HEARTBEAT", payload: worldHeartbeatPayload(player, tick, uid) });
+}
+
 function broadcastServerPresence(ws: GameWebSocketServer, socketId: string, player: any, tick: WorldTick, reason: string, seq?: unknown): void {
   const payload = { ok: true, reason, seq, tick: tickNumber(tick), socketId, playerId: player.id, name: player.name, isOffline: Boolean(player.isOffline), position: positionPayload(player) };
   ws.sendToPlayer(socketId, { type: "presence_ack", payload });
@@ -184,6 +237,7 @@ function registerPresence(ws: GameWebSocketServer, tick: WorldTick, socketId: st
   (tick as any).playerToSocket?.set(uid, socketId);
   tick.observerEngine.register(socketId, { x: player.position.x, y: player.position.y });
   broadcastServerPresence(ws, socketId, player, tick, "client2d_register");
+  sendWorldHeartbeat(ws, socketId, tick, uid, player);
 }
 
 export function installClient2DPublicKeyLoginBridge(ws: GameWebSocketServer, tick: WorldTick): void {
@@ -196,6 +250,7 @@ export function installClient2DPublicKeyLoginBridge(ws: GameWebSocketServer, tic
         player.isOffline = false;
         tick.observerEngine.updatePosition(socketId, { x: player.position.x, y: player.position.y });
         broadcastServerPresence(ws, socketId, player, tick, "client2d_presence", msg?.seq);
+        sendWorldHeartbeat(ws, socketId, tick, uid, player);
       }
       return;
     }
@@ -212,6 +267,7 @@ export function installClient2DPublicKeyLoginBridge(ws: GameWebSocketServer, tic
         player.state = "walking";
         tick.observerEngine.updatePosition(socketId, { x: player.position.x, y: player.position.y });
         broadcastServerPresence(ws, socketId, player, tick, "client2d_move", msg?.seq);
+        sendWorldHeartbeat(ws, socketId, tick, uid, player);
       }
       return;
     }
@@ -251,12 +307,6 @@ export function installClient2DPublicKeyLoginBridge(ws: GameWebSocketServer, tic
       quests: player.quests ?? [],
       auth: "client2d-public-key",
     });
-    ws.sendToPlayer(socketId, {
-      type: "WORLD_HEARTBEAT",
-      payload: {
-        players: { [uid]: { id: uid, name: player.name, x: player.position.x, y: player.position.y, z: player.position.z ?? 0 } },
-        self: { id: uid, name: player.name, x: player.position.x, y: player.position.y, z: player.position.z ?? 0 },
-      },
-    });
+    sendWorldHeartbeat(ws, socketId, tick, uid, player);
   };
 }
