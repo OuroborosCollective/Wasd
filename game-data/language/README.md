@@ -1,8 +1,8 @@
-# Living Duden Game-Data Storage Contract
+# Living Duden Game-Data Runtime Store
 
 This folder is the shared content home for the Living Language / Living Duden system.
 
-The goal is to make words, phrase genomes, faction dialects, and learned speech logic available to every future gameplay module without forcing those modules to import private server-core state.
+The goal is to make words, phrase genomes, faction dialects, and reviewed learned speech logic available to every future gameplay module through real loaded data, not through private server-core maps or pretend wrappers.
 
 ## Storage Layers
 
@@ -33,14 +33,14 @@ This prevents the repository content pack from becoming a hidden mutable runtime
 
 ```text
 getContentDataRoot()
-→ game-data/language/*.seed.json
-→ game-data/language/*.promoted.json
-→ runtime learned delta store
-→ LivingDudenArchive / LanguageDataStore facade
-→ NPC, quest, economy, guild, politics, UI modules
+→ game-data/language/living-duden.seed.json
+→ game-data/language/living-duden.promoted.json
+→ LanguageGameDataStore.loadLivingDudenGameData()
+→ LivingDudenArchive.loadSeedData(...)
+→ NPC, quest, economy, guild, politics, UI modules read the same hydrated archive
 ```
 
-Modules should depend on a public language-data facade, not on private maps inside `server/src/core/language/LivingDudenArchive.ts`.
+This is an actual runtime load path. It must not be reduced to a naming layer that only hides private maps.
 
 ## Write Path
 
@@ -63,12 +63,15 @@ NPC speech decision
 - Learned state must be reproducible from deterministic events or explicitly published content-pack files.
 - Side-channel dashboards may read summaries, but they must not become the source of gameplay truth.
 
-## Suggested JSON Shape
+## Runtime Implementation
+
+`server/src/core/language/LanguageGameDataStore.ts` loads real JSON files through `resolveContentFile("language/...")`, validates that they contain lexeme objects, and hydrates `LivingDudenArchive` during `initializeLivingLanguageSystem()`.
+
+## JSON Shape
 
 ```json
 {
   "schemaVersion": 1,
-  "contentHash": "sha256:<canonical-json-hash>",
   "lexemes": [
     {
       "id": "arel_greeting_wacht",
@@ -79,11 +82,11 @@ NPC speech decision
       "concepts": ["greeting", "guard", "duty"],
       "grammar": {
         "partOfSpeech": "greeting",
-        "allowedPositions": ["address", "opening"]
+        "allowedPositions": ["address", "subject"]
       },
       "worldBindings": {
         "factionIds": ["forest_village"],
-        "questTypes": ["patrol", "warning"]
+        "questTypes": ["patrol"]
       },
       "baseWeight": 1
     }
@@ -93,4 +96,4 @@ NPC speech decision
 
 ## Next Implementation Step
 
-Add a `LanguageContentRepository` that loads from `resolveContentFile("language/...")`, validates canonical JSON, and hydrates `LivingDudenArchive` before NPC runtime speech begins.
+Persist runtime learned deltas as deterministic event records, then add a promotion command that writes reviewed lexemes into `living-duden.promoted.json` with a canonical content hash generated from the committed JSON.
