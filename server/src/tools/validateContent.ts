@@ -21,6 +21,11 @@ function validate() {
   const dialogues = JSON.parse(fs.readFileSync(path.join(dataDir, "dialogue/dialogues.json"), "utf-8"));
   const quests = JSON.parse(fs.readFileSync(path.join(dataDir, "quests/quests.json"), "utf-8"));
   const items = JSON.parse(fs.readFileSync(path.join(dataDir, "items/items.json"), "utf-8"));
+  const resources = JSON.parse(fs.readFileSync(path.join(dataDir, "resources/resource-nodes.json"), "utf-8"));
+  const gatheringMomentum = JSON.parse(
+    fs.readFileSync(path.join(dataDir, "resources/gathering-momentum.json"), "utf-8"),
+  );
+
   const manifest = {
     contentPacks: [
       {
@@ -29,6 +34,11 @@ function validate() {
         questIds: quests.map((q: { id: string }) => q.id),
         dialogueIds: dialogues.map((d: { id: string }) => d.id),
         itemIds: items.map((i: { id: string }) => i.id),
+        resourceNodeIds: resources.map((r: { id: string }) => r.id),
+        gameplayTruthIds: [gatheringMomentum.id],
+        truthStatus: {
+          [gatheringMomentum.id]: gatheringMomentum.truthStatus,
+        },
         validationResult: "passed",
       },
     ],

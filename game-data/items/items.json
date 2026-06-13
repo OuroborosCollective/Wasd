@@ -131,5 +131,120 @@
     "tradeable": false,
     "droppable": false,
     "description": "Worldboss relic gauntlet that amplifies impact strikes."
+  },
+  {
+    "id": "wood_log",
+    "name": "Wood Log",
+    "type": "resource",
+    "stackable": true,
+    "maxStack": 999,
+    "rarity": "common",
+    "description": "A gathered log used for crafting, trade, and early tool progression."
+  },
+  {
+    "id": "copper_ore",
+    "name": "Copper Ore",
+    "type": "resource",
+    "stackable": true,
+    "maxStack": 999,
+    "rarity": "common",
+    "description": "Raw copper ore gathered from starter rocks and mountain nodes."
+  },
+  {
+    "id": "raw_fish",
+    "name": "Raw Fish",
+    "type": "resource",
+    "stackable": true,
+    "maxStack": 999,
+    "rarity": "common",
+    "description": "A raw fish gathered from fishing spots; useful for cooking and trade."
+  },
+  {
+    "id": "wood_plank",
+    "name": "Wood Plank",
+    "type": "resource",
+    "stackable": true,
+    "maxStack": 999,
+    "rarity": "common",
+    "description": "Processed wood used by crafting and construction loops."
+  },
+  {
+    "id": "copper_ingot",
+    "name": "Copper Ingot",
+    "type": "resource",
+    "stackable": true,
+    "maxStack": 999,
+    "rarity": "common",
+    "description": "Smelted copper used for tool upgrades and early equipment."
+  },
+  {
+    "id": "cooked_fish",
+    "name": "Cooked Fish",
+    "type": "consumable",
+    "stackable": true,
+    "maxStack": 999,
+    "rarity": "common",
+    "restoreHealth": 12,
+    "description": "A simple cooked meal for early survival and gathering trips."
+  },
+  {
+    "id": "wooden_axe",
+    "name": "Wooden Axe",
+    "type": "tool",
+    "slot": "woodcutting_tool",
+    "stackable": false,
+    "maxStack": 1,
+    "rarity": "common",
+    "description": "Starter woodcutting tool. Grants deterministic gathering XP bonus through equipment."
+  },
+  {
+    "id": "copper_pickaxe",
+    "name": "Copper Pickaxe",
+    "type": "tool",
+    "slot": "mining_tool",
+    "stackable": false,
+    "maxStack": 1,
+    "rarity": "common",
+    "description": "Starter mining tool. Required for ore nodes and improves gathering XP."
+  },
+  {
+    "id": "simple_fishing_rod",
+    "name": "Simple Fishing Rod",
+    "type": "tool",
+    "slot": "fishing_tool",
+    "stackable": false,
+    "maxStack": 1,
+    "rarity": "common",
+    "description": "Starter fishing tool. Required for fishing spots and improves gathering XP."
+  },
+  {
+    "id": "copper_axe",
+    "name": "Copper Axe",
+    "type": "tool",
+    "slot": "woodcutting_tool",
+    "stackable": false,
+    "maxStack": 1,
+    "rarity": "uncommon",
+    "description": "Tier 2 woodcutting tool. Adds deterministic bonus yield and stronger XP multiplier."
+  },
+  {
+    "id": "reinforced_pickaxe",
+    "name": "Reinforced Pickaxe",
+    "type": "tool",
+    "slot": "mining_tool",
+    "stackable": false,
+    "maxStack": 1,
+    "rarity": "uncommon",
+    "description": "Tier 2 mining tool. Adds deterministic bonus yield and stronger XP multiplier."
+  },
+  {
+    "id": "reinforced_fishing_rod",
+    "name": "Reinforced Fishing Rod",
+    "type": "tool",
+    "slot": "fishing_tool",
+    "stackable": false,
+    "maxStack": 1,
+    "rarity": "uncommon",
+    "description": "Tier 2 fishing tool. Adds deterministic bonus yield and stronger XP multiplier."
   }
 ]
