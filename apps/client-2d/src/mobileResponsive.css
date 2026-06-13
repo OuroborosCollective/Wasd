@@ -82,13 +82,31 @@
   .stitch-chat {
     left: calc(8px + env(safe-area-inset-left));
     right: calc(92px + env(safe-area-inset-right));
-    bottom: calc(8px + env(safe-area-inset-bottom));
+    bottom: calc(326px + env(safe-area-inset-bottom));
     width: auto;
+    max-height: min(26dvh, 180px);
+    display: grid;
+    grid-template-rows: auto minmax(72px, 1fr) auto;
   }
 
   .stitch-chat-lines {
-    min-height: 56px;
-    max-height: 56px;
+    min-height: 72px;
+    max-height: min(18dvh, 120px);
+    overflow-y: auto;
+  }
+
+  .stitch-chat-input {
+    display: flex;
+    gap: 6px;
+  }
+
+  .stitch-chat-input input {
+    min-height: 42px;
+    font-size: 16px;
+  }
+
+  .stitch-chat-input button {
+    min-height: 42px;
   }
 
   .stitch-mobile-toggles {

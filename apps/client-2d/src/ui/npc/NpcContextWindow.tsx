@@ -66,6 +66,9 @@ export function NpcContextWindow({
         className="fixed inset-0 z-40"
         onClick={onClose}
         style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 4000,
           backgroundColor: "rgba(8, 15, 17, 0.7)",
           backdropFilter: "blur(4px)",
           animation: "backdrop-fade 0.2s ease-out",
@@ -75,11 +78,14 @@ export function NpcContextWindow({
       <div
         className="fixed z-50"
         style={{
+          position: "fixed",
+          zIndex: 4010,
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: "min(90vw, 720px)",
-          maxHeight: "80vh",
+          width: "min(94vw, 760px)",
+          maxHeight: "86vh",
+          overflowY: "auto",
           animation: "context-appear 0.3s ease-out",
         }}
       >
@@ -94,15 +100,15 @@ export function NpcContextWindow({
         >
           <div
             className="absolute inset-0 pointer-events-none"
-            style={{ border: "1px solid rgba(0, 229, 255, 0.1)", borderRadius: "0px" }}
+            style={{ position: "absolute", inset: 0, border: "1px solid rgba(0, 229, 255, 0.1)", borderRadius: "0px" }}
           />
 
-          <div className="relative">
+          <div className="relative" style={{ position: "relative" }}>
             <div
               className="flex items-center justify-between p-4"
-              style={{ borderBottom: "1px solid rgba(132, 147, 150, 0.2)" }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 16, borderBottom: "1px solid rgba(132, 147, 150, 0.2)" }}
             >
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <h2
                   style={{
                     fontFamily: "Epilogue, sans-serif",
@@ -115,7 +121,7 @@ export function NpcContextWindow({
                 >
                   {npc.name}
                 </h2>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span
                     style={{
                       fontFamily: "Epilogue, sans-serif",
@@ -148,6 +154,11 @@ export function NpcContextWindow({
                 onClick={onClose}
                 className="w-8 h-8 flex items-center justify-center"
                 style={{
+                  width: 40,
+                  height: 40,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   backgroundColor: "transparent",
                   border: "1px solid rgba(132, 147, 150, 0.3)",
                   borderRadius: "0px",
@@ -168,28 +179,35 @@ export function NpcContextWindow({
               </button>
             </div>
 
-            <div className="flex flex-col md:flex-row">
-              <div className="flex-1 p-4 md:border-r" style={{ borderRight: "1px solid rgba(132, 147, 150, 0.2)" }}>
+            <div className="flex flex-col md:flex-row" style={{ display: "flex", flexWrap: "wrap" }}>
+              <div className="flex-1 p-4 md:border-r" style={{ flex: "1 1 340px", padding: 16, borderRight: "1px solid rgba(132, 147, 150, 0.2)" }}>
                 <div
                   className="mb-4 relative overflow-hidden flex items-center justify-center"
                   style={{
-                    height: "220px",
+                    marginBottom: 16,
+                    position: "relative",
+                    overflow: "hidden",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    height: "min(28vh, 220px)",
                     backgroundColor: "#0a0f11",
                     border: "1px solid rgba(0, 229, 255, 0.2)",
                     borderRadius: "0px",
                   }}
                 >
                   {npc.portraitUrl ? (
-                    <img src={npc.portraitUrl} alt={npc.name} className="w-full h-full object-cover" style={{ opacity: 0.9 }} />
+                    <img src={npc.portraitUrl} alt={npc.name} className="w-full h-full object-cover" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.9 }} />
                   ) : (
                     <NpcPortrait npcId={npc.id} npcName={npc.name} role={npc.role} size="large" />
                   )}
-                  <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(13, 21, 22, 0.45), transparent)" }} />
+                  <div className="absolute inset-0 pointer-events-none" style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "linear-gradient(to top, rgba(13, 21, 22, 0.45), transparent)" }} />
                 </div>
 
                 <div
                   className="p-3"
                   style={{
+                    padding: 12,
                     backgroundColor: "rgba(21, 29, 30, 0.6)",
                     border: "1px solid rgba(0, 229, 255, 0.15)",
                     borderRadius: "0px",
@@ -211,7 +229,7 @@ export function NpcContextWindow({
                   </p>
 
                   {dialogue.canContinue && (
-                    <div className="mt-3 flex items-center gap-2" style={{ cursor: "pointer" }} onClick={onContinue}>
+                    <div className="mt-3 flex items-center gap-2" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={onContinue}>
                       <span style={{ display: "inline-block", width: "8px", height: "8px", backgroundColor: "#00e5ff", animation: "dialogue-cursor 1s ease-in-out infinite" }} />
                       <span
                         style={{
@@ -229,7 +247,7 @@ export function NpcContextWindow({
                   )}
 
                   {dialogue.isFinished && (
-                    <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(132, 147, 150, 0.2)" }}>
+                    <div className="mt-3 pt-3" style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(132, 147, 150, 0.2)" }}>
                       <span
                         style={{
                           fontFamily: "Epilogue, sans-serif",
@@ -247,7 +265,7 @@ export function NpcContextWindow({
                 </div>
               </div>
 
-              <div className="w-full md:w-[40%] p-4 flex flex-col gap-4">
+              <div className="w-full md:w-[40%] p-4 flex flex-col gap-4" style={{ width: "min(100%, 300px)", flex: "1 1 260px", padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
                 <NpcInteractionMenu
                   items={menuItems}
                   selectedIndex={selectedIndex}
@@ -257,15 +275,15 @@ export function NpcContextWindow({
                 />
 
                 {quest && (
-                  <div className="p-3" style={{ backgroundColor: "rgba(21, 29, 30, 0.6)", border: "1px solid rgba(80, 200, 120, 0.3)", borderRadius: "0px" }}>
-                    <div className="flex items-center gap-2 mb-2">
+                  <div className="p-3" style={{ padding: 12, backgroundColor: "rgba(21, 29, 30, 0.6)", border: "1px solid rgba(80, 200, 120, 0.3)", borderRadius: "0px" }}>
+                    <div className="flex items-center gap-2 mb-2" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                       <span style={{ fontFamily: "Epilogue, sans-serif", fontSize: "10px", fontWeight: "600", letterSpacing: "0.2em", color: quest.isNew ? "#50c878" : "#849396", textTransform: "uppercase" }}>
                         {quest.isNew ? "● NEW QUEST" : "QUEST AVAILABLE"}
                       </span>
                     </div>
                     <h3 style={{ fontFamily: "Epilogue, sans-serif", fontSize: "14px", fontWeight: "700", color: "#dce4e5", margin: "0 0 4px 0" }}>{quest.name}</h3>
                     <p style={{ fontFamily: "Epilogue, sans-serif", fontSize: "12px", color: "#bac9cc", margin: "0 0 8px 0", lineHeight: "1.4" }}>{quest.objective}</p>
-                    <div className="pt-2" style={{ borderTop: "1px solid rgba(132, 147, 150, 0.2)" }}>
+                    <div className="pt-2" style={{ paddingTop: 8, borderTop: "1px solid rgba(132, 147, 150, 0.2)" }}>
                       <span style={{ fontFamily: "Epilogue, sans-serif", fontSize: "10px", fontWeight: "600", letterSpacing: "0.15em", color: "#ff7a00", textTransform: "uppercase" }}>
                         Reward: {quest.reward}
                       </span>
