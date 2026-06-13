@@ -6,6 +6,7 @@ interface ChatSidecarEntry {
   readonly senderName: string;
   readonly channel: string;
   readonly text: string;
+  readonly isNpcDialogue?: boolean;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -46,6 +47,28 @@ function parseChatEntry(detail: unknown): ChatSidecarEntry | null {
   if (!record) return null;
 
   const type = asString(record.type || record.event);
+  
+  // Handle NPC dialogue events
+  if (type === "npc_dialogue") {
+    const payload = asRecord(record.payload) ?? record;
+    const text = asString(payload.text).trim();
+    if (!text) return null;
+
+    const npcId = asString(payload.npcId, "npc");
+    const npcName = asString(payload.npcName, "NPC");
+    // Use server tick from payload for deterministic ID
+    const tick = asString(payload.tick, "0");
+
+    return { 
+      id: `npc_dialogue_${npcId}_${tick}`,
+      senderName: npcName,
+      channel: "npc",
+      text,
+      isNpcDialogue: true,
+    };
+  }
+
+  // Handle chat_message events
   if (type !== "chat_message") return null;
 
   const payload = asRecord(record.payload) ?? record;
@@ -56,7 +79,7 @@ function parseChatEntry(detail: unknown): ChatSidecarEntry | null {
   const senderName = asString(payload.senderName || payload.sender || payload.from, "[CHAT]");
   const channel = asString(payload.channel || payload.scope, "global");
 
-  return { id, senderName, channel, text: text.slice(0, 300) };
+  return { id, senderName, channel, text };
 }
 
 function renderChatEntries(entries: readonly ChatSidecarEntry[]): void {
@@ -68,6 +91,9 @@ function renderChatEntries(entries: readonly ChatSidecarEntry[]): void {
   for (const entry of entries.slice(-5)) {
     const item = document.createElement("article");
     item.dataset.testid = "chat-feed-entry";
+    
+    // NPC dialogue entries get a different style (green border for living language)
+    const isNpc = entry.isNpcDialogue;
     item.style.cssText = [
       "border:1px solid rgba(72, 233, 255, 0.22)",
       "border-radius:14px",
@@ -77,13 +103,15 @@ function renderChatEntries(entries: readonly ChatSidecarEntry[]): void {
       "box-shadow:0 10px 28px rgba(0,0,0,.28)",
       "backdrop-filter:blur(10px)",
       "font:12px/1.35 system-ui, sans-serif",
+      isNpc ? "border-color:rgba(100, 255, 150, 0.5)" : "border-color:rgba(72, 233, 255, 0.22)",
     ].join(";");
 
     const header = document.createElement("div");
     header.style.cssText = "display:flex;justify-content:space-between;gap:8px;margin-bottom:2px";
 
     const sender = document.createElement("strong");
-    sender.style.color = "#48e9ff";
+    // NPC dialogue gets green sender color
+    sender.style.color = isNpc ? "#64ff96" : "#48e9ff";
     sender.textContent = entry.senderName;
 
     const channel = document.createElement("span");
