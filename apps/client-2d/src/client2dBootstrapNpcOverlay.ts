@@ -56,7 +56,7 @@ function parseChatEntry(detail: unknown): ChatSidecarEntry | null {
 
     const npcId = asString(payload.npcId, "npc");
     const npcName = asString(payload.npcName, "NPC");
-    // Use tick from payload for deterministic ID (no Date.now())
+    // Use server tick from payload for deterministic ID
     const tick = asString(payload.tick, "0");
 
     return { 
