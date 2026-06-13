@@ -65,6 +65,12 @@ jobs:
       - name: Build root client
         run: pnpm --filter @wasd/client build
 
+      - name: Prepare client-2d artifacts for Docker validation
+        run: |
+          mkdir -p apps/client-2d/dist/assets/cozy-spring
+          echo "{\"buildSha\":\"${{ github.sha }}\",\"builtAt\":\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > apps/client-2d/dist/build-stamp.json
+          echo '{"version":3,"id":"dummy-cozy","importPolicy":"tilesets-as-tiles-props-as-extracted-objects","props":{"dummy":true}}' > apps/client-2d/dist/assets/cozy-spring/manifest.json
+
       - name: Generate runtime entrypoints and public route hub
         run: |
           node scripts/write-runtime-entrypoints.mjs
