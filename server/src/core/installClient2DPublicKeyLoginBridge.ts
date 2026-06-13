@@ -1,5 +1,6 @@
 import type { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import type { WorldTick } from "./are/index.js";
+import { buildNpcLanguageState, createKappaInt, decideUtterance, type SpeechIntent } from "./language/index.js";
 
 function sanitizeIdentityPart(value: unknown, fallback: string): string {
   const raw = String(value ?? fallback).trim().toLowerCase();
@@ -41,6 +42,126 @@ function readMove(msg: any): { dx: number; dy: number } | null {
     dy /= mag;
   }
   return { dx, dy };
+}
+
+function stableHash(input: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h >>> 0;
+}
+
+function unitFromSeed(seed: string, salt: string): number {
+  return (stableHash(`${seed}:${salt}`) % 1001) / 1000;
+}
+
+function safeText(value: unknown, fallback: string): string {
+  const text = String(value ?? fallback).trim();
+  return text.length > 0 ? text : fallback;
+}
+
+function readNpcTarget(msg: any): string | null {
+  const payload = msg?.payload && typeof msg.payload === "object" ? msg.payload : msg;
+  const raw = payload?.targetId ?? payload?.npcId ?? payload?.entityId ?? payload?.id;
+  const targetId = String(raw ?? "").trim();
+  return targetId.length > 0 ? targetId : null;
+}
+
+function actionToIntent(action: string): SpeechIntent {
+  if (action === "npc_trade") return "trade";
+  if (action === "npc_quests") return "request";
+  if (action === "npc_faction") return "teach";
+  if (action === "npc_goodbye") return "farewell";
+  if (action === "npc_continue") return "greet";
+  return "greet";
+}
+
+function isNpcDialogueAction(msg: any): boolean {
+  const type = String(msg?.type ?? msg?.action ?? "");
+  return type === "interact" || type === "npc_interact_request" || type.startsWith("npc_");
+}
+
+function tickNumber(tick: WorldTick): number {
+  const direct = Number((tick as any).tickCount ?? (tick as any).liveHeal?.getStatus?.()?.tickCount ?? 0);
+  return Number.isSafeInteger(direct) && direct >= 0 ? direct : 0;
+}
+
+function buildWorldLanguageState(tick: number) {
+  return Object.freeze({
+    threatLevel: createKappaInt(unitFromSeed(`world:${tick}`, "threat") * 0.45),
+    villageSafety: createKappaInt(0.55 + unitFromSeed(`world:${tick}`, "safety") * 0.35),
+    factionPressure: createKappaInt(unitFromSeed(`world:${tick}`, "pressure") * 0.55),
+    politicalTension: createKappaInt(unitFromSeed(`world:${tick}`, "tension") * 0.5),
+  });
+}
+
+function buildNpcRuntimeLanguageState(tick: WorldTick, targetId: string, tickId: number) {
+  const npc = (tick as any).npcSystem?.getNPC?.(targetId) ?? (tick as any).npcSystem?.getAllNPCs?.()?.find?.((candidate: any) => String(candidate?.id) === targetId);
+  const traits = npc?.traits ?? {};
+  const seed = `${targetId}:${tickId}`;
+  const role = safeText(npc?.role ?? npc?.fusionProfileTag ?? npc?.tags?.[0], targetId.includes("merchant") ? "merchant" : targetId.includes("guard") ? "guard" : "villager");
+  const factionId = safeText(npc?.faction ?? npc?.worldBossMeta?.factionId, "forest_village");
+
+  return {
+    npc,
+    state: buildNpcLanguageState(targetId, {
+      factionId,
+      role,
+      hunger: 0.18 + unitFromSeed(seed, "hunger") * 0.28,
+      trust: Number.isFinite(Number(traits.faith)) ? Number(traits.faith) : 0.35 + unitFromSeed(seed, "trust") * 0.45,
+      fear: 0.08 + unitFromSeed(seed, "fear") * 0.32,
+      duty: 0.25 + unitFromSeed(seed, "duty") * 0.55,
+      pride: Number.isFinite(Number(traits.curiosity)) ? Number(traits.curiosity) : 0.2 + unitFromSeed(seed, "pride") * 0.5,
+      revenge: Number.isFinite(Number(traits.aggression)) ? Number(traits.aggression) * 0.35 : unitFromSeed(seed, "revenge") * 0.25,
+      lastConversationTick: tickId,
+    }),
+  };
+}
+
+function sendLivingLanguageDialogue(ws: GameWebSocketServer, tick: WorldTick, socketId: string, msg: any): boolean {
+  const targetId = readNpcTarget(msg);
+  if (!targetId) return false;
+
+  const currentTick = tickNumber(tick);
+  const action = String(msg?.type ?? msg?.action ?? "interact");
+  const payload = msg?.payload && typeof msg.payload === "object" ? msg.payload : msg;
+  const sequenceId = Number.isSafeInteger(Number(payload?.sequenceId ?? payload?.seq)) ? Number(payload.sequenceId ?? payload.seq) : stableHash(`${socketId}:${targetId}:${currentTick}:${action}`) % 1_000_000;
+  const runtime = buildNpcRuntimeLanguageState(tick, targetId, currentTick);
+  const decision = decideUtterance({
+    npcState: runtime.state,
+    worldState: buildWorldLanguageState(currentTick),
+    tick: currentTick,
+    sequenceId,
+  }, { forceIntent: actionToIntent(action) });
+
+  const npcName = safeText(runtime.npc?.name ?? payload?.npcName ?? payload?.label, targetId);
+  ws.sendToPlayer(socketId, {
+    type: "npc_dialogue",
+    payload: {
+      npcId: targetId,
+      npcName,
+      name: npcName,
+      role: runtime.state.role,
+      faction: runtime.state.factionId,
+      text: decision.constructedText,
+      message: decision.constructedText,
+      currentText: decision.constructedText,
+      intent: decision.intent,
+      truthMode: decision.truthMode,
+      speechHash: decision.speechHash,
+      phraseGenomeId: decision.phraseGenomeId,
+      selectedLexemeIds: decision.selectedLexemeIds,
+      confidence: Number(decision.confidence),
+      needsFallback: decision.needsFallback,
+      tick: currentTick,
+      sequenceId,
+      openContext: action !== "interact",
+      source: runtime.npc ? "runtime_npc_system" : "client_target_id",
+    },
+  });
+  return true;
 }
 
 function isClient2DPublicKeyLogin(msg: any): boolean {
@@ -115,6 +236,10 @@ export function installClient2DPublicKeyLoginBridge(ws: GameWebSocketServer, tic
         tick.observerEngine.updatePosition(socketId, { x: player.position.x, y: player.position.y });
         broadcastServerPresence(ws, socketId, player, tick, "client2d_move", msg?.seq);
       }
+      return;
+    }
+
+    if (isNpcDialogueAction(msg) && sendLivingLanguageDialogue(ws, tick, socketId, msg)) {
       return;
     }
 
