@@ -195,13 +195,13 @@ def run_tests() -> bool:
     print("\n=== collect_sources tests ===")
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        create_image(root / "enemy_skeleton.jpg", size=(128, 128))
-        create_image(root / "prop_tree.png", size=(256, 256))
-        create_image(root / "ui_icon.jpeg", size=(64, 64))
+        create_image(root / "enemy_skeleton.jpg", size=(128, 128), color=(255, 0, 0, 255))
+        create_image(root / "prop_tree.png", size=(256, 256), color=(0, 255, 0, 255))
+        create_image(root / "ui_icon.jpeg", size=(64, 64), color=(0, 0, 255, 255))
         (root / "ignored.txt").write_text("not an image", encoding="utf-8")
 
         zip_source_image = root / "npc_guard_source.jpeg"
-        create_image(zip_source_image, size=(128, 128))
+        create_image(zip_source_image, size=(128, 128), color=(255, 255, 0, 255))
         zip_path = root / "pack.zip"
         with zipfile.ZipFile(zip_path, "w") as zf:
             zf.write(zip_source_image, "inside/npc_guard.jpeg")
