@@ -90,7 +90,7 @@ function isAllowedStitchUiBlueprint(relative, extension) {
   return (
     relative.startsWith('game-assets/')
     && (
-      (basename === 'code.html' && extension === '.html')
+      ((basename === 'code.html' || basename.includes('_code_')) && extension === '.html')
       || extension === '.md'
     )
   );

@@ -48,11 +48,9 @@ def count(result: bool, passed: int, failed: int) -> tuple[int, int]:
     return passed, failed + 1
 
 
-def create_image(path: Path, size: tuple[int, int] = (256, 256), color=(255, 0, 0, 255)) -> None:
+def create_image(path: Path, size: tuple[int, int] = (256, 256), color=(255, 0, 0)) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    img = Image.new("RGBA", size, color)
-    if path.suffix.lower() in {".jpg", ".jpeg", ".bmp"}:
-        img = img.convert("RGB")
+    img = Image.new("RGB", size, color)
     img.save(path)
 
 
@@ -195,13 +193,13 @@ def run_tests() -> bool:
     print("\n=== collect_sources tests ===")
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        create_image(root / "enemy_skeleton.jpg", size=(128, 128))
-        create_image(root / "prop_tree.png", size=(256, 256))
-        create_image(root / "ui_icon.jpeg", size=(64, 64))
+        create_image(root / "enemy_skeleton.jpg", size=(128, 128), color=(255, 0, 0))
+        create_image(root / "prop_tree.png", size=(256, 256), color=(0, 255, 0))
+        create_image(root / "ui_icon.jpeg", size=(64, 64), color=(0, 0, 255))
         (root / "ignored.txt").write_text("not an image", encoding="utf-8")
 
         zip_source_image = root / "npc_guard_source.jpeg"
-        create_image(zip_source_image, size=(128, 128))
+        create_image(zip_source_image, size=(128, 128), color=(255, 255, 0))
         zip_path = root / "pack.zip"
         with zipfile.ZipFile(zip_path, "w") as zf:
             zf.write(zip_source_image, "inside/npc_guard.jpeg")
@@ -223,17 +221,17 @@ def run_tests() -> bool:
         quarantine_dir = root / "quarantine"
         client_dir = root / "client"
 
-        create_image(input_dir / "enemy_skeleton_idle.jpg", size=(300, 500), color=(255, 0, 0, 255))
-        create_image(input_dir / "tile_swamp_ground.png", size=(256, 256), color=(0, 255, 0, 255))
-        create_image(input_dir / "ui_inventory_icon.jpeg", size=(96, 96), color=(0, 0, 255, 255))
-        create_image(input_dir / "npc_guard_walk_4x4.png", size=(512, 512), color=(255, 255, 0, 255))
-        create_image(input_dir / "fantasy_stone_city_village_house_set.png", size=(1536, 2048), color=(120, 120, 120, 255))
-        create_image(input_dir / "mobile_asset_collection_overview.jpg", size=(1080, 1920), color=(12, 20, 44, 255))
-        create_image(input_dir / "stitch_enemy_undead_blade_walker_6x6_256.png", size=(1536, 1536), color=(99, 30, 170, 255))
+        create_image(input_dir / "enemy_skeleton_idle.jpg", size=(300, 500), color=(255, 0, 0))
+        create_image(input_dir / "tile_swamp_ground.png", size=(256, 256), color=(0, 255, 0))
+        create_image(input_dir / "ui_inventory_icon.jpeg", size=(96, 96), color=(0, 0, 255))
+        create_image(input_dir / "npc_guard_walk_4x4.png", size=(512, 512), color=(255, 255, 0))
+        create_image(input_dir / "fantasy_stone_city_village_house_set.png", size=(1536, 2048), color=(120, 120, 120))
+        create_image(input_dir / "mobile_asset_collection_overview.jpg", size=(1080, 1920), color=(12, 20, 44))
+        create_image(input_dir / "stitch_enemy_undead_blade_walker_6x6_256.png", size=(1536, 1536), color=(99, 30, 170))
 
         zip_path = input_dir / "mixed_pack.zip"
         zip_image = root / "hero_character_male.png"
-        create_image(zip_image, size=(256, 384), color=(255, 0, 255, 255))
+        create_image(zip_image, size=(256, 384), color=(255, 0, 255))
         with zipfile.ZipFile(zip_path, "w") as zf:
             zf.write(zip_image, "characters/hero_character_male.png")
 
@@ -318,8 +316,8 @@ def run_tests() -> bool:
         client_a = root / "client_a"
         client_b = root / "client_b"
 
-        create_image(input_dir / "enemy_skeleton_idle.jpg", size=(300, 500), color=(123, 12, 99, 255))
-        create_image(input_dir / "prop_tree.png", size=(256, 256), color=(20, 140, 30, 255))
+        create_image(input_dir / "enemy_skeleton_idle.jpg", size=(300, 500), color=(123, 12, 99))
+        create_image(input_dir / "prop_tree.png", size=(256, 256), color=(20, 140, 30))
 
         exit_a = run_intake(input_path=input_dir, output_dir=output_a, quarantine_dir=quarantine_a, client_dir=client_a, pack_id="replay_pack")
         exit_b = run_intake(input_path=input_dir, output_dir=output_b, quarantine_dir=quarantine_b, client_dir=client_b, pack_id="replay_pack")
