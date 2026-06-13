@@ -1,8 +1,8 @@
 import { readFileSync, existsSync } from "node:fs";
-import path from "node:path";
 import { resolveContentFile } from "../../modules/content/contentDataRoot.js";
 import { initializeDialogueBridge, type DialogueEntry } from "./DialogueBridge.js";
 import { initializeLinguisticKernel, isLinguisticKernelInitialized } from "./ArelorianLinguisticKernel.js";
+import { loadLivingDudenGameData } from "./LanguageGameDataStore.js";
 
 const INITIALIZATION_TAG = "LIVING_LANGUAGE_INITIALIZER_V1";
 
@@ -42,6 +42,12 @@ export async function initializeLivingLanguageSystem(): Promise<void> {
   const dialogues = loadDialoguesJson();
   console.log(`[${INITIALIZATION_TAG}] Loaded ${dialogues.length} dialogue entries from dialogues.json`);
   initializeDialogueBridge(dialogues);
+
+  const dudenReport = loadLivingDudenGameData();
+  console.log(
+    `[${INITIALIZATION_TAG}] Loaded ${dudenReport.lexemesLoaded} Living Duden lexeme(s) from ${dudenReport.filesRead} game-data/language file(s)`
+  );
+
   await initializeLinguisticKernel();
   initialized = true;
   console.log(`[${INITIALIZATION_TAG}] Living Language System initialized successfully`);

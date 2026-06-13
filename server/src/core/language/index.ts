@@ -33,6 +33,12 @@ export {
   type MutationResult,
 } from './LivingDudenArchive.js';
 
+// Living Duden game-data loader
+export {
+  loadLivingDudenGameData,
+  type LanguageGameDataLoadReport,
+} from './LanguageGameDataStore.js';
+
 // Procedural Grammar Engine
 export {
   buildSentence,
