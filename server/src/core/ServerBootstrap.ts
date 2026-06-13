@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { mcpRoute } from "../api/mcpRoute.js";
 import { adminContentRouter } from "../api/adminContentRoute.js";
 import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
+import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { voteRouter } from "../api/voteRoute.js";
 import { leaderboardRouter } from "../api/leaderboardRoute.js";
 import { questlineRouter } from "../api/questlineRoute.js";
@@ -145,7 +146,7 @@ export class ServerBootstrap {
     await initRedisClient();
     app.use("/api/mcp", mcpRoute());
     app.use("/api/v1", scienceMascotRouter());
-    app.use("/api/client2d-assets", adminAuthMiddleware, client2dAssetUploadRouter());
+    app.use("/api/client2d-assets", adminRateLimiter, adminAuthMiddleware, client2dAssetUploadRouter());
     app.use("/api/leaderboard", leaderboardRouter());
     app.use("/api/questlines", questlineRouter());
     app.use("/api/lore", loreRouter());
@@ -227,7 +228,7 @@ export class ServerBootstrap {
     app.use("/api/manifest", createManifestResyncRouter(tick));
     app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());
     app.use("/api/are-shadow", areShadowLogRouter());
-    app.use("/api/sovereign/deploy", adminAuthMiddleware, sovereignDeployRouter(tick));
+    app.use("/api/sovereign/deploy", adminRateLimiter, adminAuthMiddleware, sovereignDeployRouter(tick));
     const monitorStream = new PlaytesterMonitorStream(httpServer, (options) => tick.buildPlaytesterMonitorPayload(options));
     monitorStream.start();
     const playtesterSignaling = new PlaytesterWebRTCSignaling(httpServer);

@@ -1,5 +1,6 @@
 import express from "express";
 import { adminWriteBlocked } from "../middleware/adminAuthMiddleware.js";
+import { sensitiveWriteRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { execFile, execFileSync } from "node:child_process";
 import net from "node:net";
 import type { WorldTick } from "../core/are/index.js";
@@ -121,7 +122,7 @@ export function sovereignDeployRouter(tick: WorldTick) {
     res.json(await buildTruth(tick));
   });
 
-  router.post("/launch", adminWriteBlocked, async (req, res) => {
+  router.post("/launch", adminWriteBlocked, sensitiveWriteRateLimiter, async (req, res) => {
     if (!requireLaunchKey(req)) {
       res.status(403).json({ ok: false, error: "launch_key_required", message: "Sovereign Launch Key missing, wrong, or not configured." });
       return;

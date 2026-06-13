@@ -6,6 +6,7 @@ import multer from "multer";
 import type { WorldTick } from "../core/are/index.js";
 import type { GLBLink } from "../modules/asset-registry/GLBRegistry.js";
 import { adminAuthMiddleware, adminWriteBlocked, type AdminRequest } from "../middleware/adminAuthMiddleware.js";
+import { adminRateLimiter, sensitiveWriteRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { getContentDataSourceLabel } from "../modules/content/contentDataRoot.js";
 import {
   loadMonsterGroupKeysForAdmin,
@@ -135,6 +136,7 @@ function normalizeSmartCategory(raw: unknown): SmartCategory | null {
 export function adminContentRouter(tick: any): Router {
   const router = Router();
   router.use(express.json({ limit: "512kb" }));
+  router.use(adminRateLimiter);
 
   router.get("/meta", adminAuthMiddleware, (_req: AdminRequest, res: Response) => {
     const content = getContentDataSourceLabel();
@@ -236,7 +238,7 @@ export function adminContentRouter(tick: any): Router {
     });
   });
 
-  router.post("/publish-pack", adminAuthMiddleware, adminWriteBlocked, (_req: AdminRequest, res: Response) => {
+  router.post("/publish-pack", adminAuthMiddleware, adminWriteBlocked, sensitiveWriteRateLimiter, (_req: AdminRequest, res: Response) => {
     const result = publishContentPackFromRepo();
     if (!result.ok) {
       if ((result as any).code === "validation_failed") {
