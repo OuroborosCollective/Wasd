@@ -5,7 +5,7 @@
  * No local equipment truth, no optimistic equip state, no fake slots.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDnD, type DragItem, type DragItemType } from "../dnd/DnDContext";
 import type {
   PaperdollSnapshot,
@@ -194,12 +194,21 @@ function InventoryEquipmentButton({
 }) {
   const { startDrag, updateGhostPosition, endDrag } = useDnD();
   const iconPath = getGatheringToolIcon(slot.itemId);
+  const isDraggingRef = useRef(false);
+  const suppressClickRef = useRef(false);
 
   useEffect(() => {
-    if (disabled) return;
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!isDraggingRef.current) return;
+      suppressClickRef.current = true;
+      updateGhostPosition(event.clientX, event.clientY);
+    };
 
-    const handlePointerMove = (event: PointerEvent) => updateGhostPosition(event.clientX, event.clientY);
-    const handlePointerUp = () => endDrag(true);
+    const handlePointerUp = () => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      endDrag(true);
+    };
 
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
@@ -210,15 +219,23 @@ function InventoryEquipmentButton({
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerUp);
     };
-  }, [disabled, updateGhostPosition, endDrag]);
+  }, [updateGhostPosition, endDrag]);
 
   return (
     <button
       type="button"
       className="tool-button rarity-equipment"
-      onClick={() => onEquip(slot.itemId)}
+      onClick={() => {
+        if (suppressClickRef.current) {
+          suppressClickRef.current = false;
+          return;
+        }
+        onEquip(slot.itemId);
+      }}
       onPointerDown={(event) => {
         if (disabled) return;
+        isDraggingRef.current = true;
+        suppressClickRef.current = false;
         startDrag(createInventoryDragItem(slot), event);
       }}
       disabled={disabled}
