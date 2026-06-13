@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "kind": "living-duden-seed",
+  "description": "Canonical seed lexemes for the Living Language system. Runtime learning is stored as deterministic deltas and only promoted here after review.",
+  "contentHash": "sha256:pending-generated-by-canonicalizer",
+  "lexemes": []
+}
