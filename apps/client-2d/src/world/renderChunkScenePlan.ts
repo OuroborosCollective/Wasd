@@ -1,5 +1,5 @@
-import { Container, Graphics, Sprite } from "pixi.js";
-import type { ChunkScenePlan, KappaInt, PropType } from "@wasd/shared";
+import { Container, Graphics, Sprite, type Texture } from "pixi.js";
+import type { ChunkScenePlan, KappaInt } from "@wasd/shared";
 import { fromKappaInt } from "@wasd/shared";
 import { make2dProp } from "../stackedProps";
 import { iso3 } from "../isometricProjection";
@@ -11,15 +11,7 @@ const TILE_H = 48;
 const TERRAIN_Z_INDEX = -1000;
 
 function screenPoint(kappaX: KappaInt, kappaZ: KappaInt, width: number, height: number) {
-  return iso3({
-    gridX: fromKappaInt(kappaX),
-    gridZ: fromKappaInt(kappaZ),
-    screenWidth: width,
-    screenHeight: height,
-    tileWidth: TILE_W,
-    tileHeight: TILE_H,
-    height: 0,
-  });
+  return iso3({ gridX: fromKappaInt(kappaX), gridZ: fromKappaInt(kappaZ), screenWidth: width, screenHeight: height, tileWidth: TILE_W, tileHeight: TILE_H, height: 0 });
 }
 
 function place(node: Container, kappaX: KappaInt, kappaZ: KappaInt, width: number, height: number): void {
@@ -54,6 +46,15 @@ function roadDiamond(): Graphics {
   return g;
 }
 
+function roadTile(texture: Texture | null): Container {
+  if (!texture) return roadDiamond();
+  const sprite = new Sprite(texture);
+  sprite.anchor.set(0.5, 0.5);
+  sprite.width = TILE_W;
+  sprite.height = TILE_H;
+  return sprite;
+}
+
 function fallbackProp(): Container {
   const c = new Container();
   c.addChild(new Graphics().circle(0, -18, 16).fill(0x2f8d4d));
@@ -76,26 +77,14 @@ function fallbackBuilding(): Container {
   return c;
 }
 
-interface WorldStateContext {
-  worldTick: number;
-  worldSeed: string;
-}
-
 interface RenderOptions {
-  worldState: WorldStateContext;
+  worldState: { worldTick: number; worldSeed: string };
   biomeId: string;
   lod?: "low" | "medium" | "high";
 }
 
 function defaultRenderOptions(plan: ChunkScenePlan): RenderOptions {
-  return {
-    biomeId: "plains",
-    worldState: {
-      worldSeed: plan.input.worldSeed,
-      worldTick: Number(plan.input.tick ?? 0),
-    },
-    lod: "medium",
-  };
+  return { biomeId: "plains", worldState: { worldSeed: plan.input.worldSeed, worldTick: Number(plan.input.tick ?? 0) }, lod: "medium" };
 }
 
 function buildContexts(plan: ChunkScenePlan, options: RenderOptions): ChunkBindingContexts {
@@ -103,38 +92,12 @@ function buildContexts(plan: ChunkScenePlan, options: RenderOptions): ChunkBindi
     { chunkX: plan.input.chunkX, chunkZ: plan.input.chunkZ, biomeId: options.biomeId },
     { worldTick: options.worldState.worldTick, worldSeed: options.worldState.worldSeed },
     plan,
-    { settlementTier: plan.settlement.settlementType === "village" ? "village" : "camp", culture: "generic", wealthLevel: "poor", dangerLevel: "safe" },
+    { settlementTier: plan.settlement.settlementType === "village" ? "village" : "camp", culture: "generic", wealthLevel: "poor", dangerLevel: "protected" },
     { forceLod: options.lod },
   );
 }
 
-function renderCozySmokeProof(plan: ChunkScenePlan, binder: WorldPlanAssetBinder, ctx: WorldPlanRenderContext): void {
-  const [centerX, centerZ] = plan.settlement.centerCell.split(":").map((value) => Number(value));
-  const smoke: { type: PropType; dx: number; dz: number; w: number; h: number }[] = [
-    { type: "fence", dx: -2, dz: -2, w: 64, h: 64 },
-    { type: "flower", dx: -1, dz: -2, w: 46, h: 46 },
-    { type: "bush", dx: 0, dz: -2, w: 58, h: 58 },
-    { type: "tree", dx: 1, dz: -2, w: 86, h: 116 },
-    { type: "well", dx: 2, dz: -2, w: 70, h: 70 },
-  ];
-
-  let visible = 0;
-  smoke.forEach((item, index) => {
-    const bound = binder.bindProp(item.type, `cozy-smoke:${index}:${item.type}`);
-    const node = make2dProp(bound.entry, bound.texture, fallbackProp, item.w, item.h);
-    place(node, ((centerX + item.dx) * 1000 + 500) as KappaInt, ((centerZ + item.dz) * 1000 + 500) as KappaInt, ctx.width, ctx.height);
-    ctx.props.addChild(node);
-    if (bound.entry?.src?.includes("cozy-spring")) visible += 1;
-  });
-  console.log(`[CozySpring] smoke proof visible=${visible}/5`);
-}
-
-export function renderChunkScenePlan(
-  plan: ChunkScenePlan,
-  binder: WorldPlanAssetBinder,
-  ctx: WorldPlanRenderContext,
-  options?: RenderOptions,
-): void {
+export function renderChunkScenePlan(plan: ChunkScenePlan, binder: WorldPlanAssetBinder, ctx: WorldPlanRenderContext, options?: RenderOptions): void {
   ctx.terrain.removeChildren();
   ctx.props.removeChildren();
   ctx.actors.removeChildren();
@@ -148,44 +111,37 @@ export function renderChunkScenePlan(
     ctx.terrain.addChild(tile);
   }
 
-  for (const [roadCell] of Object.entries(plan.roads.roadCells)) {
+  for (const [roadCell, roadType] of Object.entries(plan.roads.roadCells)) {
     const [xRaw, zRaw] = roadCell.split(":");
-    const road = roadDiamond();
-    const kappaX = ((Number(xRaw) * 1000) + 500) as KappaInt;
-    const kappaZ = ((Number(zRaw) * 1000) + 500) as KappaInt;
-    place(road, kappaX, kappaZ, ctx.width, ctx.height);
+    const roadContext = bindingContexts.roadContexts.get(`${xRaw}:${zRaw}`);
+    const bound = roadContext ? binder.bindRoadWithContext(roadType, roadContext) : binder.bindRoad(roadType, `${plan.id}:${roadCell}`);
+    const road = roadTile(bound.texture);
+    place(road, ((Number(xRaw) * 1000) + 500) as KappaInt, ((Number(zRaw) * 1000) + 500) as KappaInt, ctx.width, ctx.height);
     ctx.terrain.addChild(road);
   }
 
   for (const lot of plan.settlement.lots) {
-    const bound = binder.bindBuildingWithContext(lot.buildingType, bindingContexts.buildingContexts.get(lot.id)!);
-    const width = lot.widthTiles >= 3 ? 220 : 176;
-    const height = lot.depthTiles >= 3 ? 220 : 180;
-    const building = make2dProp(bound.entry, bound.texture, fallbackBuilding, width, height);
+    const buildingContext = bindingContexts.buildingContexts.get(lot.id);
+    const bound = buildingContext ? binder.bindBuildingWithContext(lot.buildingType, buildingContext) : binder.bindBuilding(lot.buildingType, `${plan.id}:${lot.id}`);
+    const building = make2dProp(bound.entry, bound.texture, fallbackBuilding, lot.widthTiles >= 3 ? 220 : 176, lot.depthTiles >= 3 ? 220 : 180);
     place(building, lot.kappaPos.x, lot.kappaPos.z, ctx.width, ctx.height);
     ctx.props.addChild(building);
   }
 
   for (const prop of [...plan.settlement.props, ...plan.props]) {
-    const bound = binder.bindPropWithContext(prop.propType, bindingContexts.propContexts.get(prop.id)!);
+    const propContext = bindingContexts.propContexts.get(prop.id);
+    const bound = propContext ? binder.bindPropWithContext(prop.propType, propContext) : binder.bindProp(prop.propType, `${plan.id}:${prop.id}`);
     const size = prop.propType === "tree" ? { w: 94, h: 128 } : prop.propType === "market_stall" ? { w: 112, h: 82 } : prop.propType === "well" ? { w: 86, h: 86 } : { w: 54, h: 54 };
     const node = make2dProp(bound.entry, bound.texture, fallbackProp, size.w, size.h);
     place(node, prop.kappaPos.x, prop.kappaPos.z, ctx.width, ctx.height);
     ctx.props.addChild(node);
   }
 
-  renderCozySmokeProof(plan, binder, ctx);
   ctx.props.sortChildren();
 
   for (const npc of plan.npcs) {
-    const bound = binder.bindNpcWithContext(npc.role, bindingContexts.npcContexts.get(npc.id)!);
-    ctx.addNpcActor({
-      id: npc.id,
-      tileX: npc.tileX,
-      tileZ: npc.tileZ,
-      name: npc.role.replace(/_/g, " "),
-      role: npc.role,
-      characterVisualId: bound.entry?.id ?? null,
-    });
+    const npcContext = bindingContexts.npcContexts.get(npc.id);
+    const bound = npcContext ? binder.bindNpcWithContext(npc.role, npcContext) : binder.bindNpc(npc.role, `${plan.id}:${npc.id}`);
+    ctx.addNpcActor({ id: npc.id, tileX: npc.tileX, tileZ: npc.tileZ, name: npc.role.replace(/_/g, " "), role: npc.role, characterVisualId: bound.entry?.id ?? null, visualSignature: bound.visualSignature ?? null });
   }
 }
