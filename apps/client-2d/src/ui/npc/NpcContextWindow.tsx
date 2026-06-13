@@ -9,17 +9,10 @@ import type {
 } from "./NpcUI.types";
 import { NpcInteractionMenu } from "./NpcInteractionMenu";
 
-// Diamond Glass animations
 const CONTEXT_WINDOW_ANIMATIONS = `
   @keyframes context-appear {
-    from { 
-      opacity: 0; 
-      transform: scale(0.95) translateY(10px); 
-    }
-    to { 
-      opacity: 1; 
-      transform: scale(1) translateY(0); 
-    }
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
   }
   @keyframes backdrop-fade {
     from { opacity: 0; }
@@ -41,6 +34,7 @@ export function NpcContextWindow({
   onContinue,
 }: NpcContextWindowProps) {
   const [styleInjected, setStyleInjected] = React.useState(false);
+  const [selectedIndex, setSelectedIndex] = React.useState(0);
 
   React.useEffect(() => {
     if (!styleInjected && !document.getElementById("npc-context-styles")) {
@@ -51,8 +45,6 @@ export function NpcContextWindow({
       setStyleInjected(true);
     }
   }, [styleInjected]);
-
-  if (!isOpen) return null;
 
   const handleAction = (action: MenuAction) => {
     onAction(action);
@@ -66,9 +58,10 @@ export function NpcContextWindow({
     { action: "goodbye" as MenuAction, label: "GOODBYE", shortcut: "0", color: "gray" as const, hasNotification: false },
   ];
 
+  if (!isOpen) return null;
+
   return (
     <>
-      {/* Backdrop Overlay */}
       <div
         className="fixed inset-0 z-40"
         onClick={onClose}
@@ -79,7 +72,6 @@ export function NpcContextWindow({
         }}
       />
 
-      {/* Main Window */}
       <div
         className="fixed z-50"
         style={{
@@ -91,7 +83,6 @@ export function NpcContextWindow({
           animation: "context-appear 0.3s ease-out",
         }}
       >
-        {/* Glass Panel */}
         <div
           style={{
             backgroundColor: "rgba(13, 21, 22, 0.92)",
@@ -101,7 +92,6 @@ export function NpcContextWindow({
             borderRadius: "0px",
           }}
         >
-          {/* Inner Glow Border Effect */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
@@ -110,17 +100,12 @@ export function NpcContextWindow({
             }}
           />
 
-          {/* Content Container */}
           <div className="relative">
-            {/* Header */}
             <div
               className="flex items-center justify-between p-4"
-              style={{
-                borderBottom: "1px solid rgba(132, 147, 150, 0.2)",
-              }}
+              style={{ borderBottom: "1px solid rgba(132, 147, 150, 0.2)" }}
             >
               <div className="flex flex-col gap-1">
-                {/* NPC Name */}
                 <h2
                   style={{
                     fontFamily: "Epilogue, sans-serif",
@@ -133,7 +118,6 @@ export function NpcContextWindow({
                 >
                   {npc.name}
                 </h2>
-                {/* Role + Faction */}
                 <div className="flex items-center gap-2">
                   <span
                     style={{
@@ -163,7 +147,6 @@ export function NpcContextWindow({
                 </div>
               </div>
 
-              {/* Close Button */}
               <button
                 onClick={onClose}
                 className="w-8 h-8 flex items-center justify-center"
@@ -188,14 +171,11 @@ export function NpcContextWindow({
               </button>
             </div>
 
-            {/* Two Column Layout */}
             <div className="flex flex-col md:flex-row">
-              {/* Left Column: Portrait + Dialogue (60%) */}
               <div
                 className="flex-1 p-4 md:border-r"
                 style={{ borderRight: "1px solid rgba(132, 147, 150, 0.2)" }}
               >
-                {/* NPC Portrait Area */}
                 <div
                   className="mb-4 relative overflow-hidden"
                   style={{
@@ -226,16 +206,12 @@ export function NpcContextWindow({
                       </span>
                     </div>
                   )}
-                  {/* Portrait Overlay Gradient */}
                   <div
                     className="absolute inset-0 pointer-events-none"
-                    style={{
-                      background: "linear-gradient(to top, rgba(13, 21, 22, 0.8), transparent)",
-                    }}
+                    style={{ background: "linear-gradient(to top, rgba(13, 21, 22, 0.8), transparent)" }}
                   />
                 </div>
 
-                {/* Dialogue Area */}
                 <div
                   className="p-3"
                   style={{
@@ -259,7 +235,6 @@ export function NpcContextWindow({
                     {dialogue.currentText}
                   </p>
 
-                  {/* Dialogue Continue Indicator */}
                   {dialogue.canContinue && (
                     <div
                       className="mt-3 flex items-center gap-2"
@@ -309,18 +284,15 @@ export function NpcContextWindow({
                 </div>
               </div>
 
-              {/* Right Column: Actions + Quest Info (40%) */}
               <div className="w-full md:w-[40%] p-4 flex flex-col gap-4">
-                {/* Action Menu */}
                 <NpcInteractionMenu
                   items={menuItems}
-                  selectedIndex={0}
-                  onSelect={() => {}}
-                  onConfirm={() => {}}
+                  selectedIndex={selectedIndex}
+                  onSelect={(index) => setSelectedIndex(index)}
+                  onConfirm={() => handleAction(menuItems[selectedIndex]?.action ?? "goodbye")}
                   onCancel={onClose}
                 />
 
-                {/* Quest Preview (if available) */}
                 {quest && (
                   <div
                     className="p-3"
@@ -330,7 +302,6 @@ export function NpcContextWindow({
                       borderRadius: "0px",
                     }}
                   >
-                    {/* Quest Header */}
                     <div className="flex items-center gap-2 mb-2">
                       <span
                         style={{
@@ -346,7 +317,6 @@ export function NpcContextWindow({
                       </span>
                     </div>
 
-                    {/* Quest Name */}
                     <h3
                       style={{
                         fontFamily: "Epilogue, sans-serif",
@@ -359,7 +329,6 @@ export function NpcContextWindow({
                       {quest.name}
                     </h3>
 
-                    {/* Quest Objective */}
                     <p
                       style={{
                         fontFamily: "Epilogue, sans-serif",
@@ -372,7 +341,6 @@ export function NpcContextWindow({
                       {quest.objective}
                     </p>
 
-                    {/* Quest Reward */}
                     <div
                       className="pt-2"
                       style={{ borderTop: "1px solid rgba(132, 147, 150, 0.2)" }}
