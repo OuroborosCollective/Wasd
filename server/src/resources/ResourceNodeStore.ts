@@ -15,7 +15,6 @@ import {
   isStarterChunk,
   getChunkBiome,
   CHUNK_RESOURCE_CONSTANTS,
-  type ChunkBiomeId,
 } from "./ChunkResourceGenerator.js";
 import type {
   GatherResourceResult,
@@ -24,6 +23,11 @@ import type {
   ResourceNodeSnapshot,
   ResourceNodeStatus,
 } from "./ResourceTypes.js";
+
+const GATHERING_MOMENTUM_WINDOW_TICKS = 600;
+const GATHERING_MOMENTUM_STEP_PERMILLE = 50;
+const GATHERING_MOMENTUM_MAX_STREAK = 5;
+const PERMILLE_BASE = 1000;
 
 export interface GatherInput {
   playerId: string;
@@ -44,9 +48,21 @@ interface ChunkNodeRegistry {
   lastPlayerPosition: { x: number; y: number } | null;
 }
 
+interface PlayerGatheringMomentum {
+  skillId: ResourceNodeDefinition["skillId"];
+  lastGatherTick: number;
+  streak: number;
+}
+
+function calculateMomentumXp(baseXpReward: number, streak: number): number {
+  const bonusPermille = Math.min(streak, GATHERING_MOMENTUM_MAX_STREAK) * GATHERING_MOMENTUM_STEP_PERMILLE;
+  return Math.floor((baseXpReward * (PERMILLE_BASE + bonusPermille)) / PERMILLE_BASE);
+}
+
 export class ResourceNodeStore {
   private readonly definitions = new Map<string, ResourceNodeDefinition>();
   private readonly runtime = new Map<string, ResourceNodeRuntimeState>();
+  private readonly playerMomentum = new Map<string, PlayerGatheringMomentum>();
 
   /** Registry for procedural chunk nodes */
   private readonly chunkRegistry: ChunkNodeRegistry = {
@@ -264,6 +280,13 @@ export class ResourceNodeStore {
       return { ok: false, playerId, nodeId, reason: "level_too_low", snapshot };
     }
 
+    const momentum = this.updatePlayerMomentum(playerId, definition.skillId, currentTick);
+    const xpReward = calculateMomentumXp(definition.xpReward, momentum.streak);
+    const gatheringMomentumPermille = Math.min(
+      momentum.streak,
+      GATHERING_MOMENTUM_MAX_STREAK,
+    ) * GATHERING_MOMENTUM_STEP_PERMILLE;
+
     // All checks passed - mark node as depleted
     const depletedUntilTick = currentTick + definition.respawnTicks;
     this.runtime.set(nodeId, {
@@ -279,7 +302,11 @@ export class ResourceNodeStore {
       nodeId,
       reason: "gathered",
       skillId: definition.skillId,
-      xpReward: definition.xpReward,
+      xpReward,
+      baseXpReward: definition.xpReward,
+      gatheringStreak: momentum.streak,
+      gatheringMomentumPermille,
+      gatheringMomentumWindowTicks: GATHERING_MOMENTUM_WINDOW_TICKS,
       itemRewardId: definition.itemRewardId,
       itemRewardName: definition.itemRewardName,
       snapshot: this.getSnapshot(nodeId, currentTick),
@@ -296,11 +323,35 @@ export class ResourceNodeStore {
     return "available";
   }
 
+  private updatePlayerMomentum(
+    playerId: string,
+    skillId: ResourceNodeDefinition["skillId"],
+    currentTick: number,
+  ): PlayerGatheringMomentum {
+    const previous = this.playerMomentum.get(playerId);
+    const continuesChain = Boolean(
+      previous &&
+        previous.skillId === skillId &&
+        currentTick >= previous.lastGatherTick &&
+        currentTick - previous.lastGatherTick <= GATHERING_MOMENTUM_WINDOW_TICKS,
+    );
+
+    const next: PlayerGatheringMomentum = {
+      skillId,
+      lastGatherTick: currentTick,
+      streak: continuesChain ? Math.min(previous!.streak + 1, GATHERING_MOMENTUM_MAX_STREAK) : 1,
+    };
+
+    this.playerMomentum.set(playerId, next);
+    return next;
+  }
+
   /**
    * Clear runtime state for testing only.
    */
   clearForTests(): void {
     this.runtime.clear();
+    this.playerMomentum.clear();
     for (const node of this.definitions.values()) {
       this.runtime.set(node.id, {
         nodeId: node.id,
