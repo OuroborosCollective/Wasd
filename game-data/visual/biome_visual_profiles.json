@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "kappa": 1000,
+  "truthPolicy": "static rules only; concrete selection derives from VisualSignature",
+  "profiles": {
+    "forest_village": {
+      "biomeId": "forest_village",
+      "primaryTags": ["forest", "village", "plains", "cozy-spring"],
+      "terrainIntents": ["grass", "forest_floor", "road_edge"],
+      "roadIntent": "road:dirt_road",
+      "propIntents": ["tree", "bush", "flower", "well", "fence", "market_stall"],
+      "paletteBias": "warm_green",
+      "cultureDefault": "generic"
+    },
+    "forest": {
+      "biomeId": "forest",
+      "primaryTags": ["forest", "tree", "moss", "shade"],
+      "terrainIntents": ["forest_floor", "grass", "stone"],
+      "roadIntent": "road:dirt_road",
+      "propIntents": ["tree", "bush", "stone"],
+      "paletteBias": "deep_green",
+      "cultureDefault": "generic"
+    },
+    "plains": {
+      "biomeId": "plains",
+      "primaryTags": ["plains", "grass", "road", "cozy-spring"],
+      "terrainIntents": ["grass", "road_edge"],
+      "roadIntent": "road:dirt_road",
+      "propIntents": ["tree", "bush", "flower", "fence", "well"],
+      "paletteBias": "open_green",
+      "cultureDefault": "generic"
+    },
+    "mountain": {
+      "biomeId": "mountain",
+      "primaryTags": ["mountain", "stone", "highland"],
+      "terrainIntents": ["stone", "grass", "road_edge"],
+      "roadIntent": "road:dirt_road",
+      "propIntents": ["stone", "tree", "crate", "sign"],
+      "paletteBias": "cold_stone",
+      "cultureDefault": "generic"
+    }
+  }
+}
