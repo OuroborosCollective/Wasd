@@ -2,6 +2,7 @@ import type { WorldLogicalState } from './ChunkLayerState.js';
 import { worldTickThinShell, type WorldTickThinShell } from './WorldTickThinShell.js';
 import { RuntimePlayerSystem, RuntimeWarfrontPort, createRuntimeWarfrontSystem } from './RuntimeDomainPorts.js';
 import { registerWarfrontSystem, type WarfrontTickSystem } from './WarfrontTickSystem.js';
+import { registerNPCSystem } from './NPCTickSystem.js';
 import { sharedWorldEventBus } from '../../modules/ouroboros/sharedWorldEventBus.js';
 import { ChatChannelRouter, type ChatRecipient } from '../../modules/chat/ChatChannelRouter.js';
 import { getActiveGameWebSocketServer } from '../../networking/WebSocketServer.js';
@@ -139,6 +140,10 @@ export class WorldTickAdapter {
     this.npcSystem = this.realNPCSystem;
     this.npcGameDataReport = loadGameDataNpcsIntoSystem(this.npcSystem);
 
+    const npcTickSystem = registerNPCSystem(this.npcSystem);
+    npcTickSystem.setPlayersProvider(() => this.playerSystem.getAllPlayers());
+    npcTickSystem.setWorldTimeProvider(() => this.tickCount);
+
     // Wire deterministic LootDirector for ARE truth path
     // This is the ARE-style loot system from modules/world/LootDirector
     this.deterministicLootDirector = deterministicLootDirector;
@@ -156,7 +161,7 @@ export class WorldTickAdapter {
       }),
     });
 
-    console.log(`[WorldTickAdapter] Initialized with RealNPCSystem, game-data NPCs=${this.npcGameDataReport.npcsLoaded}, and deterministicLootDirector`);
+    console.log(`[WorldTickAdapter] Initialized with RealNPCSystem, game-data NPCs=${this.npcGameDataReport.npcsLoaded}, NPCTickSystem, and deterministicLootDirector`);
   }
 
   attachNetworkBridge(networkBridge: NetworkBridge): void {
