@@ -143,7 +143,7 @@ export function createVisualSignatureFromBinding(
   subjectKind: VisualSubjectKind,
   semanticType: VisualSemanticType,
   context: Pick<BindingOptions, "seed" | "biome" | "factionId" | "culture" | "variantHint">,
-  extra: Partial<Omit<VisualSignatureInput, "subjectKind" | "semanticType" | "seed" | "biomeId" | "factionId" | "culture">> = {},
+  extra: Partial<Omit<VisualSignatureInput, "subjectKind" | "semanticType">> = {},
 ): VisualSignature {
   return createVisualSignature({
     ...extra,
