@@ -33,6 +33,8 @@ export function validateContentRoot(dataDir: string): ContentValidationResult {
   const questsRaw = readJson("quests/quests.json");
   const spawnsRaw = readJson("spawns/npc-spawns.json");
   const itemsRaw = readJson("items/items.json");
+  const resourcesRaw = readJson("resources/resource-nodes.json");
+  const gatheringMomentumRaw = readJson("resources/gathering-momentum.json");
 
   if (errors.length > 0) {
     return { ok: false, errors, dataDir };
@@ -43,6 +45,8 @@ export function validateContentRoot(dataDir: string): ContentValidationResult {
   const quests = questsRaw as any[];
   const spawns = spawnsRaw as any[];
   const items = itemsRaw as any[];
+  const resources = resourcesRaw as any[];
+  const gatheringMomentum = gatheringMomentumRaw as any;
 
   const checkDuplicate = (arr: any[], type: string) => {
     const ids = new Set<string>();
@@ -57,6 +61,7 @@ export function validateContentRoot(dataDir: string): ContentValidationResult {
   const dialogueIds = checkDuplicate(dialogues, "Dialogue");
   const questIds = checkDuplicate(quests, "Quest");
   const itemIds = checkDuplicate(items, "Item");
+  const resourceNodeIds = checkDuplicate(resources, "Resource node");
 
   npcs.forEach((n: any) => {
     if (!dialogueIds.has(n.dialogueId)) errors.push(`NPC ${n.id} references missing dialogue ${n.dialogueId}`);
@@ -93,6 +98,77 @@ export function validateContentRoot(dataDir: string): ContentValidationResult {
       if (!npcIds.has(s.npcId)) errors.push(`Spawn references missing NPC ${s.npcId}`);
     });
   });
+
+  resources.forEach((node: any, index: number) => {
+    const id = typeof node?.id === "string" ? node.id : `resources[${index}]`;
+    if (!["tree", "ore", "fish_spot"].includes(node?.kind)) {
+      errors.push(`Resource node ${id} has invalid kind ${String(node?.kind)}`);
+    }
+    if (!["woodcutting", "mining", "fishing"].includes(node?.skillId)) {
+      errors.push(`Resource node ${id} has invalid skillId ${String(node?.skillId)}`);
+    }
+    if (!itemIds.has(node?.itemRewardId)) {
+      errors.push(`Resource node ${id} references missing reward item ${String(node?.itemRewardId)}`);
+    }
+    for (const key of ["requiredLevel", "xpReward", "respawnTicks", "radius"]) {
+      if (!Number.isInteger(node?.[key]) || node[key] < 1) {
+        errors.push(`Resource node ${id} ${key} must be integer >= 1`);
+      }
+    }
+    if (!node?.position || !Number.isFinite(node.position.x) || !Number.isFinite(node.position.y)) {
+      errors.push(`Resource node ${id} position.x and position.y must be finite numbers`);
+    }
+    if (
+      node?.requiredTool !== undefined &&
+      node?.requiredTool !== null &&
+      !["woodcutting_tool", "mining_tool", "fishing_tool"].includes(node.requiredTool)
+    ) {
+      errors.push(`Resource node ${id} has invalid requiredTool ${String(node.requiredTool)}`);
+    }
+  });
+
+  if (!gatheringMomentum || typeof gatheringMomentum !== "object" || Array.isArray(gatheringMomentum)) {
+    errors.push("resources/gathering-momentum.json must be an object");
+  } else {
+    if (gatheringMomentum.schemaVersion !== 1) {
+      errors.push("resources/gathering-momentum.json schemaVersion must be 1");
+    }
+    if (typeof gatheringMomentum.id !== "string" || gatheringMomentum.id.length === 0) {
+      errors.push("resources/gathering-momentum.json id must be a non-empty string");
+    }
+    if (gatheringMomentum.enabled !== true) {
+      errors.push("resources/gathering-momentum.json enabled must be true for runtime truth");
+    }
+    if (gatheringMomentum.truthStatus !== "runtime_truth") {
+      errors.push("resources/gathering-momentum.json truthStatus must be runtime_truth");
+    }
+    if (gatheringMomentum.canBecomeTruth !== true) {
+      errors.push("resources/gathering-momentum.json canBecomeTruth must be true");
+    }
+    if (typeof gatheringMomentum.truthPath !== "string" || gatheringMomentum.truthPath.length === 0) {
+      errors.push("resources/gathering-momentum.json truthPath must be a non-empty string");
+    }
+    if (typeof gatheringMomentum.truthPromotion !== "string" || gatheringMomentum.truthPromotion.length === 0) {
+      errors.push("resources/gathering-momentum.json truthPromotion must be a non-empty string");
+    }
+    if (!Array.isArray(gatheringMomentum.appliesToSkillIds) || gatheringMomentum.appliesToSkillIds.length === 0) {
+      errors.push("resources/gathering-momentum.json appliesToSkillIds must be non-empty");
+    } else {
+      gatheringMomentum.appliesToSkillIds.forEach((skillId: string) => {
+        if (!["woodcutting", "mining", "fishing"].includes(skillId)) {
+          errors.push(`resources/gathering-momentum.json invalid skill ${skillId}`);
+        }
+      });
+    }
+    for (const key of ["windowTicks", "streakBonusPermille", "maxStreak"]) {
+      if (!Number.isInteger(gatheringMomentum[key]) || gatheringMomentum[key] < 1) {
+        errors.push(`resources/gathering-momentum.json ${key} must be integer >= 1`);
+      }
+    }
+    if (gatheringMomentum.resetOnSkillChange !== true) {
+      errors.push("resources/gathering-momentum.json resetOnSkillChange must be true");
+    }
+  }
 
   const lorePath = path.join(dataDir, "lore/world-fragments.json");
   if (fs.existsSync(lorePath)) {
@@ -176,6 +252,10 @@ export function validateContentRoot(dataDir: string): ContentValidationResult {
       });
     }
   });
+
+  if (resourceNodeIds.size === 0) {
+    errors.push("At least one resource node must exist in resources/resource-nodes.json");
+  }
 
   return { ok: errors.length === 0, errors, dataDir };
 }
