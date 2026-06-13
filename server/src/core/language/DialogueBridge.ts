@@ -1,26 +1,17 @@
 /**
  * @file server/src/core/language/DialogueBridge.ts
- * @description Bridge between Living Language System and existing dialogues.json
+ * @description Bridge between the Living Language System and existing dialogues.json.
  *
- * Integrates the procedural Living Language System with the static dialogue data
- * in game-data/dialogue/dialogues.json and the existing DialogueDirector/NPCDialogueSystem.
- *
- * Architecture:
- * 1. dialogues.json - Static quest dialogue (source of truth for quest content)
- * 2. DialogueDirector - Deterministic context-aware dialogue responses
- * 3. NPCDialogueSystem - Simple deterministic line selection
- * 4. Living Language System (this module) - Procedural lexeme/phrase genome layer
+ * Static dialogue remains legacy/content fallback. It is never promoted to ARE
+ * truth by itself; it only seeds lexemes/phrase genomes and resolves explicit
+ * quest/node text for compatibility.
  *
  * HARD CONSTRAINTS:
  * - NO Date.now(), new Date(), Math.random(), crypto.randomUUID()
- * - All lookups derive from stable hashes
+ * - All lookups derive from deterministic maps and stable hashes
  */
 
-import { stableHash32 } from '../determinism/AREDeterminism.js';
-import type {
-  SpeechIntent,
-  PhraseGenome,
-} from './LanguageTypes.js';
+import type { SpeechIntent, PhraseGenome, LanguageCode } from './LanguageTypes.js';
 import { createKappaInt } from './LanguageTypes.js';
 import { registerCanonicalLexeme, type LexemeBlueprint } from './LivingDudenArchive.js';
 import { registerPhraseGenome } from './DialogueDecisionKernel.js';
@@ -49,7 +40,7 @@ export interface DialogueNode {
 }
 
 export interface DialogueChoice {
-  id: string;
+  id?: string;
   text: string;
   nextNodeId: string;
   changeReputation?: { factionId: string; amount: number };
@@ -65,136 +56,173 @@ export interface EntryNode {
 // DIALOGUE REGISTRY
 // =============================================================================
 
-let dialogueData: Map<string, DialogueEntry> = new Map();
+const dialogueData: Map<string, DialogueEntry> = new Map();
 let bridgeInitialized = false;
 
 // =============================================================================
 // BRIDGE INITIALIZATION
 // =============================================================================
 
-/**
- * Initialize bridge from dialogue JSON data.
- * Call this during server startup after loading dialogues.json.
- */
-export function initializeDialogueBridge(dialogues: DialogueEntry[]): void {
-  if (bridgeInitialized) {
-    console.warn('[DialogueBridge] Already initialized, skipping...');
-    return;
-  }
+export function initializeDialogueBridge(dialogues: readonly DialogueEntry[]): void {
+  if (bridgeInitialized) return;
 
-  console.log(`[DialogueBridge] Initializing with ${dialogues.length} dialogue entries...`);
-
-  // Load dialogue entries
   for (const entry of dialogues) {
-    dialogueData.set(entry.id, entry);
+    if (entry && typeof entry.id === 'string' && entry.id.trim().length > 0) {
+      dialogueData.set(entry.id, normalizeDialogueEntry(entry));
+    }
   }
 
-  // Seed phrase genomes from dialogue entries
-  seedPhraseGenomesFromDialogues(dialogues);
-
-  // Seed lexemes from dialogue content
-  seedLexemesFromDialogues(dialogues);
-
-  // Seed faction dialects
+  const entries = Array.from(dialogueData.values());
+  seedPhraseGenomesFromDialogues(entries);
+  seedLexemesFromDialogues(entries);
   seedDefaultDialects();
 
   bridgeInitialized = true;
-  console.log(`[DialogueBridge] Initialized with ${dialogueData.size} entries`);
 }
 
 export function isDialogueBridgeInitialized(): boolean {
   return bridgeInitialized;
 }
 
+export function clearDialogueBridge(): void {
+  dialogueData.clear();
+  bridgeInitialized = false;
+}
+
+function normalizeDialogueEntry(entry: DialogueEntry): DialogueEntry {
+  const normalizedNodes: Record<string, DialogueNode> | undefined = entry.nodes
+    ? Object.fromEntries(Object.entries(entry.nodes).map(([nodeId, node]) => [nodeId, normalizeNode(entry.id, nodeId, node)]))
+    : undefined;
+
+  return Object.freeze({
+    ...entry,
+    nodes: normalizedNodes,
+  });
+}
+
+function normalizeNode(dialogueId: string, nodeId: string, node: DialogueNode): DialogueNode {
+  const choices = node.choices?.map((choice, index) => ({
+    ...choice,
+    id: choice.id ?? `${dialogueId}_${nodeId}_choice_${index}`,
+  }));
+  return Object.freeze({ ...node, choices: choices ? Object.freeze(choices) : undefined });
+}
+
 // =============================================================================
 // PHRASE GENOME SEEDING FROM DIALOGUES
 // =============================================================================
 
-function seedPhraseGenomesFromDialogues(dialogues: DialogueEntry[]): void {
+function seedPhraseGenomesFromDialogues(dialogues: readonly DialogueEntry[]): void {
   for (const dialogue of dialogues) {
-    const npcId = dialogue.id.replace('dialogue_', 'npc_');
+    const npcId = dialogue.id.replace(/^dialogue_/, 'npc_');
 
-    // Create greeting genome
     if (dialogue.greeting) {
-      const greetingGenome: PhraseGenome = {
+      registerPhraseGenome(createDialogueGenome({
         id: `${npcId}_greet`,
         intent: 'greet',
-        languageMode: 'de',
-        structure: ['subject'],
-        slots: [{ role: 'subject', required: true, semanticRequirements: ['greeting'] }],
-        constraints: {},
-        outcomeStats: { uses: 0, successfulUses: 0, failedUses: 0, averageKappaScore: createKappaInt(1.0) },
-        mutation: { parentGenomeIds: [], generation: 0, stability: createKappaInt(1.0), novelty: createKappaInt(0) },
-        truthMode: 'known_fact',
-      };
-      registerPhraseGenome(greetingGenome);
+        text: dialogue.greeting,
+        role: extractRoleFromDialogue(dialogue),
+      }));
     }
 
-    // Create quest line genomes
-    const questIntents: Record<string, SpeechIntent> = {
-      questStartLines: 'request',
-      questProgressLines: 'teach',
-      questCompleteLines: 'thank',
-      questPrerequisiteLines: 'warn',
-    };
+    const lineTypes: readonly Array<[
+      keyof Pick<DialogueEntry, 'questStartLines' | 'questProgressLines' | 'questCompleteLines' | 'questPrerequisiteLines'>,
+      SpeechIntent
+    ]> = [
+      ['questStartLines', 'request'],
+      ['questProgressLines', 'teach'],
+      ['questCompleteLines', 'thank'],
+      ['questPrerequisiteLines', 'warn'],
+    ];
 
-    for (const [lineKey, intent] of Object.entries(questIntents)) {
-      const lines = dialogue[lineKey as keyof DialogueEntry] as Record<string, string> | undefined;
-      if (lines) {
-        for (const [questId, text] of Object.entries(lines)) {
-          const questGenome: PhraseGenome = {
-            id: `${npcId}_${questId}_${intent}`,
-            intent,
-            languageMode: 'de',
-            structure: ['subject', 'verb', 'object'],
-            slots: [
-              { role: 'subject', required: true },
-              { role: 'verb', required: true, semanticRequirements: extractConceptsFromText(text) },
-              { role: 'object', required: false },
-            ],
-            constraints: { requiredRole: extractRoleFromDialogue(dialogue) },
-            outcomeStats: { uses: 0, successfulUses: 0, failedUses: 0, averageKappaScore: createKappaInt(1.0) },
-            mutation: { parentGenomeIds: [], generation: 0, stability: createKappaInt(1.0), novelty: createKappaInt(0) },
-            truthMode: 'known_fact',
-          };
-          registerPhraseGenome(questGenome);
-        }
+    for (const [lineKey, intent] of lineTypes) {
+      const lines = dialogue[lineKey];
+      if (!lines) continue;
+      for (const [questId, text] of Object.entries(lines)) {
+        registerPhraseGenome(createDialogueGenome({
+          id: `${npcId}_${questId}_${intent}`,
+          intent,
+          text,
+          role: extractRoleFromDialogue(dialogue),
+        }));
+      }
+    }
+
+    if (dialogue.nodes) {
+      for (const [nodeId, node] of Object.entries(dialogue.nodes)) {
+        registerPhraseGenome(createDialogueGenome({
+          id: `${npcId}_${nodeId}_${mapDialogueNodeToIntent(node.text)}`,
+          intent: mapDialogueNodeToIntent(node.text),
+          text: node.text,
+          role: extractRoleFromDialogue(dialogue),
+        }));
       }
     }
   }
+}
+
+function createDialogueGenome(input: {
+  id: string;
+  intent: SpeechIntent;
+  text: string;
+  role?: string;
+}): PhraseGenome {
+  const concepts = extractConceptsFromText(input.text);
+  return Object.freeze({
+    id: input.id.toLowerCase(),
+    intent: input.intent,
+    languageMode: detectLanguage(input.text),
+    structure: Object.freeze(['subject', 'verb', 'object']),
+    slots: Object.freeze([
+      Object.freeze({ role: 'subject', required: true, semanticRequirements: concepts.length ? concepts : ['greeting'] }),
+      Object.freeze({ role: 'verb', required: true, semanticRequirements: concepts.length ? concepts : ['greeting'] }),
+      Object.freeze({ role: 'object', required: false, semanticRequirements: concepts }),
+    ]),
+    constraints: Object.freeze(input.role ? { requiredRole: input.role } : {}),
+    outcomeStats: Object.freeze({
+      uses: 0,
+      successfulUses: 0,
+      failedUses: 0,
+      averageKappaScore: createKappaInt(1),
+    }),
+    mutation: Object.freeze({
+      parentGenomeIds: Object.freeze([]),
+      generation: 0,
+      stability: createKappaInt(1),
+      novelty: createKappaInt(0),
+    }),
+    truthMode: input.intent === 'rumor_share' ? 'rumor' : 'known_fact',
+  });
 }
 
 // =============================================================================
 // LEXEME SEEDING FROM DIALOGUES
 // =============================================================================
 
-function seedLexemesFromDialogues(dialogues: DialogueEntry[]): void {
+function seedLexemesFromDialogues(dialogues: readonly DialogueEntry[]): void {
   const seenLemmas = new Set<string>();
 
   for (const dialogue of dialogues) {
-    // Extract from greeting
-    if (dialogue.greeting) {
-      extractLexemesFromText(dialogue.greeting, dialogue.id, seenLemmas);
-    }
+    if (dialogue.greeting) extractLexemesFromText(dialogue.greeting, dialogue.id, seenLemmas);
 
-    // Extract from all quest lines
     const lineTypes = ['questStartLines', 'questProgressLines', 'questCompleteLines', 'questPrerequisiteLines'] as const;
     for (const lineType of lineTypes) {
       const lines = dialogue[lineType];
-      if (lines) {
-        for (const text of Object.values(lines)) {
-          extractLexemesFromText(text, dialogue.id, seenLemmas);
-        }
-      }
+      if (!lines) continue;
+      for (const text of Object.values(lines)) extractLexemesFromText(text, dialogue.id, seenLemmas);
+    }
+
+    if (dialogue.nodes) {
+      for (const node of Object.values(dialogue.nodes)) extractLexemesFromText(node.text, dialogue.id, seenLemmas);
     }
   }
 }
 
 function extractLexemesFromText(text: string, dialogueId: string, seenLemmas: Set<string>): void {
-  const conceptWords: Record<string, string[]> = {
-    greeting: ['grüßen', 'greeting', 'hallo', 'willkommen', 'welcome'],
-    farewell: ['farewell', 'goodbye', 'leben', 'go', 'leave'],
-    quest: ['quest', 'task', 'arbeit', 'auftrag', 'help', 'helfen'],
+  const conceptWords: Record<string, readonly string[]> = {
+    greeting: ['greetings', 'hello', 'hallo', 'willkommen', 'welcome'],
+    farewell: ['farewell', 'goodbye', 'leave'],
+    quest: ['quest', 'task', 'arbeit', 'auftrag'],
     trade: ['trade', 'handel', 'buy', 'sell', 'kaufen', 'verkaufen'],
     village: ['village', 'dorf', 'town', 'stadt', 'millbrook'],
     iron: ['iron', 'eisen', 'scrap', 'schrott'],
@@ -208,24 +236,22 @@ function extractLexemesFromText(text: string, dialogueId: string, seenLemmas: Se
   };
 
   const textLower = text.toLowerCase();
-
   for (const [concept, words] of Object.entries(conceptWords)) {
     for (const word of words) {
-      if (textLower.includes(word) && !seenLemmas.has(word)) {
-        seenLemmas.add(word);
+      const lemma = word.toLowerCase();
+      if (!textLower.includes(lemma) || seenLemmas.has(lemma)) continue;
+      seenLemmas.add(lemma);
 
-        const lexeme: LexemeBlueprint = {
-          id: `dialogue_${dialogueId}_${concept}_${word}`,
-          lemma: word,
-          language: word.length > 4 && /[äöüß]/i.test(word) ? 'de' : 'en',
-          concepts: [concept],
-          invented: false,
-          baseWeight: 1.0,
-          grammar: { partOfSpeech: 'noun', allowedPositions: ['subject', 'object'] },
-        };
-
-        registerCanonicalLexeme(lexeme);
-      }
+      const lexeme: LexemeBlueprint = {
+        id: `dialogue_${dialogueId}_${concept}_${lemma}`.replace(/[^a-z0-9_äöüß-]/gi, '_'),
+        lemma,
+        language: detectLanguage(lemma),
+        concepts: [concept],
+        invented: false,
+        baseWeight: 1,
+        grammar: { partOfSpeech: inferPartOfSpeech(lemma), allowedPositions: ['subject', 'verb', 'object'] },
+      };
+      registerCanonicalLexeme(lexeme);
     }
   }
 }
@@ -238,16 +264,16 @@ function mapDialogueNodeToIntent(text: string): SpeechIntent {
   const textLower = text.toLowerCase();
   if (textLower.includes('?') && (textLower.includes('can you') || textLower.includes('would you'))) return 'request';
   if (textLower.includes('thank') || textLower.includes('danke')) return 'thank';
-  if (textLower.includes('beware') || textLower.includes('warn') || textLower.includes('vorsicht'))) return 'warn';
+  if (textLower.includes('beware') || textLower.includes('warn') || textLower.includes('vorsicht')) return 'warn';
   if (textLower.includes('join') || textLower.includes('recruit')) return 'recruit';
-  if (textLower.includes('rumor') || textLower.includes('heard'))) return 'rumor_share';
+  if (textLower.includes('rumor') || textLower.includes('heard')) return 'rumor_share';
+  if (textLower.includes('trade') || textLower.includes('buy') || textLower.includes('sell')) return 'trade';
   return 'greet';
 }
 
 function extractConceptsFromText(text: string): string[] {
   const concepts: string[] = [];
-  const textLower = text.toLowerCase();
-  const conceptPatterns: Record<string, RegExp[]> = {
+  const conceptPatterns: Record<string, readonly RegExp[]> = {
     quest: [/quest/i, /task/i, /arbeit/i, /auftrag/i, /help/i],
     village: [/village/i, /dorf/i, /town/i, /stadt/i, /millbrook/i],
     danger: [/danger/i, /gefahr/i, /warnung/i, /beware/i],
@@ -255,12 +281,11 @@ function extractConceptsFromText(text: string): string[] {
     iron: [/iron/i, /eisen/i, /scrap/i, /schrott/i],
     wolf: [/wolf/i, /dire/i, /hunt/i],
     help: [/help/i, /helfen/i, /aid/i],
+    greeting: [/greet/i, /hello/i, /hallo/i, /welcome/i, /willkommen/i],
   };
 
   for (const [concept, patterns] of Object.entries(conceptPatterns)) {
-    if (patterns.some((p) => p.test(text))) {
-      concepts.push(concept);
-    }
+    if (patterns.some((pattern) => pattern.test(text))) concepts.push(concept);
   }
   return concepts;
 }
@@ -280,6 +305,16 @@ function extractRoleFromDialogue(dialogue: DialogueEntry): string | undefined {
     dialogue_dummy: 'Training',
   };
   return roleMap[dialogue.id];
+}
+
+function detectLanguage(text: string): LanguageCode {
+  return /[äöüß]|\b(der|die|das|und|nicht|danke|hallo|hilfe)\b/i.test(text) ? 'de' : 'en';
+}
+
+function inferPartOfSpeech(lemma: string): LexemeBlueprint['grammar']['partOfSpeech'] {
+  if (['help', 'helfen', 'trade', 'hunt', 'jagd', 'watch'].includes(lemma)) return 'verb';
+  if (['hello', 'hallo', 'greetings', 'welcome', 'willkommen'].includes(lemma)) return 'greeting';
+  return 'noun';
 }
 
 // =============================================================================
@@ -302,7 +337,7 @@ export function getQuestLine(
   const dialogue = dialogueData.get(dialogueId);
   if (!dialogue) return undefined;
 
-  const lineMap: Record<string, Record<string, string> | undefined> = {
+  const lineMap: Record<typeof lineType, Record<string, string> | undefined> = {
     start: dialogue.questStartLines,
     progress: dialogue.questProgressLines,
     complete: dialogue.questCompleteLines,
@@ -317,16 +352,20 @@ export function getQuestIds(dialogueId: string): string[] {
   if (!dialogue) return [];
 
   const ids = new Set<string>();
-  if (dialogue.questStartLines) for (const id of Object.keys(dialogue.questStartLines)) ids.add(id);
-  if (dialogue.questProgressLines) for (const id of Object.keys(dialogue.questProgressLines)) ids.add(id);
-  if (dialogue.questCompleteLines) for (const id of Object.keys(dialogue.questCompleteLines)) ids.add(id);
-  if (dialogue.questPrerequisiteLines) for (const id of Object.keys(dialogue.questPrerequisiteLines)) ids.add(id);
-  return Array.from(ids);
+  for (const source of [
+    dialogue.questStartLines,
+    dialogue.questProgressLines,
+    dialogue.questCompleteLines,
+    dialogue.questPrerequisiteLines,
+  ]) {
+    if (source) for (const id of Object.keys(source)) ids.add(id);
+  }
+  return Array.from(ids).sort();
 }
 
 export function hasDialogueNodes(dialogueId: string): boolean {
   const dialogue = dialogueData.get(dialogueId);
-  return dialogue?.nodes !== undefined && Object.keys(dialogue.nodes).length > 0;
+  return Boolean(dialogue?.nodes && Object.keys(dialogue.nodes).length > 0);
 }
 
 export function getFallbackText(dialogueId: string): string {
@@ -340,10 +379,6 @@ export function getFallbackText(dialogueId: string): string {
   return defaults[dialogueId] ?? '...';
 }
 
-/**
- * Main entry point for NPC dialogue resolution.
- * Used by DialogueDirector and NPCDialogueSystem.
- */
 export function resolveDialogue(
   dialogueId: string,
   context: {
@@ -357,47 +392,36 @@ export function resolveDialogue(
   const dialogue = dialogueData.get(dialogueId);
   if (!dialogue) return null;
 
-  // Quest-specific dialogue
   if (context.questId && context.questPhase) {
     const questText = getQuestLine(dialogueId, context.questId, context.questPhase);
     if (questText) return { text: questText };
   }
 
-  // Check entry nodes for condition-based routing
-  if (dialogue.entryNodes && context.flags && context.reputation) {
-    for (const entry of dialogue.entryNodes) {
-      if (entry.conditionFlag && context.flags[entry.conditionFlag]) {
-        const node = dialogue.nodes?.[entry.nodeId];
-        if (node) return { text: node.text, choices: node.choices };
-      }
-      if (entry.conditionReputation) {
-        const rep = context.reputation[entry.conditionReputation.factionId] ?? 0;
-        const { min, max } = entry.conditionReputation;
-        if ((min === undefined || rep >= min) && (max === undefined || rep <= max)) {
-          const node = dialogue.nodes?.[entry.nodeId];
-          if (node) return { text: node.text, choices: node.choices };
-        }
-      }
-    }
-  }
+  const nodeId = context.nodeId ?? resolveEntryNode(dialogue, context) ?? 'root';
+  const node = dialogue.nodes?.[nodeId];
+  if (node) return { text: node.text, choices: node.choices };
 
-  // Specific node request
-  if (context.nodeId && dialogue.nodes?.[context.nodeId]) {
-    const node = dialogue.nodes[context.nodeId];
-    return { text: node.text, choices: node.choices };
-  }
-
-  // Default to greeting
   if (dialogue.greeting) return { text: dialogue.greeting };
-
   return { text: getFallbackText(dialogueId) };
 }
 
-// =============================================================================
-// CLEANUP
-// =============================================================================
+function resolveEntryNode(
+  dialogue: DialogueEntry,
+  context: { flags?: Record<string, boolean>; reputation?: Record<string, number> }
+): string | undefined {
+  if (!dialogue.entryNodes) return undefined;
 
-export function clearDialogueBridge(): void {
-  dialogueData.clear();
-  bridgeInitialized = false;
+  for (const entryNode of dialogue.entryNodes) {
+    if (entryNode.conditionFlag && context.flags?.[entryNode.conditionFlag]) return entryNode.nodeId;
+
+    const condition = entryNode.conditionReputation;
+    if (condition) {
+      const value = context.reputation?.[condition.factionId] ?? 0;
+      if (condition.min !== undefined && value < condition.min) continue;
+      if (condition.max !== undefined && value > condition.max) continue;
+      return entryNode.nodeId;
+    }
+  }
+
+  return undefined;
 }
