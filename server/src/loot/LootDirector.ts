@@ -6,8 +6,7 @@ import {
   type LootDelta,
   type LootDeltaItem,
   type LootRollContextCanonical,
-  createIdempotencyKey,
-  createLootSeed
+  createIdempotencyKey
 } from './LootDelta.js';
 
 interface LootDirectorDeps {
@@ -20,6 +19,7 @@ interface LootDirectorDeps {
 
 const MAX_PROCESSED_KEYS = 10_000;
 const TRIM_PROCESSED_KEYS_TO = 5_000;
+const LEGACY_CHUNK_SIZE = 64;
 
 /**
  * LootDirector - Context Orchestrator + Deterministic loot_delta Writer
@@ -28,7 +28,7 @@ const TRIM_PROCESSED_KEYS_TO = 5_000;
  * 1. Receives canonical loot_roll_context from confirmed combat defeat events
  * 2. Delegates to ProceduralLootMachine
  * 3. Writes deterministic loot_delta
- * 4. Emits loot_delta for inventory/equipment systems to consume
+ * 4. Applies loot_delta to inventory/world-drop services and emits it downstream
  *
  * DO NOT: Roll own loot, create parallel drop truth, or emit loot before confirmed event.
  */
@@ -49,7 +49,9 @@ class LootDirector {
     lastSeedHash: null,
     idempotencyHits: 0,
     invalidContexts: 0,
-    failedRolls: 0
+    failedRolls: 0,
+    persistedDeltas: 0,
+    noConsumerDeltas: 0
   };
 
   constructor({ db, eventBus, inventoryService, worldDropService, auditStore }: LootDirectorDeps) {
@@ -72,7 +74,7 @@ class LootDirector {
       const context = this.normalizeLegacyContext(payload);
       if (!context) {
         this.telemetry.invalidContexts++;
-        console.warn('[LootDirector] Legacy combat.npcKilled missing canonical loot context fields; loot skipped');
+        console.warn('[LootDirector] Legacy combat.npcKilled missing stable player/npc/tick fields; loot skipped');
         return;
       }
       await this.handleDefeatEvent(context);
@@ -89,24 +91,22 @@ class LootDirector {
     const sourceEntityId = this.requiredString(payload.playerId ?? payload.sourceEntityId);
     const defeatedEntityId = this.requiredString(payload.npcId ?? payload.defeatedEntityId);
     const actorId = this.requiredString(payload.actorId ?? payload.playerId ?? payload.sourceEntityId);
-    const chunkKey = this.requiredString(payload.chunkKey);
-    const worldHash = this.requiredString(payload.worldHash);
-    const chunkHash = this.requiredString(payload.chunkHash);
-    const kappa = this.requiredString(payload.kappa);
 
-    if (!sourceEntityId || !defeatedEntityId || !actorId || !Number.isSafeInteger(sourceTick) || sourceTick < 0 || !chunkKey || !worldHash || !chunkHash || !kappa) {
+    if (!sourceEntityId || !defeatedEntityId || !actorId || !Number.isSafeInteger(sourceTick) || sourceTick < 0) {
       return null;
     }
 
-    return {
+    const spatial = this.deriveLegacySpatialContext(payload, sourceEntityId, defeatedEntityId, sourceTick);
+
+    return Object.freeze({
       sourceEntityId,
       defeatedEntityId,
       actorId,
       sourceTick,
-      chunkKey,
-      worldHash,
-      chunkHash,
-      kappa,
+      chunkKey: this.requiredString(payload.chunkKey) || spatial.chunkKey,
+      worldHash: this.requiredString(payload.worldHash) || spatial.worldHash,
+      chunkHash: this.requiredString(payload.chunkHash) || spatial.chunkHash,
+      kappa: this.requiredString(payload.kappa) || spatial.kappa,
       encounterId: typeof payload.encounterId === 'string' ? payload.encounterId : undefined,
       lootIndex: this.safeInteger(payload.lootIndex, 0),
       treasureClassId: this.requiredString(payload.treasureClassId) || this.treasureClassForEntity(payload),
@@ -117,7 +117,7 @@ class LootDirector {
       biomeId: this.requiredString(payload.biomeId) || 'unknown',
       factionId: this.requiredString(payload.factionId) || 'neutral',
       socialString: typeof payload.socialString === 'string' ? payload.socialString : ''
-    };
+    });
   }
 
   async handleDefeatEvent(rawContext: LootRollContextCanonical): Promise<LootDelta | null> {
@@ -140,9 +140,6 @@ class LootDirector {
       this.lootMachine = new ProceduralLootMachine(this.db, this.policy);
     }
 
-    const seed = createLootSeed(context);
-    const seedHash = LootAxioms.shortHash(seed);
-
     try {
       const result = await this.lootMachine.generate({
         playerId: context.sourceEntityId,
@@ -164,11 +161,13 @@ class LootDirector {
       const lootDelta: LootDelta = Object.freeze({
         idempotencyKey,
         lootRollContext: context,
-        seedHash,
+        seedHash: result.seedHash,
         items: this.buildLootDeltaItems(result.items, context),
         createdAtTick: context.sourceTick,
         playerId: context.sourceEntityId
       });
+
+      await this.applyLootDelta(lootDelta);
 
       this.processedKeys.add(idempotencyKey);
       this.trimProcessedKeys();
@@ -189,7 +188,7 @@ class LootDirector {
       this.eventBus.emitSafe('loot.generated', {
         playerId: context.sourceEntityId,
         tickIndex: context.sourceTick,
-        seedHash,
+        seedHash: result.seedHash,
         items: lootDelta.items.map(item => ({
           uid: item.uid,
           itemId: item.itemId,
@@ -247,18 +246,59 @@ class LootDirector {
   }
 
   private buildLootDeltaItems(items: readonly any[], context: LootRollContextCanonical): readonly LootDeltaItem[] {
-    const deltaItems: LootDeltaItem[] = items.map((item, index) => ({
-      uid: String(item.uid),
-      itemId: String(item.baseId || item.itemId || item.name),
-      name: String(item.name || item.baseId || item.uid),
-      rarity: String(item.rarity || 'COMMON'),
-      quantity: Math.max(1, this.safeInteger(item.amount ?? item.quantity, 1)),
-      position: { x: 0, y: 0, z: 0 },
-      rollHash: LootAxioms.shortHash(`${context.worldHash}|${context.chunkHash}|${context.sourceTick}|${context.defeatedEntityId}|${context.lootIndex}|${index}|${item.uid}`)
-    }));
+    const deltaItems: LootDeltaItem[] = items.map((item, index) => {
+      const itemId = this.resolveDeltaItemId(item);
+      const name = this.resolveDeltaItemName(item, itemId);
+      const uid = this.requiredString(item.uid) || `loot-${LootAxioms.shortHash(`${context.worldHash}|${context.chunkHash}|${context.sourceTick}|${itemId}|${index}`, 24)}`;
+
+      return {
+        uid,
+        itemId,
+        name,
+        rarity: String(item.rarity || (item.kind === 'currency' ? 'CURRENCY' : 'COMMON')),
+        quantity: Math.max(1, this.safeInteger(item.amount ?? item.quantity, 1)),
+        position: { x: 0, y: 0, z: 0 },
+        rollHash: LootAxioms.shortHash(`${context.worldHash}|${context.chunkHash}|${context.sourceTick}|${context.defeatedEntityId}|${context.lootIndex}|${index}|${uid}|${itemId}`)
+      };
+    });
 
     deltaItems.sort((a, b) => a.rollHash.localeCompare(b.rollHash) || a.uid.localeCompare(b.uid));
     return Object.freeze(deltaItems.map((item) => Object.freeze(item)));
+  }
+
+  private async applyLootDelta(delta: LootDelta): Promise<void> {
+    let consumed = false;
+
+    if (this.inventoryService?.addItem) {
+      for (const item of delta.items) {
+        await this.inventoryService.addItem({
+          playerId: delta.playerId,
+          itemId: item.itemId,
+          quantity: item.quantity
+        });
+      }
+      consumed = true;
+    }
+
+    if (this.worldDropService?.spawnItem) {
+      for (const item of delta.items) {
+        await this.worldDropService.spawnItem({
+          playerId: delta.playerId,
+          item,
+          delta,
+          tickIndex: delta.createdAtTick,
+          position: item.position
+        });
+      }
+      consumed = true;
+    }
+
+    if (consumed) {
+      this.telemetry.persistedDeltas++;
+    } else {
+      this.telemetry.noConsumerDeltas++;
+      console.warn('[LootDirector] loot_delta generated without inventory/world-drop consumer:', delta.idempotencyKey);
+    }
   }
 
   async handleWorldTick({ tickIndex }: { tickIndex: number }): Promise<void> {
@@ -313,6 +353,40 @@ class LootDirector {
       telemetry: this.telemetry,
       note: 'LootDirector is canonical - ProceduralLootMachine is the Infinite ARE Loot Machine'
     };
+  }
+
+  private deriveLegacySpatialContext(payload: any, sourceEntityId: string, defeatedEntityId: string, sourceTick: number): {
+    chunkKey: string;
+    worldHash: string;
+    chunkHash: string;
+    kappa: string;
+  } {
+    const position = payload.position && typeof payload.position === 'object' ? payload.position : {};
+    const x = Math.floor(Number(position.x || 0));
+    const z = Math.floor(Number(position.z || 0));
+    const chunkX = Math.floor(x / LEGACY_CHUNK_SIZE);
+    const chunkZ = Math.floor(z / LEGACY_CHUNK_SIZE);
+    const biomeId = this.requiredString(payload.biomeId) || 'unknown';
+    const factionId = this.requiredString(payload.factionId) || 'neutral';
+    const chunkKey = `legacy:${chunkX}:${chunkZ}`;
+    const worldHash = `legacy-world-${LootAxioms.shortHash(`${biomeId}|${factionId}`, 16)}`;
+    const chunkHash = `legacy-chunk-${LootAxioms.shortHash(`${chunkKey}|${defeatedEntityId}|${sourceTick}`, 16)}`;
+    const kappa = `legacy-kappa-${LootAxioms.shortHash(`${sourceEntityId}|${defeatedEntityId}|${sourceTick}|${chunkKey}`, 16)}`;
+    return { chunkKey, worldHash, chunkHash, kappa };
+  }
+
+  private resolveDeltaItemId(item: any): string {
+    return this.requiredString(item.baseId)
+      || this.requiredString(item.itemId)
+      || this.requiredString(item.currency)
+      || this.requiredString(item.name)
+      || 'unknown-loot-item';
+  }
+
+  private resolveDeltaItemName(item: any, itemId: string): string {
+    return this.requiredString(item.name)
+      || this.requiredString(item.currency)
+      || itemId;
   }
 
   private trimProcessedKeys(): void {
