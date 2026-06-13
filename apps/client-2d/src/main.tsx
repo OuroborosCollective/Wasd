@@ -11,7 +11,6 @@ import { InteractionOverlayRoot } from "./ui/InteractionOverlayRoot";
 import { DnDProvider } from "./ui/dnd/DnDContext";
 import { LootFeed } from "./ui/LootFeed";
 import { ToastStack, type ClientToast } from "./ui/ToastStack";
-import { NpcDialoguePanel } from "./ui/NpcDialoguePanel";
 import { InteractionPrompt } from "./ui/InteractionPrompt";
 import { StitchAssetGalleryPanel } from "./ui/StitchAssetGalleryPanel";
 import { StitchAssetPreviewPanel } from "./ui/windows/StitchAssetPreviewPanel";
@@ -22,6 +21,7 @@ import { installClient2DDepthRuntime } from "./client2dDepthRuntime";
 import { installViewportRuntime } from "./ViewportController";
 import { ARELORIA_BOOT_CONFIG } from "./boot/boot.config";
 import { LiveGameplayNetworkBridge } from "./game/LiveGameplayNetworkBridge";
+import { NpcContextWindow, NpcSpeechBubble, type EmotionType, type MenuAction, type NpcInfo, type QuestPreview, type SpeechBubbleVariant } from "./ui/npc";
 import { useState, useEffect, useRef } from "react";
 import "./forestBiomeManifestBridge";
 import "./client2dBootstrapNpcOverlay";
@@ -37,13 +37,26 @@ import "./moduleRegistry.css";
 import "./selfHealWorkshop.css";
 import "./ui/stitchAssetGallery.css";
 import "./ui/windows/stitchAssetPreviewPanel.css";
+import "./ui/npc/npc-ui.css";
 
 installClient2DDepthRuntime();
 installViewportRuntime();
 
 const ENABLE_PUBLIC_DEBUG_PANELS = ARELORIA_BOOT_CONFIG.design.showDebugHud;
-const ENABLE_STITCH_PREVIEW_PANEL =
-  ENABLE_PUBLIC_DEBUG_PANELS || import.meta.env.VITE_ENABLE_STITCH_PREVIEW_PANEL === "1";
+const ENABLE_STITCH_PREVIEW_PANEL = ENABLE_PUBLIC_DEBUG_PANELS || import.meta.env.VITE_ENABLE_STITCH_PREVIEW_PANEL === "1";
+
+interface NpcOverlayState {
+  readonly npc: NpcInfo;
+  readonly text: string;
+  readonly variant: SpeechBubbleVariant;
+  readonly emotion: EmotionType;
+  readonly quest: QuestPreview | null;
+}
+
+interface InteractionTargetState {
+  readonly label: string;
+  readonly npc: NpcInfo | null;
+}
 
 function hasStitchPreviewUrlRequest(): boolean {
   try {
@@ -52,6 +65,55 @@ function hasStitchPreviewUrlRequest(): boolean {
   } catch {
     return false;
   }
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function readString(record: Record<string, unknown>, keys: readonly string[], fallback: string): string {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim().length > 0) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return fallback;
+}
+
+function readEmotion(value: unknown): EmotionType {
+  return value === "happy" || value === "angry" || value === "confused" || value === "sad" ? value : "neutral";
+}
+
+function readBubbleVariant(value: unknown): SpeechBubbleVariant {
+  return value === "thinking" ? "thinking" : "speaking";
+}
+
+function normalizeQuest(value: unknown): QuestPreview | null {
+  const record = asRecord(value);
+  const name = readString(record, ["name", "title", "questName"], "First Steps");
+  const objective = readString(record, ["objective", "summary", "description"], "Talk to this NPC.");
+  if (Object.keys(record).length === 0) return null;
+  return {
+    name,
+    description: readString(record, ["description", "summary", "objective"], objective),
+    objective,
+    reward: readString(record, ["reward", "rewardText", "rewards"], "Reputation"),
+    isNew: Boolean(record.isNew ?? record.new ?? record.hasNotification),
+  };
+}
+
+function normalizeNpcInfo(payload: unknown, fallbackLabel = "NPC"): NpcInfo {
+  const record = asRecord(payload);
+  const nestedNpc = asRecord(record.npc);
+  const source = Object.keys(nestedNpc).length > 0 ? { ...record, ...nestedNpc } : record;
+  const name = readString(source, ["npcName", "name", "displayName", "label"], fallbackLabel);
+  return {
+    id: readString(source, ["npcId", "id", "entityId"], name.toLowerCase().replace(/\s+/g, "_")),
+    name,
+    role: readString(source, ["role", "npcRole", "profession"], "villager"),
+    faction: readString(source, ["faction", "factionName"], "Areloria"),
+    portraitUrl: readString(source, ["portraitUrl", "portrait", "imageUrl"], "") || undefined,
+  };
 }
 
 function showFatalBootError(error: unknown): void {
@@ -98,13 +160,26 @@ function setupGlobalErrorHandlers(): void {
 function UIOverlayLayer() {
   const [lootEntries, setLootEntries] = useState<LootFeedEntry[]>([]);
   const [toasts, setToasts] = useState<ClientToast[]>([]);
-  const [dialogueActive, setDialogueActive] = useState<{ npcName: string; text: string } | null>(null);
-  const [interactionTarget, setInteractionTarget] = useState<{ label: string } | null>(null);
+  const [npcOverlay, setNpcOverlay] = useState<NpcOverlayState | null>(null);
+  const [npcContextOpen, setNpcContextOpen] = useState(false);
+  const [interactionTarget, setInteractionTarget] = useState<InteractionTargetState | null>(null);
   const [showRegistry, setShowRegistry] = useState(false);
   const [showWorkshop, setShowWorkshop] = useState(false);
   const [showStitchGallery, setShowStitchGallery] = useState(false);
   const [showStitchPreview, setShowStitchPreview] = useState(() => ENABLE_STITCH_PREVIEW_PANEL && hasStitchPreviewUrlRequest());
   const lootFeedRef = useRef(createLootFeedStore(6));
+
+  const dispatchClientAction = (action: string, payload: Record<string, unknown>): void => {
+    window.dispatchEvent(new CustomEvent("wasd:client-action", { detail: { action, payload } }));
+  };
+
+  const openNpcContext = (npcOverride?: NpcInfo | null): void => {
+    const npc = npcOverride ?? interactionTarget?.npc ?? npcOverlay?.npc ?? normalizeNpcInfo({}, interactionTarget?.label ?? "NPC");
+    const text = npcOverlay?.text ?? `Speak with ${npc.name}.`;
+    setNpcOverlay((prev) => prev ?? { npc, text, variant: "speaking", emotion: "neutral", quest: null });
+    setNpcContextOpen(true);
+    dispatchClientAction("interact", { npcId: npc.id, label: npc.name });
+  };
 
   useEffect(() => {
     const lootInterval = setInterval(() => setLootEntries([...lootFeedRef.current.getAll()]), 500);
@@ -146,12 +221,26 @@ function UIOverlayLayer() {
       }
       if (detail?.event === "npc_dialogue" || detail?.type === "npc_dialogue") {
         const payload = detail.payload ?? detail;
-        setDialogueActive({ npcName: String(payload.npcName ?? payload.name ?? "NPC"), text: String(payload.text ?? payload.message ?? "") });
+        const npc = normalizeNpcInfo(payload);
+        const text = readString(asRecord(payload), ["text", "message", "dialogue", "currentText"], "...");
+        const overlay = {
+          npc,
+          text,
+          variant: readBubbleVariant(asRecord(payload).variant ?? asRecord(payload).bubbleVariant),
+          emotion: readEmotion(asRecord(payload).emotion),
+          quest: normalizeQuest(asRecord(payload).quest),
+        };
+        setNpcOverlay(overlay);
+        if (Boolean(asRecord(payload).openContext ?? asRecord(payload).contextOpen ?? asRecord(payload).showContext)) setNpcContextOpen(true);
       }
-      if (detail?.event === "DIALOGUE_CLOSE") setDialogueActive(null);
+      if (detail?.event === "DIALOGUE_CLOSE") {
+        setNpcOverlay(null);
+        setNpcContextOpen(false);
+      }
       if (detail?.event === "INTERACTION_TARGET" || detail?.type === "interaction_target") {
         const payload = detail.payload ?? detail;
-        setInteractionTarget({ label: String(payload.label ?? "Interact") });
+        const label = readString(asRecord(payload), ["label", "name", "npcName"], "Interact");
+        setInteractionTarget({ label, npc: normalizeNpcInfo(payload, label) });
       }
       if (detail?.event === "INTERACTION_CLEAR") setInteractionTarget(null);
     }) as EventListener;
@@ -164,17 +253,60 @@ function UIOverlayLayer() {
       window.removeEventListener("wasd:open-stitch-preview", openStitchPreview);
       window.removeEventListener("wasd:network-packet", handler);
     };
-  }, []);
+  }, [interactionTarget, npcOverlay]);
+
+  const handleNpcAction = (action: MenuAction): void => {
+    const npc = npcOverlay?.npc ?? interactionTarget?.npc ?? normalizeNpcInfo({}, interactionTarget?.label ?? "NPC");
+    if (action === "goodbye") {
+      setNpcContextOpen(false);
+      setNpcOverlay(null);
+      dispatchClientAction("npc_goodbye", { npcId: npc.id });
+      return;
+    }
+    dispatchClientAction(`npc_${action}`, { npcId: npc.id, npcName: npc.name });
+  };
 
   return (
     <>
       <LootFeed entries={lootEntries} />
       <ToastStack toasts={toasts} />
-      {dialogueActive && <NpcDialoguePanel dialogue={{ active: dialogueActive }} onClose={() => setDialogueActive(null)} />}
+      {npcOverlay && (
+        <div
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: 180,
+            width: 280,
+            height: 1,
+            transform: "translateX(-50%)",
+            zIndex: 60,
+            pointerEvents: "none",
+          }}
+        >
+          <NpcSpeechBubble
+            npcName={npcOverlay.npc.name}
+            text={npcOverlay.text}
+            variant={npcOverlay.variant}
+            emotion={npcOverlay.emotion}
+            onDismiss={() => setNpcOverlay(null)}
+          />
+        </div>
+      )}
+      {npcOverlay && (
+        <NpcContextWindow
+          isOpen={npcContextOpen}
+          npc={npcOverlay.npc}
+          dialogue={{ currentText: npcOverlay.text, canContinue: false, isFinished: false }}
+          quest={npcOverlay.quest}
+          onClose={() => setNpcContextOpen(false)}
+          onAction={handleNpcAction}
+          onContinue={() => dispatchClientAction("npc_continue", { npcId: npcOverlay.npc.id })}
+        />
+      )}
       {interactionTarget && (
         <InteractionPrompt
-          target={interactionTarget}
-          onInteract={() => window.dispatchEvent(new CustomEvent("wasd:client-action", { detail: { action: "interact", payload: {} } }))}
+          target={{ label: interactionTarget.label }}
+          onInteract={() => openNpcContext(interactionTarget.npc)}
         />
       )}
       {ENABLE_PUBLIC_DEBUG_PANELS && showRegistry && (
@@ -210,13 +342,7 @@ function UIOverlayLayer() {
         </div>
       )}
       {ENABLE_STITCH_PREVIEW_PANEL && !showStitchPreview && (
-        <button
-          className="module-registry-floating-dev-button"
-          type="button"
-          onClick={() => setShowStitchPreview(true)}
-          aria-label="Open Stitch Preview"
-          data-testid="stitch-preview-dev-open"
-        >
+        <button className="module-registry-floating-dev-button" type="button" onClick={() => setShowStitchPreview(true)} aria-label="Open Stitch Preview" data-testid="stitch-preview-dev-open">
           Stitch Preview
         </button>
       )}
