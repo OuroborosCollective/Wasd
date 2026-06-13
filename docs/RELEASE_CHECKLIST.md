@@ -6,6 +6,23 @@ Last updated: 2026-06-13
 
 ---
 
+## Deployment Issue Found
+
+**CRITICAL: Container is crashing on VPS due to missing game-data mount**
+
+The `arelorian-engine` container is in a crash loop because `game-data/npc/npcs.json` is not available inside the container.
+
+**Root Cause:** The `docker-compose.yml` does not mount `game-data` into the container. The VPS has the correct files at `/opt/areloria/game-data/` but the container only has these mounts:
+- `./data:/app/data`
+- `./logs:/app/logs`
+- `./private-assets:/opt/areloria/private-assets:ro`
+
+**Missing mount:** `./game-data:/app/game-data:ro` (or equivalent)
+
+**Impact:** Tier A, item A1 (Production deploy verification) is BLOCKED.
+
+---
+
 ## 1. Local Build & Guard Verification
 
 Run these commands locally and confirm all pass:
