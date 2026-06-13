@@ -157,3 +157,21 @@ export {
   type MixedSpeechResult,
   type GeneratedPhrase,
 } from './ArelorianConlangEngine.js';
+
+// Dialogue Bridge (integrates with game-data/dialogue/dialogues.json)
+export {
+  initializeDialogueBridge,
+  isDialogueBridgeInitialized,
+  getDialogueEntry,
+  getGreeting,
+  getQuestLine,
+  getQuestIds,
+  hasDialogueNodes,
+  getFallbackText,
+  resolveDialogue,
+  clearDialogueBridge,
+  type DialogueEntry,
+  type DialogueNode,
+  type DialogueChoice,
+  type EntryNode,
+} from './DialogueBridge.js';
