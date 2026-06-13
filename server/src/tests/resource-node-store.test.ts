@@ -87,6 +87,10 @@ describe("ResourceNodeStore", () => {
       expect(result.ok).toBe(true);
       expect(result.reason).toBe("gathered");
       expect(result.xpReward).toBe(25);
+      expect(result.baseXpReward).toBe(25);
+      expect(result.gatheringStreak).toBe(1);
+      expect(result.gatheringMomentumPermille).toBe(0);
+      expect(result.gatheringMomentumWindowTicks).toBe(600);
       expect(result.skillId).toBe("woodcutting");
       expect(result.itemRewardId).toBe("wood_log");
       expect(result.itemRewardName).toBe("Wood Log");
@@ -95,6 +99,80 @@ describe("ResourceNodeStore", () => {
       expect(snapshot?.status).toBe("depleted");
       expect(snapshot?.remainingTicks).toBe(10);
       expect(snapshot?.depletedUntilTick).toBe(110);
+    });
+
+    it("rewards deterministic same-skill gathering momentum inside the tick window", () => {
+      const first = store.gather({
+        playerId: "p1",
+        nodeId: "test_tree",
+        playerPosition: { x: 10, y: 10 },
+        currentTick: 100,
+        playerSkillLevel: 1,
+      });
+
+      const second = store.gather({
+        playerId: "p1",
+        nodeId: "test_tree",
+        playerPosition: { x: 10, y: 10 },
+        currentTick: 110,
+        playerSkillLevel: 1,
+      });
+
+      expect(first.xpReward).toBe(25);
+      expect(first.gatheringStreak).toBe(1);
+      expect(first.gatheringMomentumPermille).toBe(0);
+      expect(second.ok).toBe(true);
+      expect(second.baseXpReward).toBe(25);
+      expect(second.xpReward).toBe(26);
+      expect(second.gatheringStreak).toBe(2);
+      expect(second.gatheringMomentumPermille).toBe(50);
+    });
+
+    it("resets gathering momentum when the skill changes", () => {
+      store.gather({
+        playerId: "p1",
+        nodeId: "test_tree",
+        playerPosition: { x: 10, y: 10 },
+        currentTick: 100,
+        playerSkillLevel: 1,
+      });
+
+      const ore = store.gather({
+        playerId: "p1",
+        nodeId: "test_ore",
+        playerPosition: { x: 50, y: 50 },
+        currentTick: 101,
+        playerSkillLevel: 1,
+      });
+
+      expect(ore.ok).toBe(true);
+      expect(ore.skillId).toBe("mining");
+      expect(ore.xpReward).toBe(30);
+      expect(ore.gatheringStreak).toBe(1);
+      expect(ore.gatheringMomentumPermille).toBe(0);
+    });
+
+    it("resets gathering momentum after the tick window expires", () => {
+      store.gather({
+        playerId: "p1",
+        nodeId: "test_tree",
+        playerPosition: { x: 10, y: 10 },
+        currentTick: 100,
+        playerSkillLevel: 1,
+      });
+
+      const expired = store.gather({
+        playerId: "p1",
+        nodeId: "test_tree",
+        playerPosition: { x: 10, y: 10 },
+        currentTick: 701,
+        playerSkillLevel: 1,
+      });
+
+      expect(expired.ok).toBe(true);
+      expect(expired.xpReward).toBe(25);
+      expect(expired.gatheringStreak).toBe(1);
+      expect(expired.gatheringMomentumPermille).toBe(0);
     });
 
     it("rejects gather from depleted node", () => {
@@ -302,6 +380,8 @@ describe("ResourceNodeStore", () => {
       expect(result1.ok).toBe(result2.ok);
       expect(result1.xpReward).toBe(result2.xpReward);
       expect(result1.skillId).toBe(result2.skillId);
+      expect(result1.gatheringStreak).toBe(result2.gatheringStreak);
+      expect(result1.gatheringMomentumPermille).toBe(result2.gatheringMomentumPermille);
     });
   });
 });
