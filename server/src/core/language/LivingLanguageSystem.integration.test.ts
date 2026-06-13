@@ -4,7 +4,9 @@ import { decideUtterance, clearAllKernelState } from './DialogueDecisionKernel.j
 import { buildNpcLanguageState, processLinguisticUpdate, initializeLinguisticKernel, isLinguisticKernelInitialized, resetLinguisticKernel, shutdownLinguisticKernel } from './ArelorianLinguisticKernel.js';
 import { createKappaInt } from './LanguageTypes.js';
 import type { KappaInt } from './LanguageTypes.js';
+import type { TickId } from '../are/types.js';
 
+function testTick(value: number): TickId { return value as TickId; }
 function createTestWorldState() {
   return { threatLevel: createKappaInt(0.3) as KappaInt, villageSafety: createKappaInt(0.7) as KappaInt, factionPressure: createKappaInt(0.5) as KappaInt, politicalTension: createKappaInt(0.4) as KappaInt };
 }
@@ -26,8 +28,8 @@ describe('Living Language System Integration', () => {
   });
 
   describe('ArelorianLinguisticKernel', () => {
-    it('should initialize and process updates', async () => { await initializeLinguisticKernel(); expect(isLinguisticKernelInitialized()).toBe(true); const npcState = buildNpcLanguageState('kernel_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.3, trust: 0.5, fear: 0.2, duty: 0.6, pride: 0.4, revenge: 0.1 }); const utterances = processLinguisticUpdate(0, [npcState], createTestWorldState(), { forceAll: true }); expect(utterances.length).toBeGreaterThanOrEqual(0); });
-    it('should skip non-interval ticks', () => { const npcState = buildNpcLanguageState('skip_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.3, trust: 0.5, fear: 0.2, duty: 0.6, pride: 0.4, revenge: 0.1 }); expect(processLinguisticUpdate(5, [npcState], createTestWorldState()).length).toBe(0); });
+    it('should initialize and process updates', async () => { await initializeLinguisticKernel(); expect(isLinguisticKernelInitialized()).toBe(true); const npcState = buildNpcLanguageState('kernel_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.3, trust: 0.5, fear: 0.2, duty: 0.6, pride: 0.4, revenge: 0.1 }); const utterances = processLinguisticUpdate(testTick(0), [npcState], createTestWorldState(), { forceAll: true }); expect(utterances.length).toBeGreaterThanOrEqual(0); });
+    it('should skip non-interval ticks', () => { const npcState = buildNpcLanguageState('skip_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.3, trust: 0.5, fear: 0.2, duty: 0.6, pride: 0.4, revenge: 0.1 }); expect(processLinguisticUpdate(testTick(5), [npcState], createTestWorldState()).length).toBe(0); });
   });
 
   describe('End-to-End Flow', () => {
