@@ -27,15 +27,15 @@ export function getGatheringToolBonus(input: {
 }): GatheringToolBonus {
   const equippedDefinitions = input.equipment.slots
     .map((slot) => EQUIPMENT_DEFINITIONS[slot.itemId])
-    .filter(Boolean);
+    .filter((definition) => Boolean(definition?.skillBonus));
 
   const matching = equippedDefinitions.find(
-    (definition) => definition.skillBonus.skillId === input.skillId,
+    (definition) => definition.skillBonus?.skillId === input.skillId,
   );
 
   return {
-    xpMultiplierPermille: matching?.skillBonus.xpMultiplierPermille ?? 1000,
-    gatherRespawnReductionTicks: matching?.skillBonus.gatherRespawnReductionTicks ?? 0,
+    xpMultiplierPermille: matching?.skillBonus?.xpMultiplierPermille ?? 1000,
+    gatherRespawnReductionTicks: matching?.skillBonus?.gatherRespawnReductionTicks ?? 0,
     tier: matching?.tier ?? 1,
     equipmentGatheringYield: 0,
     equipmentGatheringXp: 0,

@@ -7,7 +7,7 @@
 
 import { describe, expect, it, beforeEach } from "vitest";
 import { ResourceNodeStore } from "../resources/ResourceNodeStore";
-import type { ResourceNodeDefinition } from "../resources/ResourceTypes";
+import type { GatheringMomentumRule, ResourceNodeDefinition } from "../resources/ResourceTypes";
 
 const testNodes: ResourceNodeDefinition[] = [
   {
@@ -50,6 +50,25 @@ const testNodes: ResourceNodeDefinition[] = [
     radius: 10,
   },
 ];
+
+const testMomentumRule: GatheringMomentumRule = {
+  schemaVersion: 1,
+  id: "test_gathering_momentum",
+  enabled: true,
+  truthStatus: "runtime_truth",
+  canBecomeTruth: true,
+  truthPath: "test -> ResourceNodeStore.gather()",
+  truthPromotion: "Test rule mirrors game-data gathering momentum truth promotion.",
+  appliesToSkillIds: ["fishing", "mining", "woodcutting"],
+  windowTicks: 600,
+  streakBonusPermille: 50,
+  maxStreak: 5,
+  resetOnSkillChange: true,
+};
+
+function createMomentumStore(): ResourceNodeStore {
+  return new ResourceNodeStore(testNodes, undefined, testMomentumRule);
+}
 
 describe("ResourceNodeStore", () => {
   let store: ResourceNodeStore;
@@ -224,6 +243,137 @@ describe("ResourceNodeStore", () => {
     });
   });
 
+  describe("gathering momentum", () => {
+    it("adds same-skill momentum inside the tick window", () => {
+      const momentumStore = createMomentumStore();
+
+      const first = momentumStore.gather({
+        playerId: "p1",
+        nodeId: "test_tree",
+        playerPosition: { x: 10, y: 10 },
+        currentTick: 100,
+        playerSkillLevel: 1,
+      });
+
+      const second = momentumStore.gather({
+        playerId: "p1",
+        nodeId: "test_tree",
+        playerPosition: { x: 10, y: 10 },
+        currentTick: 110,
+        playerSkillLevel: 1,
+      });
+
+      expect(first.xpReward).toBe(25);
+      expect(first.momentum?.streak).toBe(1);
+      expect(first.momentum?.bonusPermille).toBe(0);
+
+      expect(second.ok).toBe(true);
+      expect(second.xpReward).toBe(26);
+      expect(second.momentum).toMatchObject({
+        ruleId: "test_gathering_momentum",
+        truthStatus: "runtime_truth",
+        skillId: "woodcutting",
+        streak: 2,
+        bonusPermille: 50,
+        xpBeforeMomentum: 25,
+        xpReward: 26,
+        windowTicks: 600,
+        expiresAtTick: 710,
+      });
+    });
+
+    it("resets momentum when the player changes gathering skill", () => {
+      const momentumStore = createMomentumStore();
+
+      momentumStore.gather({
+        playerId: "p1",
+        nodeId: "test_tree",
+        playerPosition: { x: 10, y: 10 },
+        currentTick: 100,
+        playerSkillLevel: 1,
+      });
+
+      const ore = momentumStore.gather({
+        playerId: "p1",
+        nodeId: "test_ore",
+        playerPosition: { x: 50, y: 50 },
+        currentTick: 110,
+        playerSkillLevel: 1,
+      });
+
+      const treeAgain = momentumStore.gather({
+        playerId: "p1",
+        nodeId: "test_tree",
+        playerPosition: { x: 10, y: 10 },
+        currentTick: 120,
+        playerSkillLevel: 1,
+      });
+
+      expect(ore.xpReward).toBe(30);
+      expect(ore.momentum?.streak).toBe(1);
+      expect(ore.momentum?.bonusPermille).toBe(0);
+
+      expect(treeAgain.xpReward).toBe(25);
+      expect(treeAgain.momentum?.streak).toBe(1);
+      expect(treeAgain.momentum?.bonusPermille).toBe(0);
+    });
+
+    it("resets momentum after the tick window expires", () => {
+      const momentumStore = createMomentumStore();
+
+      momentumStore.gather({
+        playerId: "p1",
+        nodeId: "test_tree",
+        playerPosition: { x: 10, y: 10 },
+        currentTick: 100,
+        playerSkillLevel: 1,
+      });
+
+      const expired = momentumStore.gather({
+        playerId: "p1",
+        nodeId: "test_tree",
+        playerPosition: { x: 10, y: 10 },
+        currentTick: 701,
+        playerSkillLevel: 1,
+      });
+
+      expect(expired.ok).toBe(true);
+      expect(expired.xpReward).toBe(25);
+      expect(expired.momentum?.streak).toBe(1);
+      expect(expired.momentum?.bonusPermille).toBe(0);
+    });
+
+    it("replays deterministically for the same gather sequence", () => {
+      const a = createMomentumStore();
+      const b = createMomentumStore();
+
+      const sequence = [
+        { nodeId: "test_tree", playerPosition: { x: 10, y: 10 }, currentTick: 100, playerSkillLevel: 1 },
+        { nodeId: "test_tree", playerPosition: { x: 10, y: 10 }, currentTick: 110, playerSkillLevel: 1 },
+        { nodeId: "test_tree", playerPosition: { x: 10, y: 10 }, currentTick: 120, playerSkillLevel: 1 },
+      ];
+
+      const resultsA = sequence.map((step) =>
+        a.gather({
+          playerId: "p1",
+          ...step,
+        }),
+      );
+      const resultsB = sequence.map((step) =>
+        b.gather({
+          playerId: "p1",
+          ...step,
+        }),
+      );
+
+      expect(resultsA.map((r) => r.xpReward)).toEqual(resultsB.map((r) => r.xpReward));
+      expect(resultsA.map((r) => r.momentum?.streak)).toEqual(resultsB.map((r) => r.momentum?.streak));
+      expect(resultsA.map((r) => r.momentum?.bonusPermille)).toEqual(
+        resultsB.map((r) => r.momentum?.bonusPermille),
+      );
+    });
+  });
+
   describe("listSnapshots", () => {
     it("returns sorted snapshots by ID", () => {
       const snapshots = store.listSnapshots(0);
@@ -274,6 +424,31 @@ describe("ResourceNodeStore", () => {
       const snapshot = store.getSnapshot("test_tree", 100);
       expect(snapshot?.status).toBe("available");
       expect(snapshot?.remainingTicks).toBe(0);
+    });
+
+    it("resets momentum state", () => {
+      const momentumStore = createMomentumStore();
+
+      momentumStore.gather({
+        playerId: "p1",
+        nodeId: "test_tree",
+        playerPosition: { x: 10, y: 10 },
+        currentTick: 100,
+        playerSkillLevel: 1,
+      });
+
+      momentumStore.clearForTests();
+
+      const result = momentumStore.gather({
+        playerId: "p1",
+        nodeId: "test_tree",
+        playerPosition: { x: 10, y: 10 },
+        currentTick: 110,
+        playerSkillLevel: 1,
+      });
+
+      expect(result.xpReward).toBe(25);
+      expect(result.momentum?.streak).toBe(1);
     });
   });
 

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "gathering_momentum_v1",
+  "enabled": true,
+  "truthStatus": "runtime_truth",
+  "canBecomeTruth": true,
+  "truthPath": "game-data/resources/gathering-momentum.json -> server/src/resources/ResourceGameData.ts -> ResourceNodeStore.gather() -> skill_xp_gain",
+  "truthPromotion": "This rule becomes gameplay truth only when loaded from the active content root, validated against tick-based inputs, and applied by ResourceNodeStore on successful gathers.",
+  "appliesToSkillIds": [
+    "woodcutting",
+    "mining",
+    "fishing"
+  ],
+  "windowTicks": 600,
+  "streakBonusPermille": 50,
+  "maxStreak": 5,
+  "resetOnSkillChange": true,
+  "determinism": {
+    "clock": "server_tick_only",
+    "randomness": "none",
+    "inputs": [
+      "playerId",
+      "skillId",
+      "currentTick",
+      "successful_gather_order"
+    ],
+    "forbidden": [
+      "Date.now",
+      "Math.random"
+    ]
+  },
+  "playerFacing": {
+    "summary": "Keep gathering the same skill within 600 ticks to build Momentum XP.",
+    "feedbackToken": "GATHERING_MOMENTUM"
+  }
+}

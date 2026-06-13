@@ -6,12 +6,23 @@
  */
 
 import type { CharacterProfileSnapshot } from "./CharacterTypes.js";
-import type { PlayerEquipmentState } from "../equipment/EquipmentTypes.js";
+import {
+  EQUIPMENT_DEFINITIONS,
+  EQUIPMENT_SLOT_DEFINITIONS,
+  compareEquipmentSlotIds,
+  type EquipmentNumberEntry,
+  type EquipmentSlotId,
+  type PlayerEquipmentState,
+} from "../equipment/EquipmentTypes.js";
 
 export interface PaperdollSlotSnapshot {
-  slotId: string;
+  slotId: EquipmentSlotId;
   itemId: string | null;
   title: string;
+  displayId?: string;
+  iconId?: string;
+  stats?: readonly EquipmentNumberEntry[];
+  requirements?: readonly EquipmentNumberEntry[];
 }
 
 export interface PaperdollSnapshot {
@@ -25,22 +36,37 @@ export function createPaperdollSnapshot(input: {
 }): PaperdollSnapshot {
   const equipped = input.equipment?.slots ?? [];
 
-  const slotIds = [
-    "woodcutting_tool",
-    "mining_tool",
-    "fishing_tool",
-  ];
-
   return {
     character: input.character,
-    slots: slotIds.map((slotId) => {
-      const found = equipped.find((slot) => slot.slotId === slotId);
+    slots: EQUIPMENT_SLOT_DEFINITIONS.map((slotDefinition) => {
+      const found = equipped.find((slot) => slot.slotId === slotDefinition.slotId);
+      const itemDefinition = found ? EQUIPMENT_DEFINITIONS[found.itemId] : undefined;
+
+      if (!found) {
+        return {
+          slotId: slotDefinition.slotId,
+          itemId: null,
+          title: slotDefinition.emptyTitle,
+        };
+      }
 
       return {
-        slotId,
-        itemId: found?.itemId ?? null,
-        title: found?.title ?? "Empty",
+        slotId: slotDefinition.slotId,
+        itemId: found.itemId,
+        title: itemDefinition?.title ?? found.title,
+        ...(itemDefinition?.displayId || found.displayId
+          ? { displayId: itemDefinition?.displayId ?? found.displayId }
+          : {}),
+        ...(itemDefinition?.iconId || found.iconId
+          ? { iconId: itemDefinition?.iconId ?? found.iconId }
+          : {}),
+        ...(itemDefinition?.stats || found.stats
+          ? { stats: [...(itemDefinition?.stats ?? found.stats ?? [])] }
+          : {}),
+        ...(itemDefinition?.requirements || found.requirements
+          ? { requirements: [...(itemDefinition?.requirements ?? found.requirements ?? [])] }
+          : {}),
       };
-    }).sort((a, b) => a.slotId.localeCompare(b.slotId)),
+    }).sort((a, b) => compareEquipmentSlotIds(a.slotId, b.slotId)),
   };
 }
