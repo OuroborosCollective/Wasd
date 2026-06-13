@@ -29,6 +29,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
+      - ./game-data:/app/game-data:ro
       - ./private-assets:/opt/areloria/private-assets:ro
     environment:
       NODE_ENV: production
