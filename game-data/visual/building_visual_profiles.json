@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "kappa": 1000,
+  "buildingProfiles": {
+    "blacksmith": { "assetIntent": "building:blacksmith", "spriteTags": ["house", "craft"], "cropProfileId": "building_foot_anchor_bottom_center", "shadowProfileId": "building_soft_ellipse" },
+    "trader_shop": { "assetIntent": "building:trader_shop", "spriteTags": ["house", "shop", "market"], "cropProfileId": "building_foot_anchor_bottom_center", "shadowProfileId": "building_soft_ellipse" },
+    "healer_hut": { "assetIntent": "building:healer_hut", "spriteTags": ["house", "healer", "hut"], "cropProfileId": "building_foot_anchor_bottom_center", "shadowProfileId": "building_soft_ellipse" },
+    "inn": { "assetIntent": "building:inn", "spriteTags": ["house", "inn", "service"], "cropProfileId": "building_foot_anchor_bottom_center", "shadowProfileId": "building_soft_ellipse" },
+    "watch_post": { "assetIntent": "building:watch_post", "spriteTags": ["tower", "watch"], "cropProfileId": "building_foot_anchor_bottom_center", "shadowProfileId": "building_soft_ellipse" },
+    "house": { "assetIntent": "building:house", "spriteTags": ["house", "civilian"], "cropProfileId": "building_foot_anchor_bottom_center", "shadowProfileId": "building_soft_ellipse" }
+  }
+}
