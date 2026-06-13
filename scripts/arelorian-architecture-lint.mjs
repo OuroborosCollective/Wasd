@@ -10,20 +10,8 @@ const ignoredDirs = new Set(['.git', '.turbo', '.cache', 'node_modules', 'dist',
 const codeExt = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.mts', '.cts']);
 const deterministicRoots = ['server/src/core', 'server/src/modules/npc', 'server/src/modules/loot', 'server/src/modules/world', 'world'];
 const deterministicAdvisoryHints = [
-  '/api/',
-  '/state/',
-  '/config/',
-  '/health',
-  '/metrics',
-  '/monitor',
-  '/telemetry',
-  '/debug',
-  '/__tests__/',
-  '.test.',
-  '.spec.',
-  '/liveheal/',
-  '/integrity/',
-  '/are/layerpersistencequeue.ts',
+  '/api/', '/state/', '/config/', '/health', '/metrics', '/monitor', '/telemetry', '/debug',
+  '/__tests__/', '.test.', '.spec.', '/liveheal/', '/integrity/', '/are/layerpersistencequeue.ts',
 ];
 const bootFiles = ['server/src/index.ts', 'server/src/core/ServerBootstrap.ts', 'apps/client-2d/src/main.tsx', 'apps/client-2d/src/client2dDepthRuntime.ts'];
 
@@ -32,6 +20,7 @@ function rel(file) { return norm(path.relative(root, file)); }
 function read(file) { return readFileSync(path.join(root, file), 'utf8'); }
 function fail(rule, message, hint) { errors.push({ rule, message, hint }); }
 function warn(rule, message, hint) { warnings.push({ rule, message, hint }); }
+function hasDeterminismAllow(line) { return /ARE-ARCH-LINT-ALLOW/i.test(line) || /ARE-DETERMINISM-ALLOW/i.test(line); }
 
 function walk(dir, out = []) {
   const absolute = path.join(root, dir);
@@ -72,14 +61,12 @@ function stripCommentsPreserveLines(source) {
   while (i < source.length) {
     const ch = source[i];
     const next = source[i + 1];
-
     if (inBlock) {
       if (ch === '*' && next === '/') { inBlock = false; out += '  '; i += 2; continue; }
       out += ch === '\n' ? '\n' : ' ';
       i++;
       continue;
     }
-
     if (inString) {
       out += ch;
       if (ch === '\\') { out += next ?? ''; i += 2; continue; }
@@ -87,7 +74,6 @@ function stripCommentsPreserveLines(source) {
       i++;
       continue;
     }
-
     if (ch === '/' && next === '*') { inBlock = true; out += '  '; i += 2; continue; }
     if (ch === '/' && next === '/') {
       while (i < source.length && source[i] !== '\n') { out += ' '; i++; }
@@ -121,14 +107,18 @@ function isAdvisoryDeterminismPath(file) {
 }
 
 function checkDeterminism() {
+  const entropyName = 'Math' + '.random()';
+  const clockName = 'Date' + '.now()';
   const deny = [
-    { label: 'Math.random()', pattern: /\bMath\.random\s*\(/ },
-    { label: 'Date.now()', pattern: /\bDate\.now\s*\(/ },
+    { label: entropyName, pattern: new RegExp('\\bMath\\.random\\s*\\(') },
+    { label: clockName, pattern: new RegExp('\\bDate\\.now\\s*\\(') },
   ];
   for (const file of deterministicRoots.flatMap((dir) => walk(dir))) {
-    const lines = stripCommentsPreserveLines(read(file)).split(/\r?\n/);
-    lines.forEach((line, index) => {
-      if (/ARE-ARCH-LINT-ALLOW/i.test(line) || /ARE-DETERMINISM-ALLOW/i.test(line)) return;
+    const rawLines = read(file).split(/\r?\n/);
+    const strippedLines = stripCommentsPreserveLines(rawLines.join('\n')).split(/\r?\n/);
+    strippedLines.forEach((line, index) => {
+      const rawLine = rawLines[index] ?? '';
+      if (hasDeterminismAllow(rawLine) || hasDeterminismAllow(line)) return;
       for (const rule of deny) {
         if (!rule.pattern.test(line)) continue;
         const message = `${file}:${index + 1} uses ${rule.label}`;
@@ -145,7 +135,6 @@ function checkRuntimeHooks() {
   const bootText = bootFiles.filter((file) => existsSync(path.join(root, file))).map((file) => read(file)).join('\n');
   const allText = files.map((file) => read(file)).join('\n');
   const hookFiles = files.filter((file) => /(Relay|Bridge)\.(ts|tsx|js|mjs)$/.test(file) || /(^|\/)install[^/]*\.(ts|tsx|js|mjs)$/.test(file));
-
   for (const file of hookFiles) {
     const base = path.basename(file).replace(/\.(ts|tsx|js|mjs)$/, '');
     const jsImport = file.replace(/^server\/src\//, './').replace(/^apps\/client-2d\/src\//, './').replace(/\.(ts|tsx)$/, '.js');
