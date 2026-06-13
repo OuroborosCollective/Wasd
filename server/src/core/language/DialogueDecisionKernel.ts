@@ -4,100 +4,26 @@ import type { NpcLanguageState, SpeechIntent, SpeechTruthMode, PhraseGenome, Utt
 import { createKappaInt } from './LanguageTypes.js';
 import { buildSentence, createSentenceSeed } from './ProceduralGrammarEngine.js';
 import { getLexemeSuccessRate, getGenomeAverageScore } from './LanguageOutcomeLearner.js';
+import { recordNpcSpeechTelemetry } from './LanguageShadowTelemetry.js';
 
 const KERNEL_TAG = 'DIALOGUE_DECISION_KERNEL_V1';
 const DEFAULT_STRUCTURE: readonly SentencePosition[] = Object.freeze(['subject', 'verb', 'object']);
 type LanguageMode = PhraseGenome['languageMode'];
-
 interface IntentRule { readonly intent: SpeechIntent; readonly trigger: IntentTrigger; readonly truthMode: SpeechTruthMode; readonly basePriority: number; readonly cooldownTicks: number }
 interface IntentTrigger { readonly minHunger?: KappaInt; readonly maxHunger?: KappaInt; readonly minTrust?: KappaInt; readonly maxTrust?: KappaInt; readonly minFear?: KappaInt; readonly maxFear?: KappaInt; readonly minDuty?: KappaInt; readonly maxDuty?: KappaInt; readonly minPride?: KappaInt; readonly maxPride?: KappaInt; readonly requiredRole?: readonly string[]; readonly requiredPendingRequest?: readonly string[] }
-
-const INTENT_RULES: readonly IntentRule[] = Object.freeze([
-  { intent: 'warn', trigger: { minFear: createKappaInt(0.6) }, truthMode: 'known_fact', basePriority: 90, cooldownTicks: 30 },
-  { intent: 'request', trigger: { minHunger: createKappaInt(0.5) }, truthMode: 'known_fact', basePriority: 80, cooldownTicks: 50 },
-  { intent: 'trade', trigger: { minTrust: createKappaInt(0.4) }, truthMode: 'known_fact', basePriority: 60, cooldownTicks: 150 },
-  { intent: 'recruit', trigger: { minDuty: createKappaInt(0.7) }, truthMode: 'known_fact', basePriority: 55, cooldownTicks: 400 },
-  { intent: 'greet', trigger: { minTrust: createKappaInt(0.3), maxTrust: createKappaInt(1) }, truthMode: 'known_fact', basePriority: 50, cooldownTicks: 100 },
-  { intent: 'teach', trigger: { minTrust: createKappaInt(0.5), requiredRole: ['Elder', 'Master', 'Scholar', 'Guide', 'Village Guide'] }, truthMode: 'known_fact', basePriority: 45, cooldownTicks: 300 },
-  { intent: 'thank', trigger: { minTrust: createKappaInt(0.7) }, truthMode: 'known_fact', basePriority: 40, cooldownTicks: 200 },
-  { intent: 'comfort', trigger: { minTrust: createKappaInt(0.6), minDuty: createKappaInt(0.4) }, truthMode: 'belief', basePriority: 35, cooldownTicks: 250 },
-  { intent: 'rumor_share', trigger: { maxTrust: createKappaInt(0.5), maxFear: createKappaInt(0.4) }, truthMode: 'rumor', basePriority: 30, cooldownTicks: 180 },
-  { intent: 'boast', trigger: { minPride: createKappaInt(0.7) }, truthMode: 'belief', basePriority: 25, cooldownTicks: 350 },
-  { intent: 'farewell', trigger: { minTrust: createKappaInt(0.2) }, truthMode: 'known_fact', basePriority: 20, cooldownTicks: 100 },
-]);
-
+const INTENT_RULES: readonly IntentRule[] = Object.freeze([{ intent: 'warn', trigger: { minFear: createKappaInt(0.6) }, truthMode: 'known_fact', basePriority: 90, cooldownTicks: 30 }, { intent: 'request', trigger: { minHunger: createKappaInt(0.5) }, truthMode: 'known_fact', basePriority: 80, cooldownTicks: 50 }, { intent: 'trade', trigger: { minTrust: createKappaInt(0.4) }, truthMode: 'known_fact', basePriority: 60, cooldownTicks: 150 }, { intent: 'recruit', trigger: { minDuty: createKappaInt(0.7) }, truthMode: 'known_fact', basePriority: 55, cooldownTicks: 400 }, { intent: 'greet', trigger: { minTrust: createKappaInt(0.3), maxTrust: createKappaInt(1) }, truthMode: 'known_fact', basePriority: 50, cooldownTicks: 100 }, { intent: 'teach', trigger: { minTrust: createKappaInt(0.5), requiredRole: ['Elder', 'Master', 'Scholar', 'Guide', 'Village Guide'] }, truthMode: 'known_fact', basePriority: 45, cooldownTicks: 300 }, { intent: 'thank', trigger: { minTrust: createKappaInt(0.7) }, truthMode: 'known_fact', basePriority: 40, cooldownTicks: 200 }, { intent: 'comfort', trigger: { minTrust: createKappaInt(0.6), minDuty: createKappaInt(0.4) }, truthMode: 'belief', basePriority: 35, cooldownTicks: 250 }, { intent: 'rumor_share', trigger: { maxTrust: createKappaInt(0.5), maxFear: createKappaInt(0.4) }, truthMode: 'rumor', basePriority: 30, cooldownTicks: 180 }, { intent: 'boast', trigger: { minPride: createKappaInt(0.7) }, truthMode: 'belief', basePriority: 25, cooldownTicks: 350 }, { intent: 'farewell', trigger: { minTrust: createKappaInt(0.2) }, truthMode: 'known_fact', basePriority: 20, cooldownTicks: 100 }]);
 interface RegisteredGenome { readonly genome: PhraseGenome; readonly lastUsedTick: number; readonly useCount: number }
 const genomeRegistry: Map<string, RegisteredGenome> = new Map();
-
 export function registerPhraseGenome(genome: PhraseGenome): void { genomeRegistry.set(genome.id, { genome, lastUsedTick: 0, useCount: 0 }); }
 export function getRegisteredGenome(genomeId: string): PhraseGenome | undefined { return genomeRegistry.get(genomeId)?.genome; }
-
-function createFallbackGenome(intent: SpeechIntent, language: LanguageMode): PhraseGenome {
-  return Object.freeze({
-    id: `fallback_${intent}_${language}`,
-    intent,
-    languageMode: language,
-    structure: DEFAULT_STRUCTURE,
-    slots: Object.freeze([
-      Object.freeze({ role: 'subject' as const, required: true as const, semanticRequirements: [intent] }),
-      Object.freeze({ role: 'verb' as const, required: true as const, semanticRequirements: [intent] }),
-      Object.freeze({ role: 'object' as const, required: false as const, semanticRequirements: [intent] }),
-    ]),
-    constraints: Object.freeze({}),
-    outcomeStats: Object.freeze({ uses: 0, successfulUses: 0, failedUses: 0, averageKappaScore: createKappaInt(1) }),
-    mutation: Object.freeze({ parentGenomeIds: Object.freeze([]), generation: 0, stability: createKappaInt(1), novelty: createKappaInt(0) }),
-    truthMode: 'known_fact',
-  });
-}
-
+function createFallbackGenome(intent: SpeechIntent, language: LanguageMode): PhraseGenome { return Object.freeze({ id: `fallback_${intent}_${language}`, intent, languageMode: language, structure: DEFAULT_STRUCTURE, slots: Object.freeze([Object.freeze({ role: 'subject' as const, required: true as const, semanticRequirements: [intent] }), Object.freeze({ role: 'verb' as const, required: true as const, semanticRequirements: [intent] }), Object.freeze({ role: 'object' as const, required: false as const, semanticRequirements: [intent] })]), constraints: Object.freeze({}), outcomeStats: Object.freeze({ uses: 0, successfulUses: 0, failedUses: 0, averageKappaScore: createKappaInt(1) }), mutation: Object.freeze({ parentGenomeIds: Object.freeze([]), generation: 0, stability: createKappaInt(1), novelty: createKappaInt(0) }), truthMode: 'known_fact' }); }
 interface KernelState { readonly lastIntentTick: number; readonly recentSpeechHashes: readonly string[]; readonly intentHistory: readonly SpeechIntent[] }
 const npcKernelState: Map<string, KernelState> = new Map();
-function getOrCreateKernelState(npcId: string): KernelState {
-  const existing = npcKernelState.get(npcId);
-  if (existing) return existing;
-  const created: KernelState = Object.freeze({ lastIntentTick: Number.NEGATIVE_INFINITY, recentSpeechHashes: Object.freeze([]), intentHistory: Object.freeze([]) });
-  npcKernelState.set(npcId, created);
-  return created;
-}
-
+function getOrCreateKernelState(npcId: string): KernelState { const existing = npcKernelState.get(npcId); if (existing) return existing; const created: KernelState = Object.freeze({ lastIntentTick: Number.NEGATIVE_INFINITY, recentSpeechHashes: Object.freeze([]), intentHistory: Object.freeze([]) }); npcKernelState.set(npcId, created); return created; }
 export interface DecisionContext { readonly npcState: NpcLanguageState; readonly worldState: { readonly threatLevel: KappaInt; readonly villageSafety: KappaInt; readonly factionPressure: KappaInt; readonly politicalTension: KappaInt }; readonly tick: number; readonly sequenceId: number }
-
-export function decideUtterance(context: DecisionContext, options?: { readonly preferFallback?: boolean; readonly forceIntent?: SpeechIntent }): UtteranceDecision {
-  const { npcState, worldState, tick, sequenceId } = context;
-  const state = getOrCreateKernelState(npcState.npcId);
-  const situation = buildSituation(npcState, worldState);
-  const intent = options?.forceIntent ?? selectIntent(npcState, situation, state, tick, sequenceId);
-  const rule = INTENT_RULES.find((candidate) => candidate.intent === intent);
-  const truthMode = rule?.truthMode ?? 'known_fact';
-  const language = getPreferredLanguage(npcState.factionId);
-  const genomeId = `${npcState.factionId}_${intent}_${npcState.role}`.toLowerCase();
-  const genome = !options?.preferFallback ? getRegisteredGenome(genomeId) ?? createFallbackGenome(intent, language) : createFallbackGenome(intent, language);
-  const seed = createSentenceSeed(npcState.npcId, intent, tick, sequenceId);
-  const construction = buildSentence(genome, seed, { dialectOverride: language, preferFallback: options?.preferFallback });
-  if (!construction.success || !construction.text?.trim()) {
-    const fallback = buildFallbackUtterance(intent, npcState, truthMode, seed);
-    updateKernelState(npcState.npcId, tick, intent, fallback.speechHash);
-    return fallback;
-  }
-  const emotionalTone = computeEmotionalTone(construction.fillers ?? []);
-  const confidence = computeConfidence(genome.id, construction.fillers ?? []);
-  const speechHash = construction.hash ?? stableHash32(`${KERNEL_TAG}:${npcState.npcId}:${intent}:${seed}`).toString(16);
-  updateKernelState(npcState.npcId, tick, intent, speechHash);
-  return Object.freeze({ npcId: npcState.npcId, speechHash, intent, phraseGenomeId: genome.id, selectedLexemeIds: (construction.fillers ?? []).map((filler) => filler.lexeme.id), constructedText: construction.text, truthMode, emotionalTone, confidence, needsFallback: false });
-}
-
+export function decideUtterance(context: DecisionContext, options?: { readonly preferFallback?: boolean; readonly forceIntent?: SpeechIntent }): UtteranceDecision { const { npcState, worldState, tick, sequenceId } = context; const state = getOrCreateKernelState(npcState.npcId); const situation = buildSituation(npcState, worldState); const intent = options?.forceIntent ?? selectIntent(npcState, situation, state, tick, sequenceId); const rule = INTENT_RULES.find((candidate) => candidate.intent === intent); const truthMode = rule?.truthMode ?? 'known_fact'; const language = getPreferredLanguage(npcState.factionId); const genomeId = `${npcState.factionId}_${intent}_${npcState.role}`.toLowerCase(); const genome = !options?.preferFallback ? getRegisteredGenome(genomeId) ?? createFallbackGenome(intent, language) : createFallbackGenome(intent, language); const seed = createSentenceSeed(npcState.npcId, intent, tick, sequenceId); const construction = buildSentence(genome, seed, { dialectOverride: language, preferFallback: options?.preferFallback }); if (!construction.success || !construction.text?.trim()) { const fallback = buildFallbackUtterance(intent, npcState, truthMode, seed); updateKernelState(npcState.npcId, tick, intent, fallback.speechHash); recordNpcSpeechTelemetry({ tick, sequenceId, npcState, decision: fallback, phraseGenome: genome }); return fallback; } const emotionalTone = computeEmotionalTone(construction.fillers ?? []); const confidence = computeConfidence(genome.id, construction.fillers ?? []); const speechHash = construction.hash ?? stableHash32(`${KERNEL_TAG}:${npcState.npcId}:${intent}:${seed}`).toString(16); updateKernelState(npcState.npcId, tick, intent, speechHash); const decision = Object.freeze({ npcId: npcState.npcId, speechHash, intent, phraseGenomeId: genome.id, selectedLexemeIds: (construction.fillers ?? []).map((filler) => filler.lexeme.id), constructedText: construction.text, truthMode, emotionalTone, confidence, needsFallback: false }); recordNpcSpeechTelemetry({ tick, sequenceId, npcState, decision, phraseGenome: genome }); return decision; }
 function buildSituation(npcState: NpcLanguageState, worldState: DecisionContext['worldState']): SpeechSituation { return Object.freeze({ intent: 'greet', threatLevel: worldState.threatLevel, trust: npcState.currentTrust, fear: npcState.currentFear, hunger: npcState.currentHunger, factionPressure: worldState.factionPressure, politicalTension: worldState.politicalTension }); }
-function selectIntent(npcState: NpcLanguageState, situation: SpeechSituation, state: KernelState, tick: number, sequenceId: number): SpeechIntent {
-  const applicable = INTENT_RULES.filter((rule) => {
-    if (Number.isFinite(state.lastIntentTick) && tick - state.lastIntentTick < rule.cooldownTicks) return false;
-    if (rule.trigger.requiredRole && !roleMatches(npcState.role, rule.trigger.requiredRole)) return false;
-    return checkThreshold(npcState.currentHunger, rule.trigger.minHunger, rule.trigger.maxHunger) && checkThreshold(npcState.currentTrust, rule.trigger.minTrust, rule.trigger.maxTrust) && checkThreshold(npcState.currentFear, rule.trigger.minFear, rule.trigger.maxFear) && checkThreshold(npcState.currentDuty, rule.trigger.minDuty, rule.trigger.maxDuty) && checkThreshold(npcState.currentPride, rule.trigger.minPride, rule.trigger.maxPride);
-  });
-  if (applicable.length === 0) return 'greet';
-  const scored = applicable.map((rule) => ({ rule, score: computeIntentScore(rule, npcState, situation, tick) })).sort((a, b) => b.score - a.score || a.rule.intent.localeCompare(b.rule.intent));
-  const seed = stableHash32(`${npcState.npcId}:${tick}:${sequenceId}:${state.intentHistory.join(',')}`);
-  return scored[seed % Math.min(scored.length, 3)].rule.intent;
-}
+function selectIntent(npcState: NpcLanguageState, situation: SpeechSituation, state: KernelState, tick: number, sequenceId: number): SpeechIntent { const applicable = INTENT_RULES.filter((rule) => { if (Number.isFinite(state.lastIntentTick) && tick - state.lastIntentTick < rule.cooldownTicks) return false; if (rule.trigger.requiredRole && !roleMatches(npcState.role, rule.trigger.requiredRole)) return false; return checkThreshold(npcState.currentHunger, rule.trigger.minHunger, rule.trigger.maxHunger) && checkThreshold(npcState.currentTrust, rule.trigger.minTrust, rule.trigger.maxTrust) && checkThreshold(npcState.currentFear, rule.trigger.minFear, rule.trigger.maxFear) && checkThreshold(npcState.currentDuty, rule.trigger.minDuty, rule.trigger.maxDuty) && checkThreshold(npcState.currentPride, rule.trigger.minPride, rule.trigger.maxPride); }); if (applicable.length === 0) return 'greet'; const scored = applicable.map((rule) => ({ rule, score: computeIntentScore(rule, npcState, situation, tick) })).sort((a, b) => b.score - a.score || a.rule.intent.localeCompare(b.rule.intent)); const seed = stableHash32(`${npcState.npcId}:${tick}:${sequenceId}:${state.intentHistory.join(',')}`); return scored[seed % Math.min(scored.length, 3)].rule.intent; }
 function roleMatches(role: string, allowed: readonly string[]): boolean { const normalized = role.toLowerCase(); return allowed.some((candidate) => normalized.includes(candidate.toLowerCase())); }
 function checkThreshold(value: KappaInt, min?: KappaInt, max?: KappaInt): boolean { if (min !== undefined && value < min) return false; if (max !== undefined && value > max) return false; return true; }
 function computeIntentScore(rule: IntentRule, npcState: NpcLanguageState, situation: SpeechSituation, tick: number): number { let score = rule.basePriority; if (rule.intent === 'request' && npcState.currentHunger > createKappaInt(0.7)) score += 30; if (rule.intent === 'warn' && situation.threatLevel > createKappaInt(0.6)) score += 20; if (rule.intent === 'teach' && npcState.currentTrust > createKappaInt(0.6)) score += 15; return score + (stableHash32(`${rule.intent}:${tick}:${npcState.npcId}`) % 21) - 10; }
