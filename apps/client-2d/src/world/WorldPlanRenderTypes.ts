@@ -1,8 +1,8 @@
 import type { Container, Texture } from "pixi.js";
 import type { AssetEntry } from "../assetManifest";
 import type { BuildingType, NpcRole, PropType, RoadType } from "@wasd/shared/world";
-import type { AssetBindingContext, BindingOptions, LodLevel } from "./AssetBindingContext";
-import type { BindingDebug } from "./AssetBindingDirector";
+import type { BindingOptions } from "./AssetBindingContext";
+import type { VisualSignature } from "./VisualSignature";
 
 export type RenderLayerName = "terrain" | "roads" | "buildings" | "props" | "actors";
 
@@ -20,12 +20,15 @@ export interface AssetBindingDebug {
 }
 
 /**
- * Extended bound asset with debug info.
+ * Extended bound asset with debug info and the ARE visual signature used to make
+ * the binding decision. The signature is metadata only; it must not be mutated
+ * by render code.
  */
 export interface BoundAsset {
   readonly semanticType: BuildingType | PropType | RoadType | NpcRole | "terrain";
   readonly entry: AssetEntry | null;
   readonly texture: Texture | null;
+  readonly visualSignature?: VisualSignature;
   readonly debug?: AssetBindingDebug;
 }
 
@@ -36,7 +39,15 @@ export interface WorldPlanRenderContext {
   readonly props: Container;
   readonly actors: Container;
   readonly textureFor: (entry: AssetEntry | null | undefined) => Texture | null;
-  readonly addNpcActor: (input: { readonly id: string; readonly tileX: number; readonly tileZ: number; readonly name: string; readonly role: NpcRole; readonly characterVisualId: string | null }) => void;
+  readonly addNpcActor: (input: {
+    readonly id: string;
+    readonly tileX: number;
+    readonly tileZ: number;
+    readonly name: string;
+    readonly role: NpcRole;
+    readonly characterVisualId: string | null;
+    readonly visualSignature?: VisualSignature | null;
+  }) => void;
 }
 
 /**
@@ -48,8 +59,8 @@ export interface WorldPlanAssetBinder {
   readonly bindBuilding: (buildingType: BuildingType, seed: string) => BoundAsset;
   readonly bindProp: (propType: PropType, seed: string) => BoundAsset;
   readonly bindNpc: (role: NpcRole, seed: string) => BoundAsset;
-  
-  // Context-aware binding (new deterministic system)
+
+  // Context-aware binding (deterministic visual signature path)
   readonly bindRoadWithContext: (roadType: RoadType, context: BindingOptions) => BoundAsset;
   readonly bindBuildingWithContext: (buildingType: BuildingType, context: BindingOptions) => BoundAsset;
   readonly bindPropWithContext: (propType: PropType, context: BindingOptions) => BoundAsset;
