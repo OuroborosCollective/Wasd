@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AREShadowAdapter } from '../AREShadowAdapter.js';
 import { KAPPA_LAYER_NAMES, type KappaLayerKey } from '../KappaLayers.js';
 import {
   CANONICAL_SIGNAL_BALANCE_VERSION,
@@ -37,6 +38,12 @@ function createSignals(overrides: Partial<CanonicalLayerSeedSignals> = {}): Cano
   };
 }
 
+function matrixSnapshotFingerprint(): string {
+  return getCanonicalSignalBalanceSnapshot()
+    .map((entry) => `${entry.layer}:${entry.rules.map((rule) => JSON.stringify(rule)).join(',')}`)
+    .join('|');
+}
+
 describe('CanonicalLayerSignalBalance', () => {
   it('exposes a deterministic matrix snapshot covering every Kappa layer', () => {
     const snapshot = getCanonicalSignalBalanceSnapshot();
@@ -45,6 +52,43 @@ describe('CanonicalLayerSignalBalance', () => {
     expect(CANONICAL_SIGNAL_BALANCE_VERSION).toBe(1);
     expect(snapshot.map((entry) => entry.layer)).toEqual(expectedLayers);
     expect(snapshot.every((entry) => entry.rules.length > 0)).toBe(true);
+  });
+
+  it('records the matrix as an ARE shadow probe without becoming runtime truth', () => {
+    const fingerprint = matrixSnapshotFingerprint();
+    const first = AREShadowAdapter.recordShadowProbe({
+      source: 'test',
+      testFile: 'server/src/core/are/__tests__/CanonicalLayerSignalBalance.test.ts',
+      caseName: 'canonical signal balance matrix snapshot',
+      tick: 2014,
+      status: 'pass',
+      inputHash: CANONICAL_SIGNAL_BALANCE_VERSION,
+      outputHash: fingerprint,
+      expectedHash: fingerprint,
+      recommendation: 'keep matrix changes explicit and versioned',
+      metadata: {
+        truthPath: 'shadow_only',
+        layerCount: Object.keys(KAPPA_LAYER_NAMES).length,
+      },
+    });
+    const repeat = AREShadowAdapter.recordShadowProbe({
+      source: 'test',
+      testFile: 'server/src/core/are/__tests__/CanonicalLayerSignalBalance.test.ts',
+      caseName: 'canonical signal balance matrix snapshot',
+      tick: 2014,
+      status: 'pass',
+      inputHash: CANONICAL_SIGNAL_BALANCE_VERSION,
+      outputHash: fingerprint,
+      expectedHash: fingerprint,
+      recommendation: 'keep matrix changes explicit and versioned',
+      metadata: {
+        layerCount: Object.keys(KAPPA_LAYER_NAMES).length,
+        truthPath: 'shadow_only',
+      },
+    });
+
+    expect(first.recorded).toBe(true);
+    expect(first.probeHash).toBe(repeat.probeHash);
   });
 
   it('calculates stable signal deltas from biome terrain pressure', () => {
