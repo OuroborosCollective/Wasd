@@ -40,13 +40,6 @@ export function lineageSurfaceCoordinate(seed: string, salt: string, span: numbe
 
 export function createLineageSurfaceModel(registry: FamilyHouseRegistry, tick: number): LineageSurfaceModel {
   const snapshot = registry.serialize();
-  const houses = snapshot.houses.map((house) => ({
-    id: house.id,
-    title: house.houseName,
-    settlementId: house.settlementId,
-    population: house.currentPopulation,
-    active: house.isActive,
-  })).sort((a, b) => a.id.localeCompare(b.id));
   const nodes = snapshot.lineages.map((lineage) => ({
     id: lineage.id,
     lineageHash: lineage.lineageHash,
@@ -56,5 +49,30 @@ export function createLineageSurfaceModel(registry: FamilyHouseRegistry, tick: n
     y: lineageSurfaceCoordinate(lineage.lineageHash, 'y', 512),
     z: lineageSurfaceCoordinate(lineage.lineageHash, 'z', 96),
   })).sort((a, b) => a.id.localeCompare(b.id));
+
+  const housesById = new Map<string, LineageSurfaceHouse>();
+  for (const house of snapshot.houses) {
+    housesById.set(house.id, {
+      id: house.id,
+      title: house.houseName,
+      settlementId: house.settlementId,
+      population: house.currentPopulation,
+      active: house.isActive,
+    });
+  }
+
+  for (const node of nodes) {
+    if (housesById.has(node.houseId)) continue;
+    const population = nodes.filter((candidate) => candidate.houseId === node.houseId).length;
+    housesById.set(node.houseId, {
+      id: node.houseId,
+      title: `House ${node.houseId}`,
+      settlementId: node.settlementId,
+      population,
+      active: true,
+    });
+  }
+
+  const houses = [...housesById.values()].sort((a, b) => a.id.localeCompare(b.id));
   return Object.freeze({ schemaVersion: 'lineage-surface-model.v1', tick, houses: Object.freeze(houses), nodes: Object.freeze(nodes) });
 }
