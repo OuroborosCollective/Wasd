@@ -42,24 +42,22 @@ These routes modify simulation state. Auth is required for identity verification
 
 ## GLB Marketplace Routes (PR #2008)
 
-**Classification: active-truth-path**
-
-All mutating routes require `authMiddleware` for identity verification. Read-only public routes are marked below.
+**Mounted boundary:** read routes are live; mutating routes are explicitly disabled with `503 GLB_MUTATIONS_DISABLED` until a dedicated transaction-safe GLB write PR adds atomic DB transactions, idempotency, and rollback-safe file handling.
 
 | Endpoint | Method | Auth | Classification | Notes |
 |----------|--------|------|---------------|-------|
-| `GET /api/glb/marketplace` | GET | No | Public (read-only) | Browse marketplace |
-| `GET /api/glb/land/:playerId` | GET | No | Public (read-only) | Get placed models |
-| `POST /api/glb/upload` | POST | Yes | active-truth-path | Upload GLB (subscription req) |
-| `GET /api/glb/my-models` | GET | Yes | active-truth-path | List player's models |
-| `DELETE /api/glb/:modelId` | DELETE | Yes | active-truth-path | Delete owned model |
-| `POST /api/glb/place` | POST | Yes | active-truth-path | Place model on land |
-| `DELETE /api/glb/place/:placeId` | DELETE | Yes | active-truth-path | Remove placed model |
-| `POST /api/glb/marketplace/list` | POST | Yes | active-truth-path | List for sale |
-| `POST /api/glb/marketplace/buy` | POST | Yes | active-truth-path | Buy (transfers Matrix Energy) |
-| `GET /api/glb/subscription-status` | GET | Yes | active-truth-path | Check subscription |
+| `GET /api/glb/marketplace` | GET | No | Public read-only | Browse marketplace |
+| `GET /api/glb/land/:playerId` | GET | No | Public read-only | Get placed models |
+| `GET /api/glb/my-models` | GET | Yes | Auth read-only | List player's models |
+| `GET /api/glb/subscription-status` | GET | Yes | Auth read-only | Check subscription and Matrix Energy |
+| `POST /api/glb/upload` | POST | Yes | Disabled truth-path | Returns 503 until transaction-safe writes exist |
+| `DELETE /api/glb/:modelId` | DELETE | Yes | Disabled truth-path | Returns 503 until transaction-safe writes exist |
+| `POST /api/glb/place` | POST | Yes | Disabled truth-path | Returns 503 until transaction-safe writes exist |
+| `DELETE /api/glb/place/:placeId` | DELETE | Yes | Disabled truth-path | Returns 503 until transaction-safe writes exist |
+| `POST /api/glb/marketplace/list` | POST | Yes | Disabled truth-path | Returns 503 until transaction-safe writes exist |
+| `POST /api/glb/marketplace/buy` | POST | Yes | Disabled truth-path | Returns 503 until transaction-safe writes exist |
 
-**Security Note:** All mutating routes use `authMiddleware`-derived identity, NOT `x-player-id` header alone.
+**Security Note:** Mutating GLB endpoints do not return fake success. They require auth first and then fail closed with 503 until transaction-safe ownership/economy writes are implemented.
 
 ## Asset Brain Routes
 
