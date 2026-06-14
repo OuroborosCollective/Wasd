@@ -2,16 +2,22 @@
  * EQUIPMENT SERVICE
  *
  * Server-authoritative equipment service with staged inventory/equipment transactions.
- * Deterministic: No Date.now(), no Math.random().
+ * Uses explicit runtime inputs only; no ambient clock or entropy sources.
  */
 
 import { getInventoryService as defaultGetInventoryService, createPersistedPlayerInventoryState } from "../inventory/inventoryRuntime.js";
 import type { InventoryService } from "../inventory/InventoryService.js";
 import type { InventoryItemId, PlayerInventoryState } from "../inventory/InventoryTypes.js";
+import { getSkillProgressionService as defaultGetSkillProgressionService } from "../skills/skillRuntime.js";
+import type { PlayerSkillState } from "../skills/SkillTypes.js";
 import {
   createPersistedPlayerEquipmentState,
   type EquipmentPersistenceAdapter,
 } from "./EquipmentPersistence.js";
+import {
+  validateEquipmentRequirements,
+  type UnmetEquipmentRequirement,
+} from "./EquipmentRequirementValidator.js";
 import { EquipmentStore } from "./EquipmentStore.js";
 import {
   EQUIPMENT_DEFINITIONS,
@@ -32,12 +38,17 @@ export interface InventoryServiceLike {
   replacePlayerInventory(playerId: string, state: PlayerInventoryState): void | Promise<void>;
 }
 
+export interface SkillServiceLike {
+  getPlayerSkillState(playerId: string): Promise<PlayerSkillState>;
+}
+
 export interface AtomicEquipResult {
   ok: boolean;
   playerId: string;
   itemId: string;
-  reason?: "equipped" | "invalid_item" | "item_not_owned" | "invalid_player" | "inventory_full";
+  reason?: "equipped" | "invalid_item" | "item_not_owned" | "invalid_player" | "inventory_full" | "requirements_not_met";
   unequippedItemId?: string;
+  unmetRequirements?: readonly UnmetEquipmentRequirement[];
   equipment?: PlayerEquipmentState;
   inventoryDelta?: { itemId: InventoryItemId; delta: number };
 }
@@ -55,13 +66,16 @@ export interface AtomicUnequipResult {
 export class EquipmentService {
   private readonly hydratedPlayers = new Set<string>();
   private readonly getInventoryService: () => Promise<InventoryServiceLike>;
+  private readonly getSkillService: () => Promise<SkillServiceLike>;
 
   constructor(
     private readonly store: EquipmentStore,
     private readonly persistence: EquipmentPersistenceAdapter,
     getInventoryService?: () => Promise<InventoryServiceLike>,
+    getSkillService?: () => Promise<SkillServiceLike>,
   ) {
     this.getInventoryService = getInventoryService ?? defaultGetInventoryService;
+    this.getSkillService = getSkillService ?? defaultGetSkillProgressionService;
   }
 
   async getPlayerEquipment(playerId: string): Promise<PlayerEquipmentState> {
@@ -83,12 +97,31 @@ export class EquipmentService {
       return { ok: false, playerId, itemId, reason: "invalid_item" };
     }
 
+    const itemDefinition = EQUIPMENT_DEFINITIONS[itemId];
+    const requirements = itemDefinition.requirements ?? [];
+
+    if (requirements.length > 0) {
+      const skillService = await this.getSkillService();
+      const skillState = await skillService.getPlayerSkillState(playerId);
+      const requirementResult = validateEquipmentRequirements(itemDefinition, skillState);
+
+      if (!requirementResult.ok) {
+        return {
+          ok: false,
+          playerId,
+          itemId,
+          reason: "requirements_not_met",
+          unmetRequirements: requirementResult.unmet,
+        };
+      }
+    }
+
     await this.hydratePlayer(playerId);
 
     const inventoryService = await this.getInventoryService();
     const currentInventory = await inventoryService.getPlayerInventory(playerId);
     const currentEquipment = this.store.getPlayerEquipment(playerId);
-    const targetSlotId = EQUIPMENT_DEFINITIONS[itemId].slotId;
+    const targetSlotId = itemDefinition.slotId;
     const slotWasOccupied = currentEquipment.slots.some((slot) => slot.slotId === targetSlotId);
 
     const planned = planEquipTransaction({
