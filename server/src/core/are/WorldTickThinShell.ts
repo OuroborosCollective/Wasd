@@ -18,7 +18,6 @@ import { registerCoreTickSystems } from "./CoreTickSystemRegistration.js";
 import { stableSort } from "./DeterministicEventFactory.js";
 import {
   SnapshotComposerWorldBrainSink,
-  WORLD_BRAIN_TICK_SYSTEM_NAME,
   registerWorldBrainTickSystem,
 } from "./WorldBrainTickSystem.js";
 import {
@@ -298,8 +297,9 @@ export class WorldTickThinShell {
   }
 
   private registerWorldBrainRuntimeSystem(): void {
-    if (tickSystemRegistry.has(WORLD_BRAIN_TICK_SYSTEM_NAME)) return;
-
+    // Registry replacement is intentional here: each ThinShell owns its runtime
+    // WorldBrain ports. Replacement keeps tests and isolated runtimes honest
+    // without ever registering duplicate systems under the same name.
     registerWorldBrainTickSystem({
       state: this.worldBrainState,
       snapshot: new SnapshotComposerWorldBrainSink(this.snapshotComposer),
