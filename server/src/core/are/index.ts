@@ -255,6 +255,18 @@ export {
   type CanonicalLayerSeedResult,
 } from './CanonicalLayerSeed.js';
 
+// Phase 11: Canonical Signal Balance Matrix
+export {
+  CANONICAL_SIGNAL_BALANCE_VERSION,
+  CANONICAL_SIGNAL_BALANCE_MATRIX,
+  applyCanonicalSignalBalance,
+  calculateCanonicalSignalLayerDeltas,
+  getCanonicalSignalBalanceSnapshot,
+  type CanonicalNumericSignalKey,
+  type CanonicalSignalBalanceRule,
+  type CanonicalSignalBalanceMatrix,
+} from './CanonicalLayerSignalBalance.js';
+
 // Phase 11: Canonical Worldgen Seed Signals
 export {
   deriveCanonicalWorldgenSeedSignals,
