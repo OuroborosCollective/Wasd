@@ -249,9 +249,17 @@ export {
   canonicalLayerSeedHash,
   resolveCanonicalWorldSeed,
   zeroStateHash,
+  type CanonicalSeedBiomeId,
+  type CanonicalLayerSeedSignals,
   type CanonicalLayerSeedInput,
   type CanonicalLayerSeedResult,
 } from './CanonicalLayerSeed.js';
+
+// Phase 11: Canonical Worldgen Seed Signals
+export {
+  deriveCanonicalWorldgenSeedSignals,
+  type CanonicalWorldgenSignalInput,
+} from './CanonicalLayerSeedSignals.js';
 
 // Phase 11: OuroborosTickSystem - Ouroboros autonomous agent integration
 export {
