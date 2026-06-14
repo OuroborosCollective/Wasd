@@ -230,8 +230,8 @@ export class ServerBootstrap {
     app.use("/api/manifest", createManifestResyncRouter(tick));
     app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());
     app.use("/api/are-shadow", areShadowLogRouter());
-    app.use("/api/asset-brain", createAssetBrainRouter());
-    app.use("/api/glb", createGLBUploadRouter());
+    app.use("/api/asset-brain", express.json({ limit: "1mb" }), createAssetBrainRouter());
+    app.use("/api/glb", express.json({ limit: "1mb" }), createGLBUploadRouter());
     app.use("/api/sovereign/deploy", adminRateLimiter, adminAuthMiddleware, sovereignDeployRouter(tick));
     const monitorStream = new PlaytesterMonitorStream(httpServer, (options) => tick.buildPlaytesterMonitorPayload(options));
     monitorStream.start();
