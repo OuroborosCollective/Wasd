@@ -1,5 +1,7 @@
 # ARE_RUNTIME_CONTRACT.md
 
+**⚠️ Important**: This document describes the ARE runtime contract based on static analysis of the codebase. It does not represent validated runtime behavior. Runtime validation requires integration tests and live monitoring.
+
 ## Overview
 
 This is the master runtime contract for Areloria's ARE (Autonomous Reactive Engine) architecture. It defines the authoritative rules for tick-based simulation, determinism requirements, and system integration boundaries.

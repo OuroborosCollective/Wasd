@@ -1,5 +1,7 @@
 # EVENTBUS_CONTRACT.md
 
+**⚠️ Important**: This document describes the EventBus contract based on static analysis of the codebase. It does not represent validated runtime behavior. Runtime validation requires integration tests and event monitoring probes.
+
 ## Overview
 
 This document defines the EventBus contract for Areloria's ARE architecture. It establishes event flow patterns, allowed consumers, and side-channel classification.

@@ -2,7 +2,15 @@
 /**
  * scripts/audit-event-flow.mjs
  * 
- * Static audit script to verify event producer/consumer graph integrity.
+ * IMPORTANT: This is a STATIC HEURISTIC audit. It does not validate runtime behavior.
+ * Events are verified by analyzing source code patterns, not by executing the server.
+ * 
+ * Modes:
+ *   --baseline  Report findings without failing (for CI baseline)
+ *   --strict    Fail on any findings (default behavior when not in baseline)
+ *   --verbose   Show detailed output
+ *   --json      Output machine-readable JSON
+ *   --mermaid   Generate Mermaid diagram
  * 
  * Builds graph from:
  * - emit( patterns
@@ -11,10 +19,12 @@
  * - on( patterns
  * - subscribe( patterns
  * 
+ * Event names support: word characters, hyphen, dot, slash, colon, underscore
+ * 
  * Flags:
  * - Orphan events (emit > 0, consumer = 0)
- * - Dead subscriptions
- * - Missing event types
+ * - Dead subscriptions (subscribe but never emit)
+ * - Unresolved event references (UNKNOWN events)
  * 
  * Output:
  * {
@@ -22,16 +32,19 @@
  *   "consumers": [...],
  *   "orphanEvents": [...],
  *   "deadSubscriptions": [...],
+ *   "unresolvedEventReferences": [...],
  *   "eventGraph": {...}
  * }
  * 
  * Usage:
  *   node scripts/audit-event-flow.mjs [--verbose] [--mermaid]
+ *   node scripts/audit-event-flow.mjs --baseline
+ *   node scripts/audit-event-flow.mjs --strict
  * 
  * Exit codes:
- *   0 - All events validated
+ *   0 - Success (in baseline mode: findings reported, no failure)
  *   1 - Critical failure
- *   2 - Findings reported (orphan events, dead subscriptions)
+ *   2 - Findings reported (strict mode only)
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
@@ -45,17 +58,22 @@ const ARGV = process.argv.slice(2);
 const VERBOSE = ARGV.includes('--verbose') || ARGV.includes('-v');
 const OUTPUT_JSON = ARGV.includes('--json');
 const OUTPUT_MERMAID = ARGV.includes('--mermaid');
+const BASELINE_MODE = ARGV.includes('--baseline');
+const STRICT_MODE = ARGV.includes('--strict');
 
 const results = {
+  mode: BASELINE_MODE ? 'baseline' : (STRICT_MODE ? 'strict' : 'standard'),
   emitters: [],        // Files that emit events
   consumers: [],       // Files that subscribe to events
   orphanEvents: [],    // Events emitted but never consumed
   deadSubscriptions: [], // Subscriptions to non-existent events
+  unresolvedEventReferences: [], // UNKNOWN events (parsing failures)
   eventGraph: {
     events: {},
     emitters: {},
     consumers: {}
-  }
+  },
+  warnings: []
 };
 
 /**
@@ -80,6 +98,8 @@ function findTsFiles(dir, files = []) {
 
 /**
  * Extract event operations from content
+ * 
+ * Supports extended event name patterns: word chars, hyphen, dot, slash, colon
  */
 function extractEventOperations(filePath, content) {
   const relativePath = relative(ROOT, filePath);
@@ -92,6 +112,9 @@ function extractEventOperations(filePath, content) {
   };
   
   const lines = content.split('\n');
+  
+  // Extended event name pattern: supports word chars, hyphen, dot, slash, colon, underscore
+  const EVENT_NAME_PATTERN = /["'`]([a-zA-Z_][a-zA-Z0-9_\-\.\/:]*)["'`]/;
   
   // Pattern for emit( or .emit(
   const emitPattern = /\.emit\s*\(|emit\s*\(/g;
@@ -107,16 +130,35 @@ function extractEventOperations(filePath, content) {
     const lineNum = content.substring(0, match.index).split('\n').length;
     const line = lines[lineNum - 1] || '';
     
-    // Try to extract event name
-    const eventMatch = line.match(/emit\s*\(\s*["'`](\w+)["'`]|emit\s*\(\s*\{[^}]*type\s*:\s*["'`](\w+)["'`]/);
-    const eventName = eventMatch ? (eventMatch[1] || eventMatch[2]) : 'UNKNOWN';
+    // Try to extract event name from various patterns
+    // emit("event_name", ...) or emit({ type: "event_name", ... })
+    const eventMatch = line.match(/emit\s*\(\s*["'`]([a-zA-Z_][a-zA-Z0-9_\-\.\/:]*)["'`]/);
+    const objMatch = line.match(/emit\s*\(\s*\{[^}]*type\s*:\s*["'`]([a-zA-Z_][a-zA-Z0-9_\-\.\/:]*)["'`]/);
     
-    operations.emits.push({
-      file: relativePath,
-      line: lineNum,
-      event: eventName,
-      snippet: line.trim().substring(0, 80)
-    });
+    let eventName = null;
+    if (eventMatch) {
+      eventName = eventMatch[1];
+    } else if (objMatch) {
+      eventName = objMatch[1];
+    }
+    
+    if (eventName) {
+      operations.emits.push({
+        file: relativePath,
+        line: lineNum,
+        event: eventName,
+        snippet: line.trim().substring(0, 80)
+      });
+    } else {
+      // UNKNOWN event - could not parse
+      operations.emits.push({
+        file: relativePath,
+        line: lineNum,
+        event: 'UNKNOWN',
+        snippet: line.trim().substring(0, 80),
+        unresolved: true
+      });
+    }
   }
   
   // Extract publish events
@@ -125,15 +167,24 @@ function extractEventOperations(filePath, content) {
     const lineNum = content.substring(0, match.index).split('\n').length;
     const line = lines[lineNum - 1] || '';
     
-    const eventMatch = line.match(/publish\s*\(\s*["'`](\w+)["'`]|publish\s*\(\s*\{[^}]*type\s*:\s*["'`](\w+)["'`]/);
-    const eventName = eventMatch ? (eventMatch[1] || eventMatch[2]) : 'UNKNOWN';
+    const eventMatch = line.match(/publish\s*\(\s*["'`]([a-zA-Z_][a-zA-Z0-9_\-\.\/:]*)["'`]/);
+    const objMatch = line.match(/publish\s*\(\s*\{[^}]*type\s*:\s*["'`]([a-zA-Z_][a-zA-Z0-9_\-\.\/:]*)["'`]/);
     
-    operations.publishes.push({
-      file: relativePath,
-      line: lineNum,
-      event: eventName,
-      snippet: line.trim().substring(0, 80)
-    });
+    let eventName = null;
+    if (eventMatch) {
+      eventName = eventMatch[1];
+    } else if (objMatch) {
+      eventName = objMatch[1];
+    }
+    
+    if (eventName) {
+      operations.publishes.push({
+        file: relativePath,
+        line: lineNum,
+        event: eventName,
+        snippet: line.trim().substring(0, 80)
+      });
+    }
   }
   
   // Extract broadcast events
@@ -142,15 +193,21 @@ function extractEventOperations(filePath, content) {
     const lineNum = content.substring(0, match.index).split('\n').length;
     const line = lines[lineNum - 1] || '';
     
-    const eventMatch = line.match(/broadcast\s*\(\s*["'`](\w+)["'`]/);
-    const eventName = eventMatch ? eventMatch[1] : 'UNKNOWN';
+    const eventMatch = line.match(/broadcast\s*\(\s*["'`]([a-zA-Z_][a-zA-Z0-9_\-\.\/:]*)["'`]/);
     
-    operations.broadcasts.push({
-      file: relativePath,
-      line: lineNum,
-      event: eventName,
-      snippet: line.trim().substring(0, 80)
-    });
+    let eventName = null;
+    if (eventMatch) {
+      eventName = eventMatch[1];
+    }
+    
+    if (eventName) {
+      operations.broadcasts.push({
+        file: relativePath,
+        line: lineNum,
+        event: eventName,
+        snippet: line.trim().substring(0, 80)
+      });
+    }
   }
   
   // Extract subscribe handlers
@@ -159,15 +216,21 @@ function extractEventOperations(filePath, content) {
     const lineNum = content.substring(0, match.index).split('\n').length;
     const line = lines[lineNum - 1] || '';
     
-    const eventMatch = line.match(/subscribe\s*\(\s*["'`](\w+)["'`]/);
-    const eventName = eventMatch ? eventMatch[1] : 'UNKNOWN';
+    const eventMatch = line.match(/subscribe\s*\(\s*["'`]([a-zA-Z_][a-zA-Z0-9_\-\.\/:]*)["'`]/);
     
-    operations.subscribes.push({
-      file: relativePath,
-      line: lineNum,
-      event: eventName,
-      snippet: line.trim().substring(0, 80)
-    });
+    let eventName = null;
+    if (eventMatch) {
+      eventName = eventMatch[1];
+    }
+    
+    if (eventName) {
+      operations.subscribes.push({
+        file: relativePath,
+        line: lineNum,
+        event: eventName,
+        snippet: line.trim().substring(0, 80)
+      });
+    }
   }
   
   // Extract on handlers
@@ -183,15 +246,21 @@ function extractEventOperations(filePath, content) {
       continue; // Skip non-event bus .on() calls (like DOM events)
     }
     
-    const eventMatch = line.match(/\.on\s*\(\s*["'`](\w+)["'`]/);
-    const eventName = eventMatch ? eventMatch[1] : 'UNKNOWN';
+    const eventMatch = line.match(/\.on\s*\(\s*["'`]([a-zA-Z_][a-zA-Z0-9_\-\.\/:]*)["'`]/);
     
-    operations.onHandlers.push({
-      file: relativePath,
-      line: lineNum,
-      event: eventName,
-      snippet: line.trim().substring(0, 80)
-    });
+    let eventName = null;
+    if (eventMatch) {
+      eventName = eventMatch[1];
+    }
+    
+    if (eventName) {
+      operations.onHandlers.push({
+        file: relativePath,
+        line: lineNum,
+        event: eventName,
+        snippet: line.trim().substring(0, 80)
+      });
+    }
   }
   
   return operations;
@@ -271,18 +340,24 @@ function buildEventGraph(allOperations) {
 async function runAudit() {
   console.log('🔍 ARE Event Flow Audit');
   console.log('='.repeat(50));
+  console.log(`Mode: ${results.mode.toUpperCase()}`);
+  console.log('⚠️  This is a STATIC HEURISTIC - does not validate runtime behavior\n');
   
+  // Deduplicate: server/src already includes server/src/modules
   const serverDirs = [
-    join(ROOT, 'server/src'),
-    join(ROOT, 'server/src/modules')
+    join(ROOT, 'server/src')
   ];
   
-  const allFiles = [];
+  // Use Set to deduplicate files
+  const allFilesSet = new Set();
   for (const dir of serverDirs) {
-    allFiles.push(...findTsFiles(dir, []));
+    for (const f of findTsFiles(dir, [])) {
+      allFilesSet.add(f);
+    }
   }
+  const allFiles = [...allFilesSet];
   
-  console.log(`\n📊 Scanning ${allFiles.length} files for event patterns...`);
+  console.log(`📊 Scanning ${allFiles.length} unique files for event patterns...`);
   
   const allOperations = [];
   
@@ -292,11 +367,24 @@ async function runAudit() {
       const content = readFileSync(file, 'utf-8');
       const ops = extractEventOperations(file, content);
       
-      if (ops.emits.length > 0 || ops.publishes.length > 0 || ops.broadcasts.length > 0) {
+      // Track UNKNOWN events (parsing failures)
+      const unknownEmits = ops.emits.filter(e => e.unresolved);
+      if (unknownEmits.length > 0) {
+        results.unresolvedEventReferences.push({
+          file: relative(ROOT, file),
+          count: unknownEmits.length,
+          samples: unknownEmits.slice(0, 3)
+        });
+      }
+      
+      // Filter out UNKNOWN for normal graph building
+      const resolvedEmits = ops.emits.filter(e => !e.unresolved);
+      
+      if (resolvedEmits.length > 0 || ops.publishes.length > 0 || ops.broadcasts.length > 0) {
         results.emitters.push({
           file: relative(ROOT, file),
           operations: {
-            emits: ops.emits,
+            emits: resolvedEmits,
             publishes: ops.publishes,
             broadcasts: ops.broadcasts
           }
@@ -313,9 +401,13 @@ async function runAudit() {
         });
       }
       
-      if (ops.emits.length > 0 || ops.publishes.length > 0 || 
+      if (resolvedEmits.length > 0 || ops.publishes.length > 0 || 
           ops.subscribes.length > 0 || ops.onHandlers.length > 0) {
-        allOperations.push(ops);
+        // Use resolved emits for graph building
+        allOperations.push({
+          ...ops,
+          emits: resolvedEmits
+        });
       }
     } catch (e) {
       // Skip unreadable files
@@ -384,24 +476,41 @@ async function runAudit() {
     }
   }
   
-  console.log(`\n❌ ORPHAN EVENTS: ${results.orphanEvents.length}`);
+  console.log(`\n⚠️  ORPHAN EVENTS: ${results.orphanEvents.length}`);
   if (results.orphanEvents.length > 0) {
     console.log('   Events emitted but never consumed:');
-    for (const orphan of results.orphanEvents) {
+    for (const orphan of results.orphanEvents.slice(0, 15)) {
       console.log(`   - ${orphan.event}`);
       console.log(`     Emitted ${orphan.emitCount} time(s)`);
       if (VERBOSE && orphan.emitterFiles.length > 0) {
         console.log(`     By: ${orphan.emitterFiles.slice(0, 3).join(', ')}`);
       }
     }
+    if (results.orphanEvents.length > 15) {
+      console.log(`   ... and ${results.orphanEvents.length - 15} more`);
+    }
   }
   
   console.log(`\n⚠️  DEAD SUBSCRIPTIONS: ${results.deadSubscriptions.length}`);
   if (results.deadSubscriptions.length > 0) {
     console.log('   Events subscribed to but never emitted:');
-    for (const dead of results.deadSubscriptions) {
+    for (const dead of results.deadSubscriptions.slice(0, 10)) {
       console.log(`   - ${dead.event}`);
       console.log(`     Subscribed by ${dead.consumerCount} file(s)`);
+    }
+    if (results.deadSubscriptions.length > 10) {
+      console.log(`   ... and ${results.deadSubscriptions.length - 10} more`);
+    }
+  }
+  
+  console.log(`\n📊 UNRESOLVED EVENT REFERENCES: ${results.unresolvedEventReferences.length}`);
+  if (results.unresolvedEventReferences.length > 0) {
+    console.log('   (Could not parse event names from these locations)');
+    for (const unknown of results.unresolvedEventReferences.slice(0, 5)) {
+      console.log(`   - ${unknown.file} (${unknown.count} occurrences)`);
+    }
+    if (results.unresolvedEventReferences.length > 5) {
+      console.log(`   ... and ${results.unresolvedEventReferences.length - 5} more`);
     }
   }
   
@@ -424,16 +533,33 @@ async function runAudit() {
     console.log(generateMermaidDiagram(results.eventGraph));
   }
   
+  // Add warning about static analysis limitations
+  results.warnings.push({
+    type: 'STATIC_HEURISTIC',
+    message: 'This audit only analyzes source code patterns. Runtime behavior may differ.'
+  });
+  
   // Summary
-  const hasIssues = results.orphanEvents.length > 0;
+  const hasIssues = results.orphanEvents.length > 0 || results.deadSubscriptions.length > 0;
   
   console.log('\n' + '='.repeat(50));
   if (hasIssues) {
-    console.log('⚠️  ISSUES FOUND - Review orphan events (emitted but not consumed)');
-    if (OUTPUT_JSON) {
-      console.log('\n' + JSON.stringify(results, null, 2));
+    if (BASELINE_MODE) {
+      console.log('✅ BASELINE MODE: Findings reported (no failure)');
+      console.log(`   - ${results.orphanEvents.length} orphan events`);
+      console.log(`   - ${results.deadSubscriptions.length} dead subscriptions`);
+      if (OUTPUT_JSON) {
+        console.log('\n' + JSON.stringify(results, null, 2));
+      }
+      process.exit(0);
+    } else {
+      console.log('⚠️  ISSUES FOUND - Review orphan events and dead subscriptions');
+      console.log('   Use --baseline to report without failing');
+      if (OUTPUT_JSON) {
+        console.log('\n' + JSON.stringify(results, null, 2));
+      }
+      process.exit(2);
     }
-    process.exit(2);
   } else {
     console.log('✅ All events validated successfully');
     if (OUTPUT_JSON) {

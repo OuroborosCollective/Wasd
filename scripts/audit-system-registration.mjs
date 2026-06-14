@@ -2,13 +2,20 @@
 /**
  * scripts/audit-system-registration.mjs
  * 
- * Static audit script to verify TickSystem registration integrity.
+ * IMPORTANT: This is a STATIC HEURISTIC audit. It does not validate runtime behavior.
+ * Systems are verified by analyzing source code patterns, not by executing the server.
  * 
  * Checks:
  * - implements TickSystem interface
- * - registered in ARE bootstrap
+ * - registered in ARE bootstrap (ServerBootstrap.ts, index.ts, installers)
  * - receives tick events
- * - produces deterministic output
+ * - uses deterministic patterns (respects ARE-DETERMINISM-ALLOW)
+ * 
+ * Modes:
+ *   --baseline  Report findings without failing (for CI baseline)
+ *   --strict    Fail on any findings (default behavior when not in baseline)
+ *   --verbose   Show detailed output
+ *   --json      Output machine-readable JSON
  * 
  * Output:
  * {
@@ -16,16 +23,20 @@
  *   "registeredNotExecuting": [...],
  *   "unregistered": [...],
  *   "legacy": [...],
- *   "wallClockViolations": [...]
+ *   "wallClockViolations": [...],
+ *   "metadataFieldCandidates": [...],
+ *   "determinismExceptions": [...]
  * }
  * 
  * Usage:
  *   node scripts/audit-system-registration.mjs [--verbose]
+ *   node scripts/audit-system-registration.mjs --baseline
+ *   node scripts/audit-system-registration.mjs --strict
  * 
  * Exit codes:
- *   0 - All systems validated
+ *   0 - Success (in baseline mode: findings reported, no failure)
  *   1 - Critical failure
- *   2 - Findings reported (unregistered systems, wall-clock violations)
+ *   2 - Findings reported (strict mode only)
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
@@ -38,13 +49,19 @@ const ROOT = join(__dirname, '..');
 const ARGV = process.argv.slice(2);
 const VERBOSE = ARGV.includes('--verbose') || ARGV.includes('-v');
 const OUTPUT_JSON = ARGV.includes('--json');
+const BASELINE_MODE = ARGV.includes('--baseline');
+const STRICT_MODE = ARGV.includes('--strict');
 
 const results = {
+  mode: BASELINE_MODE ? 'baseline' : (STRICT_MODE ? 'strict' : 'standard'),
   active: [],           // Systems registered and executing
   registeredNotExecuting: [],  // Systems imported but not receiving ticks
   unregistered: [],     // Systems implementing TickSystem but not registered
   legacy: [],          // Systems not using tick-based architecture
-  wallClockViolations: []  // Runtime calculations using Date.now, Math.random, etc.
+  wallClockViolations: [],  // Runtime calculations using Date.now, Math.random, etc.
+  metadataFieldCandidates: [], // createdAt/updatedAt field names (not violations alone)
+  determinismExceptions: [],  // ARE-DETERMINISM-ALLOW exceptions found
+  warnings: []
 };
 
 /**
@@ -90,9 +107,18 @@ function checkTickSystemUsage(content) {
 
 /**
  * Check for wall-clock violations in simulation paths
+ * 
+ * IMPORTANT: Only counts as violation if:
+ * - Pattern is paired with Date.now(), new Date(), or performance.now()
+ * - NOT marked with ARE-DETERMINISM-ALLOW or @are-telemetry-side-channel
+ * 
+ * Field names like createdAt, updatedAt are metadataFieldCandidates, not violations
+ * unless they're being assigned from wall-clock sources.
  */
 function findWallClockViolations(filePath, content) {
   const violations = [];
+  const metadataCandidates = [];
+  const exceptions = [];
   
   const simulationPaths = [
     'server/src/modules',
@@ -102,37 +128,146 @@ function findWallClockViolations(filePath, content) {
   ];
   
   const isSimulationPath = simulationPaths.some(p => filePath.includes(p));
-  if (!isSimulationPath) return violations;
-  
-  const patterns = [
-    { pattern: /Date\.now\s*\(/g, type: 'Date.now()', category: 'wall-clock' },
-    { pattern: /new\s+Date\s*\(/g, type: 'new Date()', category: 'wall-clock' },
-    { pattern: /performance\.now\s*\(/g, type: 'performance.now()', category: 'wall-clock' },
-    { pattern: /Math\.random\s*\(/g, type: 'Math.random()', category: 'non-deterministic' },
-    { pattern: /crypto\.getRandomValues/g, type: 'crypto.getRandomValues()', category: 'non-deterministic' },
-    { pattern: /createdAt/g, type: 'createdAt field', category: 'persistence-metadata' },
-    { pattern: /updatedAt/g, type: 'updatedAt field', category: 'persistence-metadata' },
-    { pattern: /lastSeen/g, type: 'lastSeen field', category: 'persistence-metadata' },
-    { pattern: /lastActive/g, type: 'lastActive field', category: 'persistence-metadata' }
-  ];
+  if (!isSimulationPath) return { violations, metadataCandidates, exceptions };
   
   const lines = content.split('\n');
   
-  for (const { pattern, type, category } of patterns) {
+  // Check for ARE-DETERMINISM-ALLOW comments and extract them
+  const allowPattern = /ARE-DETERMINISM-ALLOW[:\s]*(.*)/g;
+  const sideChannelPattern = /@are-telemetry-side-channel/g;
+  const persistenceOnlyPattern = /persistence-only|persistence.*only/g;
+  
+  let allowMatch;
+  const allowedPatterns = [];
+  while ((allowMatch = allowPattern.exec(content)) !== null) {
+    allowedPatterns.push(allowMatch[1]?.trim() || 'true');
+    exceptions.push({
+      type: 'ARE-DETERMINISM-ALLOW',
+      line: content.substring(0, allowMatch.index).split('\n').length,
+      reason: allowMatch[1]?.trim() || 'Allowed'
+    });
+  }
+  
+  if (sideChannelPattern.test(content)) {
+    exceptions.push({
+      type: '@are-telemetry-side-channel',
+      message: 'File marked as side-channel (observability only)'
+    });
+  }
+  
+  // If file has persistence-only comment, be lenient
+  if (persistenceOnlyPattern.test(content)) {
+    exceptions.push({
+      type: 'persistence-only',
+      message: 'File marked as persistence-only'
+    });
+  }
+  
+  // Hard violations: actual wall-clock usage
+  const hardPatterns = [
+    { pattern: /Date\.now\s*\(/g, type: 'Date.now()', category: 'wall-clock' },
+    { pattern: /performance\.now\s*\(/g, type: 'performance.now()', category: 'wall-clock' },
+    { pattern: /Math\.random\s*\(/g, type: 'Math.random()', category: 'non-deterministic' },
+    { pattern: /crypto\.getRandomValues/g, type: 'crypto.getRandomValues()', category: 'non-deterministic' }
+  ];
+  
+  for (const { pattern, type, category } of hardPatterns) {
     pattern.lastIndex = 0;
     let match;
     while ((match = pattern.exec(content)) !== null) {
       const lineNum = content.substring(0, match.index).split('\n').length;
+      const lineContent = lines[lineNum - 1] || '';
+      
+      // Check if this line is inside an ARE-DETERMINISM-ALLOW block
+      const isAllowed = allowedPatterns.some(allowed => 
+        lineContent.includes(allowed) || 
+        content.substring(0, match.index).includes('ARE-DETERMINISM-ALLOW')
+      );
+      
+      if (!isAllowed) {
+        violations.push({
+          type,
+          category,
+          line: lineNum,
+          snippet: lineContent.trim().substring(0, 100)
+        });
+      }
+    }
+  }
+  
+  // Soft violations: new Date() - may be OK for persistence metadata
+  const datePattern = /new\s+Date\s*\(/g;
+  let dateMatch;
+  while ((dateMatch = datePattern.exec(content)) !== null) {
+    const lineNum = content.substring(0, dateMatch.index).split('\n').length;
+    const lineContent = lines[lineNum - 1] || '';
+    
+    const isAllowed = 
+      lineContent.includes('ARE-DETERMINISM-ALLOW') ||
+      lineContent.includes('@are-telemetry-side-channel') ||
+      lineContent.includes('persistence-only') ||
+      lineContent.includes('persistence metadata') ||
+      lineContent.includes('toISOString') && lineContent.includes('0') || // Determinism placeholder
+      lineContent.includes('Date.now') || // Already checked Date.now above
+      lineContent.includes('Date.parse');
+    
+    if (!isAllowed) {
       violations.push({
-        type,
-        category,
+        type: 'new Date()',
+        category: 'wall-clock',
         line: lineNum,
-        snippet: lines[lineNum - 1]?.trim().substring(0, 100)
+        snippet: lineContent.trim().substring(0, 100)
       });
     }
   }
   
-  return violations;
+  // Metadata field candidates: createdAt, updatedAt, etc.
+  // These are NOT violations unless assigned from wall-clock sources
+  const metadataPatterns = [
+    { pattern: /createdAt/g, type: 'createdAt field' },
+    { pattern: /updatedAt/g, type: 'updatedAt field' },
+    { pattern: /lastSeen/g, type: 'lastSeen field' },
+    { pattern: /lastActive/g, type: 'lastActive field' }
+  ];
+  
+  for (const { pattern, type } of metadataPatterns) {
+    pattern.lastIndex = 0;
+    let match;
+    while ((match = pattern.exec(content)) !== null) {
+      const lineNum = content.substring(0, match.index).split('\n').length;
+      const lineContent = lines[lineNum - 1] || '';
+      
+      // Skip if already counted as violation or if it's just a type definition
+      const isViolation = violations.some(v => v.line === lineNum && v.type.includes(type));
+      const isTypeDef = lineContent.includes(`: ${type.replace(' field', '')}`) ||
+                        lineContent.includes(`type ${type.replace(' field', '')}`);
+      
+      if (!isViolation && !isTypeDef) {
+        // Check if this is a wall-clock assignment
+        const isWallClockAssignment = 
+          lineContent.includes('Date.now()') ||
+          lineContent.includes('new Date()') ||
+          lineContent.includes('performance.now()');
+        
+        if (isWallClockAssignment && !lineContent.includes('ARE-DETERMINISM-ALLOW')) {
+          violations.push({
+            type: `${type} from wall-clock`,
+            category: 'wall-clock',
+            line: lineNum,
+            snippet: lineContent.trim().substring(0, 100)
+          });
+        } else {
+          metadataCandidates.push({
+            type,
+            line: lineNum,
+            snippet: lineContent.trim().substring(0, 100)
+          });
+        }
+      }
+    }
+  }
+  
+  return { violations, metadataCandidates, exceptions };
 }
 
 /**
@@ -165,23 +300,46 @@ function isImportedNotUsed(moduleName, bootstrapContent) {
 async function runAudit() {
   console.log('🔍 ARE System Registration Audit');
   console.log('='.repeat(50));
+  console.log(`Mode: ${results.mode.toUpperCase()}`);
+  console.log('⚠️  This is a STATIC HEURISTIC - does not validate runtime behavior\n');
   
-  const bootstrapPath = join(ROOT, 'server/src/index.ts');
-  const bootstrapContent = existsSync(bootstrapPath) 
-    ? readFileSync(bootstrapPath, 'utf-8') 
-    : '';
+  // Scan multiple bootstrap sources
+  const bootstrapFiles = [
+    join(ROOT, 'server/src/index.ts'),
+    join(ROOT, 'server/src/core/ServerBootstrap.ts'),
+  ];
+  
+  let allBootstrapContent = '';
+  for (const bf of bootstrapFiles) {
+    if (existsSync(bf)) {
+      allBootstrapContent += '\n' + readFileSync(bf, 'utf-8');
+    }
+  }
+  
+  // Also scan installer/registration files
+  const installerFiles = findTsFiles(join(ROOT, 'server/src/modules'), []);
+  for (const f of installerFiles) {
+    if (f.includes('install') || f.includes('register') || f.includes('bootstrap')) {
+      try {
+        allBootstrapContent += '\n' + readFileSync(f, 'utf-8');
+      } catch (e) {
+        // Skip
+      }
+    }
+  }
   
   const serverModulesPath = join(ROOT, 'server/src/modules');
   const serverCorePath = join(ROOT, 'server/src/core');
   
-  // Find all TypeScript files
-  const allFiles = [
+  // Find all TypeScript files (deduplicated)
+  const allFilesSet = new Set([
     ...findTsFiles(serverModulesPath, []),
     ...findTsFiles(serverCorePath, []),
     ...findTsFiles(join(ROOT, 'server/src/gameplay'), [])
-  ];
+  ]);
+  const allFiles = [...allFilesSet];
   
-  console.log(`\n📊 Scanning ${allFiles.length} files for TickSystem patterns...`);
+  console.log(`📊 Scanning ${allFiles.length} files for TickSystem patterns...`);
   
   const registeredSystems = new Set();
   
@@ -194,12 +352,12 @@ async function runAudit() {
   
   for (const pattern of registerPatterns) {
     let match;
-    while ((match = pattern.exec(bootstrapContent)) !== null) {
+    while ((match = pattern.exec(allBootstrapContent)) !== null) {
       registeredSystems.add(match[1]);
     }
   }
   
-  console.log(`📊 Found ${registeredSystems.size} registered systems in bootstrap`);
+  console.log(`📊 Found ${registeredSystems.size} registered systems in bootstrap sources`);
   
   // Analyze each file
   for (const file of allFiles) {
@@ -214,11 +372,22 @@ async function runAudit() {
         patterns: tickPatterns
       };
       
-      // Check for wall-clock violations
-      const violations = findWallClockViolations(file, content);
+      // Check for wall-clock violations (with enhanced detection)
+      const { violations, metadataCandidates, exceptions } = findWallClockViolations(file, content);
+      
       if (violations.length > 0) {
         info.violations = violations;
         results.wallClockViolations.push(info);
+      }
+      
+      if (metadataCandidates.length > 0) {
+        info.metadataCandidates = metadataCandidates;
+        results.metadataFieldCandidates.push(info);
+      }
+      
+      if (exceptions.length > 0) {
+        info.exceptions = exceptions;
+        results.determinismExceptions.push(info);
       }
       
       // Classify system
@@ -266,9 +435,12 @@ async function runAudit() {
   
   console.log(`\n⚠️  UNREGISTERED SYSTEMS: ${results.unregistered.length}`);
   if (results.unregistered.length > 0) {
-    for (const sys of results.unregistered) {
+    for (const sys of results.unregistered.slice(0, 15)) {
       console.log(`   - ${sys.name} (${sys.file})`);
       console.log(`     Uses tick imports but not registered in bootstrap`);
+    }
+    if (results.unregistered.length > 15) {
+      console.log(`   ... and ${results.unregistered.length - 15} more`);
     }
   }
   
@@ -282,14 +454,33 @@ async function runAudit() {
   
   console.log(`\n⚠️  WALL-CLOCK VIOLATIONS: ${results.wallClockViolations.length}`);
   if (results.wallClockViolations.length > 0) {
-    for (const sys of results.wallClockViolations) {
+    for (const sys of results.wallClockViolations.slice(0, 10)) {
       console.log(`   - ${sys.file}`);
-      for (const v of sys.violations.slice(0, 3)) {
+      for (const v of sys.violations.slice(0, 2)) {
         console.log(`     Line ${v.line}: ${v.type} - ${v.snippet}`);
       }
-      if (sys.violations.length > 3) {
-        console.log(`     ... and ${sys.violations.length - 3} more violations`);
+      if (sys.violations.length > 2) {
+        console.log(`     ... and ${sys.violations.length - 2} more violations`);
       }
+    }
+    if (results.wallClockViolations.length > 10) {
+      console.log(`   ... and ${results.wallClockViolations.length - 10} more files`);
+    }
+  }
+  
+  console.log(`\n📊 METADATA FIELD CANDIDATES: ${results.metadataFieldCandidates.length}`);
+  if (VERBOSE && results.metadataFieldCandidates.length > 0) {
+    console.log('   (These are NOT violations - just field names that may be persistence metadata)');
+    for (const sys of results.metadataFieldCandidates.slice(0, 5)) {
+      console.log(`   - ${sys.file}: ${sys.metadataCandidates.length} fields`);
+    }
+  }
+  
+  console.log(`\n📊 DETERMINISM EXCEPTIONS: ${results.determinismExceptions.length}`);
+  if (VERBOSE && results.determinismExceptions.length > 0) {
+    console.log('   (Files with ARE-DETERMINISM-ALLOW or @are-telemetry-side-channel)');
+    for (const sys of results.determinismExceptions.slice(0, 5)) {
+      console.log(`   - ${sys.file}`);
     }
   }
   
@@ -300,16 +491,37 @@ async function runAudit() {
     }
   }
   
+  // Add warning about static analysis limitations
+  results.warnings.push({
+    type: 'STATIC_HEURISTIC',
+    message: 'This audit only analyzes source code patterns. Runtime behavior may differ.'
+  });
+  results.warnings.push({
+    type: 'KNOWN_LIMITATION',
+    message: 'Metadata fields (createdAt, updatedAt) are flagged separately, not as violations'
+  });
+  
   // Summary
   const hasIssues = results.unregistered.length > 0 || results.wallClockViolations.length > 0;
   
   console.log('\n' + '='.repeat(50));
   if (hasIssues) {
-    console.log('⚠️  ISSUES FOUND - Review unregistered systems and wall-clock violations');
-    if (OUTPUT_JSON) {
-      console.log('\n' + JSON.stringify(results, null, 2));
+    if (BASELINE_MODE) {
+      console.log('✅ BASELINE MODE: Findings reported (no failure)');
+      console.log(`   - ${results.unregistered.length} unregistered systems`);
+      console.log(`   - ${results.wallClockViolations.length} wall-clock violations`);
+      if (OUTPUT_JSON) {
+        console.log('\n' + JSON.stringify(results, null, 2));
+      }
+      process.exit(0);
+    } else {
+      console.log('⚠️  ISSUES FOUND - Review unregistered systems and wall-clock violations');
+      console.log('   Use --baseline to report without failing');
+      if (OUTPUT_JSON) {
+        console.log('\n' + JSON.stringify(results, null, 2));
+      }
+      process.exit(2);
     }
-    process.exit(2);
   } else {
     console.log('✅ All systems validated successfully');
     if (OUTPUT_JSON) {

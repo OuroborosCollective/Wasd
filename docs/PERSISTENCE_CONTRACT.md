@@ -1,5 +1,7 @@
 # PERSISTENCE_CONTRACT.md
 
+**⚠️ Important**: This document describes the persistence contract based on static analysis of the codebase. It does not represent validated runtime behavior. Runtime validation requires database integration tests and live probes.
+
 ## Overview
 
 This document defines the persistence contract for Areloria's ARE architecture. It establishes boundaries between simulation truth, persistence metadata, and runtime gameplay authority.

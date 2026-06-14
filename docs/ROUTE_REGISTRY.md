@@ -2,16 +2,33 @@
 
 ## Overview
 
-This document is the authoritative registry of all API routes in the Areloria server. It is generated from `server/src/core/ServerBootstrap.ts` and serves as the single source of truth for route validation.
+**⚠️ Important: This is a manually maintained registry validated by `scripts/audit-route-registry.mjs`.**
+**This document is NOT auto-generated.**
+
+This registry documents the known API routes in the Areloria server based on static analysis of `server/src/core/ServerBootstrap.ts`.
+
+**Limitations:**
+- Static analysis cannot validate runtime behavior
+- Routes may be conditionally mounted
+- Express middleware may alter routing
+- Runtime probes are needed for full validation
 
 ## Audit
 
 Run `scripts/audit-route-registry.mjs` to validate:
 
 - Route file exists
-- Route mounted in ServerBootstrap.ts
+- Route imported and mounted in ServerBootstrap.ts
 - Client references resolve
 - Documentation entry exists
+
+```bash
+# Baseline mode (report without failing)
+node scripts/audit-route-registry.mjs --baseline
+
+# Strict mode (fail on findings)
+node scripts/audit-route-registry.mjs --strict
+```
 
 ## Mounted Routes
 

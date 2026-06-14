@@ -1,5 +1,7 @@
 # WEBSOCKET_TRUTH_PATH.md
 
+**⚠️ Important**: This document describes the canonical WebSocket truth path based on static analysis of the codebase. It does not represent validated runtime behavior. Runtime validation requires integration tests and live probes.
+
 ## Overview
 
 This document defines the canonical WebSocket truth path for Areloria's ARE (Autonomous Reactive Engine) architecture. All realtime gameplay state propagation MUST flow through this path.
