@@ -90,6 +90,25 @@ function stableNode(value: unknown): LineageNode {
   };
 }
 
+function legacyNodeFromEvent(value: Record<string, unknown>, parentLineageHashes: string[]): LineageNode {
+  const lineageId = stringValue(value.lineageId);
+  const lineageHash = stringValue(value.lineageHash);
+  const birthTick = numberValue(value.birthTick);
+  const seed = createARESeed(['legacy-lineage-node', lineageId, lineageHash, birthTick]);
+  return {
+    id: lineageId,
+    lineageHash,
+    generation: numberValue(value.generation),
+    birthTick,
+    parentLineageHashes,
+    houseId: stringValue(value.houseId),
+    settlementId: stringValue(value.settlementId),
+    archetypeSeed: stableHash32(seed),
+    stats: stableStats(value.stats),
+    traits: Array.isArray(value.traits) ? value.traits.map((entry) => String(entry)).sort() : [],
+  };
+}
+
 function stableRecord(value: unknown): LineageBirthEvent {
   if (!isRecord(value)) throw new Error('npc_lineage_event_must_be_object');
   const parentLineageHashes = Array.isArray(value.parentLineageHashes)
@@ -107,7 +126,7 @@ function stableRecord(value: unknown): LineageBirthEvent {
     pairEligibilityHash: stringValue(value.pairEligibilityHash),
     pressureAtDecision: stablePressure(value.pressureAtDecision),
     cause: stringValue(value.cause) === 'founder' ? 'founder' : 'eligible_pair',
-    nodeSnapshot: stableNode(value.nodeSnapshot),
+    nodeSnapshot: isRecord(value.nodeSnapshot) ? stableNode(value.nodeSnapshot) : legacyNodeFromEvent(value, parentLineageHashes),
   };
 }
 
