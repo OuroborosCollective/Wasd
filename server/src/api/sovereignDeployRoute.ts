@@ -1,4 +1,6 @@
 import express from "express";
+import { adminWriteBlocked } from "../middleware/adminAuthMiddleware.js";
+import { sensitiveWriteRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { execFile, execFileSync } from "node:child_process";
 import net from "node:net";
 import type { WorldTick } from "../core/are/index.js";
@@ -9,6 +11,12 @@ const WORKFLOW_ID = process.env.SOVEREIGN_DEPLOY_WORKFLOW || "vps-docker-deploy.
 const CLUSTER_NAME = process.env.SOVEREIGN_CLUSTER || "Alpha";
 
 type TcpTarget = { host: string; port: number; source: string };
+type WorkflowResult = { status: number; body: unknown };
+type WorkflowRunner = (ref: string, reason: string) => Promise<WorkflowResult>;
+
+export type SovereignDeployRouterOptions = {
+  runWorkflow?: WorkflowRunner;
+};
 
 function safeGit(args: string[], fallback = "unknown"): string {
   try {
@@ -79,7 +87,7 @@ async function tcpProbe(host: string, port: number, timeoutMs = 850): Promise<bo
   });
 }
 
-async function runWorkflow(ref: string, reason: string): Promise<{ status: number; body: unknown }> {
+async function runWorkflow(ref: string, reason: string): Promise<WorkflowResult> {
   const args = ["workflow", "run", WORKFLOW_ID, "--repo", REPO_FULL_NAME, "--ref", ref, "-f", `reason=${reason}`];
   return new Promise((resolve) => {
     execFile("gh", args, { cwd: process.cwd(), timeout: 30000 }, (error, stdout, stderr) => {
@@ -112,22 +120,23 @@ async function buildTruth(tick: WorldTick) {
   };
 }
 
-export function sovereignDeployRouter(tick: WorldTick) {
+export function sovereignDeployRouter(tick: WorldTick, options: SovereignDeployRouterOptions = {}) {
   const router = express.Router();
+  const dispatchWorkflow = options.runWorkflow ?? runWorkflow;
   router.use(express.json({ limit: "16kb" }));
 
   router.get("/truth", async (_req, res) => {
     res.json(await buildTruth(tick));
   });
 
-  router.post("/launch", async (req, res) => {
+  router.post("/launch", adminWriteBlocked, sensitiveWriteRateLimiter, async (req, res) => {
     if (!requireLaunchKey(req)) {
       res.status(403).json({ ok: false, error: "launch_key_required", message: "Sovereign Launch Key missing, wrong, or not configured." });
       return;
     }
     const ref = String(req.body?.ref || branchName() || "main").replace(/[^a-zA-Z0-9_./-]/g, "").slice(0, 120) || "main";
     const reason = String(req.body?.reason || "Sovereign Launch Button").slice(0, 160);
-    const result = await runWorkflow(ref, reason);
+    const result = await dispatchWorkflow(ref, reason);
     res.status(result.status).json(result.body);
   });
 
