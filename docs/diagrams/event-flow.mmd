@@ -1,0 +1,96 @@
+%% ARE Event Flow: WorldEventBus topology and truth path
+%% Regenerate PDF: mmdc -i docs/diagrams/event-flow.mmd -o docs/diagrams/event-flow.pdf -w 1600 -H 1100 -e pdf -f
+
+flowchart TB
+  subgraph Simulation["Simulation Authority (Truth Path)"]
+    WT["WorldTick<br/>tickIndex, tickTimestamp"]
+    TCP["TickSystemContextProvider<br/>tickId, seedHash"]
+    WEB["WebSocketServer<br/>/ws endpoint"]
+    CR["Client Runtime"]
+  end
+
+  subgraph EventBusLayer["WorldEventBus Layer"]
+    WEB["WorldEventBus<br/>publish(), subscribe()"]
+    EH["Event History<br/>(max 1000 events)"]
+  end
+
+  subgraph OuroborosEvents["Ouroboros Cycle Events"]
+    PE["PERCEIVE<br/>World state change"]
+    EE["EVALUATE<br/>NPC decisions"]
+    AE["ACT<br/>Action execution"]
+    RE["REMEMBER<br/>Memory updates"]
+    UE["UPDATE<br/>State sync"]
+  end
+
+  subgraph GameplayEvents["Gameplay Events"]
+    CK["combat_kill"]
+    LU["level_up"]
+    TC["trade_complete"]
+    QC["quest_complete"]
+  end
+
+  subgraph Consumers["Event Consumers"]
+    NB["NPC Brains"]
+    LS["Loot System"]
+    ES["Economy System"]
+    QS["Quest System"]
+    CU["Client UI"]
+  end
+
+  subgraph SideChannel["Side-Channel (Observability)"]
+    TEL["Telemetry"]
+    MON["Monitoring"]
+    LOG["Diagnostics"]
+    ANA["Analytics"]
+  end
+
+  %% Truth path flow
+  WT --> TCP
+  TCP --> WEB
+  WEB --> EH
+  
+  %% Ouroboros events
+  PE -.->|emit| WEB
+  EE -.->|emit| WEB
+  AE -.->|emit| WEB
+  RE -.->|emit| WEB
+  UE -.->|emit| WEB
+  
+  %% Gameplay events
+  CK -.->|emit| WEB
+  LU -.->|emit| WEB
+  TC -.->|emit| WEB
+  QC -.->|emit| WEB
+  
+  %% Consumer subscriptions
+  WEB -->|"subscribe(PERCEIVE)"| NB
+  WEB -->|"subscribe(EVALUATE)"| NB
+  WEB -->|"subscribe(ACT)"| NB
+  WEB -->|"subscribe(combat_kill)"| LS
+  WEB -->|"subscribe(level_up)"| ES
+  WEB -->|"subscribe(trade_complete)"| ES
+  WEB -->|"subscribe(quest_complete)"| QS
+  WEB -->|"subscribe(UPDATE)"| CU
+  
+  %% Side-channel (read-only)
+  EH -.->|"read-only"| TEL
+  EH -.->|"read-only"| MON
+  EH -.->|"read-only"| LOG
+  EH -.->|"read-only"| ANA
+  
+  %% Client update flow
+  WEB -->|"entity_sync"| CR
+
+  classDef truth fill:#e8f4fc,stroke:#1565c0;
+  classDef eventBus fill:#fff3e0,stroke:#ef6c00;
+  classDef ouroboros fill:#f3e5f5,stroke:#7b1fa2;
+  classDef gameplay fill:#e8f5e9,stroke:#2e7d32;
+  classDef consumer fill:#fce4ec,stroke:#c62828;
+  classDef sidechannel fill:#eceff1,stroke:#607d8b,stroke-dasharray:5,5;
+
+  class WT,TCP,WEB,CR truth;
+  class WEB,EH eventBus;
+  class PE,EE,AE,RE,UE ouroboros;
+  class CK,LU,TC,QC gameplay;
+  class NB,LS,ES,QS,CU consumer;
+  class TEL,MON,LOG,ANA sidechannel;
