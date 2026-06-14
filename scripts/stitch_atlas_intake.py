@@ -4,7 +4,12 @@ scripts/stitch_atlas_intake.py
 
 Deterministic Stitch 2.5D asset intake pipeline for Areloria/WASD.
 
-No Date.now, no randomness, no UUIDs. Naming is path/content-hash based.
+Runtime law:
+- no wall-clock timestamps
+- no randomness
+- no UUIDs
+- no blind alpha trust
+- no dirty catalog sheets in accepted runtime assets
 """
 
 from __future__ import annotations
@@ -23,6 +28,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+import cv2
+import numpy as np
 from PIL import Image, UnidentifiedImageError
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -38,7 +45,10 @@ SUPPORTED_ARCHIVE_EXTENSIONS = {".zip"}
 
 MAX_SOURCE_PIXELS = 96_000_000
 MAX_FRAME_COUNT = 4096
-PACK_SCHEMA_VERSION = 2
+PACK_SCHEMA_VERSION = 3
+MIN_CONTOUR_AREA = 50
+OPAQUE_RATIO_MANUAL_REVIEW_THRESHOLD = 0.85
+BACKGROUND_TOLERANCE = 28
 
 LEGACY_SUPPORTED_SIZES = [
     (1024, 128),
@@ -66,19 +76,7 @@ CATEGORY_KEYWORDS = {
     "ui": ["ui", "icon", "button", "panel", "hud", "menu", "cursor", "slot"],
 }
 
-CLASSIFY_PRIORITY = [
-    "equipment_overlay",
-    "boss",
-    "enemy",
-    "hero",
-    "npc",
-    "building",
-    "vfx",
-    "tile",
-    "prop",
-    "item",
-    "ui",
-]
+CLASSIFY_PRIORITY = ["equipment_overlay", "boss", "enemy", "hero", "npc", "building", "vfx", "tile", "prop", "item", "ui"]
 
 CATEGORY_TARGET_FRAME_SIZE = {
     "boss": 256,
@@ -96,14 +94,14 @@ CATEGORY_TARGET_FRAME_SIZE = {
 }
 
 PIVOT_MAP = {
-    "boss": {"x": 0.5, "y": 0.82},
-    "enemy": {"x": 0.5, "y": 0.82},
-    "hero": {"x": 0.5, "y": 0.82},
-    "npc": {"x": 0.5, "y": 0.82},
+    "boss": {"x": 0.5, "y": 1.0},
+    "enemy": {"x": 0.5, "y": 1.0},
+    "hero": {"x": 0.5, "y": 1.0},
+    "npc": {"x": 0.5, "y": 1.0},
     "vfx": {"x": 0.5, "y": 0.5},
     "tile": {"x": 0.5, "y": 0.5},
-    "building": {"x": 0.5, "y": 0.9},
-    "prop": {"x": 0.5, "y": 0.9},
+    "building": {"x": 0.5, "y": 1.0},
+    "prop": {"x": 0.5, "y": 1.0},
     "item": {"x": 0.5, "y": 0.5},
     "equipment_overlay": {"x": 0.5, "y": 0.5},
     "ui": {"x": 0.5, "y": 0.5},
@@ -111,37 +109,13 @@ PIVOT_MAP = {
 }
 
 MANUAL_REVIEW_HINTS = [
-    "catalog",
-    "collection",
-    "overview",
-    "assembly",
-    "set",
-    "sheet_with_labels",
-    "labeled",
-    "labels",
-    "type_1",
-    "type_2",
-    "type_3",
-    "front_walk",
-    "front_attack",
-    "front_defend",
-    "front_die",
-    "back_walk",
-    "back_attack",
-    "back_defend",
-    "back_die",
-    "side_left",
-    "side_right",
-    "view_front",
-    "view_back",
-    "view_left",
-    "view_right",
-    "mobile_overview",
-    "screenshot",
+    "catalog", "collection", "overview", "assembly", "set", "sheet_with_labels", "labeled", "labels",
+    "type_1", "type_2", "type_3", "front_walk", "front_attack", "front_defend", "front_die",
+    "back_walk", "back_attack", "back_defend", "back_die", "side_left", "side_right",
+    "view_front", "view_back", "view_left", "view_right", "mobile_overview", "screenshot",
 ]
 
 REFERENCE_ONLY_HINTS = ["mobile_overview", "screenshot", "asset_collection", "catalog_overview"]
-
 SHEET_TOKENS = ["sheet", "atlas", "spritesheet", "sprite_sheet", "walk", "run", "attack", "idle", "death", "die", "anim", "animation"]
 
 
@@ -166,13 +140,7 @@ def slugify_name(name: str) -> str:
             chars.append(c)
         elif c in {"-", "_", " ", ".", "/", "\\"}:
             chars.append("_")
-    slug = "".join(chars)
-    slug = re.sub(r"_+", "_", slug).strip("_")
-    return slug or "asset"
-
-
-def slug_tokens(value: str) -> list[str]:
-    return [token for token in slugify_name(value).split("_") if token]
+    return re.sub(r"_+", "_", "".join(chars)).strip("_") or "asset"
 
 
 def has_hint(value: str, hints: list[str]) -> bool:
@@ -219,15 +187,14 @@ def clean_asset_slug(source_path: str, category: str) -> str:
     slug = slugify_name(candidate)
     for prefix in (category, f"stitch_{category}", "stitch"):
         if slug.startswith(prefix + "_"):
-            slug = slug[len(prefix) + 1 :]
+            slug = slug[len(prefix) + 1:]
     return slugify_name(slug)
 
 
 def classify_asset(filename: str) -> str:
     lower = filename.replace("\\", "/").lower()
     for category in CLASSIFY_PRIORITY:
-        keywords = CATEGORY_KEYWORDS[category]
-        if any(keyword in lower for keyword in keywords):
+        if any(keyword in lower for keyword in CATEGORY_KEYWORDS[category]):
             return category
     return "unknown"
 
@@ -254,17 +221,24 @@ def target_frame_size_for_category(category: str) -> int:
     return CATEGORY_TARGET_FRAME_SIZE.get(category, CATEGORY_TARGET_FRAME_SIZE["unknown"])
 
 
-def resample_filter():
+def is_image_path(path: str | Path) -> bool:
+    return Path(str(path)).suffix.lower() in SUPPORTED_IMAGE_EXTENSIONS
+
+
+def is_archive_path(path: str | Path) -> bool:
+    return Path(str(path)).suffix.lower() in SUPPORTED_ARCHIVE_EXTENSIONS
+
+
+def safe_relative_path(path: Path, root_path: Path) -> str:
     try:
-        return Image.Resampling.LANCZOS
-    except AttributeError:
-        return Image.LANCZOS
+        return path.relative_to(root_path).as_posix()
+    except ValueError:
+        return path.name
 
 
 def detect_grid(width: int, height: int, category: str = "unknown", source_path: str = "") -> Optional[dict]:
     if width <= 0 or height <= 0:
         return None
-
     if not source_path and width == height:
         for sheet_size, frame_size in LEGACY_SUPPORTED_SIZES:
             if width == sheet_size:
@@ -274,7 +248,6 @@ def detect_grid(width: int, height: int, category: str = "unknown", source_path:
 
     lower = source_path.lower()
     normalized = slugify_name(source_path)
-
     explicit = re.search(r"(?:^|[_\-. /])(\d{1,3})x(\d{1,3})(?:[_\-. /]|$)", lower)
     if explicit:
         cols = int(explicit.group(1))
@@ -308,7 +281,6 @@ def detect_grid(width: int, height: int, category: str = "unknown", source_path:
                 frame_count = cols * rows
                 if 1 < frame_count <= MAX_FRAME_COUNT:
                     return {"columns": cols, "rows": rows, "frameWidth": frame_size, "frameHeight": frame_size, "sheetSize": sheet_size, "sheetWidth": width, "sheetHeight": height, "frameCount": frame_count, "source": "legacy_supported_sheet"}
-
     if not has_sheet_token:
         return None
 
@@ -330,64 +302,128 @@ def detect_grid(width: int, height: int, category: str = "unknown", source_path:
     return {"columns": cols, "rows": rows, "frameWidth": frame, "frameHeight": frame, "sheetSize": width if width == height else None, "sheetWidth": width, "sheetHeight": height, "frameCount": frame_count, "source": "heuristic_sheet"}
 
 
-def image_has_alpha(img: Image.Image) -> bool:
-    return img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info)
+def decode_image_bgr(data: bytes) -> np.ndarray:
+    arr = np.frombuffer(data, dtype=np.uint8)
+    image = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError("OpenCV could not decode image bytes")
+    return image
 
 
-def detect_corner_background(img: Image.Image) -> Optional[tuple[int, int, int]]:
-    rgb = img.convert("RGB")
-    w, h = rgb.size
-    if w < 2 or h < 2:
-        return None
-    pixels = rgb.load()
-    samples = [pixels[0, 0], pixels[w - 1, 0], pixels[0, h - 1], pixels[w - 1, h - 1]]
-    base = samples[0]
-    if all(abs(base[0] - s[0]) + abs(base[1] - s[1]) + abs(base[2] - s[2]) <= 24 for s in samples[1:]):
-        return base
-    return None
+def smart_background_floodfill_alpha(bgr: np.ndarray, tolerance: int = BACKGROUND_TOLERANCE) -> np.ndarray:
+    """Ignore source alpha, flood-fill connected background from all four corners, return BGRA."""
+    if bgr.ndim != 3 or bgr.shape[2] != 3:
+        raise ValueError("Expected BGR image with three channels")
+    height, width = bgr.shape[:2]
+    fill_image = bgr.copy()
+    mask = np.zeros((height + 2, width + 2), dtype=np.uint8)
+    flags = 4 | cv2.FLOODFILL_MASK_ONLY | (255 << 8)
+    lo = (tolerance, tolerance, tolerance)
+    hi = (tolerance, tolerance, tolerance)
+    for seed in [(0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1)]:
+        cv2.floodFill(fill_image, mask, seedPoint=seed, newVal=(0, 0, 0), loDiff=lo, upDiff=hi, flags=flags)
+    bg_mask = mask[1:-1, 1:-1] > 0
+    alpha = np.full((height, width), 255, dtype=np.uint8)
+    alpha[bg_mask] = 0
+    return np.dstack([bgr, alpha])
 
 
-def cleanup_flat_background_alpha(img: Image.Image) -> tuple[Image.Image, dict]:
-    rgba = img.convert("RGBA")
-    result = {"attempted": False, "method": "none", "success": False, "remainingCheckerboardScore": 0}
-    if image_has_alpha(img):
-        result.update({"method": "native_alpha", "success": True})
-        return rgba, result
-    bg = detect_corner_background(img)
-    if bg is None:
-        result.update({"method": "opaque_rgb_no_clear_background", "success": True})
-        return rgba, result
-    result.update({"attempted": True, "method": "corner_background_to_alpha"})
-    pixels = rgba.load()
-    w, h = rgba.size
-    changed = 0
-    for y in range(h):
-        for x in range(w):
-            r, g, b, _a = pixels[x, y]
-            if abs(r - bg[0]) + abs(g - bg[1]) + abs(b - bg[2]) <= 30:
-                pixels[x, y] = (r, g, b, 0)
-                changed += 1
-            else:
-                pixels[x, y] = (r, g, b, 255)
-    result["success"] = changed > 0
-    result["removedPixelRatio"] = round(changed / max(1, w * h), 6)
-    return rgba, result
+def opaque_ratio(bgra: np.ndarray) -> float:
+    if bgra.size == 0:
+        return 0.0
+    return float(np.count_nonzero(bgra[:, :, 3] > 0)) / float(bgra.shape[0] * bgra.shape[1])
 
 
-def pad_resize_to_frame(frame: Image.Image, target_w: int, target_h: int) -> Image.Image:
-    rgba = frame.convert("RGBA")
-    bbox = rgba.getbbox()
-    cropped = rgba.crop(bbox) if bbox else rgba
-    cw, ch = cropped.size
-    if cw <= 0 or ch <= 0:
-        return Image.new("RGBA", (target_w, target_h), (0, 0, 0, 0))
-    scale = min(target_w / cw, target_h / ch)
-    new_w = max(1, min(target_w, int(round(cw * scale))))
-    new_h = max(1, min(target_h, int(round(ch * scale))))
-    resized = cropped.resize((new_w, new_h), resample_filter())
-    canvas = Image.new("RGBA", (target_w, target_h), (0, 0, 0, 0))
-    canvas.alpha_composite(resized, ((target_w - new_w) // 2, (target_h - new_h) // 2))
+def crop_valid_contours(bgra: np.ndarray, min_area: int = MIN_CONTOUR_AREA) -> np.ndarray:
+    """Keep only meaningful contours; tiny text/noise/watermark contours are ignored."""
+    if bgra.size == 0:
+        return np.zeros((0, 0, 4), dtype=np.uint8)
+    alpha = bgra[:, :, 3]
+    binary = np.where(alpha > 0, 255, 0).astype(np.uint8)
+    contours, _hierarchy = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    boxes = []
+    for contour in contours:
+        if cv2.contourArea(contour) < min_area:
+            continue
+        x, y, w, h = cv2.boundingRect(contour)
+        boxes.append((x, y, x + w, y + h))
+    if not boxes:
+        return np.zeros((0, 0, 4), dtype=np.uint8)
+    x1 = min(box[0] for box in boxes)
+    y1 = min(box[1] for box in boxes)
+    x2 = max(box[2] for box in boxes)
+    y2 = max(box[3] for box in boxes)
+    return bgra[y1:y2, x1:x2].copy()
+
+
+def bottom_anchor_on_canvas(cropped: np.ndarray, target_w: int, target_h: int) -> np.ndarray:
+    canvas = np.zeros((target_h, target_w, 4), dtype=np.uint8)
+    if cropped.size == 0 or cropped.shape[0] == 0 or cropped.shape[1] == 0:
+        return canvas
+    h, w = cropped.shape[:2]
+    if w > target_w or h > target_h:
+        raise ValueError(f"cropped sprite {w}x{h} exceeds deterministic canvas {target_w}x{target_h}")
+    x = (target_w - w) // 2
+    y = target_h - h
+    canvas[y:y + h, x:x + w] = cropped
     return canvas
+
+
+def normalize_cell_to_frame(cell_bgr: np.ndarray, target: int) -> tuple[np.ndarray, float]:
+    bgra = smart_background_floodfill_alpha(cell_bgr)
+    ratio = opaque_ratio(bgra)
+    cropped = crop_valid_contours(bgra)
+    return bottom_anchor_on_canvas(cropped, target, target), ratio
+
+
+def extract_normalized_frames(bgr: np.ndarray, grid: Optional[dict], category: str) -> tuple[list[Image.Image], dict, dict]:
+    target = target_frame_size_for_category(category)
+    frame_arrays: list[np.ndarray] = []
+    ratios: list[float] = []
+    if grid:
+        for row in range(grid["rows"]):
+            for col in range(grid["columns"]):
+                left = col * grid["frameWidth"]
+                top = row * grid["frameHeight"]
+                cell = bgr[top:top + grid["frameHeight"], left:left + grid["frameWidth"]]
+                frame, ratio = normalize_cell_to_frame(cell, target)
+                frame_arrays.append(frame)
+                ratios.append(ratio)
+        source = grid.get("source", "detected")
+    else:
+        frame, ratio = normalize_cell_to_frame(bgr, target)
+        frame_arrays.append(frame)
+        ratios.append(ratio)
+        source = "single_image_normalized"
+
+    frames = [Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGRA2RGBA)) for frame in frame_arrays]
+    columns = grid["columns"] if grid else 1
+    rows = grid["rows"] if grid else 1
+    normalized_grid = {
+        "columns": columns,
+        "rows": rows,
+        "frameWidth": target,
+        "frameHeight": target,
+        "sourceFrameWidth": grid["frameWidth"] if grid else bgr.shape[1],
+        "sourceFrameHeight": grid["frameHeight"] if grid else bgr.shape[0],
+        "source": source,
+        "frameCount": len(frames),
+    }
+    diagnostics = {
+        "opaqueRatioMax": round(max(ratios) if ratios else 0.0, 6),
+        "opaqueRatioAvg": round(sum(ratios) / max(1, len(ratios)), 6),
+    }
+    return frames, normalized_grid, diagnostics
+
+
+def create_contact_sheet(frames: list[Image.Image], frame_width: int, frame_height: int, cols: int = 4) -> Image.Image:
+    if not frames:
+        return Image.new("RGBA", (frame_width, frame_height), (0, 0, 0, 0))
+    rows = math.ceil(len(frames) / cols)
+    sheet = Image.new("RGBA", (cols * frame_width, rows * frame_height), (0, 0, 0, 0))
+    for idx, frame in enumerate(frames):
+        sheet.alpha_composite(frame.convert("RGBA"), ((idx % cols) * frame_width, (idx // cols) * frame_height))
+    return sheet
 
 
 def build_sheet(frames: list[Image.Image], frame_w: int, frame_h: int) -> tuple[Image.Image, int, int]:
@@ -402,45 +438,37 @@ def build_sheet(frames: list[Image.Image], frame_w: int, frame_h: int) -> tuple[
     return sheet, cols, rows
 
 
-def extract_normalized_frames(img: Image.Image, grid: Optional[dict], category: str) -> tuple[list[Image.Image], dict]:
-    target = target_frame_size_for_category(category)
-    if grid:
-        source_frames = []
-        for row in range(grid["rows"]):
-            for col in range(grid["columns"]):
-                left = col * grid["frameWidth"]
-                top = row * grid["frameHeight"]
-                source_frames.append(img.crop((left, top, left + grid["frameWidth"], top + grid["frameHeight"])))
-        normalized = [pad_resize_to_frame(frame, target, target) for frame in source_frames]
-        return normalized, {"columns": grid["columns"], "rows": grid["rows"], "frameWidth": target, "frameHeight": target, "sourceFrameWidth": grid["frameWidth"], "sourceFrameHeight": grid["frameHeight"], "source": grid.get("source", "detected"), "frameCount": len(normalized)}
-    return [pad_resize_to_frame(img, target, target)], {"columns": 1, "rows": 1, "frameWidth": target, "frameHeight": target, "sourceFrameWidth": img.width, "sourceFrameHeight": img.height, "source": "single_image_normalized", "frameCount": 1}
-
-
-def create_contact_sheet(frames: list[Image.Image], frame_width: int, frame_height: int, cols: int = 4) -> Image.Image:
-    if not frames:
-        return Image.new("RGBA", (frame_width, frame_height), (0, 0, 0, 0))
-    rows = math.ceil(len(frames) / cols)
-    sheet = Image.new("RGBA", (cols * frame_width, rows * frame_height), (0, 0, 0, 0))
-    for idx, frame in enumerate(frames):
-        sheet.alpha_composite(frame.convert("RGBA"), ((idx % cols) * frame_width, (idx // cols) * frame_height))
-    return sheet
-
-
-def generate_atlas_json(asset_id: str, category: str, sheet_width: int, sheet_height: int, frame_width: int, frame_height: int, columns: int, rows: int, source_sha: str, processed_sha: str) -> dict:
+def generate_atlas_json(asset_id: str, category: str, sheet_width: int, sheet_height: int, frame_width: int, frame_height: int, columns: int, frame_count: int, source_sha: str, processed_sha: str) -> dict:
+    """Atlas metadata is strictly frameCount-bound; padded sheet cells are never runtime frames."""
     pivot = PIVOT_MAP.get(category, PIVOT_MAP["unknown"])
     frames = {}
-    for row in range(rows):
-        for col in range(columns):
-            frame_idx = row * columns + col
-            frames[f"{asset_id}_frame_{frame_idx:04d}"] = {
-                "frame": {"x": col * frame_width, "y": row * frame_height, "w": frame_width, "h": frame_height},
-                "rotated": False,
-                "trimmed": False,
-                "spriteSourceSize": {"x": 0, "y": 0, "w": frame_width, "h": frame_height},
-                "sourceSize": {"w": frame_width, "h": frame_height},
-                "pivot": pivot,
-            }
-    return {"meta": {"app": "areloria-stitch-atlas-intake", "version": PACK_SCHEMA_VERSION, "image": f"{asset_id}.png", "format": "RGBA8888", "size": {"w": sheet_width, "h": sheet_height}, "scale": "1", "assetId": asset_id, "category": category, "sourceSha256": source_sha, "processedSha256": processed_sha}, "frames": frames}
+    for frame_idx in range(frame_count):
+        col = frame_idx % columns
+        row = frame_idx // columns
+        frames[f"{asset_id}_frame_{frame_idx:04d}"] = {
+            "frame": {"x": col * frame_width, "y": row * frame_height, "w": frame_width, "h": frame_height},
+            "rotated": False,
+            "trimmed": False,
+            "spriteSourceSize": {"x": 0, "y": 0, "w": frame_width, "h": frame_height},
+            "sourceSize": {"w": frame_width, "h": frame_height},
+            "pivot": pivot,
+        }
+    return {
+        "meta": {
+            "app": "areloria-stitch-atlas-intake",
+            "version": PACK_SCHEMA_VERSION,
+            "image": f"{asset_id}.png",
+            "format": "RGBA8888",
+            "size": {"w": sheet_width, "h": sheet_height},
+            "scale": "1",
+            "assetId": asset_id,
+            "category": category,
+            "sourceSha256": source_sha,
+            "processedSha256": processed_sha,
+            "frameCount": frame_count,
+        },
+        "frames": frames,
+    }
 
 
 def write_json(path: Path, payload: dict) -> None:
@@ -451,7 +479,22 @@ def write_json(path: Path, payload: dict) -> None:
 
 
 def create_source_report(source_path: str, asset_id: str, category: str, width: int, height: int, mode: str, has_alpha: bool, detected_grid: Optional[dict], normalized_grid: Optional[dict], alpha_cleanup: dict, status: str, warnings: list[str], source_sha: str, processed_sha: str) -> dict:
-    return {"sourcePath": source_path, "assetId": asset_id, "category": category, "width": width, "height": height, "mode": mode, "hasAlpha": has_alpha, "detectedGrid": detected_grid, "normalizedGrid": normalized_grid, "alphaCleanup": alpha_cleanup, "status": status, "warnings": warnings, "sourceSha256": source_sha, "processedSha256": processed_sha}
+    return {
+        "sourcePath": source_path,
+        "assetId": asset_id,
+        "category": category,
+        "width": width,
+        "height": height,
+        "mode": mode,
+        "hasAlpha": has_alpha,
+        "detectedGrid": detected_grid,
+        "normalizedGrid": normalized_grid,
+        "alphaCleanup": alpha_cleanup,
+        "status": status,
+        "warnings": warnings,
+        "sourceSha256": source_sha,
+        "processedSha256": processed_sha,
+    }
 
 
 def save_quarantine(quarantine_dir: Path, asset_id: str, source: SourceAsset, reason: str, warnings: list[str], source_sha: str) -> None:
@@ -463,24 +506,30 @@ def save_quarantine(quarantine_dir: Path, asset_id: str, source: SourceAsset, re
     write_json(qdir / "reason.json", {"assetId": asset_id, "sourcePath": source.display_source_path, "reason": reason, "warnings": warnings, "sourceSha256": source_sha})
 
 
+def image_has_alpha_from_pillow(data: bytes) -> tuple[str, bool]:
+    try:
+        img = Image.open(io.BytesIO(data))
+        return img.mode, img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info)
+    except Exception:
+        return "UNKNOWN", False
+
+
 def process_asset(source: SourceAsset, output_dir: Path, quarantine_dir: Path) -> dict:
     source_sha = stable_hash(source.data)
     category = classify_from_zip_path(source.display_source_path) if "!/" in source.display_source_path or ".zip:" in source.display_source_path else classify_asset(source.display_source_path)
     slug = clean_asset_slug(source.display_source_path, category)
     asset_id = f"stitch_{category}_{slug}_{source_sha[:10]}"
-    empty_alpha = {"attempted": False, "method": "none", "success": False, "remainingCheckerboardScore": 0}
+    mode, has_alpha = image_has_alpha_from_pillow(source.data)
+    empty_alpha = {"method": "opencv_corner_floodfill", "success": False, "opaqueRatio": 0.0, "opaqueRatioMax": 0.0, "opaqueRatioAvg": 0.0}
 
     try:
-        img = Image.open(io.BytesIO(source.data))
-        img.load()
+        bgr = decode_image_bgr(source.data)
     except (UnidentifiedImageError, OSError, ValueError) as exc:
         warnings = [f"Failed to open image: {exc}"]
         save_quarantine(quarantine_dir, asset_id, source, "unreadable_image", warnings, source_sha)
-        return create_source_report(source.display_source_path, asset_id, category, 0, 0, "UNKNOWN", False, None, None, empty_alpha, "quarantined", warnings, source_sha, source_sha)
+        return create_source_report(source.display_source_path, asset_id, category, 0, 0, mode, has_alpha, None, None, empty_alpha, "quarantined", warnings, source_sha, source_sha)
 
-    width, height = img.size
-    mode = img.mode
-    has_alpha = image_has_alpha(img)
+    height, width = bgr.shape[:2]
     warnings: list[str] = []
     if width <= 0 or height <= 0:
         warnings.append("Image has invalid dimensions")
@@ -490,8 +539,10 @@ def process_asset(source: SourceAsset, output_dir: Path, quarantine_dir: Path) -
         save_quarantine(quarantine_dir, asset_id, source, "invalid_dimensions", warnings, source_sha)
         return create_source_report(source.display_source_path, asset_id, category, width, height, mode, has_alpha, None, None, empty_alpha, "quarantined", warnings, source_sha, source_sha)
 
-    rgba, alpha_cleanup = cleanup_flat_background_alpha(img)
+    whole_bgra = smart_background_floodfill_alpha(bgr)
+    whole_opaque_ratio = opaque_ratio(whole_bgra)
     detected_grid = detect_grid(width, height, category=category, source_path=source.display_source_path)
+
     status = "accepted"
     if is_reference_only_source(source.display_source_path):
         status = "reference_only"
@@ -499,42 +550,54 @@ def process_asset(source: SourceAsset, output_dir: Path, quarantine_dir: Path) -
     elif is_manual_review_source(source.display_source_path):
         status = "manual_review"
         warnings.append("Manual-review catalog or labeled assembly sheet. Crop/classify before runtime use.")
+    elif category == "unknown":
+        status = "manual_review"
+        warnings.append("Unknown category is not allowed in runtime manifest.")
+    elif whole_opaque_ratio > OPAQUE_RATIO_MANUAL_REVIEW_THRESHOLD:
+        status = "manual_review"
+        warnings.append(f"Opaque ratio {whole_opaque_ratio:.3f} exceeds {OPAQUE_RATIO_MANUAL_REVIEW_THRESHOLD:.2f}; likely catalog/UI sheet.")
     elif detected_grid is None and width != height:
         status = "manual_review"
         warnings.append("Non-square image without deterministic grid. Manual crop recommended.")
 
-    frames, normalized_grid = extract_normalized_frames(rgba, detected_grid, category)
-    sheet, columns, rows = build_sheet(frames, normalized_grid["frameWidth"], normalized_grid["frameHeight"])
+    try:
+        frames, normalized_grid, cv_diagnostics = extract_normalized_frames(bgr, detected_grid, category)
+    except ValueError as exc:
+        status = "manual_review" if status == "accepted" else status
+        warnings.append(str(exc))
+        target = target_frame_size_for_category(category)
+        frames = [Image.new("RGBA", (target, target), (0, 0, 0, 0))]
+        normalized_grid = {"columns": 1, "rows": 1, "frameWidth": target, "frameHeight": target, "sourceFrameWidth": width, "sourceFrameHeight": height, "source": "manual_review_empty_frame", "frameCount": 1}
+        cv_diagnostics = {"opaqueRatioMax": 0.0, "opaqueRatioAvg": 0.0}
+
     normalized_grid = dict(normalized_grid)
-    normalized_grid.update({"columns": columns, "rows": rows, "frameCount": len(frames), "sheetWidth": sheet.width, "sheetHeight": sheet.height})
+    normalized_grid["frameCount"] = len(frames)
+    alpha_cleanup = {
+        "method": "opencv_corner_floodfill_contour_crop_bottom_anchor",
+        "success": True,
+        "opaqueRatio": round(whole_opaque_ratio, 6),
+        "opaqueRatioMax": cv_diagnostics.get("opaqueRatioMax", 0.0),
+        "opaqueRatioAvg": cv_diagnostics.get("opaqueRatioAvg", 0.0),
+        "minContourArea": MIN_CONTOUR_AREA,
+    }
+
+    sheet, columns, rows = build_sheet(frames, normalized_grid["frameWidth"], normalized_grid["frameHeight"])
+    normalized_grid.update({"columns": columns, "rows": rows, "sheetWidth": sheet.width, "sheetHeight": sheet.height})
     buf = io.BytesIO()
     sheet.save(buf, format="PNG", optimize=True)
     processed_bytes = buf.getvalue()
     processed_sha = stable_hash(processed_bytes)
+
     asset_dir = output_dir / category / asset_id
     asset_dir.mkdir(parents=True, exist_ok=True)
     with open(asset_dir / f"{asset_id}.png", "wb") as f:
         f.write(processed_bytes)
-    atlas = generate_atlas_json(asset_id, category, sheet.width, sheet.height, normalized_grid["frameWidth"], normalized_grid["frameHeight"], columns, rows, source_sha, processed_sha)
+    atlas = generate_atlas_json(asset_id, category, sheet.width, sheet.height, normalized_grid["frameWidth"], normalized_grid["frameHeight"], columns, len(frames), source_sha, processed_sha)
     write_json(asset_dir / f"{asset_id}.atlas.json", atlas)
     preview = create_contact_sheet(frames[: min(16, len(frames))], normalized_grid["frameWidth"], normalized_grid["frameHeight"])
     preview.save(asset_dir / f"{asset_id}.preview.png", optimize=True)
+
     return create_source_report(source.display_source_path, asset_id, category, width, height, mode, has_alpha, detected_grid, normalized_grid, alpha_cleanup, status, warnings, source_sha, processed_sha)
-
-
-def is_image_path(path: str | Path) -> bool:
-    return Path(str(path)).suffix.lower() in SUPPORTED_IMAGE_EXTENSIONS
-
-
-def is_archive_path(path: str | Path) -> bool:
-    return Path(str(path)).suffix.lower() in SUPPORTED_ARCHIVE_EXTENSIONS
-
-
-def safe_relative_path(path: Path, root_path: Path) -> str:
-    try:
-        return path.relative_to(root_path).as_posix()
-    except ValueError:
-        return path.name
 
 
 def collect_sources(input_path: Path) -> list[SourceAsset]:
@@ -573,11 +636,10 @@ def collect_sources(input_path: Path) -> list[SourceAsset]:
     else:
         raise ValueError(f"Input path does not exist: {input_path}")
 
-    # Dedupe by content hash. If a loose helper image is also packed into a ZIP,
-    # the deterministic later path wins, which keeps packaged assets preferred.
     unique: dict[str, SourceAsset] = {}
     for source in sources:
-        unique[stable_hash(source.data)] = source
+        key = f"{source.display_source_path.lower()}|{stable_hash(source.data)}"
+        unique[key] = source
     return [unique[key] for key in sorted(unique.keys(), key=lambda h: unique[h].display_source_path.lower())]
 
 
@@ -615,7 +677,7 @@ def generate_runtime_manifest(reports: list[dict], schema_version: int = PACK_SC
         })
 
     def review_summary(rows: list[dict]) -> list[dict]:
-        return [{"assetId": r["assetId"], "category": r["category"], "sourcePath": r["sourcePath"], "warnings": r["warnings"], "sourceSha256": r["sourceSha256"]} for r in rows]
+        return [{"assetId": r["assetId"], "category": r["category"], "sourcePath": r["sourcePath"], "warnings": r["warnings"], "sourceSha256": r["sourceSha256"], "alphaCleanup": r.get("alphaCleanup", {})} for r in rows]
 
     quarantine_summary = [{"assetId": r["assetId"], "category": r["category"], "sourcePath": r["sourcePath"], "reason": "not_processable", "warnings": r["warnings"], "sourceSha256": r["sourceSha256"]} for r in quarantined]
     manual_review_summary = review_summary(manual_review)

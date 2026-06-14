@@ -17,6 +17,7 @@ import { StitchAssetPreviewPanel } from "./ui/windows/StitchAssetPreviewPanel";
 import { ModuleRegistryPanel } from "./ModuleRegistryPanel";
 import { SelfHealWorkshopPanel } from "./SelfHealWorkshopPanel";
 import { createLootFeedStore, type LootFeedEntry } from "./game/loot";
+import { liveRuntimeState } from "./live/liveRuntimeState";
 import { installClient2DDepthRuntime } from "./client2dDepthRuntime";
 import { installViewportRuntime } from "./ViewportController";
 import { ARELORIA_BOOT_CONFIG } from "./boot/boot.config";
@@ -188,6 +189,15 @@ function UIOverlayLayer() {
       setToasts((prev) => prev.filter((t) => now - t.createdAtMs < 5000));
     }, 1000);
 
+    // Prune loot entries based on server tick (from liveRuntimeState)
+    const pruneInterval = setInterval(() => {
+      const state = liveRuntimeState.getState();
+      if (state?.serverTick) {
+        lootFeedRef.current.prune(state.serverTick);
+        setLootEntries([...lootFeedRef.current.getAll()]);
+      }
+    }, 2000);
+
     function handleKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
@@ -209,7 +219,11 @@ function UIOverlayLayer() {
       if (detail?.event === "LOOT_PICKUP" || detail?.type === "loot_pickup") {
         const payload = detail.payload ?? detail;
         if (payload?.itemId) {
-          lootFeedRef.current.push(payload.itemId, payload.quantity ?? 1);
+          // Canonical path: loot entries come from server loot.delta event
+          // Server provides tick and rollHash for deterministic IDs
+          const tick = payload.tick ?? payload.serverTick ?? 0;
+          const rollHash = payload.rollHash;
+          lootFeedRef.current.push(payload.itemId, payload.quantity ?? 1, tick, rollHash);
           setLootEntries([...lootFeedRef.current.getAll()]);
         }
       }
@@ -249,6 +263,7 @@ function UIOverlayLayer() {
     return () => {
       clearInterval(lootInterval);
       clearInterval(toastInterval);
+      clearInterval(pruneInterval);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("wasd:open-stitch-preview", openStitchPreview);
       window.removeEventListener("wasd:network-packet", handler);

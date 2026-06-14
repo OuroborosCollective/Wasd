@@ -4,6 +4,28 @@ import { applyWeaponVisual } from "./WeaponVisualPool.js";
 import fs from "fs";
 import { resolveContentFile } from "../content/contentDataRoot.js";
 
+/**
+ * @deprecated LootSystem.ts - PARALLEL RUNTIME TRUTH (DO NOT USE IN PRODUCTION)
+ * 
+ * This module exists as a PARALLEL DROP TRUTH and is NOT part of the canonical loot path.
+ * 
+ * CANONICAL PATH (USE THIS):
+ * - ProceduralLootMachine (server/src/loot/ProceduralLootMachine.ts)
+ * - LootDirector (server/src/loot/LootDirector.ts)
+ * - loot_delta events from server
+ * 
+ * This module is kept for:
+ * - Dev/test compatibility
+ * - Migration shim
+ * - Legacy code support
+ * 
+ * DO NOT use this for runtime loot generation.
+ * DO NOT create new code that depends on this module for loot.
+ * 
+ * @see LootDirector for canonical loot handling
+ * @see ProceduralLootMachine for the Infinite ARE Loot Machine
+ */
+
 export interface LootTableEntry {
   itemId: string;
   chance: number;
