@@ -125,7 +125,7 @@ These do not necessarily block a closed alpha, but they define whether the proje
 |---|---|---|
 | Combat and skills | Server-authoritative combat, skills, cooldown/mana, loot and respawn are wired. | Balance stamina/mana/XP curves, improve combat feedback, revive/party edge cases, boss telegraphs, and combat log clarity. |
 | Quest and questlines | Quest/questline systems are active, with fusion echo hooks. | Add richer objective summaries, map pins, quest tracker, branching outcomes, and QA fixtures for multi-step chains. |
-| NPC autonomy | NPC system, memory, relationships, proactive chat, personality beta, game-data loading, and Living Duden speech path exist. | Expand deterministic behavior scenarios, bounded shared memory, reputation effects, refusal/help rules, genealogy, faction memory, and large-NPC load budgets. |
+| NPC autonomy | NPC system, memory, relationships, proactive chat, personality beta, game-data loading, Living Duden speech path, and deterministic genealogy (FamilyHouseRegistry) exist. | Expand deterministic behavior scenarios, bounded shared memory, reputation effects, refusal/help rules, faction memory, and large-NPC load budgets. |
 | Civilization | Bible defines guild -> village -> city -> kingdom -> nation and equal NPC/player civic rights. | Implement settlement lifecycle, law/tax/election flows, NPC/player political parity, territory/biome borders, and protected structure policies. |
 | Economy and Matrix Energy | Economy/Matrix are design pillars; construction contracts are active. | Implement deterministic local markets, scarcity pricing, taxes, trade routes, Matrix Energy sinks/sources, and public works budget flow. |
 | World systems | Chunks, resources, weather/time, terrain adapters, world objects, warfronts, and bosses are wired. | Expand biome depth, dungeon templates, ecological pressure, migration triggers, world boss distance constraints, and streaming boundary tests. |
@@ -152,11 +152,11 @@ These do not necessarily block a closed alpha, but they define whether the proje
 
 These belong after the release blockers are controlled, unless a small isolated PR can land safely.
 
-| Integration | Target direction |
-|---|---|
-| Genealogy and houses | NPC family lines, inheritance, house reputation, and deterministic lineage history. |
-| Full NPC politics | NPCs vote, tax, declare war, negotiate peace, appoint rulers, rebel, and join/found factions. |
-| Guild/village/city/kingdom/nation hierarchy | Rule-bound civilization growth from player/NPC organizations through biome-bounded territories. |
+| Integration | Target direction | Status |
+|---|---|---|
+| Genealogy and houses | NPC family lines, inheritance, house reputation, and deterministic lineage history. | ✅ **IMPLEMENTED** - `FamilyHouseRegistry.ts`, `NPCCoupleEligibilityEngine`, `DescendantArchetypeEngine`, deterministic `lineageHash`, sim-tick-based `birthTick`, population pressure cap. See `server/src/modules/npc/FamilyHouseRegistry.ts` |
+| Full NPC politics | NPCs vote, tax, declare war, negotiate peace, appoint rulers, rebel, and join/found factions. | Planned |
+| Guild/village/city/kingdom/nation hierarchy | Rule-bound civilization growth from player/NPC organizations through biome-bounded territories. | Planned |
 | Deep economy simulation | Supply/demand, scarcity, taxes, trade routes, public works, war pressure, and NPC merchant personality. |
 | Matrix Energy | Player-facing world/building energy loop with deterministic accounting and protected paid-asset policy. |
 | Housing and protected structures | Build permissions, placement validation, road/wall/gate constraints, ownership, protection tiers, and PvP/world-event policy. |
