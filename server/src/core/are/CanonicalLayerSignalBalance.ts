@@ -1,9 +1,9 @@
+import type { CanonicalLayerSeedSignals, CanonicalSeedBiomeId } from './CanonicalLayerSeed.js';
 import {
   KAPPA_LAYER_CONSTANTS,
   KAPPA_LAYER_NAMES,
   type KappaLayerKey,
 } from './KappaLayers.js';
-import type { CanonicalLayerSeedSignals, CanonicalSeedBiomeId } from './CanonicalLayerSeed.js';
 
 export const CANONICAL_SIGNAL_BALANCE_VERSION = 1 as const;
 
