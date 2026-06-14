@@ -190,7 +190,7 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── List My Models ─────────────────────────────────────────────────────────
-  router.get("/my-models", authMiddleware, glbManageRateLimiter, async (req: Request, res: Response) => {
+  router.get("/my-models", glbManageRateLimiter, authMiddleware, async (req: Request, res: Response) => {
     const playerId = getAuthenticatedPlayerId(req);
     if (!playerId) return res.status(401).json({ error: "Authentication required" });
 
@@ -207,7 +207,7 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── Delete Model ───────────────────────────────────────────────────────────
-  router.delete("/:modelId", authMiddleware, glbManageRateLimiter, async (req: Request, res: Response) => {
+  router.delete("/:modelId", glbManageRateLimiter, authMiddleware, async (req: Request, res: Response) => {
     const playerId = getAuthenticatedPlayerId(req);
     const { modelId } = req.params;
     if (!playerId) return res.status(401).json({ error: "Authentication required" });
