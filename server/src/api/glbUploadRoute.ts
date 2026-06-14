@@ -116,7 +116,7 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   }
 
   // ── Upload GLB ─────────────────────────────────────────────────────────────
-  router.post("/upload", authMiddleware, requireGLBSubscription, glbUploadRateLimiter, upload.single("model"), async (req: Request, res: Response) => {
+  router.post("/upload", glbUploadRateLimiter, authMiddleware, requireGLBSubscription, upload.single("model"), async (req: Request, res: Response) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const playerId = getAuthenticatedPlayerId(req);
