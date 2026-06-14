@@ -24,15 +24,26 @@ export interface EquipmentRequirementValidationResult {
   readonly unmet: readonly UnmetEquipmentRequirement[];
 }
 
+type SkillLevelIndex = Readonly<Partial<Record<SkillId, number>>>;
+
 function parseLevelRequirementKey(key: string): SkillId | null {
   if (!key.endsWith(LEVEL_REQUIREMENT_SUFFIX)) return null;
   const skillId = key.slice(0, -LEVEL_REQUIREMENT_SUFFIX.length);
   return VALID_SKILL_IDS.has(skillId) ? skillId as SkillId : null;
 }
 
-function getSkillLevel(state: PlayerSkillState, skillId: SkillId): number {
-  const snapshot = state.skills.find((skill) => skill.id === skillId);
-  return Math.max(0, Math.trunc(Number(snapshot?.level ?? 0)));
+function buildSkillLevelIndex(state: PlayerSkillState): SkillLevelIndex {
+  const index: Partial<Record<SkillId, number>> = {};
+
+  for (const skill of state.skills) {
+    index[skill.id] = Math.max(0, Math.trunc(Number(skill.level ?? 0)));
+  }
+
+  return Object.freeze(index);
+}
+
+function getSkillLevel(index: SkillLevelIndex, skillId: SkillId): number {
+  return index[skillId] ?? 0;
 }
 
 export function validateEquipmentRequirements(
@@ -40,6 +51,7 @@ export function validateEquipmentRequirements(
   skillState: PlayerSkillState,
 ): EquipmentRequirementValidationResult {
   const unmet: UnmetEquipmentRequirement[] = [];
+  const skillLevels = buildSkillLevelIndex(skillState);
 
   for (const requirement of definition.requirements ?? []) {
     const required = Math.max(0, Math.trunc(Number(requirement.value ?? 0)));
@@ -50,7 +62,7 @@ export function validateEquipmentRequirements(
       continue;
     }
 
-    const actual = getSkillLevel(skillState, skillId);
+    const actual = getSkillLevel(skillLevels, skillId);
     if (actual < required) {
       unmet.push({ key: requirement.key, skillId, required, actual });
     }
