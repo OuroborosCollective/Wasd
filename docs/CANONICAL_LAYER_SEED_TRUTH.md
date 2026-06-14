@@ -36,6 +36,21 @@ deriveChunkBiome()
 
 Signals include biome id, resource density, tree density, settlement intent, terrain mix, road pressure, settlement lots, resource props, structure props, collision pressure, NPC count, and deterministic risk/underworld pressure from terrain structure.
 
+## Signal Balance Matrix
+
+Worldgen signals are converted into layer pressure through `CanonicalLayerSignalBalance.ts`.
+
+The matrix is pure deterministic code:
+
+```text
+CanonicalLayerSeed
+  -> applyCanonicalSignalBalance(values, signals)
+  -> calculateCanonicalSignalLayerDeltas(signals)
+  -> CANONICAL_SIGNAL_BALANCE_MATRIX
+```
+
+`AREShadowAdapter` may mirror the matrix as a diagnostic shadow probe, but it is not the runtime source of truth. Shadow probes are audit/log output only.
+
 ## Invariant
 
 Each seed creates 13 non-zero Kappa1000 layers with fixed total checksum:
@@ -53,6 +68,7 @@ WorldTickThinShell.registerChunk(chunkKey)
   -> RuntimeWorldBrainStatePort.registerChunk(chunkKey)
   -> deriveCanonicalWorldgenSeedSignals({ worldSeed, chunkKey, activationTick })
   -> deriveCanonicalLayerSeed({ worldSeed, chunkKey, activationTick, signals })
+  -> applyCanonicalSignalBalance(values, signals)
   -> iareLayersToChunkLayerState(seed.layers)
   -> WorldBrainTickSystem reads the seeded layers on the next tick
 ```
@@ -65,15 +81,17 @@ WorldTickThinShell.registerChunk(chunkKey)
 - No side-channel signal source.
 - Same seed inputs and worldgen signals produce identical layers and seed hash.
 - Seed hashes use existing `hashChunkKappa1000()` verification.
+- Matrix changes are explicit, versioned, exported, and test-covered.
 
 ## Validation
 
 Covered by:
 
 - `server/src/core/are/__tests__/CanonicalLayerSeed.test.ts`
+- `server/src/core/are/__tests__/CanonicalLayerSignalBalance.test.ts`
 - `server/src/core/are/__tests__/WorldBrainRuntimeTruth.test.ts`
 - `server/src/core/WorldTickPolicy.guard.ts`
 
 ## Follow-up
 
-Next step: promote signal weights into a documented balancing matrix so layer pressure can be tuned without changing the deterministic seed contract.
+Next step: add a balancing report/probe endpoint that prints the current matrix snapshot and sample layer deltas without mutating runtime state.
