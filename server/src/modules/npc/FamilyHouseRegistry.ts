@@ -48,6 +48,7 @@ export interface LineageBirthEvent {
   pairEligibilityHash: string;
   pressureAtDecision: PopulationPressure;
   cause: 'founder' | 'eligible_pair';
+  nodeSnapshot: LineageNode;
 }
 
 export interface LineageBirthEventSink {
@@ -108,6 +109,51 @@ export interface PairEligibilityResult {
   pressureAtDecision: PopulationPressure;
 }
 
+function cloneLineageNode(node: LineageNode): LineageNode {
+  return {
+    ...node,
+    parentLineageHashes: [...node.parentLineageHashes],
+    stats: { ...node.stats },
+    traits: [...node.traits],
+  };
+}
+
+function cloneBirthEvent(event: LineageBirthEvent): LineageBirthEvent {
+  return {
+    ...event,
+    parentLineageHashes: [...event.parentLineageHashes],
+    pressureAtDecision: { ...event.pressureAtDecision },
+    nodeSnapshot: cloneLineageNode(event.nodeSnapshot),
+  };
+}
+
+function compareBirthEvents(a: LineageBirthEvent, b: LineageBirthEvent): number {
+  if (a.birthTick !== b.birthTick) return a.birthTick - b.birthTick;
+  if (a.settlementId !== b.settlementId) return a.settlementId.localeCompare(b.settlementId);
+  return a.eventHash.localeCompare(b.eventHash);
+}
+
+export function computeLineageBirthEventHash(
+  node: LineageNode,
+  pairEligibilityHash: string,
+  pressure: PopulationPressure,
+  cause: LineageBirthEvent['cause']
+): string {
+  const seed = createARESeed([
+    'lineage-birth-event',
+    node.id,
+    pairEligibilityHash,
+    node.birthTick,
+    node.houseId,
+    node.settlementId,
+    cause,
+    pressure.pressure,
+    pressure.maxPopulation,
+    pressure.limitingFactor ?? 'none',
+  ]);
+  return stableHash32(seed).toString(16).padStart(8, '0');
+}
+
 export class FamilyHouseRegistry {
   private houses: Map<string, HouseState> = new Map();
   private lineages: Map<string, LineageNode> = new Map();
@@ -128,31 +174,42 @@ export class FamilyHouseRegistry {
   }
 
   registerLineage(node: LineageNode, birthEvent?: LineageBirthEvent): void {
-    this.lineages.set(node.id, { ...node });
+    this.lineages.set(node.id, cloneLineageNode(node));
     this.addIndex(this.lineageByHouse, node.houseId, node.id);
     this.addIndex(this.lineageBySettlement, node.settlementId, node.id);
 
     if (birthEvent) {
-      this.birthEvents.push({ ...birthEvent, pressureAtDecision: { ...birthEvent.pressureAtDecision } });
+      this.birthEvents.push(cloneBirthEvent(birthEvent));
+    }
+  }
+
+  replayBirthEvents(events: readonly LineageBirthEvent[]): void {
+    for (const event of [...events].map(cloneBirthEvent).sort(compareBirthEvents)) {
+      const expectedHash = computeLineageBirthEventHash(event.nodeSnapshot, event.pairEligibilityHash, event.pressureAtDecision, event.cause);
+      if (expectedHash !== event.eventHash) {
+        throw new Error(`npc_lineage_birth_event_hash_mismatch:${event.lineageId}`);
+      }
+      this.registerLineage(event.nodeSnapshot, event);
     }
   }
 
   getLineage(id: string): LineageNode | undefined {
-    return this.lineages.get(id);
+    const node = this.lineages.get(id);
+    return node ? cloneLineageNode(node) : undefined;
   }
 
   getLineagesByHouse(houseId: string): LineageNode[] {
     const ids = this.lineageByHouse.get(houseId) ?? [];
-    return ids.map((id) => this.lineages.get(id)).filter((lineage): lineage is LineageNode => lineage !== undefined);
+    return ids.map((id) => this.lineages.get(id)).filter((lineage): lineage is LineageNode => lineage !== undefined).map(cloneLineageNode);
   }
 
   getLineagesBySettlement(settlementId: string): LineageNode[] {
     const ids = this.lineageBySettlement.get(settlementId) ?? [];
-    return ids.map((id) => this.lineages.get(id)).filter((lineage): lineage is LineageNode => lineage !== undefined);
+    return ids.map((id) => this.lineages.get(id)).filter((lineage): lineage is LineageNode => lineage !== undefined).map(cloneLineageNode);
   }
 
   getBirthEvents(): LineageBirthEvent[] {
-    return this.birthEvents.map((event) => ({ ...event, pressureAtDecision: { ...event.pressureAtDecision } }));
+    return this.birthEvents.map(cloneBirthEvent);
   }
 
   getGeneration(lineageId: string): number {
@@ -172,7 +229,7 @@ export class FamilyHouseRegistry {
       const node = this.lineages.get(current.id);
       if (!node) continue;
 
-      ancestors.push(node);
+      ancestors.push(cloneLineageNode(node));
       const parentIds = [...node.parentLineageHashes].sort();
       for (const parentId of parentIds) {
         if (!visited.has(parentId)) queue.push({ id: parentId, depth: current.depth + 1 });
@@ -190,7 +247,7 @@ export class FamilyHouseRegistry {
   serialize(): { houses: HouseState[]; lineages: LineageNode[]; birthEvents: LineageBirthEvent[] } {
     return {
       houses: Array.from(this.houses.values()).map((house) => ({ ...house })),
-      lineages: Array.from(this.lineages.values()).map((lineage) => ({ ...lineage, parentLineageHashes: [...lineage.parentLineageHashes], traits: [...lineage.traits] })),
+      lineages: Array.from(this.lineages.values()).map(cloneLineageNode),
       birthEvents: this.getBirthEvents(),
     };
   }
@@ -204,7 +261,7 @@ export class FamilyHouseRegistry {
 
     for (const house of data.houses) this.houses.set(house.id, { ...house });
     for (const lineage of data.lineages) this.registerLineage(lineage);
-    this.birthEvents = (data.birthEvents ?? []).map((event) => ({ ...event, pressureAtDecision: { ...event.pressureAtDecision } }));
+    this.birthEvents = (data.birthEvents ?? []).map(cloneBirthEvent);
   }
 
   private addIndex(index: Map<string, string[]>, key: string, value: string): void {
@@ -458,7 +515,7 @@ export class NPCLineageManager {
 
     const pressure: PopulationPressure = { pressure: 0, canSpawn: true, limitingFactor: null, maxPopulation: Number.MAX_SAFE_INTEGER };
     const event: LineageBirthEvent = {
-      eventHash: this.generateBirthEventHash(node, lineageHash, pressure, 'founder'),
+      eventHash: computeLineageBirthEventHash(node, lineageHash, pressure, 'founder'),
       lineageId: node.id,
       lineageHash,
       parentLineageHashes: [],
@@ -468,6 +525,7 @@ export class NPCLineageManager {
       pairEligibilityHash: lineageHash,
       pressureAtDecision: pressure,
       cause: 'founder',
+      nodeSnapshot: cloneLineageNode(node),
     };
 
     this.registry.registerLineage(node, event);
@@ -498,7 +556,7 @@ export class NPCLineageManager {
 
   private createBirthEvent(node: LineageNode, eligibility: PairEligibilityResult, cause: 'eligible_pair'): LineageBirthEvent {
     return {
-      eventHash: this.generateBirthEventHash(node, eligibility.lineageHash, eligibility.pressureAtDecision, cause),
+      eventHash: computeLineageBirthEventHash(node, eligibility.lineageHash, eligibility.pressureAtDecision, cause),
       lineageId: node.id,
       lineageHash: node.lineageHash,
       parentLineageHashes: [...node.parentLineageHashes],
@@ -508,27 +566,7 @@ export class NPCLineageManager {
       pairEligibilityHash: eligibility.lineageHash,
       pressureAtDecision: { ...eligibility.pressureAtDecision },
       cause,
+      nodeSnapshot: cloneLineageNode(node),
     };
-  }
-
-  private generateBirthEventHash(
-    node: LineageNode,
-    pairEligibilityHash: string,
-    pressure: PopulationPressure,
-    cause: LineageBirthEvent['cause']
-  ): string {
-    const seed = createARESeed([
-      'lineage-birth-event',
-      node.id,
-      pairEligibilityHash,
-      node.birthTick,
-      node.houseId,
-      node.settlementId,
-      cause,
-      pressure.pressure,
-      pressure.maxPopulation,
-      pressure.limitingFactor ?? 'none',
-    ]);
-    return stableHash32(seed).toString(16).padStart(8, '0');
   }
 }
