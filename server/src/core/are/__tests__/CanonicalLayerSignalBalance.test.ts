@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
+
 import { AREShadowAdapter } from '../AREShadowAdapter.js';
-import { KAPPA_LAYER_NAMES, type KappaLayerKey } from '../KappaLayers.js';
+import type { CanonicalLayerSeedSignals } from '../CanonicalLayerSeed.js';
 import {
   CANONICAL_SIGNAL_BALANCE_VERSION,
   applyCanonicalSignalBalance,
   calculateCanonicalSignalLayerDeltas,
   getCanonicalSignalBalanceSnapshot,
 } from '../CanonicalLayerSignalBalance.js';
-import type { CanonicalLayerSeedSignals } from '../CanonicalLayerSeed.js';
+import { KAPPA_LAYER_NAMES, type KappaLayerKey } from '../KappaLayers.js';
 
 function createSignals(overrides: Partial<CanonicalLayerSeedSignals> = {}): CanonicalLayerSeedSignals {
   return {
