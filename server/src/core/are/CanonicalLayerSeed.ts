@@ -9,6 +9,7 @@ import {
   type KappaLayerKey,
   type KappaLayers,
 } from './KappaLayers.js';
+import { applyCanonicalSignalBalance } from './CanonicalLayerSignalBalance.js';
 
 export const CANONICAL_LAYER_SEED_VERSION = 2 as const;
 export const DEFAULT_ARELORIA_WORLD_SEED = 'areloria:earth_1_1' as const;
@@ -126,42 +127,6 @@ function createSeedInput(worldSeed: string, chunkKey: ChunkKey, activationTick: 
   ].join('|');
 }
 
-function add(values: Record<KappaLayerKey, number>, key: KappaLayerKey, delta: number): void {
-  values[key] = clampLayerValue(values[key] + Math.trunc(delta));
-}
-
-function perMilleBias(value: number, divisor: number): number {
-  return Math.trunc((clampPerMille(value) - 500) / divisor);
-}
-
-function applySignalBias(values: Record<KappaLayerKey, number>, signals: CanonicalLayerSeedSignals | null | undefined): void {
-  if (!signals) return;
-
-  const resource = signals.resourceDensityPerMille;
-  const tree = signals.treeDensityPerMille;
-  const settlement = signals.settlementIntentPerMille;
-  const grass = signals.terrainGrassPerMille;
-  const forest = signals.terrainForestPerMille;
-  const stone = signals.terrainStonePerMille;
-  const road = signals.terrainRoadPerMille;
-  const danger = signals.dangerPressurePerMille;
-  const dungeon = signals.dungeonPressurePerMille;
-
-  add(values, 'ecology', perMilleBias(tree, 5) + perMilleBias(forest, 8) + perMilleBias(resource, 12));
-  add(values, 'market', perMilleBias(resource, 8) + perMilleBias(settlement, 12));
-  add(values, 'physiology', perMilleBias(grass, 14) + perMilleBias(tree, 16) - Math.max(0, perMilleBias(danger, 18)));
-  add(values, 'trade', perMilleBias(road, 5) + perMilleBias(settlement, 12) + Math.min(45, signals.roadCellCount));
-  add(values, 'memory', perMilleBias(settlement, 10) + signals.npcCount * 3);
-  add(values, 'politics', perMilleBias(settlement, 8) + signals.structurePropCount * 4);
-  add(values, 'conflict', perMilleBias(danger, 6) + perMilleBias(stone, 10));
-  add(values, 'economy', perMilleBias(resource, 9) + perMilleBias(settlement, 15));
-  add(values, 'kingdoms', perMilleBias(settlement, 9) + signals.settlementLotCount * 5);
-  add(values, 'faith', signals.biomeId === 'forest_village' ? 35 : signals.npcCount * 2);
-  add(values, 'dungeon', perMilleBias(dungeon, 5) + perMilleBias(stone, 8));
-  add(values, 'fear', perMilleBias(danger, 5) + perMilleBias(forest, 18));
-  add(values, 'cycles', perMilleBias(forest, 16) + perMilleBias(resource, 20));
-}
-
 function distributeConservationDelta(values: Record<KappaLayerKey, number>, seedInput: string): void {
   let delta = TARGET_LAYER_SUM - CANONICAL_LAYER_ORDER.reduce((sum, key) => sum + values[key], 0);
   if (delta === 0) return;
@@ -220,7 +185,7 @@ export function deriveCanonicalLayerSeed(input: CanonicalLayerSeedInput): Canoni
     values[key] = clampLayerValue(BASE_LAYER_VALUE + offset);
   }
 
-  applySignalBias(values, input.signals);
+  applyCanonicalSignalBalance(values, input.signals);
   distributeConservationDelta(values, seedInput);
 
   const layers = createLayers(values);
