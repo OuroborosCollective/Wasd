@@ -4,9 +4,11 @@
 
 import {
   EMPTY_LIVE_GAMEPLAY_SNAPSHOT,
-  normalizeLiveGameplaySnapshot,
-  type LiveGameplaySnapshot,
 } from "./liveGameplaySnapshot";
+import {
+  normalizeLiveGameplaySnapshotWithWorldSurface as normalizeLiveGameplaySnapshot,
+  type LiveGameplaySnapshotWithWorldSurface as LiveGameplaySnapshot,
+} from "./liveGameplayWorldSurfaceSnapshot";
 import { readPlayerPositionBridge } from "./PlayerPositionBridge";
 
 type Listener = () => void;
@@ -136,6 +138,7 @@ function projectComposerSnapshot(input: Record<string, unknown>): Partial<LiveGa
         title: prettifyId(String(slot.itemId ?? slot.slot ?? "empty")),
       })),
     },
+    worldSurface: input.worldSurface as LiveGameplaySnapshot["worldSurface"],
   };
 }
 
@@ -153,6 +156,7 @@ function mergeComposerIntoLegacy(
     resources: projected.resources ?? legacy.resources,
     inventory: projected.inventory ?? legacy.inventory,
     equipment: projected.equipment ?? legacy.equipment,
+    worldSurface: projected.worldSurface ?? legacy.worldSurface,
   };
 }
 
@@ -191,7 +195,7 @@ function pickSnapshotPayload(data: unknown): unknown {
 }
 
 export class LiveGameplayStore {
-  private snapshot: LiveGameplaySnapshot = EMPTY_LIVE_GAMEPLAY_SNAPSHOT;
+  private snapshot: LiveGameplaySnapshot = normalizeLiveGameplaySnapshot(EMPTY_LIVE_GAMEPLAY_SNAPSHOT);
   private readonly listeners = new Set<Listener>();
 
   getSnapshot(): LiveGameplaySnapshot {
@@ -199,7 +203,7 @@ export class LiveGameplayStore {
   }
 
   setSnapshot(next: unknown): void {
-    this.snapshot = normalizeLiveGameplaySnapshot(pickSnapshotPayload(next));
+    this.snapshot = normalizeLiveGameplaySnapshot(pickSnapshotPayload(next) as Partial<LiveGameplaySnapshot>);
     this.emit();
   }
 
@@ -221,45 +225,31 @@ export class LiveGameplayStore {
 
   subscribe(listener: Listener): () => void {
     this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   private emit(): void {
-    for (const listener of [...this.listeners]) {
-      listener();
-    }
+    for (const listener of this.listeners) listener();
   }
 }
 
 export const liveGameplayStore = new LiveGameplayStore();
 
-export const DEFAULT_GAMEPLAY_PLAYER_ID = getDefaultGameplayPlayerId();
+export function requestGameplaySnapshot(): Promise<LiveGameplaySnapshot> {
+  const playerId = getDefaultGameplayPlayerId();
+  const position = readPlayerPositionBridge();
+  const params = new URLSearchParams({
+    playerId,
+    x: String(position.x),
+    y: String(position.y),
+  });
 
-export async function fetchGameplaySnapshot(
-  playerId: string = getDefaultGameplayPlayerId()
-): Promise<LiveGameplaySnapshot | null> {
-  try {
-    const position = readPlayerPositionBridge();
-    const queryParams = new URLSearchParams({ playerId });
-
-    if (position) {
-      queryParams.set("px", String(Math.round(position.x)));
-      queryParams.set("py", String(Math.round(position.z ?? position.y ?? position.x)));
-    }
-
-    const response = await fetch(
-      `/api/gameplay/snapshot?${queryParams.toString()}`,
-      {
-        cache: "no-store",
-        headers: {
-          "x-player-id": playerId,
-        },
-      }
-    );
-    if (!response.ok) return null;
-    const data = await response.json();
-    return normalizeLiveGameplaySnapshot(pickSnapshotPayload(data));
-  } catch {
-    return null;
-  }
+  return fetch(`/api/gameplay/snapshot?${params.toString()}`)
+    .then((response) => response.json())
+    .then((data) => {
+      liveGameplayStore.setSnapshot(data);
+      return liveGameplayStore.getSnapshot();
+    });
 }
