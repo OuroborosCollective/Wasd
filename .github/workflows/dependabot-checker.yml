@@ -67,6 +67,9 @@ jobs:
           pnpm -r --if-present format:write
           pnpm -r --if-present format
 
+      - name: Build shared workspace package
+        run: pnpm --filter @wasd/shared build
+
       - name: Determinism guard
         run: node scripts/determinism-changed-files-guard.mjs
 
@@ -87,6 +90,7 @@ jobs:
         id: gate
         run: |
           set -euo pipefail
+          pnpm --filter @wasd/shared build
           node scripts/determinism-changed-files-guard.mjs
           pnpm -r --if-present lint || echo "::warning::package lint failed after optional autofix; deterministic gates continue"
           pnpm run guard:all
