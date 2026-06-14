@@ -1,5 +1,4 @@
-import type { ChunkKey, KappaInt, StateHash, TickId } from './types.js';
-import { createStateHash } from './types.js';
+import { applyCanonicalSignalBalance } from './CanonicalLayerSignalBalance.js';
 import {
   KAPPA_LAYER_CONSTANTS,
   KAPPA_LAYER_NAMES,
@@ -9,7 +8,8 @@ import {
   type KappaLayerKey,
   type KappaLayers,
 } from './KappaLayers.js';
-import { applyCanonicalSignalBalance } from './CanonicalLayerSignalBalance.js';
+import type { ChunkKey, KappaInt, StateHash, TickId } from './types.js';
+import { createStateHash } from './types.js';
 
 export const CANONICAL_LAYER_SEED_VERSION = 2 as const;
 export const DEFAULT_ARELORIA_WORLD_SEED = 'areloria:earth_1_1' as const;
