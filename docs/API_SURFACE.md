@@ -6,6 +6,13 @@ This document provides a high-level overview of the HTTP API surface for the Are
 
 **Machine-Readable Version:** `server/src/api/routeRegistry.ts`
 
+## Classification Categories
+
+- **active-truth-path**: Routes that mutate simulation state (ownership, marketplace, Matrix Energy, placement)
+- **active-side-channel**: Routes for observability/monitoring (no gameplay mutation)
+- **legacy**: Routes with implementation but not mounted
+- **delete-candidate**: Stubs or dead code
+
 ## Core HTTP Endpoints
 
 | Endpoint | Method | Description | Auth |
@@ -15,109 +22,119 @@ This document provides a high-level overview of the HTTP API surface for the Are
 | `GET /world-assets/*` | GET | Legacy static world assets | No |
 | `GET /world/*` | GET | Active content world files | No |
 
-## Gameplay / Public API
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `POST /api/vote/*` | POST | Voting system |
-| `GET /api/leaderboard/*` | GET | Leaderboard rankings |
-| `GET/POST /api/questline/*` | GET/POST | Questline content |
-| `GET /api/lore/*` | GET | Lore content delivery |
-
 ## Truth-Path Routes (Gameplay-Affecting)
 
-These routes modify simulation state and require deterministic tick-safe behavior:
+These routes modify simulation state. Auth is required for identity verification.
 
-| Endpoint | Method | Description | Tick-Safe |
-|----------|--------|-------------|-----------|
-| `POST /api/quest` | POST | Quest event processing | ✅ |
-| `POST /api/skill` | POST | Skill event processing | ✅ |
-| `POST /api/resource` | POST | Resource gathering | ✅ |
-| `GET/POST /api/inventory` | GET/POST | Inventory operations | ✅ |
-| `POST /api/crafting` | POST | Crafting operations | ✅ |
-| `GET/POST /api/equipment` | GET/POST | Equipment management | ✅ |
-| `GET/POST /api/character` | GET/POST | Character management | ✅ |
-| `POST /api/onboarding` | POST | Player onboarding | ✅ |
-| `GET/POST /api/economy` | GET/POST | Economy operations | - |
-| `GET/POST /api/npc` | GET/POST | NPC interactions | - |
-| `GET/POST /api/quests` | GET/POST | Quest operations | - |
+| Endpoint | Method | Classification | Notes |
+|----------|--------|---------------|-------|
+| `POST /api/quest` | POST | active-truth-path | Quest event processing |
+| `POST /api/skill` | POST | active-truth-path | Skill event processing |
+| `POST /api/resource` | POST | active-truth-path | Resource gathering |
+| `GET/POST /api/inventory` | GET/POST | active-truth-path | Inventory operations |
+| `POST /api/crafting` | POST | active-truth-path | Crafting operations |
+| `GET/POST /api/equipment` | GET/POST | active-truth-path | Equipment management |
+| `GET/POST /api/character` | GET/POST | active-truth-path | Character management, auth required |
+| `POST /api/onboarding` | POST | active-truth-path | Player onboarding |
+| `GET/POST /api/economy` | GET/POST | active-truth-path | Economy operations |
+| `GET/POST /api/npc` | GET/POST | active-truth-path | NPC interactions |
+| `GET/POST /api/quests` | GET/POST | active-truth-path | Quest operations |
+
+## GLB Marketplace Routes (PR #2008)
+
+**Classification: active-truth-path**
+
+All mutating routes require `authMiddleware` for identity verification. Read-only public routes are marked below.
+
+| Endpoint | Method | Auth | Classification | Notes |
+|----------|--------|------|---------------|-------|
+| `GET /api/glb/marketplace` | GET | No | Public (read-only) | Browse marketplace |
+| `GET /api/glb/land/:playerId` | GET | No | Public (read-only) | Get placed models |
+| `POST /api/glb/upload` | POST | Yes | active-truth-path | Upload GLB (subscription req) |
+| `GET /api/glb/my-models` | GET | Yes | active-truth-path | List player's models |
+| `DELETE /api/glb/:modelId` | DELETE | Yes | active-truth-path | Delete owned model |
+| `POST /api/glb/place` | POST | Yes | active-truth-path | Place model on land |
+| `DELETE /api/glb/place/:placeId` | DELETE | Yes | active-truth-path | Remove placed model |
+| `POST /api/glb/marketplace/list` | POST | Yes | active-truth-path | List for sale |
+| `POST /api/glb/marketplace/buy` | POST | Yes | active-truth-path | Buy (transfers Matrix Energy) |
+| `GET /api/glb/subscription-status` | GET | Yes | active-truth-path | Check subscription |
+
+**Security Note:** All mutating routes use `authMiddleware`-derived identity, NOT `x-player-id` header alone.
+
+## Asset Brain Routes
+
+**Classification: active-side-channel** (no gameplay mutation)
+
+| Endpoint | Method | Auth | Notes |
+|----------|--------|------|-------|
+| `POST /api/asset-brain/generate` | POST | Yes | Generate asset specification |
+| `GET /api/asset-brain/my-specs` | GET | Yes | User's specifications |
+| `GET /api/asset-brain/specs/:id` | GET | Yes | Specification details |
+| `GET /api/asset-brain/variants/:id` | GET | Yes | Specification variants |
+| `GET /api/asset-brain/search` | GET | Yes | Search specifications |
+| `GET /api/asset-brain/library` | GET | Yes | Browse asset library |
+| `POST /api/asset-brain/batch` | POST | Yes | Start batch job |
+| `GET /api/asset-brain/batch/:id` | GET | Yes | Batch job status |
 
 ## Side-Channel Routes (Observability)
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `GET /api/are` | GET | ARE telemetry heartbeat |
-| `GET /api/are/validation` | GET | ARE validation |
-| `GET /api/are/replay` | GET | ARE replay system |
-| `GET /api/gameplay` | GET | Gameplay snapshots |
-| `GET /api/self-healing` | GET | Self-healing dashboard |
-| `GET /api/manifest` | GET | Manifest resync |
-| `GET /api/are-shadow` | GET | ARE shadow logging |
+These routes do not affect gameplay state:
+
+| Endpoint | Method | Auth | Notes |
+|----------|--------|------|-------|
+| `GET /api/are` | GET | No | ARE telemetry heartbeat |
+| `GET /api/are/validation` | GET | No | ARE validation |
+| `GET /api/are/replay` | GET | No | ARE replay system |
+| `GET /api/gameplay` | GET | No | Gameplay snapshots |
+| `GET /api/self-healing` | GET | No | Self-healing dashboard |
+| `GET /api/manifest` | GET | No | Manifest resync |
+| `GET /api/are-shadow` | GET | No | ARE shadow logging |
+| `GET /api/leaderboard` | GET | No | Leaderboard rankings |
+| `GET /api/lore` | GET | No | Lore content |
+| `GET/POST /api/questline` | GET/POST | No | Questlines |
+| `POST /api/vote` | POST | No | Voting system |
+| `GET /api/v1/warfront` | GET | No | Warfront combat |
+| `GET /api/v1` | GET | No | Science mascot API |
+| `GET/POST /api/mcp` | GET/POST | No | MCP protocol |
 
 ## Admin Content API
 
 **Base Path:** `/api/admin/content/*`
 
-| Endpoint | Method | Description | Auth |
-|----------|--------|-------------|------|
-| `GET /meta` | GET | Content metadata | Token |
-| `GET /choices` | GET | Content choices | Token |
-| `GET /model-path-audit` | GET | Model path audit | Token |
-| `GET /model-needs` | GET | Model needs | Token |
-| `GET /glb-gallery-tree` | GET | GLB gallery tree | Token |
-| `GET /glb-links` | GET | GLB links | Token |
-| `POST /glb-links` | POST | Create GLB link | Token |
-| `DELETE /glb-links` | DELETE | Delete GLB link | Token |
-| `POST /glb-upload` | POST | Upload GLB | Token |
-| `POST /glb-smart-upload` | POST | Smart GLB upload | Token |
-| `POST /validate-preview` | POST | Validate preview | Token |
-| `POST /publish-pack` | POST | Publish content pack | Token |
+| Endpoint | Method | Auth | Notes |
+|----------|--------|------|-------|
+| `GET /meta` | GET | Token | Content metadata |
+| `GET /choices` | GET | Token | Content choices |
+| `GET /model-path-audit` | GET | Token | Model path audit |
+| `GET /model-needs` | GET | Token | Model needs |
+| `GET /glb-gallery-tree` | GET | Token | GLB gallery tree |
+| `GET /glb-links` | GET | Token | GLB links |
+| `POST /glb-links` | POST | Token | Create GLB link |
+| `DELETE /glb-links` | DELETE | Token | Delete GLB link |
+| `POST /glb-upload` | POST | Token | Upload GLB |
+| `POST /glb-smart-upload` | POST | Token | Smart GLB upload |
+| `POST /validate-preview` | POST | Token | Validate preview |
+| `POST /publish-pack` | POST | Token | Publish content pack |
 
-**Auth:** `ADMIN_PANEL_TOKEN` header or `X-Admin-Token` header, or Supabase bearer identity + allowlist.
-
-## Asset Management (PR #2008)
-
-| Endpoint | Method | Description | Auth |
-|----------|--------|-------------|------|
-| `POST /api/asset-brain/generate` | POST | Generate asset specification | Yes |
-| `GET /api/asset-brain/my-specs` | GET | User's specifications | Yes |
-| `GET /api/asset-brain/specs/:id` | GET | Specification details | Yes |
-| `GET /api/asset-brain/variants/:id` | GET | Specification variants | Yes |
-| `GET /api/asset-brain/search` | GET | Search specifications | Yes |
-| `GET /api/asset-brain/library` | GET | Browse asset library | Yes |
-| `POST /api/asset-brain/batch` | POST | Start batch job | Yes |
-| `GET /api/asset-brain/batch/:id` | GET | Batch job status | Yes |
-| `POST /api/glb/upload` | POST | Upload GLB model | Yes |
-| `GET /api/glb/my-models` | GET | List player's models | Yes |
-| `DELETE /api/glb/:modelId` | DELETE | Delete model | Yes |
-| `GET /api/glb/marketplace` | GET | Browse marketplace | Yes |
-| `POST /api/glb/marketplace/list` | POST | List model for sale | Yes |
-| `POST /api/glb/marketplace/buy` | POST | Buy from marketplace | Yes |
+**Auth:** `ADMIN_PANEL_TOKEN` or `X-Admin-Token` header, or Supabase bearer + allowlist.
 
 ## Finance / Payment
 
-| Endpoint | Method | Description | Auth |
-|----------|--------|-------------|------|
-| `POST /api/finance/paypal/checkout` | POST | Create PayPal checkout | No |
-| `POST /api/finance/paypal/verify` | POST | Verify transaction | No |
-| `POST /api/finance/paypal/webhook` | POST | PayPal webhook | No |
+| Endpoint | Method | Auth | Notes |
+|----------|--------|------|-------|
+| `POST /api/finance/paypal/checkout` | POST | No | Create PayPal checkout |
+| `POST /api/finance/paypal/verify` | POST | No | Verify transaction |
+| `POST /api/finance/paypal/webhook` | POST | No | PayPal webhook |
 
 ## Playtester Monitor
 
-| Endpoint | Method | Description | Auth |
-|----------|--------|-------------|------|
-| `GET /playtester-monitor.html` | GET | Monitor UI | Token |
-| `GET /playtester-render-publisher.html` | GET | Publisher UI | Token |
-| `GET /api/playtester/debug-log` | GET | Debug log data | Token |
-| `WS /playtester-monitor` | WS | Monitor stream | Token |
-| `WS /playtester-monitor-signal` | WS | WebRTC signaling | Token |
-
-## MCP Protocol
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `GET /api/mcp/messages` | GET | MCP messages |
-| `POST /api/mcp/*` | POST | MCP protocol commands |
+| Endpoint | Method | Auth | Notes |
+|----------|--------|------|-------|
+| `GET /playtester-monitor.html` | GET | Token | Monitor UI |
+| `GET /playtester-render-publisher.html` | GET | Token | Publisher UI |
+| `GET /api/playtester/debug-log` | GET | Token | Debug log data |
+| `WS /playtester-monitor` | WS | Token | Monitor stream |
+| `WS /playtester-monitor-signal` | WS | Token | WebRTC signaling |
 
 ## Legacy / Deprecated Endpoints
 
@@ -141,32 +158,27 @@ These routes modify simulation state and require deterministic tick-safe behavio
 
 ## Response Format
 
-All API responses are JSON with the following structure:
+All API responses are JSON:
 
 **Success:**
 ```json
-{
-  "ok": true,
-  "data": { ... }
-}
+{ "ok": true, "data": { ... } }
 ```
 
 **Error:**
 ```json
-{
-  "ok": false,
-  "error": "error_code",
-  "message": "Human readable message"
-}
+{ "ok": false, "error": "error_code", "message": "Human readable message" }
 ```
 
 ## Authentication
 
-Routes marked with `Auth: Yes` require one of:
+Routes marked "Auth: Yes" require one of:
 
 1. **Admin Token:** `X-Admin-Token` or `ADMIN_PANEL_TOKEN` header
-2. **Supabase Bearer:** `Authorization: Bearer <token>` with valid Supabase JWT
-3. **Player ID Header:** `x-player-id` header for player-specific routes
+2. **Supabase Bearer:** `Authorization: Bearer <token>` with valid JWT
+3. **Auth Middleware:** `authMiddleware` derives `userId`/`playerId` from JWT
+
+**Important:** Do NOT trust `x-player-id` header alone for identity.
 
 ## Rate Limiting
 
@@ -175,6 +187,6 @@ Admin routes are protected by `adminRateLimiter` middleware.
 ## References
 
 - `server/src/api/routeRegistry.ts` - Machine-readable route manifest
-- `scripts/audit-route-registry.mjs` - Static route audit tool
-- `scripts/probe-runtime-routes.mjs` - Runtime route probe tool
+- `scripts/audit-route-registry.mjs` - Static route audit
+- `scripts/probe-runtime-routes.mjs` - Runtime probe (validates auth boundaries)
 - `docs/ROUTE_REGISTRY.md` - Detailed route registry

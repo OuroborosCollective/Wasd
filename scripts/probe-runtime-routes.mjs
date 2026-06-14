@@ -3,10 +3,9 @@
  * Runtime Route Probe - Verifies Express app route health at runtime
  * 
  * This script boots or inspects the real Express app and verifies:
- * - mounted route responds
- * - dead route is not claimed as active
- * - documented route exists
- * - no fake endpoint success
+ * - mounted route responds correctly (200 for public, 401/403 for auth-protected)
+ * - dead route is not claimed as active (returns 404)
+ * - no fake endpoint success (anti-mock probes)
  * 
  * Usage:
  *   node scripts/probe-runtime-routes.mjs [--port 3001] [--host localhost]
@@ -19,7 +18,7 @@ const DEFAULT_PORT = 3001;
 const DEFAULT_HOST = 'localhost';
 const REQUEST_TIMEOUT = 5000;
 
-const { values, positionals } = parseArgs({
+const { values } = parseArgs({
   options: {
     port: { type: 'string', default: String(DEFAULT_PORT) },
     host: { type: 'string', default: DEFAULT_HOST },
@@ -59,34 +58,37 @@ const BASELINE = values.baseline;
 const OUTPUT_JSON = values.json;
 const BASE_URL = `http://${HOST}:${PORT}`;
 
-// Routes that SHOULD be mounted and responsive
-const EXPECTED_LIVE_ROUTES = [
+// Routes that SHOULD be mounted and public (no auth required)
+const EXPECTED_PUBLIC_ROUTES = [
   { path: '/health', method: 'GET', expectStatus: 200, description: 'Health check' },
   { path: '/api/leaderboard', method: 'GET', expectStatus: 200, description: 'Leaderboard' },
   { path: '/api/questlines', method: 'GET', expectStatus: 200, description: 'Questlines' },
   { path: '/api/lore', method: 'GET', expectStatus: 200, description: 'Lore' },
   { path: '/api/vote', method: 'GET', expectStatus: 200, description: 'Vote system' },
+  { path: '/api/glb/marketplace', method: 'GET', expectStatus: 200, description: 'GLB marketplace (public read-only)' },
+  { path: '/api/glb/land/test-player', method: 'GET', expectStatus: 200, description: 'GLB land models (public read-only)' },
 ];
 
-// Routes that are DOCUMENTED but should NOT be active (dead paths)
-const EXPECTED_DEAD_ROUTES = [
-  '/api/art/ws',
-  '/api/check', // Placeholder in voteAdminPanel
-];
-
-// Routes that should NOT return fake success
-const ANTI_MOCK_PROBES = [
-  { path: '/api/nonexistent', method: 'GET', expectNotStatus: 200, description: 'Nonexistent route returns 404' },
-  { path: '/api/fake/endpoint', method: 'GET', expectNotStatus: 200, description: 'Fake endpoint returns 404' },
-];
-
-// Recently mounted routes (from this PR)
-const NEWLY_MOUNTED_ROUTES = [
-  { path: '/api/asset-brain/library', method: 'GET', expectStatus: 200, description: 'Asset brain library' },
-  { path: '/api/asset-brain/specs', method: 'GET', expectStatus: 200, description: 'Asset brain specs' },
+// Routes that SHOULD be mounted but require auth (expect 401/403 without auth)
+const EXPECTED_AUTH_ROUTES = [
+  { path: '/api/asset-brain/library', method: 'GET', expectStatus: 401, description: 'Asset brain library (auth required)' },
+  { path: '/api/glb/my-models', method: 'GET', expectStatus: 401, description: 'GLB my-models (auth required)' },
   { path: '/api/glb/upload', method: 'POST', expectStatus: 401, description: 'GLB upload (auth required)' },
-  { path: '/api/glb/my-models', method: 'GET', expectStatus: 200, description: 'GLB my-models' },
-  { path: '/api/glb/marketplace', method: 'GET', expectStatus: 200, description: 'GLB marketplace' },
+  { path: '/api/glb/subscription-status', method: 'GET', expectStatus: 401, description: 'GLB subscription-status (auth required)' },
+  { path: '/api/glb/marketplace/buy', method: 'POST', expectStatus: 401, description: 'GLB marketplace buy (auth required)' },
+];
+
+// Routes that should NOT exist (expect 404)
+const EXPECTED_DEAD_ROUTES = [
+  { path: '/api/art/ws', description: 'Art WebSocket (deprecated - no server impl)' },
+  { path: '/api/check', description: 'Vote check placeholder (not a real endpoint)' },
+];
+
+// Anti-mock probes - ensure these fake paths return 404, not 200
+const ANTI_MOCK_PROBES = [
+  { path: '/api/nonexistent', description: 'Nonexistent route returns 404' },
+  { path: '/api/fake/endpoint', description: 'Fake endpoint returns 404' },
+  { path: '/api/asset-brain/specs', description: 'Asset brain specs without :id returns 404' },
 ];
 
 class ProbeResult {
@@ -101,6 +103,8 @@ class ProbeResult {
     this.passed++;
     if (OUTPUT_JSON) {
       this.warnings.push({ type: 'pass', description });
+    } else {
+      console.log(`✅ ${description}`);
     }
   }
 
@@ -111,16 +115,13 @@ class ProbeResult {
       console.error(`❌ FAIL: ${description} - ${reason}`);
     }
   }
-
-  addWarn(description) {
-    this.warnings.push({ type: 'warn', description });
-    if (!OUTPUT_JSON) {
-      console.log(`⚠️  WARN: ${description}`);
-    }
-  }
 }
 
-async function probeRoute(url, method = 'GET', expectStatus, expectNotStatus, description) {
+/**
+ * Probe a single route
+ * @returns { ok: boolean, status: number, description: string, reason?: string }
+ */
+async function probeRoute(url, method = 'GET', expectStatus, description) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
@@ -132,31 +133,53 @@ async function probeRoute(url, method = 'GET', expectStatus, expectNotStatus, de
     });
 
     clearTimeout(timeout);
+    const status = res.status;
 
-    if (expectNotStatus && res.status === expectNotStatus) {
-      return { ok: true, status: res.status, description };
+    // Check if status matches expectation
+    if (expectStatus && status !== expectStatus) {
+      return { 
+        ok: false, 
+        status, 
+        description, 
+        reason: `Expected ${expectStatus}, got ${status}` 
+      };
     }
 
-    if (expectStatus && res.status !== expectStatus) {
-      return { ok: false, status: res.status, description, expected: expectStatus };
+    // Check for fake success - empty or mock response on 200
+    if (status === 200) {
+      const text = await res.text().catch(() => '');
+      const isFakeSuccess = text === '' || 
+        text === '{}' ||
+        text === '{"ok":true}' ||
+        text === '{"success":true}';
+      
+      if (isFakeSuccess) {
+        return { 
+          ok: false, 
+          status, 
+          description, 
+          reason: 'Fake/mock 200 response detected (empty or placeholder JSON)' 
+        };
+      }
     }
 
-    // Check for fake success - empty or mock response
-    const text = await res.text().catch(() => '');
-    const isFakeSuccess = res.status === 200 && (
-      text === '' || 
-      text === '{}' ||
-      text === '{"ok":true}' ||
-      text === '{"success":true}'
-    );
-
-    return { ok: !isFakeSuccess, status: res.status, description, isFakeSuccess };
+    return { ok: true, status, description };
   } catch (err) {
     clearTimeout(timeout);
     if (err.name === 'AbortError') {
-      return { ok: false, status: 'timeout', description, error: 'Request timeout' };
+      return { 
+        ok: false, 
+        status: 'timeout', 
+        description, 
+        reason: 'Request timeout' 
+      };
     }
-    return { ok: false, status: 'error', description, error: err.message };
+    return { 
+      ok: false, 
+      status: 'error', 
+      description, 
+      reason: err.message 
+    };
   }
 }
 
@@ -211,84 +234,75 @@ Mode: ${BASELINE ? 'BASELINE (report only)' : 'STRICT (fail on findings)'}
     console.log('✅ Server is up\n');
   }
 
-  // Probe expected live routes
-  if (!OUTPUT_JSON) console.log('📋 Checking expected live routes...');
+  // Probe expected public routes (no auth required)
+  if (!OUTPUT_JSON) console.log('📋 Checking expected public routes...');
   
-  for (const route of EXPECTED_LIVE_ROUTES) {
+  for (const route of EXPECTED_PUBLIC_ROUTES) {
     const probe = await probeRoute(
       `${BASE_URL}${route.path}`,
       route.method,
-      route.expectStatus
+      route.expectStatus,
+      route.description
     );
 
     if (probe.ok) {
-      result.addPass(`${route.description} (${route.method} ${route.path})`);
-      if (!OUTPUT_JSON) console.log(`✅ ${route.method} ${route.path} -> ${probe.status}`);
+      result.addPass(probe.description);
     } else {
-      result.addFail(
-        `${route.description} (${route.method} ${route.path})`,
-        `Expected ${route.expectStatus}, got ${probe.status}`
-      );
+      result.addFail(probe.description, probe.reason);
     }
   }
 
-  // Probe newly mounted routes
-  if (!OUTPUT_JSON) console.log('\n📋 Checking newly mounted routes...');
+  // Probe expected auth-protected routes (expect 401/403 without auth)
+  if (!OUTPUT_JSON) console.log('\n📋 Checking expected auth-protected routes...');
 
-  for (const route of NEWLY_MOUNTED_ROUTES) {
+  for (const route of EXPECTED_AUTH_ROUTES) {
     const probe = await probeRoute(
       `${BASE_URL}${route.path}`,
       route.method,
-      route.expectStatus
+      route.expectStatus,
+      route.description
     );
 
     if (probe.ok) {
-      result.addPass(`${route.description} (${route.method} ${route.path})`);
-      if (!OUTPUT_JSON) console.log(`✅ ${route.method} ${route.path} -> ${probe.status}`);
+      result.addPass(probe.description);
     } else {
-      result.addFail(
-        `${route.description} (${route.method} ${route.path})`,
-        `Expected ${route.expectStatus}, got ${probe.status}`
-      );
+      result.addFail(probe.description, probe.reason);
     }
   }
 
-  // Probe expected dead routes - they should NOT be active
+  // Probe expected dead routes - they should NOT exist (expect 404)
   if (!OUTPUT_JSON) console.log('\n📋 Checking expected dead routes (should return 404)...');
 
-  for (const path of EXPECTED_DEAD_ROUTES) {
-    const probe = await probeRoute(`${BASE_URL}${path}`, 'GET', undefined, 404);
+  for (const route of EXPECTED_DEAD_ROUTES) {
+    const probe = await probeRoute(
+      `${BASE_URL}${route.path}`,
+      'GET',
+      404,  // Expect 404 for dead routes
+      route.description
+    );
 
     if (probe.ok) {
-      result.addPass(`${path} correctly returns 404`);
-      if (!OUTPUT_JSON) console.log(`✅ ${path} -> 404 (dead as expected)`);
+      result.addPass(`${route.description} (correctly returns 404)`);
     } else {
-      result.addFail(
-        `${path} should be dead but is active`,
-        `Expected 404, got ${probe.status}`
-      );
+      result.addFail(`${route.description} should be dead`, probe.reason);
     }
   }
 
-  // Anti-mock probes - ensure fake endpoints return 404
-  if (!OUTPUT_JSON) console.log('\n📋 Anti-mock probes (ensuring no fake success)...');
+  // Anti-mock probes - ensure fake endpoints return 404, not 200
+  if (!OUTPUT_JSON) console.log('\n📋 Anti-mock probes (ensuring no fake 200 success)...');
 
   for (const route of ANTI_MOCK_PROBES) {
     const probe = await probeRoute(
       `${BASE_URL}${route.path}`,
-      route.method,
-      undefined,
-      200 // Should NOT be 200
+      'GET',
+      404,  // Should return 404, not 200
+      route.description
     );
 
     if (probe.ok) {
       result.addPass(route.description);
-      if (!OUTPUT_JSON) console.log(`✅ ${route.method} ${route.path} -> not 200 (good)`);
     } else {
-      result.addFail(
-        route.description,
-        `${route.path} returned ${probe.status} - possible mock response`
-      );
+      result.addFail(route.description, probe.reason);
     }
   }
 
@@ -306,9 +320,9 @@ Mode: ${BASELINE ? 'BASELINE (report only)' : 'STRICT (fail on findings)'}
         warnings: result.warnings,
       },
       routes: {
-        expectedLive: EXPECTED_LIVE_ROUTES.length,
-        newlyMounted: NEWLY_MOUNTED_ROUTES.length,
-        expectedDead: EXPECTED_DEAD_ROUTES.length,
+        public: EXPECTED_PUBLIC_ROUTES.length,
+        authProtected: EXPECTED_AUTH_ROUTES.length,
+        dead: EXPECTED_DEAD_ROUTES.length,
         antiMock: ANTI_MOCK_PROBES.length,
       },
     };

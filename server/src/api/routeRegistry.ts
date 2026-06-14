@@ -569,8 +569,8 @@ export const ORPHANED_ROUTES: RouteEntry[] = [
     methods: ["USE"],
     path: "/api/asset-brain",
     sourceFile: "server/src/api/assetBrainRoute.ts",
-    classification: "legacy",
-    mountStatus: "not-imported",
+    classification: "active-side-channel",
+    mountStatus: "mounted",
     gameplayAffecting: false,
     requiresTickContext: false,
     hasAuth: true,
@@ -598,9 +598,9 @@ export const ORPHANED_ROUTES: RouteEntry[] = [
     methods: ["USE"],
     path: "/api/glb",
     sourceFile: "server/src/api/glbUploadRoute.ts",
-    classification: "legacy",
-    mountStatus: "not-imported",
-    gameplayAffecting: false,
+    classification: "active-truth-path",
+    mountStatus: "mounted",
+    gameplayAffecting: true,
     requiresTickContext: false,
     hasAuth: true,
     clientRefs: [
@@ -613,7 +613,7 @@ export const ORPHANED_ROUTES: RouteEntry[] = [
       { file: "client/src/ui/shopPanel.ts", line: 284 },
       { file: "client/src/ui/shopPanel.ts", line: 324 }
     ],
-    notes: "GLB marketplace upload - auth middleware present, multiple client refs"
+    notes: "GLB marketplace - active-truth-path (mutates ownership, marketplace, placement, Matrix Energy). All mutating routes require authMiddleware. Read-only GET /marketplace and GET /land/:playerId are public."
   },
   {
     id: "land-route",

@@ -1,14 +1,20 @@
 /**
  * GLB Upload Routes for Areloria MMORPG
- * POST /api/glb/upload          – Upload a GLB model (requires subscription)
- * GET  /api/glb/my-models       – List player's uploaded models
- * DELETE /api/glb/:modelId      – Delete a player's model
- * POST /api/glb/place           – Place a model on player's land
- * DELETE /api/glb/place/:id     – Remove a placed model
- * GET  /api/glb/land/:playerId  – Get all placed models on a player's land
- * POST /api/glb/marketplace/list    – List model for sale
- * POST /api/glb/marketplace/buy     – Buy a model from marketplace
- * GET  /api/glb/marketplace         – Browse marketplace
+ * 
+ * Classification: active-truth-path (mutates ownership, marketplace, placement, Matrix Energy)
+ * 
+ * Auth: All mutating routes require authMiddleware-derived identity.
+ * Read-only routes that don't affect gameplay state may be public.
+ * 
+ * POST /api/glb/upload          – Upload a GLB model (auth required)
+ * GET  /api/glb/my-models       – List player's uploaded models (auth required)
+ * DELETE /api/glb/:modelId      – Delete a player's model (auth required)
+ * POST /api/glb/place           – Place a model on player's land (auth required)
+ * DELETE /api/glb/place/:id     – Remove a placed model (auth required)
+ * GET  /api/glb/land/:playerId  – Get placed models (public, read-only)
+ * POST /api/glb/marketplace/list    – List model for sale (auth required)
+ * POST /api/glb/marketplace/buy     – Buy model, transfers Matrix Energy (auth required)
+ * GET  /api/glb/marketplace         – Browse marketplace (public, read-only)
  */
 
 import { Router, Request, Response } from "express";
@@ -51,14 +57,22 @@ const upload = multer({
   },
 });
 
+/**
+ * Get player ID from authMiddleware-derived identity (req.userId or req.playerId)
+ * Returns null if no authenticated identity available
+ */
+function getAuthenticatedPlayerId(req: Request): string | null {
+  return (req as any).userId || (req as any).playerId || null;
+}
+
 export function createGLBUploadRouter(dbParam?: any): Router {
   const db = dbParam || dbInstance;
   const router = Router();
 
   // ── Check subscription middleware ──────────────────────────────────────────
   async function requireGLBSubscription(req: Request, res: Response, next: Function) {
-    const playerId = req.headers["x-player-id"] as string || req.body?.playerId;
-    if (!playerId) return res.status(401).json({ error: "Player ID required" });
+    const playerId = getAuthenticatedPlayerId(req);
+    if (!playerId) return res.status(401).json({ error: "Authentication required" });
 
     try {
       const result = await db.query(
@@ -93,10 +107,12 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   }
 
   // ── Upload GLB ─────────────────────────────────────────────────────────────
-  router.post("/upload", requireGLBSubscription, upload.single("model"), async (req: Request, res: Response) => {
+  router.post("/upload", authMiddleware, requireGLBSubscription, upload.single("model"), async (req: Request, res: Response) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-    const playerId = (req as any).playerId;
+    const playerId = getAuthenticatedPlayerId(req);
+    if (!playerId) return res.status(401).json({ error: "Authentication required" });
+
     const modelName = req.body.name || path.basename(req.file.originalname, path.extname(req.file.originalname));
     const modelId = uuidv4();
     const publicPath = `/uploads/glb/${req.file.filename}`;
@@ -152,9 +168,9 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── List My Models ─────────────────────────────────────────────────────────
-  router.get("/my-models", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
-    if (!playerId) return res.status(401).json({ error: "Player ID required" });
+  router.get("/my-models", authMiddleware, async (req: Request, res: Response) => {
+    const playerId = getAuthenticatedPlayerId(req);
+    if (!playerId) return res.status(401).json({ error: "Authentication required" });
 
     try {
       const result = await db.query(
@@ -170,9 +186,9 @@ export function createGLBUploadRouter(dbParam?: any): Router {
 
   // ── Delete Model ───────────────────────────────────────────────────────────
   router.delete("/:modelId", authMiddleware, async (req: Request, res: Response) => {
-    const playerId = (req as any).playerId;
+    const playerId = getAuthenticatedPlayerId(req);
     const { modelId } = req.params;
-    if (!playerId) return res.status(401).json({ error: "Player ID required" });
+    if (!playerId) return res.status(401).json({ error: "Authentication required" });
 
     try {
       const result = await db.query(
@@ -190,8 +206,10 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── Place Model on Land ────────────────────────────────────────────────────
-  router.post("/place", requireGLBSubscription, async (req: Request, res: Response) => {
-    const playerId = (req as any).playerId;
+  router.post("/place", authMiddleware, requireGLBSubscription, async (req: Request, res: Response) => {
+    const playerId = getAuthenticatedPlayerId(req);
+    if (!playerId) return res.status(401).json({ error: "Authentication required" });
+
     const { modelId, x, y, z, rotY, scale, landId } = req.body;
     if (!modelId) return res.status(400).json({ error: "modelId required" });
 
@@ -240,9 +258,9 @@ export function createGLBUploadRouter(dbParam?: any): Router {
 
   // ── Remove Placed Model ────────────────────────────────────────────────────
   router.delete("/place/:placeId", authMiddleware, async (req: Request, res: Response) => {
-    const playerId = (req as any).playerId;
+    const playerId = getAuthenticatedPlayerId(req);
     const { placeId } = req.params;
-    if (!playerId) return res.status(401).json({ error: "Player ID required" });
+    if (!playerId) return res.status(401).json({ error: "Authentication required" });
 
     try {
       await db.query(
@@ -255,7 +273,7 @@ export function createGLBUploadRouter(dbParam?: any): Router {
     }
   });
 
-  // ── Get Land Models ────────────────────────────────────────────────────────
+  // ── Get Land Models (PUBLIC, read-only) ────────────────────────────────────
   router.get("/land/:playerId", async (req: Request, res: Response) => {
     const { playerId } = req.params;
     try {
@@ -274,8 +292,10 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── List on Marketplace ────────────────────────────────────────────────────
-  router.post("/marketplace/list", requireGLBSubscription, async (req: Request, res: Response) => {
-    const playerId = (req as any).playerId;
+  router.post("/marketplace/list", authMiddleware, requireGLBSubscription, async (req: Request, res: Response) => {
+    const playerId = getAuthenticatedPlayerId(req);
+    if (!playerId) return res.status(401).json({ error: "Authentication required" });
+
     const { modelId, price } = req.body;
     if (!modelId || !price) return res.status(400).json({ error: "modelId and price required" });
     if (price < 1 || price > 100000) return res.status(400).json({ error: "Price must be 1-100000 Matrix Energy" });
@@ -292,11 +312,13 @@ export function createGLBUploadRouter(dbParam?: any): Router {
     }
   });
 
-  // ── Buy from Marketplace ───────────────────────────────────────────────────
-  router.post("/marketplace/buy", async (req: Request, res: Response) => {
-    const buyerId = req.headers["x-player-id"] as string;
+  // ── Buy from Marketplace (active-truth-path: transfers Matrix Energy) ───────
+  router.post("/marketplace/buy", authMiddleware, async (req: Request, res: Response) => {
+    const buyerId = getAuthenticatedPlayerId(req);
+    if (!buyerId) return res.status(401).json({ error: "Authentication required" });
+
     const { modelId } = req.body;
-    if (!buyerId || !modelId) return res.status(400).json({ error: "Buyer and modelId required" });
+    if (!modelId) return res.status(400).json({ error: "modelId required" });
 
     try {
       // Get model info
@@ -356,7 +378,7 @@ export function createGLBUploadRouter(dbParam?: any): Router {
     }
   });
 
-  // ── Browse Marketplace ─────────────────────────────────────────────────────
+  // ── Browse Marketplace (PUBLIC, read-only) ─────────────────────────────────
   router.get("/marketplace", async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string || "1");
     const limit = 20;
@@ -380,9 +402,9 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── Check Subscription Status ──────────────────────────────────────────────
-  router.get("/subscription-status", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
-    if (!playerId) return res.status(401).json({ error: "Player ID required" });
+  router.get("/subscription-status", authMiddleware, async (req: Request, res: Response) => {
+    const playerId = getAuthenticatedPlayerId(req);
+    if (!playerId) return res.status(401).json({ error: "Authentication required" });
 
     try {
       const result = await db.query(

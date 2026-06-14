@@ -52,44 +52,48 @@ All routes are mounted in `server/src/core/ServerBootstrap.ts`.
 
 These routes affect simulation state and require deterministic tick-safe behavior:
 
-| Route | Source File | Purpose | Tick-Safe |
-|-------|-------------|---------|-----------|
-| `/api/quest` | `server/src/routes/questEventRoute.ts` | Quest events | ✅ |
-| `/api/skill` | `server/src/routes/skillEventRoute.ts` | Skill events | ✅ |
-| `/api/resource` | `server/src/routes/resourceGatherRoute.ts` | Resource gathering | ✅ |
-| `/api/inventory` | `server/src/routes/inventoryRoute.ts` | Inventory operations | ✅ |
-| `/api/crafting` | `server/src/routes/craftingRoute.ts` | Crafting system | ✅ |
-| `/api/equipment` | `server/src/routes/equipmentRoute.ts` | Equipment management | ✅ |
-| `/api/character` | `server/src/character/characterRoute.ts` | Character management | ✅ |
-| `/api/onboarding` | `server/src/routes/onboardingRoute.ts` | Player onboarding | ✅ |
+| Route | Source File | Purpose | Auth |
+|-------|-------------|---------|------|
+| `/api/quest` | `server/src/routes/questEventRoute.ts` | Quest events | No |
+| `/api/skill` | `server/src/routes/skillEventRoute.ts` | Skill events | No |
+| `/api/resource` | `server/src/routes/resourceGatherRoute.ts` | Resource gathering | No |
+| `/api/inventory` | `server/src/routes/inventoryRoute.ts` | Inventory operations | No |
+| `/api/crafting` | `server/src/routes/craftingRoute.ts` | Crafting system | No |
+| `/api/equipment` | `server/src/routes/equipmentRoute.ts` | Equipment management | No |
+| `/api/character` | `server/src/character/characterRoute.ts` | Character management | Yes |
+| `/api/onboarding` | `server/src/routes/onboardingRoute.ts` | Player onboarding | No |
 | `/api/economy` | `server/src/economy/economyRoute.ts` | Economy system | - |
 | `/api/npc` | `server/src/npc/VendorRoutes.ts` | NPC vendor routes | - |
 | `/api/npc` | `server/src/npc/CampNpcRoutes.ts` | Camp NPC routes | - |
 | `/api/npc` | `server/src/npc/npcQuestRoute.ts` | NPC quest routes | - |
 | `/api/quests` | `server/src/quests/npcQuestRoute.ts` | Quest routes | - |
-| `/api/admin/loot` | `server/src/routes/lootRoutes.ts` | ARE loot machine | ✅ |
+| `/api/admin/loot` | `server/src/routes/lootRoutes.ts` | ARE loot machine | Yes |
+| `/api/glb` | `server/src/api/glbUploadRoute.ts` | GLB marketplace | Yes |
+
+**Note:** `/api/glb` is classified as active-truth-path because it mutates ownership, marketplace state, placement, and Matrix Energy. All mutating routes require authMiddleware.
 
 ### Side-Channel Routes (Non-Gameplay)
 
 These routes are for observability/monitoring:
 
-| Route | Source File | Purpose |
-|-------|-------------|---------|
-| `/health` | `server/src/api/healthRoutes.ts` | Health probes |
-| `/api/are` | `server/src/routes/areHeartbeat.ts` | ARE telemetry heartbeat |
-| `/api/are-shadow` | `server/src/api/areShadowLogRoute.ts` | ARE shadow logging |
-| `/api/are/validation` | `server/src/api/areValidationRoute.ts` | ARE validation |
-| `/api/are/replay` | `server/src/api/areReplayRoute.ts` | ARE replay system |
-| `/api/gameplay` | `server/src/routes/gameplaySnapshot.ts` | Gameplay snapshots |
-| `/api/self-healing` | `server/src/routes/selfHealWorkshopRoute.ts` | Self-healing dashboard |
-| `/api/manifest` | `server/src/api/manifestResyncRoute.ts` | Manifest resync |
-| `/api/leaderboard` | `server/src/api/leaderboardRoute.ts` | Leaderboard rankings |
-| `/api/lore` | `server/src/api/loreRoute.ts` | Lore content |
-| `/api/questlines` | `server/src/api/questlineRoute.ts` | Questlines |
-| `/api/vote` | `server/src/api/voteRoute.ts` | Voting system |
-| `/api/v1/warfront` | `server/src/api/warfrontRoute.ts` | Warfront combat |
-| `/api/v1` | `server/src/api/scienceMascotRoute.ts` | Science mascot API |
-| `/api/mcp` | `server/src/api/mcpRoute.ts` | MCP protocol |
+| Route | Source File | Purpose | Auth |
+|-------|-------------|---------|------|
+| `/health` | `server/src/api/healthRoutes.ts` | Health probes | No |
+| `/api/are` | `server/src/routes/areHeartbeat.ts` | ARE telemetry heartbeat | No |
+| `/api/are-shadow` | `server/src/api/areShadowLogRoute.ts` | ARE shadow logging | No |
+| `/api/are/validation` | `server/src/api/areValidationRoute.ts` | ARE validation | No |
+| `/api/are/replay` | `server/src/api/areReplayRoute.ts` | ARE replay system | No |
+| `/api/gameplay` | `server/src/routes/gameplaySnapshot.ts` | Gameplay snapshots | No |
+| `/api/self-healing` | `server/src/routes/selfHealWorkshopRoute.ts` | Self-healing dashboard | No |
+| `/api/manifest` | `server/src/api/manifestResyncRoute.ts` | Manifest resync | No |
+| `/api/leaderboard` | `server/src/api/leaderboardRoute.ts` | Leaderboard rankings | No |
+| `/api/lore` | `server/src/api/loreRoute.ts` | Lore content | No |
+| `/api/questlines` | `server/src/api/questlineRoute.ts` | Questlines | No |
+| `/api/vote` | `server/src/api/voteRoute.ts` | Voting system | No |
+| `/api/v1/warfront` | `server/src/api/warfrontRoute.ts` | Warfront combat | No |
+| `/api/v1` | `server/src/api/scienceMascotRoute.ts` | Science mascot API | No |
+| `/api/mcp` | `server/src/api/mcpRoute.ts` | MCP protocol | No |
+| `/api/asset-brain` | `server/src/api/assetBrainRoute.ts` | Asset brain library | Yes |
 
 ### Admin Routes (Auth-Protected)
 
@@ -97,27 +101,18 @@ These routes require admin authentication:
 
 | Route | Source File | Purpose | Auth |
 |-------|-------------|---------|------|
-| `/api/admin/content` | `server/src/api/adminContentRoute.ts` | Content admin | ✅ |
-| `/api/client2d-assets` | `server/src/api/client2dAssetUploadRoute.ts` | Asset uploads | ✅ |
-| `/api/sovereign/deploy` | `server/src/api/sovereignDeployRoute.ts` | Deployment control | ✅ |
+| `/api/admin/content` | `server/src/api/adminContentRoute.ts` | Content admin | Yes |
+| `/api/client2d-assets` | `server/src/api/client2dAssetUploadRoute.ts` | Asset uploads | Yes |
+| `/api/sovereign/deploy` | `server/src/api/sovereignDeployRoute.ts` | Deployment control | Yes |
 | `/api/finance` | `server/src/api/financeRoute.ts` | Finance (PayPal) | - |
-
-### Recently Mounted Routes (PR #2008)
-
-Routes mounted in this PR with active client references:
-
-| Route | Source File | Purpose | Client Refs |
-|-------|-------------|---------|-------------|
-| `/api/asset-brain` | `server/src/api/assetBrainRoute.ts` | Asset brain library | `assetLibraryPanel.ts` |
-| `/api/glb` | `server/src/api/glbUploadRoute.ts` | GLB marketplace | `glbManager.ts`, `shopPanel.ts` |
 
 ### Inline Routes
 
 | Route | Source | Purpose | Auth |
 |-------|--------|---------|------|
-| `/api/playtester/debug-log` | ServerBootstrap.ts:241 | Playtester debug | ✅ |
-| `/playtester-monitor.html` | ServerBootstrap.ts | Monitor UI | ✅ |
-| `/playtester-render-publisher.html` | ServerBootstrap.ts | Publisher UI | ✅ |
+| `/api/playtester/debug-log` | ServerBootstrap.ts:241 | Playtester debug | Yes |
+| `/playtester-monitor.html` | ServerBootstrap.ts | Monitor UI | Yes |
+| `/playtester-render-publisher.html` | ServerBootstrap.ts | Publisher UI | Yes |
 
 ## Static Routes
 
@@ -132,32 +127,51 @@ Routes mounted in this PR with active client references:
 | `/client2d-assets/*` | Static | GraphicRiver ISO assets |
 | `/agora` | Router | Agora video integration |
 
+## GLB Marketplace Routes (PR #2008)
+
+The `/api/glb` router has the following sub-routes:
+
+| Sub-Route | Method | Auth | Classification | Notes |
+|-----------|--------|------|---------------|-------|
+| `/marketplace` | GET | No | Public (read-only) | Browse marketplace listings |
+| `/land/:playerId` | GET | No | Public (read-only) | Get placed models on land |
+| `/upload` | POST | Yes | active-truth-path | Upload GLB (subscription required) |
+| `/my-models` | GET | Yes | active-truth-path | List player's models |
+| `/:modelId` | DELETE | Yes | active-truth-path | Delete owned model |
+| `/place` | POST | Yes | active-truth-path | Place model on land |
+| `/place/:placeId` | DELETE | Yes | active-truth-path | Remove placed model |
+| `/marketplace/list` | POST | Yes | active-truth-path | List model for sale |
+| `/marketplace/buy` | POST | Yes | active-truth-path | Buy model (transfers Matrix Energy) |
+| `/subscription-status` | GET | Yes | active-truth-path | Check subscription status |
+
+**Important:** All mutating routes use `authMiddleware` to derive player identity, not `x-player-id` header alone.
+
 ## Legacy/Orphaned Routes
 
 Routes with real implementation but no current mount point. See `server/src/api/routeRegistry.ts` for full classification.
 
 ### Active Side-Channel (Not Mounted)
 
-| Route | Source File | Notes |
-|-------|-------------|-------|
-| `server/src/routes/AIService.ts` | Internal AI service | Used by routes/api.ts |
-| `server/src/routes/OracleEndpoint.ts` | Ouroboros sync | Used by routes/api.ts |
-| `server/src/routes/WorldEventBus.ts` | Event bus | Has tests |
-| `server/src/api/dudenReportRoute.ts` | Duden telemetry | - |
-| `server/src/api/sdkBillingRoute.ts` | Billing diagnostics | Admin key |
-| `server/src/api/worldHeartRoute.ts` | Shadow log adapter | - |
+| Source File | Notes |
+|-------------|-------|
+| `server/src/routes/AIService.ts` | Internal AI service, used by routes/api.ts |
+| `server/src/routes/OracleEndpoint.ts` | Ouroboros sync, used by routes/api.ts |
+| `server/src/routes/WorldEventBus.ts` | Event bus, has tests |
+| `server/src/api/dudenReportRoute.ts` | Duden telemetry |
+| `server/src/api/sdkBillingRoute.ts` | Billing diagnostics, admin key |
+| `server/src/api/worldHeartRoute.ts` | Shadow log adapter |
 
 ### Legacy Routes (Need Integration)
 
-| Route | Source File | Notes |
-|-------|-------------|-------|
-| `server/src/api/areOracleRoute.ts` | ARE oracle | Needs mount |
-| `server/src/api/assetPipelineRoute.ts` | 3D asset pipeline | Needs auth |
-| `server/src/api/collectiveIngressRoute.ts` | Sovereign identity | - |
-| `server/src/api/landRoute.ts` | Land ownership | Client refs exist |
-| `server/src/api/worldRoutes.ts` | World snapshot | - |
-| `server/src/api/chatRoute.ts` | Chat system | Dead export |
-| `server/src/api/v1/b2b/trading.ts` | B2B trading | - |
+| Source File | Notes |
+|-------------|-------|
+| `server/src/api/areOracleRoute.ts` | ARE oracle, needs mount |
+| `server/src/api/assetPipelineRoute.ts` | 3D asset pipeline, needs auth |
+| `server/src/api/collectiveIngressRoute.ts` | Sovereign identity |
+| `server/src/api/landRoute.ts` | Land ownership, client refs exist |
+| `server/src/api/worldRoutes.ts` | World snapshot |
+| `server/src/api/chatRoute.ts` | Chat system, dead export |
+| `server/src/api/v1/b2b/trading.ts` | B2B trading |
 
 ### Delete Candidates (Stubs/Dead Code)
 
@@ -182,39 +196,6 @@ Routes with real implementation but no current mount point. See `server/src/api/
 | `client/src/projects/art/SocketService.ts` | `/api/art/ws` | Deprecated | Marked @deprecated - no server endpoint |
 | `client/src/ui/voteAdminPanel.ts` | `/api/check` | Placeholder | Not an actual call - example URL |
 
-## Potential Failure Modes
-
-### Dead Path
-
-```
-Route exists
-        ↓
-Not mounted
-        ↓
-Client still references endpoint
-        ↓
-Silent dead path
-```
-
-### Detection
-
-Run the audit script:
-
-```bash
-node scripts/audit-route-registry.mjs
-```
-
-Output:
-
-```json
-{
-  "mounted": [...],
-  "orphaned": [...],
-  "undocumented": [...],
-  "deadClientReferences": [...]
-}
-```
-
 ## Validation Checklist
 
 For each new route:
@@ -224,8 +205,8 @@ For each new route:
 - [ ] Router imported in `ServerBootstrap.ts`
 - [ ] Route mounted via `app.use()`
 - [ ] Client references point to mounted route
-- [ ] Documentation entry added to this file
 - [ ] Classification added to `server/src/api/routeRegistry.ts`
+- [ ] Auth middleware added if route mutates state
 - [ ] Runtime probe added to `scripts/probe-runtime-routes.mjs`
 
 ## References
