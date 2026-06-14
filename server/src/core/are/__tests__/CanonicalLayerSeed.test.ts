@@ -4,6 +4,7 @@ import {
   DEFAULT_ARELORIA_WORLD_SEED,
   deriveCanonicalLayerSeed,
 } from '../CanonicalLayerSeed.js';
+import { deriveCanonicalWorldgenSeedSignals } from '../CanonicalLayerSeedSignals.js';
 import { RuntimeWorldBrainStatePort, chunkLayerStateToIARELayers } from '../WorldBrainRuntimePort.js';
 import { createChunkKey, createTickId } from '../types.js';
 
@@ -34,7 +35,25 @@ describe('Canonical layer seed truth', () => {
     expect(Number(seed.checksum)).toBe(6500);
   });
 
-  it('seeds RuntimeWorldBrainStatePort chunks before first tick', () => {
+  it('folds deterministic biome terrain signals into the seed while preserving Kappa conservation', () => {
+    const chunkKey = createChunkKey(3, 4);
+    const activationTick = createTickId(0);
+    const signals = deriveCanonicalWorldgenSeedSignals({ worldSeed: 'signal-seed', chunkKey, activationTick });
+
+    const base = deriveCanonicalLayerSeed({ worldSeed: 'signal-seed', chunkKey, activationTick });
+    const signaled = deriveCanonicalLayerSeed({ worldSeed: 'signal-seed', chunkKey, activationTick, signals });
+    const repeat = deriveCanonicalLayerSeed({ worldSeed: 'signal-seed', chunkKey, activationTick, signals });
+
+    expect(signals.source).toBe('OuroborosWorldDirectorV1');
+    expect(signals.signature).toContain(String(chunkKey));
+    expect(signaled.layers).toEqual(repeat.layers);
+    expect(signaled.layers).not.toEqual(base.layers);
+    expect(signaled.signals?.biomeId).toBe(signals.biomeId);
+    expect(Number(signaled.checksum)).toBe(6500);
+    expect(verifyChunkKappaHash(chunkKey, signaled.layers, activationTick, signaled.seedHash)).toBe(true);
+  });
+
+  it('seeds RuntimeWorldBrainStatePort chunks with worldgen signals before first tick', () => {
     const port = new RuntimeWorldBrainStatePort({ worldSeed: 'runtime-seed' });
     const chunkKey = createChunkKey(1, 2);
 
@@ -45,6 +64,9 @@ describe('Canonical layer seed truth', () => {
     const chunkState = snapshot.layer_states.get(chunkKey);
 
     expect(seedRecord).not.toBeNull();
+    expect(seedRecord!.signals).not.toBeNull();
+    expect(seedRecord!.signals!.source).toBe('OuroborosWorldDirectorV1');
+    expect(Number(seedRecord!.checksum)).toBe(6500);
     expect(chunkState).toBeDefined();
     expect(chunkLayerStateToIARELayers(chunkState!)).toEqual(seedRecord!.layers);
     expect(snapshot.world_hash).not.toBe('0'.repeat(64));
