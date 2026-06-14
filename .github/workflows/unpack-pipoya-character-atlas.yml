@@ -57,15 +57,15 @@ jobs:
           test -s apps/client-2d/public/2d-assets/characters/pipoya/pipoya-character-atlas.json
           test -s docs/PIPOYA_CHARACTER_ATLAS_DROP.md
           python3 - <<'PY'
-          import json
-          from pathlib import Path
-          data = json.loads(Path('apps/client-2d/public/2d-assets/characters/pipoya/pipoya-character-atlas.json').read_text())
-          entries = data.get('entries', {})
-          if len(entries) < 300:
-              raise SystemExit(f'Atlas has too few entries: {len(entries)}')
-          print(f"Atlas entries: {len(entries)}")
-          print(f"Groups: {data.get('groups', {})}")
-          PY
+import json
+from pathlib import Path
+data = json.loads(Path('apps/client-2d/public/2d-assets/characters/pipoya/pipoya-character-atlas.json').read_text())
+entries = data.get('entries', {})
+if len(entries) < 300:
+    raise SystemExit(f'Atlas has too few entries: {len(entries)}')
+print(f"Atlas entries: {len(entries)}")
+print(f"Groups: {data.get('groups', {})} ")
+PY
 
       - name: Commit unpacked atlas
         run: |

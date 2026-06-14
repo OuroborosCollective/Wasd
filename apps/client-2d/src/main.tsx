@@ -201,6 +201,12 @@ function UIOverlayLayer() {
     function handleKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+
+      if ((e.key === "e" || e.key === "E") && interactionTarget) {
+        openNpcContext(interactionTarget.npc);
+        return;
+      }
+
       if (!ENABLE_PUBLIC_DEBUG_PANELS) return;
       if (e.key === "m" || e.key === "M") setShowRegistry((prev) => !prev);
       if (e.key === "s" || e.key === "S") setShowWorkshop((prev) => !prev);
