@@ -115,6 +115,13 @@ export function createGLBUploadRouter(dbParam?: any): Router {
     }
   }
 
+  const glbManageRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 300, // allow normal browsing/management while limiting abusive bursts
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
   // ── Upload GLB ─────────────────────────────────────────────────────────────
   router.post("/upload", glbUploadRateLimiter, authMiddleware, requireGLBSubscription, upload.single("model"), async (req: Request, res: Response) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
@@ -177,7 +184,7 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── List My Models ─────────────────────────────────────────────────────────
-  router.get("/my-models", authMiddleware, async (req: Request, res: Response) => {
+  router.get("/my-models", authMiddleware, glbManageRateLimiter, async (req: Request, res: Response) => {
     const playerId = getAuthenticatedPlayerId(req);
     if (!playerId) return res.status(401).json({ error: "Authentication required" });
 
@@ -194,7 +201,7 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── Delete Model ───────────────────────────────────────────────────────────
-  router.delete("/:modelId", authMiddleware, async (req: Request, res: Response) => {
+  router.delete("/:modelId", authMiddleware, glbManageRateLimiter, async (req: Request, res: Response) => {
     const playerId = getAuthenticatedPlayerId(req);
     const { modelId } = req.params;
     if (!playerId) return res.status(401).json({ error: "Authentication required" });
