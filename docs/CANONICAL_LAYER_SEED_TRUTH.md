@@ -2,14 +2,14 @@
 
 ## Purpose
 
-New active WorldBrain chunks must not start from fake zero-state. They start from deterministic Kappa1000 13-layer seeds derived from canonical runtime inputs.
+New active WorldBrain chunks must not start from fake zero-state. They start from deterministic Kappa1000 13-layer seeds derived from canonical runtime inputs and shared world-generation signals.
 
 ## Seed Inputs
 
 The canonical seed formula uses:
 
 ```text
-version + worldSeed + chunkKey + activationTick + layerName
+version + worldSeed + chunkKey + activationTick + layerName + worldgenSignalSignature
 ```
 
 The runtime source order for `worldSeed` is:
@@ -22,6 +22,20 @@ The runtime source order for `worldSeed` is:
 
 The fallback is stable and named. It is not random, not wall-clock based, and not a mock snapshot.
 
+## Worldgen Signal Source
+
+`RuntimeWorldBrainStatePort.registerChunk()` derives seed signals through `deriveCanonicalWorldgenSeedSignals()`.
+
+Signal source:
+
+```text
+deriveChunkBiome()
+  -> generateChunkScenePlan()
+  -> biome / terrain / roads / settlement / props / NPC / collision signals
+```
+
+Signals include biome id, resource density, tree density, settlement intent, terrain mix, road pressure, settlement lots, resource props, structure props, collision pressure, NPC count, and deterministic risk/underworld pressure from terrain structure.
+
 ## Invariant
 
 Each seed creates 13 non-zero Kappa1000 layers with fixed total checksum:
@@ -30,14 +44,15 @@ Each seed creates 13 non-zero Kappa1000 layers with fixed total checksum:
 sum(layers) = 6500
 ```
 
-This preserves a neutral conservation baseline while still giving every chunk a unique deterministic layer vector.
+Worldgen signals bias individual layers, then deterministic conservation adjustment restores the checksum. The invariant is never weakened.
 
 ## Runtime Chain
 
 ```text
 WorldTickThinShell.registerChunk(chunkKey)
   -> RuntimeWorldBrainStatePort.registerChunk(chunkKey)
-  -> deriveCanonicalLayerSeed({ worldSeed, chunkKey, activationTick })
+  -> deriveCanonicalWorldgenSeedSignals({ worldSeed, chunkKey, activationTick })
+  -> deriveCanonicalLayerSeed({ worldSeed, chunkKey, activationTick, signals })
   -> iareLayersToChunkLayerState(seed.layers)
   -> WorldBrainTickSystem reads the seeded layers on the next tick
 ```
@@ -47,8 +62,8 @@ WorldTickThinShell.registerChunk(chunkKey)
 - No `Math.random()`.
 - No `Date.now()`.
 - No empty layer bootstrap for active chunks.
-- Same seed inputs produce identical layers and seed hash.
-- Different `worldSeed`, `chunkKey`, or `activationTick` can produce different layers.
+- No side-channel signal source.
+- Same seed inputs and worldgen signals produce identical layers and seed hash.
 - Seed hashes use existing `hashChunkKappa1000()` verification.
 
 ## Validation
@@ -61,4 +76,4 @@ Covered by:
 
 ## Follow-up
 
-Next step: feed biome/terrain/settlement signals into the canonical seed formula as explicit deterministic inputs, without changing the conservation invariant or introducing side-channel state.
+Next step: promote signal weights into a documented balancing matrix so layer pressure can be tuned without changing the deterministic seed contract.
