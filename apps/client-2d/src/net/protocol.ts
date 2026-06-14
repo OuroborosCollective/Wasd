@@ -273,6 +273,75 @@ export interface GameplayEventPayload {
   data: Record<string, unknown>;
 }
 
+// ============================================================================
+// NPC Activity Snapshot Types (Server-authoritative activity state)
+// ============================================================================
+
+export type NPCActivityState = 
+  | "idle"
+  | "wandering"
+  | "working"
+  | "guarding"
+  | "fleeing"
+  | "attacking";
+
+export type NPCWorkRole =
+  | "blacksmith"
+  | "farmer"
+  | "merchant"
+  | "guard"
+  | "healer"
+  | "scholar"
+  | "tavern_keeper"
+  | "fisherman"
+  | "woodcutter"
+  | "miner"
+  | "craftsman"
+  | "noble"
+  | "citizen";
+
+export type MonsterArchetype =
+  | "beast"
+  | "undead"
+  | "elemental"
+  | "demon"
+  | "golem";
+
+export interface NPCActivityEntry {
+  entityId: string;
+  name: string;
+  activity: NPCActivityState;
+  intentTargetId?: string;
+  chunkKey: string;
+  position: { x: number; y: number };
+  facing?: number;
+  movementIntent?: { x: number; y: number };
+  statusTextKey?: string;
+  workRole?: NPCWorkRole;
+  monsterArchetype?: MonsterArchetype;
+  activityHash: string;
+  sourceTick: number;
+}
+
+export interface ActivityMemoryEvent {
+  id: string;
+  entityId: string;
+  tick: number;
+  eventType: string;
+  fromActivity?: string;
+  toActivity?: string;
+  targetId?: string;
+  data?: Record<string, unknown>;
+}
+
+export interface NPCActivitySnapshotPayload {
+  serverTick: number;
+  entries: NPCActivityEntry[];
+  memoryEvents: ActivityMemoryEvent[];
+  entityCount: number;
+  snapshotHash: string;
+}
+
 export interface ClientEnvelope<TType extends ClientMessageType, TPayload> {
   type: TType;
   payload: TPayload;
@@ -434,6 +503,32 @@ export function isOwnershipErrorPayload(value: unknown): value is OwnershipError
     typeof value.code === "string" &&
     typeof value.message === "string"
   );
+}
+
+export function isNPCActivitySnapshotPayload(value: unknown): value is NPCActivitySnapshotPayload {
+  if (!isRecord(value)) return false;
+
+  if (typeof value.serverTick !== "number") return false;
+  if (!Array.isArray(value.entries)) return false;
+  if (!Array.isArray(value.memoryEvents)) return false;
+  if (typeof value.entityCount !== "number") return false;
+  if (typeof value.snapshotHash !== "string") return false;
+
+  // Validate entries
+  for (const entry of value.entries) {
+    if (!isRecord(entry)) return false;
+    if (typeof entry.entityId !== "string") return false;
+    if (typeof entry.name !== "string") return false;
+    if (typeof entry.activity !== "string") return false;
+    if (typeof entry.chunkKey !== "string") return false;
+    if (!isRecord(entry.position)) return false;
+    if (typeof entry.position.x !== "number") return false;
+    if (typeof entry.position.y !== "number") return false;
+    if (typeof entry.activityHash !== "string") return false;
+    if (typeof entry.sourceTick !== "number") return false;
+  }
+
+  return true;
 }
 
 export function createClientEnvelope<TType extends ClientMessageType, TPayload>(
