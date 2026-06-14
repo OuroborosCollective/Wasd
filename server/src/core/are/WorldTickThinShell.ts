@@ -1,8 +1,8 @@
 /**
  * WorldTickThinShell - Phase 10: Extremely Slim World Brain Scheduler
  *
- * WorldTick wird zum extrem schlanken World Brain Scheduler.
- * TickSystems führen Fachlogik aus; der ThinShell koordiniert nur.
+ * WorldTick is the 10-Hz coordinator. TickSystems perform runtime logic.
+ * WorldBrain runtime truth is wired through WorldBrainTickSystem ports.
  *
  * ARE Determinism:
  * - WorldStateProvider registry with strict validation
@@ -12,11 +12,19 @@
 
 import { tickSystemRegistry } from "./TickSystemRegistry.js";
 import { createDefaultTickContext, type TickSystemContext } from "./TickSystem.js";
-import { WorldBrainScheduler } from "./WorldBrainScheduler.js";
 import { SnapshotComposer } from "./SnapshotComposer.js";
 import { LayerPersistenceQueue, layerPersistenceQueue } from "./LayerPersistenceQueue.js";
 import { registerCoreTickSystems } from "./CoreTickSystemRegistration.js";
 import { stableSort } from "./DeterministicEventFactory.js";
+import {
+  SnapshotComposerWorldBrainSink,
+  WORLD_BRAIN_TICK_SYSTEM_NAME,
+  registerWorldBrainTickSystem,
+} from "./WorldBrainTickSystem.js";
+import {
+  LayerPersistenceWorldBrainReplaySink,
+  RuntimeWorldBrainStatePort,
+} from "./WorldBrainRuntimePort.js";
 
 /**
  * World state slice provided by a single provider.
@@ -101,9 +109,9 @@ export class WorldTickThinShell {
   private tickCount = 0;
   static readonly TICK_INTERVAL_MS = 100;
 
-  private worldBrain: WorldBrainScheduler;
   private snapshotComposer: SnapshotComposer;
   private persistenceQueue: LayerPersistenceQueue;
+  private worldBrainState: RuntimeWorldBrainStatePort;
   private isRunning = false;
   private timer: ReturnType<typeof setInterval> | null = null;
 
@@ -111,11 +119,12 @@ export class WorldTickThinShell {
   private worldStateProviders = new Map<string, WorldStateProvider>();
 
   constructor() {
-    this.worldBrain = new WorldBrainScheduler();
     this.snapshotComposer = new SnapshotComposer();
     this.persistenceQueue = layerPersistenceQueue;
+    this.worldBrainState = new RuntimeWorldBrainStatePort();
 
     registerCoreTickSystems();
+    this.registerWorldBrainRuntimeSystem();
   }
 
   start(): void {
@@ -138,7 +147,6 @@ export class WorldTickThinShell {
       this.timer = null;
     }
 
-    this.worldBrain.onShutdown();
     await this.persistenceQueue.shutdown();
     tickSystemRegistry.notifyShutdown();
   }
@@ -156,9 +164,7 @@ export class WorldTickThinShell {
     });
 
     tickSystemRegistry.executeAll(context);
-    this.worldBrain.tick(context);
-    this.composeWorldSnapshot();
-    this.queuePersistenceEvents();
+    this.finalizeWorldBrainSnapshot();
     this.persistenceQueue.tick(this.tickCount as any);
   }
 
@@ -265,71 +271,12 @@ export class WorldTickThinShell {
     return this.worldStateProviders.size > 0;
   }
 
-  private composeWorldSnapshot(): void {
-    const snapshot = this.worldBrain.getSnapshot();
-
-    for (const chunkKey of snapshot.active_chunks) {
-      const layerState = this.worldBrain.getChunkLayerState(chunkKey);
-      if (layerState) {
-        const iareLayers = this.convertToIARELayers(layerState);
-        this.snapshotComposer.addChunk(
-          chunkKey,
-          this.tickCount as any,
-          [],
-          iareLayers,
-        );
-      }
-    }
-
-    if (this.snapshotComposer.getChunkCount() > 0) {
-      this.snapshotComposer.finalizeWorldSnapshot(this.tickCount as any);
-    }
-  }
-
-  private convertToIARELayers(chunkLayerState: any): any {
-    return {
-      ecology: chunkLayerState.ecology,
-      market: chunkLayerState.economy,
-      physiology: chunkLayerState.npc_vitality,
-      trade: chunkLayerState.trade,
-      memory: chunkLayerState.social_memory,
-      politics: chunkLayerState.politics,
-      conflict: chunkLayerState.aggression,
-      economy: chunkLayerState.conjuncture,
-      kingdoms: chunkLayerState.kingdom,
-      faith: chunkLayerState.faith,
-      dungeon: chunkLayerState.dungeon,
-      fear: chunkLayerState.fear,
-      cycles: chunkLayerState.resurrection,
-    };
-  }
-
-  private queuePersistenceEvents(): void {
-    const snapshot = this.worldBrain.getSnapshot();
-
-    for (const chunkKey of snapshot.active_chunks) {
-      const layerState = this.worldBrain.getChunkLayerState(chunkKey);
-      if (layerState) {
-        const iareLayers = this.convertToIARELayers(layerState);
-        const event = {
-          chunkKey,
-          tick: this.tickCount as any,
-          layerSnapshot: iareLayers,
-          deltaHash: snapshot.world_hash,
-          timestamp: this.tickCount,
-        };
-
-        this.persistenceQueue.enqueue(event);
-      }
-    }
-  }
-
   registerChunk(chunkKey: string): void {
-    this.worldBrain.registerChunk(chunkKey as any);
+    this.worldBrainState.registerChunk(chunkKey as any);
   }
 
   unregisterChunk(chunkKey: string): void {
-    this.worldBrain.unregisterChunk(chunkKey as any);
+    this.worldBrainState.unregisterChunk(chunkKey as any);
   }
 
   getTickCount(): number {
@@ -337,7 +284,7 @@ export class WorldTickThinShell {
   }
 
   getWorldBrainSnapshot(): any {
-    return this.worldBrain.getSnapshot();
+    return this.worldBrainState.getSnapshot();
   }
 
   getPersistenceStats() {
@@ -348,6 +295,22 @@ export class WorldTickThinShell {
     return {
       chunkCount: this.snapshotComposer.getChunkCount(),
     };
+  }
+
+  private registerWorldBrainRuntimeSystem(): void {
+    if (tickSystemRegistry.has(WORLD_BRAIN_TICK_SYSTEM_NAME)) return;
+
+    registerWorldBrainTickSystem({
+      state: this.worldBrainState,
+      snapshot: new SnapshotComposerWorldBrainSink(this.snapshotComposer),
+      replay: new LayerPersistenceWorldBrainReplaySink(this.persistenceQueue),
+    });
+  }
+
+  private finalizeWorldBrainSnapshot(): void {
+    if (this.snapshotComposer.getChunkCount() > 0) {
+      this.snapshotComposer.finalizeWorldSnapshot(this.tickCount as any);
+    }
   }
 }
 
