@@ -41,7 +41,7 @@ export interface LineageNode {
   generation: number;
   birthTick: number;                 // Sim-tick based, not wall-clock
   deathTick?: number;
-  parentLineageHashes: [string, string] | [string];  // Two parents for descendants
+  parentLineageHashes: string[];     // Array of parent lineage hashes (0 for founder, 1-2 for descendants)
   houseId: string;
   settlementId: string;
   archetypeSeed: number;             // For deterministic archetype generation
@@ -278,11 +278,14 @@ export class NPCCoupleEligibilityEngine {
     // 1. Check settlement constraints first (population pressure cap)
     const pressure = this.calculatePopulationPressure(settlement, tick);
     if (!pressure.canSpawn) {
+      let rejectionReason: PairEligibilityResult['rejectionReason'] = 'pressure_too_high';
+      if (pressure.limitingFactor === 'capacity') {
+        rejectionReason = 'settlement_full';
+      }
       return {
         eligible: false,
         lineageHash: this.generateLineageHash(npcA.id, npcB.id, tick, 'rejected'),
-        rejectionReason: pressure.limitingFactor === 'capacity' || pressure.limitingFactor === 'settlement_full' 
-          ? 'settlement_full' : 'pressure_too_high',
+        rejectionReason,
         pressureAtDecision: pressure,
       };
     }
