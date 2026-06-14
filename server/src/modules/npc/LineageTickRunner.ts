@@ -46,13 +46,15 @@ export class LineageTickRunner {
       try {
         created.push(this.lineageManager.createDescendant(candidate.parentA, candidate.parentB, candidate.houseId, settlement, birthTick));
       } catch (error) {
+        const reason = reasonFrom(error);
+        if (!reason.startsWith('npc_pair_not_eligible:')) throw error;
         skipped.push(Object.freeze({
           parentAId: candidate.parentA.id,
           parentBId: candidate.parentB.id,
           houseId: candidate.houseId,
           settlementId: settlement.id,
           tick: birthTick,
-          reason: reasonFrom(error),
+          reason,
         }));
       }
     }
