@@ -16,6 +16,7 @@ import {
   deriveCanonicalLayerSeed,
   type CanonicalLayerSeedResult,
 } from './CanonicalLayerSeed.js';
+import { deriveCanonicalWorldgenSeedSignals } from './CanonicalLayerSeedSignals.js';
 import type {
   WorldBrainCanonicalStatePort,
   WorldBrainDelta,
@@ -146,10 +147,16 @@ export class RuntimeWorldBrainStatePort implements WorldBrainCanonicalStatePort 
   registerChunk(chunkKey: ChunkKey): void {
     this.activeChunks.add(chunkKey);
     if (!this.layerStates.has(chunkKey)) {
+      const signals = deriveCanonicalWorldgenSeedSignals({
+        worldSeed: this.options.worldSeed,
+        chunkKey,
+        activationTick: this.currentTick,
+      });
       const seed = deriveCanonicalLayerSeed({
         worldSeed: this.options.worldSeed,
         chunkKey,
         activationTick: this.currentTick,
+        signals,
       });
       this.seedRecords.set(chunkKey, seed);
       this.layerStates.set(chunkKey, iareLayersToChunkLayerState(seed.layers));
