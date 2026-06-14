@@ -410,8 +410,15 @@ export function createGLBUploadRouter(dbParam?: any): Router {
     }
   });
 
+  const subscriptionStatusLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
   // ── Check Subscription Status ──────────────────────────────────────────────
-  router.get("/subscription-status", authMiddleware, async (req: Request, res: Response) => {
+  router.get("/subscription-status", subscriptionStatusLimiter, authMiddleware, async (req: Request, res: Response) => {
     const playerId = getAuthenticatedPlayerId(req);
     if (!playerId) return res.status(401).json({ error: "Authentication required" });
 
