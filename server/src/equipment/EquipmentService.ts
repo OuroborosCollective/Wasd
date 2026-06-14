@@ -2,7 +2,7 @@
  * EQUIPMENT SERVICE
  *
  * Server-authoritative equipment service with staged inventory/equipment transactions.
- * Deterministic: No Date.now(), no Math.random().
+ * Uses explicit runtime inputs only; no ambient clock or entropy sources.
  */
 
 import { getInventoryService as defaultGetInventoryService, createPersistedPlayerInventoryState } from "../inventory/inventoryRuntime.js";
