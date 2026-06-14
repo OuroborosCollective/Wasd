@@ -188,6 +188,7 @@ export {
   type WorldStateProviderSlice,
   type WorldStateProvider,
   type TickContextWorldState,
+  type WorldTickThinShellOptions,
 } from './WorldTickThinShell.js';
 
 // Deterministic Event Factory (ARE-RUNTIME-TRUTH)
@@ -230,6 +231,27 @@ export {
   type WorldBrainReplaySink,
   type WorldBrainTickSystemOptions,
 } from './WorldBrainTickSystem.js';
+
+// Phase 11: WorldBrain runtime port wiring
+export {
+  RuntimeWorldBrainStatePort,
+  LayerPersistenceWorldBrainReplaySink,
+  chunkLayerStateToIARELayers,
+  iareLayersToChunkLayerState,
+  type RuntimeWorldBrainStatePortOptions,
+} from './WorldBrainRuntimePort.js';
+
+// Phase 11: Canonical Layer Seed Truth
+export {
+  CANONICAL_LAYER_SEED_VERSION,
+  DEFAULT_ARELORIA_WORLD_SEED,
+  deriveCanonicalLayerSeed,
+  canonicalLayerSeedHash,
+  resolveCanonicalWorldSeed,
+  zeroStateHash,
+  type CanonicalLayerSeedInput,
+  type CanonicalLayerSeedResult,
+} from './CanonicalLayerSeed.js';
 
 // Phase 11: OuroborosTickSystem - Ouroboros autonomous agent integration
 export {

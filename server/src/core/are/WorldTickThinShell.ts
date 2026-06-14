@@ -16,6 +16,8 @@ import { SnapshotComposer } from "./SnapshotComposer.js";
 import { LayerPersistenceQueue, layerPersistenceQueue } from "./LayerPersistenceQueue.js";
 import { registerCoreTickSystems } from "./CoreTickSystemRegistration.js";
 import { stableSort } from "./DeterministicEventFactory.js";
+import { coerceChunkKey } from "./types.js";
+import type { CanonicalLayerSeedResult } from "./CanonicalLayerSeed.js";
 import {
   SnapshotComposerWorldBrainSink,
   registerWorldBrainTickSystem,
@@ -69,6 +71,10 @@ export interface ThinShellWorldState extends TickContextWorldState {}
 
 export type ThinShellWorldStateProvider = () => WorldStateProviderSlice;
 
+export interface WorldTickThinShellOptions {
+  readonly worldSeed?: string | number | null;
+}
+
 const EMPTY_WORLD_STATE: ThinShellWorldState = Object.freeze({
   npcs: Object.freeze([]),
   players: Object.freeze([]),
@@ -117,10 +123,10 @@ export class WorldTickThinShell {
   /** ARE-RUNTIME-TRUTH: Registry of world state providers - MUST have at least one */
   private worldStateProviders = new Map<string, WorldStateProvider>();
 
-  constructor() {
+  constructor(options: WorldTickThinShellOptions = {}) {
     this.snapshotComposer = new SnapshotComposer();
     this.persistenceQueue = layerPersistenceQueue;
-    this.worldBrainState = new RuntimeWorldBrainStatePort();
+    this.worldBrainState = new RuntimeWorldBrainStatePort({ worldSeed: options.worldSeed });
 
     registerCoreTickSystems();
     this.registerWorldBrainRuntimeSystem();
@@ -271,11 +277,15 @@ export class WorldTickThinShell {
   }
 
   registerChunk(chunkKey: string): void {
-    this.worldBrainState.registerChunk(chunkKey as any);
+    this.worldBrainState.registerChunk(coerceChunkKey(chunkKey));
   }
 
   unregisterChunk(chunkKey: string): void {
-    this.worldBrainState.unregisterChunk(chunkKey as any);
+    this.worldBrainState.unregisterChunk(coerceChunkKey(chunkKey));
+  }
+
+  getWorldBrainSeedRecord(chunkKey: string): CanonicalLayerSeedResult | null {
+    return this.worldBrainState.getCanonicalSeedRecord(coerceChunkKey(chunkKey));
   }
 
   getTickCount(): number {

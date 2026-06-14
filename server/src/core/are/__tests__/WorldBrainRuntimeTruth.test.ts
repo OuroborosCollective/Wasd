@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { checksumKappaLayers } from '../KappaLayers.js';
 import { WorldTickThinShell } from '../WorldTickThinShell.js';
 
 function registerProvider(shell: WorldTickThinShell): void {
@@ -15,11 +16,15 @@ function registerProvider(shell: WorldTickThinShell): void {
 
 describe('WorldBrain runtime truth wiring', () => {
   it('runs WorldBrain through registry ports into snapshot and persistence sinks', () => {
-    const shell = new WorldTickThinShell();
+    const shell = new WorldTickThinShell({ worldSeed: 'runtime-truth-seed' });
     registerProvider(shell);
     shell.registerChunk('0:0');
 
+    const seedRecord = shell.getWorldBrainSeedRecord('0:0');
     const queuedBefore = shell.getPersistenceStats().queuedEvents;
+
+    expect(seedRecord).not.toBeNull();
+    expect(Number(checksumKappaLayers(seedRecord!.layers))).toBe(6500);
 
     shell.tick();
 
@@ -34,10 +39,11 @@ describe('WorldBrain runtime truth wiring', () => {
   });
 
   it('does not require the legacy WorldBrainScheduler direct tick path', () => {
-    const shell = new WorldTickThinShell();
+    const shell = new WorldTickThinShell({ worldSeed: 'runtime-truth-seed' });
     registerProvider(shell);
     shell.registerChunk('2:3');
 
+    expect(shell.getWorldBrainSeedRecord('2:3')).not.toBeNull();
     expect(() => shell.tick()).not.toThrow();
     expect(shell.getWorldBrainSnapshot().active_chunks).toEqual(['2:3']);
   });
