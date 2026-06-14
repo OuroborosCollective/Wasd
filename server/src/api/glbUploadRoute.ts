@@ -342,8 +342,16 @@ export function createGLBUploadRouter(dbParam?: any): Router {
     }
   });
 
+  const marketplaceBuyRateLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 10, // limit each IP to 10 buy attempts per minute
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many purchase attempts, please try again shortly." },
+  });
+
   // ── Buy from Marketplace (active-truth-path: transfers Matrix Energy) ───────
-  router.post("/marketplace/buy", authMiddleware, async (req: Request, res: Response) => {
+  router.post("/marketplace/buy", authMiddleware, marketplaceBuyRateLimiter, async (req: Request, res: Response) => {
     const buyerId = getAuthenticatedPlayerId(req);
     if (!buyerId) return res.status(401).json({ error: "Authentication required" });
 
