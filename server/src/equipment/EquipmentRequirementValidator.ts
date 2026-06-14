@@ -2,7 +2,7 @@
  * EQUIPMENT REQUIREMENT VALIDATOR
  *
  * Server-side, deterministic validation for authored equipment requirements.
- * No Date.now(), no Math.random(), no client truth.
+ * Uses explicit server skill state only; no ambient clock, entropy, or client truth.
  */
 
 import type { PlayerSkillState, SkillId } from "../skills/SkillTypes.js";
