@@ -245,13 +245,18 @@ async function purchaseProduct(productId: string) {
   }
 
   try {
-    const res = await fetch("/api/paypal/create-order", {
+    // Use /api/finance/paypal/checkout (mounted at /api/finance)
+    const returnUrl = `${window.location.origin}/shop?payment=success`;
+    const cancelUrl = `${window.location.origin}/shop?payment=cancelled`;
+    const res = await fetch("/api/finance/paypal/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        productId,
-        playerId: currentPlayerId,
-        playerName: currentPlayerName,
+        clientId: currentPlayerId,
+        displayName: currentPlayerName,
+        credits: productId, // productId maps to credits package
+        returnUrl,
+        cancelUrl,
       }),
     });
 

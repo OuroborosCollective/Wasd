@@ -56,6 +56,8 @@ import { installARELootIntegration } from "../modules/loot/installARELootIntegra
 import { installOracleChatBridge } from "../modules/oracle/index.js";
 import { initializeLivingLanguageSystem } from "./language/LivingLanguageInitializer.js";
 import { URL } from "node:url";
+import { createAssetBrainRouter } from "../api/assetBrainRoute.js";
+import { createGLBUploadRouter } from "../api/glbUploadRoute.js";
 
 const currentDir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 
@@ -228,6 +230,8 @@ export class ServerBootstrap {
     app.use("/api/manifest", createManifestResyncRouter(tick));
     app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());
     app.use("/api/are-shadow", areShadowLogRouter());
+    app.use("/api/asset-brain", createAssetBrainRouter());
+    app.use("/api/glb", createGLBUploadRouter());
     app.use("/api/sovereign/deploy", adminRateLimiter, adminAuthMiddleware, sovereignDeployRouter(tick));
     const monitorStream = new PlaytesterMonitorStream(httpServer, (options) => tick.buildPlaytesterMonitorPayload(options));
     monitorStream.start();
