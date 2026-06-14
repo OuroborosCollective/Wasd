@@ -10,25 +10,26 @@
  * This avoids fake success and partial economy/ownership commits.
  */
 
-import { Router, Request, Response } from "express";
-import express from "express";
+import express, { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import { db as dbInstance } from "../core/Database.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
 function getAuthenticatedPlayerId(req: Request): string | null {
-  return (req as any).userId || (req as any).playerId || null;
+  return (req as Request & { userId?: string; playerId?: string }).userId ||
+    (req as Request & { userId?: string; playerId?: string }).playerId ||
+    null;
 }
 
-function disabledMutation(_req: Request, res: Response) {
-  return res.status(503).json({
+function disabledMutation(_req: Request, res: Response): void {
+  res.status(503).json({
     success: false,
     code: "GLB_MUTATIONS_DISABLED",
     error: "GLB mutating endpoints are disabled until transaction-safe marketplace and placement writes are deployed.",
   });
 }
 
-export function createGLBUploadRouter(dbParam?: any): Router {
+export function createGLBUploadRouter(dbParam?: { query: (text: string, params?: unknown[]) => Promise<{ rows: unknown[] }> }): Router {
   const db = dbParam || dbInstance;
   const router = Router();
 
@@ -49,10 +50,12 @@ export function createGLBUploadRouter(dbParam?: any): Router {
     message: { error: "Too many GLB write attempts, please try again shortly." },
   });
 
-  // Authenticated read: user's own models.
   router.get("/my-models", readLimiter, authMiddleware, async (req: Request, res: Response) => {
     const playerId = getAuthenticatedPlayerId(req);
-    if (!playerId) return res.status(401).json({ error: "Authentication required" });
+    if (!playerId) {
+      res.status(401).json({ error: "Authentication required" });
+      return;
+    }
 
     try {
       const result = await db.query(
@@ -60,9 +63,9 @@ export function createGLBUploadRouter(dbParam?: any): Router {
          FROM player_glb_models WHERE player_id = $1 ORDER BY created_at DESC`,
         [playerId]
       );
-      return res.json({ models: result.rows });
+      res.json({ models: result.rows });
     } catch {
-      return res.json({ models: [] });
+      res.json({ models: [] });
     }
   });
 
@@ -76,7 +79,6 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   router.post("/marketplace/buy", writeLimiter, authMiddleware, disabledMutation);
   router.delete("/:modelId", writeLimiter, authMiddleware, disabledMutation);
 
-  // Public read-only: placed models for a player/land owner.
   router.get("/land/:playerId", readLimiter, async (req: Request, res: Response) => {
     const { playerId } = req.params;
     try {
@@ -88,13 +90,12 @@ export function createGLBUploadRouter(dbParam?: any): Router {
          WHERE p.player_id = $1`,
         [playerId]
       );
-      return res.json({ placed: result.rows });
+      res.json({ placed: result.rows });
     } catch {
-      return res.json({ placed: [] });
+      res.json({ placed: [] });
     }
   });
 
-  // Public read-only: marketplace browse.
   router.get("/marketplace", readLimiter, async (req: Request, res: Response) => {
     const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
     const limit = 20;
@@ -111,16 +112,18 @@ export function createGLBUploadRouter(dbParam?: any): Router {
          LIMIT $1 OFFSET $2`,
         [limit, offset]
       );
-      return res.json({ listings: result.rows, page, limit });
+      res.json({ listings: result.rows, page, limit });
     } catch {
-      return res.json({ listings: [], page, limit });
+      res.json({ listings: [], page, limit });
     }
   });
 
-  // Authenticated read: subscription and Matrix Energy status.
   router.get("/subscription-status", readLimiter, authMiddleware, async (req: Request, res: Response) => {
     const playerId = getAuthenticatedPlayerId(req);
-    if (!playerId) return res.status(401).json({ error: "Authentication required" });
+    if (!playerId) {
+      res.status(401).json({ error: "Authentication required" });
+      return;
+    }
 
     try {
       const result = await db.query(
@@ -128,25 +131,28 @@ export function createGLBUploadRouter(dbParam?: any): Router {
          FROM players WHERE id=$1`,
         [playerId]
       );
-      const player = result.rows[0];
-      if (!player) return res.status(404).json({ error: "Player not found" });
+      const player = result.rows[0] as { glb_enabled?: boolean; glb_subscription_expires?: string | Date | null; matrix_energy?: number } | undefined;
+      if (!player) {
+        res.status(404).json({ error: "Player not found" });
+        return;
+      }
 
       const expires = player.glb_subscription_expires
         ? new Date(player.glb_subscription_expires)
         : null;
-      const active = player.glb_enabled && expires && expires > new Date();
+      const active = Boolean(player.glb_enabled && expires && expires > new Date());
       const daysLeft = active && expires
         ? Math.ceil((expires.getTime() - Date.now()) / 86400000)
         : 0;
 
-      return res.json({
+      res.json({
         active,
         expires: expires?.toISOString() || null,
         daysLeft,
         matrixEnergy: player.matrix_energy || 0,
       });
     } catch {
-      return res.json({ active: false, daysLeft: 0, matrixEnergy: 0 });
+      res.json({ active: false, daysLeft: 0, matrixEnergy: 0 });
     }
   });
 
