@@ -22,6 +22,12 @@ export type LineageJournalRecord = LineageBirthEvent & {
   readonly journalHash: string;
 };
 
+interface StoredLineageJournalRecord {
+  readonly event: LineageBirthEvent;
+  readonly previousJournalHash: string;
+  readonly journalHash: string;
+}
+
 export const NPC_LINEAGE_GAME_DATA_PATH = ['npc', 'lineage-birth-events.json'].join('/');
 export const NPC_LINEAGE_JOURNAL_GENESIS_HASH = 'GENESIS';
 
@@ -117,11 +123,15 @@ function compareRecords(a: LineageBirthEvent, b: LineageBirthEvent): number {
   return recordKey(a).localeCompare(recordKey(b));
 }
 
-function parseRecords(raw: string | null): LineageBirthEvent[] {
+function parseStoredRecords(raw: string | null): StoredLineageJournalRecord[] {
   if (!raw || raw.trim().length === 0) return [];
   const parsed: unknown = JSON.parse(raw);
   if (!Array.isArray(parsed)) throw new Error('npc_lineage_event_store_must_be_array');
-  return parsed.map(stableRecord);
+  return parsed.map((entry) => ({
+    event: stableRecord(entry),
+    previousJournalHash: isRecord(entry) ? stringValue(entry.previousJournalHash) : '',
+    journalHash: isRecord(entry) ? stringValue(entry.journalHash) : '',
+  }));
 }
 
 export function computeLineageJournalHash(event: LineageBirthEvent, previousJournalHash: string): string {
@@ -157,7 +167,21 @@ export function readLineageJournalRecords(
   provider: NpcLineageStorageProvider,
   target: string = NPC_LINEAGE_GAME_DATA_PATH
 ): LineageJournalRecord[] {
-  return buildLineageJournalRecords(parseRecords(provider.read(target)));
+  const stored = parseStoredRecords(provider.read(target));
+  const rebuilt = buildLineageJournalRecords(stored.map((entry) => entry.event));
+
+  for (let index = 0; index < stored.length; index += 1) {
+    const expected = rebuilt[index];
+    const actual = stored[index];
+    if (actual.previousJournalHash && actual.previousJournalHash !== expected.previousJournalHash) {
+      throw new Error(`npc_lineage_previous_journal_hash_mismatch:${index}`);
+    }
+    if (actual.journalHash && actual.journalHash !== expected.journalHash) {
+      throw new Error(`npc_lineage_journal_hash_mismatch:${index}`);
+    }
+  }
+
+  return rebuilt;
 }
 
 export class NpcLineageGameDataWriter implements NpcLineageSink {
