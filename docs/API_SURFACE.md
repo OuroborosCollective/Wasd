@@ -71,8 +71,8 @@ All mutating routes require `authMiddleware` for identity verification. Read-onl
 | `GET /api/asset-brain/my-specs` | GET | Yes | User's specifications |
 | `GET /api/asset-brain/specs/:id` | GET | Yes | Specification details |
 | `GET /api/asset-brain/variants/:id` | GET | Yes | Specification variants |
-| `GET /api/asset-brain/search` | GET | Yes | Search specifications |
-| `GET /api/asset-brain/library` | GET | Yes | Browse asset library |
+| `GET /api/asset-brain/search` | GET | No | Search specifications (public read-only) |
+| `GET /api/asset-brain/library` | GET | No | Browse asset library (public read-only) |
 | `POST /api/asset-brain/batch` | POST | Yes | Start batch job |
 | `GET /api/asset-brain/batch/:id` | GET | Yes | Batch job status |
 

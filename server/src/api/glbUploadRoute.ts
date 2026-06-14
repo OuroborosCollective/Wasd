@@ -18,6 +18,7 @@
  */
 
 import { Router, Request, Response } from "express";
+import express from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -75,6 +76,10 @@ function getAuthenticatedPlayerId(req: Request): string | null {
 export function createGLBUploadRouter(dbParam?: any): Router {
   const db = dbParam || dbInstance;
   const router = Router();
+
+  // JSON body parser - handles POST /marketplace/list, /marketplace/buy, /place which need JSON body
+  // multer handles multipart/form-data for file uploads separately
+  router.use(express.json({ limit: '1mb' }));
 
   const glbUploadRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes

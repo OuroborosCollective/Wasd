@@ -67,11 +67,12 @@ const EXPECTED_PUBLIC_ROUTES = [
   { path: '/api/vote', method: 'GET', expectStatus: 200, description: 'Vote system' },
   { path: '/api/glb/marketplace', method: 'GET', expectStatus: 200, description: 'GLB marketplace (public read-only)' },
   { path: '/api/glb/land/test-player', method: 'GET', expectStatus: 200, description: 'GLB land models (public read-only)' },
+  { path: '/api/asset-brain/library', method: 'GET', expectStatus: 200, description: 'Asset brain library (public read-only)' },
+  { path: '/api/asset-brain/search', method: 'GET', expectStatus: 200, description: 'Asset brain search (public read-only)' },
 ];
 
 // Routes that SHOULD be mounted but require auth (expect 401/403 without auth)
 const EXPECTED_AUTH_ROUTES = [
-  { path: '/api/asset-brain/library', method: 'GET', expectStatus: 401, description: 'Asset brain library (auth required)' },
   { path: '/api/glb/my-models', method: 'GET', expectStatus: 401, description: 'GLB my-models (auth required)' },
   { path: '/api/glb/upload', method: 'POST', expectStatus: 401, description: 'GLB upload (auth required)' },
   { path: '/api/glb/subscription-status', method: 'GET', expectStatus: 401, description: 'GLB subscription-status (auth required)' },
