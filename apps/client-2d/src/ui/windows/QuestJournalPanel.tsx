@@ -141,7 +141,7 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
                 disabled={claimingQuestId === quest.id}
                 onClick={() => void claimReward(quest.id)}
               >
-                {claimingQuestId === quest.id ? "Claiming…" : "Reward abholen"}
+                {claimingQuestId === quest.id ? "Claiming…" : "Claim Reward"}
               </button>
             )}
           </article>
