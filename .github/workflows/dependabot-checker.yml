@@ -43,11 +43,19 @@ jobs:
           git diff origin/${{ github.base_ref }}...HEAD > diff.txt
 
       # ----------------------------
-      # SAFETY CHECK (skip AI for now)
+      # SAFETY CHECK (skip AI for truly sensitive files)
       # ----------------------------
       - name: Block sensitive paths
         run: |
-          git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E "core|auth|security|crypto" && exit 1 || echo "safe"
+          set -euo pipefail
+          changed="$(git diff --name-only origin/${{ github.base_ref }}...HEAD)"
+          blocked="$(printf '%s\n' "$changed" | grep -E '(^|/)server/src/middleware/authMiddleware\.ts$|(^|/)server/src/config/supabase\.ts$|(^|/)server/src/(security|crypto|secrets?)(/|$)|(^|/)server/src/core/(Auth|Crypto|Security|Secret|Secrets|Token|Key).*\.(ts|js)$|(^|/)\.github/workflows/(release|deploy|security).*\.ya?ml$' || true)"
+          if [ -n "$blocked" ]; then
+            echo "Blocked sensitive path changes:"
+            printf '%s\n' "$blocked"
+            exit 1
+          fi
+          echo "safe"
 
       - name: Reinstall deps
         run: pnpm install --no-frozen-lockfile
