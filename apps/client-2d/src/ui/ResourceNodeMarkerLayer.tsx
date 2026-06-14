@@ -1,17 +1,3 @@
-/**
- * Resource Node Marker Layer
- *
- * Renders interactive resource node markers on top of the 2D world canvas.
- * Each marker is clickable/tappable and triggers a server-authoritative gather action.
- *
- * Rules:
- * - No Math.random() for marker positioning
- * - No Date.now() for state
- * - Server-authoritative: client only sends gather request, server decides outcome
- * - Markers positioned using server-provided world coordinates
- * - After successful gather, refetches snapshot to update UI
- */
-
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useLiveGameplaySnapshot } from "../game/useLiveGameplaySnapshot";
 import { dispatchGather, type GameplayWorldPosition } from "../game/gameplayActions";
@@ -39,6 +25,19 @@ const KIND_COLORS: Record<string, string> = {
   ore: "var(--st-gold, #f5c842)",
   fish_spot: "var(--st-aether, #00e5ff)",
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function surfaceText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function surfaceNumber(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 function ResourceMarker({ nodeId, title, kind, x, y, status, onGather }: ResourceMarkerProps) {
   const [gathering, setGathering] = useState(false);
@@ -105,13 +104,10 @@ function ResourceMarker({ nodeId, title, kind, x, y, status, onGather }: Resourc
 }
 
 interface Props {
-  /** Called when gather succeeds, to trigger snapshot refetch */
   onGatherSuccess?: () => void;
-  /** Optional bridge to the authoritative/self player world position. */
   getPlayerPosition?: () => GameplayWorldPosition | null;
 }
 
-/** Map server reason codes to human-readable messages for mobile players. */
 function humanReadableGatherError(reason?: string, requiredTool?: string): string {
   switch (reason) {
     case "missing_player_position":
@@ -144,7 +140,6 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [lastError, setLastError] = useState<string | null>(null);
 
-  // Track container size for coordinate mapping
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -163,6 +158,9 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
   }, []);
 
   const resources = snapshot.resources ?? [];
+  const worldSurface = snapshot.worldSurface;
+  const surfaceGroups = Array.isArray(worldSurface?.groups) ? worldSurface.groups.filter(isRecord) : [];
+  const surfacePoints = Array.isArray(worldSurface?.points) ? worldSurface.points.filter(isRecord) : [];
 
   const handleGather = useCallback(async (nodeId: string) => {
     const playerPosition = getPlayerPosition?.() ?? readPlayerPositionBridge();
@@ -178,10 +176,7 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
       setLastError(msg);
       window.dispatchEvent(
         new CustomEvent("wasd:toast", {
-          detail: {
-            type: "error",
-            message: msg,
-          },
+          detail: { type: "error", message: msg },
         }),
       );
     } else {
@@ -190,31 +185,21 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
     }
   }, [getPlayerPosition, snapshot.serverTick, onGatherSuccess]);
 
-  // Map world coordinates to screen coordinates
-  // The world uses isometric projection, we approximate screen position
-  // based on the container size and a fixed world-to-screen scale
   function worldToScreen(worldX: number, worldY: number): { screenX: number; screenY: number } {
     const { width, height } = containerSize;
     if (width === 0 || height === 0) return { screenX: worldX, screenY: worldY };
 
-    // Approximate isometric projection
-    // World origin at (460, 500) maps near the center of the screen
     const worldOriginX = 460;
     const worldOriginY = 500;
-    const scale = 1.2; // Adjust based on your world scale
-
-    // Isometric transform: screenX = (worldX - worldY) * scale + centerX
-    //                     screenY = (worldX + worldY) * scale * 0.5 + centerY
+    const scale = 1.2;
     const isoX = (worldX - worldY) * scale * 0.5;
     const isoY = (worldX + worldY) * scale * 0.25;
-
     const screenX = width / 2 + isoX - (worldOriginX - worldOriginY) * scale * 0.5;
     const screenY = height / 2 + isoY - (worldOriginX + worldOriginY) * scale * 0.25;
-
     return { screenX, screenY };
   }
 
-  if (resources.length === 0 && !lastError) {
+  if (resources.length === 0 && surfaceGroups.length === 0 && surfacePoints.length === 0 && !lastError) {
     return null;
   }
 
@@ -222,13 +207,64 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
     <div
       ref={containerRef}
       data-testid="resource-node-marker-layer"
-      style={{
-        position: "absolute",
-        inset: 0,
-        pointerEvents: "none",
-        zIndex: 50,
-      }}
+      style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 50 }}
     >
+      {surfaceGroups.map((group, index) => {
+        const id = surfaceText(group.id);
+        if (!id) return null;
+        const title = surfaceText(group.title) || id;
+        return (
+          <div
+            key={`surface-group:${id}`}
+            data-testid="world-surface-house-marker"
+            style={{
+              position: "absolute",
+              left: 18,
+              top: 18 + index * 24,
+              color: "#f5c842",
+              background: "rgba(4, 8, 14, 0.72)",
+              border: "1px solid rgba(245, 200, 66, 0.35)",
+              borderRadius: 8,
+              padding: "3px 8px",
+              font: "11px/1.2 ui-monospace, monospace",
+              whiteSpace: "nowrap",
+            }}
+            title={`Lineage house ${id}`}
+          >
+            🏠 {title}
+          </div>
+        );
+      })}
+
+      {surfacePoints.map((point) => {
+        const id = surfaceText(point.id);
+        if (!id) return null;
+        const { screenX, screenY } = worldToScreen(surfaceNumber(point.x), surfaceNumber(point.y));
+        return (
+          <div
+            key={`surface-point:${id}`}
+            data-testid="world-surface-node-marker"
+            style={{
+              position: "absolute",
+              left: `${screenX}px`,
+              top: `${screenY}px`,
+              transform: "translate(-50%, -100%)",
+              color: "#f5f7ff",
+              background: "rgba(4, 8, 14, 0.78)",
+              border: "1px solid rgba(0, 229, 255, 0.4)",
+              borderRadius: 10,
+              padding: "4px 7px",
+              font: "10px/1.2 ui-monospace, monospace",
+              boxShadow: "0 0 12px rgba(0, 229, 255, 0.18)",
+              whiteSpace: "nowrap",
+            }}
+            title={`Lineage node ${id}`}
+          >
+            ✦ NPC
+          </div>
+        );
+      })}
+
       {resources.map((node) => {
         const { screenX, screenY } = worldToScreen(node.position.x, node.position.y);
         return (
