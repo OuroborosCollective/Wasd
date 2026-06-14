@@ -186,5 +186,9 @@ function layerKeyToChunkLayerIndex(layer: keyof IARELogicLayers): ChunkLayerInde
     case 'dungeon': return ChunkLayerIndex.DUNGEON;
     case 'fear': return ChunkLayerIndex.FEAR;
     case 'cycles': return ChunkLayerIndex.RESURRECTION;
+    default: {
+      const unreachable: never = layer;
+      throw new Error(`Unsupported world-brain layer: ${String(unreachable)}`);
+    }
   }
 }
