@@ -185,6 +185,14 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
     }
   }, [getPlayerPosition, snapshot.serverTick, onGatherSuccess]);
 
+  function lineageToScreen(surfaceX: number, surfaceY: number): { screenX: number; screenY: number } {
+    const { width, height } = containerSize;
+    const scale = 1.2;
+    const isoX = (surfaceX - surfaceY) * scale * 0.5;
+    const isoY = (surfaceX + surfaceY) * scale * 0.25;
+    return { screenX: width / 2 + isoX, screenY: height / 2 + isoY };
+  }
+
   function worldToScreen(worldX: number, worldY: number): { screenX: number; screenY: number } {
     const { width, height } = containerSize;
     if (width === 0 || height === 0) return { screenX: worldX, screenY: worldY };
@@ -239,7 +247,7 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
       {surfacePoints.map((point) => {
         const id = surfaceText(point.id);
         if (!id) return null;
-        const { screenX, screenY } = worldToScreen(surfaceNumber(point.x), surfaceNumber(point.y));
+        const { screenX, screenY } = lineageToScreen(surfaceNumber(point.x), surfaceNumber(point.y));
         return (
           <div
             key={`surface-point:${id}`}
