@@ -29,7 +29,9 @@ import type {
   LiveGameplayNpcReputation,
   LiveGameplayNpcMemory,
   LiveGameplayNpcRumor,
+  LiveGameplayWorldSurface,
 } from "./LiveGameplaySnapshotTypes.js";
+import { EMPTY_LIVE_GAMEPLAY_WORLD_SURFACE } from "./LiveGameplaySnapshotTypes.js";
 import { RESOURCE_SELL_PRICES } from "../economy/ResourceSellPrices.js";
 import { calculateDynamicPrice } from "../economy/DemandPricing.js";
 import { createDefaultStatBlock } from "../equipment/EquipmentStatTypes.js";
@@ -55,6 +57,7 @@ export interface LiveGameplaySnapshotComposerDeps {
   readonly getNpcReputations?: (playerId: string) => readonly LiveGameplayNpcReputation[] | Promise<readonly LiveGameplayNpcReputation[]>;
   readonly getNpcMemories?: (playerId: string) => readonly LiveGameplayNpcMemory[] | Promise<readonly LiveGameplayNpcMemory[]>;
   readonly getNpcRumors?: (playerId: string) => readonly LiveGameplayNpcRumor[] | Promise<readonly LiveGameplayNpcRumor[]>;
+  readonly getWorldSurface?: (playerId: string, logicalIndex: number) => LiveGameplayWorldSurface | Promise<LiveGameplayWorldSurface>;
 }
 
 export class LiveGameplaySnapshotComposer {
@@ -69,28 +72,24 @@ export class LiveGameplaySnapshotComposer {
     ]);
 
     const wallet = await this.deps.getWallet(playerId);
-    
-    // Get world POIs if available, default to empty array
+    const safeLogicalIndex = this.safeIndex(logicalIndex);
+
     const worldPois = this.deps.getWorldPois
       ? await this.deps.getWorldPois(playerId)
       : [];
 
-    // Get vendor economy if available, default to empty vendors
     const vendorEconomy = this.deps.getVendorEconomy
       ? await this.deps.getVendorEconomy(playerId)
       : { vendors: [] };
 
-    // Get discovery stats if available
     const discoveryStats = this.deps.getDiscoveryStats
       ? await this.deps.getDiscoveryStats(playerId)
       : { discoveredPoiCount: 0, discoveredChunkCount: 0, visiblePoiCount: 0 };
 
-    // Get recent discoveries if available
     const recentDiscoveries = this.deps.getRecentDiscoveries
       ? await this.deps.getRecentDiscoveries(playerId)
       : [];
 
-    // Get camp NPCs and stocks if available
     const campNpcs = this.deps.getCampNpcs
       ? await this.deps.getCampNpcs()
       : [];
@@ -98,17 +97,14 @@ export class LiveGameplaySnapshotComposer {
       ? await this.deps.getCampStocks()
       : [];
 
-    // Get equipment stats if available, default to zero block
     const equipmentStats = this.deps.getEquipmentStats
       ? await this.deps.getEquipmentStats(playerId)
       : createDefaultStatBlock();
 
-    // Get processing stations if available
     const processingStations = this.deps.getProcessingStations
       ? await this.deps.getProcessingStations()
       : [];
 
-    // Get quest data if available
     const activeQuests = this.deps.getActiveQuests
       ? await this.deps.getActiveQuests(playerId)
       : [];
@@ -130,11 +126,14 @@ export class LiveGameplaySnapshotComposer {
     const npcRumors = this.deps.getNpcRumors
       ? await this.deps.getNpcRumors(playerId)
       : [];
+    const worldSurface = this.deps.getWorldSurface
+      ? await this.deps.getWorldSurface(playerId, safeLogicalIndex)
+      : EMPTY_LIVE_GAMEPLAY_WORLD_SURFACE;
 
     return Object.freeze({
       schemaVersion: "live-gameplay-snapshot.v1" as const,
       playerId,
-      logicalIndex: this.safeIndex(logicalIndex),
+      logicalIndex: safeLogicalIndex,
       tickRateHz: 10 as const,
       tickMs: 100 as const,
       inventory: Object.freeze([...inventory].sort((a, b) => a.itemId.localeCompare(b.itemId))),
@@ -157,6 +156,7 @@ export class LiveGameplaySnapshotComposer {
       npcReputations: Object.freeze([...npcReputations].sort((a, b) => a.npcId.localeCompare(b.npcId))),
       npcMemories: Object.freeze([...npcMemories].sort((a, b) => a.npcId.localeCompare(b.npcId))),
       npcRumors: Object.freeze([...npcRumors].sort((a, b) => a.rumorId.localeCompare(b.rumorId))),
+      worldSurface: Object.freeze(worldSurface),
     });
   }
 
@@ -165,28 +165,19 @@ export class LiveGameplaySnapshotComposer {
   }
 }
 
-/**
- * Create a default empty vendor economy snapshot.
- */
 export function createEmptyVendorEconomySnapshot(): LiveGameplayVendorEconomySnapshot {
   return Object.freeze({
     vendors: Object.freeze([]),
   });
 }
 
-/**
- * Build vendor economy snapshot from stock entries and sellable item IDs.
- * Used by the snapshot composition.
- */
 export function buildVendorEconomySnapshot(
   vendorId: string,
   vendorName: string,
   stockEntries: ReadonlyArray<{ itemId: string; quantity: number }>,
 ): LiveGameplayVendorEconomySnapshot {
-  // Get all sellable items
   const sellableItemIds = Object.keys(RESOURCE_SELL_PRICES);
 
-  // Build stock array (only items with quantity > 0)
   const stock = stockEntries
     .filter((entry) => entry.quantity > 0)
     .map((entry) => ({
@@ -195,7 +186,6 @@ export function buildVendorEconomySnapshot(
     }))
     .sort((a, b) => a.itemId.localeCompare(b.itemId));
 
-  // Build prices for all sellable items based on current stock
   const prices = sellableItemIds
     .map((itemId) => {
       const currentStock = stockEntries.find((e) => e.itemId === itemId)?.quantity ?? 0;

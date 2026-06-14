@@ -4,9 +4,11 @@
 
 import {
   EMPTY_LIVE_GAMEPLAY_SNAPSHOT,
-  normalizeLiveGameplaySnapshot,
-  type LiveGameplaySnapshot,
 } from "./liveGameplaySnapshot";
+import {
+  normalizeLiveGameplaySnapshotWithWorldSurface as normalizeLiveGameplaySnapshot,
+  type LiveGameplaySnapshotWithWorldSurface as LiveGameplaySnapshot,
+} from "./liveGameplayWorldSurfaceSnapshot";
 import { readPlayerPositionBridge } from "./PlayerPositionBridge";
 
 type Listener = () => void;
@@ -136,6 +138,7 @@ function projectComposerSnapshot(input: Record<string, unknown>): Partial<LiveGa
         title: prettifyId(String(slot.itemId ?? slot.slot ?? "empty")),
       })),
     },
+    worldSurface: input.worldSurface as LiveGameplaySnapshot["worldSurface"],
   };
 }
 
@@ -153,6 +156,7 @@ function mergeComposerIntoLegacy(
     resources: projected.resources ?? legacy.resources,
     inventory: projected.inventory ?? legacy.inventory,
     equipment: projected.equipment ?? legacy.equipment,
+    worldSurface: projected.worldSurface ?? legacy.worldSurface,
   };
 }
 
@@ -191,7 +195,7 @@ function pickSnapshotPayload(data: unknown): unknown {
 }
 
 export class LiveGameplayStore {
-  private snapshot: LiveGameplaySnapshot = EMPTY_LIVE_GAMEPLAY_SNAPSHOT;
+  private snapshot: LiveGameplaySnapshot = normalizeLiveGameplaySnapshot(EMPTY_LIVE_GAMEPLAY_SNAPSHOT);
   private readonly listeners = new Set<Listener>();
 
   getSnapshot(): LiveGameplaySnapshot {
@@ -199,7 +203,7 @@ export class LiveGameplayStore {
   }
 
   setSnapshot(next: unknown): void {
-    this.snapshot = normalizeLiveGameplaySnapshot(pickSnapshotPayload(next));
+    this.snapshot = normalizeLiveGameplaySnapshot(pickSnapshotPayload(next) as Partial<LiveGameplaySnapshot>);
     this.emit();
   }
 
@@ -258,8 +262,17 @@ export async function fetchGameplaySnapshot(
     );
     if (!response.ok) return null;
     const data = await response.json();
-    return normalizeLiveGameplaySnapshot(pickSnapshotPayload(data));
+    return normalizeLiveGameplaySnapshot(pickSnapshotPayload(data) as Partial<LiveGameplaySnapshot>);
   } catch {
     return null;
   }
+}
+
+export async function requestGameplaySnapshot(): Promise<LiveGameplaySnapshot> {
+  const snapshot = await fetchGameplaySnapshot();
+  if (snapshot) {
+    liveGameplayStore.setSnapshot(snapshot);
+    return liveGameplayStore.getSnapshot();
+  }
+  return liveGameplayStore.getSnapshot();
 }

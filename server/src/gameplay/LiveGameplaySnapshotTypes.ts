@@ -13,9 +13,6 @@
 
 import type { EquipmentStatBlock } from "../equipment/EquipmentStatTypes.js";
 
-/**
- * Quest objective progress for snapshot.
- */
 export interface LiveGameplayQuestObjective {
   readonly objectiveId: string;
   readonly title: string;
@@ -24,18 +21,12 @@ export interface LiveGameplayQuestObjective {
   readonly completed: boolean;
 }
 
-/**
- * Quest progress for snapshot.
- */
 export interface LiveGameplayQuestProgress {
   readonly questId: string;
   readonly state: "available" | "active" | "ready_to_complete" | "completed";
   readonly objectives: readonly LiveGameplayQuestObjective[];
 }
 
-/**
- * NPC dialogue state types.
- */
 export type LiveGameplayNpcDialogueState =
   | "quest_available"
   | "quest_active_missing_wood"
@@ -44,9 +35,6 @@ export type LiveGameplayNpcDialogueState =
   | "quest_ready_to_complete"
   | "quest_completed";
 
-/**
- * NPC dialogue for snapshot.
- */
 export interface LiveGameplayNpcDialogue {
   readonly npcId: string;
   readonly displayName: string;
@@ -57,9 +45,6 @@ export interface LiveGameplayNpcDialogue {
   readonly completedQuestIds: readonly string[];
 }
 
-/**
- * NPC reputation for snapshot.
- */
 export interface LiveGameplayNpcReputation {
   readonly npcId: string;
   readonly playerId: string;
@@ -67,14 +52,8 @@ export interface LiveGameplayNpcReputation {
   readonly completedQuestIds: readonly string[];
 }
 
-/**
- * Trust tier for NPC-player relationship.
- */
 export type LiveGameplayTrustTier = "hostile" | "cold" | "neutral" | "trusted" | "honored";
 
-/**
- * Rumor kinds for NPC memory system.
- */
 export type LiveGameplayNpcRumorKind =
   | "helped_village"
   | "reliable_supplier"
@@ -82,10 +61,6 @@ export type LiveGameplayNpcRumorKind =
   | "hostile_actor"
   | "trusted_worker";
 
-/**
- * NPC memory snapshot for server-authoritative display.
- * Exposes summary data without full raw history.
- */
 export interface LiveGameplayNpcMemory {
   readonly npcId: string;
   readonly playerId: string;
@@ -96,9 +71,6 @@ export interface LiveGameplayNpcMemory {
   readonly knownRumorCount: number;
 }
 
-/**
- * NPC rumor snapshot for server-authoritative display.
- */
 export interface LiveGameplayNpcRumor {
   readonly rumorId: string;
   readonly npcId: string;
@@ -146,39 +118,27 @@ export interface LiveGameplayWorldPoi {
   readonly y: number;
   readonly chunkX: number;
   readonly chunkZ: number;
-  /** Whether this POI has been discovered by the player (defaults to true for backward compat) */
   readonly discovered?: boolean;
 }
 
-/**
- * Discovery stats for map display.
- */
 export interface DiscoveryStats {
   readonly discoveredPoiCount: number;
   readonly discoveredChunkCount: number;
   readonly visiblePoiCount: number;
 }
 
-/**
- * Recently discovered POI for client feedback.
- */
 export interface RecentDiscovery {
   readonly poiId: string;
   readonly title: string;
   readonly type: string;
 }
 
-/**
- * Vendor stock entry for snapshot.
- */
 export interface LiveGameplayVendorStockItem {
   readonly itemId: string;
   readonly quantity: number;
+  readonly buyPrice?: number | null;
 }
 
-/**
- * Vendor price info for snapshot.
- */
 export interface LiveGameplayVendorPriceItem {
   readonly itemId: string;
   readonly unitPrice: number;
@@ -186,9 +146,6 @@ export interface LiveGameplayVendorPriceItem {
   readonly demandBand: "normal" | "stocked" | "oversupplied";
 }
 
-/**
- * Individual vendor economy info for snapshot.
- */
 export interface LiveGameplayVendorEconomy {
   readonly id: string;
   readonly name: string;
@@ -196,39 +153,20 @@ export interface LiveGameplayVendorEconomy {
   readonly prices: readonly LiveGameplayVendorPriceItem[];
 }
 
-/**
- * Vendor economy snapshot containing all vendor stock and pricing info.
- */
 export interface LiveGameplayVendorEconomySnapshot {
   readonly vendors: readonly LiveGameplayVendorEconomy[];
 }
 
-/**
- * Camp NPC activity state.
- */
 export type CampNpcActivity = "gathering" | "returning" | "depositing";
-
-/**
- * Camp NPC state.
- */
 export type CampNpcState = "idle" | "working" | "resting";
 
-/**
- * Camp NPC position.
- */
 export interface CampNpcPosition {
   readonly x: number;
   readonly y: number;
 }
 
-/**
- * Camp NPC type.
- */
 export type CampNpcType = "camp_woodcutter" | "camp_miner" | "camp_fisher";
 
-/**
- * Camp NPC snapshot for server-authoritative display.
- */
 export interface LiveGameplayCampNpc {
   readonly id: string;
   readonly type: CampNpcType;
@@ -241,28 +179,18 @@ export interface LiveGameplayCampNpc {
   readonly activityMessage: string;
 }
 
-/**
- * Camp stock item entry.
- */
 export interface LiveGameplayCampStockItem {
   readonly itemId: string;
   readonly quantity: number;
-  /** Buy price in coins, null if not buyable from camp */
   readonly buyPrice?: number | null;
 }
 
-/**
- * Camp stock snapshot for display.
- */
 export interface LiveGameplayCampStock {
   readonly poiId: string;
   readonly items: readonly LiveGameplayCampStockItem[];
   readonly lastUpdatedTick: number;
 }
 
-/**
- * Processing station snapshot for crafting UI.
- */
 export interface LiveGameplayProcessingStation {
   readonly id: string;
   readonly type: "campfire" | "furnace" | "workbench";
@@ -271,6 +199,20 @@ export interface LiveGameplayProcessingStation {
   readonly y: number;
   readonly interactionRadius: number;
 }
+
+export interface LiveGameplayWorldSurface {
+  readonly schemaVersion: "world-surface-model.v1";
+  readonly tick: number;
+  readonly groups: readonly unknown[];
+  readonly points: readonly unknown[];
+}
+
+export const EMPTY_LIVE_GAMEPLAY_WORLD_SURFACE: LiveGameplayWorldSurface = Object.freeze({
+  schemaVersion: "world-surface-model.v1",
+  tick: 0,
+  groups: Object.freeze([]),
+  points: Object.freeze([]),
+});
 
 export interface LiveGameplaySnapshot {
   readonly schemaVersion: "live-gameplay-snapshot.v1";
@@ -285,32 +227,20 @@ export interface LiveGameplaySnapshot {
   readonly wallet: LiveGameplayWallet;
   readonly worldPois: readonly LiveGameplayWorldPoi[];
   readonly vendorEconomy: LiveGameplayVendorEconomySnapshot;
-  /** Discovery stats for map display */
   readonly discoveryStats: DiscoveryStats;
-  /** Recently discovered POIs for client feedback */
   readonly recentDiscoveries: readonly RecentDiscovery[];
-  /** Camp NPCs at discovered gathering camp POIs */
   readonly campNpcs: readonly LiveGameplayCampNpc[];
-  /** Camp stock at discovered gathering camp POIs */
   readonly campStocks: readonly LiveGameplayCampStock[];
-  /** Aggregated equipment stats from all equipped items */
   readonly equipmentStats: EquipmentStatBlock;
-  /** Processing stations for crafting UI */
   readonly processingStations: readonly LiveGameplayProcessingStation[];
-  /** Active NPC quests for the player */
   readonly activeQuests: readonly LiveGameplayQuestProgress[];
-  /** Available NPC quests for the player */
   readonly availableQuests: readonly LiveGameplayQuestProgress[];
-  /** IDs of completed quests */
   readonly completedQuestIds: readonly string[];
-  /** NPC dialogues for nearby NPCs */
   readonly npcDialogues: readonly LiveGameplayNpcDialogue[];
-  /** NPC reputations for the player */
   readonly npcReputations: readonly LiveGameplayNpcReputation[];
-  /** NPC memory snapshots for the player */
   readonly npcMemories: readonly LiveGameplayNpcMemory[];
-  /** NPC rumor snapshots for the player */
   readonly npcRumors: readonly LiveGameplayNpcRumor[];
+  readonly worldSurface: LiveGameplayWorldSurface;
 }
 
 export interface GatherResult {
