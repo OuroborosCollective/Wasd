@@ -55,6 +55,24 @@ function firstFreeNearRoad(input: { readonly chunkTiles: number; readonly road: 
   return null;
 }
 
+function firstFreeNearAnyRoad(input: { readonly chunkTiles: number; readonly roadKeys: readonly string[]; readonly occupied: Set<string>; readonly startIndex: number; readonly widthTiles: number; readonly depthTiles: number }): { tileX: number; tileZ: number; road: string } | null {
+  for (let n = 0; n < input.roadKeys.length; n += 1) {
+    const road = input.roadKeys[(input.startIndex + n) % input.roadKeys.length];
+    for (const offset of [2, 3, 4, 5]) {
+      const pos = firstFreeNearRoad({
+        chunkTiles: input.chunkTiles,
+        road,
+        occupied: input.occupied,
+        offset,
+        widthTiles: input.widthTiles,
+        depthTiles: input.depthTiles,
+      });
+      if (pos) return { ...pos, road };
+    }
+  }
+  return null;
+}
+
 /**
  * Settlement lots are derived from road cells. The algorithm is bounded by the small road-cell map,
  * reserves occupied cells eagerly and returns O(1) collision maps to downstream systems.
@@ -70,10 +88,10 @@ export function generateSettlementPlan(input: { readonly chunkTiles: number; rea
     const buildingType = LOT_TYPES[i % LOT_TYPES.length];
     const widthTiles = buildingType === "inn" || buildingType === "blacksmith" ? 3 : 2;
     const depthTiles = buildingType === "inn" ? 3 : 2;
-    const road = roadKeys[(i * 3 + input.rng.pickIndex(roadKeys.length)) % roadKeys.length];
-    const pos = firstFreeNearRoad({ chunkTiles: input.chunkTiles, road, occupied, offset: 2, widthTiles, depthTiles }) ?? firstFreeNearRoad({ chunkTiles: input.chunkTiles, road, occupied, offset: 3, widthTiles, depthTiles });
+    const startIndex = (i * 3 + input.rng.pickIndex(roadKeys.length)) % roadKeys.length;
+    const pos = firstFreeNearAnyRoad({ chunkTiles: input.chunkTiles, roadKeys, occupied, startIndex, widthTiles, depthTiles });
     if (!pos) continue;
-    lots.push(lot(`lot_${i}_${buildingType}`, buildingType, pos.tileX, pos.tileZ, road, widthTiles, depthTiles));
+    lots.push(lot(`lot_${i}_${buildingType}`, buildingType, pos.tileX, pos.tileZ, pos.road, widthTiles, depthTiles));
     for (const key of footprintCells(pos.tileX, pos.tileZ, widthTiles, depthTiles)) occupied.add(key);
   }
 

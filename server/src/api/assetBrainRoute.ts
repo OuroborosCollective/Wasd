@@ -10,6 +10,7 @@
  * GET    /api/asset-brain/batch/:id     – Get batch job status
  */
 import { Router, Request, Response } from 'express';
+import express from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { db as dbInstance } from '../core/Database.js';
 import { AssetBrainDatabase, type AssetRecord } from '../modules/asset-brain/AssetBrainDatabase.js';
@@ -19,6 +20,9 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
   const db = dbParam ?? dbInstance;
   const assetBrainDb = new AssetBrainDatabase(db as typeof dbInstance);
   const router = Router();
+
+  // JSON body parser - handles POST /generate, /batch which need JSON body
+  router.use(express.json({ limit: '1mb' }));
 
   // Initialize tables on startup
   assetBrainDb.initializeTables().catch(console.error);
