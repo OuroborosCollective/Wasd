@@ -38,21 +38,28 @@ export class LineageTickRunner {
   run(tick: number, candidates: readonly LineageTickCandidate[]): LineageTickResult {
     const created: LineageNode[] = [];
     const skipped: LineageTickSkip[] = [];
+    const populationBySettlement = new Map<string, number>();
     const ordered = [...candidates].sort((a, b) => candidateKey(a, a.tick ?? tick).localeCompare(candidateKey(b, b.tick ?? tick)));
 
     for (const candidate of ordered) {
       const birthTick = candidate.tick ?? tick;
-      const settlement = { ...candidate.settlement, tick: birthTick };
+      const settlementId = candidate.settlement.id;
+      const population = populationBySettlement.get(settlementId) ?? candidate.settlement.population;
+      const settlement = { ...candidate.settlement, population, tick: birthTick };
       try {
-        created.push(this.lineageManager.createDescendant(candidate.parentA, candidate.parentB, candidate.houseId, settlement, birthTick));
+        const node = this.lineageManager.createDescendant(candidate.parentA, candidate.parentB, candidate.houseId, settlement, birthTick);
+        created.push(node);
+        populationBySettlement.set(settlementId, population + 1);
       } catch (error) {
+        const reason = reasonFrom(error);
+        if (!reason.startsWith('npc_pair_not_eligible:')) throw error;
         skipped.push(Object.freeze({
           parentAId: candidate.parentA.id,
           parentBId: candidate.parentB.id,
           houseId: candidate.houseId,
           settlementId: settlement.id,
           tick: birthTick,
-          reason: reasonFrom(error),
+          reason,
         }));
       }
     }
