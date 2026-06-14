@@ -442,6 +442,45 @@ export const MOUNTED_ROUTES: RouteEntry[] = [
     hasAuth: false,
     notes: "Finance integration (PayPal)"
   },
+  {
+    id: "asset-brain",
+    methods: ["USE"],
+    path: "/api/asset-brain",
+    sourceFile: "server/src/api/assetBrainRoute.ts",
+    classification: "active-side-channel",
+    mountStatus: "mounted",
+    gameplayAffecting: false,
+    requiresTickContext: false,
+    hasAuth: true,
+    clientRefs: [
+      { file: "client/src/ui/assetLibraryPanel.ts", line: 108 },
+      { file: "client/src/ui/assetLibraryPanel.ts", line: 162 },
+      { file: "client/src/ui/assetLibraryPanel.ts", line: 212 }
+    ],
+    notes: "Asset brain library - mixed auth: /search and /library are public (read-only browsing); /generate, /my-specs, /batch require auth. Client refs point to /search and /library for browsing."
+  },
+  {
+    id: "glb-upload",
+    methods: ["USE"],
+    path: "/api/glb",
+    sourceFile: "server/src/api/glbUploadRoute.ts",
+    classification: "active-truth-path",
+    mountStatus: "mounted",
+    gameplayAffecting: true,
+    requiresTickContext: false,
+    hasAuth: true,
+    clientRefs: [
+      { file: "client/src/ui/glbManager.ts", line: 232 },
+      { file: "client/src/ui/glbManager.ts", line: 275 },
+      { file: "client/src/ui/glbManager.ts", line: 302 },
+      { file: "client/src/ui/glbManager.ts", line: 396 },
+      { file: "client/src/ui/glbManager.ts", line: 421 },
+      { file: "client/src/ui/shopPanel.ts", line: 212 },
+      { file: "client/src/ui/shopPanel.ts", line: 284 },
+      { file: "client/src/ui/shopPanel.ts", line: 324 }
+    ],
+    notes: "GLB marketplace - active-truth-path (mutates ownership, marketplace, placement, Matrix Energy). All mutating routes require authMiddleware. Read-only GET /marketplace and GET /land/:playerId are public."
+  },
 
   // ---- Health/System Routes ----
   {
@@ -565,23 +604,6 @@ export const ORPHANED_ROUTES: RouteEntry[] = [
     notes: "ARE oracle route - needs mount with WorldTick integration"
   },
   {
-    id: "asset-brain",
-    methods: ["USE"],
-    path: "/api/asset-brain",
-    sourceFile: "server/src/api/assetBrainRoute.ts",
-    classification: "active-side-channel",
-    mountStatus: "mounted",
-    gameplayAffecting: false,
-    requiresTickContext: false,
-    hasAuth: true,
-    clientRefs: [
-      { file: "client/src/ui/assetLibraryPanel.ts", line: 108 },
-      { file: "client/src/ui/assetLibraryPanel.ts", line: 162 },
-      { file: "client/src/ui/assetLibraryPanel.ts", line: 212 }
-    ],
-    notes: "Asset brain library - auth middleware present, client refs exist"
-  },
-  {
     id: "asset-pipeline",
     methods: ["USE"],
     path: "/api/asset-pipeline",
@@ -592,28 +614,6 @@ export const ORPHANED_ROUTES: RouteEntry[] = [
     requiresTickContext: false,
     hasAuth: true,
     notes: "3D asset pipeline - auth middleware present"
-  },
-  {
-    id: "glb-upload",
-    methods: ["USE"],
-    path: "/api/glb",
-    sourceFile: "server/src/api/glbUploadRoute.ts",
-    classification: "active-truth-path",
-    mountStatus: "mounted",
-    gameplayAffecting: true,
-    requiresTickContext: false,
-    hasAuth: true,
-    clientRefs: [
-      { file: "client/src/ui/glbManager.ts", line: 232 },
-      { file: "client/src/ui/glbManager.ts", line: 275 },
-      { file: "client/src/ui/glbManager.ts", line: 302 },
-      { file: "client/src/ui/glbManager.ts", line: 396 },
-      { file: "client/src/ui/glbManager.ts", line: 421 },
-      { file: "client/src/ui/shopPanel.ts", line: 212 },
-      { file: "client/src/ui/shopPanel.ts", line: 284 },
-      { file: "client/src/ui/shopPanel.ts", line: 324 }
-    ],
-    notes: "GLB marketplace - active-truth-path (mutates ownership, marketplace, placement, Matrix Energy). All mutating routes require authMiddleware. Read-only GET /marketplace and GET /land/:playerId are public."
   },
   {
     id: "land-route",
