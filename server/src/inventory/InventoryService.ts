@@ -74,6 +74,16 @@ export class InventoryService {
     return this.store.hasItems(input);
   }
 
+  /**
+   * Persist inventory state. Used by atomic transactions that need to persist
+   * the inventory state after multiple operations.
+   */
+  async persistInventory(playerId: string, state: PlayerInventoryState): Promise<void> {
+    await this.persistence.savePlayerInventory(
+      createPersistedPlayerInventoryState(playerId, state),
+    );
+  }
+
   async hydratePlayer(playerId: string): Promise<void> {
     if (this.hydratedPlayers.has(playerId)) return;
 

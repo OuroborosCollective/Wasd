@@ -13,6 +13,7 @@
 import { InventoryStore } from "./InventoryStore.js";
 import { InventoryService } from "./InventoryService.js";
 import { createInventoryPersistenceAdapter } from "./createInventoryPersistenceAdapter.js";
+import { createPersistedPlayerInventoryState } from "./InventoryPersistence.js";
 
 // Initialize persistence adapter and service
 const store = new InventoryStore();
@@ -50,4 +51,5 @@ export function getInventoryStore(): InventoryStore {
 
 // Re-export for convenience
 export { InventoryStore } from "./InventoryStore.js";
+export { createPersistedPlayerInventoryState } from "./InventoryPersistence.js";
 export type { InventoryItemId, PlayerInventoryState, InventoryAddResult, InventoryRemoveResult } from "./InventoryTypes.js";
