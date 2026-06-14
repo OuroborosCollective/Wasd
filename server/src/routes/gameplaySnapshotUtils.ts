@@ -19,6 +19,7 @@ import {
   type EquipmentNumberEntry,
   type EquipmentSlotId,
 } from "../equipment/EquipmentTypes.js";
+import type { NPCActivitySnapshot } from "../gameplay/NPCActivitySnapshot.js";
 
 export interface QuestObjectiveSnapshot {
   id: string;
@@ -194,6 +195,8 @@ export interface LiveGameplaySnapshot {
   guild: GuildSnapshot;
   factions: FactionStandingSnapshot[];
   map: MapSnapshot;
+  /** NPC/Monster activity snapshot - server-authoritative activity state */
+  npcActivity?: NPCActivitySnapshot;
 }
 
 export interface GameplaySnapshotInput {
@@ -209,6 +212,7 @@ export interface GameplaySnapshotInput {
   guild?: GuildSnapshot | null;
   factions?: FactionStandingSnapshot[];
   map?: Partial<MapSnapshot>;
+  npcActivity?: NPCActivitySnapshot | null;
 }
 
 function cloneEntries(entries: readonly EquipmentNumberEntry[] | undefined): readonly EquipmentNumberEntry[] | undefined {
@@ -325,6 +329,7 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGamepl
       biome: input.map?.biome ?? null,
       worldPois: sortedWorldPois,
     },
+    npcActivity: input.npcActivity ?? undefined,
   };
 }
 
