@@ -15,10 +15,8 @@ import { createDefaultTickContext, type TickSystemContext } from "./TickSystem.j
 import { WorldBrainScheduler } from "./WorldBrainScheduler.js";
 import { SnapshotComposer } from "./SnapshotComposer.js";
 import { LayerPersistenceQueue, layerPersistenceQueue } from "./LayerPersistenceQueue.js";
-import { registerOuroborosTickSystem } from "./OuroborosTickSystem.js";
-import { registerOracleTickSystem } from "./OracleTickSystem.js";
+import { registerCoreTickSystems } from "./CoreTickSystemRegistration.js";
 import { stableSort } from "./DeterministicEventFactory.js";
-import { sharedWorldEventBus } from "../../modules/ouroboros/sharedWorldEventBus.js";
 
 /**
  * World state slice provided by a single provider.
@@ -117,21 +115,7 @@ export class WorldTickThinShell {
     this.snapshotComposer = new SnapshotComposer();
     this.persistenceQueue = layerPersistenceQueue;
 
-    registerOuroborosTickSystem({
-      engineConfig: {
-        tickInterval: 10,
-        conflictCheckInterval: 100,
-        enableNPCBrain: true,
-        npcBrainInterval: 10,
-      },
-    });
-
-    registerOracleTickSystem({
-      tickInterval: 10,
-      minRecordsForAnalysis: 6,
-      maxStoredRecords: 240,
-      eventBus: sharedWorldEventBus,
-    });
+    registerCoreTickSystems();
   }
 
   start(): void {
