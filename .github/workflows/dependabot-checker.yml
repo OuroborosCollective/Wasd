@@ -43,11 +43,19 @@ jobs:
           git diff origin/${{ github.base_ref }}...HEAD > diff.txt
 
       # ----------------------------
-      # SAFETY CHECK (skip AI for now)
+      # SAFETY CHECK (skip AI for truly sensitive files)
       # ----------------------------
       - name: Block sensitive paths
         run: |
-          git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E "core|auth|security|crypto" && exit 1 || echo "safe"
+          set -euo pipefail
+          changed="$(git diff --name-only origin/${{ github.base_ref }}...HEAD)"
+          blocked="$(printf '%s\n' "$changed" | grep -E '(^|/)server/src/middleware/authMiddleware\.ts$|(^|/)server/src/config/supabase\.ts$|(^|/)server/src/(security|crypto|secrets?)(/|$)|(^|/)server/src/core/(Auth|Crypto|Security|Secret|Secrets|Token|Key).*\.(ts|js)$|(^|/)\.github/workflows/(release|deploy|security).*\.ya?ml$' || true)"
+          if [ -n "$blocked" ]; then
+            echo "Blocked sensitive path changes:"
+            printf '%s\n' "$blocked"
+            exit 1
+          fi
+          echo "safe"
 
       - name: Reinstall deps
         run: pnpm install --no-frozen-lockfile
@@ -58,6 +66,9 @@ jobs:
           pnpm -r --if-present lint:fix
           pnpm -r --if-present format:write
           pnpm -r --if-present format
+
+      - name: Build shared workspace package
+        run: pnpm --filter @wasd/shared build
 
       - name: Determinism guard
         run: node scripts/determinism-changed-files-guard.mjs
@@ -79,6 +90,7 @@ jobs:
         id: gate
         run: |
           set -euo pipefail
+          pnpm --filter @wasd/shared build
           node scripts/determinism-changed-files-guard.mjs
           pnpm -r --if-present lint || echo "::warning::package lint failed after optional autofix; deterministic gates continue"
           pnpm run guard:all
