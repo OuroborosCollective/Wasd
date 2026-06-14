@@ -1,1 +1,3 @@
-export const lineageGameDataWriterReady = true;
+export interface NpcLineageSink {
+  record(value: unknown): void;
+}
