@@ -22,15 +22,14 @@ describe("Sentinel Endpoint Protection", () => {
     it("is protected by adminAuthMiddleware", async () => {
       process.env.ADMIN_PANEL_TOKEN = "secret";
       const app = express();
-      app.use(adminRateLimiter);
-      app.use("/api/client2d-assets", adminAuthMiddleware, client2dAssetUploadRouter());
+      app.use("/api/client2d-assets", adminRateLimiter, adminAuthMiddleware, client2dAssetUploadRouter());
 
       const r = await request(app).get("/api/client2d-assets/status");
       expect(r.status).toBe(401);
 
       const r2 = await request(app)
         .get("/api/client2d-assets/status")
-        .set("Authorization", "Bearer secret");
+        .set("X-Admin-Token", "secret");
       expect(r2.status).toBe(200);
     });
 
@@ -38,12 +37,11 @@ describe("Sentinel Endpoint Protection", () => {
       process.env.ADMIN_PANEL_TOKEN = "secret";
       process.env.CONTENT_ADMIN_READONLY = "true";
       const app = express();
-      app.use(sensitiveWriteRateLimiter);
-      app.use("/api/client2d-assets", adminAuthMiddleware, client2dAssetUploadRouter());
+      app.use("/api/client2d-assets", adminRateLimiter, adminAuthMiddleware, client2dAssetUploadRouter());
 
       const r = await request(app)
         .post("/api/client2d-assets/upload")
-        .set("Authorization", "Bearer secret");
+        .set("X-Admin-Token", "secret");
       expect(r.status).toBe(403);
       expect(r.body.error).toContain("read-only");
     });
