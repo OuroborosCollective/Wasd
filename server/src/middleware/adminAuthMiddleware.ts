@@ -16,6 +16,20 @@ function parseAllowlist(envKey: string): Set<string> {
   );
 }
 
+function headerValue(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? String(value[0] || "").trim() : String(value || "").trim();
+}
+
+function hasValidSovereignLaunchCredential(req: Request): boolean {
+  if (req.method.toUpperCase() !== "POST") return false;
+  if (req.baseUrl !== "/api/sovereign/deploy") return false;
+  if (req.path !== "/launch") return false;
+  const expected = (process.env.SOVEREIGN_LAUNCH_KEY || process.env.ADMIN_DEPLOY_TOKEN || "").trim();
+  if (!expected) return false;
+  const provided = headerValue(req.headers["x-sovereign-launch-key"]);
+  return provided.length > 0 && provided === expected;
+}
+
 /**
  * Protects no-code admin HTTP APIs.
  * - If `ADMIN_PANEL_TOKEN` is set: accept `Authorization: Bearer ***` or `X-Admin-Token: <token>`.
@@ -31,12 +45,16 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
   const authHeader = req.headers.authorization;
   const bearer =
     authHeader && authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
-  const headerToken = (req.headers["x-admin-token"] as string | undefined)?.trim() || "";
+  const headerToken = headerValue(req.headers["x-admin-token"]);
   const hasPanelCandidate =
     acceptedPanelTokens.includes(bearer) || acceptedPanelTokens.includes(headerToken);
 
   if (hasPanelCandidate && acceptedPanelTokens.length > 0) {
     req.adminAuth = { mode: "token" };
+    return next();
+  }
+
+  if (hasValidSovereignLaunchCredential(req)) {
     return next();
   }
 
