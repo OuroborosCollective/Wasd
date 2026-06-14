@@ -117,6 +117,10 @@ function evaluateRule(rule: CanonicalSignalBalanceRule, signals: CanonicalLayerS
   }
 }
 
+function cloneSignalBalanceRule(rule: CanonicalSignalBalanceRule): CanonicalSignalBalanceRule {
+  return Object.freeze({ ...rule }) as CanonicalSignalBalanceRule;
+}
+
 export function calculateCanonicalSignalLayerDeltas(
   signals: CanonicalLayerSeedSignals | null | undefined,
   matrix: CanonicalSignalBalanceMatrix = CANONICAL_SIGNAL_BALANCE_MATRIX,
@@ -151,6 +155,6 @@ export function getCanonicalSignalBalanceSnapshot(): readonly Readonly<{
 }>[] {
   return Object.freeze(CANONICAL_LAYER_ORDER.map((layer) => Object.freeze({
     layer,
-    rules: Object.freeze([...(CANONICAL_SIGNAL_BALANCE_MATRIX[layer] ?? [])]),
+    rules: Object.freeze((CANONICAL_SIGNAL_BALANCE_MATRIX[layer] ?? []).map(cloneSignalBalanceRule)),
   })));
 }
