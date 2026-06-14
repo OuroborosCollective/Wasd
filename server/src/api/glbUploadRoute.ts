@@ -31,6 +31,12 @@ type Database = typeof dbInstance;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const glbPlaceRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // limit placement attempts per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 const UPLOAD_DIR = path.resolve(__dirname, "../../public/uploads/glb");
 const MAX_SIZE_MB = parseInt(process.env.MAX_GLB_SIZE_MB || "50");
 const MAX_PER_PLAYER = parseInt(process.env.MAX_GLB_PER_PLAYER || "20");
@@ -222,7 +228,7 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   });
 
   // ── Place Model on Land ────────────────────────────────────────────────────
-  router.post("/place", authMiddleware, requireGLBSubscription, async (req: Request, res: Response) => {
+  router.post("/place", glbPlaceRateLimiter, authMiddleware, requireGLBSubscription, async (req: Request, res: Response) => {
     const playerId = getAuthenticatedPlayerId(req);
     if (!playerId) return res.status(401).json({ error: "Authentication required" });
 
