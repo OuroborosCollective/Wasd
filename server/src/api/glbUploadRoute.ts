@@ -313,8 +313,16 @@ export function createGLBUploadRouter(dbParam?: any): Router {
     }
   });
 
+  // Rate limiter for marketplace listing actions (prevents request flooding)
+  const marketplaceListLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 20, // limit each IP to 20 listing attempts per minute
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
   // ── List on Marketplace ────────────────────────────────────────────────────
-  router.post("/marketplace/list", authMiddleware, requireGLBSubscription, async (req: Request, res: Response) => {
+  router.post("/marketplace/list", marketplaceListLimiter, authMiddleware, requireGLBSubscription, async (req: Request, res: Response) => {
     const playerId = getAuthenticatedPlayerId(req);
     if (!playerId) return res.status(401).json({ error: "Authentication required" });
 
