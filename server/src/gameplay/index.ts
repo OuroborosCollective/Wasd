@@ -1,18 +1,42 @@
-/**
- * Gameplay Module - NPC Activity Snapshot System
- * 
- * Exports all gameplay modules for NPC/Monster activity visibility.
- * 
- * Modules:
- * - NPCActivitySnapshot: Type definitions
- * - ActivityResolver: Deterministic activity resolution
- * - StableTargetSelection: Stable target selection utility
- * - BoundedMemoryEvents: Bounded memory event system
- * - NPCActivitySnapshotGenerator: Snapshot generation
- */
+export {
+  DEFAULT_MEMORY_BOUNDS,
+  calculateDistance,
+  generateActivityHash,
+  generateMemoryEventId,
+  getChunkKey,
+} from "./NPCActivitySnapshot.js";
+export type {
+  ActivityMemoryEvent,
+  ActivityMemoryEventType,
+  ActivityResolutionContext,
+  MemoryBoundsConfig,
+  MonsterArchetype,
+  NPCActivityEntry,
+  NPCActivityEvent,
+  NPCActivitySnapshot,
+  NPCActivitySnapshotInput,
+  NPCActivityState,
+  NPCWorkRole,
+  ResolvedActivity,
+} from "./NPCActivitySnapshot.js";
 
-export * from "./NPCActivitySnapshot.js";
-export * from "./ActivityResolver.js";
-export * from "./StableTargetSelection.js";
-export * from "./BoundedMemoryEvents.js";
-export * from "./NPCActivitySnapshotGenerator.js";
+export { resolveActivity } from "./ActivityResolver.js";
+export {
+  createTargetCandidate,
+  createTargetCandidates,
+  selectClosestTarget,
+  selectSafestTarget,
+  selectStableTarget,
+  verifyTargetSelectionDeterminism,
+} from "./StableTargetSelection.js";
+export type { SelectedTarget, TargetCandidate, TargetFilterOptions } from "./StableTargetSelection.js";
+export { BoundedMemoryEventStore, MemoryEventManager, globalMemoryEventManager } from "./BoundedMemoryEvents.js";
+export {
+  clearNPCActivitySnapshotGeneratorState,
+  createActivityContext,
+  filterVisibleEntities,
+  generateNPCActivitySnapshot,
+  getEntitiesInChunk,
+  verifyMemoryBounds,
+  verifySnapshotDeterminism,
+} from "./NPCActivitySnapshotGenerator.js";
