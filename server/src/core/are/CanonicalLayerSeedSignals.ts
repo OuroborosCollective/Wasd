@@ -53,8 +53,10 @@ export interface CanonicalWorldgenSignalInput {
 export function deriveCanonicalWorldgenSeedSignals(input: CanonicalWorldgenSignalInput): CanonicalLayerSeedSignals {
   const worldSeed = resolveCanonicalWorldSeed(input.worldSeed);
   const parsed = parseChunkKey(input.chunkKey);
-  const biomeId = deriveChunkBiome(parsed.x, parsed.z, worldSeed) as BiomeId;
-  const plan = generateChunkScenePlan({ worldSeed, chunkX: parsed.x, chunkZ: parsed.z, biomeId, kappa: KAPPA_STANDARD });
+  const chunkX = Number(parsed.cx);
+  const chunkZ = Number(parsed.cz);
+  const biomeId = deriveChunkBiome(chunkX, chunkZ, worldSeed) as BiomeId;
+  const plan = generateChunkScenePlan({ worldSeed, chunkX, chunkZ, biomeId, kappa: KAPPA_STANDARD });
 
   const totalTerrain = Math.max(1, plan.terrain.length);
   const roadCellCount = Object.keys(plan.roads.roadCells).length;
