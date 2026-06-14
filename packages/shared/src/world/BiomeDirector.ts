@@ -15,9 +15,11 @@ export function deriveChunkBiome(chunkX: number, chunkZ: number, worldSeed?: str
   const seed = worldSeed ?? "areloria:earth_1_1";
   const hashInput = `${seed}|biome|${chunkX}|${chunkZ}`;
   const hash = SeededARERng.hashSeed(hashInput);
-  const rng = new SeededARERng(hash as unknown as string);
+  const rng = new SeededARERng(String(hash));
 
-  // Deterministic roll using the hash-derived RNG
+  // Deterministic roll using the hash-derived RNG.
+  // Important: String(hash) is intentional. A type cast would not convert the
+  // runtime number value and would collapse the RNG to the same initial hash.
   const roll = rng.intInclusive(0, 999);
 
   // Biome distribution (deterministic based on chunk coordinates):

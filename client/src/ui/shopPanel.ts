@@ -238,6 +238,21 @@ async function purchaseProduct(productId: string) {
     return;
   }
 
+  // Map product IDs to actual credit amounts
+  const creditsMap: Record<string, number> = {
+    "matrix_100": 100,
+    "matrix_500": 500,
+    "matrix_1200": 1200,
+    "matrix_3000": 3000,
+    "glb_subscription_1month": 1500, // Subscription value for PayPal
+  };
+
+  const credits = creditsMap[productId];
+  if (credits === undefined) {
+    alert("Unbekanntes Produkt: " + productId);
+    return;
+  }
+
   const btn = event?.target as HTMLElement;
   if (btn) {
     btn.textContent = "⏳ Verbinde mit PayPal...";
@@ -245,20 +260,25 @@ async function purchaseProduct(productId: string) {
   }
 
   try {
-    const res = await fetch("/api/paypal/create-order", {
+    // Use /api/finance/paypal/checkout (mounted at /api/finance)
+    const returnUrl = `${window.location.origin}/shop?payment=success&product=${encodeURIComponent(productId)}`;
+    const cancelUrl = `${window.location.origin}/shop?payment=cancelled`;
+    const res = await fetch("/api/finance/paypal/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        productId,
-        playerId: currentPlayerId,
-        playerName: currentPlayerName,
+        clientId: currentPlayerId,
+        displayName: currentPlayerName,
+        credits,
+        returnUrl,
+        cancelUrl,
       }),
     });
 
     const data = await res.json();
-    if (data.approveUrl) {
+    if (data.approvalUrl) {
       // Open PayPal in same window
-      window.location.href = data.approveUrl;
+      window.location.href = data.approvalUrl;
     } else {
       alert("Fehler beim Erstellen der Bestellung: " + (data.error || "Unbekannter Fehler"));
       if (btn) {
