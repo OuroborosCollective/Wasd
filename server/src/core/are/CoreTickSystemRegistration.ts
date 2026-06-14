@@ -76,6 +76,7 @@ export function registerCoreTickSystems(
     registry,
     OUROBOROS_TICK_SYSTEM_NAME,
     () => registerOuroborosTickSystem({
+      ...options.ouroboros,
       engineConfig: {
         tickInterval: 10,
         conflictCheckInterval: 100,
@@ -83,7 +84,6 @@ export function registerCoreTickSystems(
         npcBrainInterval: 10,
         ...options.ouroboros?.engineConfig,
       },
-      ...options.ouroboros,
     }, registry),
     registered,
     alreadyRegistered,
