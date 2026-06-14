@@ -3,7 +3,6 @@ import { createKappa, createStateHash } from './types.js';
 import {
   ATTRACTOR_TYPES,
   ChunkLayerIndex,
-  createEmptyLayerState,
   type ChunkLayerState,
   type OmegaAttractorState,
   type WorldBrainSnapshot,
@@ -13,6 +12,10 @@ import {
   createLayerPersistenceEvent,
   type LayerPersistenceQueue,
 } from './LayerPersistenceQueue.js';
+import {
+  deriveCanonicalLayerSeed,
+  type CanonicalLayerSeedResult,
+} from './CanonicalLayerSeed.js';
 import type {
   WorldBrainCanonicalStatePort,
   WorldBrainDelta,
@@ -96,6 +99,10 @@ function createStableOmega(tick: TickId): OmegaAttractorState {
   });
 }
 
+export interface RuntimeWorldBrainStatePortOptions {
+  readonly worldSeed?: string | number | null;
+}
+
 /**
  * Runtime state owner for WorldBrainTickSystem.
  *
@@ -106,9 +113,12 @@ function createStableOmega(tick: TickId): OmegaAttractorState {
 export class RuntimeWorldBrainStatePort implements WorldBrainCanonicalStatePort {
   private readonly activeChunks = new Set<ChunkKey>();
   private readonly layerStates = new Map<ChunkKey, ChunkLayerState>();
+  private readonly seedRecords = new Map<ChunkKey, CanonicalLayerSeedResult>();
   private currentTick = 0 as TickId;
   private worldHash: StateHash = ZERO_STATE_HASH;
   private omegaE: OmegaAttractorState = createStableOmega(0 as TickId);
+
+  constructor(private readonly options: RuntimeWorldBrainStatePortOptions = {}) {}
 
   listActiveChunkKeys(): readonly ChunkKey[] {
     return Object.freeze([...this.activeChunks].sort((a, b) => String(a).localeCompare(String(b))));
@@ -136,7 +146,13 @@ export class RuntimeWorldBrainStatePort implements WorldBrainCanonicalStatePort 
   registerChunk(chunkKey: ChunkKey): void {
     this.activeChunks.add(chunkKey);
     if (!this.layerStates.has(chunkKey)) {
-      this.layerStates.set(chunkKey, createEmptyLayerState());
+      const seed = deriveCanonicalLayerSeed({
+        worldSeed: this.options.worldSeed,
+        chunkKey,
+        activationTick: this.currentTick,
+      });
+      this.seedRecords.set(chunkKey, seed);
+      this.layerStates.set(chunkKey, iareLayersToChunkLayerState(seed.layers));
     }
     this.worldHash = hashRuntimeSnapshot(this.currentTick, this.layerStates);
   }
@@ -144,7 +160,12 @@ export class RuntimeWorldBrainStatePort implements WorldBrainCanonicalStatePort 
   unregisterChunk(chunkKey: ChunkKey): void {
     this.activeChunks.delete(chunkKey);
     this.layerStates.delete(chunkKey);
+    this.seedRecords.delete(chunkKey);
     this.worldHash = hashRuntimeSnapshot(this.currentTick, this.layerStates);
+  }
+
+  getCanonicalSeedRecord(chunkKey: ChunkKey): CanonicalLayerSeedResult | null {
+    return this.seedRecords.get(chunkKey) ?? null;
   }
 
   getSnapshot(): WorldBrainSnapshot {
