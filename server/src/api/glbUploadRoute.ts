@@ -23,6 +23,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
+import rateLimit from "express-rate-limit";
 import { db as dbInstance } from "../core/Database.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 type Database = typeof dbInstance;
@@ -69,6 +70,14 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   const db = dbParam || dbInstance;
   const router = Router();
 
+  const glbUploadRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // max 10 upload attempts per IP per window
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many upload requests, please try again later." },
+  });
+
   // ── Check subscription middleware ──────────────────────────────────────────
   async function requireGLBSubscription(req: Request, res: Response, next: Function) {
     const playerId = getAuthenticatedPlayerId(req);
@@ -107,7 +116,7 @@ export function createGLBUploadRouter(dbParam?: any): Router {
   }
 
   // ── Upload GLB ─────────────────────────────────────────────────────────────
-  router.post("/upload", authMiddleware, requireGLBSubscription, upload.single("model"), async (req: Request, res: Response) => {
+  router.post("/upload", authMiddleware, requireGLBSubscription, glbUploadRateLimiter, upload.single("model"), async (req: Request, res: Response) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const playerId = getAuthenticatedPlayerId(req);
