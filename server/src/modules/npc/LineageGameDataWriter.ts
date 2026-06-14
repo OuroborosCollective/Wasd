@@ -1,5 +1,8 @@
+import { createARESeed, stableHash32 } from '../../core/determinism/AREDeterminism';
+import type { LineageBirthEvent } from './FamilyHouseRegistry';
+
 export interface NpcLineageSink {
-  record(value: unknown): void;
+  record(value: LineageBirthEvent): void;
 }
 
 export interface NpcLineageStorageProvider {
@@ -11,16 +14,23 @@ export interface NpcLineageWriteResult {
   readonly target: string;
   readonly recordsWritten: number;
   readonly inserted: boolean;
+  readonly journalHash: string;
 }
 
-export const NPC_LINEAGE_GAME_DATA_PATH = ["npc", "lineage-birth-events.json"].join("/");
+export type LineageJournalRecord = LineageBirthEvent & {
+  readonly previousJournalHash: string;
+  readonly journalHash: string;
+};
+
+export const NPC_LINEAGE_GAME_DATA_PATH = ['npc', 'lineage-birth-events.json'].join('/');
+export const NPC_LINEAGE_JOURNAL_GENESIS_HASH = 'GENESIS';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function stringValue(value: unknown): string {
-  return typeof value === "string" ? value : "";
+  return typeof value === 'string' ? value : '';
 }
 
 function numberValue(value: unknown): number {
@@ -28,8 +38,8 @@ function numberValue(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function stableRecord(value: unknown): Record<string, unknown> {
-  if (!isRecord(value)) throw new Error("npc_lineage_event_must_be_object");
+function stableRecord(value: unknown): LineageBirthEvent {
+  if (!isRecord(value)) throw new Error('npc_lineage_event_must_be_object');
   const pressureAtDecision = isRecord(value.pressureAtDecision) ? { ...value.pressureAtDecision } : {};
   const parentLineageHashes = Array.isArray(value.parentLineageHashes)
     ? value.parentLineageHashes.map((entry) => String(entry)).sort()
@@ -44,28 +54,64 @@ function stableRecord(value: unknown): Record<string, unknown> {
     settlementId: stringValue(value.settlementId),
     birthTick: numberValue(value.birthTick),
     pairEligibilityHash: stringValue(value.pairEligibilityHash),
-    pressureAtDecision,
-    cause: stringValue(value.cause),
+    pressureAtDecision: pressureAtDecision as LineageBirthEvent['pressureAtDecision'],
+    cause: stringValue(value.cause) === 'founder' ? 'founder' : 'eligible_pair',
   };
 }
 
-function recordKey(value: Record<string, unknown>): string {
-  return stringValue(value.eventHash) || `${stringValue(value.lineageId)}:${numberValue(value.birthTick)}`;
+function recordKey(value: LineageBirthEvent): string {
+  return value.eventHash || `${value.lineageId}:${value.birthTick}`;
 }
 
-function compareRecords(a: Record<string, unknown>, b: Record<string, unknown>): number {
-  const tickDelta = numberValue(a.birthTick) - numberValue(b.birthTick);
+function compareRecords(a: LineageBirthEvent, b: LineageBirthEvent): number {
+  const tickDelta = a.birthTick - b.birthTick;
   if (tickDelta !== 0) return tickDelta;
-  const settlementDelta = stringValue(a.settlementId).localeCompare(stringValue(b.settlementId));
+  const settlementDelta = a.settlementId.localeCompare(b.settlementId);
   if (settlementDelta !== 0) return settlementDelta;
   return recordKey(a).localeCompare(recordKey(b));
 }
 
-function parseRecords(raw: string | null): Record<string, unknown>[] {
+function parseRecords(raw: string | null): LineageBirthEvent[] {
   if (!raw || raw.trim().length === 0) return [];
   const parsed: unknown = JSON.parse(raw);
-  if (!Array.isArray(parsed)) throw new Error("npc_lineage_event_store_must_be_array");
+  if (!Array.isArray(parsed)) throw new Error('npc_lineage_event_store_must_be_array');
   return parsed.map(stableRecord);
+}
+
+export function computeLineageJournalHash(event: LineageBirthEvent, previousJournalHash: string): string {
+  const seed = createARESeed([
+    'lineage-journal-chain',
+    previousJournalHash,
+    event.eventHash,
+    event.lineageId,
+    event.lineageHash,
+    event.birthTick,
+    event.houseId,
+    event.settlementId,
+    event.cause,
+  ]);
+  return stableHash32(seed).toString(16).padStart(8, '0');
+}
+
+export function buildLineageJournalRecords(events: readonly LineageBirthEvent[]): LineageJournalRecord[] {
+  const deduped = new Map<string, LineageBirthEvent>();
+  for (const event of events) deduped.set(recordKey(event), stableRecord(event));
+
+  const records: LineageJournalRecord[] = [];
+  let previousJournalHash = NPC_LINEAGE_JOURNAL_GENESIS_HASH;
+  for (const event of Array.from(deduped.values()).sort(compareRecords)) {
+    const journalHash = computeLineageJournalHash(event, previousJournalHash);
+    records.push(Object.freeze({ ...event, previousJournalHash, journalHash }));
+    previousJournalHash = journalHash;
+  }
+  return records;
+}
+
+export function readLineageJournalRecords(
+  provider: NpcLineageStorageProvider,
+  target: string = NPC_LINEAGE_GAME_DATA_PATH
+): LineageJournalRecord[] {
+  return buildLineageJournalRecords(parseRecords(provider.read(target)));
 }
 
 export class NpcLineageGameDataWriter implements NpcLineageSink {
@@ -74,24 +120,21 @@ export class NpcLineageGameDataWriter implements NpcLineageSink {
     private readonly target = NPC_LINEAGE_GAME_DATA_PATH
   ) {}
 
-  record(value: unknown): void {
+  record(value: LineageBirthEvent): void {
     this.write(value);
   }
 
-  write(value: unknown): NpcLineageWriteResult {
-    const next = stableRecord(value);
-    const byKey = new Map<string, Record<string, unknown>>();
-    for (const existing of parseRecords(this.provider.read(this.target))) {
-      byKey.set(recordKey(existing), existing);
-    }
+  write(value: LineageBirthEvent): NpcLineageWriteResult {
+    const existing = readLineageJournalRecords(this.provider, this.target);
+    const inserted = !existing.some((record) => recordKey(record) === recordKey(value));
+    const records = buildLineageJournalRecords([...existing, value]);
+    this.provider.write(this.target, JSON.stringify(records, null, 2) + '\n');
 
-    const key = recordKey(next);
-    const inserted = !byKey.has(key);
-    byKey.set(key, next);
-
-    const records = Array.from(byKey.values()).sort(compareRecords);
-    this.provider.write(this.target, JSON.stringify(records, null, 2) + "\n");
-
-    return Object.freeze({ target: this.target, recordsWritten: records.length, inserted });
+    return Object.freeze({
+      target: this.target,
+      recordsWritten: records.length,
+      inserted,
+      journalHash: records.at(-1)?.journalHash ?? NPC_LINEAGE_JOURNAL_GENESIS_HASH,
+    });
   }
 }
