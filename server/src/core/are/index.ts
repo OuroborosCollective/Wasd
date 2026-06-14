@@ -92,6 +92,7 @@ export {
   TickSystemRegistry,
   tickSystemRegistry,
   type TickSystemRegistryEvent,
+  type TickSystemRegistrySnapshotEntry,
 } from './TickSystemRegistry.js';
 
 // Pre-built TickSystem Implementations
@@ -254,6 +255,15 @@ export {
   type OracleCriticalEvent,
   type OracleRecommendation,
 } from './OracleTickSystem.js';
+
+// Phase 11: Core TickSystem registration bootstrap
+export {
+  CORE_TICK_SYSTEM_REGISTRATION_ORDER,
+  registerCoreTickSystems,
+  type CoreTickSystemName,
+  type CoreTickSystemRegistrationOptions,
+  type CoreTickSystemRegistrationResult,
+} from './CoreTickSystemRegistration.js';
 
 // Phase 11: WorldTickScheduler - Thin scheduler without wall-clock dependencies
 export {
