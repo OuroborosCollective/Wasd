@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { AREShadowAdapter } from '../AREShadowAdapter.js';
 import type { CanonicalLayerSeedSignals } from '../CanonicalLayerSeed.js';
 import {
+  CANONICAL_SIGNAL_BALANCE_MATRIX,
   CANONICAL_SIGNAL_BALANCE_VERSION,
   applyCanonicalSignalBalance,
   calculateCanonicalSignalLayerDeltas,
@@ -53,6 +54,22 @@ describe('CanonicalLayerSignalBalance', () => {
     expect(CANONICAL_SIGNAL_BALANCE_VERSION).toBe(1);
     expect(snapshot.map((entry) => entry.layer)).toEqual(expectedLayers);
     expect(snapshot.every((entry) => entry.rules.length > 0)).toBe(true);
+  });
+
+  it('returns detached frozen rules from the diagnostic snapshot', () => {
+    const firstSnapshot = getCanonicalSignalBalanceSnapshot();
+    const secondSnapshot = getCanonicalSignalBalanceSnapshot();
+    const firstRule = firstSnapshot.find((entry) => entry.layer === 'ecology')!.rules[0];
+    const secondRule = secondSnapshot.find((entry) => entry.layer === 'ecology')!.rules[0];
+    const matrixRule = CANONICAL_SIGNAL_BALANCE_MATRIX.ecology[0];
+
+    expect(firstRule).toEqual(matrixRule);
+    expect(secondRule).toEqual(matrixRule);
+    expect(firstRule).not.toBe(matrixRule);
+    expect(secondRule).not.toBe(matrixRule);
+    expect(firstRule).not.toBe(secondRule);
+    expect(Object.isFrozen(firstRule)).toBe(true);
+    expect(Object.isFrozen(secondRule)).toBe(true);
   });
 
   it('records the matrix as an ARE shadow probe without becoming runtime truth', () => {
