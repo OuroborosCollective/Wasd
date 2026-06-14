@@ -8,8 +8,7 @@ import {
   type KappaLayerKey,
   type KappaLayers,
 } from './KappaLayers.js';
-import type { ChunkKey, KappaInt, StateHash, TickId } from './types.js';
-import { createStateHash } from './types.js';
+import { createStateHash, type ChunkKey, type KappaInt, type StateHash, type TickId } from './types.js';
 
 export const CANONICAL_LAYER_SEED_VERSION = 2 as const;
 export const DEFAULT_ARELORIA_WORLD_SEED = 'areloria:earth_1_1' as const;
