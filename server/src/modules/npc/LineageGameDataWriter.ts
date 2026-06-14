@@ -1,5 +1,5 @@
 import { createARESeed, stableHash32 } from '../../core/determinism/AREDeterminism';
-import type { LineageBirthEvent } from './FamilyHouseRegistry';
+import type { LineageBirthEvent, LineageNode, LineageStats, PopulationPressure } from './FamilyHouseRegistry';
 
 export interface NpcLineageSink {
   record(value: LineageBirthEvent): void;
@@ -38,9 +38,54 @@ function numberValue(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function boolValue(value: unknown): boolean {
+  return value === true;
+}
+
+function stableStats(value: unknown): LineageStats {
+  const record = isRecord(value) ? value : {};
+  return {
+    strength: numberValue(record.strength),
+    agility: numberValue(record.agility),
+    intelligence: numberValue(record.intelligence),
+    stamina: numberValue(record.stamina),
+    charisma: numberValue(record.charisma),
+    luck: numberValue(record.luck),
+  };
+}
+
+function stablePressure(value: unknown): PopulationPressure {
+  const record = isRecord(value) ? value : {};
+  const limitingFactor = stringValue(record.limitingFactor);
+  return {
+    pressure: numberValue(record.pressure),
+    canSpawn: boolValue(record.canSpawn),
+    limitingFactor: limitingFactor === 'capacity' || limitingFactor === 'food' || limitingFactor === 'housing' || limitingFactor === 'house_state'
+      ? limitingFactor
+      : null,
+    maxPopulation: numberValue(record.maxPopulation),
+  };
+}
+
+function stableNode(value: unknown): LineageNode {
+  if (!isRecord(value)) throw new Error('npc_lineage_event_requires_node_snapshot');
+  return {
+    id: stringValue(value.id),
+    lineageHash: stringValue(value.lineageHash),
+    generation: numberValue(value.generation),
+    birthTick: numberValue(value.birthTick),
+    ...(value.deathTick === undefined ? {} : { deathTick: numberValue(value.deathTick) }),
+    parentLineageHashes: Array.isArray(value.parentLineageHashes) ? value.parentLineageHashes.map((entry) => String(entry)).sort() : [],
+    houseId: stringValue(value.houseId),
+    settlementId: stringValue(value.settlementId),
+    archetypeSeed: numberValue(value.archetypeSeed),
+    stats: stableStats(value.stats),
+    traits: Array.isArray(value.traits) ? value.traits.map((entry) => String(entry)).sort() : [],
+  };
+}
+
 function stableRecord(value: unknown): LineageBirthEvent {
   if (!isRecord(value)) throw new Error('npc_lineage_event_must_be_object');
-  const pressureAtDecision = isRecord(value.pressureAtDecision) ? { ...value.pressureAtDecision } : {};
   const parentLineageHashes = Array.isArray(value.parentLineageHashes)
     ? value.parentLineageHashes.map((entry) => String(entry)).sort()
     : [];
@@ -54,8 +99,9 @@ function stableRecord(value: unknown): LineageBirthEvent {
     settlementId: stringValue(value.settlementId),
     birthTick: numberValue(value.birthTick),
     pairEligibilityHash: stringValue(value.pairEligibilityHash),
-    pressureAtDecision: pressureAtDecision as LineageBirthEvent['pressureAtDecision'],
+    pressureAtDecision: stablePressure(value.pressureAtDecision),
     cause: stringValue(value.cause) === 'founder' ? 'founder' : 'eligible_pair',
+    nodeSnapshot: stableNode(value.nodeSnapshot),
   };
 }
 
