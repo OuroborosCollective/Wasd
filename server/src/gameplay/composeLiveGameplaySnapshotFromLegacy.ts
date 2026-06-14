@@ -13,6 +13,7 @@ import { getStarterProcessingStations } from "../crafting/ProcessingStations.js"
 import { npcQuestService } from "../quests/NpcQuestService.js";
 import { npcMemoryService } from "../npc/NpcMemoryService.js";
 import { npcRumorService } from "../npc/NpcRumorService.js";
+import { getNpcLineageWorldSurface } from "../modules/npc/NpcLineageWorldSurfaceRuntime.js";
 
 interface LegacyInventorySlot {
   readonly itemId?: string;
@@ -120,6 +121,7 @@ export async function composeLiveGameplaySnapshotFromLegacy(
       return { coin: wallet.balances.coin };
     },
     getWorldPois: () => input.worldPois ?? [],
+    getWorldSurface: (playerId: string, logicalIndex: number) => getNpcLineageWorldSurface(playerId, logicalIndex),
     getVendorEconomy: async () => {
       try {
         const vendorStockService = await getVendorStockService();

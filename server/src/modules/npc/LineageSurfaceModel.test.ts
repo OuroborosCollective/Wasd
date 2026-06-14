@@ -39,4 +39,16 @@ describe('LineageSurfaceModel', () => {
     expect(Number.isFinite(model.nodes[0].y)).toBe(true);
     expect(Number.isFinite(model.nodes[0].z)).toBe(true);
   });
+
+  it('derives visible house groups from replayed lineage nodes without house snapshots', () => {
+    const registry = new FamilyHouseRegistry();
+    const manager = new NPCLineageManager(registry);
+    manager.createFoundingLineage('founder', 'h_missing', 's1', 100, stats());
+
+    const model = createLineageSurfaceModel(registry, 1000);
+
+    expect(model.nodes).toHaveLength(1);
+    expect(model.houses).toHaveLength(1);
+    expect(model.houses[0]).toMatchObject({ id: 'h_missing', settlementId: 's1', population: 1, active: true });
+  });
 });

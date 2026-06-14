@@ -1,4 +1,4 @@
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 
 export interface AgentAction {
   type: string;
@@ -31,10 +31,25 @@ export interface ILLMProvider {
   generate(prompt: string, context: any): Promise<string>;
 }
 
+export interface IDeterministicClock {
+  nextTick(): number;
+}
+
+export function createDeterministicClock(startTick = 0): IDeterministicClock {
+  let tick = Math.max(0, Math.floor(Number(startTick) || 0));
+  return {
+    nextTick(): number {
+      tick += 1;
+      return tick;
+    },
+  };
+}
+
 export class Orchestrator extends EventEmitter {
   private state: AgentState;
   private memory: IMemoryProvider;
   private llm: ILLMProvider;
+  private clock: IDeterministicClock;
   private perceptionQueue: Perception[] = [];
   private isProcessing: boolean = false;
 
@@ -42,7 +57,8 @@ export class Orchestrator extends EventEmitter {
     id: string,
     name: string,
     memoryProvider: IMemoryProvider,
-    llmProvider: ILLMProvider
+    llmProvider: ILLMProvider,
+    clock: IDeterministicClock = createDeterministicClock(),
   ) {
     super();
     this.state = {
@@ -54,13 +70,14 @@ export class Orchestrator extends EventEmitter {
     };
     this.memory = memoryProvider;
     this.llm = llmProvider;
+    this.clock = clock;
   }
 
   public async perceive(input: any, source: string): Promise<void> {
     const perception: Perception = {
       source,
       data: input,
-      timestamp: Date.now()
+      timestamp: this.clock.nextTick(),
     };
     this.perceptionQueue.push(perception);
     
@@ -146,12 +163,13 @@ export class Orchestrator extends EventEmitter {
   }
 
   private async updateMemory(perception: Perception | undefined, result: string): Promise<void> {
+    const timestamp = this.clock.nextTick();
     const memoryEntry = {
       perception,
       decision: result,
-      timestamp: Date.now()
+      timestamp,
     };
-    await this.memory.store(`mem_${Date.now()}`, memoryEntry);
+    await this.memory.store(`mem_${String(timestamp).padStart(12, '0')}`, memoryEntry);
   }
 
   public getState(): AgentState {
