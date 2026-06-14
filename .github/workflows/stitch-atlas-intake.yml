@@ -166,89 +166,89 @@ jobs:
             exit 1
           fi
 
-          EXPECTED_PACK_ID="${{ steps.input_check.outputs.PACK_ID }}" python3 <<'PY'
-          import json
-          import os
-          import re
-          import sys
+          EXPECTED_PACK_ID="${{ steps.input_check.outputs.PACK_ID }}" python3 -c '
+import json
+import os
+import re
+import sys
 
-          manifest_path = "apps/client-2d/public/2d-assets/stitch/manifest.json"
+manifest_path = "apps/client-2d/public/2d-assets/stitch/manifest.json"
 expected_pack_id = os.environ["EXPECTED_PACK_ID"]
 
 with open(manifest_path, "r", encoding="utf-8") as f:
     m = json.load(f)
 
-print(f"Schema version: {m.get('schemaVersion')}")
-print(f"Pack ID: {m.get('packId')}")
-print(f"Deterministic: {m.get('deterministic')}")
-print(f"Assets: {len(m.get('assets', []))}")
-print(f"Quarantine: {len(m.get('quarantine', []))}")
+print(f"Schema version: {m.get(\"schemaVersion\")}")
+print(f"Pack ID: {m.get(\"packId\")}")
+print(f"Deterministic: {m.get(\"deterministic\")}")
+print(f"Assets: {len(m.get(\"assets\", []))}")
+print(f"Quarantine: {len(m.get(\"quarantine\", []))}")
 
-          if m.get("packId") != expected_pack_id:
-              print(f"ERROR: unexpected packId: {m.get('packId')} != {expected_pack_id}")
-              sys.exit(1)
+if m.get("packId") != expected_pack_id:
+    print(f"ERROR: unexpected packId: {m.get(\"packId\")} != {expected_pack_id}")
+    sys.exit(1)
 
-          if m.get("deterministic") is not True:
-              print("ERROR: manifest deterministic flag is not true")
-              sys.exit(1)
+if m.get("deterministic") is not True:
+    print("ERROR: manifest deterministic flag is not true")
+    sys.exit(1)
 
-          if not isinstance(m.get("assets"), list):
-              print("ERROR: manifest assets must be a list")
-              sys.exit(1)
+if not isinstance(m.get("assets"), list):
+    print("ERROR: manifest assets must be a list")
+    sys.exit(1)
 
-          if len(m["assets"]) == 0:
-              print("ERROR: manifest assets list is empty")
-              sys.exit(1)
+if len(m["assets"]) == 0:
+    print("ERROR: manifest assets list is empty")
+    sys.exit(1)
 
-          seen_asset_ids = set()
-          seen_source_paths = set()
+seen_asset_ids = set()
+seen_source_paths = set()
 
-          for asset in m["assets"]:
-              asset_id = asset.get("assetId")
-              source_path = asset.get("sourcePath", "")
+for asset in m["assets"]:
+    asset_id = asset.get("assetId")
+    source_path = asset.get("sourcePath", "")
 
-              if not asset_id:
-                  print("ERROR: asset without assetId")
-                  sys.exit(1)
+    if not asset_id:
+        print("ERROR: asset without assetId")
+        sys.exit(1)
 
-              if asset_id in seen_asset_ids:
-                  print(f"ERROR: duplicate assetId: {asset_id}")
-                  sys.exit(1)
+    if asset_id in seen_asset_ids:
+        print(f"ERROR: duplicate assetId: {asset_id}")
+        sys.exit(1)
 
-              seen_asset_ids.add(asset_id)
+    seen_asset_ids.add(asset_id)
 
-              if not source_path:
-                  print(f"ERROR: asset without sourcePath: {asset_id}")
-                  sys.exit(1)
+    if not source_path:
+        print(f"ERROR: asset without sourcePath: {asset_id}")
+        sys.exit(1)
 
-              if source_path in seen_source_paths:
-                  print(f"WARNING: duplicate sourcePath: {source_path}")
+    if source_path in seen_source_paths:
+        print(f"WARNING: duplicate sourcePath: {source_path}")
 
-              seen_source_paths.add(source_path)
+    seen_source_paths.add(source_path)
 
-              if "/tmp/" in source_path:
-                  print(f"ERROR: temp path in asset: {asset_id} -> {source_path}")
-                  sys.exit(1)
+    if "/tmp/" in source_path:
+        print(f"ERROR: temp path in asset: {asset_id} -> {source_path}")
+        sys.exit(1)
 
-              if source_path.startswith("/"):
-                  print(f"ERROR: absolute sourcePath: {asset_id} -> {source_path}")
-                  sys.exit(1)
+    if source_path.startswith("/"):
+        print(f"ERROR: absolute sourcePath: {asset_id} -> {source_path}")
+        sys.exit(1)
 
-              if ".." in source_path.split("/"):
-                  print(f"ERROR: path traversal in sourcePath: {asset_id} -> {source_path}")
-                  sys.exit(1)
+    if ".." in source_path.split("/"):
+        print(f"ERROR: path traversal in sourcePath: {asset_id} -> {source_path}")
+        sys.exit(1)
 
-              if "\\" in source_path:
-                  print(f"ERROR: Windows-style path separator in sourcePath: {asset_id} -> {source_path}")
-                  sys.exit(1)
+    if "\\" in source_path:
+        print(f"ERROR: Windows-style path separator in sourcePath: {asset_id} -> {source_path}")
+        sys.exit(1)
 
-              if not re.match(r"^[\w\-\./!:]+$", source_path):
-                  print(f"ERROR: invalid sourcePath chars: {asset_id} -> {source_path}")
-                  sys.exit(1)
+    if not re.match(r"^[\w\-\./!:]+$", source_path):
+        print(f"ERROR: invalid sourcePath chars: {asset_id} -> {source_path}")
+        sys.exit(1)
 
-          print("Manifest validation OK")
-          print("All sourcePaths are stable, relative, and clean")
-          PY
+print("Manifest validation OK")
+print("All sourcePaths are stable, relative, and clean")
+'
 
       - name: Verify deterministic manifest replay
         run: |
@@ -575,21 +575,21 @@ print(f"Quarantine: {len(m.get('quarantine', []))}")
           if [ -n "$MANIFEST" ]; then
             echo "Generated manifest:"
 
-            MANIFEST_PATH="$MANIFEST" python3 <<'PY'
-            import json
-            import os
+          MANIFEST_PATH="$MANIFEST" python3 -c '
+import json
+import os
 
-            manifest_path = os.environ["MANIFEST_PATH"]
+manifest_path = os.environ["MANIFEST_PATH"]
 
-            with open(manifest_path, "r", encoding="utf-8") as f:
-                m = json.load(f)
+with open(manifest_path, "r", encoding="utf-8") as f:
+    m = json.load(f)
 
-            print(f"  Schema: v{m.get('schemaVersion')}")
-            print(f"  Pack: {m.get('packId')}")
-            print(f"  Deterministic: {m.get('deterministic')}")
-            print(f"  Assets: {len(m.get('assets', []))}")
-            print(f"  Quarantine: {len(m.get('quarantine', []))}")
-            PY
+print(f"  Schema: v{m.get(\"schemaVersion\")}")
+print(f"  Pack: {m.get(\"packId\")}")
+print(f"  Deterministic: {m.get(\"deterministic\")}")
+print(f"  Assets: {len(m.get(\"assets\", []))}")
+print(f"  Quarantine: {len(m.get(\"quarantine\", []))}")
+'
           else
             echo "  (manifest not available)"
 
