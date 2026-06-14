@@ -1,25 +1,36 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import { defineConfig, loadEnv, type PluginOption } from "vite";
 
 // ESM __dirname compatibility for Sovereign Standard Architecture
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+function wasmMimeTypePlugin(): PluginOption {
+  return {
+    name: "wasm-mime-type",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url?.endsWith(".wasm")) {
+          res.setHeader("Content-Type", "application/wasm");
+        }
+        next();
+      });
+    },
+  };
+}
 
 export default defineConfig(({ mode }) => {
   // Load environment variables for cross-service synchronization
   const env = loadEnv(mode, process.cwd(), "");
   const isItchBuild = mode === "itch";
   const isProduction = mode === "production";
-  
+  const isVitest = mode === "test" || process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+
   // Dynamic HMR clientPort: 443 for cloud/SSL environments, undefined for local
   const isSsl = env.VITE_DEV_SERVER_HTTPS === "true" || env.NODE_ENV === "production";
   const hmrClientPort = isSsl ? 443 : undefined;
-
-  // Build minification - esbuild for production (terser is optional)
-  const minify = isProduction ? "esbuild" : "esbuild";
-  const generateInlineSourceMap = !isProduction;
 
   return {
     // Relative base for itch.io builds ensures assets load correctly regardless of subfolder
@@ -57,25 +68,16 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
-      react(),
-      {
-        name: "wasm-mime-type",
-        configureServer(server) {
-          server.middlewares.use((req, res, next) => {
-            if (req.url?.endsWith(".wasm")) {
-              res.setHeader("Content-Type", "application/wasm");
-            }
-            next();
-          });
-        },
-      },
-    ],
+      // Vitest under Vite 8 already uses the OXC transform path. Loading the
+      // Babel React plugin during tests adds esbuild/oxc deprecation noise.
+      !isVitest ? react() : null,
+      wasmMimeTypePlugin(),
+    ].filter(Boolean) as PluginOption[],
     build: {
       outDir: isItchBuild ? "dist-itch" : "dist",
       emptyOutDir: true,
       target: "esnext",
-      // Production minification
-      minify: minify,
+      minify: "esbuild",
       cssCodeSplit: true,
       assetsInlineLimit: 4096,
       sourcemap: env.VITE_BUILD_SOURCEMAP === "1",
