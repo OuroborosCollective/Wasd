@@ -2,7 +2,7 @@
 
 ## Overview
 
-**⚠️ Important: This is a manually maintained registry validated by `scripts/audit-route-registry.mjs`.**
+**Important: This is a manually maintained registry validated by `scripts/audit-route-registry.mjs`.**
 **This document is NOT auto-generated.**
 
 This registry documents the known API routes in the Areloria server based on static analysis of `server/src/core/ServerBootstrap.ts`.
@@ -25,10 +25,7 @@ Run `scripts/audit-route-registry.mjs` to validate:
 - Documentation entry exists
 
 ```bash
-# Baseline mode (report without failing)
 node scripts/audit-route-registry.mjs --baseline
-
-# Strict mode (fail on findings)
 node scripts/audit-route-registry.mjs --strict
 ```
 
@@ -37,20 +34,17 @@ node scripts/audit-route-registry.mjs --strict
 Verify route health at runtime with `scripts/probe-runtime-routes.mjs`:
 
 ```bash
-# Probe live routes (requires running server)
 node scripts/probe-runtime-routes.mjs --port 3001
-
-# Baseline mode (report without failing)
 node scripts/probe-runtime-routes.mjs --port 3001 --baseline
 ```
 
 ## Mounted Routes
 
-All routes are mounted in `server/src/core/ServerBootstrap.ts`.
+All routes listed here are mounted in `server/src/core/ServerBootstrap.ts`.
 
 ### Truth-Path Routes (Gameplay-Affecting)
 
-These routes affect simulation state and require deterministic tick-safe behavior:
+These routes affect simulation or persistence truth and require deterministic/tick-safe behavior where gameplay state is involved:
 
 | Route | Source File | Purpose | Auth |
 |-------|-------------|---------|------|
@@ -68,13 +62,13 @@ These routes affect simulation state and require deterministic tick-safe behavio
 | `/api/npc` | `server/src/npc/npcQuestRoute.ts` | NPC quest routes | - |
 | `/api/quests` | `server/src/quests/npcQuestRoute.ts` | Quest routes | - |
 | `/api/admin/loot` | `server/src/routes/lootRoutes.ts` | ARE loot machine | Yes |
-| `/api/glb` | `server/src/api/glbUploadRoute.ts` | GLB marketplace | Yes |
+| `/api/glb` | `server/src/api/glbUploadRoute.ts` | GLB read surface; writes disabled pending transaction hardening | Mixed |
 
-**Note:** `/api/glb` is classified as active-truth-path because it mutates ownership, marketplace state, placement, and Matrix Energy. All mutating routes require authMiddleware.
+**Note:** `/api/glb` is mounted, but mutating GLB write endpoints intentionally fail closed with `503 GLB_MUTATIONS_DISABLED` until a dedicated transaction-safe PR adds atomic marketplace/placement writes, idempotency, and rollback-safe file handling.
 
 ### Side-Channel Routes (Non-Gameplay)
 
-These routes are for observability/monitoring:
+These routes are for observability, content, diagnostics, or read-only support surfaces:
 
 | Route | Source File | Purpose | Auth |
 |-------|-------------|---------|------|
@@ -93,11 +87,9 @@ These routes are for observability/monitoring:
 | `/api/v1/warfront` | `server/src/api/warfrontRoute.ts` | Warfront combat | No |
 | `/api/v1` | `server/src/api/scienceMascotRoute.ts` | Science mascot API | No |
 | `/api/mcp` | `server/src/api/mcpRoute.ts` | MCP protocol | No |
-| `/api/asset-brain` | `server/src/api/assetBrainRoute.ts` | Asset brain library | Yes |
+| `/api/asset-brain` | `server/src/api/assetBrainRoute.ts` | Asset brain library; mixed auth | Mixed |
 
 ### Admin Routes (Auth-Protected)
-
-These routes require admin authentication:
 
 | Route | Source File | Purpose | Auth |
 |-------|-------------|---------|------|
@@ -110,7 +102,7 @@ These routes require admin authentication:
 
 | Route | Source | Purpose | Auth |
 |-------|--------|---------|------|
-| `/api/playtester/debug-log` | ServerBootstrap.ts:241 | Playtester debug | Yes |
+| `/api/playtester/debug-log` | ServerBootstrap.ts | Playtester debug | Yes |
 | `/playtester-monitor.html` | ServerBootstrap.ts | Monitor UI | Yes |
 | `/playtester-render-publisher.html` | ServerBootstrap.ts | Publisher UI | Yes |
 
@@ -131,20 +123,20 @@ These routes require admin authentication:
 
 The `/api/glb` router has the following sub-routes:
 
-| Sub-Route | Method | Auth | Classification | Notes |
-|-----------|--------|------|---------------|-------|
-| `/marketplace` | GET | No | Public (read-only) | Browse marketplace listings |
-| `/land/:playerId` | GET | No | Public (read-only) | Get placed models on land |
-| `/upload` | POST | Yes | active-truth-path | Upload GLB (subscription required) |
-| `/my-models` | GET | Yes | active-truth-path | List player's models |
-| `/:modelId` | DELETE | Yes | active-truth-path | Delete owned model |
-| `/place` | POST | Yes | active-truth-path | Place model on land |
-| `/place/:placeId` | DELETE | Yes | active-truth-path | Remove placed model |
-| `/marketplace/list` | POST | Yes | active-truth-path | List model for sale |
-| `/marketplace/buy` | POST | Yes | active-truth-path | Buy model (transfers Matrix Energy) |
-| `/subscription-status` | GET | Yes | active-truth-path | Check subscription status |
+| Sub-Route | Method | Auth | Runtime Status | Notes |
+|-----------|--------|------|----------------|-------|
+| `/marketplace` | GET | No | Live public read-only | Browse marketplace listings |
+| `/land/:playerId` | GET | No | Live public read-only | Get placed models on land |
+| `/my-models` | GET | Yes | Live authenticated read-only | List player's models |
+| `/subscription-status` | GET | Yes | Live authenticated read-only | Check subscription and Matrix Energy |
+| `/upload` | POST | Yes | Disabled with 503 | Deferred until transaction-safe writes exist |
+| `/:modelId` | DELETE | Yes | Disabled with 503 | Deferred until transaction-safe writes exist |
+| `/place` | POST | Yes | Disabled with 503 | Deferred until transaction-safe writes exist |
+| `/place/:placeId` | DELETE | Yes | Disabled with 503 | Deferred until transaction-safe writes exist |
+| `/marketplace/list` | POST | Yes | Disabled with 503 | Deferred until transaction-safe writes exist |
+| `/marketplace/buy` | POST | Yes | Disabled with 503 | Deferred until transaction-safe writes exist |
 
-**Important:** All mutating routes use `authMiddleware` to derive player identity, not `x-player-id` header alone.
+**Important:** Mutating GLB routes do not fake success. They require authentication first, then fail closed with `GLB_MUTATIONS_DISABLED` until the write path is atomic and idempotent.
 
 ## Legacy/Orphaned Routes
 
