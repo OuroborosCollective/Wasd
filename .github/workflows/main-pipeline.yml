@@ -15,11 +15,9 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-    timeout-minutes: 30
-
-    env:
       VPS_PATH: /opt/areloria
       NODE_ENV: production
       API_KEY: ${{ secrets.API_KEY }}
