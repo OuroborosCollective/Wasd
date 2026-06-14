@@ -4,7 +4,7 @@ import request from "supertest";
 import { client2dAssetUploadRouter } from "../api/client2dAssetUploadRoute.js";
 import { sovereignDeployRouter } from "../api/sovereignDeployRoute.js";
 import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
-import { adminRateLimiter, sensitiveWriteRateLimiter } from "../middleware/rateLimitMiddleware.js";
+import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -51,9 +51,8 @@ describe("Sentinel Endpoint Protection", () => {
     it("is protected by adminAuthMiddleware", async () => {
       process.env.ADMIN_PANEL_TOKEN = "secret";
       const app = express();
-      app.use(adminRateLimiter);
       const mockTick = {} as any;
-      app.use("/api/sovereign/deploy", adminAuthMiddleware, sovereignDeployRouter(mockTick));
+      app.use("/api/sovereign/deploy", adminRateLimiter, adminAuthMiddleware, sovereignDeployRouter(mockTick));
 
       const r = await request(app).get("/api/sovereign/deploy/truth");
       expect(r.status).toBe(401);
@@ -69,9 +68,8 @@ describe("Sentinel Endpoint Protection", () => {
       process.env.ADMIN_PANEL_TOKEN = "secret";
       process.env.CONTENT_ADMIN_READONLY = "true";
       const app = express();
-      app.use(sensitiveWriteRateLimiter);
       const mockTick = {} as any;
-      app.use("/api/sovereign/deploy", adminAuthMiddleware, sovereignDeployRouter(mockTick));
+      app.use("/api/sovereign/deploy", adminRateLimiter, adminAuthMiddleware, sovereignDeployRouter(mockTick));
 
       const r = await request(app)
         .post("/api/sovereign/deploy/launch")
