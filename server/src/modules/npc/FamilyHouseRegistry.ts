@@ -50,6 +50,10 @@ export interface LineageBirthEvent {
   cause: 'founder' | 'eligible_pair';
 }
 
+export interface LineageBirthEventSink {
+  record(value: LineageBirthEvent): void;
+}
+
 export interface LineageStats {
   strength: number;
   agility: number;
@@ -380,7 +384,10 @@ export class NPCLineageManager {
   private readonly eligibilityEngine: NPCCoupleEligibilityEngine;
   private readonly archetypeEngine: DescendantArchetypeEngine;
 
-  constructor(registry: FamilyHouseRegistry = new FamilyHouseRegistry()) {
+  constructor(
+    registry: FamilyHouseRegistry = new FamilyHouseRegistry(),
+    private readonly birthEventSink?: LineageBirthEventSink
+  ) {
     this.registry = registry;
     this.eligibilityEngine = new NPCCoupleEligibilityEngine(this.registry);
     this.archetypeEngine = new DescendantArchetypeEngine(this.registry);
@@ -428,7 +435,9 @@ export class NPCLineageManager {
       traits,
     };
 
-    this.registry.registerLineage(node, this.createBirthEvent(node, eligibility, 'eligible_pair'));
+    const birthEvent = this.createBirthEvent(node, eligibility, 'eligible_pair');
+    this.registry.registerLineage(node, birthEvent);
+    this.birthEventSink?.record(birthEvent);
     return node;
   }
 
@@ -462,6 +471,7 @@ export class NPCLineageManager {
     };
 
     this.registry.registerLineage(node, event);
+    this.birthEventSink?.record(event);
     return node;
   }
 
