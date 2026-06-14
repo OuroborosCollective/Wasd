@@ -74,6 +74,17 @@ export class InventoryService {
     return this.store.hasItems(input);
   }
 
+  async persistInventory(playerId: string, state: PlayerInventoryState): Promise<void> {
+    await this.persistence.savePlayerInventory(
+      createPersistedPlayerInventoryState(playerId, state),
+    );
+  }
+
+  replacePlayerInventory(playerId: string, state: PlayerInventoryState): void {
+    this.store.replacePlayerInventory(playerId, state);
+    this.hydratedPlayers.add(playerId);
+  }
+
   async hydratePlayer(playerId: string): Promise<void> {
     if (this.hydratedPlayers.has(playerId)) return;
 
