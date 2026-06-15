@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "tickCadence": 1,
+  "kindRules": [
+    {
+      "kind": "tree",
+      "capacity": 5000,
+      "initialStock": 5000,
+      "regenPerTick": 120,
+      "extractionUnits": 1000,
+      "extractionPressurePermille": 120,
+      "pressureDecayPermillePerTick": 20,
+      "collapseThreshold": 1000,
+      "collapseRegenPermille": 450
+    },
+    {
+      "kind": "ore",
+      "capacity": 4000,
+      "initialStock": 4000,
+      "regenPerTick": 80,
+      "extractionUnits": 1000,
+      "extractionPressurePermille": 180,
+      "pressureDecayPermillePerTick": 15,
+      "collapseThreshold": 1000,
+      "collapseRegenPermille": 350
+    },
+    {
+      "kind": "fish_spot",
+      "capacity": 4500,
+      "initialStock": 4500,
+      "regenPerTick": 100,
+      "extractionUnits": 1000,
+      "extractionPressurePermille": 140,
+      "pressureDecayPermillePerTick": 18,
+      "collapseThreshold": 1000,
+      "collapseRegenPermille": 400
+    }
+  ],
+  "nodeOverrides": []
+}
