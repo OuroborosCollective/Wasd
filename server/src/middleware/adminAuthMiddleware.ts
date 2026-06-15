@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { Request, Response, NextFunction } from "express";
 import { isSupabaseAuthConfigured, verifySupabaseToken } from "../config/supabase.js";
 
@@ -28,6 +29,34 @@ function hasValidSovereignLaunchCredential(req: Request): boolean {
   if (!expected) return false;
   const provided = headerValue(req.headers["x-sovereign-launch-key"]);
   return provided.length > 0 && provided === expected;
+}
+
+function hashBuffer(value: string): Buffer {
+  return createHash("sha256").update(value, "utf8").digest();
+}
+
+function safeEqualText(a: string, b: string): boolean {
+  const left = hashBuffer(a);
+  const right = hashBuffer(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function readDashboardAccessValue(req: Request): string {
+  const direct = headerValue(req.headers["x-dashboard-admin-tsx"]);
+  if (direct) return direct;
+  const auth = headerValue(req.headers.authorization);
+  if (!auth.startsWith("Basic ")) return "";
+  try {
+    const decoded = Buffer.from(auth.slice(6), "base64").toString("utf8");
+    const colon = decoded.indexOf(":");
+    return colon >= 0 ? decoded.slice(colon + 1) : "";
+  } catch {
+    return "";
+  }
+}
+
+function readDashboardConfiguredValue(): string {
+  return (process.env.DASHBOARD_ADMIN_TSX || process.env.dashboard_admin_tsx || "").trim();
 }
 
 /**
@@ -115,4 +144,17 @@ export function adminWriteBlocked(_req: Request, res: Response, next: NextFuncti
     return res.status(403).json({ error: "Content admin is read-only (CONTENT_ADMIN_READONLY)" });
   }
   next();
+}
+
+export function adminDashboardAccess(req: Request, res: Response, next: NextFunction) {
+  const expected = readDashboardConfiguredValue();
+  if (!expected && process.env.NODE_ENV !== "production") {
+    return next();
+  }
+  const provided = readDashboardAccessValue(req);
+  if (expected && provided && safeEqualText(provided, expected)) {
+    return next();
+  }
+  res.setHeader("WWW-Authenticate", 'Basic realm="Areloria Dashboard"');
+  return res.status(401).type("text/plain").send("Dashboard access required.");
 }
