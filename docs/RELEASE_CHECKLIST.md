@@ -73,6 +73,7 @@ Tracked by #2038.
 | `/health` | real healthy response | ☐ |
 | `/client-config.json` | valid JSON | ☐ |
 | `/` | page response | ☐ |
+| `/2d` | primary 2D client page/boot response | ☐ |
 | `/portal` | portal response | ☐ |
 | WebSocket upgrade | accepted upgrade | ☐ |
 | Container | running and healthy | ☐ |
