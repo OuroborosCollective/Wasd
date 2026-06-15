@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { initializeDialogueBridge, isDialogueBridgeInitialized, resolveDialogue, getDialogueEntry, getFallbackText, clearDialogueBridge } from './DialogueBridge.js';
-import { decideUtterance, clearAllKernelState } from './DialogueDecisionKernel.js';
+import { decideUtterance, clearAllKernelState, registerPhraseGenome } from './DialogueDecisionKernel.js';
 import { buildNpcLanguageState, processLinguisticUpdate, initializeLinguisticKernel, isLinguisticKernelInitialized, resetLinguisticKernel, shutdownLinguisticKernel } from './ArelorianLinguisticKernel.js';
 import { createKappaInt } from './LanguageTypes.js';
+import { clearArchive, loadSeedData } from './LivingDudenArchive.js';
 import type { KappaInt } from './LanguageTypes.js';
 import type { TickId } from '../are/types.js';
 
@@ -11,9 +12,31 @@ function createTestWorldState() {
   return { threatLevel: createKappaInt(0.3) as KappaInt, villageSafety: createKappaInt(0.7) as KappaInt, factionPressure: createKappaInt(0.5) as KappaInt, politicalTension: createKappaInt(0.4) as KappaInt };
 }
 
+function seedEmotionGenome(): void {
+  clearArchive();
+  loadSeedData([
+    { id: 'test_subject_guard', lemma: 'Wacht', language: 'arel', concepts: ['greet', 'duty'], emotion: { duty: 0.8, trust: 0.4 }, grammar: { partOfSpeech: 'noun', allowedPositions: ['subject'] } },
+    { id: 'test_verb_greet', lemma: 'gruss', language: 'arel', concepts: ['greet'], emotion: { joy: 0.25, trust: 0.6 }, grammar: { partOfSpeech: 'verb', allowedPositions: ['verb'] } },
+  ]);
+  registerPhraseGenome(Object.freeze({
+    id: 'neutral_greet_citizen',
+    intent: 'greet',
+    languageMode: 'arel',
+    structure: Object.freeze(['subject', 'verb'] as const),
+    slots: Object.freeze([
+      Object.freeze({ role: 'subject' as const, required: true as const, lexemeIds: Object.freeze(['test_subject_guard']) }),
+      Object.freeze({ role: 'verb' as const, required: true as const, lexemeIds: Object.freeze(['test_verb_greet']) }),
+    ]),
+    constraints: Object.freeze({}),
+    outcomeStats: Object.freeze({ uses: 0, successfulUses: 0, failedUses: 0, averageKappaScore: createKappaInt(1) }),
+    mutation: Object.freeze({ parentGenomeIds: Object.freeze([]), generation: 0, stability: createKappaInt(1), novelty: createKappaInt(0) }),
+    truthMode: 'known_fact',
+  }));
+}
+
 describe('Living Language System Integration', () => {
-  beforeEach(() => { clearDialogueBridge(); clearAllKernelState(); resetLinguisticKernel(); });
-  afterEach(() => { shutdownLinguisticKernel(); clearDialogueBridge(); });
+  beforeEach(() => { clearDialogueBridge(); clearAllKernelState(); resetLinguisticKernel(); clearArchive(); });
+  afterEach(() => { shutdownLinguisticKernel(); clearDialogueBridge(); clearArchive(); });
 
   describe('DialogueBridge', () => {
     it('should initialize with dialogue entries', () => { initializeDialogueBridge([{ id: 'dialogue_test_npc', greeting: 'Hello, traveler!', fallback: '...' }]); expect(isDialogueBridgeInitialized()).toBe(true); });
@@ -24,7 +47,8 @@ describe('Living Language System Integration', () => {
 
   describe('DialogueDecisionKernel', () => {
     it('should decide utterance with all required fields', () => { const npcState = buildNpcLanguageState('npc_1', { factionId: 'neutral', role: 'citizen', hunger: 0.3, trust: 0.5, fear: 0.2, duty: 0.6, pride: 0.4, revenge: 0.1 }); const decision = decideUtterance({ npcState, worldState: createTestWorldState(), tick: 100, sequenceId: 1 }); expect(decision.npcId).toBe('npc_1'); expect(decision.speechHash).toBeTruthy(); expect(decision.intent).toBeTruthy(); expect(decision.constructedText).toBeTruthy(); });
-    it('should produce deterministic results for same input', () => { const npcState = buildNpcLanguageState('det_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.3, trust: 0.5, fear: 0.2, duty: 0.6, pride: 0.4, revenge: 0.1 }); const ctx = { npcState, worldState: createTestWorldState(), tick: 300, sequenceId: 3 }; const d1 = decideUtterance(ctx); const d2 = decideUtterance(ctx); expect(d1.speechHash).toBe(d2.speechHash); expect(d1.constructedText).toBe(d2.constructedText); });
+    it('should produce deterministic results for same input', () => { const npcState = buildNpcLanguageState('det_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.3, trust: 0.5, fear: 0.2, duty: 0.6, pride: 0.4, revenge: 0.1 }); const ctx = { npcState, worldState: createTestWorldState(), tick: 300, sequenceId: 3 }; const d1 = decideUtterance(ctx); clearAllKernelState(); const d2 = decideUtterance(ctx); expect(d1.speechHash).toBe(d2.speechHash); expect(d1.constructedText).toBe(d2.constructedText); });
+    it('should derive emotional tone from selected lexemes instead of neutral fallback', () => { seedEmotionGenome(); const npcState = buildNpcLanguageState('emotion_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.1, trust: 0.7, fear: 0.1, duty: 0.6, pride: 0.2, revenge: 0 }); const decision = decideUtterance({ npcState, worldState: createTestWorldState(), tick: 420, sequenceId: 4 }, { forceIntent: 'greet' }); expect(decision.needsFallback).toBe(false); expect(Number(decision.emotionalTone.trust)).toBeGreaterThan(0); expect(Number(decision.emotionalTone.duty)).toBeGreaterThan(0); expect(decision.constructedText).not.toBe('greet.'); });
   });
 
   describe('ArelorianLinguisticKernel', () => {
@@ -39,6 +63,6 @@ describe('Living Language System Integration', () => {
   });
 
   describe('Determinism', () => {
-    it('should produce identical results across calls with same tick', () => { const npcState = buildNpcLanguageState('stab_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.3, trust: 0.5, fear: 0.2, duty: 0.6, pride: 0.4, revenge: 0.1 }); const ctx = { npcState, worldState: createTestWorldState(), tick: 500, sequenceId: 5 }; const results = Array.from({ length: 5 }, () => decideUtterance(ctx)); results.forEach((result) => { expect(result.speechHash).toBe(results[0].speechHash); }); });
+    it('should produce identical results across calls with same tick', () => { const npcState = buildNpcLanguageState('stab_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.3, trust: 0.5, fear: 0.2, duty: 0.6, pride: 0.4, revenge: 0.1 }); const ctx = { npcState, worldState: createTestWorldState(), tick: 500, sequenceId: 5 }; const results = Array.from({ length: 5 }, () => { clearAllKernelState(); return decideUtterance(ctx); }); results.forEach((result) => { expect(result.speechHash).toBe(results[0].speechHash); }); });
   });
 });
