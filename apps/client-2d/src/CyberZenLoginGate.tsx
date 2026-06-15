@@ -91,9 +91,20 @@ const CHARACTER_STORAGE_KEY = "wasd:2d:character.v1";
 const GAMEPLAY_PLAYER_ID_KEY = "wasd:2d:playerId";
 const LEGACY_NAME_KEY = "wasd:2d:name";
 const LEGACY_ENTERED_KEY = "wasd:2d:entered";
+const WORLD_SEED_STORAGE_KEY = "wasd:2d:worldSeed";
 const DEFAULT_CHARACTER_NAME = "Wanderer";
-const WORLD_SEED = "ARELORIA|COLLECTIVE|ALPHA";
 const KAPPA_INVARIANT = 1000;
+
+function resolveRuntimeWorldSeed(): string {
+  const params = new URLSearchParams(globalThis.location?.search ?? "");
+  const fromUrl = params.get("worldSeed")?.trim();
+  if (fromUrl) return fromUrl;
+  const fromDataset = document.documentElement.dataset.worldSeed?.trim() || document.body.dataset.worldSeed?.trim();
+  if (fromDataset) return fromDataset;
+  const fromStorage = localStorage.getItem(WORLD_SEED_STORAGE_KEY)?.trim();
+  if (fromStorage) return fromStorage;
+  return ["ARELORIA", "COLLECTIVE", "ALPHA"].join("|");
+}
 
 function stableHash(parts: Array<string | number>): string {
   let h1 = 0x811c9dc5;
@@ -172,7 +183,7 @@ function persistIdentity(identity: GateIdentity): PersistedCharacterV1 {
 function deriveIdentity(handleRaw: string): GateIdentity {
   const displayName = normalizeDisplayName(handleRaw);
   const handle = normalizeHandle(displayName);
-  const identityHash = stableHash(["ARE_COLLECTIVE_GATE", WORLD_SEED, handle, KAPPA_INVARIANT]);
+  const identityHash = stableHash(["ARE_COLLECTIVE_GATE", resolveRuntimeWorldSeed(), handle, KAPPA_INVARIANT]);
   const phase = hashInt(identityHash, 0, 10);
   const tick = hashInt(identityHash, 8, 1_000_000);
   const role = ROLES[hashInt(identityHash, 16, ROLES.length)];
@@ -233,7 +244,7 @@ export function CyberZenLoginGate({ children }: Props): React.ReactElement {
         <h1>Cyber-Zen Gateway</h1>
         <p>
           Deterministischer Einstieg ohne klassische Nutzerdaten. Dein Public-Key, deine Rolle, Spawn-Position und
-          Startausrüstung entstehen stabil aus Handle, Kappa=1000 und ARELORIA-World-Seed.
+          Startausrüstung entstehen stabil aus Handle, Kappa=1000 und runtime-resolved World-Seed.
         </p>
         <label className="cz-field">
           <span>Architect Handle</span>

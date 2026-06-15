@@ -64,6 +64,24 @@ export interface ServerErrorPayload {
   message: string;
 }
 
+function stableHash32(input: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+function deterministicEnvelopeTime(type: ServerMessageType, payload: unknown): number {
+  if (isRecord(payload)) {
+    const explicit = payload.tick ?? payload.serverTick ?? payload.logicalIndex ?? payload.t;
+    const n = Number(explicit);
+    if (Number.isSafeInteger(n) && n >= 0) return n;
+  }
+  return stableHash32(`${SERVER_PROTOCOL_VERSION}:${type}:${JSON.stringify(payload ?? null)}`);
+}
+
 export function envelope<TType extends ServerMessageType, TPayload>(
   type: TType,
   payload: TPayload
@@ -72,7 +90,7 @@ export function envelope<TType extends ServerMessageType, TPayload>(
     type,
     protocolVersion: SERVER_PROTOCOL_VERSION,
     payload,
-    t: Date.now()
+    t: deterministicEnvelopeTime(type, payload)
   };
 }
 
