@@ -1,10 +1,7 @@
-import {
-  KAPPA_STANDARD,
-  deriveChunkBiome,
-  generateChunkScenePlan,
-  type BiomeId,
-  type ChunkScenePlan,
-} from '@wasd/shared/world';
+import { deriveChunkBiome } from '../../../../packages/shared/src/world/BiomeDirector.js';
+import { generateChunkScenePlan } from '../../../../packages/shared/src/world/WorldDirector.js';
+import { KAPPA_STANDARD } from '../../../../packages/shared/src/world/KappaMath.js';
+import type { BiomeId, ChunkScenePlan } from '../../../../packages/shared/src/world/ScenePlanTypes.js';
 import type { ChunkKey, TickId } from './types.js';
 import { parseChunkKey } from './types.js';
 import { resolveCanonicalWorldSeed, type CanonicalLayerSeedSignals } from './CanonicalLayerSeed.js';
