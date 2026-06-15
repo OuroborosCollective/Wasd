@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "eventType": "combat_result",
+      "baseKappa": 120,
+      "magnitudeWeightKappa": 500,
+      "participantWeightKappa": 25,
+      "thresholdKappa": 650
+    },
+    {
+      "eventType": "governance_change",
+      "baseKappa": 260,
+      "magnitudeWeightKappa": 400,
+      "participantWeightKappa": 20,
+      "thresholdKappa": 620
+    },
+    {
+      "eventType": "major_resource_collapse",
+      "baseKappa": 420,
+      "magnitudeWeightKappa": 550,
+      "participantWeightKappa": 10,
+      "thresholdKappa": 700
+    },
+    {
+      "eventType": "market_crash",
+      "baseKappa": 360,
+      "magnitudeWeightKappa": 450,
+      "participantWeightKappa": 15,
+      "thresholdKappa": 680
+    },
+    {
+      "eventType": "npc_memory_milestone",
+      "baseKappa": 220,
+      "magnitudeWeightKappa": 350,
+      "participantWeightKappa": 20,
+      "thresholdKappa": 640
+    },
+    {
+      "eventType": "territory_capture",
+      "baseKappa": 500,
+      "magnitudeWeightKappa": 450,
+      "participantWeightKappa": 30,
+      "thresholdKappa": 650
+    }
+  ]
+}
