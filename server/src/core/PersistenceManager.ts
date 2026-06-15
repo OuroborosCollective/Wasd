@@ -148,8 +148,7 @@ export class PersistenceManager {
     this.assertLogicalIndex(logicalIndex);
     this.assertPlainObject(data, "saveSnapshot.data");
 
-    const payload = this.deepClone(data);
-    const canonicalPayload = this.canonicalize(payload);
+    const canonicalPayload = this.cloneAndCanonicalize(data);
     const hash = this.hashJson(canonicalPayload);
     if (this.enableHashSkip && hash === this.lastHash) return;
 
@@ -175,13 +174,14 @@ export class PersistenceManager {
 
   public async save<T extends JsonObject>(data: T): Promise<void> {
     this.assertPlainObject(data, "save.data");
-    const hash = this.hashJson(this.canonicalize(this.deepClone(data)));
+    const canonicalPayload = this.cloneAndCanonicalize(data);
+    const hash = this.hashJson(canonicalPayload);
     const savedAtUnixMs = this.auditTimeMs("save", this.auditSequence + 1, hash);
 
     await this.enqueueWrite("save", async () => {
       await this.ensureInitialized();
       await this.executeWithRetry("save", async () => {
-        await this.withTimeout(this.backend.save(data as Readonly<Record<string, unknown>>), "save");
+        await this.withTimeout(this.backend.save(canonicalPayload as Readonly<Record<string, unknown>>), "save");
         this.lastHash = hash;
         this.lastSuccessfulSaveAt = savedAtUnixMs;
       });
@@ -204,8 +204,7 @@ export class PersistenceManager {
           : raw;
 
       this.assertPlainObject(payload, "load.payload");
-      const cloned = this.deepClone(payload as T);
-      const canonical = this.canonicalize(cloned) as T;
+      const canonical = this.cloneAndCanonicalize(payload as T);
       return this.freezeMaybe(canonical);
     });
     return result;
@@ -223,7 +222,7 @@ export class PersistenceManager {
       if (typeof object.id !== "string" || object.id.trim().length === 0) {
         throw this.error("saveWorldObjects", `objects[${index}].id must be a non-empty string`);
       }
-      return this.canonicalize(this.deepClone(object)) as T;
+      return this.cloneAndCanonicalize(object);
     });
 
     const sorted = snapshot.sort(PersistenceManager.compareWorldObjects);
@@ -252,7 +251,7 @@ export class PersistenceManager {
         if (typeof object.id !== "string" || object.id.trim().length === 0) {
           throw new Error(`loadWorldObjects.result[${index}].id must be a non-empty string`);
         }
-        return this.canonicalize(this.deepClone(object as T)) as T;
+        return this.cloneAndCanonicalize(object as T);
       });
 
       objects.sort(PersistenceManager.compareWorldObjects);
@@ -356,39 +355,68 @@ export class PersistenceManager {
     }
   }
 
-  private canonicalize<T>(value: T): T {
-    if (value === null) return value;
-    if (typeof value === "number") {
-      if (!Number.isFinite(value)) throw this.error("canonicalize", `invalid number: ${value}`);
-      return value;
+  /**
+   * Performs deep cloning and canonicalization (key sorting) in a single recursive pass.
+   * This is significantly faster than performing two separate recursive passes.
+   * It also ensures that non-serializable types (functions, symbols) are detected correctly.
+   */
+  private cloneAndCanonicalize<T>(value: T): T {
+    if (value === null) return value as T;
+    const type = typeof value;
+
+    if (type === "string" || type === "boolean") return value as T;
+
+    if (type === "number") {
+      if (!Number.isFinite(value)) {
+        throw this.error("canonicalize", `invalid number: ${value}`);
+      }
+      return value as T;
     }
-    if (typeof value === "string" || typeof value === "boolean") return value;
-    if (Array.isArray(value)) return value.map((entry) => this.canonicalize(entry)) as T;
-    if (typeof value === "object") {
+
+    if (type === "bigint") {
+      return (value as bigint).toString() as T;
+    }
+
+    if (value instanceof Date) {
+      return value.toISOString() as T;
+    }
+
+    if (Array.isArray(value)) {
+      const res = new Array(value.length);
+      for (let i = 0; i < value.length; i++) {
+        res[i] = this.cloneAndCanonicalize(value[i]);
+      }
+      return res as T;
+    }
+
+    if (type === "object") {
       const input = value as Record<string, unknown>;
       const output: Record<string, unknown> = {};
-      for (const key of Object.keys(input).sort()) {
+      const keys = Object.keys(input).sort();
+
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
         const child = input[key];
-        if (typeof child === "undefined") continue;
-        if (typeof child === "function") throw this.error("canonicalize", `function is not serializable at key ${key}`);
-        if (typeof child === "symbol") throw this.error("canonicalize", `symbol is not serializable at key ${key}`);
-        if (typeof child === "bigint") {
-          output[key] = child.toString();
-          continue;
+
+        if (child === undefined) continue;
+
+        const childType = typeof child;
+        if (childType === "function") {
+          throw this.error("canonicalize", `function is not serializable at key ${key}`);
         }
-        output[key] = this.canonicalize(child);
+        if (childType === "symbol") {
+          throw this.error("canonicalize", `symbol is not serializable at key ${key}`);
+        }
+
+        output[key] = this.cloneAndCanonicalize(child);
       }
       return output as T;
     }
-    throw this.error("canonicalize", `unsupported value type: ${typeof value}`);
-  }
 
-  private deepClone<T>(value: T): T {
-    try {
-      return structuredClone(value);
-    } catch {
-      return JSON.parse(JSON.stringify(value)) as T;
-    }
+    if (type === "function") throw this.error("canonicalize", "function is not serializable");
+    if (type === "symbol") throw this.error("canonicalize", "symbol is not serializable");
+
+    throw this.error("canonicalize", `unsupported value type: ${type}`);
   }
 
   private freezeMaybe<T>(value: T): Readonly<T> {

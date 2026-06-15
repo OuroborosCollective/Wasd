@@ -13,3 +13,7 @@
 ## 2028-02-24 - [Fixing Duplicate Tags in NPCSystem]
 **Learning:** Monorepo environments can occasionally suffer from merge artifacts or accidental duplicate property declarations in core interfaces (like NPC). This specifically caused TS2300 "Duplicate identifier 'tags'".
 **Action:** Always verify the entire module's type health even when performing scoped optimizations, as unrelated pre-existing or emergent issues can block the CI gate.
+
+## 2025-05-24 - [Optimizing Persistence via Single-Pass Canonicalization]
+**Learning:** In PersistenceManager, performing separate `deepClone` (using `structuredClone`) and `canonicalize` (recursive sorting) passes was redundant. `structuredClone` has high overhead for simple JsonValue types. A single recursive pass that clones and sorts keys simultaneously is significantly more efficient and allows for immediate type conversion (BigInt, Date).
+**Action:** Consolidate multiple object traversals into a single recursive pass when performing both cloning and deterministic transformation/canonicalization.
