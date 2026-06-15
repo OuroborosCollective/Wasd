@@ -52,12 +52,15 @@ export interface ResourceEcologyConfig {
   readonly nodeOverrides: readonly ResourceEcologyNodeOverride[];
 }
 
-export interface ResolvedResourceEcologyRule extends ResourceEcologyKindRule {
+export interface ResolvedResourceEcologyRule extends Omit<ResourceEcologyKindRule, "extractionPressurePermille"> {
   readonly nodeId: string;
+  /** Stable rule pressure added by one successful gather, 0..1000. */
+  readonly pressurePerExtractionPermille: number;
 }
 
 export interface ResourceNodeEcologyState extends ResolvedResourceEcologyRule {
   readonly currentStock: number;
+  /** Current accumulated extraction pressure, 0..1000. */
   readonly extractionPressurePermille: number;
   readonly lastTick: number;
   readonly lastExtractionTick: number | null;
@@ -72,6 +75,7 @@ export interface ResourceNodeEcologySnapshot {
   readonly stockPermille: number;
   readonly regenPerTick: number;
   readonly extractionUnits: number;
+  readonly pressurePerExtractionPermille: number;
   readonly extractionPressurePermille: number;
   readonly pressureDecayPermillePerTick: number;
   readonly collapseThreshold: number;
