@@ -1,6 +1,7 @@
 import { stableHash32 } from '../determinism/AREDeterminism.js';
 import type { PhraseGenome, LivingLexeme, LanguageCode, SentencePosition } from './LanguageTypes.js';
 import { findLexemeForSlot, getLexeme } from './LivingDudenArchive.js';
+import { getPhraseGenomeOrDefault } from './PhraseGenomeRegistry.js';
 
 const GRAMMAR_TAG = 'PROC_GRAMMAR_V1';
 
@@ -76,5 +77,5 @@ function applyGrammar(lexeme: LivingLexeme, grammar: GrammarRule, position: Sent
 function normalizeSentence(text: string): string { const trimmed = text.replace(/\s+/g, ' ').trim(); if (!trimmed) return trimmed; const capitalized = capitalize(trimmed); return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`; }
 function capitalize(text: string): string { return text.length === 0 ? text : text[0].toUpperCase() + text.slice(1); }
 export function validatePhraseGenome(genome: PhraseGenome): { readonly valid: boolean; readonly errors: string[] } { const errors: string[] = []; const grammar = getGrammarForLanguage(genome.languageMode); for (const required of grammar.requiredSlots) if (!genome.slots.some((slot) => normalizeSlotRole(slot.role) === required)) errors.push(`Missing required slot: ${required}`); const seenSlots = new Set<string>(); for (const slot of genome.slots) { const normalized = normalizeSlotRole(slot.role); if (seenSlots.has(normalized)) errors.push(`Duplicate slot role: ${normalized}`); seenSlots.add(normalized); } return Object.freeze({ valid: errors.length === 0, errors }); }
-export function getPhraseGenomeOrFallback(_genomeId: string): PhraseGenome | undefined { return undefined; }
+export function getPhraseGenomeOrFallback(genomeId: string): PhraseGenome | undefined { return getPhraseGenomeOrDefault(genomeId); }
 export function createSentenceSeed(npcId: string, intent: string, tick: number, sequenceId: number): number { return stableHash32([npcId, intent, tick.toString(), sequenceId.toString()].join('|')); }
