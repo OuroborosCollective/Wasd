@@ -1,9 +1,35 @@
-import jwt, { SignOptions, Secret, Algorithm } from 'jsonwebtoken';
+import jwt, { type Algorithm, type JwtPayload, type Secret, type SignOptions } from 'jsonwebtoken';
 
 export interface SysAdminPayload {
     userId: string;
     username: string;
     role: 'sys-admin';
+}
+
+const LOCAL_DEV_SYS_ADMIN_SECRET = 'default-local-sys-admin-secret-key-change-in-prod';
+
+function resolveSysAdminJwtSecret(): Secret {
+    const envSecret = process.env.SYS_ADMIN_JWT_SECRET?.trim();
+    if (envSecret) return envSecret;
+
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: SYS_ADMIN_JWT_SECRET is not set in production environment.');
+    }
+
+    return LOCAL_DEV_SYS_ADMIN_SECRET;
+}
+
+function normalizeDecodedPayload(decoded: string | JwtPayload): SysAdminPayload | null {
+    if (!decoded || typeof decoded === 'string') return null;
+    if (decoded.role !== 'sys-admin') return null;
+    if (typeof decoded.sub !== 'string' || decoded.sub.trim().length === 0) return null;
+    if (typeof decoded.name !== 'string' || decoded.name.trim().length === 0) return null;
+
+    return {
+        userId: decoded.sub,
+        username: decoded.name,
+        role: decoded.role,
+    };
 }
 
 export class LocalJwtService {
@@ -12,52 +38,41 @@ export class LocalJwtService {
     private readonly expiresIn: string = '1h';
 
     constructor() {
-        const envSecret = process.env.SYS_ADMIN_JWT_SECRET;
-        if (!envSecret && process.env.NODE_ENV === 'production') {
-            throw new Error('FATAL: SYS_ADMIN_JWT_SECRET is not set in production environment.');
-        }
-        this.secret = envSecret || 'default-local-sys-admin-secret-key-change-in-prod';
+        this.secret = resolveSysAdminJwtSecret();
     }
 
     public generateToken(payload: SysAdminPayload): string {
         const signOptions: SignOptions = {
             algorithm: this.algorithm,
             expiresIn: this.expiresIn as any,
-            issuer: 'local-auth-service'
+            issuer: 'local-auth-service',
         };
 
-        const jwtPayload = {
-            sub: payload.userId,
-            name: payload.username,
-            role: payload.role,
-            iat: Math.floor(Date.now() / 1000)
-        };
-
-        return jwt.sign(jwtPayload, this.secret, signOptions);
+        return jwt.sign(
+            {
+                sub: payload.userId,
+                name: payload.username,
+                role: payload.role,
+            },
+            this.secret,
+            signOptions,
+        );
     }
 
     public verifyToken(token: string): SysAdminPayload | null {
         try {
             const decoded = jwt.verify(token, this.secret, {
                 algorithms: [this.algorithm],
-                issuer: 'local-auth-service'
-            }) as any;
+                issuer: 'local-auth-service',
+            }) as string | JwtPayload;
 
-            if (!decoded || typeof decoded === 'string') {
-                return null;
-            }
-
-            return {
-                userId: decoded.sub,
-                username: decoded.name,
-                role: decoded.role
-            };
-        } catch (error) {
+            return normalizeDecodedPayload(decoded);
+        } catch {
             return null;
         }
     }
 
-    public decodeWithoutVerification(token: string): any {
+    public decodeWithoutVerification(token: string): string | JwtPayload | null {
         return jwt.decode(token);
     }
 }
