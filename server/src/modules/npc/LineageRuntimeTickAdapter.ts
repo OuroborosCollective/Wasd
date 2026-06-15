@@ -15,10 +15,11 @@
  * - No side effects
  */
 
-import type { HouseState, NPCState, SettlementState } from './FamilyHouseRegistry';
-import type { LineageTickCandidate, LineageTickSkip } from './LineageTickRunner';
-import type { LineageSelection } from './LineageSelectionPure';
-import type { SelectionResolution } from './LineageRuntimeSelection';
+import { createARESeed, stableHash32 } from '../../core/determinism/AREDeterminism.js';
+import type { HouseState, NPCState, SettlementState } from './FamilyHouseRegistry.js';
+import type { LineageTickCandidate, LineageTickSkip } from './LineageTickRunner.js';
+import type { LineageSelection } from './LineageSelectionPure.js';
+import type { SelectionResolution } from './LineageRuntimeSelection.js';
 
 /**
  * Result of adaptation operation.
@@ -41,14 +42,14 @@ export interface LineageTickAdapterInput {
   /**
    * Existing birth event keys from the journal/registry.
    * Used for idempotency: if a key is already present, skip the candidate.
-   * Format: tick:settlementId:houseId:firstActorId:secondActorId (actors sorted)
+   * Format: tick:settlementId:houseId:firstParentLineageId:secondParentLineageId (parents sorted)
    */
   readonly existingBirthKeys?: ReadonlySet<string>;
 }
 
 /**
- * Deterministic key for tick candidate/skip, used for idempotency.
- * Format: tick:settlementId:houseId:firstActorId:secondActorId
+ * Legacy deterministic key helper for plain actor IDs.
+ * Kept for tests and non-registry comparisons. Runtime birth idempotency uses lineageBirthKey().
  */
 export function candidateKey(
   tick: number,
@@ -61,9 +62,40 @@ export function candidateKey(
   return [tick, settlementId, houseId, sorted[0], sorted[1]].join(':');
 }
 
+export function initialLineageIdentity(npcId: string, tick: number): string {
+  const seed = createARESeed(['founder-lineage', npcId, tick]);
+  return stableHash32(seed).toString(16).padStart(8, '0');
+}
+
+export function parentLineageIdentity(npc: NPCState, tick: number): string {
+  return npc.lineageId ?? initialLineageIdentity(npc.id, tick);
+}
+
+export function lineageBirthKey(
+  tick: number,
+  settlementId: string,
+  houseId: string,
+  firstParentLineageId: string,
+  secondParentLineageId: string
+): string {
+  const sorted = [firstParentLineageId, secondParentLineageId].sort();
+  return [tick, settlementId, houseId, sorted[0], sorted[1]].join(':');
+}
+
+export function candidateLineageBirthKey(candidate: LineageTickCandidate): string {
+  const tick = candidate.tick ?? candidate.settlement.tick;
+  return lineageBirthKey(
+    tick,
+    candidate.settlement.id,
+    candidate.houseId,
+    parentLineageIdentity(candidate.parentA, tick),
+    parentLineageIdentity(candidate.parentB, tick)
+  );
+}
+
 /**
  * Converts a resolved selection to a tick candidate.
- * Returns undefined if the resolution indicates the selection cannot proceed.
+ * Returns a skip if the resolution indicates the selection cannot proceed.
  */
 function toCandidate(
   resolution: SelectionResolution,
@@ -71,13 +103,23 @@ function toCandidate(
 ): LineageTickCandidate | LineageTickSkip | null {
   const { selection, resolved, firstActor, secondActor, house, settlement, reason } = resolution;
 
-  // Check for idempotency: same tick + same actors + same house = skip
-  const key = candidateKey(
+  if (!resolved || !firstActor || !secondActor || !house || !settlement) {
+    return {
+      parentAId: selection.firstActorId,
+      parentBId: selection.secondActorId,
+      houseId: selection.houseId,
+      settlementId: selection.settlementId,
+      tick: selection.tick,
+      reason: reason ?? 'unresolved',
+    };
+  }
+
+  const key = lineageBirthKey(
     selection.tick,
     selection.settlementId,
     selection.houseId,
-    selection.firstActorId,
-    selection.secondActorId
+    parentLineageIdentity(firstActor, selection.tick),
+    parentLineageIdentity(secondActor, selection.tick)
   );
 
   if (existingKeys.has(key)) {
@@ -88,17 +130,6 @@ function toCandidate(
       settlementId: selection.settlementId,
       tick: selection.tick,
       reason: 'idempotent_duplicate',
-    };
-  }
-
-  if (!resolved || !firstActor || !secondActor || !house || !settlement) {
-    return {
-      parentAId: selection.firstActorId,
-      parentBId: selection.secondActorId,
-      houseId: selection.houseId,
-      settlementId: selection.settlementId,
-      tick: selection.tick,
-      reason: reason ?? 'unresolved',
     };
   }
 
@@ -127,7 +158,7 @@ function toCandidate(
  * - Create lineage nodes
  */
 export function adaptSelectionsToCandidates(input: LineageTickAdapterInput): LineageTickAdaptResult {
-  const { selections, npcsById, settlementsById, housesById, tick, existingBirthKeys } = input;
+  const { selections, npcsById, settlementsById, housesById, existingBirthKeys } = input;
 
   // Use provided existing keys for idempotency, or empty set if not provided
   const processedKeys = new Set<string>(existingBirthKeys ?? []);
@@ -166,15 +197,7 @@ export function adaptSelectionsToCandidates(input: LineageTickAdapterInput): Lin
 
     if (result && 'parentA' in result) {
       candidates.push(result);
-      // Track this key as processed for idempotency
-      const key = candidateKey(
-        selection.tick,
-        selection.settlementId,
-        selection.houseId,
-        selection.firstActorId,
-        selection.secondActorId
-      );
-      processedKeys.add(key);
+      processedKeys.add(candidateLineageBirthKey(result));
     } else if (result && 'parentAId' in result) {
       skipped.push(result);
     }
