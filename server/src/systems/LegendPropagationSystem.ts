@@ -27,6 +27,10 @@ function chance(seed: string, modulo: number): number {
     return hash32(seed) % modulo;
 }
 
+function stepOf(value: number): number {
+    return Number.isSafeInteger(value) && value >= 0 ? value : 0;
+}
+
 function pickDeterministic<T extends { id: string }>(items: readonly T[], seed: string): T | null {
     if (items.length === 0) return null;
     const ordered = [...items].sort((a, b) => a.id.localeCompare(b.id));
@@ -38,7 +42,8 @@ export class LegendPropagationSystem {
     private static readonly FACTION_FORM_PER_10000: number = 100;
     private static readonly CRITICAL_MASS_THRESHOLD: number = 5;
 
-    public static update(): void {
+    public static update(step = 0): void {
+        const s = stepOf(step);
         const rawNpcs = NPCManager.instance.getAllNPCs();
         const npcs: NPC[] = rawNpcs.map((n) => ({
             id: n.id,
@@ -53,13 +58,13 @@ export class LegendPropagationSystem {
             description: (l as { description?: string }).description ?? "",
         })).sort((a, b) => a.id.localeCompare(b.id));
 
-        this.handleLegendPropagation(npcs, globalLegends);
-        this.handleFactionFormation(npcs);
+        this.handleLegendPropagation(s, npcs, globalLegends);
+        this.handleFactionFormation(s, npcs);
     }
 
-    private static handleLegendPropagation(npcs: NPC[], globalLegends: Legend[]): void {
+    private static handleLegendPropagation(step: number, npcs: NPC[], globalLegends: Legend[]): void {
         npcs.forEach(targetNpc => {
-            const seed = `legend-spread:${targetNpc.id}:${targetNpc.beliefs.map((belief) => belief.id).sort().join(',')}:${globalLegends.map((legend) => legend.id).join(',')}`;
+            const seed = `legend-spread:${step}:${targetNpc.id}:${targetNpc.beliefs.map((belief) => belief.id).sort().join(',')}:${globalLegends.map((legend) => legend.id).join(',')}`;
             if (chance(seed, 10000) < this.LEGEND_SPREAD_PER_10000) {
                 const legend = this.selectLegendToSpread(npcs, globalLegends, seed);
                 if (legend && !this.npcHasLegend(targetNpc, legend)) {
@@ -86,7 +91,7 @@ export class LegendPropagationSystem {
         return npc.beliefs.some(l => l.id === legend.id);
     }
 
-    private static handleFactionFormation(npcs: NPC[]): void {
+    private static handleFactionFormation(step: number, npcs: NPC[]): void {
         const beliefGroups: Map<string, { legend: Legend, members: NPC[] }> = new Map();
 
         npcs.forEach(npc => {
@@ -101,7 +106,7 @@ export class LegendPropagationSystem {
         [...beliefGroups.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([legendId, group]) => {
             group.members.sort((a, b) => a.id.localeCompare(b.id));
             if (group.members.length >= this.CRITICAL_MASS_THRESHOLD) {
-                const seed = `faction-form:${legendId}:${group.members.map((m) => m.id).join(',')}`;
+                const seed = `faction-form:${step}:${legendId}:${group.members.map((m) => m.id).join(',')}`;
                 if (chance(seed, 10000) < this.FACTION_FORM_PER_10000) {
                     FactionManager.instance.createFaction(group.legend.name, group.members.map((m) => m.id));
                 }
