@@ -17,6 +17,8 @@ import { getFactionBaseLanguage } from './DialectStores.js';
 import { buildSentence, createSentenceSeed } from './ProceduralGrammarEngine.js';
 import { getLexemeSuccessRate, getGenomeAverageScore } from './LanguageOutcomeLearner.js';
 import { recordNpcSpeechTelemetry } from './LanguageShadowTelemetry.js';
+import { getRegisteredGenome } from './PhraseGenomeRegistry.js';
+export { clearPhraseGenomeRegistry, getRegisteredGenome, listRegisteredPhraseGenomeIds, registerPhraseGenome } from './PhraseGenomeRegistry.js';
 
 const KERNEL_TAG = 'DIALOGUE_DECISION_KERNEL_V1';
 const DEFAULT_STRUCTURE: readonly SentencePosition[] = Object.freeze(['subject', 'verb', 'object']);
@@ -100,22 +102,6 @@ const FALLBACK_TEXT: Readonly<Record<SpeechIntent, readonly string[]>> = Object.
   brag: Object.freeze(['Meine Spur ist stark.', 'Ich trage den Ruhm.', 'Der Kreis kennt meinen Namen.']),
   mock: Object.freeze(['Dein Stolz stolpert.', 'Der Takt lacht leise.', 'Nicht jeder Schritt ist groß.']),
 });
-
-interface RegisteredGenome {
-  readonly genome: PhraseGenome;
-  readonly lastUsedTick: number;
-  readonly useCount: number;
-}
-
-const genomeRegistry: Map<string, RegisteredGenome> = new Map();
-
-export function registerPhraseGenome(genome: PhraseGenome): void {
-  genomeRegistry.set(genome.id, { genome: Object.freeze(genome), lastUsedTick: 0, useCount: 0 });
-}
-
-export function getRegisteredGenome(genomeId: string): PhraseGenome | undefined {
-  return genomeRegistry.get(genomeId)?.genome;
-}
 
 function createFallbackGenome(intent: SpeechIntent, language: LanguageMode, truthMode: SpeechTruthMode): PhraseGenome {
   return Object.freeze({

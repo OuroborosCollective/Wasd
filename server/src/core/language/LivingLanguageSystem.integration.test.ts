@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { initializeDialogueBridge, isDialogueBridgeInitialized, resolveDialogue, getDialogueEntry, getFallbackText, clearDialogueBridge } from './DialogueBridge.js';
-import { decideUtterance, clearAllKernelState, registerPhraseGenome, getRegisteredGenome } from './DialogueDecisionKernel.js';
+import { decideUtterance, clearAllKernelState, registerPhraseGenome, getRegisteredGenome, clearPhraseGenomeRegistry } from './DialogueDecisionKernel.js';
 import { buildNpcLanguageState, processLinguisticUpdate, initializeLinguisticKernel, isLinguisticKernelInitialized, resetLinguisticKernel, shutdownLinguisticKernel } from './ArelorianLinguisticKernel.js';
 import { createKappaInt } from './LanguageTypes.js';
 import { clearArchive, loadSeedData } from './LivingDudenArchive.js';
 import { clearLanguageShadowTelemetry, getLanguageShadowTelemetry } from './LanguageShadowTelemetry.js';
 import { loadLivingDudenGameData } from './LanguageGameDataStore.js';
 import { loadPhraseGenomeGameData } from './PhraseGenomeGameDataStore.js';
+import { getPhraseGenomeOrFallback } from './ProceduralGrammarEngine.js';
 import type { KappaInt } from './LanguageTypes.js';
 import type { TickId } from '../are/types.js';
 
@@ -38,8 +39,8 @@ function seedEmotionGenome(): void {
 }
 
 describe('Living Language System Integration', () => {
-  beforeEach(() => { clearDialogueBridge(); clearAllKernelState(); resetLinguisticKernel(); clearArchive(); clearLanguageShadowTelemetry(); });
-  afterEach(() => { shutdownLinguisticKernel(); clearDialogueBridge(); clearArchive(); clearLanguageShadowTelemetry(); });
+  beforeEach(() => { clearDialogueBridge(); clearAllKernelState(); resetLinguisticKernel(); clearArchive(); clearLanguageShadowTelemetry(); clearPhraseGenomeRegistry(); });
+  afterEach(() => { shutdownLinguisticKernel(); clearDialogueBridge(); clearArchive(); clearLanguageShadowTelemetry(); clearPhraseGenomeRegistry(); });
 
   describe('DialogueBridge', () => {
     it('should initialize with dialogue entries', () => { initializeDialogueBridge([{ id: 'dialogue_test_npc', greeting: 'Hello, traveler!', fallback: '...' }]); expect(isDialogueBridgeInitialized()).toBe(true); });
@@ -52,7 +53,7 @@ describe('Living Language System Integration', () => {
     it('should decide utterance with all required fields', () => { const npcState = buildNpcLanguageState('npc_1', { factionId: 'neutral', role: 'citizen', hunger: 0.3, trust: 0.5, fear: 0.2, duty: 0.6, pride: 0.4, revenge: 0.1 }); const decision = decideUtterance({ npcState, worldState: createTestWorldState(), tick: 100, sequenceId: 1 }); expect(decision.npcId).toBe('npc_1'); expect(decision.speechHash).toBeTruthy(); expect(decision.intent).toBeTruthy(); expect(decision.constructedText).toBeTruthy(); });
     it('should produce deterministic results for same input', () => { const npcState = buildNpcLanguageState('det_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.3, trust: 0.5, fear: 0.2, duty: 0.6, pride: 0.4, revenge: 0.1 }); const ctx = { npcState, worldState: createTestWorldState(), tick: 300, sequenceId: 3 }; const d1 = decideUtterance(ctx); clearAllKernelState(); const d2 = decideUtterance(ctx); expect(d1.speechHash).toBe(d2.speechHash); expect(d1.constructedText).toBe(d2.constructedText); });
     it('should derive emotional tone from selected lexemes instead of neutral fallback', () => { seedEmotionGenome(); const npcState = buildNpcLanguageState('emotion_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.1, trust: 0.7, fear: 0.1, duty: 0.6, pride: 0.2, revenge: 0 }); const decision = decideUtterance({ npcState, worldState: createTestWorldState(), tick: 420, sequenceId: 4 }, { forceIntent: 'greet' }); expect(decision.needsFallback).toBe(false); expect(Number(decision.emotionalTone.trust)).toBeGreaterThan(0); expect(Number(decision.emotionalTone.duty)).toBeGreaterThan(0); expect(decision.constructedText).not.toBe('greet.'); });
-    it('should load phrase genomes from game-data and use them in the speech truth path', () => { const dudenReport = loadLivingDudenGameData(); const phraseReport = loadPhraseGenomeGameData(); expect(dudenReport.lexemesLoaded).toBeGreaterThan(0); expect(phraseReport.phraseGenomesLoaded).toBeGreaterThanOrEqual(3); expect(getRegisteredGenome('default_greet')).toBeDefined(); const npcState = buildNpcLanguageState('game_data_phrase_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.1, trust: 0.7, fear: 0.1, duty: 0.6, pride: 0.2, revenge: 0 }); const decision = decideUtterance({ npcState, worldState: createTestWorldState(), tick: 820, sequenceId: 9 }, { forceIntent: 'greet' }); expect(decision.needsFallback).toBe(false); expect(decision.phraseGenomeId).toBe('default_greet'); expect(decision.selectedLexemeIds).toContain('arel_greeting_wacht'); expect(decision.selectedLexemeIds).toContain('arel_help_bitt'); });
+    it('should load phrase genomes from game-data and use them in the speech truth path', () => { const dudenReport = loadLivingDudenGameData(); const phraseReport = loadPhraseGenomeGameData(); expect(dudenReport.lexemesLoaded).toBeGreaterThan(0); expect(phraseReport.phraseGenomesLoaded).toBeGreaterThanOrEqual(3); expect(getRegisteredGenome('default_greet')).toBeDefined(); expect(getPhraseGenomeOrFallback('forest_village_greet_guard')?.id).toBe('default_greet'); const npcState = buildNpcLanguageState('game_data_phrase_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.1, trust: 0.7, fear: 0.1, duty: 0.6, pride: 0.2, revenge: 0 }); const decision = decideUtterance({ npcState, worldState: createTestWorldState(), tick: 820, sequenceId: 9 }, { forceIntent: 'greet' }); expect(decision.needsFallback).toBe(false); expect(decision.phraseGenomeId).toBe('default_greet'); expect(decision.selectedLexemeIds).toContain('arel_greeting_wacht'); expect(decision.selectedLexemeIds).toContain('arel_help_bitt'); });
   });
 
   describe('LanguageShadowTelemetry', () => {

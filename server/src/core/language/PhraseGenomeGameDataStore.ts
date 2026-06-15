@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolveContentFile } from "../../modules/content/contentDataRoot.js";
-import { registerPhraseGenome } from "./DialogueDecisionKernel.js";
+import { registerPhraseGenome } from "./PhraseGenomeRegistry.js";
 import { validatePhraseGenome } from "./ProceduralGrammarEngine.js";
 import { createKappaInt, type PhraseGenome, type PhraseSlot } from "./LanguageTypes.js";
 
