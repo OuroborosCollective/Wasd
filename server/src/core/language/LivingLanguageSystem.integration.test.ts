@@ -4,6 +4,7 @@ import { decideUtterance, clearAllKernelState, registerPhraseGenome } from './Di
 import { buildNpcLanguageState, processLinguisticUpdate, initializeLinguisticKernel, isLinguisticKernelInitialized, resetLinguisticKernel, shutdownLinguisticKernel } from './ArelorianLinguisticKernel.js';
 import { createKappaInt } from './LanguageTypes.js';
 import { clearArchive, loadSeedData } from './LivingDudenArchive.js';
+import { clearLanguageShadowTelemetry, getLanguageShadowTelemetry } from './LanguageShadowTelemetry.js';
 import type { KappaInt } from './LanguageTypes.js';
 import type { TickId } from '../are/types.js';
 
@@ -35,8 +36,8 @@ function seedEmotionGenome(): void {
 }
 
 describe('Living Language System Integration', () => {
-  beforeEach(() => { clearDialogueBridge(); clearAllKernelState(); resetLinguisticKernel(); clearArchive(); });
-  afterEach(() => { shutdownLinguisticKernel(); clearDialogueBridge(); clearArchive(); });
+  beforeEach(() => { clearDialogueBridge(); clearAllKernelState(); resetLinguisticKernel(); clearArchive(); clearLanguageShadowTelemetry(); });
+  afterEach(() => { shutdownLinguisticKernel(); clearDialogueBridge(); clearArchive(); clearLanguageShadowTelemetry(); });
 
   describe('DialogueBridge', () => {
     it('should initialize with dialogue entries', () => { initializeDialogueBridge([{ id: 'dialogue_test_npc', greeting: 'Hello, traveler!', fallback: '...' }]); expect(isDialogueBridgeInitialized()).toBe(true); });
@@ -49,6 +50,10 @@ describe('Living Language System Integration', () => {
     it('should decide utterance with all required fields', () => { const npcState = buildNpcLanguageState('npc_1', { factionId: 'neutral', role: 'citizen', hunger: 0.3, trust: 0.5, fear: 0.2, duty: 0.6, pride: 0.4, revenge: 0.1 }); const decision = decideUtterance({ npcState, worldState: createTestWorldState(), tick: 100, sequenceId: 1 }); expect(decision.npcId).toBe('npc_1'); expect(decision.speechHash).toBeTruthy(); expect(decision.intent).toBeTruthy(); expect(decision.constructedText).toBeTruthy(); });
     it('should produce deterministic results for same input', () => { const npcState = buildNpcLanguageState('det_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.3, trust: 0.5, fear: 0.2, duty: 0.6, pride: 0.4, revenge: 0.1 }); const ctx = { npcState, worldState: createTestWorldState(), tick: 300, sequenceId: 3 }; const d1 = decideUtterance(ctx); clearAllKernelState(); const d2 = decideUtterance(ctx); expect(d1.speechHash).toBe(d2.speechHash); expect(d1.constructedText).toBe(d2.constructedText); });
     it('should derive emotional tone from selected lexemes instead of neutral fallback', () => { seedEmotionGenome(); const npcState = buildNpcLanguageState('emotion_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.1, trust: 0.7, fear: 0.1, duty: 0.6, pride: 0.2, revenge: 0 }); const decision = decideUtterance({ npcState, worldState: createTestWorldState(), tick: 420, sequenceId: 4 }, { forceIntent: 'greet' }); expect(decision.needsFallback).toBe(false); expect(Number(decision.emotionalTone.trust)).toBeGreaterThan(0); expect(Number(decision.emotionalTone.duty)).toBeGreaterThan(0); expect(decision.constructedText).not.toBe('greet.'); });
+  });
+
+  describe('LanguageShadowTelemetry', () => {
+    it('should expose speech telemetry as non-authoritative side channel', () => { seedEmotionGenome(); const npcState = buildNpcLanguageState('shadow_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.1, trust: 0.7, fear: 0.1, duty: 0.6, pride: 0.2, revenge: 0 }); decideUtterance({ npcState, worldState: createTestWorldState(), tick: 720, sequenceId: 8 }, { forceIntent: 'greet' }); const telemetry = getLanguageShadowTelemetry(); const latest = telemetry.speech[telemetry.speech.length - 1]; expect(telemetry.authoritative).toBe(false); expect(telemetry.sideChannel).toBe(true); expect(telemetry.telemetryTruthMode).toBe('telemetry_side_channel'); expect(latest?.authoritative).toBe(false); expect(latest?.sideChannel).toBe(true); expect(telemetry.quarantinedTelemetryEvents).toBe(0); });
   });
 
   describe('ArelorianLinguisticKernel', () => {

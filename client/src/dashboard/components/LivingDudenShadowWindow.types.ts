@@ -6,15 +6,10 @@ export interface LivingDudenArchive {
   readonly byLanguageCount: Readonly<Record<string, number>>;
 }
 
-export interface TermAlert {
-  readonly term: string;
-  readonly alertType: 'term' | 'honorific' | 'watch';
-  readonly severity: 'low' | 'medium' | 'high';
-}
-
 export interface SpeechEvent {
   readonly eventHash: string;
   readonly tick: number;
+  readonly sequenceId?: number;
   readonly npcId: string;
   readonly factionId: string;
   readonly role: string;
@@ -22,7 +17,8 @@ export interface SpeechEvent {
   readonly truthMode?: string;
   readonly speechHash: string;
   readonly constructedText: string;
-  readonly sentenceStructure: string;
+  readonly phraseGenomeId?: string;
+  readonly sentenceStructure: string | ReadonlyArray<string>;
   readonly selectedLexemeIds: ReadonlyArray<string>;
   readonly selectedWords: ReadonlyArray<string>;
   readonly thoughtVector: Readonly<{
@@ -36,7 +32,11 @@ export interface SpeechEvent {
   readonly reactionLane: string;
   readonly confidence: number;
   readonly needsFallback?: boolean;
-  readonly termAlerts: ReadonlyArray<TermAlert>;
+  readonly termAlerts: ReadonlyArray<string>;
+  readonly source?: 'language_shadow_telemetry';
+  readonly telemetryTruthMode?: 'telemetry_side_channel';
+  readonly authoritative?: false;
+  readonly sideChannel?: true;
 }
 
 export interface WordFactorRanking {
@@ -56,7 +56,8 @@ export interface WordFactorRanking {
 export interface TermWatchEntry {
   readonly factionId: string;
   readonly factionName?: string;
-  readonly watchedTerms: ReadonlyArray<string>;
+  readonly watchedTerms?: ReadonlyArray<string>;
+  readonly tabooTerms?: ReadonlyArray<string>;
   readonly honorifics: ReadonlyArray<string>;
 }
 
@@ -67,12 +68,17 @@ export interface StructureRanking {
 
 export interface LivingDudenTelemetry {
   readonly ok: boolean;
+  readonly source?: 'language_shadow_telemetry';
+  readonly telemetryTruthMode?: 'telemetry_side_channel';
+  readonly authoritative?: false;
+  readonly sideChannel?: true;
   readonly archive: LivingDudenArchive;
   readonly speech: ReadonlyArray<SpeechEvent>;
   readonly wordFactorRankings: ReadonlyArray<WordFactorRanking>;
   readonly termWatch: ReadonlyArray<TermWatchEntry>;
   readonly structureRankings: ReadonlyArray<StructureRanking>;
   readonly outcomeHistorySize: number;
+  readonly quarantinedTelemetryEvents?: number;
 }
 
 export type ShadowStatus = 'loading' | 'live' | 'empty' | 'error';
