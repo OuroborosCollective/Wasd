@@ -28,6 +28,7 @@ Use `docs/ROADMAP_TO_RELEASE.md` as the authoritative backlog and `docs/PROJECT_
 
 - #2050 — runtime civic state is derived from server `worldSurface` tick, house groups and lineage/citizen points, then exposed on the live gameplay snapshot as `civicState`.
 - #2047 — runtime market pricing is derived from resource nodes and camp stock counters, then exposed on the live gameplay snapshot as `marketState`.
+- #2049 — runtime observability is exposed through `GET /health/observability`, including tick, WebSocket, manifest, persistence, asset and playtester evidence.
 
 ---
 
@@ -35,7 +36,6 @@ Use `docs/ROADMAP_TO_RELEASE.md` as the authoritative backlog and `docs/PROJECT_
 
 - #2046 — render lineage `worldSurface` in the 3D client
 - #2048 — item provenance, trading and anti-duplication audit
-- #2049 — runtime observability and release SLO dashboard
 
 ---
 
