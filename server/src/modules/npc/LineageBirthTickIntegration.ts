@@ -15,13 +15,14 @@
  * - Journal-first: failure to write = failure of the operation
  */
 
-import type { HouseState, NPCState, SettlementState } from './FamilyHouseRegistry';
-import type { LineageSurfaceModel } from './LineageSurfaceModel';
+import type { HouseState, NPCState, SettlementState } from './FamilyHouseRegistry.js';
+import type { LineageSurfaceModel } from './LineageSurfaceModel.js';
 import type { LiveGameplayWorldSurface } from '../../gameplay/LiveGameplaySnapshotTypes.js';
 import { createLineageSurfaceModel } from './LineageSurfaceModel.js';
 import { lineageSurfaceToWorldSurface } from './LineageWorldSurfaceAdapter.js';
 import { LineageTickRunner } from './LineageTickRunner.js';
-import type { NPCLineageManager } from './FamilyHouseRegistry.js';
+import { NPCLineageManager } from './FamilyHouseRegistry.js';
+import { candidateKey } from './LineageRuntimeTickAdapter.js';
 import {
   selectFromRuntime,
   createNpcLookup,
@@ -33,6 +34,29 @@ import {
   adaptSelectionsToCandidates,
   type LineageTickAdapterInput,
 } from './LineageRuntimeTickAdapter.js';
+
+/**
+ * Extracts existing birth event keys from the lineage manager's registry.
+ * Used for idempotency: prevents duplicate births on retry.
+ */
+export function extractExistingBirthKeys(lineageManager: NPCLineageManager): ReadonlySet<string> {
+  const birthEvents = lineageManager.getRegistry().getBirthEvents();
+  const keys = new Set<string>();
+  
+  for (const event of birthEvents) {
+    const parentIds = [...event.parentLineageHashes].sort();
+    const key = candidateKey(
+      event.birthTick,
+      event.settlementId,
+      event.houseId,
+      parentIds[0] ?? '',
+      parentIds[1] ?? ''
+    );
+    keys.add(key);
+  }
+  
+  return Object.freeze(keys);
+}
 
 /**
  * Result of a complete lineage birth tick operation.
@@ -129,12 +153,16 @@ export function runLineageBirthTick(input: LineageBirthIntegrationInput): Lineag
   }
 
   // Phase 2: Adapt selections to tick candidates
+  // Extract existing birth keys for idempotency
+  const existingBirthKeys = extractExistingBirthKeys(input.lineageManager);
+  
   const adapterInput: LineageTickAdapterInput = {
     selections,
     npcsById: lookups.npcsById,
     settlementsById: lookups.settlementsById,
     housesById: lookups.housesById,
     tick: input.tick,
+    existingBirthKeys,
   };
   const { candidates } = adaptSelectionsToCandidates(adapterInput);
 

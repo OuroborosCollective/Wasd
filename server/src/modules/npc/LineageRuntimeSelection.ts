@@ -10,13 +10,14 @@
  * - No side effects (no writes, no registry mutations)
  */
 
-import type { HouseState, NPCState, SettlementState } from './FamilyHouseRegistry';
+import type { HouseState, NPCState, SettlementState } from './FamilyHouseRegistry.js';
 import type {
   LineageSelection,
   LineageSelectableActor,
   LineageSelectableHouse,
   LineageSelectableSettlement,
-} from './LineageSelectionPure';
+} from './LineageSelectionPure.js';
+import { selectLineageInputs } from './LineageSelectionPure.js';
 
 /**
  * Runtime state source for lineage selection.
@@ -174,9 +175,6 @@ export function selectFromRuntime(state: RuntimeLineageState): LineageSelection[
     maxSelectionsPerSettlement: state.maxSelectionsPerSettlement,
   };
 
-  // Import the existing pure selection function
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { selectLineageInputs } = require('./LineageSelectionPure');
   return selectLineageInputs(input);
 }
 

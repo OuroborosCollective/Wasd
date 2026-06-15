@@ -38,6 +38,12 @@ export interface LineageTickAdapterInput {
   readonly settlementsById: ReadonlyMap<string, SettlementState>;
   readonly housesById: ReadonlyMap<string, HouseState>;
   readonly tick: number;
+  /**
+   * Existing birth event keys from the journal/registry.
+   * Used for idempotency: if a key is already present, skip the candidate.
+   * Format: tick:settlementId:houseId:firstActorId:secondActorId (actors sorted)
+   */
+  readonly existingBirthKeys?: ReadonlySet<string>;
 }
 
 /**
@@ -121,11 +127,10 @@ function toCandidate(
  * - Create lineage nodes
  */
 export function adaptSelectionsToCandidates(input: LineageTickAdapterInput): LineageTickAdaptResult {
-  const { selections, npcsById, settlementsById, housesById, tick } = input;
+  const { selections, npcsById, settlementsById, housesById, tick, existingBirthKeys } = input;
 
-  // Build existing key set for idempotency tracking
-  // In production, this would be derived from the journal
-  const existingKeys = new Set<string>();
+  // Use provided existing keys for idempotency, or empty set if not provided
+  const processedKeys = new Set<string>(existingBirthKeys ?? []);
 
   const candidates: LineageTickCandidate[] = [];
   const skipped: LineageTickSkip[] = [];
@@ -157,7 +162,7 @@ export function adaptSelectionsToCandidates(input: LineageTickAdapterInput): Lin
       reason,
     };
 
-    const result = toCandidate(resolution, existingKeys);
+    const result = toCandidate(resolution, processedKeys);
 
     if (result && 'parentA' in result) {
       candidates.push(result);
@@ -169,7 +174,7 @@ export function adaptSelectionsToCandidates(input: LineageTickAdapterInput): Lin
         selection.firstActorId,
         selection.secondActorId
       );
-      existingKeys.add(key);
+      processedKeys.add(key);
     } else if (result && 'parentAId' in result) {
       skipped.push(result);
     }

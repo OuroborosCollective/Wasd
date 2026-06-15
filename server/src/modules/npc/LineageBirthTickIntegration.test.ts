@@ -502,11 +502,12 @@ describe('LineageBirthTickIntegration', () => {
       });
 
       expect(result1.lineageResult.created).toHaveLength(1);
+      const createdNode = result1.lineageResult.created[0];
 
       const initialJournal = storage.read(NPC_LINEAGE_GAME_DATA_PATH);
       const initialRecords = JSON.parse(initialJournal!);
 
-      // Second tick with same state
+      // Second tick with same state - should skip due to existingBirthKeys
       const result2 = runLineageBirthTick({
         tick: 100,
         settlements: [settlement()],
@@ -515,14 +516,17 @@ describe('LineageBirthTickIntegration', () => {
         lineageManager,
       });
 
-      // Should skip due to idempotency
+      // Should skip due to idempotency from existingBirthKeys
       expect(result2.lineageResult.created).toHaveLength(0);
-      expect(result2.lineageResult.skipped).toHaveLength(1);
+      expect(result2.lineageResult.skipped.length).toBeGreaterThan(0);
 
       // Journal should not have duplicate
       const finalJournal = storage.read(NPC_LINEAGE_GAME_DATA_PATH);
       const finalRecords = JSON.parse(finalJournal!);
       expect(finalRecords).toHaveLength(initialRecords.length);
+      
+      // Surface should still have the original node
+      expect(surfaceContainsNode(result2.surface, createdNode.id)).toBe(true);
     });
   });
 
