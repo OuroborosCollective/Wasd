@@ -16,13 +16,12 @@
  */
 
 import type { HouseState, NPCState, SettlementState } from './FamilyHouseRegistry.js';
-import type { LineageSurfaceModel } from './LineageSurfaceModel.js';
 import type { LiveGameplayWorldSurface } from '../../gameplay/LiveGameplaySnapshotTypes.js';
 import { createLineageSurfaceModel } from './LineageSurfaceModel.js';
 import { lineageSurfaceToWorldSurface } from './LineageWorldSurfaceAdapter.js';
 import { LineageTickRunner } from './LineageTickRunner.js';
 import { NPCLineageManager } from './FamilyHouseRegistry.js';
-import { candidateKey } from './LineageRuntimeTickAdapter.js';
+import { lineageBirthKey } from './LineageRuntimeTickAdapter.js';
 import {
   selectFromRuntime,
   createNpcLookup,
@@ -42,19 +41,14 @@ import {
 export function extractExistingBirthKeys(lineageManager: NPCLineageManager): ReadonlySet<string> {
   const birthEvents = lineageManager.getRegistry().getBirthEvents();
   const keys = new Set<string>();
-  
+
   for (const event of birthEvents) {
+    if (event.cause !== 'eligible_pair') continue;
     const parentIds = [...event.parentLineageHashes].sort();
-    const key = candidateKey(
-      event.birthTick,
-      event.settlementId,
-      event.houseId,
-      parentIds[0] ?? '',
-      parentIds[1] ?? ''
-    );
-    keys.add(key);
+    if (parentIds.length < 2) continue;
+    keys.add(lineageBirthKey(event.birthTick, event.settlementId, event.houseId, parentIds[0], parentIds[1]));
   }
-  
+
   return Object.freeze(keys);
 }
 
@@ -155,7 +149,7 @@ export function runLineageBirthTick(input: LineageBirthIntegrationInput): Lineag
   // Phase 2: Adapt selections to tick candidates
   // Extract existing birth keys for idempotency
   const existingBirthKeys = extractExistingBirthKeys(input.lineageManager);
-  
+
   const adapterInput: LineageTickAdapterInput = {
     selections,
     npcsById: lookups.npcsById,
@@ -164,7 +158,7 @@ export function runLineageBirthTick(input: LineageBirthIntegrationInput): Lineag
     tick: input.tick,
     existingBirthKeys,
   };
-  const { candidates } = adaptSelectionsToCandidates(adapterInput);
+  const { candidates, skipped: adapterSkipped } = adaptSelectionsToCandidates(adapterInput);
 
   if (candidates.length === 0) {
     // No resolvable candidates
@@ -176,10 +170,10 @@ export function runLineageBirthTick(input: LineageBirthIntegrationInput): Lineag
       lineageResult: Object.freeze({
         tick: input.tick,
         created: [],
-        skipped: [],
+        skipped: Object.freeze(adapterSkipped),
       }),
       surface,
-      errors: Object.freeze(['no_resolvable_candidates']),
+      errors: Object.freeze(adapterSkipped.map((skip) => `skip:${skip.reason}:${skip.houseId}`)),
     });
   }
 
@@ -188,7 +182,10 @@ export function runLineageBirthTick(input: LineageBirthIntegrationInput): Lineag
   const runner = new LineageTickRunner(input.lineageManager);
   const lineageResult = runner.run(input.tick, candidates);
 
-  // Track any errors from the lineage operation
+  // Track any errors from the adapter and lineage operation
+  for (const skip of adapterSkipped) {
+    errors.push(`skip:${skip.reason}:${skip.houseId}`);
+  }
   for (const skip of lineageResult.skipped) {
     errors.push(`skip:${skip.reason}:${skip.houseId}`);
   }
@@ -201,7 +198,11 @@ export function runLineageBirthTick(input: LineageBirthIntegrationInput): Lineag
 
   return Object.freeze({
     tick: input.tick,
-    lineageResult,
+    lineageResult: Object.freeze({
+      tick: lineageResult.tick,
+      created: Object.freeze(lineageResult.created),
+      skipped: Object.freeze([...adapterSkipped, ...lineageResult.skipped]),
+    }),
     surface,
     errors: Object.freeze(errors),
   });
