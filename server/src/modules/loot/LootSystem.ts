@@ -5,25 +5,14 @@ import fs from "fs";
 import { resolveContentFile } from "../content/contentDataRoot.js";
 
 /**
- * @deprecated LootSystem.ts - PARALLEL RUNTIME TRUTH (DO NOT USE IN PRODUCTION)
- * 
- * This module exists as a PARALLEL DROP TRUTH and is NOT part of the canonical loot path.
- * 
- * CANONICAL PATH (USE THIS):
- * - ProceduralLootMachine (server/src/loot/ProceduralLootMachine.ts)
- * - LootDirector (server/src/loot/LootDirector.ts)
- * - loot_delta events from server
- * 
- * This module is kept for:
- * - Dev/test compatibility
- * - Migration shim
- * - Legacy code support
- * 
- * DO NOT use this for runtime loot generation.
- * DO NOT create new code that depends on this module for loot.
- * 
- * @see LootDirector for canonical loot handling
- * @see ProceduralLootMachine for the Infinite ARE Loot Machine
+ * @deprecated LootSystem.ts - LEGACY ADAPTER ONLY.
+ *
+ * Canonical runtime loot truth is:
+ *   LootDirector -> ProceduralLootMachine -> loot_delta -> inventory/world-drop consumers.
+ *
+ * This class is intentionally runtime-guarded. Production code must not instantiate
+ * it as a second item-generation authority. Tests or migration scripts must opt in
+ * explicitly through createLegacyLootSystemForMigration().
  */
 
 export interface LootTableEntry {
@@ -40,10 +29,29 @@ export interface LootTable {
   goldMax?: number;
 }
 
+export interface LootSystemOptions {
+  readonly allowLegacyRolls?: boolean;
+  readonly usage?: "migration" | "test";
+}
+
+function assertLegacyAllowed(options: LootSystemOptions): void {
+  if (options.allowLegacyRolls === true) return;
+  throw new Error(
+    "legacy_loot_system_disabled: use LootDirector + ProceduralLootMachine canonical loot path"
+  );
+}
+
+export function createLegacyLootSystemForMigration(usage: "migration" | "test"): LootSystem {
+  return new LootSystem({ allowLegacyRolls: true, usage });
+}
+
 export class LootSystem {
   private lootTables: Map<string, LootTable> = new Map();
+  private readonly options: LootSystemOptions;
 
-  constructor() {
+  constructor(options: LootSystemOptions = {}) {
+    this.options = Object.freeze({ ...options });
+    assertLegacyAllowed(this.options);
     this.loadLootTables();
   }
 
@@ -70,7 +78,8 @@ export class LootSystem {
   rollLoot(
     dropTable: LootTableEntry[],
     rng: ARERng = new SeededARERng(createARESeed([
-      "loot-table-inline",
+      "legacy-loot-table-inline",
+      this.options.usage ?? "unscoped",
       dropTable.map((entry) => `${entry.itemId}:${entry.chance}:${entry.minCount ?? 1}:${entry.maxCount ?? entry.minCount ?? 1}`).join(","),
     ]))
   ): { items: ItemDefinition[]; gold: number } {
@@ -88,7 +97,7 @@ export class LootSystem {
           if (item) {
             const seededItem = {
               ...item,
-              seed: item.seed ?? createARESeed(["loot-visual", entry.itemId, dropIndex, item.rarity ?? "common"]),
+              seed: item.seed ?? createARESeed(["legacy-loot-visual", entry.itemId, dropIndex, item.rarity ?? "common"]),
             };
             items.push((seededItem.type === "weapon"
               ? applyWeaponVisual(seededItem, { rng: rng.fork(`visual:${entry.itemId}:${dropIndex}`), dropIndex })
@@ -102,13 +111,12 @@ export class LootSystem {
     return { items, gold };
   }
 
-  rollFromTable(tableId: string, rng: ARERng = new SeededARERng(createARESeed(["loot-table", tableId]))): { items: ItemDefinition[]; gold: number } {
+  rollFromTable(tableId: string, rng: ARERng = new SeededARERng(createARESeed(["legacy-loot-table", this.options.usage ?? "unscoped", tableId]))): { items: ItemDefinition[]; gold: number } {
     const table = this.lootTables.get(tableId);
     if (!table) return { items: [], gold: 0 };
 
     const result = this.rollLoot(table.entries, rng.fork(`${tableId}:entries`));
 
-    // Roll gold
     if (table.goldMin !== undefined && table.goldMax !== undefined) {
       result.gold = rng.nextRange(table.goldMin, table.goldMax);
     }
