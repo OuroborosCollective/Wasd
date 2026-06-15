@@ -12,7 +12,11 @@ export class LocalJwtService {
     private readonly expiresIn: string = '1h';
 
     constructor() {
-        this.secret = process.env.SYS_ADMIN_JWT_SECRET || 'default-local-sys-admin-secret-key-change-in-prod';
+        const envSecret = process.env.SYS_ADMIN_JWT_SECRET;
+        if (!envSecret && process.env.NODE_ENV === 'production') {
+            throw new Error('FATAL: SYS_ADMIN_JWT_SECRET is not set in production environment.');
+        }
+        this.secret = envSecret || 'default-local-sys-admin-secret-key-change-in-prod';
     }
 
     public generateToken(payload: SysAdminPayload): string {
