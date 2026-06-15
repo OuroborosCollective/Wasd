@@ -57,13 +57,14 @@ Recent release-relevant progress:
 - Deterministic hardcode cleanup removed several runtime `Date.now()` / `Math.random()` violations.
 - Legacy loot table generation is quarantined; production loot truth remains `LootDirector -> ProceduralLootMachine -> loot_delta`.
 - PR #2036 is open to remove the public legacy-loot boolean bypass after Codex review.
+- The #2042 mobile/browser performance budget now has explicit 2D and 3D release measurements in `docs/RELEASE_CHECKLIST.md`.
 
 The release focus is now:
 
 1. finish deterministic correctness and hardcode cleanup,
 2. prove deploy, persistence, backup and live verification,
 3. complete player-facing UI coverage,
-4. stabilize mobile and browser performance,
+4. collect real mobile/browser performance evidence against the documented #2042 budgets,
 5. ship an audited release content pack,
 6. promote full-loop E2E/live smoke into a required release gate.
 
@@ -91,6 +92,7 @@ The release focus is now:
 | Admin content tools | DONE / HARDENING | `/api/admin/content/*`, content publish path and model-path audit exist; release content pack tracked by #2044. |
 | Playtester monitor | DONE / REPORTING | WebRTC monitor, signaling, viewer page and publisher page are shipped; release observability tracked by #2049. |
 | ARE deterministic primitives | DONE | `AREClock`, fixed clocks, seeded RNG and `createARESeed` exist; remaining audit cleanup tracked by #2041. |
+| Performance budget | DONE / EVIDENCE REQUIRED | #2042 budgets are documented in `docs/RELEASE_CHECKLIST.md`; release sign-off requires real 2D and 3D runtime metrics plus fallback proof when needed. |
 
 ---
 
@@ -100,11 +102,11 @@ These block a public release tag.
 
 | ID | Issue | Area | Required outcome |
 |---|---|---|---|
-| A1 | #2038 | Production deploy verification | One green deploy workflow plus live verification against `/`, `/portal`, `/health`, `/client-config.json`, and WebSocket upgrade. |
+| A1 | #2038 | Production deploy verification | One green deploy workflow plus live verification against `/`, `/2d`, `/portal`, `/health`, `/client-config.json`, and WebSocket upgrade. |
 | A2 | #2039 | Persistence + backups | Migration SOP, backup proof, restore proof and JSON fallback policy. |
 | A3 | #2040 | Auth/session hardening | Production env rejects unintended guest/dev auth; sessions and rate limits are tested. |
 | A4 | #2041 | Deterministic simulation hardening | Stateless Hardcode Audit and ARE Determinism Gate pass for runtime-critical paths. |
-| A5 | #2042 | Mobile/browser performance | FPS, memory, startup and chunk-loading budgets are measured with real assets. |
+| A5 | #2042 | Mobile/browser performance | 2D and 3D startup, FPS, p95 frame, memory and chunk-load budgets are documented; release sign-off is blocked unless real metrics meet standard budget or record a real fallback tier and reason. |
 | A6 | #2043 | Player-facing UI coverage | Critical systems are usable through server-backed UI flows without dev knowledge. |
 | A7 | #2044 | Release content pack | Audited `published-content/current` pack with licenses and model-path audit proof. |
 | A8 | #2045 | Full-loop release gate | Build, guards, model audit, unit tests, E2E, deploy verify and live health are green on release commit. |
@@ -179,6 +181,8 @@ Release CI should additionally include:
 - content publish dry-run,
 - VPS deploy verification,
 - live `/health` verification that reports content root `/app/game-data`,
+- real 2D and 3D performance evidence for startup, FPS, p95 frame time, memory and chunk loading,
+- fallback-tier evidence when either client exceeds the standard #2042 budget,
 - backup/restore proof for persistence.
 
 ---
@@ -208,9 +212,10 @@ Any auth, persistence, infra, deploy, gameplay, or architecture change must be r
 3. Prove #2038 deploy/live verification.
 4. Prove #2039 backup/restore.
 5. Harden #2040 production auth/session rules.
-6. Make #2045 full-loop E2E and live smoke a required release gate.
-7. Complete #2044 release content pack audit.
-8. Prepare public alpha release notes.
+6. Collect #2042 real 2D/3D performance evidence against the documented budgets.
+7. Make #2045 full-loop E2E and live smoke a required release gate.
+8. Complete #2044 release content pack audit.
+9. Prepare public alpha release notes.
 
 ---
 
