@@ -4,17 +4,6 @@ import { applyWeaponVisual } from "./WeaponVisualPool.js";
 import fs from "fs";
 import { resolveContentFile } from "../content/contentDataRoot.js";
 
-/**
- * @deprecated LootSystem.ts - LEGACY ADAPTER ONLY.
- *
- * Canonical runtime loot truth is:
- *   LootDirector -> ProceduralLootMachine -> loot_delta -> inventory/world-drop consumers.
- *
- * This class is intentionally runtime-guarded. Production code must not instantiate
- * it as a second item-generation authority. Tests or migration scripts must opt in
- * explicitly through createLegacyLootSystemForMigration().
- */
-
 export interface LootTableEntry {
   itemId: string;
   chance: number;
@@ -29,20 +18,21 @@ export interface LootTable {
   goldMax?: number;
 }
 
+const INTERNAL_LEGACY_KEY: unique symbol = Symbol("areloria.legacy.loot.key");
+type InternalLegacyKey = typeof INTERNAL_LEGACY_KEY;
+
 export interface LootSystemOptions {
-  readonly allowLegacyRolls?: boolean;
   readonly usage?: "migration" | "test";
+  readonly internalKey?: InternalLegacyKey;
 }
 
 function assertLegacyAllowed(options: LootSystemOptions): void {
-  if (options.allowLegacyRolls === true) return;
-  throw new Error(
-    "legacy_loot_system_disabled: use LootDirector + ProceduralLootMachine canonical loot path"
-  );
+  if (options.internalKey === INTERNAL_LEGACY_KEY) return;
+  throw new Error("legacy_loot_system_disabled: use LootDirector + ProceduralLootMachine");
 }
 
 export function createLegacyLootSystemForMigration(usage: "migration" | "test"): LootSystem {
-  return new LootSystem({ allowLegacyRolls: true, usage });
+  return new LootSystem({ internalKey: INTERNAL_LEGACY_KEY, usage });
 }
 
 export class LootSystem {
