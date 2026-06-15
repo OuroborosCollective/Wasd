@@ -157,6 +157,29 @@ export interface LiveGameplayVendorEconomySnapshot {
   readonly vendors: readonly LiveGameplayVendorEconomy[];
 }
 
+export interface LiveGameplayMarketPrice {
+  readonly itemId: string;
+  readonly availableQuantity: number;
+  readonly unitPrice: number;
+  readonly basePrice: number;
+  readonly demandBand: "normal" | "stocked" | "oversupplied";
+  readonly resourceNodeCount: number;
+}
+
+export interface LiveGameplayMarketState {
+  readonly schemaVersion: "market-state.v1";
+  readonly tick: number;
+  readonly prices: readonly LiveGameplayMarketPrice[];
+  readonly marketHash: string;
+}
+
+export const EMPTY_LIVE_GAMEPLAY_MARKET_STATE: LiveGameplayMarketState = Object.freeze({
+  schemaVersion: "market-state.v1",
+  tick: 0,
+  prices: Object.freeze([]),
+  marketHash: "market:00000000",
+});
+
 export type CampNpcActivity = "gathering" | "returning" | "depositing";
 export type CampNpcState = "idle" | "working" | "resting";
 
@@ -251,6 +274,7 @@ export interface LiveGameplaySnapshot {
   readonly wallet: LiveGameplayWallet;
   readonly worldPois: readonly LiveGameplayWorldPoi[];
   readonly vendorEconomy: LiveGameplayVendorEconomySnapshot;
+  readonly marketState: LiveGameplayMarketState;
   readonly discoveryStats: DiscoveryStats;
   readonly recentDiscoveries: readonly RecentDiscovery[];
   readonly campNpcs: readonly LiveGameplayCampNpc[];
