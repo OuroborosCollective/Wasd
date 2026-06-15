@@ -14,7 +14,7 @@ import {
   getVisibleChunkCoords,
   isStarterChunk,
   getChunkBiome,
-  CHUNK_RESOURCE_CONSTANTS,
+  resolveChunkWorldSeed,
   type ChunkBiomeId,
 } from "./ChunkResourceGenerator.js";
 import type {
@@ -58,7 +58,7 @@ export class ResourceNodeStore {
   private readonly worldSeed: string;
 
   constructor(nodes: readonly ResourceNodeDefinition[] = STARTER_RESOURCE_NODES, worldSeed?: string) {
-    this.worldSeed = worldSeed ?? CHUNK_RESOURCE_CONSTANTS.WORLD_SEED;
+    this.worldSeed = resolveChunkWorldSeed(worldSeed);
 
     // Initialize with starter nodes
     for (const node of nodes) {
@@ -80,7 +80,7 @@ export class ResourceNodeStore {
    * @param worldSeed - Optional world seed override
    */
   registerVisibleChunks(playerPosition: { x: number; y: number }, worldSeed?: string): void {
-    const seed = worldSeed ?? this.worldSeed;
+    const seed = resolveChunkWorldSeed(worldSeed ?? this.worldSeed);
 
     // Convert kappa position to tile coordinates
     // Kappa: 1 tile = 1000 kappa units
@@ -105,7 +105,7 @@ export class ResourceNodeStore {
       }
 
       // Generate procedural nodes for this chunk
-      const biomeId = getChunkBiome(chunkX, chunkZ);
+      const biomeId = getChunkBiome(chunkX, chunkZ, seed);
       const nodes = generateChunkResourceNodes({
         worldSeed: seed,
         chunkX,
@@ -132,9 +132,6 @@ export class ResourceNodeStore {
     this.chunkRegistry.lastPlayerPosition = playerPosition;
   }
 
-  /**
-   * Get all registered visible chunk coordinates.
-   */
   getRegisteredChunks(): Array<{ chunkX: number; chunkZ: number }> {
     return Array.from(this.chunkRegistry.registeredChunks.keys()).map((key) => {
       const [cx, cz] = key.split(":").map(Number);
@@ -142,26 +139,15 @@ export class ResourceNodeStore {
     });
   }
 
-  /**
-   * Get the count of registered chunks.
-   */
   getRegisteredChunkCount(): number {
     return this.chunkRegistry.registeredChunks.size;
   }
 
-  /**
-   * Get count of total registered node IDs (starter + procedural).
-   */
   getTotalNodeCount(): number {
     return this.definitions.size;
   }
 
-  /**
-   * Clear all registered chunks and their procedural nodes.
-   * Keeps starter nodes. Use for testing or world reset.
-   */
   clearRegisteredChunks(): void {
-    // Remove all non-starter nodes from definitions and runtime
     for (const [nodeId] of this.definitions) {
       if (!nodeId.startsWith("starter_")) {
         this.definitions.delete(nodeId);
@@ -169,15 +155,10 @@ export class ResourceNodeStore {
       }
     }
 
-    // Clear the registry
     this.chunkRegistry.registeredChunks.clear();
     this.chunkRegistry.lastPlayerPosition = null;
   }
 
-  /**
-   * List all resource node snapshots, sorted by ID for determinism.
-   * Includes both starter nodes and registered procedural nodes.
-   */
   listSnapshots(currentTick: number): ResourceNodeSnapshot[] {
     return [...this.definitions.values()]
       .map((definition) => this.getSnapshot(definition.id, currentTick))
@@ -185,9 +166,6 @@ export class ResourceNodeStore {
       .sort((a, b) => a.id.localeCompare(b.id));
   }
 
-  /**
-   * Get a single resource node snapshot by ID.
-   */
   getSnapshot(nodeId: string, currentTick: number): ResourceNodeSnapshot | null {
     const definition = this.definitions.get(nodeId);
     const state = this.runtime.get(nodeId);
@@ -219,10 +197,6 @@ export class ResourceNodeStore {
     };
   }
 
-  /**
-   * Attempt to gather from a resource node.
-   * All checks are server-authoritative.
-   */
   gather(input: GatherInput): GatherResourceResult {
     const { playerId, nodeId, playerPosition, currentTick, playerSkillLevel } = input;
 
@@ -286,9 +260,6 @@ export class ResourceNodeStore {
     };
   }
 
-  /**
-   * Compute node status based on current tick and runtime state.
-   */
   private computeStatus(state: ResourceNodeRuntimeState, currentTick: number): ResourceNodeStatus {
     if (state.depletedUntilTick !== null && state.depletedUntilTick > currentTick) {
       return "depleted";
@@ -296,9 +267,6 @@ export class ResourceNodeStore {
     return "available";
   }
 
-  /**
-   * Clear runtime state for testing only.
-   */
   clearForTests(): void {
     this.runtime.clear();
     for (const node of this.definitions.values()) {
@@ -312,7 +280,4 @@ export class ResourceNodeStore {
   }
 }
 
-/**
- * Global singleton instance for production use.
- */
 export const resourceNodeStore = new ResourceNodeStore();
