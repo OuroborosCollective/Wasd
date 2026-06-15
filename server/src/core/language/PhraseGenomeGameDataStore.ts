@@ -83,8 +83,8 @@ function normalizeGenome(raw: unknown, source: string, index: number): PhraseGen
     throw new Error(`[${TAG}] ${source}.phraseGenomes[${index}] requires at least one slot`);
   }
 
-  const outcomeStats = isRecord(raw.outcomeStats) ? raw.outcomeStats : {};
-  const mutation = isRecord(raw.mutation) ? raw.mutation : {};
+  const outcomeStats: Record<string, unknown> = isRecord(raw.outcomeStats) ? raw.outcomeStats : {};
+  const mutation: Record<string, unknown> = isRecord(raw.mutation) ? raw.mutation : {};
   const structure = textList(raw.structure, slots.map((slot) => slot.role));
 
   const genome: PhraseGenome = Object.freeze({
