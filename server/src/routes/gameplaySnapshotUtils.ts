@@ -65,7 +65,14 @@ function cloneEntries(entries: readonly EquipmentNumberEntry[] | undefined): rea
 }
 
 function enrichPaperdollSlot(slot: PaperdollSlotSnapshot): PaperdollSlotSnapshot {
-  if (slot.itemId === null) return slot;
+  if (slot.itemId === null) {
+    // For empty slots, use canonical emptyTitle from slot definition
+    const slotDef = EQUIPMENT_SLOT_DEFINITIONS.find((def) => def.slotId === slot.slotId);
+    return {
+      ...slot,
+      title: slotDef?.emptyTitle ?? slot.title,
+    };
+  }
   const definition = EQUIPMENT_DEFINITIONS[slot.itemId];
   const stats = cloneEntries(definition?.stats ?? slot.stats);
   const requirements = cloneEntries(definition?.requirements ?? slot.requirements);

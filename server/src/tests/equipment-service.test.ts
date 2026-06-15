@@ -7,18 +7,18 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { EquipmentPersistenceAdapter } from "../src/equipment/EquipmentPersistence.js";
-import { EquipmentService, type InventoryServiceLike, type SkillServiceLike } from "../src/equipment/EquipmentService.js";
-import { EquipmentStore } from "../src/equipment/EquipmentStore.js";
-import { InventoryStore } from "../src/inventory/InventoryStore.js";
-import type { InventoryItemId, PlayerInventoryState } from "../src/inventory/InventoryTypes.js";
+import type { EquipmentPersistenceAdapter } from "../equipment/EquipmentPersistence.js";
+import { EquipmentService, type InventoryServiceLike, type SkillServiceLike } from "../equipment/EquipmentService.js";
+import { EquipmentStore } from "../equipment/EquipmentStore.js";
+import { InventoryStore } from "../inventory/InventoryStore.js";
+import type { InventoryItemId, PlayerInventoryState } from "../inventory/InventoryTypes.js";
 import {
   createDefaultPlayerSkillState,
   normalizePlayerSkillState,
   xpForLevel,
   type PlayerSkillState,
   type SkillId,
-} from "../src/skills/SkillTypes.js";
+} from "../skills/SkillTypes.js";
 
 function cloneState<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;

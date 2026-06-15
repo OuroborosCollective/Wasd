@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { EquipmentStore } from "../src/equipment/EquipmentStore";
+import { EquipmentStore } from "../equipment/EquipmentStore";
 
 describe("EquipmentStore", () => {
   let store: EquipmentStore;
@@ -209,8 +209,8 @@ describe("EquipmentStore", () => {
 
 describe("EquipmentBonus", () => {
   it("returns default bonus when no equipment", async () => {
-    const { getGatheringToolBonus } = await import("../src/equipment/EquipmentBonus");
-    const { createDefaultEquipmentState } = await import("../src/equipment/EquipmentTypes");
+    const { getGatheringToolBonus } = await import("../equipment/EquipmentBonus");
+    const { createDefaultEquipmentState } = await import("../equipment/EquipmentTypes");
 
     const bonus = getGatheringToolBonus({
       equipment: createDefaultEquipmentState("player1"),
@@ -222,8 +222,8 @@ describe("EquipmentBonus", () => {
   });
 
   it("returns 1100 permille bonus for wooden axe on woodcutting", async () => {
-    const { getGatheringToolBonus } = await import("../src/equipment/EquipmentBonus");
-    const { normalizeEquipmentState } = await import("../src/equipment/EquipmentTypes");
+    const { getGatheringToolBonus } = await import("../equipment/EquipmentBonus");
+    const { normalizeEquipmentState } = await import("../equipment/EquipmentTypes");
 
     const bonus = getGatheringToolBonus({
       equipment: normalizeEquipmentState(
@@ -242,8 +242,8 @@ describe("EquipmentBonus", () => {
   });
 
   it("returns default bonus for wrong skill", async () => {
-    const { getGatheringToolBonus } = await import("../src/equipment/EquipmentBonus");
-    const { normalizeEquipmentState } = await import("../src/equipment/EquipmentTypes");
+    const { getGatheringToolBonus } = await import("../equipment/EquipmentBonus");
+    const { normalizeEquipmentState } = await import("../equipment/EquipmentTypes");
 
     const bonus = getGatheringToolBonus({
       equipment: normalizeEquipmentState(
