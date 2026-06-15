@@ -27,6 +27,10 @@ export interface GatherResourceResult {
   itemRewardName?: string;
 }
 
+function normalizeTick(currentTick: number): number {
+  return Number.isFinite(currentTick) && currentTick >= 0 ? Math.trunc(currentTick) : 0;
+}
+
 /**
  * Attempt to gather from a resource node via HTTP API.
  * Server-authoritative: resolves skill level, applies XP, returns result.
@@ -44,7 +48,7 @@ export async function gatherResource(
     body: JSON.stringify({
       nodeId,
       playerPosition,
-      currentTick,
+      currentTick: normalizeTick(currentTick),
     }),
   });
 
@@ -84,7 +88,8 @@ export async function fetchResourceNodes(currentTick: number = 0): Promise<{
   }>;
   count: number;
 }> {
-  const response = await fetch(`/api/resource/nodes?tick=${currentTick}`);
+  const tick = normalizeTick(currentTick);
+  const response = await fetch(`/api/resource/nodes?tick=${tick}`);
   return response.json();
 }
 
@@ -97,7 +102,8 @@ export async function fetchResourceNodes(currentTick: number = 0): Promise<{
  */
 export function sendResourceGatherCommand(
   nodeId: string,
-  playerPosition: { x: number; y: number }
+  playerPosition: { x: number; y: number },
+  currentTick: number = 0
 ): void {
   window.dispatchEvent(
     new CustomEvent("wasd:client-action", {
@@ -106,7 +112,7 @@ export function sendResourceGatherCommand(
         payload: {
           nodeId,
           playerPosition,
-          timestamp: Date.now(),
+          currentTick: normalizeTick(currentTick),
         },
       },
     })
