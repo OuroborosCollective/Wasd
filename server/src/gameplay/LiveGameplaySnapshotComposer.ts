@@ -32,6 +32,7 @@ import type {
   LiveGameplayWorldSurface,
   LiveGameplayCivicState,
   LiveGameplayCivicPressure,
+  LiveGameplayMarketState,
 } from "./LiveGameplaySnapshotTypes.js";
 import { EMPTY_LIVE_GAMEPLAY_WORLD_SURFACE } from "./LiveGameplaySnapshotTypes.js";
 import { RESOURCE_SELL_PRICES } from "../economy/ResourceSellPrices.js";
@@ -132,6 +133,7 @@ export class LiveGameplaySnapshotComposer {
       ? await this.deps.getWorldSurface(playerId, safeLogicalIndex)
       : EMPTY_LIVE_GAMEPLAY_WORLD_SURFACE;
     const civicState = buildCivicStateFromWorldSurface(safeLogicalIndex, worldSurface);
+    const marketState = buildMarketStateFromRuntimeInputs(safeLogicalIndex, resourceNodes, campStocks);
 
     return Object.freeze({
       schemaVersion: "live-gameplay-snapshot.v1" as const,
@@ -146,6 +148,7 @@ export class LiveGameplaySnapshotComposer {
       wallet: Object.freeze(wallet),
       worldPois: Object.freeze([...worldPois].sort((a, b) => a.poiId.localeCompare(b.poiId))),
       vendorEconomy: Object.freeze(vendorEconomy),
+      marketState: Object.freeze(marketState),
       discoveryStats: Object.freeze(discoveryStats),
       recentDiscoveries: Object.freeze([...recentDiscoveries]),
       campNpcs: Object.freeze([...campNpcs].sort((a, b) => a.id.localeCompare(b.id))),
@@ -294,5 +297,68 @@ export function buildCivicStateFromWorldSurface(
     occupancyPermille,
     pressure,
     civicHash,
+  });
+}
+
+function normalizeResourceItemId(resourceId: string): string {
+  const id = resourceId.trim().toLowerCase();
+  if (id === "tree" || id === "wood" || id === "wood_log") return "wood_log";
+  if (id === "ore" || id === "copper" || id === "copper_ore") return "copper_ore";
+  if (id === "fish" || id === "raw_fish") return "raw_fish";
+  return id;
+}
+
+function addCount(counts: Map<string, number>, itemId: string, quantity: number): void {
+  if (!Number.isFinite(quantity) || quantity <= 0) return;
+  if (!(itemId in RESOURCE_SELL_PRICES)) return;
+  counts.set(itemId, (counts.get(itemId) ?? 0) + Math.floor(quantity));
+}
+
+export function buildMarketStateFromRuntimeInputs(
+  logicalIndex: number,
+  resourceNodes: readonly LiveGameplayResourceNode[],
+  campStocks: readonly LiveGameplayCampStock[],
+): LiveGameplayMarketState {
+  const tick = Number.isSafeInteger(logicalIndex) && logicalIndex >= 0 ? logicalIndex : 0;
+  const stockCounts = new Map<string, number>();
+  const nodeCounts = new Map<string, number>();
+
+  for (const stock of campStocks) {
+    for (const item of stock.items) {
+      addCount(stockCounts, item.itemId, item.quantity);
+    }
+  }
+
+  for (const node of resourceNodes) {
+    if (!node.available) continue;
+    const itemId = normalizeResourceItemId(node.resourceId);
+    addCount(nodeCounts, itemId, 1);
+  }
+
+  const prices = Object.keys(RESOURCE_SELL_PRICES)
+    .sort()
+    .map((itemId) => {
+      const resourceNodeCount = nodeCounts.get(itemId) ?? 0;
+      const availableQuantity = (stockCounts.get(itemId) ?? 0) + resourceNodeCount;
+      const priceInfo = calculateDynamicPrice(itemId, availableQuantity);
+      return Object.freeze({
+        itemId,
+        availableQuantity,
+        unitPrice: priceInfo.unitPrice,
+        basePrice: priceInfo.basePrice,
+        demandBand: priceInfo.demandBand,
+        resourceNodeCount,
+      });
+    });
+  const hashInput = prices
+    .map((price) => `${price.itemId}:${price.availableQuantity}:${price.unitPrice}:${price.demandBand}:${price.resourceNodeCount}`)
+    .join("|");
+  const marketHash = `market:${fnv1a32(`${tick}|${hashInput}`)}`;
+
+  return Object.freeze({
+    schemaVersion: "market-state.v1" as const,
+    tick,
+    prices: Object.freeze(prices),
+    marketHash,
   });
 }
