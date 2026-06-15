@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { LiveGameplaySnapshotComposer } from "../gameplay/LiveGameplaySnapshotComposer.js";
+import {
+  LiveGameplaySnapshotComposer,
+  buildCivicStateFromWorldSurface,
+} from "../gameplay/LiveGameplaySnapshotComposer.js";
 
 function createComposer(overrides: Partial<ConstructorParameters<typeof LiveGameplaySnapshotComposer>[0]> = {}) {
   return new LiveGameplaySnapshotComposer({
@@ -22,6 +25,15 @@ describe("LiveGameplaySnapshotComposer worldSurface", () => {
       groups: [],
       points: [],
     });
+    expect(snapshot.civicState).toMatchObject({
+      schemaVersion: "civic-state.v1",
+      tick: 12,
+      houseCount: 0,
+      population: 0,
+      capacity: 0,
+      occupancyPermille: 0,
+      pressure: "empty",
+    });
   });
 
   it("includes server-authoritative world surface from deps", async () => {
@@ -37,5 +49,61 @@ describe("LiveGameplaySnapshotComposer worldSurface", () => {
     expect(snapshot.worldSurface.tick).toBe(42);
     expect(snapshot.worldSurface.groups).toHaveLength(1);
     expect(snapshot.worldSurface.points).toHaveLength(1);
+    expect(snapshot.civicState).toMatchObject({
+      tick: 42,
+      houseCount: 1,
+      population: 1,
+      capacity: 4,
+      occupancyPermille: 250,
+      pressure: "settled",
+    });
+  });
+
+  it("replays the same civic state for the same inputs", () => {
+    const surface = {
+      schemaVersion: "world-surface-model.v1" as const,
+      tick: 88,
+      groups: [
+        { id: "house_b", kind: "lineage_house" },
+        { id: "house_a", kind: "lineage_house" },
+      ],
+      points: [
+        { id: "lineage_b", kind: "lineage_node" },
+        { id: "lineage_a", kind: "lineage_node" },
+      ],
+    };
+
+    const first = buildCivicStateFromWorldSurface(88, surface);
+    const replay = buildCivicStateFromWorldSurface(88, {
+      ...surface,
+      groups: [...surface.groups].reverse(),
+      points: [...surface.points].reverse(),
+    });
+
+    expect(replay).toEqual(first);
+    expect(first.civicHash.startsWith("civic:")).toBe(true);
+  });
+
+  it("reports pressure when population is greater than capacity", () => {
+    const civicState = buildCivicStateFromWorldSurface(101, {
+      schemaVersion: "world-surface-model.v1",
+      tick: 101,
+      groups: [{ id: "house_1", kind: "lineage_house" }],
+      points: [
+        { id: "lineage_1", kind: "lineage_node" },
+        { id: "lineage_2", kind: "lineage_node" },
+        { id: "lineage_3", kind: "lineage_node" },
+        { id: "lineage_4", kind: "lineage_node" },
+        { id: "lineage_5", kind: "lineage_node" },
+      ],
+    });
+
+    expect(civicState).toMatchObject({
+      houseCount: 1,
+      population: 5,
+      capacity: 4,
+      occupancyPermille: 1250,
+      pressure: "over_capacity",
+    });
   });
 });

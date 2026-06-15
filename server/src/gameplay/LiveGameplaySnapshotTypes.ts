@@ -214,6 +214,30 @@ export const EMPTY_LIVE_GAMEPLAY_WORLD_SURFACE: LiveGameplayWorldSurface = Objec
   points: Object.freeze([]),
 });
 
+export type LiveGameplayCivicPressure = "empty" | "settled" | "crowded" | "over_capacity";
+
+export interface LiveGameplayCivicState {
+  readonly schemaVersion: "civic-state.v1";
+  readonly tick: number;
+  readonly houseCount: number;
+  readonly population: number;
+  readonly capacity: number;
+  readonly occupancyPermille: number;
+  readonly pressure: LiveGameplayCivicPressure;
+  readonly civicHash: string;
+}
+
+export const EMPTY_LIVE_GAMEPLAY_CIVIC_STATE: LiveGameplayCivicState = Object.freeze({
+  schemaVersion: "civic-state.v1",
+  tick: 0,
+  houseCount: 0,
+  population: 0,
+  capacity: 0,
+  occupancyPermille: 0,
+  pressure: "empty",
+  civicHash: "civic:00000000",
+});
+
 export interface LiveGameplaySnapshot {
   readonly schemaVersion: "live-gameplay-snapshot.v1";
   readonly playerId: string;
@@ -241,6 +265,7 @@ export interface LiveGameplaySnapshot {
   readonly npcMemories: readonly LiveGameplayNpcMemory[];
   readonly npcRumors: readonly LiveGameplayNpcRumor[];
   readonly worldSurface: LiveGameplayWorldSurface;
+  readonly civicState: LiveGameplayCivicState;
 }
 
 export interface GatherResult {
