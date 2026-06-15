@@ -23,7 +23,17 @@ source event → loot_roll_context → Infinite ARE Loot Machine → loot_delta 
 | `ARELootEngine` | Facade/adapter | Only if preserves full capability |
 | `DefaultLootMatrix` | Fallback/dev seed only | Not runtime truth |
 | `LootDirector` | Context orchestrator + loot_delta writer | Only |
+| `LootSystem` | Quarantined migration shim | Direct runtime construction throws; use explicit migration/test factory only |
 | `LootFeed/LootRenderer` | Snapshot observers only | Display only |
+
+### Runtime Guard Status
+
+Issue #1984 is enforced by code, not just documentation:
+
+- `bootLootSystem()` creates `LootDirector`, not `LootSystem`.
+- `LootDirector` delegates item generation to `ProceduralLootMachine`.
+- `LootSystem` is a legacy adapter only; `new LootSystem()` throws unless an explicit migration/test opt-in is used.
+- Legacy seeds are namespaced with `legacy-*` labels so they cannot be confused with canonical runtime loot seeds.
 
 ### Removal Rule
 
@@ -100,7 +110,7 @@ source event → loot_roll_context → Infinite ARE Loot Machine → loot_delta 
 │ LootDirector                         │
 │ - Writes loot_delta                  │
 │ - Emits loot.delta event             │
-│ - Idempotency guard                   │
+│ - Idempotency guard                  │
 │ - No direct item spawning            │
 └──────────────────────────────────────┘
         │
@@ -202,7 +212,7 @@ Assets are **display-only** - looked up from server metadata with deterministic 
 
 ## Tests
 
-See `server/src/tests/lootCanonicalization.test.ts`:
+See `server/src/tests/lootCanonicalization.test.ts` and `server/src/modules/loot/LootSystemAuthorityGuard.test.ts`:
 
 1. **Determinism Tests**
    - Same context → same loot
@@ -217,6 +227,10 @@ See `server/src/tests/lootCanonicalization.test.ts`:
 3. **Integration Tests**
    - Combat → LootRollContext → loot_delta → items
    - Full chain verification
+
+4. **Authority Tests**
+   - Direct legacy `LootSystem` construction is blocked
+   - Explicit migration/test factory remains available for non-runtime compatibility
 
 ## References
 
