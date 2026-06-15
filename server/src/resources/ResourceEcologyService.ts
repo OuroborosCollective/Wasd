@@ -1,11 +1,3 @@
-/**
- * RESOURCE ECOLOGY SERVICE
- *
- * Real server-side resource ecology truth for gathering nodes.
- * State evolves only from registered resource node definitions, successful gather calls
- * and deterministic tick advancement.
- */
-
 import { deterministicPayloadHash } from "../core/watchdog-determinism.js";
 import { loadResourceEcologyConfigFromGameData } from "./ResourceGameData.js";
 import type {
@@ -20,6 +12,8 @@ import type {
   ResourceNodeEcologyState,
 } from "./ResourceEcologyTypes.js";
 import type { ResourceKind, ResourceNodeDefinition } from "./ResourceTypes.js";
+
+type ResourceEcologyNodeSeed = Pick<ResourceNodeDefinition, "id" | "kind">;
 
 const PERMILLE = 1000;
 const REGEN_DENOMINATOR = PERMILLE * PERMILLE;
@@ -85,7 +79,7 @@ export class ResourceEcologyService {
     return this.tickCadence;
   }
 
-  registerNode(definition: ResourceNodeDefinition): ResourceNodeEcologySnapshot {
+  registerNode(definition: ResourceEcologyNodeSeed): ResourceNodeEcologySnapshot {
     const existing = this.states.get(definition.id);
     if (existing) return this.toSnapshot(existing);
 
@@ -102,7 +96,7 @@ export class ResourceEcologyService {
     return this.toSnapshot(state);
   }
 
-  registerNodes(definitions: readonly ResourceNodeDefinition[]): readonly ResourceNodeEcologySnapshot[] {
+  registerNodes(definitions: readonly ResourceEcologyNodeSeed[]): readonly ResourceNodeEcologySnapshot[] {
     return Object.freeze([...definitions].sort((a, b) => a.id.localeCompare(b.id)).map((node) => this.registerNode(node)));
   }
 
@@ -169,7 +163,7 @@ export class ResourceEcologyService {
     this.states.clear();
   }
 
-  private resolveRule(definition: ResourceNodeDefinition): ResolvedResourceEcologyRule {
+  private resolveRule(definition: ResourceEcologyNodeSeed): ResolvedResourceEcologyRule {
     const base = this.rulesByKind.get(definition.kind);
     if (!base) {
       throw new Error(`[ResourceEcologyService] Missing ecology rule for resource kind ${definition.kind}`);
