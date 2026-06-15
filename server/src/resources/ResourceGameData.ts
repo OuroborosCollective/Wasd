@@ -1,12 +1,11 @@
-/**
- * RESOURCE GAME DATA LOADER
- *
- * Loads deterministic gathering truth from the active content root.
- * No Math.random(), no Date.now(), no wall-clock state.
- */
-
 import fs from "node:fs";
 import { resolveContentFile } from "../modules/content/contentDataRoot.js";
+import type {
+  ResourceEcologyConfig,
+  ResourceEcologyKindRule,
+  ResourceEcologyNodeOverride,
+} from "./ResourceEcologyTypes.js";
+import { RESOURCE_ECOLOGY_SCHEMA_VERSION } from "./ResourceEcologyTypes.js";
 import type {
   GatheringMomentumRule,
   ResourceKind,
@@ -61,6 +60,24 @@ function readInteger(record: Record<string, unknown>, key: string, file: string,
   if (!Number.isInteger(value) || value < min) {
     fail(file, `${key} must be an integer >= ${min}`);
   }
+  return value;
+}
+
+function readOptionalInteger(record: Record<string, unknown>, key: string, file: string, min: number): number | undefined {
+  if (record[key] === undefined || record[key] === null) return undefined;
+  return readInteger(record, key, file, min);
+}
+
+function readPermille(record: Record<string, unknown>, key: string, file: string): number {
+  const value = readInteger(record, key, file, 0);
+  if (value > 1000) fail(file, `${key} must be <= 1000`);
+  return value;
+}
+
+function readOptionalPermille(record: Record<string, unknown>, key: string, file: string): number | undefined {
+  if (record[key] === undefined || record[key] === null) return undefined;
+  const value = readInteger(record, key, file, 0);
+  if (value > 1000) fail(file, `${key} must be <= 1000`);
   return value;
 }
 
@@ -172,6 +189,82 @@ function normalizeMomentumRule(raw: unknown, file: string): GatheringMomentumRul
   return Object.freeze(rule);
 }
 
+function normalizeEcologyRule(raw: unknown, index: number, file: string): ResourceEcologyKindRule {
+  const record = asRecord(raw, file, `resource ecology rule at index ${index}`);
+  const kind = readString(record, "kind", file) as ResourceKind;
+  if (!RESOURCE_KINDS.has(kind)) fail(file, `invalid ecology kind ${kind}`);
+
+  const capacity = readInteger(record, "capacity", file, 1);
+  const initialStock = readOptionalInteger(record, "initialStock", file, 0);
+  const collapseThreshold = readInteger(record, "collapseThreshold", file, 0);
+  if (initialStock !== undefined && initialStock > capacity) fail(file, `${kind}.initialStock must be <= capacity`);
+  if (collapseThreshold > capacity) fail(file, `${kind}.collapseThreshold must be <= capacity`);
+
+  return Object.freeze({
+    kind,
+    capacity,
+    initialStock,
+    regenPerTick: readInteger(record, "regenPerTick", file, 0),
+    extractionUnits: readInteger(record, "extractionUnits", file, 1),
+    extractionPressurePermille: readPermille(record, "extractionPressurePermille", file),
+    pressureDecayPermillePerTick: readPermille(record, "pressureDecayPermillePerTick", file),
+    collapseThreshold,
+    collapseRegenPermille: readPermille(record, "collapseRegenPermille", file),
+  });
+}
+
+function normalizeEcologyOverride(raw: unknown, index: number, file: string): ResourceEcologyNodeOverride {
+  const record = asRecord(raw, file, `resource ecology override at index ${index}`);
+  return Object.freeze({
+    nodeId: readString(record, "nodeId", file),
+    capacity: readOptionalInteger(record, "capacity", file, 1),
+    initialStock: readOptionalInteger(record, "initialStock", file, 0),
+    regenPerTick: readOptionalInteger(record, "regenPerTick", file, 0),
+    extractionUnits: readOptionalInteger(record, "extractionUnits", file, 1),
+    extractionPressurePermille: readOptionalPermille(record, "extractionPressurePermille", file),
+    pressureDecayPermillePerTick: readOptionalPermille(record, "pressureDecayPermillePerTick", file),
+    collapseThreshold: readOptionalInteger(record, "collapseThreshold", file, 0),
+    collapseRegenPermille: readOptionalPermille(record, "collapseRegenPermille", file),
+  });
+}
+
+function normalizeEcologyConfig(raw: unknown, file: string): ResourceEcologyConfig {
+  const record = asRecord(raw, file, "resource ecology config");
+  const schemaVersion = readInteger(record, "schemaVersion", file, 1);
+  if (schemaVersion !== RESOURCE_ECOLOGY_SCHEMA_VERSION) fail(file, "schemaVersion must be 1");
+
+  const rulesRaw = record.kindRules;
+  if (!Array.isArray(rulesRaw) || rulesRaw.length === 0) fail(file, "kindRules must be a non-empty array");
+  const seenKinds = new Set<ResourceKind>();
+  const kindRules = rulesRaw.map((entry, index) => {
+    const rule = normalizeEcologyRule(entry, index, file);
+    if (seenKinds.has(rule.kind)) fail(file, `duplicate ecology kind ${rule.kind}`);
+    seenKinds.add(rule.kind);
+    return rule;
+  });
+
+  for (const kind of RESOURCE_KINDS) {
+    if (!seenKinds.has(kind)) fail(file, `missing ecology rule for kind ${kind}`);
+  }
+
+  const overridesRaw = record.nodeOverrides ?? [];
+  if (!Array.isArray(overridesRaw)) fail(file, "nodeOverrides must be an array");
+  const seenOverrides = new Set<string>();
+  const nodeOverrides = overridesRaw.map((entry, index) => {
+    const override = normalizeEcologyOverride(entry, index, file);
+    if (seenOverrides.has(override.nodeId)) fail(file, `duplicate ecology override for node ${override.nodeId}`);
+    seenOverrides.add(override.nodeId);
+    return override;
+  });
+
+  return Object.freeze({
+    schemaVersion: RESOURCE_ECOLOGY_SCHEMA_VERSION,
+    tickCadence: readInteger(record, "tickCadence", file, 1),
+    kindRules: Object.freeze(kindRules.sort((a, b) => a.kind.localeCompare(b.kind))),
+    nodeOverrides: Object.freeze(nodeOverrides.sort((a, b) => a.nodeId.localeCompare(b.nodeId))),
+  });
+}
+
 export function loadResourceNodeDefinitionsFromGameData(): readonly ResourceNodeDefinition[] {
   const file = resolveContentFile("resources/resource-nodes.json");
   const raw = readJsonFile(file);
@@ -196,4 +289,9 @@ export function loadResourceNodeDefinitionsFromGameData(): readonly ResourceNode
 export function loadGatheringMomentumRuleFromGameData(): GatheringMomentumRule {
   const file = resolveContentFile("resources/gathering-momentum.json");
   return normalizeMomentumRule(readJsonFile(file), file);
+}
+
+export function loadResourceEcologyConfigFromGameData(): ResourceEcologyConfig {
+  const file = resolveContentFile("resources/resource-ecology.json");
+  return normalizeEcologyConfig(readJsonFile(file), file);
 }
