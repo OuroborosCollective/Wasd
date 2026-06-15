@@ -127,12 +127,23 @@ Tracked by #2043.
 
 ## 8. Performance and Observability
 
-| Check | Status | Issue |
-|---|---|---:|
-| Startup/FPS/memory budget | ☐ | #2042 |
-| Runtime metrics dashboard | ☐ | #2049 |
-| Playtester stream health | ☐ | #2049 |
-| Asset audit failures visible | ☐ | #2049 |
+Performance budget evidence for #2042 must use real runtime assets and must include separate 2D and 3D measurements. If any standard budget is exceeded, the release is blocked unless the report records the real fallback tier, reason, and post-fallback metrics.
+
+| Check | Required measurement | Budget / rule | Status | Issue |
+|---|---|---|---|---:|
+| 2D startup | `/2d` startup time | <= 5000 ms standard, <= 6500 ms fallback | ☐ | #2042 |
+| 2D FPS | average FPS and p95 frame time | >= 50 FPS and <= 34 ms p95, or >= 40 FPS and <= 42 ms fallback | ☐ | #2042 |
+| 2D memory | runtime memory with real assets | <= 512 MB standard, <= 640 MB fallback | ☐ | #2042 |
+| 2D chunk loading | p95 chunk-load time | <= 1200 ms standard, <= 1800 ms fallback | ☐ | #2042 |
+| 3D startup | 3D client or `/portal` startup time | <= 9000 ms standard, <= 12000 ms fallback | ☐ | #2042 |
+| 3D FPS | average FPS and p95 frame time | >= 30 FPS and <= 50 ms p95, or >= 24 FPS and <= 67 ms fallback | ☐ | #2042 |
+| 3D memory | runtime memory with real assets | <= 1200 MB standard, <= 1600 MB fallback | ☐ | #2042 |
+| 3D chunk loading | p95 chunk/world-load time | <= 2500 ms standard, <= 3500 ms fallback | ☐ | #2042 |
+| Runtime metrics dashboard | tick duration, WS load, manifest divergence, persistence failures | visible in release evidence | ☐ | #2049 |
+| Playtester stream health | live playtester status | visible in release evidence | ☐ | #2049 |
+| Asset audit failures visible | content/model audit failure reporting | visible in release evidence | ☐ | #2049 |
+
+Required #2042 evidence fields: release commit, content root, asset manifest hash, measured route, device class, tick window, startup time, average FPS, p95 frame time, memory use, p95 chunk-load time, fallback tier, and fallback reason when fallback is active.
 
 ---
 
