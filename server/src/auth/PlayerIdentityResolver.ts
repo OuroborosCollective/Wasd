@@ -32,17 +32,17 @@ export interface PlayerIdentityRequestLike {
   session?: { playerId?: string; userId?: string };
 }
 
-function envNotFalse(key: string): boolean {
-  return !["0", "false", "no"].includes(
-    process.env[key]?.trim().toLowerCase() || "",
-  );
+const TRUTHY_ENV = new Set(["1", "true", "yes", "on"]);
+
+function envTruthy(key: string): boolean {
+  const value = process.env[key]?.trim().toLowerCase();
+  return value ? TRUTHY_ENV.has(value) : false;
 }
 
-const DEV_FALLBACK_ENABLED =
-  process.env.NODE_ENV !== "production" ||
-  process.env.ALLOW_DEV_PLAYER_ID === "true" ||
-  envNotFalse("ALLOW_GUEST_LOGIN") ||
-  envNotFalse("ALLOW_DEV_LOGIN");
+export function isDevPlayerIdentityFallbackEnabled(): boolean {
+  if (process.env.NODE_ENV !== "production") return true;
+  return envTruthy("ALLOW_DEV_PLAYER_ID") || envTruthy("ALLOW_GUEST_LOGIN") || envTruthy("ALLOW_DEV_LOGIN");
+}
 
 function firstHeaderValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -64,9 +64,7 @@ function bodyPlayerId(body: unknown): unknown {
   return (body as Record<string, unknown>).playerId;
 }
 
-export function resolveHttpPlayerIdentity(
-  req: PlayerIdentityRequestLike,
-): PlayerIdentity {
+export function resolveHttpPlayerIdentity(req: PlayerIdentityRequestLike): PlayerIdentity {
   // 1. Prefer real auth middleware if it exists
   const authUser = req as Record<string, unknown>;
   const authId = normalizePlayerId(
@@ -101,7 +99,7 @@ export function resolveHttpPlayerIdentity(
   // 3. Dev/playtest fallback only. This preserves per-guest HTTP state
   // for the current 2D guest-login flow instead of collapsing everyone
   // into the shared "anonymous" profile.
-  if (DEV_FALLBACK_ENABLED) {
+  if (isDevPlayerIdentityFallbackEnabled()) {
     const headerId = normalizePlayerId(
       firstHeaderValue(req.headers?.["x-player-id"]) ??
       firstHeaderValue(req.headers?.["x-areloria-player-id"]),
@@ -127,7 +125,7 @@ export function resolveHttpPlayerIdentity(
 }
 
 export function assertPlayerIdentityAllowed(identity: PlayerIdentity): void {
-  if (process.env.NODE_ENV === "production" && !identity.authenticated && !DEV_FALLBACK_ENABLED) {
+  if (process.env.NODE_ENV === "production" && !identity.authenticated && !isDevPlayerIdentityFallbackEnabled()) {
     throw new Error("authenticated_player_required");
   }
 }
