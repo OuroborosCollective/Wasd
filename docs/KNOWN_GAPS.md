@@ -12,10 +12,15 @@ Use `docs/ROADMAP_TO_RELEASE.md` as the authoritative backlog and `docs/PROJECT_
 - #2039 — persistence backup and restore proof
 - #2040 — production auth and session hardening
 - #2041 — remaining deterministic audit violations
-- #2042 — mobile and browser performance budget
 - #2043 — player-facing UI coverage for critical gameplay
 - #2044 — audited release content pack and asset license proof
 - #2045 — required full-loop E2E and release smoke gate
+
+---
+
+## Release gates now documented
+
+- #2042 — mobile/browser performance budget: 2D and 3D startup, FPS, p95 frame, memory, chunk-load, fallback-tier and runtime-asset evidence requirements are now part of `docs/RELEASE_CHECKLIST.md`.
 
 ---
 
