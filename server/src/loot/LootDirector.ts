@@ -1,7 +1,7 @@
 'use strict';
 
-import { ProceduralLootMachine } from './ProceduralLootMachine.js';
 import { LootAxioms } from './LootAxioms.js';
+import { createItemGenerationAuthority, type ItemGenerationAuthority } from './ItemGenerationAuthority.js';
 import {
   type LootDelta,
   type LootDeltaItem,
@@ -21,17 +21,6 @@ const MAX_PROCESSED_KEYS = 10_000;
 const TRIM_PROCESSED_KEYS_TO = 5_000;
 const LEGACY_CHUNK_SIZE = 64;
 
-/**
- * LootDirector - Context Orchestrator + Deterministic loot_delta Writer
- *
- * CANONICAL PATH:
- * 1. Receives canonical loot_roll_context from confirmed combat defeat events
- * 2. Delegates to ProceduralLootMachine
- * 3. Writes deterministic loot_delta
- * 4. Applies loot_delta to inventory/world-drop services and emits it downstream
- *
- * DO NOT: Roll own loot, create parallel drop truth, or emit loot before confirmed event.
- */
 class LootDirector {
   private db: any;
   private eventBus: any;
@@ -40,7 +29,7 @@ class LootDirector {
   private auditStore: any;
   private started: boolean = false;
   private processedKeys = new Set<string>();
-  private lootMachine: ProceduralLootMachine | null = null;
+  private itemAuthority: ItemGenerationAuthority | null = null;
   private policy: any = null;
 
   private telemetry: any = {
@@ -135,13 +124,13 @@ class LootDirector {
       return null;
     }
 
-    if (!this.lootMachine) {
+    if (!this.itemAuthority) {
       this.policy = await this.loadPolicy();
-      this.lootMachine = new ProceduralLootMachine(this.db, this.policy);
+      this.itemAuthority = createItemGenerationAuthority({ db: this.db, policy: this.policy });
     }
 
     try {
-      const result = await this.lootMachine.generate({
+      const result = await this.itemAuthority.generate({
         playerId: context.sourceEntityId,
         tickIndex: context.sourceTick,
         dropSourceId: context.defeatedEntityId,
@@ -189,6 +178,7 @@ class LootDirector {
         playerId: context.sourceEntityId,
         tickIndex: context.sourceTick,
         seedHash: result.seedHash,
+        authorityId: result.authorityId,
         items: lootDelta.items.map(item => ({
           uid: item.uid,
           itemId: item.itemId,
@@ -245,18 +235,19 @@ class LootDirector {
     });
   }
 
-  private buildLootDeltaItems(items: readonly any[], context: LootRollContextCanonical): readonly LootDeltaItem[] {
+  private buildLootDeltaItems(items: readonly unknown[], context: LootRollContextCanonical): readonly LootDeltaItem[] {
     const deltaItems: LootDeltaItem[] = items.map((item, index) => {
-      const itemId = this.resolveDeltaItemId(item);
-      const name = this.resolveDeltaItemName(item, itemId);
-      const uid = this.requiredString(item.uid) || `loot-${LootAxioms.shortHash(`${context.worldHash}|${context.chunkHash}|${context.sourceTick}|${itemId}|${index}`, 24)}`;
+      const itemRecord = item && typeof item === 'object' ? item as Record<string, any> : {};
+      const itemId = this.resolveDeltaItemId(itemRecord);
+      const name = this.resolveDeltaItemName(itemRecord, itemId);
+      const uid = this.requiredString(itemRecord.uid) || `loot-${LootAxioms.shortHash(`${context.worldHash}|${context.chunkHash}|${context.sourceTick}|${itemId}|${index}`, 24)}`;
 
       return {
         uid,
         itemId,
         name,
-        rarity: String(item.rarity || (item.kind === 'currency' ? 'CURRENCY' : 'COMMON')),
-        quantity: Math.max(1, this.safeInteger(item.amount ?? item.quantity, 1)),
+        rarity: String(itemRecord.rarity || (itemRecord.kind === 'currency' ? 'CURRENCY' : 'COMMON')),
+        quantity: Math.max(1, this.safeInteger(itemRecord.amount ?? itemRecord.quantity, 1)),
         position: { x: 0, y: 0, z: 0 },
         rollHash: LootAxioms.shortHash(`${context.worldHash}|${context.chunkHash}|${context.sourceTick}|${context.defeatedEntityId}|${context.lootIndex}|${index}|${uid}|${itemId}`)
       };
@@ -350,8 +341,9 @@ class LootDirector {
     return {
       started: this.started,
       axiomVersion: LootAxioms.VERSION,
+      itemGenerationAuthority: 'procedural-loot-machine.v1',
       telemetry: this.telemetry,
-      note: 'LootDirector is canonical - ProceduralLootMachine is the Infinite ARE Loot Machine'
+      note: 'LootDirector is canonical - item generation runs through ItemGenerationAuthority'
     };
   }
 
@@ -375,7 +367,7 @@ class LootDirector {
     return { chunkKey, worldHash, chunkHash, kappa };
   }
 
-  private resolveDeltaItemId(item: any): string {
+  private resolveDeltaItemId(item: Record<string, any>): string {
     return this.requiredString(item.baseId)
       || this.requiredString(item.itemId)
       || this.requiredString(item.currency)
@@ -383,7 +375,7 @@ class LootDirector {
       || 'unknown-loot-item';
   }
 
-  private resolveDeltaItemName(item: any, itemId: string): string {
+  private resolveDeltaItemName(item: Record<string, any>, itemId: string): string {
     return this.requiredString(item.name)
       || this.requiredString(item.currency)
       || itemId;
