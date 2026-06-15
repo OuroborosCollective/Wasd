@@ -8,6 +8,7 @@ import { equipmentService } from "../equipment/equipmentRuntime.js";
 import { applyPermille, getGatheringToolBonus } from "../equipment/EquipmentBonus.js";
 import { resourceEcologyService, type ResourceEcologyService } from "./ResourceEcologyService.js";
 import { attachResourceEcologySnapshot, attachResourceEcologySnapshots } from "./ResourceEcologySnapshotAdapter.js";
+import type { ResourceNodeEcologySnapshot } from "./ResourceEcologyTypes.js";
 
 function getMissingToolSlot(
   equipmentSlots: Array<{ slotId: string; itemId: string }>,
@@ -157,16 +158,18 @@ export class GatheringService {
     return result;
   }
 
-  listResourceSnapshots(currentTick: number, playerPosition?: { x: number; y: number }): readonly ResourceNodeSnapshot[] {
+  listResourceSnapshots(currentTick: number, playerPosition?: { x: number; y: number }): ResourceNodeSnapshot[] {
     if (playerPosition) {
       this.registerVisibleChunks(playerPosition);
     }
 
     const snapshots = this.nodes.listSnapshots(currentTick);
-    const ecologySnapshots = snapshots.map((snapshot) => {
-      this.ecology.registerNode(snapshot);
-      return this.ecology.getNodeSnapshot(snapshot.id, currentTick);
-    }).filter((snapshot): snapshot is NonNullable<typeof snapshot> => Boolean(snapshot));
+    const ecologySnapshots: ResourceNodeEcologySnapshot[] = snapshots
+      .map((snapshot) => {
+        this.ecology.registerNode(snapshot);
+        return this.ecology.getNodeSnapshot(snapshot.id, currentTick);
+      })
+      .filter((snapshot): snapshot is ResourceNodeEcologySnapshot => Boolean(snapshot));
 
     return attachResourceEcologySnapshots(snapshots, ecologySnapshots);
   }
