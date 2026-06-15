@@ -53,7 +53,7 @@ describe('Living Language System Integration', () => {
   });
 
   describe('LanguageShadowTelemetry', () => {
-    it('should expose speech telemetry as non-authoritative side channel', () => { seedEmotionGenome(); const npcState = buildNpcLanguageState('shadow_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.1, trust: 0.7, fear: 0.1, duty: 0.6, pride: 0.2, revenge: 0 }); decideUtterance({ npcState, worldState: createTestWorldState(), tick: 720, sequenceId: 8 }, { forceIntent: 'greet' }); const telemetry = getLanguageShadowTelemetry(); expect(telemetry.authoritative).toBe(false); expect(telemetry.sideChannel).toBe(true); expect(telemetry.telemetryTruthMode).toBe('telemetry_side_channel'); expect(telemetry.speech.at(-1)?.authoritative).toBe(false); expect(telemetry.speech.at(-1)?.sideChannel).toBe(true); expect(telemetry.quarantinedTelemetryEvents).toBe(0); });
+    it('should expose speech telemetry as non-authoritative side channel', () => { seedEmotionGenome(); const npcState = buildNpcLanguageState('shadow_npc', { factionId: 'neutral', role: 'citizen', hunger: 0.1, trust: 0.7, fear: 0.1, duty: 0.6, pride: 0.2, revenge: 0 }); decideUtterance({ npcState, worldState: createTestWorldState(), tick: 720, sequenceId: 8 }, { forceIntent: 'greet' }); const telemetry = getLanguageShadowTelemetry(); const latest = telemetry.speech[telemetry.speech.length - 1]; expect(telemetry.authoritative).toBe(false); expect(telemetry.sideChannel).toBe(true); expect(telemetry.telemetryTruthMode).toBe('telemetry_side_channel'); expect(latest?.authoritative).toBe(false); expect(latest?.sideChannel).toBe(true); expect(telemetry.quarantinedTelemetryEvents).toBe(0); });
   });
 
   describe('ArelorianLinguisticKernel', () => {
