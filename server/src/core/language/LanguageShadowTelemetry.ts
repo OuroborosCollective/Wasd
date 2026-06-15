@@ -6,6 +6,8 @@ import { exportArchiveState, getAllLexemes, getLexeme } from './LivingDudenArchi
 import { getLexemeSuccessRate, getOutcomeHistorySize } from './LanguageOutcomeLearner.js';
 
 const HISTORY_LIMIT = 250;
+const SHADOW_SOURCE = 'language_shadow_telemetry' as const;
+const SHADOW_TRUTH_MODE = 'telemetry_side_channel' as const;
 
 export interface NpcSpeechTelemetryEvent {
   readonly eventHash: string;
@@ -27,19 +29,39 @@ export interface NpcSpeechTelemetryEvent {
   readonly confidence: number;
   readonly needsFallback: boolean;
   readonly termAlerts: readonly string[];
+  readonly source: typeof SHADOW_SOURCE;
+  readonly telemetryTruthMode: typeof SHADOW_TRUTH_MODE;
+  readonly authoritative: false;
+  readonly sideChannel: true;
 }
 
 const speechHistory: NpcSpeechTelemetryEvent[] = [];
+let quarantinedTelemetryEvents = 0;
 
 function ratio(value: number): number { return Number.isFinite(value) ? Math.round((value / KAPPA) * 1000) / 1000 : 0; }
 function rankLexeme(id: string): number { const lexeme = getLexeme(id); if (!lexeme) return 0; const u = lexeme.usage; const w = lexeme.weighting; return Number(w.baseWeight) + Number(w.contextWeight) + Number(w.successWeight) - Number(w.riskPenalty) + u.totalUses * 10 + u.playerReactionSuccess * 25 - u.playerReactionFailure * 25; }
 function reactionLane(npcState: NpcLanguageState, decision: UtteranceDecision): string { if (decision.needsFallback) return 'fallback_recovery'; if (Number(npcState.currentFear) >= 600) return 'fear_response'; if (Number(npcState.currentHunger) >= 600) return 'need_response'; if (Number(npcState.currentTrust) >= 650) return 'trust_response'; if (Number(npcState.currentDuty) >= 650) return 'duty_response'; if (Number(npcState.currentPride) >= 650) return 'pride_response'; return 'neutral_response'; }
 function termAlerts(factionId: string, text: string): readonly string[] { const dialect = getFactionDialect(factionId); if (!dialect) return Object.freeze([]); const lower = text.toLowerCase(); return Object.freeze([...new Set(dialect.tabooWords.map((word) => word.toLowerCase()).filter((word) => word.length > 0 && lower.includes(word)))]); }
 
+function validTelemetryInput(input: { readonly tick: number; readonly sequenceId: number; readonly npcState: NpcLanguageState; readonly decision: UtteranceDecision; readonly phraseGenome: PhraseGenome }): boolean {
+  return Number.isSafeInteger(input.tick)
+    && input.tick >= 0
+    && Number.isSafeInteger(input.sequenceId)
+    && input.sequenceId >= 0
+    && String(input.npcState.npcId).trim().length > 0
+    && input.decision.speechHash.trim().length > 0
+    && input.decision.phraseGenomeId.trim().length > 0;
+}
+
 export function recordNpcSpeechTelemetry(input: { readonly tick: number; readonly sequenceId: number; readonly npcState: NpcLanguageState; readonly decision: UtteranceDecision; readonly phraseGenome: PhraseGenome }): void {
+  if (!validTelemetryInput(input)) {
+    quarantinedTelemetryEvents += 1;
+    return;
+  }
+
   const selectedWords = input.decision.selectedLexemeIds.map((id) => getLexeme(id)?.lemma ?? id);
   const eventHash = stableHash32(['LANG_SHADOW_V1', input.tick, input.sequenceId, input.decision.speechHash, input.npcState.npcId].join('|')).toString(16);
-  speechHistory.push(Object.freeze({ eventHash, tick: input.tick, sequenceId: input.sequenceId, npcId: input.npcState.npcId, factionId: input.npcState.factionId, role: input.npcState.role, intent: input.decision.intent, truthMode: input.decision.truthMode, speechHash: input.decision.speechHash, constructedText: input.decision.constructedText, phraseGenomeId: input.decision.phraseGenomeId, sentenceStructure: Object.freeze([...input.phraseGenome.structure]), selectedLexemeIds: Object.freeze([...input.decision.selectedLexemeIds]), selectedWords: Object.freeze(selectedWords), thoughtVector: Object.freeze({ hunger: ratio(Number(input.npcState.currentHunger)), trust: ratio(Number(input.npcState.currentTrust)), fear: ratio(Number(input.npcState.currentFear)), duty: ratio(Number(input.npcState.currentDuty)), pride: ratio(Number(input.npcState.currentPride)) }), reactionLane: reactionLane(input.npcState, input.decision), confidence: ratio(Number(input.decision.confidence)), needsFallback: input.decision.needsFallback, termAlerts: termAlerts(input.npcState.factionId, input.decision.constructedText) }));
+  speechHistory.push(Object.freeze({ eventHash, tick: input.tick, sequenceId: input.sequenceId, npcId: input.npcState.npcId, factionId: input.npcState.factionId, role: input.npcState.role, intent: input.decision.intent, truthMode: input.decision.truthMode, speechHash: input.decision.speechHash, constructedText: input.decision.constructedText, phraseGenomeId: input.decision.phraseGenomeId, sentenceStructure: Object.freeze([...input.phraseGenome.structure]), selectedLexemeIds: Object.freeze([...input.decision.selectedLexemeIds]), selectedWords: Object.freeze(selectedWords), thoughtVector: Object.freeze({ hunger: ratio(Number(input.npcState.currentHunger)), trust: ratio(Number(input.npcState.currentTrust)), fear: ratio(Number(input.npcState.currentFear)), duty: ratio(Number(input.npcState.currentDuty)), pride: ratio(Number(input.npcState.currentPride)), revenge: ratio(Number(input.npcState.currentRevenge)) }), reactionLane: reactionLane(input.npcState, input.decision), confidence: ratio(Number(input.decision.confidence)), needsFallback: input.decision.needsFallback, termAlerts: termAlerts(input.npcState.factionId, input.decision.constructedText), source: SHADOW_SOURCE, telemetryTruthMode: SHADOW_TRUTH_MODE, authoritative: false, sideChannel: true }));
   if (speechHistory.length > HISTORY_LIMIT) speechHistory.shift();
 }
 
@@ -50,7 +72,7 @@ export function getLanguageShadowTelemetry(limit = 80) {
   const structureMap = new Map<string, number>();
   for (const event of speechHistory) { const key = event.sentenceStructure.join(' -> '); structureMap.set(key, (structureMap.get(key) ?? 0) + 1); }
   const structureRankings = Array.from(structureMap.entries()).map(([structure, count]) => Object.freeze({ structure, count })).sort((a, b) => b.count - a.count);
-  return Object.freeze({ ok: true, archive: exportArchiveState(), speech: Object.freeze(speechHistory.slice(-safeLimit)), wordFactorRankings: Object.freeze(wordFactorRankings), termWatch: Object.freeze(termWatch), structureRankings: Object.freeze(structureRankings), outcomeHistorySize: getOutcomeHistorySize() });
+  return Object.freeze({ ok: true, source: SHADOW_SOURCE, telemetryTruthMode: SHADOW_TRUTH_MODE, authoritative: false, sideChannel: true, archive: exportArchiveState(), speech: Object.freeze(speechHistory.slice(-safeLimit)), wordFactorRankings: Object.freeze(wordFactorRankings), termWatch: Object.freeze(termWatch), structureRankings: Object.freeze(structureRankings), outcomeHistorySize: getOutcomeHistorySize(), quarantinedTelemetryEvents });
 }
 
-export function clearLanguageShadowTelemetry(): void { speechHistory.length = 0; }
+export function clearLanguageShadowTelemetry(): void { speechHistory.length = 0; quarantinedTelemetryEvents = 0; }
