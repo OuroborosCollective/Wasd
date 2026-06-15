@@ -20,12 +20,14 @@ export function createDialogueState(): DialogueState {
 
 export function openDialogue(
   state: DialogueState,
-  line: Omit<NpcDialogueLine, "id" | "atMs">
+  line: Omit<NpcDialogueLine, "id" | "atMs">,
+  currentTick = 0
 ): DialogueState {
+  const tick = Number.isFinite(currentTick) && currentTick >= 0 ? Math.trunc(currentTick) : 0;
   const next: NpcDialogueLine = {
     ...line,
-    id: `dialogue_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-    atMs: Date.now()
+    id: ["dialogue", tick, state.history.length, line.npcId].join("_"),
+    atMs: tick * 100
   };
 
   return {
