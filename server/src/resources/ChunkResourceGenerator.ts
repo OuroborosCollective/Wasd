@@ -7,17 +7,10 @@ const RESOURCE_RADIUS = 24;
 const STARTER_CHUNK_X = 0;
 const STARTER_CHUNK_Z = 0;
 
-const seedKey = "WORLD_" + "SEED";
 export const CHUNK_RESOURCE_CONSTANTS = Object.freeze({
-  [seedKey]: ["areloria", "earth", "1", "1"].join(":"),
   CHUNK_TILES,
   KAPPA_PER_TILE,
   RESOURCE_RADIUS,
-} as {
-  readonly WORLD_SEED: string;
-  readonly CHUNK_TILES: number;
-  readonly KAPPA_PER_TILE: number;
-  readonly RESOURCE_RADIUS: number;
 });
 
 export type ChunkBiomeId = "forest_village" | "forest" | "plains" | "mountain";
@@ -29,9 +22,18 @@ interface ChunkResourceInput {
   biomeId: ChunkBiomeId;
 }
 
-function resolveChunkWorldSeed(input?: string): string {
-  const trimmed = input?.trim();
-  return trimmed || CHUNK_RESOURCE_CONSTANTS.WORLD_SEED;
+export function resolveChunkWorldSeed(input?: string): string {
+  const explicit = input?.trim();
+  if (explicit) return explicit;
+
+  const envSeed =
+    process.env.WORLD_SEED?.trim() ||
+    process.env.ARELORIA_WORLD_SEED?.trim() ||
+    process.env.GAME_WORLD_SEED?.trim();
+
+  if (envSeed) return envSeed;
+
+  return ["runtime", process.env.NODE_ENV ?? "development", process.cwd()].join(":");
 }
 
 export function isStarterChunk(chunkX: number, chunkZ: number): boolean {
@@ -39,8 +41,8 @@ export function isStarterChunk(chunkX: number, chunkZ: number): boolean {
 }
 
 function deriveChunkBiome(worldSeed: string, chunkX: number, chunkZ: number): ChunkBiomeId {
-  const seed = SeededARERng.hashSeed(`${resolveChunkWorldSeed(worldSeed)}|biome|${chunkX}|${chunkZ}`);
-  const rng = new SeededARERng(seed as unknown as string);
+  const seed = SeededARERng.compose([resolveChunkWorldSeed(worldSeed), "biome", chunkX, chunkZ]);
+  const rng = new SeededARERng(seed);
   const roll = rng.intInclusive(0, 999);
   if (roll < 450) return "forest";
   if (roll < 650) return "plains";

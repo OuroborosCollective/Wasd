@@ -1,9 +1,9 @@
-/** @are-telemetry-side-channel Non-deterministic timestamps for identity/persistence only.
+/**
  * Phase 6: Gameplay Persistence Facade
- * 
+ *
  * Unified interface for server-authoritative gameplay persistence.
  * Integrates with existing PersistenceDirector and provides memory fallback.
- * 
+ *
  * Server authoritative rules:
  * 1. Server remains authoritative over all client state
  * 2. Client never directly persists gameplay state
@@ -45,6 +45,16 @@ import type {
   PersistedWorldEntity
 } from "./types.js";
 
+const PERSISTENCE_TICK_MS = 100;
+
+type TickStamped = { currentTick?: number; tick?: number };
+
+function tickMs(input: TickStamped, fallbackMs = 0): number {
+  const raw = input.currentTick ?? input.tick;
+  if (!Number.isFinite(raw) || Number(raw) < 0) return fallbackMs;
+  return Math.trunc(Number(raw)) * PERSISTENCE_TICK_MS;
+}
+
 export interface GameplayPersistence {
   status(): GameplayPersistenceStatus;
 
@@ -55,7 +65,7 @@ export interface GameplayPersistence {
   worldEntities: WorldEntityRepository;
   sessions: SessionRepository;
 
-  loadOrCreatePlayer(playerId: string, displayName?: string): Promise<PersistedPlayer>;
+  loadOrCreatePlayer(playerId: string, displayName?: string, currentTick?: number): Promise<PersistedPlayer>;
   savePlayerFromEntity(entity: {
     id: string;
     x: number;
@@ -63,6 +73,8 @@ export interface GameplayPersistence {
     hp?: number;
     maxHp?: number;
     name?: string;
+    currentTick?: number;
+    tick?: number;
   }): Promise<void>;
 
   saveInventorySnapshot(
@@ -80,23 +92,18 @@ export interface GameplayPersistence {
     hp?: number;
     maxHp?: number;
     name?: string;
+    currentTick?: number;
+    tick?: number;
   }): Promise<void>;
 }
 
-/**
- * Check if we're in development mode or DB is available.
- */
 function shouldUseMemoryFallback(): boolean {
   const devMode = process.env.NODE_ENV !== "production";
   const forceMemory = process.env.FORCE_MEMORY_PERSISTENCE === "true";
   return devMode || forceMemory;
 }
 
-/**
- * Create gameplay persistence with appropriate backend.
- */
 export function createGameplayPersistence(): GameplayPersistence {
-  // Choose repository implementations based on environment
   const useMemory = shouldUseMemoryFallback();
 
   const players: PlayerRepository = useMemory
@@ -128,12 +135,12 @@ export function createGameplayPersistence(): GameplayPersistence {
     worldEntities,
     sessions,
 
-    async loadOrCreatePlayer(playerId, displayName = "Guest") {
+    async loadOrCreatePlayer(playerId, displayName = "Guest", currentTick = 0) {
       const existing = await players.getPlayer(playerId);
 
       if (existing) return existing;
 
-      const created = createDefaultPlayer(playerId, displayName);
+      const created = createDefaultPlayer(playerId, displayName, currentTick);
       await players.upsertPlayer(created);
 
       return created;
@@ -141,7 +148,7 @@ export function createGameplayPersistence(): GameplayPersistence {
 
     async savePlayerFromEntity(entity) {
       const existing = await players.getPlayer(entity.id);
-      const now = Date.now();
+      const updatedAtMs = tickMs(entity, existing?.updatedAtMs ?? 0);
 
       await players.upsertPlayer({
         id: entity.id,
@@ -151,8 +158,8 @@ export function createGameplayPersistence(): GameplayPersistence {
         y: entity.y,
         hp: entity.hp ?? existing?.hp ?? 100,
         maxHp: entity.maxHp ?? existing?.maxHp ?? 100,
-        createdAtMs: existing?.createdAtMs ?? now,
-        updatedAtMs: now
+        createdAtMs: existing?.createdAtMs ?? updatedAtMs,
+        updatedAtMs
       });
     },
 
@@ -171,7 +178,7 @@ export function createGameplayPersistence(): GameplayPersistence {
       await worldEntities.upsertEntity({
         ...entity,
         sceneId,
-        updatedAtMs: Date.now()
+        updatedAtMs: tickMs(entity)
       });
     }
   };
@@ -179,9 +186,6 @@ export function createGameplayPersistence(): GameplayPersistence {
 
 let singleton: GameplayPersistence | null = null;
 
-/**
- * Get singleton gameplay persistence instance.
- */
 export function getGameplayPersistence(): GameplayPersistence {
   if (!singleton) {
     singleton = createGameplayPersistence();
