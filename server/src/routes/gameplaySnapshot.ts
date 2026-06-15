@@ -17,6 +17,11 @@ import { generateNPCActivitySnapshot } from "../gameplay/NPCActivitySnapshotGene
 import { generateVisibleChunkPois, getStarterVillagePois } from "../world/WorldPoiGenerator.js";
 import { getVisibleChunkCoords } from "../resources/ChunkResourceGenerator.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
+import { runLineageBirthForSnapshot, type LineageRuntimeStateProvider } from "../modules/npc/LineageBirthSnapshotBridge.js";
+
+export interface GameplaySnapshotRouterDeps {
+  readonly lineageRuntimeStateProvider?: LineageRuntimeStateProvider;
+}
 
 function getCurrentTickId(): number {
   return tickContextProvider.getTickCounter();
@@ -32,7 +37,7 @@ function rejectUnauthenticatedInLockedProduction(identity: { authenticated: bool
   return process.env.NODE_ENV === "production" && !identity.authenticated && !isGuestHttpAllowed();
 }
 
-export function createGameplaySnapshotRouter() {
+export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = {}) {
   const router = express.Router();
 
   router.get("/snapshot", async (req, res) => {
@@ -43,6 +48,12 @@ export function createGameplaySnapshotRouter() {
     }
 
     const serverTick = getCurrentTickId();
+    await runLineageBirthForSnapshot({
+      playerId: identity.playerId,
+      logicalIndex: serverTick,
+      provider: deps.lineageRuntimeStateProvider,
+    });
+
     await questProgressionStore.hydratePlayer(identity.playerId);
     const questState = questProgressionStore.getPlayerQuestState(identity.playerId);
 
