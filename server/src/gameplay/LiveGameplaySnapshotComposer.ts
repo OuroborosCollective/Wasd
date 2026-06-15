@@ -30,6 +30,8 @@ import type {
   LiveGameplayNpcMemory,
   LiveGameplayNpcRumor,
   LiveGameplayWorldSurface,
+  LiveGameplayCivicState,
+  LiveGameplayCivicPressure,
 } from "./LiveGameplaySnapshotTypes.js";
 import { EMPTY_LIVE_GAMEPLAY_WORLD_SURFACE } from "./LiveGameplaySnapshotTypes.js";
 import { RESOURCE_SELL_PRICES } from "../economy/ResourceSellPrices.js";
@@ -129,6 +131,7 @@ export class LiveGameplaySnapshotComposer {
     const worldSurface = this.deps.getWorldSurface
       ? await this.deps.getWorldSurface(playerId, safeLogicalIndex)
       : EMPTY_LIVE_GAMEPLAY_WORLD_SURFACE;
+    const civicState = buildCivicStateFromWorldSurface(safeLogicalIndex, worldSurface);
 
     return Object.freeze({
       schemaVersion: "live-gameplay-snapshot.v1" as const,
@@ -157,6 +160,7 @@ export class LiveGameplaySnapshotComposer {
       npcMemories: Object.freeze([...npcMemories].sort((a, b) => a.npcId.localeCompare(b.npcId))),
       npcRumors: Object.freeze([...npcRumors].sort((a, b) => a.rumorId.localeCompare(b.rumorId))),
       worldSurface: Object.freeze(worldSurface),
+      civicState: Object.freeze(civicState),
     });
   }
 
@@ -208,5 +212,87 @@ export function buildVendorEconomySnapshot(
         prices: Object.freeze(prices),
       }),
     ]),
+  });
+}
+
+type SurfaceEntry = Record<string, unknown>;
+
+function isSurfaceEntry(value: unknown): value is SurfaceEntry {
+  return typeof value === "object" && value !== null;
+}
+
+function textField(entry: SurfaceEntry, key: string): string {
+  const value = entry[key];
+  return typeof value === "string" ? value : "";
+}
+
+function surfaceIdentity(entry: unknown, fallback: string): string {
+  if (!isSurfaceEntry(entry)) return fallback;
+  return textField(entry, "id") || textField(entry, "houseId") || textField(entry, "npcId") || textField(entry, "lineageId") || fallback;
+}
+
+function surfaceKind(entry: unknown): string {
+  if (!isSurfaceEntry(entry)) return "";
+  return textField(entry, "kind") || textField(entry, "type") || textField(entry, "role");
+}
+
+function isHouseGroup(entry: unknown): boolean {
+  const key = `${surfaceIdentity(entry, "")}:${surfaceKind(entry)}`.toLowerCase();
+  return key.includes("house") || key.includes("settlement") || key.includes("home");
+}
+
+function isPopulationPoint(entry: unknown): boolean {
+  const key = `${surfaceIdentity(entry, "")}:${surfaceKind(entry)}`.toLowerCase();
+  return key.includes("npc") || key.includes("lineage") || key.includes("citizen") || key.includes("resident");
+}
+
+function fnv1a32(input: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+function pressureFor(population: number, capacity: number, occupancyPermille: number): LiveGameplayCivicPressure {
+  if (population <= 0 || capacity <= 0) return "empty";
+  if (occupancyPermille > 1000) return "over_capacity";
+  if (occupancyPermille >= 750) return "crowded";
+  return "settled";
+}
+
+export function buildCivicStateFromWorldSurface(
+  logicalIndex: number,
+  worldSurface: LiveGameplayWorldSurface,
+): LiveGameplayCivicState {
+  const tick = Number.isSafeInteger(logicalIndex) && logicalIndex >= 0 ? logicalIndex : 0;
+  const groups = [...(worldSurface.groups ?? [])];
+  const points = [...(worldSurface.points ?? [])];
+  const houseKeys = groups
+    .filter(isHouseGroup)
+    .map((entry, index) => surfaceIdentity(entry, `house:${index}`))
+    .sort();
+  const populationKeys = points
+    .filter(isPopulationPoint)
+    .map((entry, index) => surfaceIdentity(entry, `population:${index}`))
+    .sort();
+
+  const houseCount = houseKeys.length;
+  const population = populationKeys.length;
+  const capacity = houseCount * 4;
+  const occupancyPermille = capacity > 0 ? Math.floor((population * 1000) / capacity) : 0;
+  const pressure = pressureFor(population, capacity, occupancyPermille);
+  const civicHash = `civic:${fnv1a32(`${tick}|${houseKeys.join(",")}|${populationKeys.join(",")}`)}`;
+
+  return Object.freeze({
+    schemaVersion: "civic-state.v1" as const,
+    tick,
+    houseCount,
+    population,
+    capacity,
+    occupancyPermille,
+    pressure,
+    civicHash,
   });
 }
