@@ -3,6 +3,7 @@ import { resolveContentFile } from "../../modules/content/contentDataRoot.js";
 import { initializeDialogueBridge, type DialogueEntry } from "./DialogueBridge.js";
 import { initializeLinguisticKernel, isLinguisticKernelInitialized } from "./ArelorianLinguisticKernel.js";
 import { loadLivingDudenGameData } from "./LanguageGameDataStore.js";
+import { loadPhraseGenomeGameData } from "./PhraseGenomeGameDataStore.js";
 
 const INITIALIZATION_TAG = "LIVING_LANGUAGE_INITIALIZER_V1";
 
@@ -46,6 +47,11 @@ export async function initializeLivingLanguageSystem(): Promise<void> {
   const dudenReport = loadLivingDudenGameData();
   console.log(
     `[${INITIALIZATION_TAG}] Loaded ${dudenReport.lexemesLoaded} Living Duden lexeme(s) from ${dudenReport.filesRead} game-data/language file(s)`
+  );
+
+  const phraseGenomeReport = loadPhraseGenomeGameData();
+  console.log(
+    `[${INITIALIZATION_TAG}] Loaded ${phraseGenomeReport.phraseGenomesLoaded} phrase genome(s) from ${phraseGenomeReport.filesRead} game-data/language file(s)`
   );
 
   await initializeLinguisticKernel();
