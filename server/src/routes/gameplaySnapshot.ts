@@ -53,12 +53,6 @@ export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = 
     }
 
     const serverTick = getCurrentTickId();
-    await runLineageBirthForSnapshot({
-      playerId: identity.playerId,
-      logicalIndex: serverTick,
-      provider: resolveLineageRuntimeStateProvider(deps),
-    });
-
     await questProgressionStore.hydratePlayer(identity.playerId);
     const questState = questProgressionStore.getPlayerQuestState(identity.playerId);
 
@@ -109,6 +103,13 @@ export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = 
         });
       }
     }
+
+    await runLineageBirthForSnapshot({
+      playerId: identity.playerId,
+      logicalIndex: serverTick,
+      provider: resolveLineageRuntimeStateProvider(deps),
+      context: { worldPois, playerPosition },
+    });
 
     const discoveryStats = worldDiscoveryService.getStats(identity.playerId);
     const discoveredPoiIds = worldDiscoveryService.getDiscoveredPoiIds(identity.playerId);

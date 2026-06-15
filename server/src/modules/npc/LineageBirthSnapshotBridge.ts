@@ -2,6 +2,12 @@ import type { HouseState, NPCState, SettlementState } from './FamilyHouseRegistr
 import type { LineageBirthIntegrationResult } from './LineageBirthTickIntegration.js';
 import { createNpcLineageRuntime, type NpcLineageRuntime } from './createNpcLineageRuntime.js';
 import { runLineageBirthTick } from './LineageBirthTickIntegration.js';
+import type { WorldPoiSnapshot } from '../../world/WorldPoiTypes.js';
+
+export interface LineageRuntimeStateContext {
+  readonly worldPois?: readonly WorldPoiSnapshot[];
+  readonly playerPosition?: { readonly x: number; readonly y: number };
+}
 
 export interface LineageRuntimeStateSnapshot {
   readonly tick: number;
@@ -12,13 +18,18 @@ export interface LineageRuntimeStateSnapshot {
 }
 
 export interface LineageRuntimeStateProvider {
-  getLineageRuntimeState(playerId: string, logicalIndex: number): LineageRuntimeStateSnapshot | null | Promise<LineageRuntimeStateSnapshot | null>;
+  getLineageRuntimeState(
+    playerId: string,
+    logicalIndex: number,
+    context?: LineageRuntimeStateContext
+  ): LineageRuntimeStateSnapshot | null | Promise<LineageRuntimeStateSnapshot | null>;
 }
 
 export interface LineageBirthSnapshotBridgeInput {
   readonly playerId: string;
   readonly logicalIndex: number;
   readonly provider?: LineageRuntimeStateProvider;
+  readonly context?: LineageRuntimeStateContext;
   readonly runtime?: NpcLineageRuntime;
 }
 
@@ -49,7 +60,7 @@ export async function runLineageBirthForSnapshot(
     return Object.freeze({ tick, triggered: false, reason: 'no_runtime_provider', birthsCreated: 0, birthsSkipped: 0 });
   }
 
-  const runtimeState = await input.provider.getLineageRuntimeState(input.playerId, tick);
+  const runtimeState = await input.provider.getLineageRuntimeState(input.playerId, tick, input.context);
   if (!runtimeState) {
     return Object.freeze({ tick, triggered: false, reason: 'no_runtime_state', birthsCreated: 0, birthsSkipped: 0 });
   }

@@ -3,6 +3,7 @@ import type { LineageRuntimeStateProvider } from './LineageBirthSnapshotBridge';
 import {
   clearLineageRuntimeStateProvider,
   getLineageRuntimeStateProvider,
+  hasCustomLineageRuntimeStateProvider,
   hasLineageRuntimeStateProvider,
   registerLineageRuntimeStateProvider,
 } from './LineageRuntimeStateProviderRegistry';
@@ -16,18 +17,21 @@ describe('LineageRuntimeStateProviderRegistry', () => {
     clearLineageRuntimeStateProvider();
   });
 
-  it('starts empty so no fake birth source exists by default', () => {
-    expect(hasLineageRuntimeStateProvider()).toBe(false);
-    expect(getLineageRuntimeStateProvider()).toBeUndefined();
+  it('starts with a real default provider that creates no fake state without context', async () => {
+    expect(hasLineageRuntimeStateProvider()).toBe(true);
+    expect(hasCustomLineageRuntimeStateProvider()).toBe(false);
+    expect(await getLineageRuntimeStateProvider().getLineageRuntimeState('player_1', 10)).toBeNull();
   });
 
-  it('registers and clears a real runtime state provider', () => {
+  it('registers and clears a custom runtime state provider override', () => {
     registerLineageRuntimeStateProvider(provider);
 
     expect(hasLineageRuntimeStateProvider()).toBe(true);
+    expect(hasCustomLineageRuntimeStateProvider()).toBe(true);
     expect(getLineageRuntimeStateProvider()).toBe(provider);
 
     clearLineageRuntimeStateProvider();
-    expect(hasLineageRuntimeStateProvider()).toBe(false);
+    expect(hasLineageRuntimeStateProvider()).toBe(true);
+    expect(hasCustomLineageRuntimeStateProvider()).toBe(false);
   });
 });
