@@ -1,8 +1,10 @@
-import type { Server as HttpServer } from "node:http";
+import type { IncomingMessage, Server as HttpServer } from "node:http";
+import { URL } from "node:url";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "node:crypto";
 import { GameConfig } from "../config/GameConfig.js";
 import { collectiveIngressRuntime } from "../collective/CollectiveIngressRuntime.js";
+import { resolveHttpPlayerIdentity, type PlayerIdentityRequestLike } from "../auth/PlayerIdentityResolver.js";
 
 const WS_RL_WINDOW_MS = 1000;
 
@@ -35,6 +37,25 @@ function playerUidMessageCap(): number {
   if (!raw) return GameConfig.wsMaxMessagesPerPlayerUidPerSecond;
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : GameConfig.wsMaxMessagesPerPlayerUidPerSecond;
+}
+
+function queryFromRequestUrl(req: IncomingMessage): Record<string, unknown> {
+  const parsed = new URL(String(req.url || "/ws"), "http://127.0.0.1");
+  const query: Record<string, unknown> = {};
+  for (const [key, value] of parsed.searchParams.entries()) {
+    query[key] = value;
+  }
+  return query;
+}
+
+function resolveUpgradePlayerUid(req: IncomingMessage): string | null {
+  const identity = resolveHttpPlayerIdentity({
+    headers: req.headers as PlayerIdentityRequestLike["headers"],
+    query: queryFromRequestUrl(req),
+    user: (req as IncomingMessage & { user?: PlayerIdentityRequestLike["user"] }).user,
+    session: (req as IncomingMessage & { session?: PlayerIdentityRequestLike["session"] }).session,
+  });
+  return identity.source === "anonymous" ? null : identity.playerId;
 }
 
 export class GameWebSocketServer {
@@ -72,10 +93,14 @@ export class GameWebSocketServer {
     };
     this.httpServer.on("upgrade", this.upgradeHandler);
 
-    this.wss.on("connection", (socket: WebSocket & { id?: string }) => {
+    this.wss.on("connection", (socket: WebSocket & { id?: string }, req: IncomingMessage) => {
       const id = randomUUID();
       socket.id = id;
       this.totalConnections += 1;
+      const upgradePlayerUid = resolveUpgradePlayerUid(req);
+      if (upgradePlayerUid) {
+        this.socketToPlayerUid.set(id, upgradePlayerUid);
+      }
       const tracked = socket as TrackedSocket;
       tracked._entitySyncIntervalMs = GameConfig.stateBroadcastIntervalMs;
       tracked._lastEntitySyncSentAt = 0;
