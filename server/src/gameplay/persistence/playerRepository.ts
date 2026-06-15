@@ -1,6 +1,6 @@
 /**
  * Phase 6: Player Repository
- * 
+ *
  * Handles player state persistence with memory fallback.
  * Integrates with the existing PersistenceDirector for actual saves,
  * providing a clean interface for the gameplay contract.
@@ -9,9 +9,21 @@
 import type { PersistedPlayer } from "./types.js";
 import { persistenceDirector, type PlayerSnapshotCore } from "../../modules/persistence/PersistenceDirector.js";
 
+const PERSISTENCE_TICK_MS = 100;
+
 export interface PlayerRepository {
   getPlayer(playerId: string): Promise<PersistedPlayer | null>;
   upsertPlayer(player: PersistedPlayer): Promise<void>;
+}
+
+function tickMs(currentTick = 0): number {
+  const tick = Number.isFinite(currentTick) && currentTick >= 0 ? Math.trunc(currentTick) : 0;
+  return tick * PERSISTENCE_TICK_MS;
+}
+
+function parsedSnapshotMs(input: string | undefined): number {
+  const parsed = Date.parse(String(input ?? ""));
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
 
 /**
@@ -34,8 +46,8 @@ export function createMemoryPlayerRepository(): PlayerRepository {
 /**
  * Create default player state for new guests.
  */
-export function createDefaultPlayer(playerId: string, displayName = "Guest"): PersistedPlayer {
-  const now = Date.now();
+export function createDefaultPlayer(playerId: string, displayName = "Guest", currentTick = 0): PersistedPlayer {
+  const now = tickMs(currentTick);
 
   return {
     id: playerId,
@@ -61,16 +73,18 @@ export function createPersistenceDirectorPlayerRepository(): PlayerRepository {
         const snapshot = await persistenceDirector.loadPlayerSnapshot(playerId);
         if (!snapshot) return null;
 
+        const snapshotMs = parsedSnapshotMs(snapshot.lastUpdated);
+
         return {
           id: snapshot.id,
           displayName: snapshot.characterName,
-          sceneId: "main", // Legacy system doesn't track scene per player
+          sceneId: "main",
           x: snapshot.kappaX,
           y: snapshot.kappaY,
           hp: snapshot.health,
           maxHp: snapshot.maxHealth,
-          createdAtMs: Date.parse(snapshot.lastUpdated) || Date.now(),
-          updatedAtMs: Date.now()
+          createdAtMs: snapshotMs,
+          updatedAtMs: snapshotMs
         };
       } catch (err) {
         console.warn(`[PlayerRepository] Failed to load player ${playerId}:`, err);
@@ -80,7 +94,6 @@ export function createPersistenceDirectorPlayerRepository(): PlayerRepository {
 
     async upsertPlayer(player) {
       try {
-        // Convert back to PlayerSnapshotCore for legacy backend
         const snapshot: PlayerSnapshotCore = {
           id: player.id,
           characterName: player.displayName,
@@ -110,7 +123,7 @@ export function createPersistenceDirectorPlayerRepository(): PlayerRepository {
           lastUpdated: new Date(player.updatedAtMs).toISOString()
         };
 
-        // Mark dirty - will be persisted on next tick flush
+        if (!snapshot.id) throw new Error("Invalid player snapshot id");
         persistenceDirector.markDirty(player.id);
       } catch (err) {
         console.warn(`[PlayerRepository] Failed to save player ${player.id}:`, err);
