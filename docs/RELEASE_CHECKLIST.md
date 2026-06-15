@@ -129,6 +129,8 @@ Tracked by #2043.
 
 Performance budget evidence for #2042 must use real runtime assets and must include separate 2D and 3D measurements. If any standard budget is exceeded, the release is blocked unless the report records the real fallback tier, reason, and post-fallback metrics.
 
+#2049 evidence endpoint: `GET /health/observability`.
+
 | Check | Required measurement | Budget / rule | Status | Issue |
 |---|---|---|---|---:|
 | 2D startup | `/2d` startup time | <= 5000 ms standard, <= 6500 ms fallback | ☐ | #2042 |
@@ -139,9 +141,9 @@ Performance budget evidence for #2042 must use real runtime assets and must incl
 | 3D FPS | average FPS and p95 frame time | >= 30 FPS and <= 50 ms p95, or >= 24 FPS and <= 67 ms fallback | ☐ | #2042 |
 | 3D memory | runtime memory with real assets | <= 1200 MB standard, <= 1600 MB fallback | ☐ | #2042 |
 | 3D chunk loading | p95 chunk/world-load time | <= 2500 ms standard, <= 3500 ms fallback | ☐ | #2042 |
-| Runtime metrics dashboard | tick duration, WS load, manifest divergence, persistence failures | visible in release evidence | ☐ | #2049 |
-| Playtester stream health | live playtester status | visible in release evidence | ☐ | #2049 |
-| Asset audit failures visible | content/model audit failure reporting | visible in release evidence | ☐ | #2049 |
+| Runtime metrics dashboard | tick duration, WS load, manifest status and persistence failures from `/health/observability` | visible in release evidence | ☐ | #2049 |
+| Playtester stream health | playtester status from `/health/observability` | visible in release evidence | ☐ | #2049 |
+| Asset audit failures visible | asset failure list from `/health/observability` | visible in release evidence | ☐ | #2049 |
 
 Required #2042 evidence fields: release commit, content root, asset manifest hash, measured route, device class, tick window, startup time, average FPS, p95 frame time, memory use, p95 chunk-load time, fallback tier, and fallback reason when fallback is active.
 
