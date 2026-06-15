@@ -60,6 +60,11 @@ function num(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
+function runtimeUpdateLabel(observability: JsonRecord | null, health: JsonRecord | null): string {
+  const tick = num(nested(observability, 'tick.current') ?? nested(health, 'tick.current') ?? nested(health, 'tick'));
+  return tick >= 0 ? `tick ${tick}` : 'runtime response';
+}
+
 function okClass(ok: boolean): string {
   return ok ? 'border-emerald-400/60 bg-emerald-950/30 text-emerald-100' : 'border-orange-400/70 bg-orange-950/35 text-orange-100';
 }
@@ -97,7 +102,7 @@ function DashboardContent() {
         fetchJson('/runtime-build-info.json').catch((error) => ({ ok: false, error: String(error) })),
         fetchJson('/api/manifest/status').catch((error) => ({ ok: false, error: String(error) })),
       ]);
-      setPanel({ status: 'ready', updatedAt: new Date().toISOString(), error: null, health, observability, clientEntrypoints, clientConfig, buildInfo, manifest });
+      setPanel({ status: 'ready', updatedAt: runtimeUpdateLabel(observability, health), error: null, health, observability, clientEntrypoints, clientConfig, buildInfo, manifest });
     } catch (error) {
       setPanel((previous) => ({ ...previous, status: 'error', error: error instanceof Error ? error.message : String(error) }));
     }
@@ -145,7 +150,7 @@ function DashboardContent() {
         <WorldStatusHeader />
 
         <section className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
-          <MetricCard label="Runtime" value={derived.ok ? 'OK' : 'CHECK'} detail={panel.status === 'ready' ? `Updated ${panel.updatedAt?.slice(11, 19)}Z` : panel.status} ok={derived.ok} />
+          <MetricCard label="Runtime" value={derived.ok ? 'OK' : 'CHECK'} detail={panel.status === 'ready' ? `Updated ${panel.updatedAt}` : panel.status} ok={derived.ok} />
           <MetricCard label="Tick" value={String(derived.tick || '---')} detail="10Hz loop" ok={derived.tick >= 0} />
           <MetricCard label="WS Clients" value={String(derived.wsClients)} detail={`${derived.wsMessages} total messages`} ok={derived.wsClients >= 0} />
           <MetricCard label="Manifest" value={derived.manifestStatus.toUpperCase()} detail="state hash visibility" ok={derived.manifestStatus === 'available'} />
