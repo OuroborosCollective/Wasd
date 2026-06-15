@@ -90,6 +90,7 @@ export default defineConfig(({ mode }) => {
           ? { main: path.resolve(__dirname, "index.itch.html") }
           : {
               main: path.resolve(__dirname, "index.html"),
+              dashboard: path.resolve(__dirname, "dashboard.html"),
               playtester_monitor: path.resolve(__dirname, "playtester-monitor.html"),
             },
         output: {
