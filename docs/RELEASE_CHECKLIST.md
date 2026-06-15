@@ -1,194 +1,160 @@
 # Release Checklist — Areloria / WASD
 
-This document serves as the **source of truth for release readiness**. Before any alpha/beta/public tag, all items below must be green.
+This document is the release sign-off checklist. Before any alpha, beta, or public tag, every release blocker below must be green through real runtime evidence.
 
-Last updated: 2026-06-13
+Last updated: 2026-06-15
 
 ---
 
-## Deployment Issue Found
+## ARE release rule
 
-**CRITICAL: Container is crashing on VPS due to missing game-data mount**
+No mock truth. No fake snapshots. No workflow tricks. No stub truth path. No facade as runtime truth.
 
-The `arelorian-engine` container is in a crash loop because `game-data/npc/npcs.json` is not available inside the container.
-
-**Root Cause:** The `docker-compose.yml` does not mount `game-data` into the container. The VPS has the correct files at `/opt/areloria/game-data/` but the container only has these mounts:
-- `./data:/app/data`
-- `./logs:/app/logs`
-- `./private-assets:/opt/areloria/private-assets:ro`
-
-**Missing mount:** `./game-data:/app/game-data:ro` (or equivalent)
-
-**Impact:** Tier A, item A1 (Production deploy verification) is BLOCKED.
+Release proof must use real server/client runtime sources, deterministic tick/chunk/hash inputs, journals, deltas, manifests, or replayable state.
 
 ---
 
 ## 1. Local Build & Guard Verification
 
-Run these commands locally and confirm all pass:
-
 ```bash
-# 1. Install dependencies
 pnpm install
-
-# 2. Build all packages
 pnpm run build
-
-# 3. Run all guards
 pnpm run guard:all
-
-# 4. Validate Pixi assets
 pnpm run assets:pixi:validate
 pnpm run assets:pixi:validate-batches
-
-# 5. Run server tests
 pnpm --filter @wasd/server --if-present test
-
-# 6. Determinism check
 node scripts/check-are-determinism.mjs
 ```
 
-| Check | Status | Notes |
-|---|---|---|
-| `pnpm run build` | ☐ | |
-| `pnpm run guard:all` | ☐ | |
-| `pnpm run assets:pixi:validate` | ☐ | |
-| `pnpm --filter @wasd/server test` | ☐ | |
-| `node scripts/check-are-determinism.mjs` | ☐ | |
+| Check | Status | Issue |
+|---|---|---:|
+| Root build | ☐ | #2045 |
+| `guard:all` | ☐ | #2045 |
+| Stateless Hardcode Audit | ☐ | #2041 |
+| ARE Determinism Gate | ☐ | #2041 |
+| Server tests | ☐ | #2045 |
+| Client 2D build | ☐ | #2043 |
 
 ---
 
 ## 2. Content & Asset Verification
 
-```bash
-# Audit model paths
-pnpm run audit:model-paths
+Tracked by #2044.
 
-# Validate content
-pnpm run validate --prefix server
-```
-
-| Check | Status | Notes |
-|---|---|---|
-| Model path audit green | ☐ | |
-| Content validation green | ☐ | |
-| Release content pack audited | ☐ | |
-| Asset licenses tracked | ☐ | |
+| Check | Status |
+|---|---|
+| Model path audit green | ☐ |
+| Release content pack created | ☐ |
+| Asset licenses tracked | ☐ |
+| Fallback policy documented | ☐ |
 
 ---
 
 ## 3. E2E Smoke Tests
 
-```bash
-# Install E2E dependencies (one-time)
-pnpm run test:e2e:install
+Tracked by #2045.
 
-# Run E2E tests
-pnpm run test:e2e
-```
-
-| Test | Status | Notes |
-|---|---|---|
-| `e2e/smoke.spec.ts` | ☐ | Health + WebSocket guest login |
-| `e2e/full-loop-smoke.spec.ts` | ☐ | Full loop: login, movement, NPC, quest, combat, loot, reconnect |
-| `e2e/client-2d-real-post-login-flow.spec.ts` | ☐ | Post-login UI shell |
-| `e2e/quest-progression.spec.ts` | ☐ | Quest accept/progression |
-| `e2e/resource-gathering.spec.ts` | ☐ | Resource gathering API |
-| All other E2E tests | ☐ | |
+| Test | Status |
+|---|---|
+| Basic smoke | ☐ |
+| Full-loop smoke | ☐ |
+| 2D post-login flow | ☐ |
+| Quest/resource/crafting flows | ☐ |
+| Live deploy smoke | ☐ |
 
 ---
 
 ## 4. Production Deploy Verification
 
-After a successful VPS Docker deploy:
+Tracked by #2038.
 
-```bash
-# Verify endpoints
-curl -s http://arelorian.de/health | jq '.ok'
-curl -s http://arelorian.de/client-config.json | jq '.'
-curl -s http://arelorian.de/ | head -c 200
-curl -s http://arelorian.de/2d | head -c 200
-curl -s http://arelorian.de/portal | head -c 200
-```
-
-| Endpoint | Expected | Status |
+| Endpoint / check | Expected | Status |
 |---|---|---|
-| `/health` | `ok: true` | ☐ |
-| `/client-config.json` | Valid JSON with Supabase config | ☐ |
-| `/` | HTML landing page | ☐ |
-| `/2d` | 2D client entry | ☐ |
-| `/portal` | Portal page | ☐ |
-| WebSocket upgrade | `101 Switching Protocols` | ☐ |
-
-### Container State
-
-```bash
-# SSH to VPS and check container
-docker ps | grep areloria
-docker logs <container_id> --tail 50
-```
-
-| Check | Status | Notes |
-|---|---|---|
-| Container running | ☐ | |
-| Recent logs clean | ☐ | |
-| No OOM or crash | ☐ | |
+| `/health` | real healthy response | ☐ |
+| `/client-config.json` | valid JSON | ☐ |
+| `/` | page response | ☐ |
+| `/portal` | portal response | ☐ |
+| WebSocket upgrade | accepted upgrade | ☐ |
+| Container | running and healthy | ☐ |
+| Logs | clean recent runtime logs | ☐ |
 
 ---
 
 ## 5. Persistence & Backup Verification
 
-```bash
-# Test backup creation
-curl -s http://arelorian.de/api/admin/backup/create
+Tracked by #2039.
 
-# Verify backup exists
-curl -s http://arelorian.de/api/admin/backup/list
-
-# Test restore drill (staging only)
-```
-
-| Check | Status | Notes |
-|---|---|---|
-| Backup creation works | ☐ | |
-| Backup list accessible | ☐ | |
-| JSON fallback operational | ☐ | |
-| Restore drill recorded | ☐ | |
+| Check | Status |
+|---|---|
+| Migration SOP documented | ☐ |
+| Backup artifact created | ☐ |
+| Restore proof recorded | ☐ |
+| JSON fallback policy documented | ☐ |
+| Health shows actual persistence source | ☐ |
 
 ---
 
 ## 6. Auth/Session Hardening
 
-| Check | Status | Notes |
-|---|---|---|
-| Guest login disabled in production | ☐ | `ALLOW_GUEST_LOGIN=0` |
-| Dev login disabled in production | ☐ | `ALLOW_DEV_LOGIN=0` |
-| Supabase auth required | ☐ | `REQUIRE_SUPABASE_AUTH=1` |
-| Session expiry configured | ☐ | |
-| Rate limits active | ☐ | |
+Tracked by #2040.
+
+| Check | Status |
+|---|---|
+| Guest login policy verified | ☐ |
+| Dev login policy verified | ☐ |
+| Supabase auth policy verified | ☐ |
+| HTTP and WebSocket identity match | ☐ |
+| Session expiry configured | ☐ |
+| Rate limits active | ☐ |
 
 ---
 
-## 7. Documentation Alignment
+## 7. Player-Facing UI Coverage
 
-| Document | Status | Last Updated |
-|---|---|---|
-| `README.md` | ☐ | |
-| `README_START_HERE.md` | ☐ | |
-| `docs/PROJECT_STATUS_2026.md` | ☐ | |
-| `docs/ROADMAP_TO_RELEASE.md` | ☐ | |
-| `docs/DOCUMENTATION_INDEX.md` | ☐ | |
-| `DEPLOYMENT.md` | ☐ | |
-| `deploy/ENV_SETUP.md` | ☐ | |
+Tracked by #2043.
+
+| Flow | Status |
+|---|---|
+| Quest tracker and map | ☐ |
+| Inventory/equipment | ☐ |
+| Crafting/storage | ☐ |
+| Combat log/death/respawn | ☐ |
+| Voting/warfront/boss flows | ☐ |
+| Settings/accessibility | ☐ |
 
 ---
 
-## 8. Release Notes Draft
+## 8. Performance and Observability
 
-- [ ] Player-facing changelog prepared
-- [ ] Internal engineering notes separate
-- [ ] Version tag created: `vX.Y.Z`
-- [ ] GitHub release draft published
+| Check | Status | Issue |
+|---|---|---:|
+| Startup/FPS/memory budget | ☐ | #2042 |
+| Runtime metrics dashboard | ☐ | #2049 |
+| Playtester stream health | ☐ | #2049 |
+| Asset audit failures visible | ☐ | #2049 |
+
+---
+
+## 9. Documentation Alignment
+
+| Document | Status |
+|---|---|
+| `README.md` | ☐ |
+| `README_START_HERE.md` | ☐ |
+| `docs/PROJECT_STATUS_2026.md` | ☐ |
+| `docs/ROADMAP_TO_RELEASE.md` | ☐ |
+| `docs/KNOWN_GAPS.md` | ☐ |
+| `DEPLOYMENT.md` | ☐ |
+| `deploy/ENV_SETUP.md` | ☐ |
+
+---
+
+## 10. Release Notes Draft
+
+- [ ] Player-facing changelog prepared.
+- [ ] Internal engineering notes separate.
+- [ ] Version tag created.
+- [ ] GitHub release draft published.
 
 ---
 
@@ -204,4 +170,4 @@ curl -s http://arelorian.de/api/admin/backup/list
 
 ## Notes
 
-_Add deployment-specific notes, issues encountered, and resolution details here._
+Current release blockers are tracked by #2038 through #2050.

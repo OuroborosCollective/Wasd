@@ -1,16 +1,36 @@
 # Known Gaps (short list)
 
-High-level gaps remain between this codebase and a shippable MMORPG.
+High-level gaps remain between this codebase and a shippable public MMORPG release.
 
-## Still open
+Use `docs/ROADMAP_TO_RELEASE.md` as the authoritative backlog and `docs/PROJECT_STATUS_2026.md` as the shipped-state snapshot.
 
-- Production database wiring and backup story  
-- Full combat / skill balance and authoritative combat loop  
-- Production-ready UI coverage (many panels exist; not all wired end-to-end)  
-- Strong auth and session hardening for public launch  
-- Final art and asset pipeline (replace placeholders)  
-- Broad integration tests beyond server unit coverage  
+---
 
-## Authoritative backlog
+## Release blockers
 
-Use **`docs/ROADMAP_TO_RELEASE.md`** for the bible-aligned checklist and **`docs/PROJECT_STATUS_2026.md`** for what already works.
+- #2038 — repeatable production deploy and live verification gate
+- #2039 — persistence backup and restore proof
+- #2040 — production auth and session hardening
+- #2041 — remaining deterministic audit violations
+- #2042 — mobile and browser performance budget
+- #2043 — player-facing UI coverage for critical gameplay
+- #2044 — audited release content pack and asset license proof
+- #2045 — required full-loop E2E and release smoke gate
+
+---
+
+## Open integration points
+
+- #2046 — render lineage `worldSurface` in the 3D client
+- #2050 — runtime civic state from tick and house data
+- #2047 — runtime market pricing from resource state
+- #2048 — item provenance, trading and anti-duplication audit
+- #2049 — runtime observability and release SLO dashboard
+
+---
+
+## ARE constraint for all remaining work
+
+No mock truth. No fake snapshots. No workflow tricks. No stub systems in the truth path. No facade that replaces real ARE causality.
+
+Every new integration must either be an existing ARE system logic or interact with one directly: tick, chunk, kappa, hash, manifest, journal, delta, replay, resolver, or real runtime provider.
