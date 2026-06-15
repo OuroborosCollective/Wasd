@@ -13,7 +13,7 @@ import {
   getVisibleChunkCoords,
   isStarterChunk,
   getChunkBiome,
-  CHUNK_RESOURCE_CONSTANTS,
+  resolveChunkWorldSeed,
 } from "./ChunkResourceGenerator.js";
 import {
   loadGatheringMomentumRuleFromGameData,
@@ -68,7 +68,7 @@ export class ResourceNodeStore {
     worldSeed?: string,
     private readonly gatheringMomentumRule: GatheringMomentumRule = loadGatheringMomentumRuleFromGameData(),
   ) {
-    this.worldSeed = worldSeed ?? CHUNK_RESOURCE_CONSTANTS.WORLD_SEED;
+    this.worldSeed = resolveChunkWorldSeed(worldSeed);
 
     // Initialize with game-data backed starter nodes or explicit test nodes.
     for (const node of nodes) {
@@ -90,7 +90,7 @@ export class ResourceNodeStore {
    * @param worldSeed - Optional world seed override
    */
   registerVisibleChunks(playerPosition: { x: number; y: number }, worldSeed?: string): void {
-    const seed = worldSeed ?? this.worldSeed;
+    const seed = resolveChunkWorldSeed(worldSeed ?? this.worldSeed);
 
     // Convert kappa position to tile coordinates
     // Kappa: 1 tile = 1000 kappa units
@@ -115,7 +115,7 @@ export class ResourceNodeStore {
       }
 
       // Generate procedural nodes for this chunk
-      const biomeId = getChunkBiome(chunkX, chunkZ);
+      const biomeId = getChunkBiome(chunkX, chunkZ, seed);
       const nodes = generateChunkResourceNodes({
         worldSeed: seed,
         chunkX,
