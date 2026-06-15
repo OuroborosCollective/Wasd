@@ -2,23 +2,46 @@
  * RUNTIME MARKET PRICING
  *
  * Server-authoritative market snapshot derived from real runtime inputs:
- * - logical tick
- * - live resource node counters
- * - vendor/camp stock counters
- * - deterministic FNV-1a market hash
- *
- * No mocks, no host time, no randomness, no facade truth.
+ * logical tick, live resource node counters, vendor/camp stock counters,
+ * and a deterministic FNV-1a market hash.
  */
 
 import { calculateDynamicPrice } from "./DemandPricing.js";
 import { RESOURCE_SELL_PRICES } from "./ResourceSellPrices.js";
-import type {
-  LiveGameplayCampStock,
-  LiveGameplayResourceNode,
-  LiveGameplayVendorEconomySnapshot,
-  LiveGameplayMarketPrice,
-  LiveGameplayMarketSnapshot,
-} from "../gameplay/LiveGameplaySnapshotTypes.js";
+
+export interface RuntimeMarketResourceNode {
+  readonly resourceId: string;
+  readonly available: boolean;
+}
+
+export interface RuntimeMarketStockItem {
+  readonly itemId: string;
+  readonly quantity: number;
+}
+
+export interface RuntimeMarketStockSource {
+  readonly items: readonly RuntimeMarketStockItem[];
+}
+
+export interface RuntimeMarketVendorEconomySource {
+  readonly vendors: readonly { readonly stock: readonly RuntimeMarketStockItem[] }[];
+}
+
+export interface RuntimeMarketPrice {
+  readonly itemId: string;
+  readonly unitPrice: number;
+  readonly basePrice: number;
+  readonly demandBand: "normal" | "stocked" | "oversupplied";
+  readonly availableResourceNodes: number;
+  readonly stockQuantity: number;
+}
+
+export interface RuntimeMarketSnapshot {
+  readonly schemaVersion: "runtime-market.v1";
+  readonly tick: number;
+  readonly prices: readonly RuntimeMarketPrice[];
+  readonly marketHash: string;
+}
 
 const RAW_RESOURCE_TO_ITEM: Readonly<Record<string, string>> = Object.freeze({
   wood: "wood_log",
@@ -55,7 +78,7 @@ function normalizeResourceItemId(resourceId: string): string | null {
   return RAW_RESOURCE_TO_ITEM[key] ?? null;
 }
 
-function countAvailableResourceItems(resourceNodes: readonly LiveGameplayResourceNode[]): ReadonlyMap<string, number> {
+function countAvailableResourceItems(resourceNodes: readonly RuntimeMarketResourceNode[]): ReadonlyMap<string, number> {
   const counts = new Map<string, number>();
   for (const node of resourceNodes) {
     if (!node.available) continue;
@@ -67,8 +90,8 @@ function countAvailableResourceItems(resourceNodes: readonly LiveGameplayResourc
 }
 
 function countStockItems(
-  vendorEconomy: LiveGameplayVendorEconomySnapshot,
-  campStocks: readonly LiveGameplayCampStock[],
+  vendorEconomy: RuntimeMarketVendorEconomySource,
+  stockSources: readonly RuntimeMarketStockSource[],
 ): ReadonlyMap<string, number> {
   const counts = new Map<string, number>();
 
@@ -78,8 +101,8 @@ function countStockItems(
     }
   }
 
-  for (const stock of campStocks) {
-    for (const item of stock.items) {
+  for (const source of stockSources) {
+    for (const item of source.items) {
       counts.set(item.itemId, (counts.get(item.itemId) ?? 0) + safeQuantity(item.quantity));
     }
   }
@@ -95,16 +118,16 @@ function scarcityAdjustment(availableResourceNodes: number, stockQuantity: numbe
 
 export function buildRuntimeMarketSnapshot(
   logicalIndex: number,
-  resourceNodes: readonly LiveGameplayResourceNode[],
-  vendorEconomy: LiveGameplayVendorEconomySnapshot,
-  campStocks: readonly LiveGameplayCampStock[],
-): LiveGameplayMarketSnapshot {
+  resourceNodes: readonly RuntimeMarketResourceNode[],
+  vendorEconomy: RuntimeMarketVendorEconomySource,
+  stockSources: readonly RuntimeMarketStockSource[],
+): RuntimeMarketSnapshot {
   const tick = safeTick(logicalIndex);
   const resourceCounts = countAvailableResourceItems(resourceNodes);
-  const stockCounts = countStockItems(vendorEconomy, campStocks);
+  const stockCounts = countStockItems(vendorEconomy, stockSources);
   const itemIds = Object.keys(RESOURCE_SELL_PRICES).sort();
 
-  const prices: LiveGameplayMarketPrice[] = itemIds.map((itemId) => {
+  const prices: RuntimeMarketPrice[] = itemIds.map((itemId) => {
     const availableResourceNodes = resourceCounts.get(itemId) ?? 0;
     const stockQuantity = stockCounts.get(itemId) ?? 0;
     const base = calculateDynamicPrice(itemId, stockQuantity);
