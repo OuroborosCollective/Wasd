@@ -226,10 +226,10 @@ export class ServerBootstrap {
     app.use("/api/npc", campNpcRouter);
     app.use("/api/npc", npcQuestRouter);
     app.use("/api/quests", npcQuestRouter);
-    app.use("/api/self-healing", createSelfHealWorkshopRouter());
+    app.use("/api/self-healing", adminRateLimiter, adminAuthMiddleware, createSelfHealWorkshopRouter());
     app.use("/api/manifest", createManifestResyncRouter(tick));
     app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());
-    app.use("/api/are-shadow", areShadowLogRouter());
+    app.use("/api/are-shadow", adminRateLimiter, adminAuthMiddleware, areShadowLogRouter());
     app.use("/api/asset-brain", createAssetBrainRouter());
     app.use("/api/glb", createGLBUploadRouter());
     app.use("/api/sovereign/deploy", adminRateLimiter, adminAuthMiddleware, sovereignDeployRouter(tick));
@@ -243,7 +243,7 @@ export class ServerBootstrap {
     if (monitorHtmlPath) app.get("/playtester-monitor.html", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.sendFile(monitorHtmlPath); });
     if (publisherHtmlPath) app.get("/playtester-render-publisher.html", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.sendFile(publisherHtmlPath); });
     app.get("/api/playtester/debug-log", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.json({ ok: Boolean(tick.getPlaytesterDebugLogPath()), enabled: PlaytesterConfig.enabled, streamEnabled: PlaytesterConfig.streamEnabled, monitorMode: PlaytesterConfig.monitorMode, monitorPath: PlaytesterConfig.monitorPath, monitorSignalPath: PlaytesterConfig.monitorSignalPath, monitorPublisherPath: PlaytesterConfig.monitorPublisherPath, monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0, stream: { width: PlaytesterConfig.streamWidth, height: PlaytesterConfig.streamHeight, fps: PlaytesterConfig.streamFps, quality: PlaytesterConfig.streamQuality, shadows: PlaytesterConfig.streamShadows, particles: PlaytesterConfig.streamParticles, renderDistance: PlaytesterConfig.streamRenderDistance, iceServers: PlaytesterConfig.streamIceServers }, debugLogPath: tick.getPlaytesterDebugLogPath() }); });
-    app.use("/api/admin/content", adminContentRouter(tick));
+    app.use("/api/admin/content", adminRateLimiter, adminAuthMiddleware, adminContentRouter(tick));
     // ARE Infinite Loot Machine Admin Routes
     createLootRoutes(app);
     app.use("/api/vote", voteRouter(tick));

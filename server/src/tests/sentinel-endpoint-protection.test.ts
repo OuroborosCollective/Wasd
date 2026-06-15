@@ -3,6 +3,8 @@ import express from "express";
 import request from "supertest";
 import { client2dAssetUploadRouter } from "../api/client2dAssetUploadRoute.js";
 import { sovereignDeployRouter } from "../api/sovereignDeployRoute.js";
+import { areShadowLogRouter } from "../api/areShadowLogRoute.js";
+import { createSelfHealWorkshopRouter } from "../routes/selfHealWorkshopRoute.js";
 import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
 import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 
@@ -76,6 +78,38 @@ describe("Sentinel Endpoint Protection", () => {
         .set("Authorization", "Bearer secret");
       expect(r.status).toBe(403);
       expect(r.body.error).toContain("read-only");
+    });
+  });
+
+  describe("/api/are-shadow", () => {
+    it("is protected by adminAuthMiddleware", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      const app = express();
+      app.use("/api/are-shadow", adminRateLimiter, adminAuthMiddleware, areShadowLogRouter());
+
+      const r = await request(app).get("/api/are-shadow/log");
+      expect(r.status).toBe(401);
+
+      const r2 = await request(app)
+        .get("/api/are-shadow/log")
+        .set("X-Admin-Token", "secret");
+      expect(r2.status).toBe(200);
+    });
+  });
+
+  describe("/api/self-healing", () => {
+    it("is protected by adminAuthMiddleware", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      const app = express();
+      app.use("/api/self-healing", adminRateLimiter, adminAuthMiddleware, createSelfHealWorkshopRouter());
+
+      const r = await request(app).get("/api/self-healing");
+      expect(r.status).toBe(401);
+
+      const r2 = await request(app)
+        .get("/api/self-healing")
+        .set("X-Admin-Token", "secret");
+      expect(r2.status).toBe(200);
     });
   });
 });
