@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "phrase-genome-seed",
+  "description": "Canonical seed phrase genomes loaded by the Living Language runtime through game-data/language.",
+  "phraseGenomes": [
+    {
+      "id": "default_greet",
+      "intent": "greet",
+      "languageMode": "arel",
+      "structure": ["subject", "verb"],
+      "slots": [
+        { "role": "subject", "required": true, "lexemeIds": ["arel_greeting_wacht"] },
+        { "role": "verb", "required": true, "lexemeIds": ["arel_help_bitt"] }
+      ],
+      "truthMode": "known_fact",
+      "outcomeStats": { "uses": 0, "successfulUses": 0, "failedUses": 0, "averageKappaScore": 1 },
+      "mutation": { "parentGenomeIds": [], "generation": 0, "stability": 1, "novelty": 0 }
+    },
+    {
+      "id": "default_request",
+      "intent": "request",
+      "languageMode": "arel",
+      "structure": ["subject", "verb", "object"],
+      "slots": [
+        { "role": "subject", "required": true, "lexemeIds": ["arel_greeting_wacht"] },
+        { "role": "verb", "required": true, "lexemeIds": ["arel_help_bitt"] },
+        { "role": "object", "required": false, "lexemeIds": ["arel_quest_auftrag"] }
+      ],
+      "truthMode": "known_fact",
+      "outcomeStats": { "uses": 0, "successfulUses": 0, "failedUses": 0, "averageKappaScore": 1 },
+      "mutation": { "parentGenomeIds": [], "generation": 0, "stability": 1, "novelty": 0 }
+    },
+    {
+      "id": "default_trade",
+      "intent": "trade",
+      "languageMode": "arel",
+      "structure": ["subject", "verb", "object"],
+      "slots": [
+        { "role": "subject", "required": true, "lexemeIds": ["arel_greeting_wacht"] },
+        { "role": "verb", "required": true, "lexemeIds": ["arel_help_bitt"] },
+        { "role": "object", "required": false, "lexemeIds": ["arel_trade_handel"] }
+      ],
+      "truthMode": "known_fact",
+      "outcomeStats": { "uses": 0, "successfulUses": 0, "failedUses": 0, "averageKappaScore": 1 },
+      "mutation": { "parentGenomeIds": [], "generation": 0, "stability": 1, "novelty": 0 }
+    }
+  ]
+}
