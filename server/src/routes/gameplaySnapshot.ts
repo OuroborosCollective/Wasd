@@ -18,6 +18,7 @@ import { generateVisibleChunkPois, getStarterVillagePois } from "../world/WorldP
 import { getVisibleChunkCoords } from "../resources/ChunkResourceGenerator.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import { runLineageBirthForSnapshot, type LineageRuntimeStateProvider } from "../modules/npc/LineageBirthSnapshotBridge.js";
+import { getLineageRuntimeStateProvider } from "../modules/npc/LineageRuntimeStateProviderRegistry.js";
 
 export interface GameplaySnapshotRouterDeps {
   readonly lineageRuntimeStateProvider?: LineageRuntimeStateProvider;
@@ -37,6 +38,10 @@ function rejectUnauthenticatedInLockedProduction(identity: { authenticated: bool
   return process.env.NODE_ENV === "production" && !identity.authenticated && !isGuestHttpAllowed();
 }
 
+function resolveLineageRuntimeStateProvider(deps: GameplaySnapshotRouterDeps): LineageRuntimeStateProvider | undefined {
+  return deps.lineageRuntimeStateProvider ?? getLineageRuntimeStateProvider();
+}
+
 export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = {}) {
   const router = express.Router();
 
@@ -51,7 +56,7 @@ export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = 
     await runLineageBirthForSnapshot({
       playerId: identity.playerId,
       logicalIndex: serverTick,
-      provider: deps.lineageRuntimeStateProvider,
+      provider: resolveLineageRuntimeStateProvider(deps),
     });
 
     await questProgressionStore.hydratePlayer(identity.playerId);
