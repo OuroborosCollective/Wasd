@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { createPaperdollSnapshot } from "../src/character/PaperdollTypes.js";
+import { createPaperdollSnapshot } from "../character/PaperdollTypes.js";
 import {
   createEquippedSlotFromDefinition,
   EQUIPMENT_DEFINITIONS,
   EQUIPMENT_SLOT_IDS,
-} from "../src/equipment/EquipmentTypes.js";
-import { createGameplaySnapshot } from "../src/routes/gameplaySnapshotUtils.js";
+} from "../equipment/EquipmentTypes.js";
+import { createGameplaySnapshot } from "../routes/gameplaySnapshotUtils.js";
 
 describe("authoritative gameplay equipment snapshot", () => {
   it("represents every empty paperdoll slot deterministically", () => {
@@ -76,9 +76,9 @@ describe("authoritative gameplay equipment snapshot", () => {
     const snapshotB = createGameplaySnapshot({ serverTick: 19, equipment, paperdoll });
 
     expect(snapshotA.equipment?.slots.map((slot) => slot.slotId)).toEqual([
-      "fishing_tool",
-      "mining_tool",
       "woodcutting_tool",
+      "mining_tool",
+      "fishing_tool",
     ]);
     expect(snapshotA.equipment).toEqual(snapshotB.equipment);
     expect(snapshotA.paperdoll.slots.map((slot) => slot.slotId)).toEqual([...EQUIPMENT_SLOT_IDS]);
