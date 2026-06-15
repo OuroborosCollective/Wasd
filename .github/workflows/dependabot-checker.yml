@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   ai-autofix-ci:
-    if: ${{ github.actor == 'dependabot[bot]' || contains(github.head_ref, 'fix/') }}
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -61,6 +61,7 @@ jobs:
         run: pnpm install --no-frozen-lockfile
 
       - name: Optional autofix
+        if: ${{ github.actor == 'dependabot[bot]' || contains(github.head_ref, 'fix/') }}
         run: |
           set -euo pipefail
           pnpm -r --if-present lint:fix
@@ -102,6 +103,7 @@ jobs:
       # COMMIT FIXES
       # ----------------------------
       - name: Commit AI fixes
+        if: ${{ github.actor == 'dependabot[bot]' || contains(github.head_ref, 'fix/') }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
