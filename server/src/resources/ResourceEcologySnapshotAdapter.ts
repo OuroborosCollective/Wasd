@@ -14,21 +14,19 @@ export function attachResourceEcologySnapshot(
 ): ResourceNodeSnapshot {
   if (!ecology) return snapshot;
 
-  return Object.freeze({
+  return {
     ...snapshot,
     ecology,
     status: ecology.currentStock <= 0 ? "depleted" : snapshot.status,
-  });
+  };
 }
 
 export function attachResourceEcologySnapshots(
   snapshots: readonly ResourceNodeSnapshot[],
   ecologySnapshots: readonly ResourceNodeEcologySnapshot[],
-): readonly ResourceNodeSnapshot[] {
+): ResourceNodeSnapshot[] {
   const ecologyByNodeId = new Map(ecologySnapshots.map((ecology) => [ecology.nodeId, ecology] as const));
-  return Object.freeze(
-    snapshots
-      .map((snapshot) => attachResourceEcologySnapshot(snapshot, ecologyByNodeId.get(snapshot.id) ?? null))
-      .sort((a, b) => a.id.localeCompare(b.id)),
-  );
+  return snapshots
+    .map((snapshot) => attachResourceEcologySnapshot(snapshot, ecologyByNodeId.get(snapshot.id) ?? null))
+    .sort((a, b) => a.id.localeCompare(b.id));
 }
