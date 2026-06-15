@@ -31,6 +31,16 @@ function stringOr(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
+function numberRecord(value: unknown): Readonly<Record<string, number>> {
+  const record = asRecord(value);
+  if (!record) return Object.freeze({});
+  const out: Record<string, number> = {};
+  for (const [key, raw] of Object.entries(record)) {
+    if (typeof raw === 'number' && Number.isFinite(raw)) out[key] = raw;
+  }
+  return Object.freeze(out);
+}
+
 function pickTelemetry(payload: unknown): LivingDudenTelemetry {
   const root = asRecord(payload);
   const nested = asRecord(root?.telemetry) ?? root;
@@ -44,7 +54,7 @@ function pickTelemetry(payload: unknown): LivingDudenTelemetry {
       inventedCount: numberOr(archiveRecord.inventedCount),
       quarantinedCount: numberOr(archiveRecord.quarantinedCount),
       promotedCount: numberOr(archiveRecord.promotedCount),
-      byLanguageCount: Object.freeze(asRecord(archiveRecord.byLanguageCount) as Record<string, number> | null ?? {}),
+      byLanguageCount: numberRecord(archiveRecord.byLanguageCount),
     }),
     speech: Object.freeze(Array.isArray(living.speech) ? living.speech as SpeechEvent[] : []),
     wordFactorRankings: Object.freeze(Array.isArray(living.wordFactorRankings) ? living.wordFactorRankings as WordFactorRanking[] : []),
