@@ -2,7 +2,7 @@
  * INVENTORY SERVICE
  *
  * Server-authoritative inventory service with persistence hydration.
- * Deterministic: No Math.random(), no Date.now(), stable ordering.
+ * Deterministic: seeded/tick-safe runtime and stable ordering.
  */
 
 import { InventoryStore } from "./InventoryStore.js";
