@@ -8,6 +8,7 @@ import { gatheringService } from "../resources/GatheringService.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
 import { craftingService } from "../crafting/CraftingService.js";
 import { equipmentService } from "../equipment/equipmentRuntime.js";
+import { workOrderService } from "../economy/WorkOrderService.js";
 import { characterService } from "../character/characterRuntime.js";
 import { toCharacterProfileSnapshot } from "../character/CharacterTypes.js";
 import { createPaperdollSnapshot } from "../character/PaperdollTypes.js";
@@ -64,6 +65,7 @@ export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = 
     const pyRaw = req.query.py;
     const playerPosition = typeof pxRaw === "string" && typeof pyRaw === "string" ? { x: Number(pxRaw), y: Number(pyRaw) } : undefined;
     const resources = gatheringService.listResourceSnapshots(serverTick, playerPosition);
+    const workOrders = workOrderService.listSnapshots(serverTick);
 
     const inventoryService = await getInventoryService();
     const inventory = await inventoryService.getPlayerInventory(identity.playerId);
@@ -165,6 +167,7 @@ export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = 
       authenticated: identity.authenticated,
       snapshot,
       liveGameplaySnapshot,
+      workOrders,
     });
   });
 
