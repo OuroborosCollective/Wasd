@@ -1,11 +1,11 @@
 /**
  * CRAFTING SERVICE
  *
- * Server-authoritative crafting service.
- * Deterministic: No Math.random(), no Date.now(), stable recipe ordering.
- * Station proximity required for recipes with stationType.
+ * Server-authoritative crafting service with stable recipe ordering.
+ * Station proximity required for station-bound recipes.
  */
 
+import { stableHash32 } from "../core/determinism/AREDeterminism.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
 import { getSkillProgressionService } from "../skills/skillRuntime.js";
 import type { SkillSnapshot } from "../skills/SkillTypes.js";
@@ -20,11 +20,52 @@ import type {
   CraftingRecipe,
   CraftingRecipeSnapshot,
   CraftingResult,
-  RecipeId,
+  RecipeIngredient,
+  RecipeOutput,
 } from "./CraftingTypes.js";
 
 function craftingLevelFromSkills(skills: SkillSnapshot[]): number {
   return skills.find((skill) => skill.id === "crafting")?.level ?? 1;
+}
+
+function normalizeTick(value: unknown): number {
+  const tick = Number(value ?? 0);
+  return Number.isSafeInteger(tick) && tick >= 0 ? tick : 0;
+}
+
+function inventoryFingerprint(slots: readonly { slotId?: string; itemId?: string; quantity?: number }[]): string {
+  return slots
+    .map((slot) => `${slot.slotId ?? ""}:${slot.itemId ?? ""}:${Math.max(0, Math.floor(Number(slot.quantity ?? 0)))}`)
+    .sort()
+    .join(",");
+}
+
+function recipeFingerprint(recipe: CraftingRecipe): string {
+  const ingredients = [...recipe.ingredients]
+    .map((entry) => `${entry.itemId}:${entry.quantity}`)
+    .sort()
+    .join(",");
+  const outputs = [...recipe.outputs]
+    .map((entry) => `${entry.itemId}:${entry.quantity}`)
+    .sort()
+    .join(",");
+  return `${recipe.id}|${recipe.requiredLevel}|${recipe.craftTicks}|${recipe.stationType ?? "none"}|${ingredients}|${outputs}`;
+}
+
+function craftHash(input: {
+  playerId: string;
+  recipe: CraftingRecipe;
+  currentTick: number;
+  inventoryBefore: string;
+}): string {
+  return stableHash32([
+    "CRAFT_DELTA_V1",
+    input.playerId,
+    input.recipe.id,
+    input.currentTick,
+    recipeFingerprint(input.recipe),
+    input.inventoryBefore,
+  ].join("|")).toString(16);
 }
 
 export class CraftingService {
@@ -52,13 +93,15 @@ export class CraftingService {
       this.listRecipes().map(async (recipe) => {
         const hasIngredients = await inventoryService.hasItems({
           playerId,
-          items: recipe.ingredients,
+          items: [...recipe.ingredients],
         });
 
         const levelOk = craftingLevel >= recipe.requiredLevel;
 
         return {
           ...recipe,
+          ingredients: [...recipe.ingredients],
+          outputs: [...recipe.outputs],
           craftable: levelOk && hasIngredients,
           blockedReason: !levelOk
             ? "level_too_low"
@@ -75,7 +118,10 @@ export class CraftingService {
     recipeId: string;
     playerPosition?: { x: number; y: number };
     stationId?: string;
+    currentTick?: number;
   }): Promise<CraftingResult> {
+    const currentTick = normalizeTick(input.currentTick);
+
     if (!input.playerId || input.playerId === "anonymous") {
       return {
         ok: false,
@@ -95,9 +141,7 @@ export class CraftingService {
       };
     }
 
-    // Station proximity check for recipes that require a station
     if (recipe.stationType) {
-      // Player position is required for station-bound recipes
       if (!input.playerPosition) {
         return {
           ok: false,
@@ -107,7 +151,6 @@ export class CraftingService {
         };
       }
 
-      // Validate player position is finite
       if (
         !Number.isFinite(input.playerPosition.x) ||
         !Number.isFinite(input.playerPosition.y)
@@ -120,7 +163,6 @@ export class CraftingService {
         };
       }
 
-      // If stationId provided, verify it matches the required station type
       if (input.stationId) {
         const station = getProcessingStationById(input.stationId);
         if (!station) {
@@ -139,7 +181,6 @@ export class CraftingService {
             reason: "station_type_mismatch",
           };
         }
-        // Check if player is within this station's radius
         const distanceResult = isWithinAnyStationOfType(input.playerPosition, recipe.stationType);
         if (!distanceResult.withinRange || distanceResult.station?.id !== input.stationId) {
           return {
@@ -150,7 +191,6 @@ export class CraftingService {
           };
         }
       } else {
-        // No stationId provided - find nearest station of required type
         const distanceResult = isWithinAnyStationOfType(input.playerPosition, recipe.stationType);
         if (!distanceResult.withinRange) {
           return {
@@ -178,9 +218,17 @@ export class CraftingService {
     }
 
     const inventoryService = await getInventoryService();
+    const beforeState = await inventoryService.getPlayerInventory(input.playerId);
+    const deltaHash = craftHash({
+      playerId: input.playerId,
+      recipe,
+      currentTick,
+      inventoryBefore: inventoryFingerprint(beforeState.slots),
+    });
+
     const hasIngredients = await inventoryService.hasItems({
       playerId: input.playerId,
-      items: recipe.ingredients,
+      items: [...recipe.ingredients],
     });
 
     if (!hasIngredients) {
@@ -192,7 +240,27 @@ export class CraftingService {
       };
     }
 
-    // Consume ingredients
+    const removedIngredients: RecipeIngredient[] = [];
+    const addedOutputs: RecipeOutput[] = [];
+    const originUids: string[] = [];
+
+    const restoreIngredients = async () => {
+      for (let index = removedIngredients.length - 1; index >= 0; index -= 1) {
+        const ingredient = removedIngredients[index];
+        await inventoryService.addItem({
+          playerId: input.playerId,
+          itemId: ingredient.itemId,
+          quantity: ingredient.quantity,
+          origin: {
+            uid: `craft:${deltaHash}:restore:${index}`,
+            tick: currentTick,
+            source: "system_delta",
+            sourceHash: deltaHash,
+          },
+        });
+      }
+    };
+
     for (const ingredient of recipe.ingredients) {
       const removed = await inventoryService.removeItem({
         playerId: input.playerId,
@@ -201,6 +269,7 @@ export class CraftingService {
       });
 
       if (!removed.ok) {
+        await restoreIngredients();
         return {
           ok: false,
           playerId: input.playerId,
@@ -208,17 +277,34 @@ export class CraftingService {
           reason: "missing_ingredients",
         };
       }
+
+      removedIngredients.push({ itemId: ingredient.itemId, quantity: ingredient.quantity });
     }
 
-    // Add outputs
-    for (const output of recipe.outputs) {
+    for (let index = 0; index < recipe.outputs.length; index += 1) {
+      const output = recipe.outputs[index];
+      const uid = `craft:${deltaHash}:output:${index}`;
       const added = await inventoryService.addItem({
         playerId: input.playerId,
         itemId: output.itemId,
         quantity: output.quantity,
+        origin: {
+          uid,
+          tick: currentTick,
+          source: "crafting_delta",
+          sourceHash: deltaHash,
+        },
       });
 
       if (!added.ok) {
+        for (const addedOutput of addedOutputs) {
+          await inventoryService.removeItem({
+            playerId: input.playerId,
+            itemId: addedOutput.itemId,
+            quantity: addedOutput.quantity,
+          });
+        }
+        await restoreIngredients();
         return {
           ok: false,
           playerId: input.playerId,
@@ -226,18 +312,18 @@ export class CraftingService {
           reason: "inventory_full",
         };
       }
+
+      addedOutputs.push({ itemId: output.itemId, quantity: output.quantity });
+      originUids.push(uid);
     }
 
-    // Auto-equip upgrade tool if consumed tool was equipped
     for (const ingredient of recipe.ingredients) {
       const consumedDef = EQUIPMENT_DEFINITIONS[ingredient.itemId];
       if (consumedDef) {
-        // Check if this tool was equipped
         const equipment = await equipmentService.getPlayerEquipment(input.playerId);
-        const equippedSlot = equipment.slots.find((s) => s.itemId === ingredient.itemId);
+        const equippedSlot = equipment.slots.find((slot) => slot.itemId === ingredient.itemId);
 
         if (equippedSlot) {
-          // Consume the equipped tool by unequipping it
           await equipmentService.unequipItem({
             playerId: input.playerId,
             slotId: equippedSlot.slotId,
@@ -246,7 +332,6 @@ export class CraftingService {
       }
     }
 
-    // Auto-equip output tool if it's an equipment item
     for (const output of recipe.outputs) {
       const outputDef = EQUIPMENT_DEFINITIONS[output.itemId];
       if (outputDef) {
@@ -257,7 +342,6 @@ export class CraftingService {
       }
     }
 
-    // Grant crafting XP
     await skillService.applyEvent({
       type: "skill_xp_gain",
       playerId: input.playerId,
@@ -271,10 +355,13 @@ export class CraftingService {
       playerId: input.playerId,
       recipeId: recipe.id,
       reason: "crafted",
-      consumed: recipe.ingredients,
-      outputs: recipe.outputs,
+      consumed: [...recipe.ingredients],
+      outputs: [...recipe.outputs],
       craftingXpReward: recipe.craftingXpReward,
-    };
+      currentTick,
+      craftHash: deltaHash,
+      originUids: Object.freeze(originUids),
+    } as CraftingResult;
   }
 }
 

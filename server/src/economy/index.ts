@@ -13,4 +13,8 @@ export { MarketOrderBookService } from "./MarketOrderBookService.js";
 export { TradeRouteGraph } from "./TradeRouteGraph.js";
 export { createLocalMarketSnapshot } from "./EconomySnapshotAdapter.js";
 export { loadEconomyBasePricesFromGameData, loadLocalMarketsFromGameData } from "./EconomyGameData.js";
+export { loadRegionalWorkOrdersFromGameData } from "./WorkOrderGameData.js";
+export { WorkOrderStore, workOrderStore } from "./WorkOrderStore.js";
+export { WorkOrderService, workOrderService } from "./WorkOrderService.js";
 export type { LocalMarketDefinition, LocalMarketSnapshot, LocalMarketPriceResult } from "./LocalMarketTypes.js";
+export type { RegionalWorkOrderDefinition, RegionalWorkOrderGameData, RegionalWorkOrderRegion, WorkOrderSnapshot, WorkOrderContributionResult } from "./WorkOrderTypes.js";
