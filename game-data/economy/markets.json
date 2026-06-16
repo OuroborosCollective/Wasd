@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "markets": [
+    {
+      "marketId": "starter_village_market",
+      "title": "Starter Village Market",
+      "regionId": "starter_village",
+      "vendorId": "village_trader_001",
+      "chunkKey": "0:0",
+      "position": { "x": 48, "y": 48 },
+      "demand": [
+        { "itemId": "wood_log", "demandPressurePerMille": 1000 },
+        { "itemId": "raw_fish", "demandPressurePerMille": 1050 },
+        { "itemId": "copper_ore", "demandPressurePerMille": 1100 },
+        { "itemId": "wood_plank", "demandPressurePerMille": 1150 },
+        { "itemId": "cooked_fish", "demandPressurePerMille": 1200 },
+        { "itemId": "copper_ingot", "demandPressurePerMille": 1250 }
+      ],
+      "routes": [
+        {
+          "routeId": "starter_village_self",
+          "toMarketId": "starter_village_market",
+          "distanceKappa": 0,
+          "routeRiskPerMille": 1000,
+          "taxPressurePerMille": 1000
+        }
+      ]
+    }
+  ]
+}
