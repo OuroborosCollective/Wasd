@@ -1,3 +1,5 @@
+const ARE_PAYLOAD_TICK_MS = 100;
+
 export interface INPCState {
     id: string;
     v: [number, number, number];
@@ -14,13 +16,19 @@ export interface IAREPayload {
     en: Record<string, INPCState>;
 }
 
+function normalizeTick(tick: number): number {
+    if (!Number.isSafeInteger(tick) || tick < 0) return 0;
+    return tick;
+}
+
 export class AREPayload {
     private readonly _data: IAREPayload;
 
     constructor(tick: number, npcs: INPCState[]) {
+        const safeTick = normalizeTick(tick);
         this._data = {
-            tk: tick,
-            ts: Date.now(),
+            tk: safeTick,
+            ts: safeTick * ARE_PAYLOAD_TICK_MS,
             en: this._filterAndMap(npcs)
         };
     }
@@ -31,18 +39,14 @@ export class AREPayload {
      */
     private _filterAndMap(npcs: INPCState[]): Record<string, INPCState> {
         const lookup: Record<string, INPCState> = Object.create(null);
-        const len = npcs.length;
-        
-        for (let i = 0; i < len; i++) {
-            const npc = npcs[i];
-            
-            // Status validation: 0 is considered 'void' or 'invalid'
-            // Ensures stateless determinism by only including relevant actors
-            if (npc.s > 0 && npc.h > 0) {
-                lookup[npc.id] = npc;
-            }
+        const activeNpcs = npcs
+            .filter((npc) => npc.s > 0 && npc.h > 0)
+            .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
+        for (const npc of activeNpcs) {
+            lookup[npc.id] = npc;
         }
-        
+
         return lookup;
     }
 
