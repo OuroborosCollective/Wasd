@@ -2,7 +2,7 @@
  * VENDOR STOCK STORE
  *
  * Server-authoritative in-memory vendor stock store.
- * Deterministic: No Math.random(), stable ordering, no Date.now().
+ * Deterministic: seeded/tick-safe runtime, stable ordering, no host-clock truth.
  */
 
 import {
