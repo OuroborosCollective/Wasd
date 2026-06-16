@@ -1,5 +1,6 @@
 import express, { type Request, type Response, type Router } from "express";
 import { authMiddleware } from "../middleware/authMiddleware.js";
+import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 
 const EMILY_SYSTEM_PROMPT = `You are Emily, the Cyber-Zen Science Portal mascot for Areloria.
 You assist players with technical questions, world lore, and portal diagnostics.
@@ -164,7 +165,7 @@ export function scienceMascotRouter(): Router {
     res.status(204).end();
   });
 
-  r.post("/science-mascot", authMiddleware, async (req: Request, res: Response) => {
+  r.post("/science-mascot", adminRateLimiter, authMiddleware, async (req: Request, res: Response) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     try {
       const body = req.body as {
