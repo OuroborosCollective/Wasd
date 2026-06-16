@@ -7,14 +7,8 @@
 import { useState, useEffect, useCallback } from "react";
 import "./selfHealWorkshop.css";
 
-/**
- * Risk level for a proposal.
- */
 export type SelfHealRiskLevel = "LOW" | "MEDIUM" | "HIGH" | "BLOCKED";
 
-/**
- * Dry-run result from a proposal.
- */
 export interface SelfHealDryRun {
   ok: boolean;
   wouldChangeFiles: string[];
@@ -23,17 +17,11 @@ export interface SelfHealDryRun {
   blockedReasons: string[];
 }
 
-/**
- * Rollback plan for a proposal.
- */
 export interface SelfHealRollback {
   strategy: "none" | "restore_files" | "git_revert" | "manual_review";
   steps: string[];
 }
 
-/**
- * A patch proposal from the workshop.
- */
 export interface SelfHealPatchProposalView {
   patchId: string;
   issueId: string;
@@ -46,18 +34,12 @@ export interface SelfHealPatchProposalView {
   deterministic: true;
 }
 
-/**
- * Response from the workshop API.
- */
 export interface SelfHealWorkshopResponse {
   ok: boolean;
   mode: "dry-run";
   proposals: SelfHealPatchProposalView[];
 }
 
-/**
- * Get color for risk level.
- */
 function riskColor(level: SelfHealRiskLevel): string {
   switch (level) {
     case "LOW": return "var(--green, #70ff9e)";
@@ -68,9 +50,6 @@ function riskColor(level: SelfHealRiskLevel): string {
   }
 }
 
-/**
- * Get icon for rollback strategy.
- */
 function rollbackIcon(strategy: string): string {
   switch (strategy) {
     case "git_revert": return "↩";
@@ -189,29 +168,32 @@ function ProposalCard({ proposal, expanded, onToggle }: ProposalCardProps) {
   );
 }
 
-/**
- * SelfHeal Workshop Panel component.
- * Displays dry-run proposals from the server.
- */
 export function SelfHealWorkshopPanel() {
   const [data, setData] = useState<SelfHealWorkshopResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessState, setAccessState] = useState<"ready" | "admin_required">("ready");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [lastFetched, setLastFetched] = useState<number | null>(null);
+  const [fetchSequence, setFetchSequence] = useState(0);
 
   const fetchWorkshop = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setAccessState("ready");
+    setFetchSequence((value) => value + 1);
     
     try {
-      const resp = await fetch("/api/self-healing");
+      const resp = await fetch("/api/self-healing", { cache: "no-store" });
+      if (resp.status === 401 || resp.status === 403) {
+        setData({ ok: false, mode: "dry-run", proposals: [] });
+        setAccessState("admin_required");
+        return;
+      }
       if (!resp.ok) {
         throw new Error(`HTTP ${resp.status}`);
       }
       const json: SelfHealWorkshopResponse = await resp.json();
       setData(json);
-      setLastFetched(Date.now());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch");
     } finally {
@@ -219,7 +201,6 @@ export function SelfHealWorkshopPanel() {
     }
   }, []);
 
-  // Initial fetch on mount
   useEffect(() => {
     fetchWorkshop();
   }, [fetchWorkshop]);
@@ -227,11 +208,8 @@ export function SelfHealWorkshopPanel() {
   function toggleExpand(id: string) {
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
@@ -245,9 +223,7 @@ export function SelfHealWorkshopPanel() {
     blocked: proposals.filter((p) => p.riskLevel === "BLOCKED").length,
   };
 
-  const lastFetchedText = lastFetched
-    ? new Date(lastFetched).toLocaleTimeString()
-    : "never";
+  const lastFetchedText = fetchSequence > 0 ? `check ${fetchSequence}` : "never";
 
   return (
     <div className="selfheal-workshop-panel" role="region" aria-label="SelfHeal Workshop">
@@ -260,9 +236,7 @@ export function SelfHealWorkshopPanel() {
       </header>
 
       <div className="selfheal-stats">
-        <span className="stat total">
-          <strong>{counts.total}</strong> proposals
-        </span>
+        <span className="stat total"><strong>{counts.total}</strong> proposals</span>
         <span className="stat low">{counts.low} LOW</span>
         <span className="stat medium">{counts.medium} MEDIUM</span>
         <span className="stat high">{counts.high} HIGH</span>
@@ -270,14 +244,16 @@ export function SelfHealWorkshopPanel() {
       </div>
 
       <div className="selfheal-actions">
-        <button
-          className="refresh-btn"
-          onClick={fetchWorkshop}
-          disabled={loading}
-        >
+        <button className="refresh-btn" onClick={fetchWorkshop} disabled={loading}>
           {loading ? "Loading..." : "Refresh"}
         </button>
       </div>
+
+      {accessState === "admin_required" && (
+        <div className="selfheal-error" role="status">
+          <strong>Admin access required.</strong> Public live sessions can view the game, but the SelfHeal workshop endpoint remains locked.
+        </div>
+      )}
 
       {error && (
         <div className="selfheal-error">
@@ -286,13 +262,15 @@ export function SelfHealWorkshopPanel() {
       )}
 
       <div className="selfheal-proposals">
-        {proposals.length === 0 ? (
+        {accessState === "admin_required" ? (
+          <div className="empty-state">
+            <p>Workshop locked on this session.</p>
+            <small>Use an authenticated admin session to inspect deterministic dry-run proposals.</small>
+          </div>
+        ) : proposals.length === 0 ? (
           <div className="empty-state">
             <p>No proposals available.</p>
-            <small>
-              SelfHeal Workshop shows real issues detected from the system.
-              Press Refresh to re-check.
-            </small>
+            <small>SelfHeal Workshop shows real issues detected from the system. Press Refresh to re-check.</small>
           </div>
         ) : (
           proposals.map((proposal) => (
@@ -307,9 +285,7 @@ export function SelfHealWorkshopPanel() {
       </div>
 
       <footer className="selfheal-footer">
-        <small>
-          Read-only workshop · No auto-apply · Deterministic proposals
-        </small>
+        <small>Read-only workshop · No auto-apply · Deterministic proposals</small>
       </footer>
     </div>
   );
