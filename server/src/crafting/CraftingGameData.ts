@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { resolveContentFile } from "../modules/content/contentDataRoot.js";
 import { isInventoryItemId, type InventoryItemId } from "../inventory/InventoryTypes.js";
-import type { CraftingRecipe, RecipeIngredient, RecipeOutput } from "./CraftingTypes.js";
+import type { CraftingRecipe, RecipeId, RecipeIngredient, RecipeOutput } from "./CraftingTypes.js";
 import type { ProcessingStationType } from "./ProcessingStations.js";
 
 const STATION_TYPES: readonly ProcessingStationType[] = ["campfire", "furnace", "workbench"];
@@ -75,7 +75,7 @@ function normalizeRecipe(raw: unknown, file: string, index: number): CraftingRec
   if (!Array.isArray(outputs) || outputs.length === 0) fail(file, `recipes[${index}].outputs must be a non-empty array`);
 
   return Object.freeze({
-    id: readString(record, "id", file),
+    id: readString(record, "id", file) as RecipeId,
     title: readString(record, "title", file),
     requiredLevel: readInteger(record, "requiredLevel", file, 1),
     craftingXpReward: readInteger(record, "craftingXpReward", file, 0),
