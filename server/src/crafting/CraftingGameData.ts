@@ -74,6 +74,13 @@ function normalizeRecipe(raw: unknown, file: string, index: number): CraftingRec
   if (!Array.isArray(ingredients) || ingredients.length === 0) fail(file, `recipes[${index}].ingredients must be a non-empty array`);
   if (!Array.isArray(outputs) || outputs.length === 0) fail(file, `recipes[${index}].outputs must be a non-empty array`);
 
+  const normalizedIngredients = ingredients
+    .map((entry, ingredientIndex) => normalizeIngredient(entry, file, `recipes[${index}].ingredients[${ingredientIndex}]`))
+    .sort((a, b) => a.itemId.localeCompare(b.itemId));
+  const normalizedOutputs = outputs
+    .map((entry, outputIndex) => normalizeOutput(entry, file, `recipes[${index}].outputs[${outputIndex}]`))
+    .sort((a, b) => a.itemId.localeCompare(b.itemId));
+
   return Object.freeze({
     id: readString(record, "id", file) as RecipeId,
     title: readString(record, "title", file),
@@ -81,8 +88,8 @@ function normalizeRecipe(raw: unknown, file: string, index: number): CraftingRec
     craftingXpReward: readInteger(record, "craftingXpReward", file, 0),
     craftTicks: readInteger(record, "craftTicks", file, 1),
     stationType: normalizeStationType(record.stationType, file),
-    ingredients: Object.freeze(ingredients.map((entry, ingredientIndex) => normalizeIngredient(entry, file, `recipes[${index}].ingredients[${ingredientIndex}]`)).sort((a, b) => a.itemId.localeCompare(b.itemId))),
-    outputs: Object.freeze(outputs.map((entry, outputIndex) => normalizeOutput(entry, file, `recipes[${index}].outputs[${outputIndex}]`)).sort((a, b) => a.itemId.localeCompare(b.itemId))),
+    ingredients: normalizedIngredients,
+    outputs: normalizedOutputs,
   });
 }
 
