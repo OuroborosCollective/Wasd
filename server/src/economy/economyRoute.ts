@@ -1,7 +1,5 @@
 import express, { Router, type Response } from "express";
 import rateLimit from "express-rate-limit";
-import rateLimit from "express-rate-limit";
-import rateLimit from "express-rate-limit";
 import { stableHash32 } from "../core/determinism/AREDeterminism.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
@@ -12,6 +10,23 @@ import { npcQuestService } from "../quests/NpcQuestService.js";
 import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
 
 const router = Router();
+
+const economyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: "rate_limited" },
+});
+
+const buyResourceRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: "rate_limited" },
+});
+
 const tradeTransferRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
@@ -21,21 +36,6 @@ const tradeTransferRateLimiter = rateLimit({
 });
 
 router.use(express.json());
-const buyResourceRateLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-
-const economyLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 router.use(economyLimiter);
 
 const MAX_POSITION = 100_000;
@@ -108,7 +108,7 @@ router.post("/sell-all-resources", async (req, res) => {
   const playerPosition = parsePosition(req.body?.playerPosition);
   const vendorId = parseSafeId(req.body?.vendorId) ?? undefined;
   if (req.body?.playerPosition !== undefined && !playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
-router.post("/buy-resource", buyResourceRateLimiter, async (req, res) => {
+
   try {
     const result = await economyService.sellAllResources({ playerId: identity.playerId, playerPosition: playerPosition ?? undefined, vendorId, currentTick: currentServerTick() });
     res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
@@ -118,11 +118,11 @@ router.post("/buy-resource", buyResourceRateLimiter, async (req, res) => {
   }
 });
 
-router.post("/buy-resource", async (req, res) => {
+router.post("/buy-resource", buyResourceRateLimiter, async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
   if (!requireProductionAuth(identity, res)) return;
 
-router.post("/trade-transfer", tradeTransferRateLimiter, async (req, res) => {
+  const itemId = parseSafeId(req.body?.itemId);
   const quantity = parseQuantity(req.body?.quantity);
   const playerPosition = parsePosition(req.body?.playerPosition);
   const vendorId = parseSafeId(req.body?.vendorId) ?? undefined;
@@ -140,7 +140,7 @@ router.post("/trade-transfer", tradeTransferRateLimiter, async (req, res) => {
   }
 });
 
-router.post("/trade-transfer", async (req, res) => {
+router.post("/trade-transfer", tradeTransferRateLimiter, async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
   if (!requireProductionAuth(identity, res)) return;
 
