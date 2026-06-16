@@ -1,0 +1,32 @@
+[
+  {
+    "id": "wood_delivery_001",
+    "title": "Wood Delivery",
+    "giverNpcId": "npc_2",
+    "targetNpcId": "npc_2",
+    "objectiveType": "collect",
+    "requiredItemId": "wood_log",
+    "requiredCount": 5,
+    "prerequisiteQuestIds": ["starter_welcome"],
+    "reward": {
+      "gold": 75,
+      "xp": 125,
+      "itemId": "wooden_axe"
+    }
+  },
+  {
+    "id": "plank_delivery_001",
+    "title": "Plank Delivery",
+    "giverNpcId": "npc_3",
+    "targetNpcId": "npc_3",
+    "objectiveType": "collect",
+    "requiredItemId": "wood_plank",
+    "requiredCount": 10,
+    "prerequisiteQuestIds": ["wood_delivery_001"],
+    "reward": {
+      "gold": 150,
+      "xp": 250,
+      "itemId": "copper_axe"
+    }
+  }
+]
