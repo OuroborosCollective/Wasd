@@ -2,7 +2,7 @@
  * VENDOR STOCK STORE
  *
  * Server-authoritative in-memory vendor stock store.
- * Deterministic: No Math.random(), stable ordering, no Date.now().
+ * Deterministic: seeded/tick-safe runtime, stable ordering, no host-clock truth.
  */
 
 import {
@@ -14,10 +14,6 @@ import {
 export class VendorStockStore {
   private readonly stocks = new Map<string, VendorStockState>();
 
-  /**
-   * Get the stock state for a vendor.
-   * Creates a default empty state if not yet tracked.
-   */
   getStock(vendorId: string): VendorStockState {
     const existing = this.stocks.get(vendorId);
     if (existing) return existing;
@@ -27,20 +23,12 @@ export class VendorStockStore {
     return created;
   }
 
-  /**
-   * Get the quantity of a specific item in vendor stock.
-   * Returns 0 if vendor or item not found.
-   */
   getItemQuantity(vendorId: string, itemId: string): number {
     const state = this.getStock(vendorId);
     const qty = state.items[itemId];
     return typeof qty === "number" ? qty : 0;
   }
 
-  /**
-   * Add items to vendor stock.
-   * Returns the new stock state.
-   */
   addItems(vendorId: string, itemId: string, quantity: number): VendorStockState {
     const state = this.getStock(vendorId);
     const currentQty = this.getItemQuantity(vendorId, itemId);
@@ -60,22 +48,38 @@ export class VendorStockStore {
     return nextState;
   }
 
-  /**
-   * Replace a vendor's stock state entirely.
-   * Used for hydration from persistence.
-   */
+  removeItems(vendorId: string, itemId: string, quantity: number): VendorStockState | null {
+    const state = this.getStock(vendorId);
+    const currentQty = this.getItemQuantity(vendorId, itemId);
+    const removedQty = normalizeStockQuantity(quantity);
+
+    if (removedQty === 0 || currentQty < removedQty) return null;
+
+    const nextItems: Record<string, number> = { ...state.items };
+    const nextQty = currentQty - removedQty;
+    if (nextQty > 0) {
+      nextItems[itemId] = nextQty;
+    } else {
+      delete nextItems[itemId];
+    }
+
+    const nextState: VendorStockState = {
+      ...state,
+      items: Object.freeze(Object.fromEntries(Object.entries(nextItems).sort(([a], [b]) => a.localeCompare(b)))),
+    };
+
+    this.stocks.set(vendorId, nextState);
+    return nextState;
+  }
+
   replaceStock(vendorId: string, state: VendorStockState): void {
     this.stocks.set(vendorId, Object.freeze({
       vendorId: state.vendorId,
       schemaVersion: state.schemaVersion,
-      items: Object.freeze({ ...state.items }),
+      items: Object.freeze(Object.fromEntries(Object.entries(state.items).sort(([a], [b]) => a.localeCompare(b)))),
     }));
   }
 
-  /**
-   * Get all stock entries as an array for a vendor.
-   * Filters out zero-quantity items.
-   */
   getStockEntries(vendorId: string): Array<{ itemId: string; quantity: number }> {
     const state = this.getStock(vendorId);
     return Object.entries(state.items)
@@ -84,9 +88,6 @@ export class VendorStockStore {
       .sort((a, b) => a.itemId.localeCompare(b.itemId));
   }
 
-  /**
-   * Clear all stock for testing.
-   */
   clearForTests(): void {
     this.stocks.clear();
   }

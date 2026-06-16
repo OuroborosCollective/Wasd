@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "currency": "coin",
+  "items": [
+    { "itemId": "wood_log", "basePrice": 1, "sellable": true },
+    { "itemId": "raw_fish", "basePrice": 2, "sellable": true },
+    { "itemId": "copper_ore", "basePrice": 3, "sellable": true },
+    { "itemId": "wood_plank", "basePrice": 3, "sellable": true },
+    { "itemId": "cooked_fish", "basePrice": 4, "sellable": true },
+    { "itemId": "copper_ingot", "basePrice": 8, "sellable": true }
+  ]
+}

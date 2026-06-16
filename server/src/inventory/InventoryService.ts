@@ -2,7 +2,7 @@
  * INVENTORY SERVICE
  *
  * Server-authoritative inventory service with persistence hydration.
- * Deterministic: No Math.random(), no Date.now(), stable ordering.
+ * Deterministic: seeded/tick-safe runtime and stable ordering.
  */
 
 import { InventoryStore } from "./InventoryStore.js";
@@ -12,8 +12,9 @@ import {
 } from "./InventoryPersistence.js";
 import type {
   InventoryAddResult,
-  InventoryRemoveResult,
   InventoryItemId,
+  InventoryItemOrigin,
+  InventoryRemoveResult,
   PlayerInventoryState,
 } from "./InventoryTypes.js";
 
@@ -34,6 +35,7 @@ export class InventoryService {
     playerId: string;
     itemId: InventoryItemId | string;
     quantity: number;
+    origin?: InventoryItemOrigin;
   }): Promise<InventoryAddResult> {
     await this.hydratePlayer(input.playerId);
 
