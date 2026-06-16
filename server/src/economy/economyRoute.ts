@@ -1,4 +1,4 @@
-import express, { Router } from "express";
+import express, { Router, type Response } from "express";
 import { stableHash32 } from "../core/determinism/AREDeterminism.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
@@ -38,7 +38,7 @@ function parsePosition(value: unknown): { x: number; y: number } | null {
   return { x, y };
 }
 
-function requireProductionAuth(identity: { authenticated: boolean }, res: express.Response): boolean {
+function requireProductionAuth(identity: { authenticated: boolean }, res: Response): boolean {
   if (process.env.NODE_ENV === "production" && !identity.authenticated) {
     res.status(401).json({ ok: false, error: "authenticated_player_required" });
     return false;
