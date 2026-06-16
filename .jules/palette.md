@@ -16,3 +16,7 @@
 ## 2025-05-14 - [Consistency] Translating core interaction headers and adding keyboard hints
 **Learning:** Found that core interaction overlays (Trading, Workbench) were using hardcoded German labels in an otherwise English HUD, creating a jarring UX. Additionally, discoverability of the ESC shortcut to close these overlays was low.
 **Action:** Always ensure UI headers and ARIA labels are localized to the primary project language (English) and add <kbd>ESC</kbd> hints to interaction headers to reinforce keyboard navigation patterns found elsewhere in the app.
+
+## 2025-05-15 - ARIA Progressbar for Quest Objectives
+**Learning:** Raw numbers in quest objectives (e.g., "3/5") are not sufficiently descriptive for screen readers. Implementing the WAI-ARIA `progressbar` pattern (`role="progressbar"`, `aria-valuenow`, `aria-valuetext`) allows assistive technology to communicate progress meaningfully.
+**Action:** Use the `progressbar` pattern for all numeric progress indicators, pairing visual bars with descriptive `aria-valuetext` (e.g., "3 of 5 Orcs slain").
