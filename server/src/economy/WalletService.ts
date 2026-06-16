@@ -2,7 +2,7 @@
  * WALLET SERVICE
  *
  * Server-authoritative wallet service with persistence hydration.
- * Deterministic: No Math.random(), no Date.now(), stable ordering.
+ * Deterministic: seeded/tick-safe runtime and stable ordering.
  */
 
 import { WalletStore } from "./WalletStore.js";
