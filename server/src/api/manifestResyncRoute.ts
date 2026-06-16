@@ -15,6 +15,7 @@
 import { Router, Request, Response } from 'express';
 import type { WorldTick } from '../core/are/index.js';
 import { tickContextProvider } from '../core/are/TickSystemContextProvider.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 
 export interface ResyncRequest {
   /** Player ID requesting resync */
@@ -81,7 +82,7 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
    *   clientStateHash: string
    * }
    */
-  router.post('/resync', (req: Request, res: Response) => {
+  router.post('/resync', authMiddleware, (req: Request, res: Response) => {
     try {
       const { playerId, clientTick, clientStateHash } = req.body as ResyncRequest;
       
@@ -143,7 +144,7 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
    * 
    * Get a specific snapshot for debugging/audit.
    */
-  router.get('/snapshot/:tick', (req: Request, res: Response) => {
+  router.get('/snapshot/:tick', authMiddleware, (req: Request, res: Response) => {
     try {
       const tickParam = req.params.tick;
       const tick = parseInt(Array.isArray(tickParam) ? tickParam[0] : tickParam, 10);
@@ -174,7 +175,7 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
    * Verify a manifest without triggering resync.
    * Useful for clients to check their state validity.
    */
-  router.post('/verify', (req: Request, res: Response) => {
+  router.post('/verify', authMiddleware, (req: Request, res: Response) => {
     try {
       const { stateHash, tick } = req.body;
       
