@@ -66,8 +66,9 @@ describe("A5 economy market runtime", () => {
     expect(result.historyHash).toBeTruthy();
 
     const inventory = await inventoryService.getPlayerInventory("player_a");
+    const movements = inventoryStore.getMovementEvents("player_a");
     expect(inventory.slots.find((slot) => slot.itemId === "wood_log")?.quantity).toBe(2);
-    expect(inventoryStore.getMovementEvents("player_a").at(-1)?.origin?.source).toBe("trade_delta");
+    expect(movements[movements.length - 1]?.origin?.source).toBe("trade_delta");
     expect(history.list()).toHaveLength(1);
   });
 
