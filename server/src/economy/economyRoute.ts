@@ -1,6 +1,7 @@
 import express, { Router, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import rateLimit from "express-rate-limit";
+import rateLimit from "express-rate-limit";
 import { stableHash32 } from "../core/determinism/AREDeterminism.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
@@ -11,6 +12,14 @@ import { npcQuestService } from "../quests/NpcQuestService.js";
 import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
 
 const router = Router();
+const tradeTransferRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: "rate_limited" },
+});
+
 router.use(express.json());
 const buyResourceRateLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -113,7 +122,7 @@ router.post("/buy-resource", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
   if (!requireProductionAuth(identity, res)) return;
 
-  const itemId = parseSafeId(req.body?.itemId);
+router.post("/trade-transfer", tradeTransferRateLimiter, async (req, res) => {
   const quantity = parseQuantity(req.body?.quantity);
   const playerPosition = parsePosition(req.body?.playerPosition);
   const vendorId = parseSafeId(req.body?.vendorId) ?? undefined;
