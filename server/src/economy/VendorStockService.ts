@@ -2,7 +2,7 @@
  * VENDOR STOCK SERVICE
  *
  * Server-authoritative vendor stock service with persistence hydration.
- * Deterministic: No Math.random(), no Date.now(), stable ordering.
+ * Deterministic: seeded/tick-safe runtime and stable ordering.
  */
 
 import { VendorStockStore } from "./VendorStockStore.js";
