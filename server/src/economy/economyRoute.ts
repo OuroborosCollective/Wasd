@@ -1,4 +1,5 @@
 import express, { Router, type Response } from "express";
+import rateLimit from "express-rate-limit";
 import { stableHash32 } from "../core/determinism/AREDeterminism.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
@@ -10,6 +11,15 @@ import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
 
 const router = Router();
 router.use(express.json());
+
+const economyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.use(economyLimiter);
 
 const MAX_POSITION = 100_000;
 const MIN_POSITION = -100_000;
