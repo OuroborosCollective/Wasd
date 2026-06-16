@@ -1,21 +1,9 @@
 /**
  * PLAYER IDENTITY RESOLVER
  *
- * Server-authoritative player identity resolution for quest persistence.
- * Ensures client cannot freely choose production quest playerId unless the
- * explicit guest/dev playtest fallback is enabled.
- *
- * Rules:
- * - Auth identity wins over query/header/body playerId
- * - No Math.random() for identity selection
- * - No secrets logged
- * - Production fallback is only allowed for configured guest/dev playtest mode
- *
- * Priority:
- * 1. Auth middleware (user.id/sub/playerId)
- * 2. Session middleware (session.playerId/userId)
- * 3. Dev/playtest fallback (header/query/body playerId when enabled)
- * 4. Anonymous (no usable identity)
+ * Server-authoritative player identity resolution for gameplay persistence.
+ * Auth/session identity wins. Public 2D guest identity remains available unless
+ * production explicitly disables guest login through environment configuration.
  */
 
 export interface PlayerIdentity {
@@ -33,15 +21,22 @@ export interface PlayerIdentityRequestLike {
 }
 
 const TRUTHY_ENV = new Set(["1", "true", "yes", "on"]);
+const FALSY_ENV = new Set(["0", "false", "no", "off"]);
 
 function envTruthy(key: string): boolean {
   const value = process.env[key]?.trim().toLowerCase();
   return value ? TRUTHY_ENV.has(value) : false;
 }
 
+function envDefaultTrue(key: string): boolean {
+  const value = process.env[key]?.trim().toLowerCase();
+  if (!value) return true;
+  return !FALSY_ENV.has(value);
+}
+
 export function isDevPlayerIdentityFallbackEnabled(): boolean {
   if (process.env.NODE_ENV !== "production") return true;
-  return envTruthy("ALLOW_DEV_PLAYER_ID") || envTruthy("ALLOW_GUEST_LOGIN") || envTruthy("ALLOW_DEV_LOGIN");
+  return envDefaultTrue("ALLOW_GUEST_LOGIN") || envTruthy("ALLOW_DEV_LOGIN") || envTruthy("ALLOW_DEV_PLAYER_ID");
 }
 
 function firstHeaderValue(value: string | string[] | undefined): string | undefined {
@@ -53,7 +48,6 @@ function normalizePlayerId(value: unknown): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
 
-  // Stable, boring, safe ID format - alphanumeric with safe punctuation
   if (!/^[a-zA-Z0-9._:-]{1,96}$/.test(trimmed)) return null;
 
   return trimmed;
@@ -65,7 +59,6 @@ function bodyPlayerId(body: unknown): unknown {
 }
 
 export function resolveHttpPlayerIdentity(req: PlayerIdentityRequestLike): PlayerIdentity {
-  // 1. Prefer real auth middleware if it exists
   const authUser = req as Record<string, unknown>;
   const authId = normalizePlayerId(
     (authUser.user as Record<string, unknown>)?.id ??
@@ -81,7 +74,6 @@ export function resolveHttpPlayerIdentity(req: PlayerIdentityRequestLike): Playe
     };
   }
 
-  // 2. Optional session middleware
   const session = req as Record<string, unknown>;
   const sessionId = normalizePlayerId(
     (session.session as Record<string, unknown>)?.playerId ??
@@ -96,9 +88,6 @@ export function resolveHttpPlayerIdentity(req: PlayerIdentityRequestLike): Playe
     };
   }
 
-  // 3. Dev/playtest fallback only. This preserves per-guest HTTP state
-  // for the current 2D guest-login flow instead of collapsing everyone
-  // into the shared "anonymous" profile.
   if (isDevPlayerIdentityFallbackEnabled()) {
     const headerId = normalizePlayerId(
       firstHeaderValue(req.headers?.["x-player-id"]) ??
