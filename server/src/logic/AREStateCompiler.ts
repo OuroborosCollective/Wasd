@@ -74,23 +74,33 @@ export class AREStateCompiler extends EventEmitter {
 
     public async createDeltaSnapshot(state: WorldState): Promise<DeltaSnapshot> {
         const upserted: NPC[] = [];
+        const upsertedProjected: Record<string, unknown>[] = [];
         const deleted: string[] = [];
         const currentSerializedState: Map<string, string> = new Map();
 
-        for (const [id, npc] of [...state.npcs.entries()].sort(([a], [b]) => compareStableString(a, b))) {
-            const serialized = JSON.stringify(stableNpcProjection(npc));
+        // Bolt: Optimization - Iterate directly without O(N log N) sort of the entire population every tick.
+        for (const [id, npc] of state.npcs) {
+            const projected = stableNpcProjection(npc);
+            const serialized = JSON.stringify(projected);
             currentSerializedState.set(id, serialized);
 
             if (this.lastKnownState.get(id) !== serialized) {
                 upserted.push(npc);
+                upsertedProjected.push(projected);
             }
         }
 
-        for (const id of [...this.lastKnownState.keys()].sort(compareStableString)) {
+        // Bolt: Optimization - Iterate keys directly
+        for (const id of this.lastKnownState.keys()) {
             if (!state.npcs.has(id)) {
                 deleted.push(id);
             }
         }
+
+        // Bolt: Sort only the delta (U log U + D log D), which is typically much smaller than population N.
+        upserted.sort((a, b) => compareStableString(a.id, b.id));
+        upsertedProjected.sort((a, b) => compareStableString(String(a['id']), String(b['id'])));
+        deleted.sort(compareStableString);
 
         this.lastKnownState = currentSerializedState;
         const previousVersion = this.currentVersion;
@@ -100,7 +110,7 @@ export class AREStateCompiler extends EventEmitter {
             timestamp: this.currentVersion * ARE_STATE_COMPILER_TICK_MS,
             baseVersion: previousVersion,
             targetVersion: this.currentVersion,
-            integrityHash: this.computeIntegrityHash(upserted, deleted, previousVersion, this.currentVersion, state.version, state.checksum),
+            integrityHash: this.computeIntegrityHash(upsertedProjected, deleted, previousVersion, this.currentVersion, state.version, state.checksum),
             upserted,
             deleted
         };
@@ -109,7 +119,7 @@ export class AREStateCompiler extends EventEmitter {
     }
 
     private computeIntegrityHash(
-        upserted: NPC[],
+        upsertedProjected: Record<string, unknown>[],
         deleted: string[],
         baseVersion: number,
         targetVersion: number,
@@ -121,10 +131,9 @@ export class AREStateCompiler extends EventEmitter {
             targetVersion,
             worldVersion,
             worldChecksum,
-            upserted: upserted
-                .map(stableNpcProjection)
-                .sort((a, b) => compareStableString(String(a.id), String(b.id))),
-            deleted: [...deleted].sort(compareStableString),
+            // Bolt: Optimization - Projections are already pre-calculated and sorted in the delta loop
+            upserted: upsertedProjected,
+            deleted,
         });
         return `fnv1a32-integrity-${fnv1a32(raw)}`;
     }

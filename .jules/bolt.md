@@ -17,3 +17,7 @@
 ## 2025-05-24 - [Optimizing Persistence via Single-Pass Canonicalization]
 **Learning:** In PersistenceManager, performing separate `deepClone` (using `structuredClone`) and `canonicalize` (recursive sorting) passes was redundant. `structuredClone` has high overhead for simple JsonValue types. A single recursive pass that clones and sorts keys simultaneously is significantly more efficient and allows for immediate type conversion (BigInt, Date).
 **Action:** Consolidate multiple object traversals into a single recursive pass when performing both cloning and deterministic transformation/canonicalization.
+
+## 2026-06-16 - [Optimizing AREStateCompiler Snapshots]
+**Learning:** Sorting the entire population in a simulation loop to generate delta snapshots is an (N \log N)$ bottleneck. By iterating directly and sorting only the delta (changed items), complexity drops to (N)$ for the common case where  \ll N$. Caching projections during comparison also avoids redundant (N)$ transformation work.
+**Action:** Minimize sorting in high-frequency loops by only sorting the resulting deltas rather than the source population.
