@@ -1,8 +1,7 @@
 /**
  * CRAFTING SERVICE
  *
- * Server-authoritative crafting service.
- * Deterministic: No Math.random(), no Date.now(), stable recipe ordering.
+ * Server-authoritative crafting service with stable recipe ordering.
  * Station proximity required for station-bound recipes.
  */
 
