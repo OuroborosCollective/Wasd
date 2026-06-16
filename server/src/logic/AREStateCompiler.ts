@@ -31,14 +31,20 @@ export interface DeltaSnapshot {
     deleted: string[];
 }
 
+function compareStableString(a: string, b: string): number {
+    if (a < b) return -1;
+    if (a > b) return 1;
+    return 0;
+}
+
 function stableNpcProjection(npc: NPC): Record<string, unknown> {
     return {
         id: npc.id,
         profile: npc.profile,
         genealogy: {
             generation: npc.genealogy.generation,
-            lineage: [...npc.genealogy.lineage].sort(),
-            mutations: [...npc.genealogy.mutations].sort(),
+            lineage: [...npc.genealogy.lineage].sort(compareStableString),
+            mutations: [...npc.genealogy.mutations].sort(compareStableString),
         },
         stats: {
             integrity: npc.stats.integrity,
@@ -71,7 +77,7 @@ export class AREStateCompiler extends EventEmitter {
         const deleted: string[] = [];
         const currentSerializedState: Map<string, string> = new Map();
 
-        for (const [id, npc] of [...state.npcs.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+        for (const [id, npc] of [...state.npcs.entries()].sort(([a], [b]) => compareStableString(a, b))) {
             const serialized = JSON.stringify(stableNpcProjection(npc));
             currentSerializedState.set(id, serialized);
 
@@ -80,7 +86,7 @@ export class AREStateCompiler extends EventEmitter {
             }
         }
 
-        for (const id of [...this.lastKnownState.keys()].sort()) {
+        for (const id of [...this.lastKnownState.keys()].sort(compareStableString)) {
             if (!state.npcs.has(id)) {
                 deleted.push(id);
             }
@@ -117,8 +123,8 @@ export class AREStateCompiler extends EventEmitter {
             worldChecksum,
             upserted: upserted
                 .map(stableNpcProjection)
-                .sort((a, b) => String(a.id).localeCompare(String(b.id))),
-            deleted: [...deleted].sort(),
+                .sort((a, b) => compareStableString(String(a.id), String(b.id))),
+            deleted: [...deleted].sort(compareStableString),
         });
         return `fnv1a32-integrity-${fnv1a32(raw)}`;
     }
@@ -140,7 +146,7 @@ export class AREStateCompiler extends EventEmitter {
 
     private async processGenealogyShift(npcs: NPC[], threshold: number): Promise<void> {
         const BATCH_SIZE = 100;
-        const orderedNpcs = [...npcs].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+        const orderedNpcs = [...npcs].sort((a, b) => compareStableString(a.id, b.id));
 
         for (let i = 0; i < orderedNpcs.length; i += BATCH_SIZE) {
             const batch = orderedNpcs.slice(i, i + BATCH_SIZE);
