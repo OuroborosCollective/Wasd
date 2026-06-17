@@ -47,6 +47,7 @@ canvas { display: block; filter: saturate(1.16) contrast(1.08); touch-action: no
 .cz-enter { width: 100%; border: 0; border-radius: 18px; padding: 15px 18px; color: #05060b; background: linear-gradient(135deg, var(--cz-cyan), var(--cz-gold)); font-weight: 950; letter-spacing: 0.08em; text-transform: uppercase; box-shadow: 0 0 24px rgba(0, 229, 255, 0.22); }
 .cz-hints { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
 .cz-hints span { border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; padding: 7px 10px; color: var(--cz-muted); background: rgba(255,255,255,0.04); font-size: 12px; }
+.cz-kbd { background: rgba(0,229,255,0.15); border: 1px solid rgba(0,229,255,0.3); border-radius: 4px; padding: 1px 5px; font-size: 11px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--cz-cyan); font-weight: 800; display: inline-block; vertical-align: middle; }
 
 .az-shell { position: relative; width: 100%; height: 100%; overflow: hidden; background: radial-gradient(circle at 50% 18%, rgba(0,229,255,.14), transparent 34%), linear-gradient(180deg, #121426 0%, #142318 58%, #07100b 100%); }
 .az-shell::before { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,.032) 1px, transparent 1px); background-size: 44px 44px; mask-image: radial-gradient(circle at 50% 48%, black 0%, transparent 78%); }

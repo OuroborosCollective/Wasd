@@ -16,3 +16,7 @@
 ## 2025-05-14 - [Consistency] Translating core interaction headers and adding keyboard hints
 **Learning:** Found that core interaction overlays (Trading, Workbench) were using hardcoded German labels in an otherwise English HUD, creating a jarring UX. Additionally, discoverability of the ESC shortcut to close these overlays was low.
 **Action:** Always ensure UI headers and ARIA labels are localized to the primary project language (English) and add <kbd>ESC</kbd> hints to interaction headers to reinforce keyboard navigation patterns found elsewhere in the app.
+
+## 2026-06-17 - Accessible Keyboard Shortcut Hints
+**Learning:** Adding visual `<kbd>` hints improves discoverability, but they should not be hidden from screen readers with `aria-hidden="true"` if they are the primary way a user learns about shortcuts. Instead, use the standard `aria-keyshortcuts` attribute on the parent interactive element (button/link) to programmatically associate the shortcut with the action.
+**Action:** Use `.cz-kbd` for styling shortcuts and always pair them with `aria-keyshortcuts` on the parent for full A11y support.

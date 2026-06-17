@@ -51,7 +51,9 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
       <aside className="quest-preview-panel" data-testid="quest-preview-empty" aria-label="Quest preview">
         <small>Quest Preview</small>
         <strong>No active quest</strong>
-        <button type="button" onClick={onOpenJournal}>Quest Journal</button>
+        <button type="button" onClick={onOpenJournal} aria-keyshortcuts="q">
+          <kbd className="cz-kbd">Q</kbd> Quest Journal
+        </button>
       </aside>
     );
   }
@@ -71,7 +73,9 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
         </div>
       )}
 
-      <button type="button" onClick={onOpenJournal}>Quest Journal</button>
+      <button type="button" onClick={onOpenJournal} aria-keyshortcuts="q">
+        <kbd className="cz-kbd">Q</kbd> Quest Journal
+      </button>
     </aside>
   );
 }

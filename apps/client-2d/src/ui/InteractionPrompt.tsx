@@ -14,6 +14,7 @@ export function InteractionPrompt({ target, onInteract }: Props) {
       type="button"
       onClick={onInteract}
       aria-label={`Interact with ${target.label}`}
+      aria-keyshortcuts="e"
       style={{
         position: "fixed",
         left: "50%",
@@ -34,17 +35,7 @@ export function InteractionPrompt({ target, onInteract }: Props) {
         boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
       }}
     >
-      <kbd
-        style={{
-          background: "rgba(0,229,255,0.2)",
-          border: "1px solid rgba(0,229,255,0.4)",
-          borderRadius: "4px",
-          padding: "2px 6px",
-          fontSize: "12px",
-          fontFamily: "monospace",
-          color: "#00e5ff",
-        }}
-      >
+      <kbd className="cz-kbd">
         E
       </kbd>
       <span>{target.label}</span>
