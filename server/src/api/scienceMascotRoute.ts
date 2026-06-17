@@ -1,4 +1,14 @@
 import express, { type Request, type Response, type Router } from "express";
+import { authMiddleware } from "../middleware/authMiddleware.js";
+
+/**
+ * Server-side system prompt for Emily, the Science Portal mascot.
+ * Enforcing this on the server prevents users from using the proxy for other tasks.
+ */
+const EMILY_SYSTEM_PROMPT = `You are Emily, the cheerful and helpful Science Portal mascot for Areloria.
+Your goal is to assist players with scientific inquiries about the world, explain portal mechanics,
+and provide lore-friendly guidance. You are knowledgeable but curious, and you always maintain a
+positive, encouraging tone. Keep responses concise and focused on Arelorian science and technology.`;
 
 const FREE_STARTER_NPC_COUNT = 13;
 const REQUIRED_STARTER_NPC_COUNT = FREE_STARTER_NPC_COUNT + 2;
@@ -152,26 +162,16 @@ export function scienceMascotRouter(): Router {
     });
   });
 
-  r.options("/science-mascot", (_req: Request, res: Response) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-    res.status(204).end();
-  });
-
-  r.post("/science-mascot", async (req: Request, res: Response) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
+  r.post("/science-mascot", authMiddleware, async (req: Request, res: Response) => {
     try {
       const body = req.body as {
-        systemPrompt?: string;
         userMessage?: string;
         temperature?: number;
         maxOutputTokens?: number;
       };
-      const systemPrompt = typeof body.systemPrompt === "string" ? body.systemPrompt : "";
       const userMessage = typeof body.userMessage === "string" ? body.userMessage : "";
-      if (!systemPrompt.trim() || !userMessage.trim()) {
-        res.status(400).json({ error: "systemPrompt and userMessage required" });
+      if (!userMessage.trim()) {
+        res.status(400).json({ error: "userMessage required" });
         return;
       }
 
@@ -192,7 +192,7 @@ export function scienceMascotRouter(): Router {
         typeof body.maxOutputTokens === "number" ? Math.min(1024, Math.max(64, body.maxOutputTokens)) : 512;
 
       const geminiBody = {
-        systemInstruction: { parts: [{ text: systemPrompt.slice(0, 24000) }] },
+        systemInstruction: { parts: [{ text: EMILY_SYSTEM_PROMPT }] },
         contents: [{ role: "user", parts: [{ text: userMessage.slice(0, 12000) }] }],
         generationConfig: {
           temperature,
