@@ -152,6 +152,7 @@ export function NpcContextWindow({
 
               <button
                 onClick={onClose}
+                aria-label="Close dialogue"
                 className="w-8 h-8 flex items-center justify-center"
                 style={{
                   width: 40,

@@ -126,6 +126,8 @@ export function NpcInteractionMenu({
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
             role="menuitem"
+            aria-label={`${item.label} (Shortcut ${item.shortcut})`}
+            aria-keyshortcuts={item.shortcut}
             style={{
               // Animation: staggered entrance
               animation: `menu-item-enter 0.3s ease-out ${index * 0.05}s both`,
