@@ -134,9 +134,19 @@ export class WorldStateRegistry {
   }
 
   private cloneState(state: WorldState): WorldState {
+    const clonedEntities = new Map<string, Entity>();
+    for (const [id, entity] of state.entities) {
+      // Bolt: Optimization - Manual spread cloning is significantly faster than JSON.parse(JSON.stringify())
+      // for objects with stable schemas. We clone the entity and its metadata to ensure state isolation
+      // without the heavy overhead of full serialization.
+      clonedEntities.set(id, {
+        ...entity,
+        metadata: entity.metadata ? { ...entity.metadata } : {},
+      });
+    }
     return {
       tick: state.tick,
-      entities: new Map(JSON.parse(JSON.stringify(Array.from(state.entities)))),
+      entities: clonedEntities,
     };
   }
 }

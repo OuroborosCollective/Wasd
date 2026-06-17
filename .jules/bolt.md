@@ -17,3 +17,7 @@
 ## 2025-05-24 - [Optimizing Persistence via Single-Pass Canonicalization]
 **Learning:** In PersistenceManager, performing separate `deepClone` (using `structuredClone`) and `canonicalize` (recursive sorting) passes was redundant. `structuredClone` has high overhead for simple JsonValue types. A single recursive pass that clones and sorts keys simultaneously is significantly more efficient and allows for immediate type conversion (BigInt, Date).
 **Action:** Consolidate multiple object traversals into a single recursive pass when performing both cloning and deterministic transformation/canonicalization.
+
+## 2025-05-24 - [Optimizing WorldState Cloning in WorldStateRegistry]
+**Learning:** In highly frequent state updates (e.g., 100ms ticks in `WorldStateRegistry`), the `JSON.parse(JSON.stringify(Array.from(map)))` pattern is a major bottleneck. Manual Map iteration combined with shallow spread cloning for entities and their metadata provides a significant performance boost while maintaining necessary state isolation.
+**Action:** Replace JSON-based cloning in tick-based state management with manual iteration and tiered spread cloning (entity + metadata) for stable schemas.
