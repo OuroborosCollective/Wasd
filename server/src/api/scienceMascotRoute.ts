@@ -1,5 +1,6 @@
 import express, { type Request, type Response, type Router } from "express";
 import { authMiddleware } from "../middleware/authMiddleware.js";
+import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 
 /**
  * Server-side system prompt for Emily, the Science Portal mascot.
@@ -162,7 +163,7 @@ export function scienceMascotRouter(): Router {
     });
   });
 
-  r.post("/science-mascot", authMiddleware, async (req: Request, res: Response) => {
+  r.post("/science-mascot", adminRateLimiter, authMiddleware, async (req: Request, res: Response) => {
     try {
       const body = req.body as {
         userMessage?: string;
