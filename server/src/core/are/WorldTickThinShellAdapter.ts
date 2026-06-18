@@ -107,6 +107,7 @@ export class WorldTickAdapter {
   readonly npcSystem: NPCSystem;
   readonly deterministicLootDirector: { getAllLoot(): LootEntity[] };
   private npcGameDataReport: NpcGameDataLoadReport = emptyNpcLoadReport();
+  private appliedMoveIntentTotal = 0;
 
   readonly chunkSystem = unavailablePort('ChunkRuntimePort', 'No canonical chunk runtime provider is registered on this adapter yet. Use WorldTickThinShell world-brain snapshots for chunk truth.');
   readonly observerEngine = new TransportObserverEngine();
@@ -148,7 +149,7 @@ export class WorldTickAdapter {
   };
 
   readonly liveHeal = {
-    getStatus: () => ({ tickCount: this.tickCount, autoRepair: autoRepairService.getStatus(), usage: { prompt_tokens: 0, completion_tokens: 0 }, areShadow: { replayBufferSize: 0, lastSnapshot: null }, electroweakPruning: { ttlTicks: 1200, stats: {} }, emergence: { events: [] }, npcGameData: this.npcGameDataReport, runtimePorts: this.getRuntimePortDiagnostics() }),
+    getStatus: () => ({ tickCount: this.tickCount, autoRepair: autoRepairService.getStatus(), usage: { prompt_tokens: 0, completion_tokens: 0 }, areShadow: { replayBufferSize: 0, lastSnapshot: null }, electroweakPruning: { ttlTicks: 1200, stats: {} }, emergence: { events: [] }, npcGameData: this.npcGameDataReport, runtimePorts: this.getRuntimePortDiagnostics(), playerRuntime: this.playerSystem.getDiagnostics(), appliedMoveIntentTotal: this.appliedMoveIntentTotal }),
     flush: () => {},
   };
   readonly assetHealthService = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
@@ -173,11 +174,14 @@ export class WorldTickAdapter {
     // This ensures WorldTickThinShell.getWorldStateForTick() always has data
     this.thinShell.registerWorldStateProvider({
       id: 'adapter-internal',
-      getWorldState: (_context) => ({
-        npcs: this.npcSystem.getAllNPCs(),
-        players: this.playerSystem.getAllPlayers(),
-        loot: this.deterministicLootDirector.getAllLoot(),
-      }),
+      getWorldState: (_context) => {
+        this.appliedMoveIntentTotal += this.playerSystem.applyQueuedMoveIntents(this.tickCount, Number((this as any).client2DMoveSpeed ?? 5));
+        return {
+          npcs: this.npcSystem.getAllNPCs(),
+          players: this.playerSystem.getAllPlayers(),
+          loot: this.deterministicLootDirector.getAllLoot(),
+        };
+      },
     });
 
     console.log(`[WorldTickAdapter] Initialized with RealNPCSystem, game-data NPCs=${this.npcGameDataReport.npcsLoaded}, NPCTickSystem, deterministicLootDirector, and explicit unavailable runtime ports`);
