@@ -18,10 +18,18 @@ export interface ResyncResponse {
   state: unknown;
   snapshotTick: number;
   snapshotHash: string;
-  error?: string;
+}
+
+export interface ManifestErrorResponse {
+  ok: false;
+  error: string;
 }
 
 const paramText = (value: unknown): string => Array.isArray(value) ? String(value[0] ?? '') : typeof value === 'string' ? value : '';
+
+function manifestError(error: string): ManifestErrorResponse {
+  return { ok: false, error };
+}
 
 export function createManifestResyncRouter(worldTick: WorldTick): Router {
   const router = Router();
@@ -37,7 +45,7 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
         replayGuardNonces: manager.getReplayGuard().getNonceCount(),
       });
     } catch (error) {
-      res.status(500).json({ ok: false, error: String(error) });
+      res.status(500).json(manifestError(String(error)));
     }
   });
 
@@ -45,7 +53,7 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
     try {
       const { playerId, clientTick, clientStateHash } = req.body as ResyncRequest;
       if (!playerId || typeof clientTick !== 'number') {
-        res.status(400).json({ ok: false, error: 'Missing required fields: playerId, clientTick' } as ResyncResponse);
+        res.status(400).json(manifestError('Missing required fields: playerId, clientTick'));
         return;
       }
 
@@ -62,7 +70,7 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
 
       const divergenceManifest = worldTick.handleClientDivergence(clientTick, clientStateHash || '');
       if (divergenceManifest) {
-        (response as any).divergence = {
+        (response as ResyncResponse & { divergence?: unknown }).divergence = {
           divergenceTick: clientTick,
           divergedComponents: divergenceManifest.divergence?.divergedComponents ?? [],
         };
@@ -70,7 +78,7 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
 
       res.json(response);
     } catch (error) {
-      res.status(500).json({ ok: false, error: String(error) } as ResyncResponse);
+      res.status(500).json(manifestError(String(error)));
     }
   });
 
@@ -78,7 +86,7 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
     try {
       const tick = parseInt(paramText(req.params.tick), 10);
       if (Number.isNaN(tick)) {
-        res.status(400).json({ ok: false, error: 'Invalid tick number' });
+        res.status(400).json(manifestError('Invalid tick number'));
         return;
       }
 
@@ -91,7 +99,7 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
         note: 'Snapshot storage is not yet available; current manifest metadata returned.',
       });
     } catch (error) {
-      res.status(500).json({ ok: false, error: String(error) });
+      res.status(500).json(manifestError(String(error)));
     }
   });
 
@@ -99,7 +107,7 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
     try {
       const { stateHash, tick } = req.body;
       if (!stateHash || typeof tick !== 'number') {
-        res.status(400).json({ ok: false, error: 'Missing required fields: stateHash, tick' });
+        res.status(400).json(manifestError('Missing required fields: stateHash, tick'));
         return;
       }
 
@@ -114,7 +122,7 @@ export function createManifestResyncRouter(worldTick: WorldTick): Router {
         tickDiff: Math.abs(tickContextProvider.getContext().tickId - tick),
       });
     } catch (error) {
-      res.status(500).json({ ok: false, error: String(error) });
+      res.status(500).json(manifestError(String(error)));
     }
   });
 
