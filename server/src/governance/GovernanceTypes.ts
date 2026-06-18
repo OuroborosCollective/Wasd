@@ -51,10 +51,29 @@ export interface GovernanceActor {
 }
 
 export type GovernanceAction =
-  | { readonly type: "setTaxRate"; readonly territoryId: string; readonly taxRatePerMille: number }
-  | { readonly type: "setLawFlag"; readonly territoryId: string; readonly lawFlag: string; readonly enabled: boolean }
-  | { readonly type: "assignGuardBudget"; readonly territoryId: string; readonly resourceBudget: number; readonly guardBudget: number; readonly militiaPool: number }
-  | { readonly type: "declareConflictState"; readonly territoryId: string; readonly conflictState: ConflictState };
+  | {
+      readonly type: "setTaxRate";
+      readonly territoryId: string;
+      readonly taxRatePerMille: number;
+    }
+  | {
+      readonly type: "setLawFlag";
+      readonly territoryId: string;
+      readonly lawFlag: string;
+      readonly enabled: boolean;
+    }
+  | {
+      readonly type: "assignGuardBudget";
+      readonly territoryId: string;
+      readonly resourceBudget: number;
+      readonly guardBudget: number;
+      readonly militiaPool: number;
+    }
+  | {
+      readonly type: "declareConflictState";
+      readonly territoryId: string;
+      readonly conflictState: ConflictState;
+    };
 
 export interface GovernanceActionContext {
   readonly actor: GovernanceActor;
