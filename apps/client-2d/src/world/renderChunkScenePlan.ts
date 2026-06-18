@@ -1,9 +1,9 @@
 import { Container, Graphics, Sprite, type Texture } from "pixi.js";
 import type { ChunkScenePlan, KappaInt } from "@wasd/shared";
 import { fromKappaInt } from "@wasd/shared";
-import { make2dProp } from "../stackedProps";
+import { make2dProp, resolveVisualCropPolicy } from "../stackedProps";
 import { iso3 } from "../isometricProjection";
-import type { WorldPlanAssetBinder, WorldPlanRenderContext } from "./WorldPlanRenderTypes";
+import type { BoundAsset, WorldPlanAssetBinder, WorldPlanRenderContext } from "./WorldPlanRenderTypes";
 import { buildAllChunkContexts, type ChunkBindingContexts } from "./AssetBindingContextFactory";
 
 const TILE_W = 96;
@@ -46,13 +46,22 @@ function roadDiamond(): Graphics {
   return g;
 }
 
-function roadTile(texture: Texture | null): Container {
-  if (!texture) return roadDiamond();
-  const sprite = new Sprite(texture);
-  sprite.anchor.set(0.5, 0.5);
-  sprite.width = TILE_W;
-  sprite.height = TILE_H;
+function tileSprite(bound: BoundAsset, fallback: () => Container): Container {
+  if (!bound.texture) return fallback();
+  const crop = resolveVisualCropPolicy(bound.visualSignature);
+  const sprite = new Sprite(bound.texture);
+  sprite.anchor.set(crop.anchorX, crop.anchorY);
+  sprite.width = TILE_W + crop.paddingX * 2;
+  sprite.height = TILE_H + crop.paddingY * 2;
   return sprite;
+}
+
+function roadTile(bound: BoundAsset): Container {
+  return tileSprite(bound, roadDiamond);
+}
+
+function terrainTile(terrainType: string, bound: BoundAsset): Container {
+  return tileSprite(bound, () => terrainDiamond(terrainType));
 }
 
 function fallbackProp(): Container {
@@ -106,7 +115,13 @@ export function renderChunkScenePlan(plan: ChunkScenePlan, binder: WorldPlanAsse
   const bindingContexts = buildContexts(plan, renderOptions);
 
   for (const cell of plan.terrain) {
-    const tile = terrainDiamond(cell.terrainType);
+    const bound = binder.bindTerrainWithContext(cell.terrainType, {
+      seed: `${plan.id}:terrain:${cell.terrainType}:${String(cell.kappaPos.x)}:${String(cell.kappaPos.z)}`,
+      biome: renderOptions.biomeId,
+      lod: renderOptions.lod,
+      variantHint: cell.terrainType,
+    });
+    const tile = terrainTile(cell.terrainType, bound);
     place(tile, cell.kappaPos.x, cell.kappaPos.z, ctx.width, ctx.height);
     ctx.terrain.addChild(tile);
   }
@@ -115,7 +130,7 @@ export function renderChunkScenePlan(plan: ChunkScenePlan, binder: WorldPlanAsse
     const [xRaw, zRaw] = roadCell.split(":");
     const roadContext = bindingContexts.roadContexts.get(`${xRaw}:${zRaw}`);
     const bound = roadContext ? binder.bindRoadWithContext(roadType, roadContext) : binder.bindRoad(roadType, `${plan.id}:${roadCell}`);
-    const road = roadTile(bound.texture);
+    const road = roadTile(bound);
     place(road, ((Number(xRaw) * 1000) + 500) as KappaInt, ((Number(zRaw) * 1000) + 500) as KappaInt, ctx.width, ctx.height);
     ctx.terrain.addChild(road);
   }
@@ -123,7 +138,7 @@ export function renderChunkScenePlan(plan: ChunkScenePlan, binder: WorldPlanAsse
   for (const lot of plan.settlement.lots) {
     const buildingContext = bindingContexts.buildingContexts.get(lot.id);
     const bound = buildingContext ? binder.bindBuildingWithContext(lot.buildingType, buildingContext) : binder.bindBuilding(lot.buildingType, `${plan.id}:${lot.id}`);
-    const building = make2dProp(bound.entry, bound.texture, fallbackBuilding, lot.widthTiles >= 3 ? 220 : 176, lot.depthTiles >= 3 ? 220 : 180);
+    const building = make2dProp(bound.entry, bound.texture, fallbackBuilding, lot.widthTiles >= 3 ? 220 : 176, lot.depthTiles >= 3 ? 220 : 180, bound.visualSignature);
     place(building, lot.kappaPos.x, lot.kappaPos.z, ctx.width, ctx.height);
     ctx.props.addChild(building);
   }
@@ -132,7 +147,7 @@ export function renderChunkScenePlan(plan: ChunkScenePlan, binder: WorldPlanAsse
     const propContext = bindingContexts.propContexts.get(prop.id);
     const bound = propContext ? binder.bindPropWithContext(prop.propType, propContext) : binder.bindProp(prop.propType, `${plan.id}:${prop.id}`);
     const size = prop.propType === "tree" ? { w: 94, h: 128 } : prop.propType === "market_stall" ? { w: 112, h: 82 } : prop.propType === "well" ? { w: 86, h: 86 } : { w: 54, h: 54 };
-    const node = make2dProp(bound.entry, bound.texture, fallbackProp, size.w, size.h);
+    const node = make2dProp(bound.entry, bound.texture, fallbackProp, size.w, size.h, bound.visualSignature);
     place(node, prop.kappaPos.x, prop.kappaPos.z, ctx.width, ctx.height);
     ctx.props.addChild(node);
   }
