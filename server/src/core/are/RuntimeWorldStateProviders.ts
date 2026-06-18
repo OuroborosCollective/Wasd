@@ -63,6 +63,10 @@ function sliceFromPort(
   return Array.isArray(value) ? value : undefined;
 }
 
+function freezeSlice(slice: MutableWorldStateProviderSlice): WorldStateProviderSlice {
+  return Object.freeze(slice);
+}
+
 /**
  * NPC World State Provider
  * Provides NPCs from the NPCSystem
@@ -134,7 +138,11 @@ export class RuntimeAuthorityListProvider implements WorldStateProvider {
 
   getWorldState(_context: TickSystemContext): WorldStateProviderSlice {
     const values = sliceFromPort(this.port);
-    return values ? { [this.key]: values } : {};
+    if (!values) return {};
+
+    const slice: MutableWorldStateProviderSlice = {};
+    appendSliceField(slice, this.key, values);
+    return freezeSlice(slice);
   }
 }
 
@@ -149,20 +157,22 @@ export class GameplayAuthorityWorldStateProvider implements WorldStateProvider {
   constructor(private readonly ports: GameplayAuthorityPorts) {}
 
   getWorldState(_context: TickSystemContext): WorldStateProviderSlice {
-    return {
-      inventory: sliceFromPort(this.ports.inventory),
-      equipment: sliceFromPort(this.ports.equipment),
-      resources: sliceFromPort(this.ports.resources),
-      economy: sliceFromPort(this.ports.economy),
-      quests: sliceFromPort(this.ports.quests),
-      housing: sliceFromPort(this.ports.housing),
-      kingdoms: sliceFromPort(this.ports.kingdoms),
-      population: sliceFromPort(this.ports.population),
-      help: sliceFromPort(this.ports.help),
-      factions: sliceFromPort(this.ports.factions),
-      warfronts: sliceFromPort(this.ports.warfronts),
-      worldEvents: sliceFromPort(this.ports.worldEvents),
-    };
+    const slice: MutableWorldStateProviderSlice = {};
+
+    appendSliceField(slice, "inventory", sliceFromPort(this.ports.inventory));
+    appendSliceField(slice, "equipment", sliceFromPort(this.ports.equipment));
+    appendSliceField(slice, "resources", sliceFromPort(this.ports.resources));
+    appendSliceField(slice, "economy", sliceFromPort(this.ports.economy));
+    appendSliceField(slice, "quests", sliceFromPort(this.ports.quests));
+    appendSliceField(slice, "housing", sliceFromPort(this.ports.housing));
+    appendSliceField(slice, "kingdoms", sliceFromPort(this.ports.kingdoms));
+    appendSliceField(slice, "population", sliceFromPort(this.ports.population));
+    appendSliceField(slice, "help", sliceFromPort(this.ports.help));
+    appendSliceField(slice, "factions", sliceFromPort(this.ports.factions));
+    appendSliceField(slice, "warfronts", sliceFromPort(this.ports.warfronts));
+    appendSliceField(slice, "worldEvents", sliceFromPort(this.ports.worldEvents));
+
+    return freezeSlice(slice);
   }
 }
 
@@ -203,6 +213,6 @@ export class CompositeWorldStateProvider implements WorldStateProvider {
       appendSliceField(merged, "worldEvents", slice.worldEvents);
     }
 
-    return Object.freeze(merged);
+    return freezeSlice(merged);
   }
 }
