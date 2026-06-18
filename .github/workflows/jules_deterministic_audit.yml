@@ -19,9 +19,14 @@ jobs:
   audit_logic:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          show-progress: false
+      - name: Quiet checkout
+        run: |
+          set -euo pipefail
+          git init -q .
+          git remote add origin "https://github.com/${{ github.repository }}"
+          git -c protocol.version=2 fetch -q --no-tags --depth=1 origin "${{ github.sha }}"
+          git checkout -q --force FETCH_HEAD
+          git config --global --add safe.directory "$PWD"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
