@@ -815,7 +815,7 @@ let _validationSequenceCounter = 0;
 
 /**
  * Returns a deterministic tick-based timestamp for validation metadata.
- * Uses the ARE tick counter, not Date.now().
+ * Uses the ARE tick counter, not wall-clock time.
  */
 export function getValidationTimestamp(tickId?: number): number {
   // Use provided tickId if available, otherwise use internal counter
