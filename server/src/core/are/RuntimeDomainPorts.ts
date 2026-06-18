@@ -3,22 +3,97 @@ import type { WarfrontSectorKind } from "../../modules/warfront/warfrontTypes.js
 
 export type RuntimeWarfrontSectorKind = WarfrontSectorKind;
 
+export type RuntimePlayerSource = "login" | "client-2d" | "test" | "system";
+
+export interface RuntimePlayerSeed {
+  id: string;
+  name?: string;
+  role?: string;
+  source?: RuntimePlayerSource | string;
+  position?: { x?: number; y?: number; z?: number };
+  tick?: number;
+}
+
+function cleanPlayerId(id: unknown): string {
+  return String(id ?? "").trim();
+}
+
+function finiteNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export class RuntimePlayerSystem {
   private readonly players = new Map<string, any>();
 
+  /**
+   * Read-only lookup. This must never create state: callers that need a new
+   * player must prove login/presence causality through createPlayer or
+   * getOrCreatePlayerFromLogin.
+   */
   getPlayer(id: string): any | null {
-    const playerId = id.trim();
+    const playerId = cleanPlayerId(id);
     if (!playerId) return null;
+    return this.players.get(playerId) ?? null;
+  }
+
+  createPlayer(id: string, name = "Architect", role = "Explorer", source: RuntimePlayerSource | string = "login"): any {
+    return this.getOrCreatePlayerFromLogin({ id, name, role, source });
+  }
+
+  getOrCreatePlayerFromLogin(seed: RuntimePlayerSeed): any {
+    const playerId = cleanPlayerId(seed.id);
+    if (!playerId) return null;
+
     let player = this.players.get(playerId);
     if (!player) {
-      player = { id: playerId, gold: 0 };
+      const position = seed.position ?? {};
+      player = {
+        id: playerId,
+        name: String(seed.name ?? "Architect"),
+        class: String(seed.role ?? "Explorer"),
+        role: String(seed.role ?? "Explorer"),
+        source: String(seed.source ?? "login"),
+        createdAtTick: Number.isSafeInteger(seed.tick) ? seed.tick : 0,
+        gold: 0,
+        xp: 0,
+        level: 1,
+        health: 100,
+        maxHealth: 100,
+        mana: 25,
+        maxMana: 25,
+        inventory: [],
+        equipment: {},
+        quests: [],
+        position: {
+          x: finiteNumber(position.x, 0),
+          y: finiteNumber(position.y, 0),
+          z: finiteNumber(position.z, 0),
+        },
+        state: "idle",
+        isOffline: false,
+      };
       this.players.set(playerId, player);
     }
+
     return player;
+  }
+
+  upsertHydratedPlayer(player: any): any | null {
+    const playerId = cleanPlayerId(player?.id);
+    if (!playerId) return null;
+    const current = this.players.get(playerId);
+    const hydrated = current ? Object.assign(current, player, { id: playerId }) : { ...player, id: playerId };
+    this.players.set(playerId, hydrated);
+    return hydrated;
   }
 
   getAllPlayers(): any[] {
     return [...this.players.values()];
+  }
+
+  getDiagnostics(): { playerCount: number; source: string } {
+    return { playerCount: this.players.size, source: "explicit_login_or_hydration" };
   }
 }
 
