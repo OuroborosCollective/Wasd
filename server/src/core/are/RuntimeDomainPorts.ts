@@ -46,6 +46,16 @@ function stableIntentSort(a: RuntimeMoveIntent, b: RuntimeMoveIntent): number {
   return (a.sequenceId ?? 0) - (b.sequenceId ?? 0);
 }
 
+function resolveDisplayName(seedName: unknown, playerId: string): string {
+  const name = String(seedName ?? "").trim();
+  return name.length > 0 ? name : playerId;
+}
+
+function resolveRuntimeRole(seedRole: unknown): string {
+  const role = String(seedRole ?? "").trim();
+  return role.length > 0 ? role : "player";
+}
+
 export class RuntimePlayerSystem {
   private readonly players = new Map<string, any>();
   private readonly moveIntentQueue: RuntimeMoveIntent[] = [];
@@ -61,7 +71,7 @@ export class RuntimePlayerSystem {
     return this.players.get(playerId) ?? null;
   }
 
-  createPlayer(id: string, name = "Architect", role = "Explorer", source: RuntimePlayerSource | string = "login"): any {
+  createPlayer(id: string, name?: string, role?: string, source: RuntimePlayerSource | string = "login"): any {
     return this.getOrCreatePlayerFromLogin({ id, name, role, source });
   }
 
@@ -72,11 +82,12 @@ export class RuntimePlayerSystem {
     let player = this.players.get(playerId);
     if (!player) {
       const position = seed.position ?? {};
+      const role = resolveRuntimeRole(seed.role);
       player = {
         id: playerId,
-        name: String(seed.name ?? "Architect"),
-        class: String(seed.role ?? "Explorer"),
-        role: String(seed.role ?? "Explorer"),
+        name: resolveDisplayName(seed.name, playerId),
+        class: role,
+        role,
         source: String(seed.source ?? "login"),
         createdAtTick: Number.isSafeInteger(seed.tick) ? seed.tick : 0,
         gold: 0,
@@ -138,10 +149,18 @@ export class RuntimePlayerSystem {
 
     const currentTick = Number.isSafeInteger(tick) && tick >= 0 ? Math.trunc(tick) : 0;
     const safeSpeed = Number.isFinite(speed) && speed > 0 ? Number(speed) : 5;
-    const ready = this.moveIntentQueue
-      .splice(0, this.moveIntentQueue.length)
-      .filter((intent) => intent.acceptedAtTick <= currentTick)
-      .sort(stableIntentSort);
+    const queued = this.moveIntentQueue.splice(0, this.moveIntentQueue.length);
+    const ready: RuntimeMoveIntent[] = [];
+    const deferred: RuntimeMoveIntent[] = [];
+
+    for (const intent of queued) {
+      if (intent.acceptedAtTick <= currentTick) ready.push(intent);
+      else deferred.push(intent);
+    }
+
+    ready.sort(stableIntentSort);
+    deferred.sort(stableIntentSort);
+    this.moveIntentQueue.push(...deferred);
 
     for (const intent of ready) {
       const player = this.players.get(intent.playerId);
