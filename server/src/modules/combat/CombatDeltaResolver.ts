@@ -1,4 +1,4 @@
-import { createARESeed, SeededARERng } from "../../core/determinism/AREDeterminism.js";
+import { createARESeed, SeededARERng, type ARERng } from "../../core/determinism/AREDeterminism.js";
 
 export type CombatDeltaAction = "melee" | "spell";
 
@@ -118,7 +118,7 @@ function calculateCombatDamage(
   attacker: CombatDeltaEntityView,
   defender: CombatDeltaEntityView,
   weaponBonus: number,
-  rng: SeededARERng,
+  rng: ARERng,
 ): number {
   const atk = combatLevel(attacker);
   const def = combatLevel(defender);

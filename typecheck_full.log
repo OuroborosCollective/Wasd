@@ -1,0 +1,26 @@
+$ tsc --noEmit
+src/core/are/CanonicalLayerSeedSignals.ts(1,34): error TS6305: Output file '/app/packages/shared/dist/world/BiomeDirector.d.ts' has not been built from source file '/app/packages/shared/src/world/BiomeDirector.ts'.
+src/core/are/CanonicalLayerSeedSignals.ts(2,40): error TS6305: Output file '/app/packages/shared/dist/world/WorldDirector.d.ts' has not been built from source file '/app/packages/shared/src/world/WorldDirector.ts'.
+src/core/are/CanonicalLayerSeedSignals.ts(3,32): error TS6305: Output file '/app/packages/shared/dist/world/KappaMath.d.ts' has not been built from source file '/app/packages/shared/src/world/KappaMath.ts'.
+src/core/are/CanonicalLayerSeedSignals.ts(4,46): error TS6305: Output file '/app/packages/shared/dist/world/ScenePlanTypes.d.ts' has not been built from source file '/app/packages/shared/src/world/ScenePlanTypes.ts'.
+src/modules/combat/CombatDirector.ts(21,35): error TS2724: '"@wasd/shared"' has no exported member named 'ParsedSignature'. Did you mean 'parseItemSignature'?
+src/modules/combat/CombatDirector.ts(21,75): error TS2305: Module '"@wasd/shared"' has no exported member 'EquipmentState'.
+src/modules/combat/CombatDirector.ts(22,40): error TS2305: Module '"@wasd/shared"' has no exported member 'ItemSignature'.
+src/modules/inventory/InventoryDirector.ts(14,3): error TS2724: '"@wasd/shared/items"' has no exported member named 'EquipSlot'. Did you mean 'EQUIP_SLOTS'?
+src/modules/inventory/InventoryDirector.ts(16,3): error TS2305: Module '"@wasd/shared/items"' has no exported member 'ItemSignature'.
+src/modules/inventory/InventoryDirector.ts(17,3): error TS2305: Module '"@wasd/shared/items"' has no exported member 'ModularItem'.
+src/modules/inventory/InventoryDirector.ts(18,3): error TS2305: Module '"@wasd/shared/items"' has no exported member 'InventoryState'.
+src/modules/inventory/InventoryDirector.ts(19,3): error TS2305: Module '"@wasd/shared/items"' has no exported member 'EquipmentState'.
+src/modules/inventory/InventoryDirector.ts(20,3): error TS2305: Module '"@wasd/shared/items"' has no exported member 'PlayerInventorySnapshot'.
+src/modules/inventory/InventoryDirector.ts(21,3): error TS2305: Module '"@wasd/shared/items"' has no exported member 'InventoryIntent'.
+src/modules/inventory/InventoryDirector.ts(22,3): error TS2305: Module '"@wasd/shared/items"' has no exported member 'InventoryEvent'.
+src/modules/inventory/index.ts(8,8): error TS2724: '"@wasd/shared/items"' has no exported member named 'EquipSlot'. Did you mean 'EQUIP_SLOTS'?
+src/modules/inventory/index.ts(9,8): error TS2305: Module '"@wasd/shared/items"' has no exported member 'ItemSignature'.
+src/modules/inventory/index.ts(10,8): error TS2305: Module '"@wasd/shared/items"' has no exported member 'ModularItem'.
+src/modules/inventory/index.ts(11,8): error TS2305: Module '"@wasd/shared/items"' has no exported member 'InventoryState'.
+src/modules/inventory/index.ts(12,8): error TS2305: Module '"@wasd/shared/items"' has no exported member 'EquipmentState'.
+src/modules/inventory/index.ts(13,8): error TS2305: Module '"@wasd/shared/items"' has no exported member 'PlayerInventorySnapshot'.
+src/modules/inventory/index.ts(14,8): error TS2305: Module '"@wasd/shared/items"' has no exported member 'InventoryIntent'.
+src/modules/inventory/index.ts(15,8): error TS2305: Module '"@wasd/shared/items"' has no exported member 'InventoryEvent'.
+src/modules/world/LootDirector.ts(24,40): error TS2305: Module '"@wasd/shared"' has no exported member 'ItemSignature'.
+[ELIFECYCLE] Command failed with exit code 1.

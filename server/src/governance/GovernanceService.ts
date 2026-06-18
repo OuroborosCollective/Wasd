@@ -190,80 +190,83 @@ export class GovernanceService {
     current: GovernanceState,
     stateHash: string,
   ): GovernanceActionResult | ActionPatchResult {
-    if (action.type === "setTaxRate") {
-      const invalidTaxRate =
-        !Number.isSafeInteger(action.taxRatePerMille) ||
-        action.taxRatePerMille < 0 ||
-        action.taxRatePerMille > 1000;
-      if (invalidTaxRate) {
+    switch (action.type) {
+      case "setTaxRate": {
+        const invalidTaxRate =
+          !Number.isSafeInteger(action.taxRatePerMille) ||
+          action.taxRatePerMille < 0 ||
+          action.taxRatePerMille > 1000;
+        if (invalidTaxRate) {
+          return {
+            ok: false,
+            reason: "invalid_tax_rate",
+            territoryId: action.territoryId,
+            stateHash,
+          };
+        }
+        return { ok: true, patch: { taxRatePerMille: action.taxRatePerMille } };
+      }
+
+      case "setLawFlag": {
+        if (!this.registry.hasLaw(action.lawFlag)) {
+          return {
+            ok: false,
+            reason: "unknown_law",
+            territoryId: action.territoryId,
+            stateHash,
+          };
+        }
         return {
-          ok: false,
-          reason: "invalid_tax_rate",
-          territoryId: action.territoryId,
-          stateHash,
+          ok: true,
+          patch: {
+            lawFlags: Object.freeze({
+              ...orderedFlags(current.lawFlags),
+              [action.lawFlag]: action.enabled,
+            }),
+          },
         };
       }
-      return { ok: true, patch: { taxRatePerMille: action.taxRatePerMille } };
-    }
 
-    if (action.type === "setLawFlag") {
-      if (!this.registry.hasLaw(action.lawFlag)) {
+      case "assignGuardBudget": {
+        const budgets = [action.resourceBudget, action.guardBudget, action.militiaPool];
+        if (!budgets.every((value) => Number.isSafeInteger(value) && value >= 0)) {
+          return {
+            ok: false,
+            reason: "invalid_budget",
+            territoryId: action.territoryId,
+            stateHash,
+          };
+        }
         return {
-          ok: false,
-          reason: "unknown_law",
-          territoryId: action.territoryId,
-          stateHash,
+          ok: true,
+          patch: {
+            resourceBudget: action.resourceBudget,
+            guardBudget: action.guardBudget,
+            militiaPool: action.militiaPool,
+          },
         };
       }
-      return {
-        ok: true,
-        patch: {
-          lawFlags: Object.freeze({
-            ...orderedFlags(current.lawFlags),
-            [action.lawFlag]: action.enabled,
-          }),
-        },
-      };
-    }
 
-    if (action.type === "assignGuardBudget") {
-      const budgets = [action.resourceBudget, action.guardBudget, action.militiaPool];
-      if (!budgets.every((value) => Number.isSafeInteger(value) && value >= 0)) {
-        return {
-          ok: false,
-          reason: "invalid_budget",
-          territoryId: action.territoryId,
-          stateHash,
-        };
+      case "declareConflictState": {
+        if (!["peace", "tension", "open_conflict"].includes(action.conflictState)) {
+          return {
+            ok: false,
+            reason: "invalid_conflict_state",
+            territoryId: action.territoryId,
+            stateHash,
+          };
+        }
+        return { ok: true, patch: { conflictState: action.conflictState } };
       }
-      return {
-        ok: true,
-        patch: {
-          resourceBudget: action.resourceBudget,
-          guardBudget: action.guardBudget,
-          militiaPool: action.militiaPool,
-        },
-      };
-    }
 
-    if (action.type === "declareConflictState") {
-      if (!["peace", "tension", "open_conflict"].includes(action.conflictState)) {
+      default:
         return {
           ok: false,
           reason: "invalid_conflict_state",
-          territoryId: action.territoryId,
+          territoryId: (action as any).territoryId,
           stateHash,
         };
-      }
-      return { ok: true, patch: { conflictState: action.conflictState } };
     }
-
-    return {
-      ok: false,
-      reason: "invalid_conflict_state",
-      territoryId: action.territoryId,
-      stateHash,
-    };
   }
 
   private conflictBasePressure(conflictState: GovernanceState["conflictState"]): number {

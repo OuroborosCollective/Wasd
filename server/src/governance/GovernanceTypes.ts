@@ -50,30 +50,69 @@ export interface GovernanceActor {
   readonly territoryIds?: readonly string[];
 }
 
+export type GovernanceActionKind = "setTaxRate" | "setLawFlag" | "assignGuardBudget" | "declareConflictState";
+
 export type GovernanceAction =
   | {
+      readonly actionId?: string;
       readonly type: "setTaxRate";
       readonly territoryId: string;
       readonly taxRatePerMille: number;
+      readonly actorId?: string;
+      readonly tick?: number;
     }
   | {
+      readonly actionId?: string;
       readonly type: "setLawFlag";
       readonly territoryId: string;
       readonly lawFlag: string;
       readonly enabled: boolean;
+      readonly actorId?: string;
+      readonly tick?: number;
     }
   | {
+      readonly actionId?: string;
       readonly type: "assignGuardBudget";
       readonly territoryId: string;
       readonly resourceBudget: number;
       readonly guardBudget: number;
       readonly militiaPool: number;
+      readonly actorId?: string;
+      readonly tick?: number;
     }
   | {
+      readonly actionId?: string;
       readonly type: "declareConflictState";
       readonly territoryId: string;
       readonly conflictState: ConflictState;
+      readonly actorId?: string;
+      readonly tick?: number;
     };
+
+export type TerritoryLayer = TerritoryKind | "village_or_city" | "province_or_region" | "guild_or_faction_overlay";
+
+export interface TerritoryKey {
+  readonly id: string;
+  readonly layer: TerritoryLayer;
+  readonly parentId?: string;
+  readonly chunkKey?: string;
+}
+
+export interface GovernanceActionDiagnostic {
+  readonly code: string;
+  readonly message: string;
+  readonly sideChannel?: boolean;
+}
+
+export interface GovernanceActionEvaluation {
+  readonly actionId?: string;
+  readonly kind: string;
+  readonly status: string;
+  readonly supported: boolean;
+  readonly mutatesState: boolean;
+  readonly diagnostics: readonly GovernanceActionDiagnostic[];
+  readonly evaluationHash: string;
+}
 
 export interface GovernanceActionContext {
   readonly actor: GovernanceActor;
