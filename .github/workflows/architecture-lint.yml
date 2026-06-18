@@ -32,7 +32,7 @@ jobs:
         run: pnpm install --no-frozen-lockfile --ignore-scripts
 
       - name: Verify pnpm lockfile after normalization
-        run: pnpm install --no-frozen-lockfile --ignore-scripts --ignore-scripts
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
 
       - name: Run monorepo guard
         id: monorepo_guard
@@ -41,6 +41,9 @@ jobs:
 
       - name: Run architecture guard
         run: pnpm guard:architecture
+
+      - name: Run runtime truth guard
+        run: pnpm guard:runtime-truth
 
       - name: Stop on monorepo guard failure
         if: steps.monorepo_guard.outcome != 'success'
