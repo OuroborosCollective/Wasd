@@ -8,8 +8,8 @@ export class GovernanceTickSystem {
   private readonly snapshotAdapter: GovernanceSnapshotAdapter;
   private currentTick = 0;
 
-  constructor(registry: TerritoryRegistry = new TerritoryRegistry(), pressureAdapter?: GovernancePressureAdapter) {
-    this.service = new GovernanceService(registry, pressureAdapter);
+  constructor(registry: TerritoryRegistry = new TerritoryRegistry(), adapter?: GovernancePressureAdapter) {
+    this.service = new GovernanceService(registry, adapter);
     this.snapshotAdapter = new GovernanceSnapshotAdapter(this.service);
   }
 
@@ -18,7 +18,8 @@ export class GovernanceTickSystem {
   }
 
   tick(tick: number): GovernanceSnapshot {
-    this.currentTick = Number.isSafeInteger(tick) && tick >= 0 ? tick : this.currentTick;
+    const validTick = Number.isSafeInteger(tick) && tick >= 0;
+    this.currentTick = validTick ? tick : this.currentTick;
     return this.snapshotAdapter.composeSnapshot(this.currentTick);
   }
 }
