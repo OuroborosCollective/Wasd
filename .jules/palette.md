@@ -16,3 +16,7 @@
 ## 2025-05-14 - [Consistency] Translating core interaction headers and adding keyboard hints
 **Learning:** Found that core interaction overlays (Trading, Workbench) were using hardcoded German labels in an otherwise English HUD, creating a jarring UX. Additionally, discoverability of the ESC shortcut to close these overlays was low.
 **Action:** Always ensure UI headers and ARIA labels are localized to the primary project language (English) and add <kbd>ESC</kbd> hints to interaction headers to reinforce keyboard navigation patterns found elsewhere in the app.
+
+## 2025-05-22 - Standardizing NPC Dialogue Accessibility and Shortcuts
+**Learning:** Found that the NPC dialogue system had keyboard shortcuts (1-4, 0, ESC) but lacked visual hints for ESC and ARIA attributes for all shortcuts. Standardizing these hints with `<kbd>` and adding `aria-keyshortcuts`/`aria-label` ensures that both power users and users with assistive technologies have a consistent experience.
+**Action:** When implementing keyboard-driven menus or windows, always pair the visual `<kbd>` hint with `aria-keyshortcuts` on the interactive element. Ensure close buttons have clear `aria-label`s.
