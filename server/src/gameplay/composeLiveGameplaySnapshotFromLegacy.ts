@@ -1,5 +1,5 @@
 import { LiveGameplaySnapshotComposer, buildVendorEconomySnapshot, createEmptyVendorEconomySnapshot } from "./LiveGameplaySnapshotComposer.js";
-import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery, LiveGameplayCampNpc, LiveGameplayCampStock, LiveGameplayNpcMemory, LiveGameplayNpcRumor } from "./LiveGameplaySnapshotTypes.js";
+import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery, LiveGameplayCampNpc, LiveGameplayCampStock, LiveGameplayQuestProgress, LiveGameplayNpcMemory, LiveGameplayNpcRumor } from "./LiveGameplaySnapshotTypes.js";
 import { toLiveEquipmentSlots } from "./adapters/EquipmentSnapshotAdapter.js";
 import { toLiveInventoryItems } from "./adapters/InventorySnapshotAdapter.js";
 import { getWalletService, getVendorStockService } from "../economy/economyRuntime.js";
@@ -101,22 +101,13 @@ export interface ComposeLiveGameplaySnapshotFromLegacyInput {
   }[];
 }
 
-function toLiveNpcQuestProgress(quest: NpcQuestProgressSource) {
+function toLiveNpcQuestProgress(quest: NpcQuestProgressSource): LiveGameplayQuestProgress {
   const definition = npcQuestService.getQuestDefinition(quest.questId);
-
-  return {
+  const base = {
     questId: quest.questId,
     title: definition?.title ?? quest.questId,
     description: definition?.description ?? "",
     npcId: definition?.npcId ?? "",
-    reward: definition
-      ? {
-          coins: definition.reward.coins,
-          gatheringXp: definition.reward.gatheringXp,
-          craftingXp: definition.reward.craftingXp,
-          reputation: definition.reward.reputation,
-        }
-      : undefined,
     state: quest.state,
     objectives: quest.objectives.map((obj) => ({
       objectiveId: obj.objectiveId,
@@ -125,6 +116,18 @@ function toLiveNpcQuestProgress(quest: NpcQuestProgressSource) {
       required: obj.required,
       completed: obj.completed,
     })),
+  } satisfies Omit<LiveGameplayQuestProgress, "reward">;
+
+  if (!definition) return base;
+
+  return {
+    ...base,
+    reward: {
+      coins: definition.reward.coins,
+      gatheringXp: definition.reward.gatheringXp,
+      craftingXp: definition.reward.craftingXp,
+      reputation: definition.reward.reputation,
+    },
   };
 }
 
@@ -188,7 +191,7 @@ export async function composeLiveGameplaySnapshotFromLegacy(
 
       for (const slot of sortedSlots) {
         if (!slot.itemId) continue;
-        // Known gathering tool tier bonuses (deterministic, no Math.random)
+        // Known gathering tool tier bonuses (deterministic, no unseeded entropy)
         const tierMap: Record<string, Partial<Record<string, number>>> = {
           wooden_axe: { gatheringXp: 100 },
           copper_pickaxe: { gatheringXp: 100 },
