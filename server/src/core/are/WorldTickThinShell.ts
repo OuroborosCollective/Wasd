@@ -29,16 +29,26 @@ import {
 
 /**
  * World state slice provided by a single provider.
- * All fields are optional to allow partial providers.
+ *
+ * Every field is optional because a provider is allowed to expose only the
+ * runtime source it owns. Missing fields are normalized to empty readonly arrays
+ * after provider registration has already proved at least one real source exists.
  */
 export interface WorldStateProviderSlice {
   readonly npcs?: readonly unknown[];
   readonly players?: readonly unknown[];
   readonly loot?: readonly unknown[];
+  readonly inventory?: readonly unknown[];
+  readonly equipment?: readonly unknown[];
+  readonly resources?: readonly unknown[];
   readonly warfronts?: readonly unknown[];
   readonly economy?: readonly unknown[];
   readonly factions?: readonly unknown[];
   readonly quests?: readonly unknown[];
+  readonly housing?: readonly unknown[];
+  readonly kingdoms?: readonly unknown[];
+  readonly population?: readonly unknown[];
+  readonly help?: readonly unknown[];
   readonly worldEvents?: readonly unknown[];
 }
 
@@ -49,10 +59,17 @@ export interface TickContextWorldState {
   readonly npcs: readonly unknown[];
   readonly players: readonly unknown[];
   readonly loot: readonly unknown[];
+  readonly inventory: readonly unknown[];
+  readonly equipment: readonly unknown[];
+  readonly resources: readonly unknown[];
   readonly warfronts: readonly unknown[];
   readonly economy: readonly unknown[];
   readonly factions: readonly unknown[];
   readonly quests: readonly unknown[];
+  readonly housing: readonly unknown[];
+  readonly kingdoms: readonly unknown[];
+  readonly population: readonly unknown[];
+  readonly help: readonly unknown[];
   readonly worldEvents: readonly unknown[];
 }
 
@@ -79,10 +96,17 @@ const EMPTY_WORLD_STATE: ThinShellWorldState = Object.freeze({
   npcs: Object.freeze([]),
   players: Object.freeze([]),
   loot: Object.freeze([]),
+  inventory: Object.freeze([]),
+  equipment: Object.freeze([]),
+  resources: Object.freeze([]),
   warfronts: Object.freeze([]),
   economy: Object.freeze([]),
   factions: Object.freeze([]),
   quests: Object.freeze([]),
+  housing: Object.freeze([]),
+  kingdoms: Object.freeze([]),
+  population: Object.freeze([]),
+  help: Object.freeze([]),
   worldEvents: Object.freeze([]),
 });
 
@@ -92,10 +116,17 @@ function normalizeWorldState(value: WorldStateProviderSlice | null | undefined):
     npcs: Array.isArray(value.npcs) ? value.npcs : EMPTY_WORLD_STATE.npcs,
     players: Array.isArray(value.players) ? value.players : EMPTY_WORLD_STATE.players,
     loot: Array.isArray(value.loot) ? value.loot : EMPTY_WORLD_STATE.loot,
+    inventory: Array.isArray(value.inventory) ? value.inventory : EMPTY_WORLD_STATE.inventory,
+    equipment: Array.isArray(value.equipment) ? value.equipment : EMPTY_WORLD_STATE.equipment,
+    resources: Array.isArray(value.resources) ? value.resources : EMPTY_WORLD_STATE.resources,
     warfronts: Array.isArray(value.warfronts) ? value.warfronts : EMPTY_WORLD_STATE.warfronts,
     economy: Array.isArray(value.economy) ? value.economy : EMPTY_WORLD_STATE.economy,
     factions: Array.isArray(value.factions) ? value.factions : EMPTY_WORLD_STATE.factions,
     quests: Array.isArray(value.quests) ? value.quests : EMPTY_WORLD_STATE.quests,
+    housing: Array.isArray(value.housing) ? value.housing : EMPTY_WORLD_STATE.housing,
+    kingdoms: Array.isArray(value.kingdoms) ? value.kingdoms : EMPTY_WORLD_STATE.kingdoms,
+    population: Array.isArray(value.population) ? value.population : EMPTY_WORLD_STATE.population,
+    help: Array.isArray(value.help) ? value.help : EMPTY_WORLD_STATE.help,
     worldEvents: Array.isArray(value.worldEvents) ? value.worldEvents : EMPTY_WORLD_STATE.worldEvents,
   };
 }
@@ -191,23 +222,21 @@ export class WorldTickThinShell {
       a.id.localeCompare(b.id),
     );
 
-    const merged: {
-      npcs: unknown[];
-      players: unknown[];
-      loot: unknown[];
-      warfronts: unknown[];
-      economy: unknown[];
-      factions: unknown[];
-      quests: unknown[];
-      worldEvents: unknown[];
-    } = {
+    const merged: Record<keyof TickContextWorldState, unknown[]> = {
       npcs: [],
       players: [],
       loot: [],
+      inventory: [],
+      equipment: [],
+      resources: [],
       warfronts: [],
       economy: [],
       factions: [],
       quests: [],
+      housing: [],
+      kingdoms: [],
+      population: [],
+      help: [],
       worldEvents: [],
     };
 
@@ -217,10 +246,17 @@ export class WorldTickThinShell {
       appendStable(merged.npcs, slice.npcs);
       appendStable(merged.players, slice.players);
       appendStable(merged.loot, slice.loot);
+      appendStable(merged.inventory, slice.inventory);
+      appendStable(merged.equipment, slice.equipment);
+      appendStable(merged.resources, slice.resources);
       appendStable(merged.warfronts, slice.warfronts);
       appendStable(merged.economy, slice.economy);
       appendStable(merged.factions, slice.factions);
       appendStable(merged.quests, slice.quests);
+      appendStable(merged.housing, slice.housing);
+      appendStable(merged.kingdoms, slice.kingdoms);
+      appendStable(merged.population, slice.population);
+      appendStable(merged.help, slice.help);
       appendStable(merged.worldEvents, slice.worldEvents);
     }
 
@@ -228,10 +264,17 @@ export class WorldTickThinShell {
       npcs: stableSort(merged.npcs),
       players: stableSort(merged.players),
       loot: stableSort(merged.loot),
+      inventory: stableSort(merged.inventory),
+      equipment: stableSort(merged.equipment),
+      resources: stableSort(merged.resources),
       warfronts: stableSort(merged.warfronts),
       economy: stableSort(merged.economy),
       factions: stableSort(merged.factions),
       quests: stableSort(merged.quests),
+      housing: stableSort(merged.housing),
+      kingdoms: stableSort(merged.kingdoms),
+      population: stableSort(merged.population),
+      help: stableSort(merged.help),
       worldEvents: stableSort(merged.worldEvents),
     });
   }
