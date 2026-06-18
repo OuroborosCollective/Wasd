@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "laws": [
+    { "lawFlag": "market_charter", "title": "Market Charter", "defaultEnabled": true },
+    { "lawFlag": "resource_commons", "title": "Resource Commons", "defaultEnabled": false },
+    { "lawFlag": "gate_curfew", "title": "Gate Curfew", "defaultEnabled": false }
+  ]
+}

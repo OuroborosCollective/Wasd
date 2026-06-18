@@ -1,62 +1,127 @@
-export type TerritoryLayer =
-  | "kingdom"
-  | "province_or_region"
-  | "settlement"
-  | "village_or_city"
-  | "guild_or_faction_overlay";
+export type TerritoryKind = "kingdom" | "province" | "settlement" | "guild_overlay";
+export type ConflictState = "peace" | "tension" | "open_conflict";
 
-export type GovernanceActionKind =
-  | "raise_tax"
-  | "change_law_flag"
-  | "assign_guard_budget"
-  | "declare_war"
-  | "appoint_officer"
-  | "change_trade_policy";
-
-export type GovernanceActionStatus =
-  | "unsupported_action"
-  | "rejected"
-  | "validated_no_mutation";
-
-export interface TerritoryKey {
-  readonly id: string;
-  readonly layer: TerritoryLayer;
-  readonly parentId?: string;
-  readonly chunkKey?: string;
+export interface GovernanceBudgetDefinition {
+  readonly resourceBudget: number;
+  readonly guardBudget: number;
+  readonly militiaPool: number;
 }
 
-export interface GovernanceAction {
-  readonly actionId: string;
-  readonly kind: GovernanceActionKind;
-  readonly actorId: string;
+export interface TerritoryDefinition {
   readonly territoryId: string;
-  readonly tick: number;
-  readonly payload: Readonly<Record<string, unknown>>;
+  readonly kind: TerritoryKind;
+  readonly title: string;
+  readonly parentId?: string;
+  readonly regionId: string;
+  readonly chunkKey: string;
+  readonly guildId?: string;
+  readonly defaultTaxRatePerMille: number;
+  readonly defaultLawFlags: readonly string[];
+  readonly defaultBudgets: GovernanceBudgetDefinition;
+  readonly defaultConflictState: ConflictState;
 }
 
-export interface GovernanceActionDiagnostic {
-  readonly code: string;
-  readonly message: string;
-  readonly sideChannel: true;
-}
-
-export interface GovernanceActionEvaluation {
-  readonly actionId: string;
-  readonly kind: GovernanceActionKind;
-  readonly status: GovernanceActionStatus;
-  readonly supported: boolean;
-  readonly mutatesState: false;
-  readonly diagnostics: readonly GovernanceActionDiagnostic[];
-  readonly evaluationHash: string;
-}
-
-export interface LawFlagDefinition {
-  readonly id: string;
-  readonly description: string;
+export interface LawDefinition {
+  readonly lawFlag: string;
+  readonly title: string;
   readonly defaultEnabled: boolean;
 }
 
-export interface GovernanceContentPack {
-  readonly schemaVersion: 1;
-  readonly lawFlags: readonly LawFlagDefinition[];
+export interface GovernanceContent {
+  readonly territories: readonly TerritoryDefinition[];
+  readonly laws: readonly LawDefinition[];
+}
+
+export interface GovernanceState {
+  readonly territoryId: string;
+  readonly taxRatePerMille: number;
+  readonly lawFlags: Readonly<Record<string, boolean>>;
+  readonly resourceBudget: number;
+  readonly guardBudget: number;
+  readonly militiaPool: number;
+  readonly conflictState: ConflictState;
+  readonly version: number;
+  readonly lastActionTick: number;
+}
+
+export interface GovernanceActor {
+  readonly actorId: string;
+  readonly role: "server" | "king" | "steward" | "guild_master";
+  readonly territoryIds?: readonly string[];
+}
+
+export type GovernanceAction =
+  | {
+      readonly type: "setTaxRate";
+      readonly territoryId: string;
+      readonly taxRatePerMille: number;
+    }
+  | {
+      readonly type: "setLawFlag";
+      readonly territoryId: string;
+      readonly lawFlag: string;
+      readonly enabled: boolean;
+    }
+  | {
+      readonly type: "assignGuardBudget";
+      readonly territoryId: string;
+      readonly resourceBudget: number;
+      readonly guardBudget: number;
+      readonly militiaPool: number;
+    }
+  | {
+      readonly type: "declareConflictState";
+      readonly territoryId: string;
+      readonly conflictState: ConflictState;
+    };
+
+export interface GovernanceActionContext {
+  readonly actor: GovernanceActor;
+  readonly tick: number;
+}
+
+export type GovernanceRejectReason =
+  | "invalid_actor"
+  | "forbidden_actor"
+  | "invalid_tick"
+  | "unknown_territory"
+  | "unknown_law"
+  | "invalid_tax_rate"
+  | "invalid_budget"
+  | "invalid_conflict_state";
+
+export interface GovernanceActionResult {
+  readonly ok: boolean;
+  readonly reason: "applied" | GovernanceRejectReason;
+  readonly territoryId?: string;
+  readonly stateHash: string;
+  readonly version?: number;
+}
+
+export interface ConflictPressureOutput {
+  readonly territoryId: string;
+  readonly conflictState: ConflictState;
+  readonly pressurePerMille: number;
+  readonly economyPressurePerMille: number;
+  readonly resourcePressurePerMille: number;
+  readonly guardPressurePerMille: number;
+  readonly stateHash: string;
+}
+
+export interface GovernanceSnapshotTerritory {
+  readonly territoryId: string;
+  readonly kind: TerritoryKind;
+  readonly title: string;
+  readonly parentId?: string;
+  readonly regionId: string;
+  readonly chunkKey: string;
+  readonly guildId?: string;
+  readonly state: GovernanceState;
+  readonly conflictPressure: ConflictPressureOutput;
+}
+
+export interface GovernanceSnapshot {
+  readonly tick: number;
+  readonly snapshotHash: string;
+  readonly territories: readonly GovernanceSnapshotTerritory[];
 }
