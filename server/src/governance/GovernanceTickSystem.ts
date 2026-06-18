@@ -8,7 +8,10 @@ export class GovernanceTickSystem {
   private readonly snapshotAdapter: GovernanceSnapshotAdapter;
   private currentTick = 0;
 
-  constructor(registry: TerritoryRegistry = new TerritoryRegistry(), adapter?: GovernancePressureAdapter) {
+  constructor(
+    registry: TerritoryRegistry = new TerritoryRegistry(),
+    adapter?: GovernancePressureAdapter,
+  ) {
     this.service = new GovernanceService(registry, adapter);
     this.snapshotAdapter = new GovernanceSnapshotAdapter(this.service);
   }
