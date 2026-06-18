@@ -1,5 +1,5 @@
 import express from "express";
-import { authMiddleware } from "../middleware/authMiddleware.js";
+import { authRequestHandler } from "../middleware/authRequestHandler.js";
 import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import type { WorldTick } from "../core/are/index.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
@@ -8,8 +8,13 @@ import { calculateUsageCost, sovereignMarket } from "../market/SovereignMarket.j
 import { paypalAdapter } from "../finance/PayPalAdapter.js";
 import { sovereignGovernance } from "../governance/SovereignGovernance.js";
 
-function parseTick(raw: string): number | null {
-  const tick = Number(raw);
+function firstParam(raw: unknown): string {
+  if (Array.isArray(raw)) return String(raw[0] ?? "");
+  return typeof raw === "string" ? raw : "";
+}
+
+function parseTick(raw: unknown): number | null {
+  const tick = Number(firstParam(raw));
   if (!Number.isInteger(tick) || tick < 0) return null;
   return tick;
 }
@@ -142,9 +147,8 @@ export function areReplayRouter(tick: WorldTick) {
     res.json({ ok: true, active, generatedAtTick: oracle?.generatedAtTick ?? null, prophecyCount: oracle?.prophecies?.length ?? 0 });
   });
 
-  router.get("/snapshot/:tick", adminRateLimiter, authMiddleware, (req, res) => {
-    const tickParam = req.params.tick;
-    const requestedTick = parseTick(Array.isArray(tickParam) ? tickParam[0] : tickParam);
+  router.get("/snapshot/:tick", adminRateLimiter, authRequestHandler, (req, res) => {
+    const requestedTick = parseTick(req.params.tick);
     if (requestedTick === null) {
       res.status(400).json({ ok: false, error: "invalid_tick", message: "Tick must be a positive integer." });
       return;
