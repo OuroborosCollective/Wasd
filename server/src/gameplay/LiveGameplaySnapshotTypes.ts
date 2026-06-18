@@ -21,8 +21,19 @@ export interface LiveGameplayQuestObjective {
   readonly completed: boolean;
 }
 
+export interface LiveGameplayQuestReward {
+  readonly coins: number;
+  readonly gatheringXp: number;
+  readonly craftingXp: number;
+  readonly reputation: number;
+}
+
 export interface LiveGameplayQuestProgress {
   readonly questId: string;
+  readonly title?: string;
+  readonly description?: string;
+  readonly npcId?: string;
+  readonly reward?: LiveGameplayQuestReward;
   readonly state: "available" | "active" | "ready_to_complete" | "completed";
   readonly objectives: readonly LiveGameplayQuestObjective[];
 }
