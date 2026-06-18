@@ -13,6 +13,23 @@ import { readPlayerPositionBridge } from "./PlayerPositionBridge";
 
 type Listener = () => void;
 
+type ComposerQuestObjective = {
+  readonly objectiveId?: unknown;
+  readonly title?: unknown;
+  readonly current?: unknown;
+  readonly required?: unknown;
+  readonly completed?: unknown;
+};
+
+type ComposerQuestProgress = {
+  readonly questId?: unknown;
+  readonly id?: unknown;
+  readonly title?: unknown;
+  readonly description?: unknown;
+  readonly state?: unknown;
+  readonly objectives?: unknown;
+};
+
 const GAMEPLAY_PLAYER_ID_KEY = "wasd:2d:playerId";
 const PUBLIC_KEY_KEY = "wasd:2d:publicKey";
 const ANON_ID_SEED_KEY = "wasd:2d:anonSeed";
@@ -67,6 +84,110 @@ export function getDefaultGameplayPlayerId(): string {
   return safeStoredValue(GAMEPLAY_PLAYER_ID_KEY) ?? safeStoredValue(PUBLIC_KEY_KEY) ?? resolveAnonymousGameplayPlayerId();
 }
 
+function questStatusFromComposerState(state: unknown): LiveGameplaySnapshot["quests"][number]["status"] {
+  if (state === "available" || state === "active" || state === "completed") return state;
+  if (state === "ready_to_complete") return "completed";
+  return "active";
+}
+
+function normalizeComposerObjective(input: ComposerQuestObjective): LiveGameplaySnapshot["quests"][number]["objectives"][number] | null {
+  const objectiveId = typeof input.objectiveId === "string" && input.objectiveId.trim()
+    ? input.objectiveId.trim()
+    : null;
+  if (!objectiveId) return null;
+
+  const required = Math.max(1, Math.floor(Number(input.required ?? 1)));
+  const current = Math.max(0, Math.min(required, Math.floor(Number(input.current ?? 0))));
+
+  return {
+    id: objectiveId,
+    label: String(input.title ?? prettifyId(objectiveId)),
+    current,
+    required,
+    completed: Boolean(input.completed ?? current >= required),
+  };
+}
+
+function projectComposerQuest(input: ComposerQuestProgress): LiveGameplaySnapshot["quests"][number] | null {
+  const questId = typeof input.questId === "string" && input.questId.trim()
+    ? input.questId.trim()
+    : typeof input.id === "string" && input.id.trim()
+      ? input.id.trim()
+      : null;
+  if (!questId) return null;
+
+  const objectives = Array.isArray(input.objectives)
+    ? input.objectives
+        .map((objective) => normalizeComposerObjective(objective as ComposerQuestObjective))
+        .filter((objective): objective is LiveGameplaySnapshot["quests"][number]["objectives"][number] => objective !== null)
+        .sort((a, b) => a.id.localeCompare(b.id))
+    : [];
+
+  return {
+    id: questId,
+    title: String(input.title ?? prettifyId(questId)),
+    description: String(input.description ?? ""),
+    status: questStatusFromComposerState(input.state),
+    objectives,
+  };
+}
+
+function appendComposerQuestList(
+  output: LiveGameplaySnapshot["quests"],
+  seenQuestIds: Set<string>,
+  input: unknown,
+): LiveGameplaySnapshot["quests"] {
+  if (!Array.isArray(input)) return output;
+
+  for (const rawQuest of input) {
+    const quest = projectComposerQuest(rawQuest as ComposerQuestProgress);
+    if (!quest || seenQuestIds.has(quest.id)) continue;
+    seenQuestIds.add(quest.id);
+    output.push(quest);
+  }
+
+  return output;
+}
+
+function projectComposerQuests(input: Record<string, unknown>): LiveGameplaySnapshot["quests"] {
+  const output: LiveGameplaySnapshot["quests"] = [];
+  const seenQuestIds = new Set<string>();
+
+  if (Array.isArray(input.quests)) {
+    for (const rawQuest of input.quests) {
+      const quest = projectComposerQuest(rawQuest as ComposerQuestProgress);
+      if (!quest || seenQuestIds.has(quest.id)) continue;
+      seenQuestIds.add(quest.id);
+      output.push(quest);
+    }
+  }
+
+  appendComposerQuestList(output, seenQuestIds, input.activeQuests);
+  appendComposerQuestList(output, seenQuestIds, input.availableQuests);
+
+  if (Array.isArray(input.completedQuestIds)) {
+    for (const rawQuestId of input.completedQuestIds) {
+      if (typeof rawQuestId !== "string") continue;
+      const questId = rawQuestId.trim();
+      if (!questId || seenQuestIds.has(questId)) continue;
+      seenQuestIds.add(questId);
+      output.push({
+        id: questId,
+        title: prettifyId(questId),
+        description: "",
+        status: "completed",
+        objectives: [],
+      });
+    }
+  }
+
+  return output.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function copyArrayField(input: unknown): unknown[] {
+  return Array.isArray(input) ? [...input] : [];
+}
+
 function projectComposerSnapshot(input: Record<string, unknown>): Partial<LiveGameplaySnapshot> {
   const playerId = String(input.playerId ?? getDefaultGameplayPlayerId());
   const inventory = Array.isArray(input.inventory) ? input.inventory : [];
@@ -77,7 +198,14 @@ function projectComposerSnapshot(input: Record<string, unknown>): Partial<LiveGa
   return {
     status: "live",
     serverTick: typeof input.logicalIndex === "number" ? input.logicalIndex : null,
-    quests: [],
+    quests: projectComposerQuests(input),
+    activeQuests: copyArrayField(input.activeQuests) as LiveGameplaySnapshot["activeQuests"],
+    availableQuests: copyArrayField(input.availableQuests) as LiveGameplaySnapshot["availableQuests"],
+    completedQuestIds: copyArrayField(input.completedQuestIds) as LiveGameplaySnapshot["completedQuestIds"],
+    npcDialogues: copyArrayField(input.npcDialogues) as LiveGameplaySnapshot["npcDialogues"],
+    npcReputations: copyArrayField(input.npcReputations) as LiveGameplaySnapshot["npcReputations"],
+    npcMemories: copyArrayField(input.npcMemories) as LiveGameplaySnapshot["npcMemories"],
+    npcRumors: copyArrayField(input.npcRumors) as LiveGameplaySnapshot["npcRumors"],
     skills: skills.map((skill: any) => {
       const id = String(skill.skillId ?? skill.id ?? "combat");
       return {
@@ -152,6 +280,14 @@ function mergeComposerIntoLegacy(
     ...legacy,
     status: projected.status ?? legacy.status,
     serverTick: projected.serverTick ?? legacy.serverTick,
+    quests: projected.quests ?? legacy.quests,
+    activeQuests: projected.activeQuests ?? legacy.activeQuests,
+    availableQuests: projected.availableQuests ?? legacy.availableQuests,
+    completedQuestIds: projected.completedQuestIds ?? legacy.completedQuestIds,
+    npcDialogues: projected.npcDialogues ?? legacy.npcDialogues,
+    npcReputations: projected.npcReputations ?? legacy.npcReputations,
+    npcMemories: projected.npcMemories ?? legacy.npcMemories,
+    npcRumors: projected.npcRumors ?? legacy.npcRumors,
     skills: projected.skills ?? legacy.skills,
     resources: projected.resources ?? legacy.resources,
     inventory: projected.inventory ?? legacy.inventory,
@@ -223,7 +359,7 @@ export class LiveGameplayStore {
     }
   }
 
-  subscribe(listener: Listener): () => void {
+  subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
