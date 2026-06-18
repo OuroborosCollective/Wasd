@@ -17,16 +17,37 @@ describe("Governance runtime", () => {
   it("valid tax and law actions mutate server state", () => {
     const service = new GovernanceService();
     const before = service.stateHash();
-    const tax = service.applyAction({ type: "setTaxRate", territoryId: "starter_village_settlement", taxRatePerMille: 125 }, { actor: serverActor, tick: 12 });
+
+    const tax = service.applyAction(
+      {
+        type: "setTaxRate",
+        territoryId: "starter_village_settlement",
+        taxRatePerMille: 125,
+      },
+      { actor: serverActor, tick: 12 },
+    );
     expect(tax.ok).toBe(true);
-    const law = service.applyAction({ type: "setLawFlag", territoryId: "starter_village_settlement", lawFlag: "gate_curfew", enabled: true }, { actor: serverActor, tick: 13 });
+
+    const law = service.applyAction(
+      {
+        type: "setLawFlag",
+        territoryId: "starter_village_settlement",
+        lawFlag: "gate_curfew",
+        enabled: true,
+      },
+      { actor: serverActor, tick: 13 },
+    );
     expect(law.ok).toBe(true);
     expect(service.getState("starter_village_settlement")?.lawFlags.gate_curfew).toBe(true);
     expect(service.stateHash()).not.toBe(before);
   });
 
   it("pressure output is deterministic and adapter-based", () => {
-    const service = new GovernanceService(new TerritoryRegistry(), ({ territoryId, tick }) => ({ economyPressurePerMille: territoryId.length + tick, resourcePressurePerMille: 333 }));
+    const service = new GovernanceService(new TerritoryRegistry(), ({ territoryId, tick }) => ({
+      economyPressurePerMille: territoryId.length + tick,
+      resourcePressurePerMille: 333,
+    }));
+
     const first = service.calculateConflictPressure("starter_village_settlement", 21);
     const second = service.calculateConflictPressure("starter_village_settlement", 21);
     expect(first).toEqual(second);
@@ -36,7 +57,19 @@ describe("Governance runtime", () => {
   it("invalid actor rejects without mutation", () => {
     const service = new GovernanceService();
     const before = service.stateHash();
-    const result = service.applyAction({ type: "setTaxRate", territoryId: "starter_village_settlement", taxRatePerMille: 200 }, { actor: { actorId: "npc", role: "steward", territoryIds: ["other"] }, tick: 30 });
+
+    const result = service.applyAction(
+      {
+        type: "setTaxRate",
+        territoryId: "starter_village_settlement",
+        taxRatePerMille: 200,
+      },
+      {
+        actor: { actorId: "npc", role: "steward", territoryIds: ["other"] },
+        tick: 30,
+      },
+    );
+
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("forbidden_actor");
     expect(service.stateHash()).toBe(before);
@@ -46,8 +79,10 @@ describe("Governance runtime", () => {
     const adapter = new GovernanceSnapshotAdapter(new GovernanceService());
     const first = adapter.composeSnapshot(40);
     const second = adapter.composeSnapshot(40);
+    const territoryIds = first.territories.map((territory) => territory.territoryId);
+
     expect(first).toEqual(second);
-    expect(first.territories.map((territory) => territory.territoryId)).toEqual([...first.territories.map((territory) => territory.territoryId)].sort((a, b) => a.localeCompare(b)));
+    expect(territoryIds).toEqual([...territoryIds].sort((a, b) => a.localeCompare(b)));
     expect(first.snapshotHash).toMatch(/^[0-9a-f]{8}$/);
   });
 });
