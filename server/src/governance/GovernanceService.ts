@@ -261,7 +261,6 @@ export class GovernanceService {
     return {
       ok: false,
       reason: "invalid_conflict_state",
-      territoryId: action.territoryId,
       stateHash,
     };
   }
