@@ -126,6 +126,8 @@ export function NpcInteractionMenu({
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
             role="menuitem"
+            aria-label={`${item.label} [${item.shortcut}]`}
+            aria-keyshortcuts={item.shortcut}
             style={{
               // Animation: staggered entrance
               animation: `menu-item-enter 0.3s ease-out ${index * 0.05}s both`,
@@ -221,20 +223,16 @@ export function NpcInteractionMenu({
             </div>
 
             {/* Right: Shortcut */}
-            <div
+            <kbd
+              className="cz-kbd"
+              aria-hidden="true"
               style={{
-                fontFamily: "Epilogue, sans-serif",
-                fontSize: "11px",
-                fontWeight: "600",
-                letterSpacing: "0.1em",
-                color: "#3b494c",
-                padding: "2px 6px",
-                border: "1px solid #3b494c",
-                borderRadius: "0px",
+                margin: 0,
+                opacity: 0.8,
               }}
             >
-              [{item.shortcut}]
-            </div>
+              {item.shortcut}
+            </kbd>
 
             {/* Selected Indicator */}
             {isSelected && (
@@ -252,7 +250,7 @@ export function NpcInteractionMenu({
 
       {/* Hint Text */}
       <div
-        className="mt-2 text-center"
+        className="mt-2 text-center flex items-center justify-center gap-2"
         style={{
           fontFamily: "Epilogue, sans-serif",
           fontSize: "10px",
@@ -262,7 +260,20 @@ export function NpcInteractionMenu({
           textTransform: "uppercase",
         }}
       >
-        ↑↓ Navigate • Enter Select • Esc Close
+        <div className="flex items-center gap-1">
+          <kbd className="cz-kbd" style={{ margin: 0, minWidth: "auto", padding: "1px 3px" }}>↑↓</kbd>
+          Navigate
+        </div>
+        •
+        <div className="flex items-center gap-1">
+          <kbd className="cz-kbd" style={{ margin: 0, minWidth: "auto", padding: "1px 3px" }}>Enter</kbd>
+          Select
+        </div>
+        •
+        <div className="flex items-center gap-1">
+          <kbd className="cz-kbd" style={{ margin: 0, minWidth: "auto", padding: "1px 3px" }}>Esc</kbd>
+          Close
+        </div>
       </div>
     </div>
   );
