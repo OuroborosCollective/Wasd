@@ -1,30 +1,17 @@
 /**
  * Asset Pipeline API Routes
  * Full End-to-End: Text → Spec → Tripo3D → GLB → Game Registry
- *
- * POST /api/pipeline/generate        – Start full pipeline (spec + model + register)
- * POST /api/pipeline/spec-only       – Generate spec only (no 3D model)
- * GET  /api/pipeline/job/:jobId      – Poll job status
- * GET  /api/pipeline/jobs            – List user's pipeline jobs
- * POST /api/pipeline/register/:jobId – Manually register completed job into game
- * GET  /api/pipeline/assets          – List all generated assets
- * DELETE /api/pipeline/asset/:id     – Delete a generated asset
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { getAssetPipeline } from '../modules/asset-brain/AssetPipeline.js';
 import { db } from '../core/Database.js';
-import { authMiddleware } from '../middleware/authMiddleware.js';
+import { authRequestHandler } from '../middleware/authRequestHandler.js';
 
 export function createAssetPipelineRouter(): Router {
   const router = Router();
 
-  // ── POST /api/pipeline/generate ───────────────────────────────────────────
-  /**
-   * Start full pipeline: spec → 3D model → register in game
-   * Body: { input: string, generateModel?: boolean, autoRegister?: boolean }
-   */
-  router.post('/generate', authMiddleware, async (req: Request, res: Response) => {
+  router.post('/generate', authRequestHandler, async (req: Request, res: Response) => {
     try {
       const { input, generateModel = true, autoRegister = true } = req.body as {
         input: string;
@@ -53,12 +40,7 @@ export function createAssetPipelineRouter(): Router {
     }
   });
 
-  // ── POST /api/pipeline/spec-only ──────────────────────────────────────────
-  /**
-   * Generate specification only (fast, no 3D model)
-   * Body: { input: string }
-   */
-  router.post('/spec-only', authMiddleware, async (req: Request, res: Response) => {
+  router.post('/spec-only', authRequestHandler, async (req: Request, res: Response) => {
     try {
       const { input } = req.body as { input: string };
       if (!input || typeof input !== 'string') {
@@ -78,11 +60,7 @@ export function createAssetPipelineRouter(): Router {
     }
   });
 
-  // ── GET /api/pipeline/job/:jobId ──────────────────────────────────────────
-  /**
-   * Poll job status
-   */
-  router.get('/job/:jobId', authMiddleware, (req: Request, res: Response) => {
+  router.get('/job/:jobId', authRequestHandler, (req: Request, res: Response) => {
     const userId = (req as any).userId || (req as any).playerId || 'anonymous';
     const jobId = String(req.params['jobId']);
     const pipeline = getAssetPipeline();
@@ -99,21 +77,13 @@ export function createAssetPipelineRouter(): Router {
     res.json(job);
   });
 
-  // ── GET /api/pipeline/jobs ────────────────────────────────────────────────
-  /**
-   * List user's pipeline jobs
-   */
-  router.get('/jobs', authMiddleware, (req: Request, res: Response) => {
+  router.get('/jobs', authRequestHandler, (req: Request, res: Response) => {
     const userId = (req as any).userId || (req as any).playerId || 'anonymous';
     const pipeline = getAssetPipeline();
     const jobs = pipeline.getAllJobs(userId);
     res.json({ jobs });
   });
 
-  // ── GET /api/pipeline/assets ──────────────────────────────────────────────
-  /**
-   * List all generated assets from DB
-   */
   router.get('/assets', async (req: Request, res: Response) => {
     try {
       const limit = Math.min(Number(req.query['limit']) || 50, 200);
@@ -133,17 +103,12 @@ export function createAssetPipelineRouter(): Router {
 
       const result = await db.query(query, params);
       res.json({ assets: result.rows, total: result.rows.length });
-    } catch (error: any) {
-      // Table might not exist yet
+    } catch {
       res.json({ assets: [], total: 0 });
     }
   });
 
-  // ── DELETE /api/pipeline/asset/:id ────────────────────────────────────────
-  /**
-   * Delete a generated asset
-   */
-  router.delete('/asset/:id', authMiddleware, async (req: Request, res: Response) => {
+  router.delete('/asset/:id', authRequestHandler, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).userId || (req as any).playerId || 'anonymous';
       const id = String(req.params['id']);
@@ -159,17 +124,10 @@ export function createAssetPipelineRouter(): Router {
     }
   });
 
-  // ── GET /api/pipeline/spec/:specId ─────────────────────────────────────────
-  /**
-   * Get full spec data for a pipeline job's spec (no auth required for testing)
-   */
   router.get('/spec/:specId', async (req: Request, res: Response) => {
     try {
       const specId = String(req.params['specId']);
-      const result = await db.query(
-        'SELECT * FROM asset_specifications WHERE id = $1',
-        [specId]
-      );
+      const result = await db.query('SELECT * FROM asset_specifications WHERE id = $1', [specId]);
       if (!result.rows || result.rows.length === 0) {
         return res.status(404).json({ error: 'Spec not found' });
       }
@@ -190,10 +148,6 @@ export function createAssetPipelineRouter(): Router {
     }
   });
 
-  // ── GET /api/pipeline/tripo/balance ───────────────────────────────────────
-  /**
-   * Check Tripo3D account balance
-   */
   router.get('/tripo/balance', async (_req: Request, res: Response) => {
     try {
       const apiKey = process.env['TRIPO_API_KEY'];
