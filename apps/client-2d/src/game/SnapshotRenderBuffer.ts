@@ -6,9 +6,7 @@ export interface RenderPosition2D {
 }
 
 export interface SnapshotRenderFrame<TSnapshot = LiveGameplaySnapshot> {
-  /** Server-authoritative tick for this frame. Null means the frame is not renderable for interpolation. */
   readonly serverTick: number | null;
-  /** Server snapshot. The render buffer never mutates or writes this back as gameplay truth. */
   readonly snapshot: TSnapshot;
 }
 
@@ -19,6 +17,14 @@ export interface SnapshotRenderPair<TSnapshot = LiveGameplaySnapshot> {
 }
 
 export type SyncFreshnessState = "waiting" | "fresh" | "stale_short" | "stale_medium" | "stale_long";
+export type SnapshotProjectionMode = "none" | "interpolate" | "idle_visuals" | "resync_required";
+
+export interface SnapshotProjectionContract<TSnapshot = LiveGameplaySnapshot> {
+  readonly mode: SnapshotProjectionMode;
+  readonly freshness: SyncFreshnessState;
+  readonly pair: SnapshotRenderPair<TSnapshot> | null;
+  readonly outbound: false;
+}
 
 export interface SyncFreshnessPolicy {
   readonly freshTicks: number;
@@ -67,10 +73,6 @@ function normalizeDegrees(value: number): number {
   return normalized < 0 ? normalized + 360 : normalized;
 }
 
-/**
- * Interpolate facing in degrees over the shortest visual arc.
- * This is render-only projection; it never changes server snapshot truth.
- */
 export function interpolateFacing(previousDegrees: number, currentDegrees: number, alpha: number): number {
   const safeAlpha = clampVisualAlpha(alpha);
   const previous = normalizeDegrees(previousDegrees);
@@ -93,6 +95,20 @@ export function classifySyncFreshness(
   if (age <= policy.staleShortTicks) return "stale_short";
   if (age <= policy.staleMediumTicks) return "stale_medium";
   return "stale_long";
+}
+
+export function projectionModeForFreshness(freshness: SyncFreshnessState): SnapshotProjectionMode {
+  switch (freshness) {
+    case "fresh":
+    case "stale_short":
+      return "interpolate";
+    case "stale_medium":
+      return "idle_visuals";
+    case "waiting":
+      return "none";
+    case "stale_long":
+      return "resync_required";
+  }
 }
 
 export class SnapshotRenderBuffer<TSnapshot = LiveGameplaySnapshot> {
@@ -158,6 +174,20 @@ export class SnapshotRenderBuffer<TSnapshot = LiveGameplaySnapshot> {
       current,
       alpha: clampVisualAlpha(tickAlpha * clampVisualAlpha(visualAlpha)),
     };
+  }
+
+  getProjectionContract(
+    latestServerTick: number | null | undefined,
+    renderTick: number | null | undefined,
+    visualAlpha = 1,
+  ): SnapshotProjectionContract<TSnapshot> {
+    const freshness = classifySyncFreshness(latestServerTick, renderTick);
+    const mode = projectionModeForFreshness(freshness);
+    const pair = mode === "interpolate" && renderTick !== null && renderTick !== undefined
+      ? this.getRenderPair(renderTick, visualAlpha)
+      : null;
+
+    return { mode, freshness, pair, outbound: false };
   }
 }
 
