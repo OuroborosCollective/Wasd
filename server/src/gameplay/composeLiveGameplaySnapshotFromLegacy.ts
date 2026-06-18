@@ -1,5 +1,5 @@
 import { LiveGameplaySnapshotComposer, buildVendorEconomySnapshot, createEmptyVendorEconomySnapshot } from "./LiveGameplaySnapshotComposer.js";
-import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery, LiveGameplayCampNpc, LiveGameplayCampStock, LiveGameplayNpcMemory, LiveGameplayNpcRumor } from "./LiveGameplaySnapshotTypes.js";
+import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery, LiveGameplayCampNpc, LiveGameplayCampStock, LiveGameplayQuestProgress, LiveGameplayNpcMemory, LiveGameplayNpcRumor } from "./LiveGameplaySnapshotTypes.js";
 import { toLiveEquipmentSlots } from "./adapters/EquipmentSnapshotAdapter.js";
 import { toLiveInventoryItems } from "./adapters/InventorySnapshotAdapter.js";
 import { getWalletService, getVendorStockService } from "../economy/economyRuntime.js";
@@ -60,6 +60,18 @@ interface LegacyResourceNodeSnapshot {
   readonly status?: string;
 }
 
+interface NpcQuestProgressSource {
+  readonly questId: string;
+  readonly state: "available" | "active" | "ready_to_complete" | "completed";
+  readonly objectives: readonly {
+    readonly objectiveId: string;
+    readonly title: string;
+    readonly current: number;
+    readonly required: number;
+    readonly completed: boolean;
+  }[];
+}
+
 export interface ComposeLiveGameplaySnapshotFromLegacyInput {
   readonly playerId: string;
   readonly logicalIndex: number;
@@ -87,6 +99,36 @@ export interface ComposeLiveGameplaySnapshotFromLegacyInput {
     readonly title: string;
     readonly type: string;
   }[];
+}
+
+function toLiveNpcQuestProgress(quest: NpcQuestProgressSource): LiveGameplayQuestProgress {
+  const definition = npcQuestService.getQuestDefinition(quest.questId);
+  const base = {
+    questId: quest.questId,
+    title: definition?.title ?? quest.questId,
+    description: definition?.description ?? "",
+    npcId: definition?.npcId ?? "",
+    state: quest.state,
+    objectives: quest.objectives.map((obj) => ({
+      objectiveId: obj.objectiveId,
+      title: obj.title,
+      current: obj.current,
+      required: obj.required,
+      completed: obj.completed,
+    })),
+  } satisfies Omit<LiveGameplayQuestProgress, "reward">;
+
+  if (!definition) return base;
+
+  return {
+    ...base,
+    reward: {
+      coins: definition.reward.coins,
+      gatheringXp: definition.reward.gatheringXp,
+      craftingXp: definition.reward.craftingXp,
+      reputation: definition.reward.reputation,
+    },
+  };
 }
 
 export async function composeLiveGameplaySnapshotFromLegacy(
@@ -149,7 +191,7 @@ export async function composeLiveGameplaySnapshotFromLegacy(
 
       for (const slot of sortedSlots) {
         if (!slot.itemId) continue;
-        // Known gathering tool tier bonuses (deterministic, no Math.random)
+        // Known gathering tool tier bonuses (deterministic, no unseeded entropy)
         const tierMap: Record<string, Partial<Record<string, number>>> = {
           wooden_axe: { gatheringXp: 100 },
           copper_pickaxe: { gatheringXp: 100 },
@@ -191,31 +233,11 @@ export async function composeLiveGameplaySnapshotFromLegacy(
     // NPC Quest system integration
     getActiveQuests: (playerId: string) => {
       const activeQuests = npcQuestService.getActiveQuests(playerId);
-      return activeQuests.map((q) => ({
-        questId: q.questId,
-        state: q.state,
-        objectives: q.objectives.map((obj) => ({
-          objectiveId: obj.objectiveId,
-          title: obj.title,
-          current: obj.current,
-          required: obj.required,
-          completed: obj.completed,
-        })),
-      }));
+      return activeQuests.map(toLiveNpcQuestProgress);
     },
     getAvailableQuests: (playerId: string) => {
       const availableQuests = npcQuestService.getAvailableQuests(playerId);
-      return availableQuests.map((q) => ({
-        questId: q.questId,
-        state: q.state,
-        objectives: q.objectives.map((obj) => ({
-          objectiveId: obj.objectiveId,
-          title: obj.title,
-          current: obj.current,
-          required: obj.required,
-          completed: obj.completed,
-        })),
-      }));
+      return availableQuests.map(toLiveNpcQuestProgress);
     },
     getCompletedQuestIds: (playerId: string) => {
       // Use public NPC dialogue method to get completed quest IDs
@@ -261,7 +283,7 @@ export async function composeLiveGameplaySnapshotFromLegacy(
   // Get camp NPCs and stocks for discovered gathering camp POIs
   const currentTick = input.logicalIndex;
   const discoveredPoiIds = worldDiscoveryService.getDiscoveredPoiIds(input.playerId);
-  
+
   // Filter worldPois to only discovered gathering camps
   const worldPois = input.worldPois ?? [];
   const discoveredCamps = worldPois.filter(

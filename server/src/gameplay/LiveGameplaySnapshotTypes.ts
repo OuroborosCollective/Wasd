@@ -5,8 +5,8 @@
  * These types provide a stable contract for the 2D client.
  *
  * Rules:
- * - No Math.random() for gameplay values
- * - No Date.now() for gameplay state
+ * - No unseeded randomness for gameplay values
+ * - No wall-clock reads for gameplay state
  * - Empty arrays instead of undefined
  * - All arrays sorted deterministically by id
  */
@@ -21,8 +21,19 @@ export interface LiveGameplayQuestObjective {
   readonly completed: boolean;
 }
 
+export interface LiveGameplayQuestReward {
+  readonly coins: number;
+  readonly gatheringXp: number;
+  readonly craftingXp: number;
+  readonly reputation: number;
+}
+
 export interface LiveGameplayQuestProgress {
   readonly questId: string;
+  readonly title?: string;
+  readonly description?: string;
+  readonly npcId?: string;
+  readonly reward?: LiveGameplayQuestReward;
   readonly state: "available" | "active" | "ready_to_complete" | "completed";
   readonly objectives: readonly LiveGameplayQuestObjective[];
 }
