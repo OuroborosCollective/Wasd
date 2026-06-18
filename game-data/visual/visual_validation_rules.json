@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "kappa": 1000,
+  "rules": [
+    { "id": "terrain_requires_tileset", "subjectKind": "terrain", "requiredCategory": "tilesets" },
+    { "id": "road_requires_tileset", "subjectKind": "road", "requiredCategory": "tilesets" },
+    { "id": "building_rejects_props_tilesets", "subjectKind": "building", "forbiddenCategories": ["props", "tilesets"] },
+    { "id": "prop_rejects_tilesets", "subjectKind": "prop", "forbiddenCategories": ["tilesets"] },
+    { "id": "npc_rejects_props_tilesets", "subjectKind": "npc", "forbiddenCategories": ["props", "tilesets"] },
+    { "id": "crop_profile_required", "requiredFields": ["cropProfileId", "renderLayer", "deterministicSeed"] }
+  ],
+  "audit": {
+    "requiredNoRuntimeSources": ["Math.random", "Date.now", "performance.now"],
+    "hashInputs": ["VisualSignature", "SelectedAsset", "CropProfile", "RenderLayer"]
+  }
+}
