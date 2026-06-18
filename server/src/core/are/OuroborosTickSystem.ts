@@ -31,6 +31,7 @@ import type {
   ResolveSocketIdFn,
 } from "../../modules/chat/ChatChannelRouter.js";
 import type { StatusEmitter } from "../../modules/chat/StatusEmitter.js";
+import { runtimeValidation, validate } from "./RuntimeValidation.js";
 
 export const OUROBOROS_TICK_SYSTEM_NAME = "ouroboros" as const;
 export const OUROBOROS_TICK_PRIORITY = TickSystemPriority.NPC;
@@ -275,12 +276,41 @@ export class OuroborosTickSystem implements TickSystem {
   }
 
   tick(context: TickSystemContext): void {
+    // ─── Runtime Validation: Tick Entry ──────────────────────────────────
     const tickCount = this.extractTickCount(context);
+    runtimeValidation.validateSafeInteger(tickCount, {
+      systemName: 'OuroborosTickSystem',
+      operation: 'tick',
+    });
+    // ─── End Runtime Validation ─────────────────────────────────────────
+    
     // Heartbeat cadence check: tick % 10 !== 0 (required by WorldTickPolicy.guard.ts)
     if (tickCount % HEARTBEAT_CADENCE_TICKS !== 0) return;
 
+    // ─── Runtime Validation: Entity Extraction ──────────────────────────
     const npcs = this.extractNpcs(context);
     const players = this.extractPlayers(context);
+    
+    // Validate NPC positions
+    for (let i = 0; i < npcs.length; i++) {
+      const npc = npcs[i];
+      if (!validate.isKappaPosition(npc.position)) {
+        console.warn(`[RuntimeValidation] NPC ${npc.id} has invalid position`);
+      }
+    }
+    
+    // Validate player positions
+    for (let i = 0; i < players.length; i++) {
+      const player = players[i];
+      if (!validate.isValidEntityId(player.id)) {
+        console.warn(`[RuntimeValidation] Player has invalid ID`);
+      }
+      if (!validate.isKappaPosition(player.position)) {
+        console.warn(`[RuntimeValidation] Player ${player.id} has invalid position`);
+      }
+    }
+    // ─── End Runtime Validation ─────────────────────────────────────────
+    
     const worldTime = this.extractWorldTime(context);
 
     this.engine.tick(

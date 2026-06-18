@@ -22,6 +22,7 @@ import { CampNpcMarkerLayer } from "./ui/CampNpcMarkerLayer";
 import { BootSurface, type BootState } from "./ui/BootSurface";
 import { useZeroTrustManifest, DivergenceAlert } from "./manifest";
 import { playerVitalState, usePlayerVitalState, extractVitalsFromPayload, toInventoryItems, type PlayerVitalsData } from "./live/playerVitalState";
+import { validateKappaPosition, validateEntityState, validateNetworkPacket, type ValidationResult } from "./runtimeValidation";
 
 const EQUIPPED_WEAPON_KEY = "wasd:2d:equippedWeaponVisualId";
 const RUNTIME_WORLD_SEED_KEY = "wasd:runtime:worldSeed";
@@ -583,6 +584,34 @@ export function DeterministicWorldIsoApp() {
     c.on("disconnect" as any, () => setConnected(false));
 
     c.on("WORLD_HEARTBEAT", (event: any) => {
+      // ─── Runtime Validation: World Heartbeat ────────────────────────────
+      // Validate heartbeat before processing
+      if (!event?.payload) {
+        console.warn("[ClientValidation] WORLD_HEARTBEAT missing payload");
+      } else {
+        // Validate tick
+        const tick = event.payload.tick ?? event.payload.serverTick;
+        if (tick !== null && tick !== undefined) {
+          if (!Number.isInteger(tick)) {
+            console.warn(`[ClientValidation] WORLD_HEARTBEAT tick not integer: ${tick}`);
+          } else if (tick < 0) {
+            console.warn(`[ClientValidation] WORLD_HEARTBEAT negative tick: ${tick}`);
+          }
+        }
+        
+        // Validate self entity position
+        const self = event.payload.self;
+        if (self) {
+          const selfX = payloadCoord(self, "x");
+          const selfZ = payloadCoord(self, "z");
+          const posResult = validateKappaPosition(selfX, selfZ, "heartbeat:self");
+          if (!posResult.valid) {
+            console.warn("[ClientValidation] Invalid self position:", posResult.errors);
+          }
+        }
+      }
+      // ─── End Runtime Validation ─────────────────────────────────────────
+      
       const selfId = event.payload?.self?.id;
       payloadEntries(event.payload?.players, "player").forEach(([id, player]: any) => {
         const actorId = selfId && id === selfId ? "self" : id;
