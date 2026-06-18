@@ -8,12 +8,21 @@ import type {
 } from "./GovernanceTypes.js";
 import { TerritoryRegistry } from "./TerritoryRegistry.js";
 
+interface ActionPatchResult {
+  readonly ok: true;
+  readonly patch: Partial<GovernanceState>;
+}
+
 function hashHex(parts: readonly unknown[]): string {
   return stableHash32(parts.map((part) => String(part)).join("|")).toString(16).padStart(8, "0");
 }
 
 function orderedFlags(flags: Readonly<Record<string, boolean>>): Record<string, boolean> {
   return Object.fromEntries(Object.entries(flags).sort(([a], [b]) => a.localeCompare(b)));
+}
+
+function isPatchResult(result: GovernanceActionResult | ActionPatchResult): result is ActionPatchResult {
+  return result.ok === true && "patch" in result;
 }
 
 export interface PressureAdapterInput {
@@ -110,7 +119,7 @@ export class GovernanceService {
     }
 
     const patchResult = this.createActionPatch(action, current, stateHash);
-    if (!patchResult.ok) return patchResult;
+    if (!isPatchResult(patchResult)) return patchResult;
 
     const next = Object.freeze({
       ...current,
@@ -162,9 +171,13 @@ export class GovernanceService {
     action: GovernanceAction,
     current: GovernanceState,
     stateHash: string,
-  ): GovernanceActionResult | { readonly ok: true; readonly patch: Partial<GovernanceState> } {
+  ): GovernanceActionResult | ActionPatchResult {
     if (action.type === "setTaxRate") {
-      if (!Number.isSafeInteger(action.taxRatePerMille) || action.taxRatePerMille < 0 || action.taxRatePerMille > 1000) {
+      const invalidTaxRate =
+        !Number.isSafeInteger(action.taxRatePerMille)
+        || action.taxRatePerMille < 0
+        || action.taxRatePerMille > 1000;
+      if (invalidTaxRate) {
         return {
           ok: false,
           reason: "invalid_tax_rate",
