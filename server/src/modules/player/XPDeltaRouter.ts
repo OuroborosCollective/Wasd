@@ -1,4 +1,4 @@
-import type { XPGainEvent } from "../combat/CombatDirector.js";
+import type { XPGainEvent, XPGainSource } from "../combat/CombatDirector.js";
 import type { PlayerStatsDirector } from "./PlayerStatsDirector.js";
 
 export type XPDeltaSource = "combat_delta" | "gather_delta" | "craft_delta" | "quest_delta" | "system_delta";
@@ -48,12 +48,20 @@ function compareXPDelta(a: XPDelta, b: XPDelta): number {
   return (a.sourceId ?? "").localeCompare(b.sourceId ?? "");
 }
 
+function sourceFromDelta(deltaSource: XPDeltaSource): XPGainSource {
+  if (deltaSource === "combat_delta") return "attack";
+  if (deltaSource === "gather_delta") return "gather";
+  if (deltaSource === "craft_delta") return "craft";
+  if (deltaSource === "quest_delta") return "quest";
+  return "system";
+}
+
 function toXPGainEvent(delta: XPDelta): XPGainEvent {
   return {
     playerId: delta.playerId,
     skillId: delta.skillId,
     amount: delta.amount,
-    source: delta.source === "quest_delta" ? "quest" : "attack",
+    source: sourceFromDelta(delta.source),
     tick: delta.tick,
   };
 }
