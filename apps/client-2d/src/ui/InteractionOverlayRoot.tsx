@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
+import { useLiveRuntimeState } from '../live/liveRuntimeState';
 import { interactionUI, useInteractionUI, useOverlayRenderer } from './UIManager';
+import { SyncStateOverlay } from './SyncStateOverlay';
 import { TradeOverlay } from './TradeOverlay';
 import './interactionOverlay.css';
+import './syncStateOverlay.css';
 
 function payloadOf(packet: unknown): any {
   const detail = (packet as CustomEvent<{ event?: string; payload?: any }>).detail;
@@ -15,6 +18,7 @@ function eventNameOf(packet: unknown): string | null {
 
 export function InteractionOverlayRoot() {
   const overlay = useInteractionUI();
+  const runtime = useLiveRuntimeState();
   const { OverlayComponent } = useOverlayRenderer();
 
   useEffect(() => {
@@ -61,48 +65,51 @@ export function InteractionOverlayRoot() {
     return () => window.removeEventListener('wasd:network-packet', onNetworkPacket);
   }, []);
 
-  if (overlay.type === 'NONE') return null;
-
   return (
-    <div className="interaction-overlay-root" aria-live="polite">
-      <section
-        className="interaction-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-label={overlay.type}
-      >
-        <header className="interaction-panel-header">
-          <h2>
-            {overlay.type === 'TRADE' && 'TRADE'}
-            {overlay.type === 'CRAFT' && 'CRAFTING'}
-            {overlay.type === 'DIALOGUE' && 'DIALOGUE'}
-          </h2>
-          <div className="interaction-header-actions">
-            <kbd className="interaction-esc-hint">ESC</kbd>
-            <button
-              type="button"
-              className="interaction-close"
-              onClick={() => interactionUI.closeUI()}
-              aria-label="Close interaction"
-            >
-              ✕
-            </button>
-          </div>
-        </header>
+    <>
+      <SyncStateOverlay latestServerTick={runtime.serverTick} renderTick={runtime.serverTick} />
+      {overlay.type !== 'NONE' && (
+        <div className="interaction-overlay-root" aria-live="polite">
+          <section
+            className="interaction-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label={overlay.type}
+          >
+            <header className="interaction-panel-header">
+              <h2>
+                {overlay.type === 'TRADE' && 'TRADE'}
+                {overlay.type === 'CRAFT' && 'CRAFTING'}
+                {overlay.type === 'DIALOGUE' && 'DIALOGUE'}
+              </h2>
+              <div className="interaction-header-actions">
+                <kbd className="interaction-esc-hint">ESC</kbd>
+                <button
+                  type="button"
+                  className="interaction-close"
+                  onClick={() => interactionUI.closeUI()}
+                  aria-label="Close interaction"
+                >
+                  ✕
+                </button>
+              </div>
+            </header>
 
-        {overlay.type === 'TRADE' && <TradeOverlay payload={overlay} />}
-        {overlay.type === 'CRAFT' && (
-          <p className="interaction-muted">
-            Crafting is server-side reserved and will be connected as the next UI module.
-          </p>
-        )}
-        {overlay.type === 'DIALOGUE' && (
-          <p className="interaction-muted">
-            Dialogue Seed: <code>{overlay.dialogueSeed}</code>
-          </p>
-        )}
-        {OverlayComponent && <OverlayComponent />}
-      </section>
-    </div>
+            {overlay.type === 'TRADE' && <TradeOverlay payload={overlay} />}
+            {overlay.type === 'CRAFT' && (
+              <p className="interaction-muted">
+                Crafting is server-side reserved and will be connected as the next UI module.
+              </p>
+            )}
+            {overlay.type === 'DIALOGUE' && (
+              <p className="interaction-muted">
+                Dialogue Seed: <code>{overlay.dialogueSeed}</code>
+              </p>
+            )}
+            {OverlayComponent && <OverlayComponent />}
+          </section>
+        </div>
+      )}
+    </>
   );
 }

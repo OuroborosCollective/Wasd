@@ -1,0 +1,25 @@
+.sync-state-overlay {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  max-width: min(22rem, calc(100vw - 2rem));
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #ffffff;
+  border-radius: 0.75rem;
+  background: #0c121c;
+  color: #f5f7fb;
+  font: 600 0.82rem/1.2 system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.sync-state-overlay--waiting,
+.sync-state-overlay--stale_medium,
+.sync-state-overlay--stale_long {
+  border-color: #ffd369;
+}
+
+.sync-state-overlay--stale_short {
+  opacity: 0.82;
+}
