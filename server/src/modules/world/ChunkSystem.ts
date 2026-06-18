@@ -7,21 +7,69 @@ export interface Chunk {
     size?: number;
     ownerGuildId?: string | null;
     data?: any;
-}export class ChunkSystem {
+}
+
+// ─── Chunk Coordinate Validation ───────────────────────────────────────────────
+
+const MAX_CHUNK_COORD = 1_000_000;
+const MIN_CHUNK_COORD = -1_000_000;
+
+function isValidChunkCoord(coord: number): boolean {
+    return (
+        typeof coord === 'number' &&
+        Number.isInteger(coord) &&
+        coord >= MIN_CHUNK_COORD &&
+        coord <= MAX_CHUNK_COORD
+    );
+}
+
+function isValidChunkSize(size: number): boolean {
+    return (
+        typeof size === 'number' &&
+        Number.isInteger(size) &&
+        size > 0 &&
+        size <= 1024
+    );
+}
+
+export class ChunkSystem {
     private chunks: Map<string, Chunk> = new Map();
     public readonly chunkSize: number;
 
     constructor(chunkSize: number = 64) {
-        this.chunkSize = chunkSize;
+        if (!isValidChunkSize(chunkSize)) {
+            console.warn(`[RuntimeValidation] ChunkSystem: invalid chunkSize ${chunkSize}, using default 64`);
+            this.chunkSize = 64;
+        } else {
+            this.chunkSize = chunkSize;
+        }
     }
 
     public getChunkId(x: number, y: number): string {
+        // ─── Runtime Validation: Chunk Coordinate ───────────────────────────────
+        if (!isValidChunkCoord(x)) {
+            console.warn(`[RuntimeValidation] ChunkSystem.getChunkId: invalid x coord ${x}`);
+        }
+        if (!isValidChunkCoord(y)) {
+            console.warn(`[RuntimeValidation] ChunkSystem.getChunkId: invalid y coord ${y}`);
+        }
+        // ─── End Runtime Validation ─────────────────────────────────────────
+        
         const cx = Math.floor(x / this.chunkSize);
         const cy = Math.floor(y / this.chunkSize);
         return this.buildChunkId(cx, cy);
     }
 
     public buildChunkId(cx: number, cy: number): string {
+        // ─── Runtime Validation: Chunk Index ────────────────────────────────
+        if (!isValidChunkCoord(cx)) {
+            console.warn(`[RuntimeValidation] ChunkSystem.buildChunkId: invalid cx ${cx}`);
+        }
+        if (!isValidChunkCoord(cy)) {
+            console.warn(`[RuntimeValidation] ChunkSystem.buildChunkId: invalid cy ${cy}`);
+        }
+        // ─── End Runtime Validation ──────────────────────────────────────
+        
         return `${cx}:${cy}`;
     }
 

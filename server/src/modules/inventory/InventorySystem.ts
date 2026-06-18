@@ -4,6 +4,7 @@ import {
   isItemBoundOrNonTransferable,
   normalizeBoundItemMeta,
 } from "../items/itemBindingPolicy.js";
+import { runtimeValidation, validate } from "../../core/are/RuntimeValidation.js";
 
 /** Default max carry weight for a player */
 const DEFAULT_MAX_WEIGHT = 200;
@@ -11,6 +12,18 @@ const DEFAULT_MAX_WEIGHT = 200;
 export class InventorySystem {
   /** Calculate total weight of a player's inventory. */
   calculateWeight(player: any): number {
+    // ─── Runtime Validation: Inventory Weight Calculation ───────────────────
+    if (!player || typeof player !== "object") {
+      console.warn("[RuntimeValidation] InventorySystem.calculateWeight: invalid player");
+      return 0;
+    }
+    
+    // Validate player ID if present
+    if (player.id && !validate.isValidEntityId(player.id)) {
+      console.warn(`[RuntimeValidation] InventorySystem: invalid player ID ${player.id}`);
+    }
+    // ─── End Runtime Validation ─────────────────────────────────────────
+    
     let total = 0;
     if (Array.isArray(player.inventory)) {
       for (const row of player.inventory) {
@@ -18,6 +31,12 @@ export class InventorySystem {
         const def = ItemRegistry.getItem(row.id);
         const unitWeight = ItemRegistry.weightOf(def);
         const qty = Math.max(1, Math.floor(Number(row.quantity) || 1));
+        
+        // Validate item quantity
+        if (!Number.isInteger(qty) || qty < 0) {
+          console.warn(`[RuntimeValidation] InventorySystem: invalid quantity ${qty} for item ${row.id}`);
+        }
+        
         total += unitWeight * qty;
       }
     }
@@ -57,11 +76,27 @@ export class InventorySystem {
   }
 
   addItem(player: any, item: any) {
+    // ─── Runtime Validation: Add Item ────────────────────────────────────────
+    if (!player || typeof player !== "object") {
+      console.warn("[RuntimeValidation] InventorySystem.addItem: invalid player");
+      return [];
+    }
+    if (!item || typeof item.id !== "string") {
+      console.warn("[RuntimeValidation] InventorySystem.addItem: missing or invalid item.id");
+      return player.inventory || [];
+    }
+    // ─── End Runtime Validation ───────────────────────────────────────────────
+
     if (!Array.isArray(player.inventory)) player.inventory = [];
     if (!item || typeof item.id !== "string") return player.inventory;
 
     const def = ItemRegistry.getItem(item.id);
     const addQty = Math.max(1, Math.floor(Number(item.quantity) || 1));
+
+    // Validate quantity bounds
+    if (addQty > 1000000) {
+      console.warn(`[RuntimeValidation] InventorySystem.addItem: excessive quantity ${addQty}`);
+    }
 
     if (!ItemRegistry.stacksWithDefinition(def)) {
       for (let i = 0; i < addQty; i++) {
@@ -109,6 +144,20 @@ export class InventorySystem {
    * Remove up to `count` units of itemId (across stack rows). Returns number removed.
    */
   takeManyFromBag(player: any, itemId: string, count: number): number {
+    // ─── Runtime Validation: Take From Bag ──────────────────────────────────
+    if (!player || typeof player !== "object") {
+      console.warn("[RuntimeValidation] InventorySystem.takeManyFromBag: invalid player");
+      return 0;
+    }
+    if (!itemId || typeof itemId !== "string") {
+      console.warn("[RuntimeValidation] InventorySystem.takeManyFromBag: invalid itemId");
+      return 0;
+    }
+    if (!Number.isInteger(count) || count < 0) {
+      console.warn(`[RuntimeValidation] InventorySystem.takeManyFromBag: invalid count ${count}`);
+      return 0;
+    }
+    // ─── End Runtime Validation ─────────────────────────────────────────────
     if (!Array.isArray(player.inventory)) player.inventory = [];
     let need = Math.max(0, Math.floor(count));
     if (need <= 0) return 0;
