@@ -5,8 +5,8 @@
  * These types provide a stable contract for the 2D client.
  *
  * Rules:
- * - No Math.random() for gameplay values
- * - No Date.now() for gameplay state
+ * - No unseeded randomness for gameplay values
+ * - No wall-clock reads for gameplay state
  * - Empty arrays instead of undefined
  * - All arrays sorted deterministically by id
  */
