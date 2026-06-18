@@ -14,6 +14,15 @@ export interface RuntimePlayerSeed {
   tick?: number;
 }
 
+export interface RuntimeMoveIntent {
+  playerId: string;
+  socketId?: string;
+  dx: number;
+  dy: number;
+  sequenceId?: number;
+  acceptedAtTick: number;
+}
+
 function cleanPlayerId(id: unknown): string {
   return String(id ?? "").trim();
 }
@@ -23,8 +32,23 @@ function finiteNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function clampUnit(value: unknown): number {
+  const n = finiteNumber(value, 0);
+  return Math.max(-1, Math.min(1, n));
+}
+
+function stableIntentSort(a: RuntimeMoveIntent, b: RuntimeMoveIntent): number {
+  if (a.acceptedAtTick !== b.acceptedAtTick) return a.acceptedAtTick - b.acceptedAtTick;
+  const playerCmp = a.playerId.localeCompare(b.playerId);
+  if (playerCmp !== 0) return playerCmp;
+  const socketCmp = String(a.socketId ?? "").localeCompare(String(b.socketId ?? ""));
+  if (socketCmp !== 0) return socketCmp;
+  return (a.sequenceId ?? 0) - (b.sequenceId ?? 0);
+}
+
 export class RuntimePlayerSystem {
   private readonly players = new Map<string, any>();
+  private readonly moveIntentQueue: RuntimeMoveIntent[] = [];
 
   /**
    * Read-only lookup. This must never create state: callers that need a new
@@ -88,12 +112,62 @@ export class RuntimePlayerSystem {
     return hydrated;
   }
 
+  enqueueMoveIntent(intent: RuntimeMoveIntent): boolean {
+    const playerId = cleanPlayerId(intent.playerId);
+    if (!playerId || !this.players.has(playerId)) return false;
+
+    const dx = clampUnit(intent.dx);
+    const dy = clampUnit(intent.dy);
+    const magSq = dx * dx + dy * dy;
+    if (magSq <= 0) return false;
+
+    const normalized = magSq > 1 ? Math.sqrt(magSq) : 1;
+    this.moveIntentQueue.push({
+      playerId,
+      socketId: intent.socketId,
+      dx: dx / normalized,
+      dy: dy / normalized,
+      sequenceId: Number.isSafeInteger(intent.sequenceId) ? Math.trunc(Number(intent.sequenceId)) : 0,
+      acceptedAtTick: Number.isSafeInteger(intent.acceptedAtTick) && intent.acceptedAtTick >= 0 ? Math.trunc(intent.acceptedAtTick) : 0,
+    });
+    return true;
+  }
+
+  applyQueuedMoveIntents(tick: number, speed = 5): number {
+    if (this.moveIntentQueue.length === 0) return 0;
+
+    const currentTick = Number.isSafeInteger(tick) && tick >= 0 ? Math.trunc(tick) : 0;
+    const safeSpeed = Number.isFinite(speed) && speed > 0 ? Number(speed) : 5;
+    const ready = this.moveIntentQueue
+      .splice(0, this.moveIntentQueue.length)
+      .filter((intent) => intent.acceptedAtTick <= currentTick)
+      .sort(stableIntentSort);
+
+    for (const intent of ready) {
+      const player = this.players.get(intent.playerId);
+      if (!player) continue;
+      player.position = player.position ?? { x: 0, y: 0, z: 0 };
+      player.position.x = finiteNumber(player.position.x, 0) + intent.dx * safeSpeed;
+      player.position.y = finiteNumber(player.position.y, 0) + intent.dy * safeSpeed;
+      player.position.z = finiteNumber(player.position.z, 0);
+      player.isOffline = false;
+      player.state = "walking";
+      player.lastMoveTick = currentTick;
+    }
+
+    return ready.length;
+  }
+
+  getPendingMoveIntentCount(): number {
+    return this.moveIntentQueue.length;
+  }
+
   getAllPlayers(): any[] {
     return [...this.players.values()];
   }
 
-  getDiagnostics(): { playerCount: number; source: string } {
-    return { playerCount: this.players.size, source: "explicit_login_or_hydration" };
+  getDiagnostics(): { playerCount: number; pendingMoveIntents: number; source: string } {
+    return { playerCount: this.players.size, pendingMoveIntents: this.moveIntentQueue.length, source: "explicit_login_or_hydration" };
   }
 }
 
