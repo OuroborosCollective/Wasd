@@ -1,0 +1,1 @@
+export const REGION_PRESSURE_KAPPA = 1000;
