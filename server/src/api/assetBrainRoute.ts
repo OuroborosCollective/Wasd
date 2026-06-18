@@ -9,11 +9,11 @@
  * POST   /api/asset-brain/batch         – Start batch job
  * GET    /api/asset-brain/batch/:id     – Get batch job status
  */
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import express from 'express';
-import { authMiddleware } from '../middleware/authMiddleware.js';
+import { authRequestHandler } from '../middleware/authRequestHandler.js';
 import { db as dbInstance } from '../core/Database.js';
-import { AssetBrainDatabase, type AssetRecord } from '../modules/asset-brain/AssetBrainDatabase.js';
+import { AssetBrainDatabase } from '../modules/asset-brain/AssetBrainDatabase.js';
 import { generateAssetSpecification, generateVariants } from '../modules/asset-brain/assetBrainEngine.js';
 
 export function createAssetBrainRouter(dbParam?: unknown): Router {
@@ -21,17 +21,10 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
   const assetBrainDb = new AssetBrainDatabase(db as typeof dbInstance);
   const router = Router();
 
-  // JSON body parser - handles POST /generate, /batch which need JSON body
   router.use(express.json({ limit: '1mb' }));
-
-  // Initialize tables on startup
   assetBrainDb.initializeTables().catch(console.error);
 
-  /**
-   * POST /api/asset-brain/generate
-   * Generate asset specification from text input
-   */
-  router.post('/generate', authMiddleware, async (req: Request, res: Response) => {
+  router.post('/generate', authRequestHandler, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).userId || (req as any).playerId;
       if (!userId) return res.status(401).json({ error: 'User ID required' });
@@ -49,10 +42,7 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
         return res.status(400).json({ error: 'assetInput is required and must be a string' });
       }
 
-      // Generate specification using Asset Brain Engine
       const specification = await generateAssetSpecification(assetInput);
-
-      // Save to database (store full spec as JSON blob)
       const savedSpec = await assetBrainDb.createSpecification({
         userId,
         assetName: name ?? specification.assetName,
@@ -65,10 +55,7 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
         isPublic: isPublic ?? false,
       });
 
-      // Generate variants
       const variants = generateVariants(specification);
-
-      // Save variants
       const savedVariants: unknown[] = [];
       for (const [variantType, variantData] of Object.entries(variants)) {
         const topology = (variantData as any).topology;
@@ -97,11 +84,7 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
     }
   });
 
-  /**
-   * GET /api/asset-brain/my-specs
-   * Get user's asset specifications
-   */
-  router.get('/my-specs', authMiddleware, async (req: Request, res: Response) => {
+  router.get('/my-specs', authRequestHandler, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).userId || (req as any).playerId;
       if (!userId) return res.status(401).json({ error: 'User ID required' });
@@ -112,10 +95,6 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
     }
   });
 
-  /**
-   * GET /api/asset-brain/specs/:id
-   * Get specification details
-   */
   router.get('/specs/:id', async (req: Request, res: Response) => {
     try {
       const id = String(req.params['id']);
@@ -133,26 +112,17 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
     }
   });
 
-  /**
-   * GET /api/asset-brain/variants/:id
-   * Get variants for a specification
-   */
   router.get('/variants/:id', async (req: Request, res: Response) => {
     try {
       const id = String(req.params['id']);
       const userId = (req as any).userId || (req as any).playerId;
-      
-      // Get the specification to check authorization
       const spec = await assetBrainDb.getSpecification(id);
       if (!spec) {
         return res.status(404).json({ error: 'Specification not found' });
       }
-      
-      // Only allow access to public specs or user's own specs
       if (!spec.isPublic && spec.userId !== userId) {
         return res.status(403).json({ error: 'Access denied' });
       }
-      
       const variants = await assetBrainDb.getVariants(id);
       res.json({ variants });
     } catch (error: any) {
@@ -160,10 +130,6 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
     }
   });
 
-  /**
-   * GET /api/asset-brain/search
-   * Search public specifications
-   */
   router.get('/search', async (req: Request, res: Response) => {
     try {
       const assetClass = typeof req.query.assetClass === 'string' ? req.query.assetClass : undefined;
@@ -175,10 +141,6 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
     }
   });
 
-  /**
-   * GET /api/asset-brain/library
-   * Browse asset library
-   */
   router.get('/library', async (req: Request, res: Response) => {
     try {
       const assetClass = typeof req.query.assetClass === 'string' ? req.query.assetClass : undefined;
@@ -190,11 +152,7 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
     }
   });
 
-  /**
-   * POST /api/asset-brain/batch
-   * Start batch job for CSV/JSON import
-   */
-  router.post('/batch', authMiddleware, async (req: Request, res: Response) => {
+  router.post('/batch', authRequestHandler, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).userId || (req as any).playerId;
       if (!userId) return res.status(401).json({ error: 'User ID required' });
@@ -216,11 +174,7 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
     }
   });
 
-  /**
-   * GET /api/asset-brain/batch/:id
-   * Get batch job status
-   */
-  router.get('/batch/:id', authMiddleware, async (req: Request, res: Response) => {
+  router.get('/batch/:id', authRequestHandler, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       res.json({ jobId: id, status: 'pending', assetsGenerated: 0 });
