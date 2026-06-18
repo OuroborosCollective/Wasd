@@ -123,7 +123,7 @@ export class SnapshotRenderBuffer<TSnapshot = LiveGameplaySnapshot> {
   }
 
   latest(): SnapshotRenderFrame<TSnapshot> | null {
-    return this.frames.at(-1) ?? null;
+    return this.frames.length > 0 ? this.frames[this.frames.length - 1] : null;
   }
 
   getFrames(): readonly SnapshotRenderFrame<TSnapshot>[] {
