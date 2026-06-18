@@ -190,7 +190,7 @@ router.post("/trade-transfer", tradeTransferRateLimiter, async (req, res) => {
   res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
 });
 
-router.get("/work-orders", async (_req, res) => {
+router.get("/work-orders", (_req, res) => {
   const tick = currentServerTick();
   res.json({
     ok: true,
