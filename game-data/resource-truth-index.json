@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "questDataFiles": [
+    "quests/quests.json",
+    "quests/resource-expansion-quests.json"
+  ],
+  "resourceExpansionQuestIds": [
+    "wood_delivery_001",
+    "plank_delivery_001"
+  ]
+}
