@@ -7,11 +7,12 @@ import { Router, type Request, type Response } from 'express';
 import { getAssetPipeline } from '../modules/asset-brain/AssetPipeline.js';
 import { db } from '../core/Database.js';
 import { authRequestHandler } from '../middleware/authRequestHandler.js';
+import { adminRateLimiter, sensitiveWriteRateLimiter } from '../middleware/rateLimitMiddleware.js';
 
 export function createAssetPipelineRouter(): Router {
   const router = Router();
 
-  router.post('/generate', authRequestHandler, async (req: Request, res: Response): Promise<void> => {
+  router.post('/generate', sensitiveWriteRateLimiter, authRequestHandler, async (req: Request, res: Response): Promise<void> => {
     try {
       const { input, generateModel = true, autoRegister = true } = req.body as {
         input: string;
@@ -41,7 +42,7 @@ export function createAssetPipelineRouter(): Router {
     }
   });
 
-  router.post('/spec-only', authRequestHandler, async (req: Request, res: Response): Promise<void> => {
+  router.post('/spec-only', sensitiveWriteRateLimiter, authRequestHandler, async (req: Request, res: Response): Promise<void> => {
     try {
       const { input } = req.body as { input: string };
       if (!input || typeof input !== 'string') {
@@ -62,7 +63,7 @@ export function createAssetPipelineRouter(): Router {
     }
   });
 
-  router.get('/job/:jobId', authRequestHandler, (req: Request, res: Response): void => {
+  router.get('/job/:jobId', adminRateLimiter, authRequestHandler, (req: Request, res: Response): void => {
     const userId = (req as any).userId || (req as any).playerId || 'anonymous';
     const jobId = String(req.params['jobId']);
     const pipeline = getAssetPipeline();
@@ -81,14 +82,14 @@ export function createAssetPipelineRouter(): Router {
     res.json(job);
   });
 
-  router.get('/jobs', authRequestHandler, (req: Request, res: Response): void => {
+  router.get('/jobs', adminRateLimiter, authRequestHandler, (req: Request, res: Response): void => {
     const userId = (req as any).userId || (req as any).playerId || 'anonymous';
     const pipeline = getAssetPipeline();
     const jobs = pipeline.getAllJobs(userId);
     res.json({ jobs });
   });
 
-  router.get('/assets', async (req: Request, res: Response): Promise<void> => {
+  router.get('/assets', adminRateLimiter, async (req: Request, res: Response): Promise<void> => {
     try {
       const limit = Math.min(Number(req.query['limit']) || 50, 200);
       const offset = Number(req.query['offset']) || 0;
@@ -112,7 +113,7 @@ export function createAssetPipelineRouter(): Router {
     }
   });
 
-  router.delete('/asset/:id', authRequestHandler, async (req: Request, res: Response): Promise<void> => {
+  router.delete('/asset/:id', sensitiveWriteRateLimiter, authRequestHandler, async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = (req as any).userId || (req as any).playerId || 'anonymous';
       const id = String(req.params['id']);
@@ -129,7 +130,7 @@ export function createAssetPipelineRouter(): Router {
     }
   });
 
-  router.get('/spec/:specId', async (req: Request, res: Response): Promise<void> => {
+  router.get('/spec/:specId', adminRateLimiter, async (req: Request, res: Response): Promise<void> => {
     try {
       const specId = String(req.params['specId']);
       const result = await db.query('SELECT * FROM asset_specifications WHERE id = $1', [specId]);
@@ -154,7 +155,7 @@ export function createAssetPipelineRouter(): Router {
     }
   });
 
-  router.get('/tripo/balance', async (_req: Request, res: Response): Promise<void> => {
+  router.get('/tripo/balance', adminRateLimiter, async (_req: Request, res: Response): Promise<void> => {
     try {
       const apiKey = process.env['TRIPO_API_KEY'];
       if (!apiKey) {
