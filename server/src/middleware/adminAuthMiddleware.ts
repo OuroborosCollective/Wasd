@@ -59,7 +59,7 @@ function readDashboardConfiguredValue(): string {
   return (process.env.DASHBOARD_ADMIN_TSX || process.env.dashboard_admin_tsx || "").trim();
 }
 
-export const adminAuthMiddleware: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const adminAuthMiddleware: RequestHandler = (req: Request, res: Response, next: NextFunction): void => {
   const adminReq = req as AdminRequest;
   const panel = process.env.ADMIN_PANEL_TOKEN?.trim();
   const legacyPanel = process.env.GM_PANEL_TOKEN?.trim();
