@@ -48,7 +48,7 @@ export class GovernanceService {
     private readonly pressureAdapter?: GovernancePressureAdapter,
   ) {
     for (const territory of registry.getTerritories()) {
-      const lawFlags = Object.fromEntries(
+      const lawFlags: Record<string, boolean> = Object.fromEntries(
         registry.getLaws().map((law) => [law.lawFlag, law.defaultEnabled]),
       );
       for (const lawFlag of territory.defaultLawFlags) lawFlags[lawFlag] = true;
@@ -79,7 +79,9 @@ export class GovernanceService {
   }
 
   getStates(): readonly GovernanceState[] {
-    const states = [...this.states.values()].sort((a, b) => a.territoryId.localeCompare(b.territoryId));
+    const states = [...this.states.values()].sort((a, b) => (
+      a.territoryId.localeCompare(b.territoryId)
+    ));
     return Object.freeze(states);
   }
 
@@ -147,7 +149,9 @@ export class GovernanceService {
 
     const safeTick = Number.isSafeInteger(tick) && tick >= 0 ? tick : 0;
     const adapter = this.pressureAdapter?.({ territoryId, tick: safeTick, state }) ?? {};
-    const economyPressurePerMille = this.clamp(adapter.economyPressurePerMille ?? state.taxRatePerMille);
+    const economyPressurePerMille = this.clamp(
+      adapter.economyPressurePerMille ?? state.taxRatePerMille,
+    );
     const resourcePressurePerMille = this.clamp(
       adapter.resourcePressurePerMille ?? Math.max(0, state.militiaPool - state.resourceBudget),
     );
@@ -156,7 +160,12 @@ export class GovernanceService {
     );
     const conflictBase = this.conflictBasePressure(state.conflictState);
     const pressurePerMille = this.clamp(
-      Math.floor((conflictBase + economyPressurePerMille + resourcePressurePerMille + guardPressurePerMille) / 4),
+      Math.floor((
+        conflictBase
+        + economyPressurePerMille
+        + resourcePressurePerMille
+        + guardPressurePerMille
+      ) / 4),
     );
 
     return Object.freeze({
@@ -166,7 +175,13 @@ export class GovernanceService {
       economyPressurePerMille,
       resourcePressurePerMille,
       guardPressurePerMille,
-      stateHash: hashHex([territoryId, safeTick, state.version, state.conflictState, pressurePerMille]),
+      stateHash: hashHex([
+        territoryId,
+        safeTick,
+        state.version,
+        state.conflictState,
+        pressurePerMille,
+      ]),
     });
   }
 
@@ -203,7 +218,10 @@ export class GovernanceService {
       return {
         ok: true,
         patch: {
-          lawFlags: Object.freeze({ ...orderedFlags(current.lawFlags), [action.lawFlag]: action.enabled }),
+          lawFlags: Object.freeze({
+            ...orderedFlags(current.lawFlags),
+            [action.lawFlag]: action.enabled,
+          }),
         },
       };
     }
@@ -254,7 +272,11 @@ export class GovernanceService {
     return 1000;
   }
 
-  private canMutate(role: string, territoryIds: readonly string[] | undefined, territoryId: string): boolean {
+  private canMutate(
+    role: string,
+    territoryIds: readonly string[] | undefined,
+    territoryId: string,
+  ): boolean {
     const privilegedRole = role === "king" || role === "steward" || role === "guild_master";
     return role === "server" || (privilegedRole && !!territoryIds?.includes(territoryId));
   }
