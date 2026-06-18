@@ -482,7 +482,10 @@ function StitchPanel({
             <small>ARELORIAN SCIENCE MODULE</small>
             <h2 id="stitch-modal-title">{title}</h2>
           </div>
-          <button onClick={onClose} aria-label="Close panel">×</button>
+          <button onClick={onClose} aria-label="Close panel [ESC]">
+            <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
+            ×
+          </button>
         </header>
         {panel === "inventory" && (
           <>

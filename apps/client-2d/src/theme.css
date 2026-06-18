@@ -48,6 +48,25 @@ canvas { display: block; filter: saturate(1.16) contrast(1.08); touch-action: no
 .cz-hints { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
 .cz-hints span { border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; padding: 7px 10px; color: var(--cz-muted); background: rgba(255,255,255,0.04); font-size: 12px; }
 
+.cz-kbd {
+  background: rgba(0, 229, 255, 0.18);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--cz-cyan);
+  text-transform: uppercase;
+  font-weight: 800;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.15);
+  margin-right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5em;
+  line-height: 1;
+}
+
 .az-shell { position: relative; width: 100%; height: 100%; overflow: hidden; background: radial-gradient(circle at 50% 18%, rgba(0,229,255,.14), transparent 34%), linear-gradient(180deg, #121426 0%, #142318 58%, #07100b 100%); }
 .az-shell::before { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,.032) 1px, transparent 1px); background-size: 44px 44px; mask-image: radial-gradient(circle at 50% 48%, black 0%, transparent 78%); }
 .az-world-glow { position: absolute; inset: 8% 0 auto; height: 70%; pointer-events: none; background: radial-gradient(ellipse at center, rgba(57,255,20,.10), transparent 62%); filter: blur(18px); }
@@ -190,7 +209,7 @@ canvas { display: block; filter: saturate(1.16) contrast(1.08); touch-action: no
 .stitch-modal-card header { display: flex; justify-content: space-between; align-items: start; gap: 14px; margin-bottom: 18px; }
 .stitch-modal-card small { color: var(--st-aether); font-size: 10px; letter-spacing: .18em; font-weight: 950; }
 .stitch-modal-card h2 { margin: 4px 0 0; font-size: clamp(28px, 5vw, 48px); letter-spacing: -.05em; }
-.stitch-modal-card header button { width: 38px; height: 38px; border-radius: 13px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: white; font-size: 24px; }
+.stitch-modal-card header button { display: flex; align-items: center; gap: 8px; min-height: 38px; padding-inline: 8px; border-radius: 13px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: white; font-size: 24px; }
 .stitch-grid-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 12px; }
 .stitch-info { min-height: 108px; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; padding: 15px; background: rgba(255,255,255,.045); display: grid; align-content: center; gap: 8px; }
 .stitch-info small { color: rgba(244,247,255,.54); }
