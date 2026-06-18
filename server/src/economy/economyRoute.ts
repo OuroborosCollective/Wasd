@@ -6,6 +6,7 @@ import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { getInventoryStore } from "../inventory/inventoryRuntime.js";
 import { transferInventoryItem } from "../inventory/InventoryTransferService.js";
 import { economyService } from "./economyRuntime.js";
+import { workOrderService } from "./WorkOrderService.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
 import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
 
@@ -76,6 +77,32 @@ function requireProductionAuth(identity: { authenticated: boolean }, res: Respon
 function currentServerTick(): number {
   const tick = Number(tickContextProvider.getContext().tickIndex);
   return Number.isSafeInteger(tick) && tick >= 0 ? tick : 0;
+}
+
+function tickResponseContext() {
+  const tickContext = tickContextProvider.getContext();
+  return {
+    tickId: tickContext.tickId,
+    tickIndex: tickContext.tickIndex,
+    worldTimeHours: tickContext.worldTimeHours,
+    seedHash: tickContext.seedHash,
+  };
+}
+
+function workOrderHttpStatus(reason: string): number {
+  switch (reason) {
+    case "invalid_order":
+      return 404;
+    case "invalid_player":
+    case "invalid_quantity":
+    case "wrong_item":
+      return 400;
+    case "missing_items":
+    case "already_completed":
+      return 409;
+    default:
+      return 400;
+  }
 }
 
 router.post("/sell-resource", async (req, res) => {
@@ -161,6 +188,58 @@ router.post("/trade-transfer", tradeTransferRateLimiter, async (req, res) => {
   }
 
   res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
+});
+
+router.get("/work-orders", async (_req, res) => {
+  const tick = currentServerTick();
+  res.json({
+    ok: true,
+    workOrders: workOrderService.listSnapshots(tick),
+    tickContext: tickResponseContext(),
+  });
+});
+
+router.post("/work-orders/deliver", async (req, res) => {
+  const identity = resolveHttpPlayerIdentity(req);
+  if (!requireProductionAuth(identity, res)) return;
+
+  const workOrderId = parseSafeId(req.body?.workOrderId);
+  const quantity = parseQuantity(req.body?.quantity);
+
+  if (!workOrderId) return void res.status(400).json({ ok: false, error: "invalid_work_order_id" });
+  if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
+
+  const tick = currentServerTick();
+
+  try {
+    const result = await workOrderService.deliver({
+      playerId: identity.playerId,
+      workOrderId,
+      quantity,
+      currentTick: tick,
+    });
+    const snapshot = workOrderService.getSnapshot(workOrderId, tick);
+
+    if (result.ok) {
+      runtimeHistoryLog.write({
+        tick,
+        source: "work_order_delivery",
+        actorId: identity.playerId,
+        subjectId: workOrderId,
+        payload: result,
+      });
+    }
+
+    res.status(result.ok ? 200 : workOrderHttpStatus(result.reason)).json({
+      ok: result.ok,
+      result,
+      snapshot,
+      tickContext: tickResponseContext(),
+    });
+  } catch (error) {
+    console.error("[economy-work-order-deliver] Failed to deliver work order:", error);
+    res.status(500).json({ ok: false, error: "internal_error" });
+  }
 });
 
 router.get("/market-snapshot", async (_req, res) => {
