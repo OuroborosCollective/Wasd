@@ -1,3 +1,4 @@
+import type React from "react";
 import { classifySyncFreshness, type SyncFreshnessState } from "../game/SnapshotRenderBuffer";
 
 export interface SyncStateOverlayProps {
@@ -20,7 +21,7 @@ function labelForState(state: SyncFreshnessState): string {
   }
 }
 
-export function SyncStateOverlay({ latestServerTick, renderTick }: SyncStateOverlayProps): JSX.Element | null {
+export function SyncStateOverlay({ latestServerTick, renderTick }: SyncStateOverlayProps): React.ReactElement | null {
   const state = classifySyncFreshness(latestServerTick, renderTick);
   if (state === "fresh") return null;
 
