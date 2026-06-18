@@ -8,8 +8,17 @@ import type {
   TerritoryKind,
 } from "./GovernanceTypes.js";
 
-const TERRITORY_KINDS = new Set<TerritoryKind>(["kingdom", "province", "settlement", "guild_overlay"]);
-const CONFLICT_STATES = new Set<ConflictState>(["peace", "tension", "open_conflict"]);
+const TERRITORY_KINDS = new Set<TerritoryKind>([
+  "kingdom",
+  "province",
+  "settlement",
+  "guild_overlay",
+]);
+const CONFLICT_STATES = new Set<ConflictState>([
+  "peace",
+  "tension",
+  "open_conflict",
+]);
 
 function fail(file: string, message: string): never {
   throw new Error(`[GovernanceContent] ${file}: ${message}`);
@@ -25,14 +34,22 @@ function readJson(file: string): unknown {
   }
 }
 
-function asRecord(value: unknown, file: string, label: string): Record<string, unknown> {
+function asRecord(
+  value: unknown,
+  file: string,
+  label: string,
+): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     fail(file, `${label} must be an object`);
   }
   return value as Record<string, unknown>;
 }
 
-function readString(record: Record<string, unknown>, key: string, file: string): string {
+function readString(
+  record: Record<string, unknown>,
+  key: string,
+  file: string,
+): string {
   const value = record[key];
   if (typeof value !== "string" || value.trim().length === 0) {
     fail(file, `${key} must be a non-empty string`);
@@ -40,7 +57,11 @@ function readString(record: Record<string, unknown>, key: string, file: string):
   return value.trim();
 }
 
-function readOptionalString(record: Record<string, unknown>, key: string, file: string): string | undefined {
+function readOptionalString(
+  record: Record<string, unknown>,
+  key: string,
+  file: string,
+): string | undefined {
   const value = record[key];
   if (value === undefined || value === null) return undefined;
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -69,7 +90,11 @@ function readBoolean(record: Record<string, unknown>, key: string, file: string)
   return value;
 }
 
-function readStringArray(record: Record<string, unknown>, key: string, file: string): readonly string[] {
+function readStringArray(
+  record: Record<string, unknown>,
+  key: string,
+  file: string,
+): readonly string[] {
   const value = record[key];
   if (!Array.isArray(value)) fail(file, `${key} must be an array`);
   const normalized = value.map((entry, index) => {
@@ -87,9 +112,15 @@ function readTerritory(raw: unknown, file: string, index: number): TerritoryDefi
   if (!TERRITORY_KINDS.has(kind)) fail(file, `invalid territory kind ${kind}`);
 
   const conflictState = readString(record, "defaultConflictState", file) as ConflictState;
-  if (!CONFLICT_STATES.has(conflictState)) fail(file, `invalid conflict state ${conflictState}`);
+  if (!CONFLICT_STATES.has(conflictState)) {
+    fail(file, `invalid conflict state ${conflictState}`);
+  }
 
-  const budgets = asRecord(record.defaultBudgets, file, `territories[${index}].defaultBudgets`);
+  const budgets = asRecord(
+    record.defaultBudgets,
+    file,
+    `territories[${index}].defaultBudgets`,
+  );
   const parentId = readOptionalString(record, "parentId", file);
   const guildId = readOptionalString(record, "guildId", file);
 
@@ -128,7 +159,9 @@ export class TerritoryRegistry {
   private readonly lawByFlag: ReadonlyMap<string, LawDefinition>;
 
   constructor(private readonly content: GovernanceContent = loadGovernanceContentFromGameData()) {
-    this.territoryById = new Map(content.territories.map((territory) => [territory.territoryId, territory]));
+    this.territoryById = new Map(
+      content.territories.map((territory) => [territory.territoryId, territory]),
+    );
     this.lawByFlag = new Map(content.laws.map((law) => [law.lawFlag, law]));
   }
 
@@ -152,7 +185,11 @@ export class TerritoryRegistry {
 export function loadGovernanceContentFromGameData(): GovernanceContent {
   const territoriesFile = resolveContentFile("governance/territories.json");
   const lawsFile = resolveContentFile("governance/laws.json");
-  const territoriesRoot = asRecord(readJson(territoriesFile), territoriesFile, "territories root");
+  const territoriesRoot = asRecord(
+    readJson(territoriesFile),
+    territoriesFile,
+    "territories root",
+  );
   const lawsRoot = asRecord(readJson(lawsFile), lawsFile, "laws root");
 
   if (readInteger(territoriesRoot, "schemaVersion", territoriesFile, 1, 1) !== 1) {
@@ -189,7 +226,10 @@ export function loadGovernanceContentFromGameData(): GovernanceContent {
   const lawFlags = new Set(laws.map((law) => law.lawFlag));
   for (const territory of territories) {
     if (territory.parentId && !territoryIds.has(territory.parentId)) {
-      fail(territoriesFile, `${territory.territoryId} references missing parent ${territory.parentId}`);
+      fail(
+        territoriesFile,
+        `${territory.territoryId} references missing parent ${territory.parentId}`,
+      );
     }
     for (const lawFlag of territory.defaultLawFlags) {
       if (!lawFlags.has(lawFlag)) {
