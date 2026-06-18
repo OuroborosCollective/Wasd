@@ -17,24 +17,50 @@ import type { NPCSystem } from "../../modules/npc/NPCSystem.js";
 import type { RuntimePlayerSystem } from "./RuntimeDomainPorts.js";
 import type { LootDirector } from "../../modules/world/LootDirector.js";
 
+type AuthoritySliceKey = keyof WorldStateProviderSlice;
+
 type MutableWorldStateProviderSlice = {
-  npcs?: unknown[];
-  players?: unknown[];
-  loot?: unknown[];
-  warfronts?: unknown[];
-  economy?: unknown[];
-  factions?: unknown[];
-  quests?: unknown[];
-  worldEvents?: unknown[];
+  [K in AuthoritySliceKey]?: unknown[];
 };
+
+export interface RuntimeAuthorityListPort {
+  getAll(): readonly unknown[];
+}
+
+export interface RuntimeAuthoritySlicePort {
+  getWorldState(context: TickSystemContext): WorldStateProviderSlice;
+}
+
+export interface GameplayAuthorityPorts {
+  inventory?: RuntimeAuthorityListPort;
+  equipment?: RuntimeAuthorityListPort;
+  resources?: RuntimeAuthorityListPort;
+  economy?: RuntimeAuthorityListPort;
+  quests?: RuntimeAuthorityListPort;
+  housing?: RuntimeAuthorityListPort;
+  kingdoms?: RuntimeAuthorityListPort;
+  population?: RuntimeAuthorityListPort;
+  help?: RuntimeAuthorityListPort;
+  factions?: RuntimeAuthorityListPort;
+  warfronts?: RuntimeAuthorityListPort;
+  worldEvents?: RuntimeAuthorityListPort;
+}
 
 function appendSliceField(
   target: MutableWorldStateProviderSlice,
-  key: keyof MutableWorldStateProviderSlice,
+  key: AuthoritySliceKey,
   source: readonly unknown[] | undefined,
 ): void {
   if (!source || source.length === 0) return;
   target[key] = [...(target[key] ?? []), ...source];
+}
+
+function sliceFromPort(
+  port: RuntimeAuthorityListPort | undefined,
+): readonly unknown[] | undefined {
+  if (!port) return undefined;
+  const value = port.getAll();
+  return Array.isArray(value) ? value : undefined;
 }
 
 /**
@@ -86,6 +112,61 @@ export class LootWorldStateProvider implements WorldStateProvider {
 }
 
 /**
+ * Generic runtime source provider for one ARE authority slice.
+ *
+ * This is intentionally a real-source adapter only. It cannot fabricate fallback
+ * gameplay data because the constructor requires a port that exposes live runtime
+ * lists and the getter returns nothing when the port returns a non-array value.
+ */
+export class RuntimeAuthorityListProvider implements WorldStateProvider {
+  readonly id: string;
+
+  constructor(
+    id: string,
+    private readonly key: AuthoritySliceKey,
+    private readonly port: RuntimeAuthorityListPort,
+  ) {
+    if (!id || id.trim().length === 0) {
+      throw new Error("RuntimeAuthorityListProvider requires a stable non-empty id");
+    }
+    this.id = id;
+  }
+
+  getWorldState(_context: TickSystemContext): WorldStateProviderSlice {
+    const values = sliceFromPort(this.port);
+    return values ? { [this.key]: values } : {};
+  }
+}
+
+/**
+ * Gameplay authority provider for release-critical systems that already expose
+ * deterministic runtime list ports: inventory, equipment, resource nodes,
+ * economy, quests, housing, kingdoms, population and help hints.
+ */
+export class GameplayAuthorityWorldStateProvider implements WorldStateProvider {
+  readonly id = "gameplay-authority";
+
+  constructor(private readonly ports: GameplayAuthorityPorts) {}
+
+  getWorldState(_context: TickSystemContext): WorldStateProviderSlice {
+    return {
+      inventory: sliceFromPort(this.ports.inventory),
+      equipment: sliceFromPort(this.ports.equipment),
+      resources: sliceFromPort(this.ports.resources),
+      economy: sliceFromPort(this.ports.economy),
+      quests: sliceFromPort(this.ports.quests),
+      housing: sliceFromPort(this.ports.housing),
+      kingdoms: sliceFromPort(this.ports.kingdoms),
+      population: sliceFromPort(this.ports.population),
+      help: sliceFromPort(this.ports.help),
+      factions: sliceFromPort(this.ports.factions),
+      warfronts: sliceFromPort(this.ports.warfronts),
+      worldEvents: sliceFromPort(this.ports.worldEvents),
+    };
+  }
+}
+
+/**
  * Composite World State Provider
  * Combines multiple providers into one
  */
@@ -108,10 +189,17 @@ export class CompositeWorldStateProvider implements WorldStateProvider {
       appendSliceField(merged, "npcs", slice.npcs);
       appendSliceField(merged, "players", slice.players);
       appendSliceField(merged, "loot", slice.loot);
+      appendSliceField(merged, "inventory", slice.inventory);
+      appendSliceField(merged, "equipment", slice.equipment);
+      appendSliceField(merged, "resources", slice.resources);
       appendSliceField(merged, "warfronts", slice.warfronts);
       appendSliceField(merged, "economy", slice.economy);
       appendSliceField(merged, "factions", slice.factions);
       appendSliceField(merged, "quests", slice.quests);
+      appendSliceField(merged, "housing", slice.housing);
+      appendSliceField(merged, "kingdoms", slice.kingdoms);
+      appendSliceField(merged, "population", slice.population);
+      appendSliceField(merged, "help", slice.help);
       appendSliceField(merged, "worldEvents", slice.worldEvents);
     }
 
