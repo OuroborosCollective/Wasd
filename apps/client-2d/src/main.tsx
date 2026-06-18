@@ -24,6 +24,15 @@ import { ARELORIA_BOOT_CONFIG } from "./boot/boot.config";
 import { LiveGameplayNetworkBridge } from "./game/LiveGameplayNetworkBridge";
 import { NpcContextWindow, NpcSpeechBubble, type EmotionType, type MenuAction, type NpcInfo, type QuestPreview, type SpeechBubbleVariant } from "./ui/npc";
 import { useState, useEffect, useRef } from "react";
+import {
+  clientRuntimeValidation,
+  validateEntityState,
+  validateDialoguePayload,
+  validateKappaPosition,
+  validateNetworkPacket,
+  validateWorldHeartbeat,
+  type ValidationResult
+} from "./runtimeValidation";
 import "./forestBiomeManifestBridge";
 import "./client2dBootstrapNpcOverlay";
 import "./theme.css";
@@ -262,6 +271,48 @@ function UIOverlayLayer() {
         const label = readString(asRecord(payload), ["label", "name", "npcName"], "Interact");
         setInteractionTarget({ label, npc: normalizeNpcInfo(payload, label) });
       }
+      // ─── Runtime Validation Hook ─────────────────────────────────
+      // Validate network packets for integrity and safety
+      try {
+        const packetResult = validateNetworkPacket(detail, []);
+        if (!packetResult.valid) {
+          console.warn(`[ClientValidation] Invalid packet ${packetResult.type}:`, packetResult.errors);
+        }
+
+        // Validate specific message types
+        if (detail?.event === "npc_dialogue" || detail?.type === "npc_dialogue") {
+          const dialogueResult = validateDialoguePayload(detail.payload ?? detail);
+          if (!dialogueResult.valid) {
+            console.warn(`[ClientValidation] Dialogue validation:`, dialogueResult.message);
+          }
+        }
+
+        // Validate world heartbeat entities
+        if (detail?.event === "WORLD_HEARTBEAT" || detail?.type === "world_heartbeat") {
+          const hbResult = validateWorldHeartbeat(detail.payload ?? detail);
+          if (!hbResult.valid) {
+            console.warn(`[ClientValidation] Heartbeat validation:`, hbResult.errors);
+          }
+        }
+
+        // Validate entity sync
+        if (detail?.event === "entity_sync" || detail?.type === "entity_sync") {
+          const entities = (detail.payload ?? detail).entities as unknown[];
+          if (Array.isArray(entities)) {
+            for (let i = 0; i < entities.length; i++) {
+              const entityResult = validateEntityState(entities[i], `sync[${i}]`);
+              if (!entityResult.valid) {
+                console.warn(`[ClientValidation] Entity sync validation:`, entityResult.errors);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Non-blocking - log but continue processing
+        console.warn(`[ClientValidation] Handler error:`, e);
+      }
+      // ─── End Runtime Validation ───────────────────────────────────
+
       if (detail?.event === "INTERACTION_CLEAR") setInteractionTarget(null);
     }) as EventListener;
     window.addEventListener("wasd:network-packet", handler);
