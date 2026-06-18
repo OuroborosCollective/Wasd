@@ -1,4 +1,10 @@
 import express, { type Request, type Response, type Router } from "express";
+import { authMiddleware } from "../middleware/authMiddleware.js";
+import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
+
+const EMILY_SYSTEM_PROMPT = `You are Emily, the Cyber-Zen Science Portal mascot for Areloria.
+You assist players with technical questions, world lore, and portal diagnostics.
+Your tone is helpful, slightly futuristic, and calm.`;
 
 const FREE_STARTER_NPC_COUNT = 13;
 const REQUIRED_STARTER_NPC_COUNT = FREE_STARTER_NPC_COUNT + 2;
@@ -159,19 +165,18 @@ export function scienceMascotRouter(): Router {
     res.status(204).end();
   });
 
-  r.post("/science-mascot", async (req: Request, res: Response) => {
+  r.post("/science-mascot", adminRateLimiter, authMiddleware, async (req: Request, res: Response) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     try {
       const body = req.body as {
-        systemPrompt?: string;
         userMessage?: string;
         temperature?: number;
         maxOutputTokens?: number;
       };
-      const systemPrompt = typeof body.systemPrompt === "string" ? body.systemPrompt : "";
+      const systemPrompt = EMILY_SYSTEM_PROMPT;
       const userMessage = typeof body.userMessage === "string" ? body.userMessage : "";
-      if (!systemPrompt.trim() || !userMessage.trim()) {
-        res.status(400).json({ error: "systemPrompt and userMessage required" });
+      if (!userMessage.trim()) {
+        res.status(400).json({ error: "userMessage required" });
         return;
       }
 

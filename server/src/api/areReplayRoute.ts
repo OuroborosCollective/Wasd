@@ -1,4 +1,6 @@
 import express from "express";
+import { authMiddleware } from "../middleware/authMiddleware.js";
+import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import type { WorldTick } from "../core/are/index.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { attachSovereignBillingBridge } from "../market/SovereignBillingBridge.js";
@@ -140,8 +142,9 @@ export function areReplayRouter(tick: WorldTick) {
     res.json({ ok: true, active, generatedAtTick: oracle?.generatedAtTick ?? null, prophecyCount: oracle?.prophecies?.length ?? 0 });
   });
 
-  router.get("/snapshot/:tick", (req, res) => {
-    const requestedTick = parseTick(req.params.tick);
+  router.get("/snapshot/:tick", adminRateLimiter, authMiddleware, (req, res) => {
+    const tickParam = req.params.tick;
+    const requestedTick = parseTick(Array.isArray(tickParam) ? tickParam[0] : tickParam);
     if (requestedTick === null) {
       res.status(400).json({ ok: false, error: "invalid_tick", message: "Tick must be a positive integer." });
       return;
