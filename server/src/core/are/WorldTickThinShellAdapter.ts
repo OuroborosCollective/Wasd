@@ -25,6 +25,13 @@ type WorldHashSnapshot = {
   timestamp: number;
 };
 
+type RuntimePortStatus = {
+  id: string;
+  available: boolean;
+  reason?: string;
+  authority: 'runtime' | 'transport_side_channel' | 'unavailable';
+};
+
 const validationState = { getSnapshot: () => ({ guard: { ok: true, invariant: 'WorldThinShell' } as AREInvariantGuardStatus }) };
 const tickRecorder = {
   stats: (): DeterministicRecorderStats => ({ recordedTicks: 0, replayBufferSize: 0 }),
@@ -32,24 +39,36 @@ const tickRecorder = {
 };
 const autoRepairService = { getStatus: (): AutoRepairStatus => ({ ok: true, status: 'available' }) };
 
-class StubChunkSystem { getChunk(_x: number, _z: number) { return null; } }
-class StubObserverEngine {
+class UnavailableRuntimePort {
+  constructor(readonly id: string, readonly reason: string) {}
+
+  getStatus(): RuntimePortStatus { return { id: this.id, available: false, reason: this.reason, authority: 'unavailable' }; }
+  getDiagnostics(): RuntimePortStatus { return this.getStatus(); }
+  assertAvailable(): never { throw new Error(`${this.id} unavailable: ${this.reason}`); }
+  getChunk(): never { return this.assertAvailable(); }
+  scanModels(): never { return this.assertAvailable(); }
+  getLinks(): never { return this.assertAvailable(); }
+  getDocument(): never { return this.assertAvailable(); }
+  getStats(): RuntimePortStatus { return this.getStatus(); }
+}
+
+class TransportObserverEngine {
   private readonly positions = new Map<string, unknown>();
-  broadcastToAll(_data: unknown) {}
+
+  broadcastToAll(_data: unknown): void {
+    // Transport-only compatibility hook. Simulation truth is emitted by tick providers.
+  }
+
   register(id: string, value: unknown = {}): void { this.positions.set(id, value); }
   updatePosition(id: string, position: unknown): void { this.positions.set(id, position); }
+  getStatus(): RuntimePortStatus & { trackedSockets: number } {
+    return { id: 'TransportObserverEngine', available: true, authority: 'transport_side_channel', trackedSockets: this.positions.size };
+  }
 }
-class StubCombatSystem {}
-class StubCombatService {}
-class StubInventorySystem {}
 
-class StubGuildSystem {}
-class StubEconomySystem {}
-class StubQuestEngine {}
-class StubWorldSystem {}
-class StubPersistenceManager { getStats() { return {}; } }
-class StubGLBRegistry { scanModels() { return []; } getLinks() { return []; } }
-class StubAssetPoolResolver { getDocument() { return {}; } }
+function unavailablePort(id: string, reason: string): UnavailableRuntimePort {
+  return new UnavailableRuntimePort(id, reason);
+}
 
 function createManifestManager(adapter: WorldTickAdapter) {
   const replayGuard = { getHighestTick: () => adapter.tickCount, getNonceCount: () => 0 };
@@ -88,29 +107,30 @@ export class WorldTickAdapter {
   readonly npcSystem: NPCSystem;
   readonly deterministicLootDirector: { getAllLoot(): LootEntity[] };
   private npcGameDataReport: NpcGameDataLoadReport = emptyNpcLoadReport();
+  private appliedMoveIntentTotal = 0;
 
-  readonly chunkSystem = new StubChunkSystem();
-  readonly observerEngine = new StubObserverEngine();
+  readonly chunkSystem = unavailablePort('ChunkRuntimePort', 'No canonical chunk runtime provider is registered on this adapter yet. Use WorldTickThinShell world-brain snapshots for chunk truth.');
+  readonly observerEngine = new TransportObserverEngine();
   readonly playerSystem = new RuntimePlayerSystem();
-  readonly combatSystem = new StubCombatSystem();
-  readonly combatService = new StubCombatService();
-  readonly inventorySystem = new StubInventorySystem();
-  readonly guildSystem = new StubGuildSystem();
-  readonly economySystem = new StubEconomySystem();
-  readonly questSystem = new StubQuestEngine();
-  readonly worldSystem = new StubWorldSystem();
-  readonly persistence = new StubPersistenceManager();
-  readonly glbRegistry = new StubGLBRegistry();
+  readonly combatSystem = unavailablePort('CombatRuntimePort', 'Combat runtime is not registered on this adapter. Do not infer combat truth from an empty object.');
+  readonly combatService = unavailablePort('CombatServicePort', 'Combat service is not registered on this adapter.');
+  readonly inventorySystem = unavailablePort('InventoryRuntimePort', 'Inventory runtime must be wired from the canonical inventory service before use.');
+  readonly guildSystem = unavailablePort('GuildRuntimePort', 'Guild runtime must be wired from the canonical guild/governance service before use.');
+  readonly economySystem = unavailablePort('EconomyRuntimePort', 'Economy runtime must be wired from the transaction ledger before use.');
+  readonly questSystem = unavailablePort('QuestRuntimePort', 'Quest runtime must be wired from the quest progression store before use.');
+  readonly worldSystem = unavailablePort('WorldRuntimePort', 'World runtime truth is currently exposed by WorldTickThinShell providers.');
+  readonly persistence = unavailablePort('PersistenceRuntimePort', 'Persistence stats must come from WorldTickThinShell persistence diagnostics.');
+  readonly glbRegistry = unavailablePort('GLBRegistryPort', 'GLB registry is not registered on this adapter.');
   readonly warfrontSystem = new RuntimeWarfrontPort(this.warfrontDomain, () => this.tickCount * 100);
-  readonly assetPoolResolver = new StubAssetPoolResolver();
-  readonly placementEngine = {};
-  readonly placementEnginePort = { type: 'NullPlacementPort' as const };
-  readonly craftingSystem = { type: 'NullCraftingPort' };
-  readonly skillSystem = { type: 'NullSkillPort' };
+  readonly assetPoolResolver = unavailablePort('AssetPoolResolverPort', 'Asset pool resolver is not registered on this adapter.');
+  readonly placementEngine = unavailablePort('PlacementRuntimePort', 'Placement engine is not registered on this adapter.');
+  readonly placementEnginePort = unavailablePort('PlacementRuntimePort', 'Placement engine port is not registered on this adapter.');
+  readonly craftingSystem = unavailablePort('CraftingRuntimePort', 'Crafting runtime must be wired from the canonical crafting service before use.');
+  readonly skillSystem = unavailablePort('SkillRuntimePort', 'Skill runtime must be wired from the canonical skill progression service before use.');
   worldState: any = { customDialogues: {} };
   playerToSocket = new Map<string, string>();
   readonly npcRespawnTimers = new Map<string, any>();
-  resourceSystem: any = { nodes: new Map() };
+  resourceSystem: any = { nodes: new Map(), getDiagnostics: () => ({ id: 'ResourceRuntimePort', available: false, reason: 'Resource runtime provider not registered', authority: 'unavailable' }) };
   readonly chatSystem = {
     chatRouter: this.chatRouter,
     getRecentMessages: () => this.chatRouter.getRecentAll(),
@@ -129,7 +149,7 @@ export class WorldTickAdapter {
   };
 
   readonly liveHeal = {
-    getStatus: () => ({ tickCount: this.tickCount, autoRepair: autoRepairService.getStatus(), usage: { prompt_tokens: 0, completion_tokens: 0 }, areShadow: { replayBufferSize: 0, lastSnapshot: null }, electroweakPruning: { ttlTicks: 1200, stats: {} }, emergence: { events: [] }, npcGameData: this.npcGameDataReport }),
+    getStatus: () => ({ tickCount: this.tickCount, autoRepair: autoRepairService.getStatus(), usage: { prompt_tokens: 0, completion_tokens: 0 }, areShadow: { replayBufferSize: 0, lastSnapshot: null }, electroweakPruning: { ttlTicks: 1200, stats: {} }, emergence: { events: [] }, npcGameData: this.npcGameDataReport, runtimePorts: this.getRuntimePortDiagnostics(), playerRuntime: this.playerSystem.getDiagnostics(), appliedMoveIntentTotal: this.appliedMoveIntentTotal }),
     flush: () => {},
   };
   readonly assetHealthService = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
@@ -154,14 +174,17 @@ export class WorldTickAdapter {
     // This ensures WorldTickThinShell.getWorldStateForTick() always has data
     this.thinShell.registerWorldStateProvider({
       id: 'adapter-internal',
-      getWorldState: (_context) => ({
-        npcs: this.npcSystem.getAllNPCs(),
-        players: this.playerSystem.getAllPlayers(),
-        loot: this.deterministicLootDirector.getAllLoot(),
-      }),
+      getWorldState: (_context) => {
+        this.appliedMoveIntentTotal += this.playerSystem.applyQueuedMoveIntents(this.tickCount, Number((this as any).client2DMoveSpeed ?? 5));
+        return {
+          npcs: this.npcSystem.getAllNPCs(),
+          players: this.playerSystem.getAllPlayers(),
+          loot: this.deterministicLootDirector.getAllLoot(),
+        };
+      },
     });
 
-    console.log(`[WorldTickAdapter] Initialized with RealNPCSystem, game-data NPCs=${this.npcGameDataReport.npcsLoaded}, NPCTickSystem, and deterministicLootDirector`);
+    console.log(`[WorldTickAdapter] Initialized with RealNPCSystem, game-data NPCs=${this.npcGameDataReport.npcsLoaded}, NPCTickSystem, deterministicLootDirector, and explicit unavailable runtime ports`);
   }
 
   attachNetworkBridge(networkBridge: NetworkBridge): void {
@@ -193,6 +216,31 @@ export class WorldTickAdapter {
     return this.npcGameDataReport;
   }
 
+  getRuntimePortDiagnostics(): RuntimePortStatus[] {
+    return [
+      { id: 'NPCSystem', available: true, authority: 'runtime' },
+      { id: 'DeterministicLootDirector', available: true, authority: 'runtime' },
+      { id: 'RuntimePlayerSystem', available: true, authority: 'runtime' },
+      { id: 'WarfrontRuntimePort', available: true, authority: 'runtime' },
+      this.observerEngine.getStatus(),
+      this.chunkSystem.getStatus(),
+      this.combatSystem.getStatus(),
+      this.combatService.getStatus(),
+      this.inventorySystem.getStatus(),
+      this.guildSystem.getStatus(),
+      this.economySystem.getStatus(),
+      this.questSystem.getStatus(),
+      this.worldSystem.getStatus(),
+      this.persistence.getStatus(),
+      this.glbRegistry.getStatus(),
+      this.assetPoolResolver.getStatus(),
+      this.placementEngine.getStatus(),
+      this.craftingSystem.getStatus(),
+      this.skillSystem.getStatus(),
+      this.resourceSystem.getDiagnostics(),
+    ];
+  }
+
   async init(): Promise<void> {
     this.warfrontDomain.initialize(this.tickCount * 100);
   }
@@ -200,18 +248,18 @@ export class WorldTickAdapter {
   async stop(): Promise<void> { await this.thinShell.stop(); }
 
   listActiveVoteBanners(): any[] { return []; }
-  handleVoteProviderCallback(_data: any): any { return { ok: true }; }
+  handleVoteProviderCallback(_data: any): any { return { ok: false, error: 'vote_banner_runtime_unavailable' }; }
   getAdminVoteBanners(): any[] { return []; }
-  upsertVoteBanner(_data: any): any { return { ok: true, banner: {} }; }
-  deleteVoteBanner(_id: string): any { return { ok: true }; }
-  setVoteBannerOrder(_data: any): any { return { ok: true }; }
-  getVoteAdminDiagnostics(): any { return {}; }
+  upsertVoteBanner(_data: any): any { return { ok: false, error: 'vote_banner_runtime_unavailable' }; }
+  deleteVoteBanner(_id: string): any { return { ok: false, error: 'vote_banner_runtime_unavailable' }; }
+  setVoteBannerOrder(_data: any): any { return { ok: false, error: 'vote_banner_runtime_unavailable' }; }
+  getVoteAdminDiagnostics(): any { return { available: false, reason: 'vote banner runtime not registered' }; }
   getPersistenceStats(): any { return this.thinShell.getPersistenceStats(); }
   debouncedSave(): void {}
   createNPC(id: string, name: string, x: number, y: number): void { this.npcSystem.createNPC(id, name, x, y); }
   updateLootCache(): void {}
   getPlaytesterDebugLogPath(): string { return ''; }
-  buildPlaytesterMonitorPayload(_options?: any): any { return {}; }
+  buildPlaytesterMonitorPayload(_options?: any): any { return { ok: false, error: 'playtester_runtime_unavailable' }; }
   getPlaytesterMemoryStats(): null { return null; }
 
   getSpatialBroadcastStats(): { chunkCount: number; entityCount: number } {
