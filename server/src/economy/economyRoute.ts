@@ -6,6 +6,7 @@ import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { getInventoryStore } from "../inventory/inventoryRuntime.js";
 import { transferInventoryItem } from "../inventory/InventoryTransferService.js";
 import { economyService } from "./economyRuntime.js";
+import { workOrderService } from "./WorkOrderService.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
 import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
 
@@ -78,6 +79,32 @@ function currentServerTick(): number {
   return Number.isSafeInteger(tick) && tick >= 0 ? tick : 0;
 }
 
+function tickResponseContext() {
+  const tickContext = tickContextProvider.getContext();
+  return {
+    tickId: tickContext.tickId,
+    tickIndex: tickContext.tickIndex,
+    worldTimeHours: tickContext.worldTimeHours,
+    seedHash: tickContext.seedHash,
+  };
+}
+
+function workOrderHttpStatus(reason: string): number {
+  switch (reason) {
+    case "invalid_order":
+      return 404;
+    case "invalid_player":
+    case "invalid_quantity":
+    case "wrong_item":
+      return 400;
+    case "missing_items":
+    case "already_completed":
+      return 409;
+    default:
+      return 400;
+  }
+}
+
 router.post("/sell-resource", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
   if (!requireProductionAuth(identity, res)) return;
@@ -89,10 +116,19 @@ router.post("/sell-resource", async (req, res) => {
 
   if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item_id" });
   if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
-  if (req.body?.playerPosition !== undefined && !playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  if (req.body?.playerPosition !== undefined && !playerPosition) {
+    return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  }
 
   try {
-    const result = await economyService.sellResource({ playerId: identity.playerId, itemId, quantity, playerPosition: playerPosition ?? undefined, vendorId, currentTick: currentServerTick() });
+    const result = await economyService.sellResource({
+      playerId: identity.playerId,
+      itemId,
+      quantity,
+      playerPosition: playerPosition ?? undefined,
+      vendorId,
+      currentTick: currentServerTick(),
+    });
     if (result.ok) npcQuestService.updateQuestProgress(identity.playerId, "sell", itemId, quantity);
     res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
   } catch (error) {
@@ -107,10 +143,17 @@ router.post("/sell-all-resources", async (req, res) => {
 
   const playerPosition = parsePosition(req.body?.playerPosition);
   const vendorId = parseSafeId(req.body?.vendorId) ?? undefined;
-  if (req.body?.playerPosition !== undefined && !playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  if (req.body?.playerPosition !== undefined && !playerPosition) {
+    return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  }
 
   try {
-    const result = await economyService.sellAllResources({ playerId: identity.playerId, playerPosition: playerPosition ?? undefined, vendorId, currentTick: currentServerTick() });
+    const result = await economyService.sellAllResources({
+      playerId: identity.playerId,
+      playerPosition: playerPosition ?? undefined,
+      vendorId,
+      currentTick: currentServerTick(),
+    });
     res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
   } catch (error) {
     console.error("[economy-sell-all-resources] Failed to sell resources:", error);
@@ -129,10 +172,19 @@ router.post("/buy-resource", buyResourceRateLimiter, async (req, res) => {
 
   if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item_id" });
   if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
-  if (req.body?.playerPosition !== undefined && !playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  if (req.body?.playerPosition !== undefined && !playerPosition) {
+    return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  }
 
   try {
-    const result = await economyService.buyResource({ playerId: identity.playerId, itemId, quantity, playerPosition: playerPosition ?? undefined, vendorId, currentTick: currentServerTick() });
+    const result = await economyService.buyResource({
+      playerId: identity.playerId,
+      itemId,
+      quantity,
+      playerPosition: playerPosition ?? undefined,
+      vendorId,
+      currentTick: currentServerTick(),
+    });
     res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
   } catch (error) {
     console.error("[economy-buy-resource] Failed to buy resource:", error);
@@ -153,14 +205,77 @@ router.post("/trade-transfer", tradeTransferRateLimiter, async (req, res) => {
   if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item_id" });
   if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
 
-  const sourceHash = stableHash32(["HTTP_TRADE_TRANSFER_V1", identity.playerId, toPlayerId, itemId, quantity, tick].join("|")).toString(16);
-  const result = transferInventoryItem(getInventoryStore(), { fromPlayerId: identity.playerId, toPlayerId, itemId, quantity, tick, uid: `trade:${sourceHash}`, sourceHash });
+  const sourceHash = stableHash32([
+    "HTTP_TRADE_TRANSFER_V1",
+    identity.playerId,
+    toPlayerId,
+    itemId,
+    quantity,
+    tick,
+  ].join("|")).toString(16);
+  const result = transferInventoryItem(getInventoryStore(), {
+    fromPlayerId: identity.playerId,
+    toPlayerId,
+    itemId,
+    quantity,
+    tick,
+    uid: `trade:${sourceHash}`,
+    sourceHash,
+  });
 
   if (result.ok) {
-    runtimeHistoryLog.write({ tick, source: "trade_transfer", actorId: identity.playerId, subjectId: `${toPlayerId}:${itemId}`, payload: result });
+    runtimeHistoryLog.write({
+      tick,
+      source: "trade_transfer",
+      actorId: identity.playerId,
+      subjectId: `${toPlayerId}:${itemId}`,
+      payload: result,
+    });
   }
 
   res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
+});
+
+router.get("/work-orders", (_req, res) => {
+  const tick = currentServerTick();
+  res.json({
+    ok: true,
+    workOrders: workOrderService.listSnapshots(tick),
+    tickContext: tickResponseContext(),
+  });
+});
+
+router.post("/work-orders/deliver", async (req, res) => {
+  const identity = resolveHttpPlayerIdentity(req);
+  if (!requireProductionAuth(identity, res)) return;
+
+  const workOrderId = parseSafeId(req.body?.workOrderId);
+  const quantity = parseQuantity(req.body?.quantity);
+
+  if (!workOrderId) return void res.status(400).json({ ok: false, error: "invalid_work_order_id" });
+  if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
+
+  const tick = currentServerTick();
+
+  try {
+    const result = await workOrderService.deliver({
+      playerId: identity.playerId,
+      workOrderId,
+      quantity,
+      currentTick: tick,
+    });
+    const snapshot = workOrderService.getSnapshot(workOrderId, tick);
+
+    res.status(result.ok ? 200 : workOrderHttpStatus(result.reason)).json({
+      ok: result.ok,
+      result,
+      snapshot,
+      tickContext: tickResponseContext(),
+    });
+  } catch (error) {
+    console.error("[economy-work-order-deliver] Failed to deliver work order:", error);
+    res.status(500).json({ ok: false, error: "internal_error" });
+  }
 });
 
 router.get("/market-snapshot", async (_req, res) => {
