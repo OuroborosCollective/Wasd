@@ -51,7 +51,9 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
       <aside className="quest-preview-panel" data-testid="quest-preview-empty" aria-label="Quest preview">
         <small>Quest Preview</small>
         <strong>No active quest</strong>
-        <button type="button" onClick={onOpenJournal}>Quest Journal</button>
+        <button type="button" onClick={onOpenJournal} aria-label="Open Quest Journal">
+          <kbd aria-hidden="true">Q</kbd> Journal
+        </button>
       </aside>
     );
   }
@@ -64,14 +66,29 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
       </header>
 
       {objective && (
-        <div className="quest-preview-objective">
+        <div
+          className="quest-preview-objective"
+          role="progressbar"
+          aria-label={objective.label}
+          aria-valuenow={objective.current}
+          aria-valuemin={0}
+          aria-valuemax={objective.required}
+          aria-valuetext={`${objective.current} of ${objective.required} ${objective.label}`}
+        >
           <span>{objective.label}</span>
-          <b>{objective.current}/{objective.required}{objective.completed ? " ✓" : ""}</b>
-          <i aria-hidden="true"><em style={{ width: `${progress}%` }} /></i>
+          <b>
+            {objective.current}/{objective.required}
+            {objective.completed ? " ✓" : ""}
+          </b>
+          <i aria-hidden="true">
+            <em style={{ width: `${progress}%` }} />
+          </i>
         </div>
       )}
 
-      <button type="button" onClick={onOpenJournal}>Quest Journal</button>
+      <button type="button" onClick={onOpenJournal} aria-label="Open Quest Journal">
+        <kbd aria-hidden="true">Q</kbd> Journal
+      </button>
     </aside>
   );
 }
