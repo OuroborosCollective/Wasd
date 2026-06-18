@@ -82,7 +82,7 @@ function currentServerTick(): number {
 function tickResponseContext() {
   const tickContext = tickContextProvider.getContext();
   return {
-    tickId: tickContext.tickId,
+    tickId: Number(tickContext.tickId),
     tickIndex: tickContext.tickIndex,
     worldTimeHours: tickContext.worldTimeHours,
     seedHash: tickContext.seedHash,
@@ -219,16 +219,6 @@ router.post("/work-orders/deliver", async (req, res) => {
       currentTick: tick,
     });
     const snapshot = workOrderService.getSnapshot(workOrderId, tick);
-
-    if (result.ok) {
-      runtimeHistoryLog.write({
-        tick,
-        source: "work_order_delivery",
-        actorId: identity.playerId,
-        subjectId: workOrderId,
-        payload: result,
-      });
-    }
 
     res.status(result.ok ? 200 : workOrderHttpStatus(result.reason)).json({
       ok: result.ok,
