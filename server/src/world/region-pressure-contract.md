@@ -1,1 +1,0 @@
-Region pressure contract note.
