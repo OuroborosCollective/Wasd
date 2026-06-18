@@ -14,11 +14,13 @@ interface ActionPatchResult {
 }
 
 function hashHex(parts: readonly unknown[]): string {
-  return stableHash32(parts.map((part) => String(part)).join("|")).toString(16).padStart(8, "0");
+  const seed = parts.map((part) => String(part)).join("|");
+  return stableHash32(seed).toString(16).padStart(8, "0");
 }
 
 function orderedFlags(flags: Readonly<Record<string, boolean>>): Record<string, boolean> {
-  return Object.fromEntries(Object.entries(flags).sort(([a], [b]) => a.localeCompare(b)));
+  const entries = Object.entries(flags).sort(([a], [b]) => a.localeCompare(b));
+  return Object.fromEntries(entries);
 }
 
 function isPatchResult(result: GovernanceActionResult | ActionPatchResult): result is ActionPatchResult {
@@ -77,7 +79,8 @@ export class GovernanceService {
   }
 
   getStates(): readonly GovernanceState[] {
-    return Object.freeze([...this.states.values()].sort((a, b) => a.territoryId.localeCompare(b.territoryId)));
+    const states = [...this.states.values()].sort((a, b) => a.territoryId.localeCompare(b.territoryId));
+    return Object.freeze(states);
   }
 
   stateHash(): string {
@@ -151,9 +154,9 @@ export class GovernanceService {
     const guardPressurePerMille = this.clamp(
       state.guardBudget === 0 ? 1000 : Math.max(0, 1000 - state.guardBudget),
     );
-    const base = state.conflictState === "peace" ? 0 : state.conflictState === "tension" ? 500 : 1000;
+    const conflictBase = this.conflictBasePressure(state.conflictState);
     const pressurePerMille = this.clamp(
-      Math.floor((base + economyPressurePerMille + resourcePressurePerMille + guardPressurePerMille) / 4),
+      Math.floor((conflictBase + economyPressurePerMille + resourcePressurePerMille + guardPressurePerMille) / 4),
     );
 
     return Object.freeze({
@@ -174,9 +177,9 @@ export class GovernanceService {
   ): GovernanceActionResult | ActionPatchResult {
     if (action.type === "setTaxRate") {
       const invalidTaxRate =
-        !Number.isSafeInteger(action.taxRatePerMille)
-        || action.taxRatePerMille < 0
-        || action.taxRatePerMille > 1000;
+        !Number.isSafeInteger(action.taxRatePerMille) ||
+        action.taxRatePerMille < 0 ||
+        action.taxRatePerMille > 1000;
       if (invalidTaxRate) {
         return {
           ok: false,
@@ -243,6 +246,12 @@ export class GovernanceService {
       territoryId: action.territoryId,
       stateHash,
     };
+  }
+
+  private conflictBasePressure(conflictState: GovernanceState["conflictState"]): number {
+    if (conflictState === "peace") return 0;
+    if (conflictState === "tension") return 500;
+    return 1000;
   }
 
   private canMutate(role: string, territoryIds: readonly string[] | undefined, territoryId: string): boolean {
