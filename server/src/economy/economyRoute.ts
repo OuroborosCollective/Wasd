@@ -27,7 +27,7 @@ const buyResourceRateLimiter = rateLimit({
   message: { ok: false, error: "rate_limited" },
 });
 
-const tradeTransferRateLimiter = rateLimit({
+const tradeTransferRateLimiter = rateLimit {
   windowMs: 60 * 1000,
   max: 30,
   standardHeaders: true,
@@ -44,7 +44,7 @@ const MIN_POSITION = -100_000;
 function parseSafeId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  if (!/^[a-zA-Z0-9_-]{1,96}$/.test(trimmed)) return null;
+  if (!/^[a-zA-Z0-9_]\{1,96}$/.test(trimmed)) return null;
   return trimmed;
 }
 
@@ -56,125 +56,4 @@ function parseQuantity(value: unknown): number {
 
 function parsePosition(value: unknown): { x: number; y: number } | null {
   if (!value || typeof value !== "object") return null;
-  const pos = value as { x?: unknown; y?: unknown };
-  const x = Number(pos.x);
-  const y = Number(pos.y);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  if (x < MIN_POSITION || x > MAX_POSITION) return null;
-  if (y < MIN_POSITION || y > MAX_POSITION) return null;
-  return { x, y };
-}
-
-function requireProductionAuth(identity: { authenticated: boolean }, res: Response): boolean {
-  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
-    res.status(401).json({ ok: false, error: "authenticated_player_required" });
-    return false;
-  }
-  return true;
-}
-
-function currentServerTick(): number {
-  const tick = Number(tickContextProvider.getContext().tickIndex);
-  return Number.isSafeInteger(tick) && tick >= 0 ? tick : 0;
-}
-
-router.post("/sell-resource", async (req, res) => {
-  const identity = resolveHttpPlayerIdentity(req);
-  if (!requireProductionAuth(identity, res)) return;
-
-  const itemId = parseSafeId(req.body?.itemId);
-  const quantity = parseQuantity(req.body?.quantity);
-  const playerPosition = parsePosition(req.body?.playerPosition);
-  const vendorId = parseSafeId(req.body?.vendorId) ?? undefined;
-
-  if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item_id" });
-  if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
-  if (req.body?.playerPosition !== undefined && !playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
-
-  try {
-    const result = await economyService.sellResource({ playerId: identity.playerId, itemId, quantity, playerPosition: playerPosition ?? undefined, vendorId, currentTick: currentServerTick() });
-    if (result.ok) npcQuestService.updateQuestProgress(identity.playerId, "sell", itemId, quantity);
-    res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
-  } catch (error) {
-    console.error("[economy-sell-resource] Failed to sell resource:", error);
-    res.status(500).json({ ok: false, error: "internal_error" });
-  }
-});
-
-router.post("/sell-all-resources", async (req, res) => {
-  const identity = resolveHttpPlayerIdentity(req);
-  if (!requireProductionAuth(identity, res)) return;
-
-  const playerPosition = parsePosition(req.body?.playerPosition);
-  const vendorId = parseSafeId(req.body?.vendorId) ?? undefined;
-  if (req.body?.playerPosition !== undefined && !playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
-
-  try {
-    const result = await economyService.sellAllResources({ playerId: identity.playerId, playerPosition: playerPosition ?? undefined, vendorId, currentTick: currentServerTick() });
-    res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
-  } catch (error) {
-    console.error("[economy-sell-all-resources] Failed to sell resources:", error);
-    res.status(500).json({ ok: false, error: "internal_error" });
-  }
-});
-
-router.post("/buy-resource", buyResourceRateLimiter, async (req, res) => {
-  const identity = resolveHttpPlayerIdentity(req);
-  if (!requireProductionAuth(identity, res)) return;
-
-  const itemId = parseSafeId(req.body?.itemId);
-  const quantity = parseQuantity(req.body?.quantity);
-  const playerPosition = parsePosition(req.body?.playerPosition);
-  const vendorId = parseSafeId(req.body?.vendorId) ?? undefined;
-
-  if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item_id" });
-  if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
-  if (req.body?.playerPosition !== undefined && !playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
-
-  try {
-    const result = await economyService.buyResource({ playerId: identity.playerId, itemId, quantity, playerPosition: playerPosition ?? undefined, vendorId, currentTick: currentServerTick() });
-    res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
-  } catch (error) {
-    console.error("[economy-buy-resource] Failed to buy resource:", error);
-    res.status(500).json({ ok: false, error: "internal_error" });
-  }
-});
-
-router.post("/trade-transfer", tradeTransferRateLimiter, async (req, res) => {
-  const identity = resolveHttpPlayerIdentity(req);
-  if (!requireProductionAuth(identity, res)) return;
-
-  const toPlayerId = parseSafeId(req.body?.toPlayerId);
-  const itemId = parseSafeId(req.body?.itemId);
-  const quantity = parseQuantity(req.body?.quantity);
-  const tick = currentServerTick();
-
-  if (!toPlayerId) return void res.status(400).json({ ok: false, error: "invalid_receiver" });
-  if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item_id" });
-  if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
-
-  const sourceHash = stableHash32(["HTTP_TRADE_TRANSFER_V1", identity.playerId, toPlayerId, itemId, quantity, tick].join("|")).toString(16);
-  const result = transferInventoryItem(getInventoryStore(), { fromPlayerId: identity.playerId, toPlayerId, itemId, quantity, tick, uid: `trade:${sourceHash}`, sourceHash });
-
-  if (result.ok) {
-    runtimeHistoryLog.write({ tick, source: "trade_transfer", actorId: identity.playerId, subjectId: `${toPlayerId}:${itemId}`, payload: result });
-  }
-
-  res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
-});
-
-const workOrderRoutePath = "./" + "workOrderRoute.js";
-const workOrderRouteModule = await import(workOrderRoutePath);
-router.use("/work-orders", workOrderRouteModule.default);
-
-router.get("/market-snapshot", async (_req, res) => {
-  try {
-    const snapshot = await economyService.marketSnapshot();
-    res.json({ ok: true, snapshot });
-  } catch (error) {
-    console.error("[economy-market-snapshot] Failed to create snapshot:", error);
-    res.status(500).json({ ok: false, error: "internal_error" });
-  }
-});
-
-export default router;
+  const pos = value as { x?: unknown; ýäèÕ¹­¹½Ý¸ôì(€½¹ÍÐà€ô9Õµ‰•È¡Á½Ì¹à¤ì(€½¹ÍÐä€ô9Õµ‰•È¡Á½Ì¹ä¤ì(€¥˜€ …9Õµ‰•È¹¥Í¥¹¥Ñ”¡à¤ñð€…9Õµ‰•È¹¥Í¥¹¥Ñ”¡ä¤¤É•ÑÕÉ¸¹Õ±°ì(€¥˜€¡à€ð5%9}A=M%Q%=8ñðà€ø5a}A=M%Q%=8¤É•ÑÕÉ¸¹Õ±°ì(€¥˜€¡ä€ð5%9}A=M%Q%=8ñðä€ø5a}A=M%Q%=8¤É•ÑÕÉ¸¹Õ±°ì(€É•ÑÕÉ¸ìà°äôì)ô()™Õ¹Ñ¥½¸É•ÅÕ¥É•AÉ½‘ÕÑ¥½¹ÕÑ ¡¥‘•¹Ñ¥Ñäèì…ÕÑ¡•¹Ñ¥…Ñ•è‰½½±•…¸ô°É•ÌèI•ÍÁ½¹Í”¤è‰½½±•…¸ì(€¥˜€¡ÁÉ½•ÍÌ¹•¹Ø¹9=}9X€ôôô€‰ÁÉ½‘ÕÑ¥½¸ˆ€˜˜€…¥‘•¹Ñ¥Ñä¹…ÕÑ¡•¹Ñ¥…Ñ•¤ì(€€€É•Ì¹ÍÑ…ÑÕÌ ÐÀÄ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰…ÕÑ¡•¹Ñ¥…Ñ•‘}Á±…å•É}É•ÅÕ¥É•ˆô¤ì(€€€É•ÑÕÉ¸™…±Í”ì(€ô(€É•ÑÕÉ¸ÑÉÕ”ì)ô()™Õ¹Ñ¥½¸ÕÉÉ•¹ÑM•ÉÙ•ÉQ¥¬ ¤è¹Õµ‰•Èì(€½¹ÍÐÑ¥¬€ô9Õµ‰•È¡Ñ¥­½¹Ñ•áÑAÉ½Ù¥‘•È¹•Ñ½¹Ñ•áÐ ¤¹Ñ¥­%¹‘•à¤ì(€É•ÑÕÉ¸9Õµ‰•È¹¥ÍM…™•%¹Ñ••È¡Ñ¥¬¤€˜˜Ñ¥¬€øô€À€üÑ¥¬€è€Àì)ô()™Õ¹Ñ¥½¸Ñ¥­I•ÍÁ½¹Í•½¹Ñ•áÐ ¤ì(€½¹ÍÐÑ¥­½¹Ñ•áÐ€ôÑ¥­½¹Ñ•áÑAÉ½Ù¥‘•È¹•Ñ½¹Ñ•áÐ ¤ì(€É•ÑÕÉ¸ì(€€€Ñ¥­%èÑ¥­½¹Ñ•áÐ¹Ñ¥­%°(€€€Ñ¥­%¹‘•àèÑ¥­½¹Ñ•áÐ¹Ñ¥­%¹‘•à°(€€€Ý½É±‘Q¥µ•!½ÕÉÌèÑ¥­½¹Ñ•áÐ¹Ý½É±‘Q¥µ•!½ÕÉÌ°(€€€Í••‘!…Í èÑ¥­½¹Ñ•áÐ¹Í••‘!…Í °(€ôì)ô()™Õ¹Ñ¥½¸Ý½É­=É‘•É!ÑÑÁMÑ…ÑÕÌ¡É•…Í½¸èÍÑÉ¥¹œ¤è¹Õµ‰•Èì(€ÍÝ¥Ñ €¡É•…Í½¸¤ì(€€€…Í”€‰¥¹Ù…±¥‘}½É‘•Èˆè(€€€€€É•ÑÕÉ¸€ÐÀÐì(€€€…Í”€‰¥¹Ù…±¥‘}Á±…å•Èˆè(€€€…Í”€‰¥¹Ù…±¥‘}ÅÕ…¹Ñ¥Ñäˆè(€€€…Í”€‰ÝÉ½¹}¥Ñ•´ˆè(€€€€€É•ÑÕÉ¸€ÐÀÀì(€€€…Í”€‰µ¥ÍÍ¥¹}¥Ñ•µÌˆè(€€€…Í”€‰…±É•…‘å}½µÁ±•Ñ•ˆè(€€€€€É•ÑÕÉ¸€ÐÀäì(€€€‘•™…Õ±Ðè(€€€€€É•ÑÕÉ¸€ÐÀÀì(€ô)ô()…Íå¹Œ™Õ¹Ñ¥½¸±½…‘]½É­=É‘•ÉM•ÉÙ¥” ¤ì(€½¹ÍÐµ½‘Õ±•A…Ñ €ô€ˆ¸¼ˆ€¬€‰]½É­=É‘•ÉM•ÉÙ¥”¹©Ìˆì(€½¹ÍÐµ½‘Õ±•áÁ½ÉÑÌ€ô…Ý…¥Ð¥µÁ½ÉÐ¡µ½‘Õ±•A…Ñ ¤ì(€É•ÑÕÉ¸µ½‘Õ±•áÁ½ÉÑÌ¹Ý½É­=É‘•ÉM•ÉÙ¥”ì)ô()É½ÕÑ•È¹Á½ÍÐ ˆ½Í•±°µÉ•Í½ÕÉ”ˆ°…Íå¹Œ€¡É•Ä°É•Ì¤€ôøì(€½¹ÍÐ¥‘•¹Ñ¥Ñä€ôÉ•Í½±Ù•!ÑÑÁA±…å•É%‘•¹Ñ¥Ñä¡É•Ä¤ì(€¥˜€ …É•ÅÕ¥É•AÉ½‘ÕÑ¥½¹ÕÑ ¡¥‘•¹Ñ¥Ñä°É•Ì¤¤É•ÑÕÉ¸ì((€½¹ÍÐ¥Ñ•µ%€ôÁ…ÉÍ•M…™•%¡É•Ä¹‰½‘äü¹¥Ñ•µ%¤ì(€½¹ÍÐÅÕ…¹Ñ¥Ñä€ôÁ…ÉÍ•EÕ…¹Ñ¥Ñä¡É•Ä¹‰½‘äü¹ÅÕ…¹Ñ¥Ñä¤ì(€½¹ÍÐÁ±…å•ÉA½Í¥Ñ¥½¸€ôÁ…ÉÍ•A½Í¥Ñ¥½¸¡É•Ä¹‰½‘äü¹Á±…å•ÉA½Í¥Ñ¥½¸¤ì(€½¹ÍÐÙ•¹‘½É%€ôÁ…ÉÍ•M…™•%¡É•Ä¹‰½‘äü¹Ù•¹‘½É%¤€üüÕ¹‘•™¥¹•ì((€¥˜€ …¥Ñ•µ%¤É•ÑÕÉ¸Ù½¥É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ù…±¥‘}¥Ñ•µ}¥ˆô¤ì(€¥˜€¡ÅÕ…¹Ñ¥Ñä€ðô€À¤É•ÑÕÉ¸Ù½¥É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ù…±¥‘}ÅÕ…¹Ñ¥Ñäˆô¤ì(€¥˜€¡É•Ä¹‰½‘äü¹Á±…å•ÉA½Í¥Ñ¥½¸€„ôôÕ¹‘•™¥¹•€˜˜€…Á±…å•ÉA½Í¥Ñ¥½¸¤É•ÑÕÉ¸Ù½¥É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ù…±¥‘}Á±…å•É}Á½Í¥Ñ¥½¸ˆô¤ì((€ÑÉäì(€€€½¹ÍÐÉ•ÍÕ±Ð€ô…Ý…¥Ð•½¹½µåM•ÉÙ¥”¹Í•±±I•Í½ÕÉ”¡ìÁ±…å•É%è¥‘•¹Ñ¥Ñä¹Á±…å•É%°¥Ñ•µ%°ÅÕ…¹Ñ¥Ñä°Á±…å•ÉA½Í¥Ñ¥½¸èÁ±…å•ÉA½Í¥Ñ¥½¸€üüÕ¹‘•™¥¹•°Ù•¹‘½É%°ÕÉÉ•¹ÑQ¥¬èÕÉÉ•¹ÑM•ÉÙ•ÉQ¥¬ ¤ô¤ì(€€€¥˜€¡É•ÍÕ±Ð¹½¬¤¹ÁEÕ•ÍÑM•ÉÙ¥”¹ÕÁ‘…Ñ•EÕ•ÍÑAÉ½É•ÍÌ¡¥‘•¹Ñ¥Ñä¹Á±…å•É%°€‰Í•±°ˆ°¥Ñ•µ%°ÅÕ…¹Ñ¥Ñä¤ì(€€€É•Ì¹ÍÑ…ÑÕÌ¡É•ÍÕ±Ð¹½¬€ü€ÈÀÀ€è€ÐÀÀ¤¹©Í½¸¡ì½¬èÉ•ÍÕ±Ð¹½¬°É•ÍÕ±Ðô¤ì(€ô…Ñ €¡•ÉÉ½È¤ì(€€€½¹Í½±”¹•ÉÉ½È ‰m•½¹½µäµÍ•±°µÉ•Í½ÕÉ•t…¥±•Ñ¼Í•±°É•Í½ÕÉ”èˆ°•ÉÉ½È¤ì(€€€É•Ì¹ÍÑ…ÑÕÌ ÔÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ñ•É¹…±}•ÉÉ½Èˆô¤ì(€ô)ô¤ì()É½ÕÑ•È¹Á½ÍÐ ˆ½Í•±°µ…±°µÉ•Í½ÕÉ•Ìˆ°…Íå¹Œ€¡É•Ä°É•Ì¤€ôøì(€½¹ÍÐ¥‘•¹Ñ¥Ñä€ôÉ•Í½±Ù•!ÑÑÁA±…å•É%‘•¹Ñ¥Ñä¡É•Ä¤ì(€¥˜€ …É•ÅÕ¥É•AÉ½‘ÕÑ¥½¹ÕÑ ¡¥‘•¹Ñ¥Ñä°É•Ì¤¤É•ÑÕÉ¸ì((€½¹ÍÐÁ±…å•ÉA½Í¥Ñ¥½¸€ôÁ…ÉÍ•A½Í¥Ñ¥½¸¡É•Ä¹‰½‘äü¹Á±…å•ÉA½Í¥Ñ¥½¸¤ì(€½¹ÍÐÙ•¹‘½É%€ôÁ…ÉÍ•M…™•%¡É•Ä¹‰½‘äü¹Ù•¹‘½É%¤€üüÕ¹‘•™¥¹•ì(€¥˜€¡É•Ä¹‰½‘äü¹Á±…å•ÉA½Í¥Ñ¥½¸€„ôôÕ¹‘•™¥¹•€˜˜€…Á±…å•ÉA½Í¥Ñ¥½¸¤É•ÑÕÉ¸Ù½¥É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ù…±¥‘}Á±…å•É}Á½Í¥Ñ¥½¸ˆô¤ì((€ÑÉäì(€€€½¹ÍÐÉ•ÍÕ±Ð€ô…Ý…¥Ð•½¹½µåM•ÉÙ¥”¹Í•±±±±I•Í½ÕÉ•Ì¡ìÁ±…å•É%è¥‘•¹Ñ¥Ñä¹Á±…å•É%°Á±…å•ÉA½Í¥Ñ¥½¸èÁ±…å•ÉA½Í¥Ñ¥½¸€üüÕ¹‘•™¥¹•°Ù•¹‘½É%°ÕÉÉ•¹ÑQ¥¬èÕÉÉ•¹ÑM•ÉÙ•ÉQ¥¬ ¤ô¤ì(€€€É•Ì¹ÍÑ…ÑÕÌ¡É•ÍÕ±Ð¹½¬€ü€ÈÀÀ€è€ÐÀÀ¤¹©Í½¸¡ì½¬èÉ•ÍÕ±Ð¹½¬°É•ÍÕ±Ðô¤ì(€ô…Ñ €¡•ÉÉ½È¤ì(€€€½¹Í½±”¹•ÉÉ½È ‰m•½¹½µäµÍ•±°µ…±°µÉ•Í½ÕÉ•Ít…¥±•Ñ¼Í•±°É•Í½ÕÉ•Ìèˆ°•ÉÉ½È¤ì(€€€É•Ì¹ÍÑ…ÑÕÌ ÔÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ñ•É¹…±}•ÉÉ½Èˆô¤ì(€ô)ô¤ì()É½ÕÑ•È¹Á½ÍÐ ˆ½‰ÕäµÉ•Í½ÕÉ”ˆ°‰ÕåI•Í½ÕÉ•I…Ñ•1¥µ¥Ñ•È°…Íå¹Œ€¡É•Ä°É•Ì¤€ôøì(€½¹ÍÐ¥‘•¹Ñ¥Ñä€ôÉ•Í½±Ù•!ÑÑÁA±…å•É%‘•¹Ñ¥Ñä¡É•Ä¤ì(€¥˜€ …É•ÅÕ¥É•AÉ½‘ÕÑ¥½¹ÕÑ ¡¥‘•¹Ñ¥Ñä°É•Ì¤¤É•ÑÕÉ¸ì((€½¹ÍÐ¥Ñ•µ%€ôÁ…ÉÍ•M…™•%¡É•Ä¹‰½‘äü¹¥Ñ•µ%¤ì(€½¹ÍÐÅÕ…¹Ñ¥Ñä€ôÁ…ÉÍ•EÕ…¹Ñ¥Ñä¡É•Ä¹‰½‘äü¹ÅÕ…¹Ñ¥Ñä¤ì(€½¹ÍÐÁ±…å•ÉA½Í¥Ñ¥½¸€ôÁ…ÉÍ•A½Í¥Ñ¥½¸¡É•Ä¹‰½‘äü¹Á±…å•ÉA½Í¥Ñ¥½¸¤ì(€½¹ÍÐÙ•¹‘½É%€ôÁ…ÉÍ•M…™•%¡É•Ä¹‰½‘äü¹Ù•¹‘½É%¤€üüÕ¹‘•™¥¹•ì((€¥˜€ …¥Ñ•µ%¤É•ÑÕÉ¸Ù½¥É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ù…±¥‘}¥Ñ•µ}¥ˆô¤ì(€¥˜€¡ÅÕ…¹Ñ¥Ñä€ðô€À¤É•ÑÕÉ¸Ù½¥É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ù…±¥‘}ÅÕ…¹Ñ¥Ñäˆô¤ì(€¥˜€¡É•Ä¹‰½‘äü¹Á±…å•ÉA½Í¥Ñ¥½¸€„ôôÕ¹‘•™¥¹•€˜˜€…Á±…å•ÉA½Í¥Ñ¥½¸¤É•ÑÕÉ¸Ù½¥É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ù…±¥‘}Á±…å•É}Á½Í¥Ñ¥½¸ˆô¤ì((€ÑÉäì(€€€½¹ÍÐÉ•ÍÕ±Ð€ô…Ý…¥Ð•½¹½µåM•ÉÙ¥”¹‰ÕåI•Í½ÕÉ”¡ìÁ±…å•É%è¥‘•¹Ñ¥Ñä¹Á±…å•É%°¥Ñ•µ%°ÅÕ…¹Ñ¥Ñä°Á±…å•ÉA½Í¥Ñ¥½¸èÁ±…å•ÉA½Í¥Ñ¥½¸€üüÕ¹‘•™¥¹•°Ù•¹‘½É%°ÕÉÉ•¹ÑQ¥¬èÕÉÉ•¹ÑM•ÉÙ•ÉQ¥¬ ¤ô¤ì(€€€É•Ì¹ÍÑ…ÑÕÌ¡É•ÍÕ±Ð¹½¬€ü€ÈÀÀ€è€ÐÀÀ¤¹©Í½¸¡ì½¬èÉ•ÍÕ±Ð¹½¬°É•ÍÕ±Ðô¤ì(€ô…Ñ €¡•ÉÉ½È¤ì(€€€½¹Í½±”¹•ÉÉ½È ‰m•½¹½µäµ‰ÕäµÉ•Í½ÕÉ•t…¥±•Ñ¼‰ÕäÉ•Í½ÕÉ”èˆ°•ÉÉ½È¤ì(€€€É•Ì¹ÍÑ…ÑÕÌ ÔÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ñ•É¹…±}•ÉÉ½Èˆô¤ì(€ô)ô¤ì()É½ÕÑ•È¹Á½ÍÐ ˆ½ÑÉ…‘”µÑÉ…¹Í™•Èˆ°ÑÉ…‘•QÉ…¹Í™•ÉI…Ñ•1¥µ¥Ñ•È°…Íå¹Œ€¡É•Ä°É•Ì¤€ôøì(€½¹ÍÐ¥‘•¹Ñ¥Ñä€ôÉ•Í½±Ù•!ÑÑÁA±…å•É%‘•¹Ñ¥Ñä¡É•Ä¤ì(€¥˜€ …É•ÅÕ¥É•AÉ½‘ÕÑ¥½¹ÕÑ ¡¥‘•¹Ñ¥Ñä°É•Ì¤¤É•ÑÕÉ¸ì((€½¹ÍÐÑ½A±…å•É%€ôÁ…ÉÍ•M…™•%¡É•Ä¹‰½‘äü¹Ñ½A±…å•É%¤ì(€½¹ÍÐ¥Ñ•µ%€ôÁ…ÉÍ•M…™•%¡É•Ä¹‰½‘äü¹¥Ñ•µ%¤ì(€½¹ÍÐÅÕ…¹Ñ¥Ñä€ôÁ…ÉÍ•EÕ…¹Ñ¥Ñä¡É•Ä¹‰½‘äü¹ÅÕ…¹Ñ¥Ñä¤ì(€½¹ÍÐÑ¥¬€ôÕÉÉ•¹ÑM•ÉÙ•ÉQ¥¬ ¤ì((€¥˜€ …Ñ½A±…å•É%¤É•ÑÕÉ¸Ù½¥É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ù…±¥‘}É••¥Ù•Èˆô¤ì(€¥˜€ …¥Ñ•µ%¤É•ÑÕÉ¸Ù½¥É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ù…±¥‘}¥Ñ•µ}¥ˆô¤ì(€¥˜€¡ÅÕ…¹Ñ¥Ñä€ðô€À¤É•ÑÕÉ¸Ù½¥É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ù…±¥‘}ÅÕ…¹Ñ¥Ñäˆô¤ì((€½¹ÍÐÍ½ÕÉ•!…Í €ôÍÑ…‰±•!…Í ÌÈ¡l‰!QQA}QI}QI9MI}XÄˆ°¥‘•¹Ñ¥Ñä¹Á±…å•É%°Ñ½A±…å•É%°¥Ñ•µ%°ÅÕ…¹Ñ¥Ñä°Ñ¥­t¹©½¥¸ ‰ðˆ¤¤¹Ñ½MÑÉ¥¹œ ÄØ¤ì(€½¹ÍÐÉ•ÍÕ±Ð€ôÑÉ…¹Í™•É%¹Ù•¹Ñ½Éå%Ñ•´¡•Ñ%¹Ù•¹Ñ½ÉåMÑ½É” ¤°ì™É½µA±…å•É%è¥‘•¹Ñ¥Ñä¹Á±…å•É%°Ñ½A±…å•É%°¥Ñ•µ%°ÅÕ…¹Ñ¥Ñä°Ñ¥¬°Õ¥èÑÉ…‘”èíÍ½ÕÉ•!…Í¡õ€°Í½ÕÉ•!…Í ô¤ì((€¥˜€¡É•ÍÕ±Ð¹½¬¤ì(€€€ÉÕ¹Ñ¥µ•!¥ÍÑ½Éå1½œ¹ÝÉ¥Ñ”¡ìÑ¥¬°Í½ÕÉ”è€‰ÑÉ…‘•}ÑÉ…¹Í™•Èˆ°…Ñ½É%è¥‘•¹Ñ¥Ñä¹Á±…å•É%°ÍÕ‰©•Ñ%è€‘íÑ½A±…å•É%‘ôè‘í¥Ñ•µ%‘õ€°Á…å±½…èÉ•ÍÕ±Ðô¤ì(€ô((€É•Ì¹ÍÑ…ÑÕÌ¡É•ÍÕ±Ð¹½¬€ü€ÈÀÀ€è€ÐÀÀ¤¹©Í½¸¡ì½¬èÉ•ÍÕ±Ð¹½¬°É•ÍÕ±Ðô¤ì)ô¤ì()É½ÕÑ•È¹•Ð ˆ½Ý½É¬µ½É‘•ÉÌˆ°…Íå¹Œ€¡}É•Ä°É•Ì¤€ôøì(€½¹ÍÐÑ¥¬€ôÕÉÉ•¹ÑM•ÉÙ•ÉQ¥¬ ¤ì(€½¹ÍÐÝ½É­=É‘•ÉM•ÉÙ¥”€ô…Ý…¥Ð±½…‘]½É­=É‘•ÉM•ÉÙ¥” ¤ì((€É•Ì¹©Í½¸¡ì(€€€½¬èÑÉÕ”°(€€€Ý½É­=É‘•ÉÌèÝ½É­=É‘•ÉM•ÉÙ¥”¹±¥ÍÑM¹…ÁÍ¡½ÑÌ¡Ñ¥¬¤°(€€€Ñ¥­½¹Ñ•áÐèÑ¥­I•ÍÁ½¹Í•½¹Ñ•áÐ ¤°(€ô¤ì)ô¤ì()É½ÕÑ•È¹Á½ÍÐ ˆ½Ý½É¬µ½É‘•ÉÌ½‘•±¥Ù•Èˆ°…Íå¹Œ€¡É•Ä°É•Ì¤€ôøì(€½¹ÍÐ¥‘•¹Ñ¥Ñä€ôÉ•Í½±Ù•!ÑÑÁA±…å•É%‘•¹Ñ¥Ñä¡É•Ä¤ì(€¥˜€ …É•ÅÕ¥É•AÉ½‘ÕÑ¥½¹ÕÑ ¡¥‘•¹Ñ¥Ñä°É•Ì¤¤É•ÑÕÉ¸ì((€½¹ÍÐÝ½É­=É‘•É%€ôÁ…ÉÍ•M…™•%¡É•Ä¹‰½‘äü¹Ý½É­=É‘•É%¤ì(€½¹ÍÐÅÕ…¹Ñ¥Ñä€ôÁ…ÉÍ•EÕ…¹Ñ¥Ñä¡É•Ä¹‰½‘äü¹ÅÕ…¹Ñ¥Ñä¤ì((€¥˜€ …Ý½É­=É‘•É%¤É•ÑÕÉ¸Ù½¥É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ù…±¥‘}Ý½É­}½É‘•É}¥ˆô¤ì(€¥˜€¡ÅÕ…¹Ñ¥Ñä€ðô€À¤É•ÑÕÉ¸Ù½¥É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ù…±¥‘}ÅÕ…¹Ñ¥Ñäˆô¤ì((€½¹ÍÐÑ¥¬€ôÕÉÉ•¹ÑM•ÉÙ•ÉQ¥¬ ¤ì((€ÑÉäì(€€€½¹ÍÐÝ½É­=É‘•ÉM•ÉÙ¥”€ô…Ý…¥Ð±½…‘]½É­=É‘•ÉM•ÉÙ¥” ¤ì(€€€½¹ÍÐÉ•ÍÕ±Ð€ô…Ý…¥ÐÝ½É­=É‘•ÉM•ÉÙ¥”¹‘•±¥Ù•È¡ì(€€€€€Á±…å•É%è¥‘•¹Ñ¥Ñä¹Á±…å•É%°(€€€€€Ý½É­=É‘•É%°(€€€€€ÅÕ…¹Ñ¥Ñä°(€€€€€ÕÉÉ•¹ÑQ¥¬èÑ¥¬°(€€€ô¤ì(€€€½¹ÍÐÍ¹…ÁÍ¡½Ð€ôÝ½É­=É‘•ÉM•ÉÙ¥”¹•ÑM¹…ÁÍ¡½Ð¡Ý½É­=É‘•É%°Ñ¥¬¤ì((€€€É•Ì¹ÍÑ…ÑÕÌ¡É•ÍÕ±Ð¹½¬€ü€ÈÀÀ€èÝ½É­=É‘•É!ÑÑÁMÑ…ÑÕÌ¡É•ÍÕ±Ð¹É•…Í½¸¤¤¹Ñ©Í½¸¡ì(€€€€€½¬èÉ•ÍÕ±Ð¹½¬°(€€€€€É•ÍÕ±Ð°(€€€€€Í¹…ÁÍ¡½Ð°(€€€€€Ñ¥­½¹Ñ•áÐèÑ¥­I•ÍÁ½¹Í•½¹Ñ•áÐ ¤°(€€€ô¤ì(€ô…Ñ €¡•ÉÉ½È¤ì(€€€½¹Í½±”¹•ÉÉ½È ‰m•½¹½µäµÝ½É­½É‘•Èµ‘•±¥Ù•Ét…¥±•Ñ¼‘•±¥Ù•ÈÝ½É¬½É‘•Èèˆ°•ÉÉ½È¤ì(€€€É•Ì¹ÍÑ…ÑÕÌ ÔÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ñ•É¹…±}•ÉÉ½Èˆô¤ì(€ô)ô¤ì()É½ÕÑ•È¹•Ð ˆ½µ…É­•ÐµÍ¹…ÁÍ¡½Ðˆ°…Íå¹Œ€¡}É•Ä°É•Ì¤€ôøì(€ÑÉäì(€€€½¹ÍÐÍ¹…ÁÍ¡½Ð€ô…Ý…¥Ð•½¹½µåM•ÉÙ¥”¹µ…É­•ÑM¹…ÁÍ¡½Ð ¤ì(€€€É•Ì¹©Í½¸¡ì½¬èÑÉÕ”°Í¹…ÁÍ¡½Ðô¤ì(€ô…Ñ €¡•ÉÉ½È¤ì(€€€½¹Í½±”¹•ÉÉ½È ‰m•½¹½µäµµ…É­•ÐµÍ¹…ÁÍ¡½Ñt…¥±•Ñ¼É•…Ñ”Í¹…ÁÍ¡½Ðèˆ°•ÉÉ½È¤ì(€€€É•Ì¹ÍÑ…ÑÕÌ ÔÀÀ¤¹©Í½¸¡ì½¬è™…±Í”°•ÉÉ½Èè€‰¥¹Ñ•É¹…±}•ÉÉ½Èˆô¤ì(€ô)ô¤ì()•áÁ½ÉÐ‘•™…Õ±ÐÉ½ÕÑ•Èì
