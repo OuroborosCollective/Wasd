@@ -17,7 +17,7 @@ export interface AssetBindingDebug {
 }
 
 export interface BoundAsset {
-  readonly semanticType: BuildingType | PropType | RoadType | NpcRole | "terrain";
+  readonly semanticType: BuildingType | PropType | RoadType | NpcRole | "terrain" | string;
   readonly entry: AssetEntry | null;
   readonly texture: Texture | null;
   readonly visualSignature?: VisualSignature;
@@ -43,10 +43,12 @@ export interface WorldPlanRenderContext {
 }
 
 export interface WorldPlanAssetBinder {
+  readonly bindTerrain: (terrainType: string, seed: string) => BoundAsset;
   readonly bindRoad: (roadType: RoadType, seed?: string) => BoundAsset;
   readonly bindBuilding: (buildingType: BuildingType, seed: string) => BoundAsset;
   readonly bindProp: (propType: PropType, seed: string) => BoundAsset;
   readonly bindNpc: (role: NpcRole, seed: string) => BoundAsset;
+  readonly bindTerrainWithContext: (terrainType: string, context: BindingOptions) => BoundAsset;
   readonly bindRoadWithContext: (roadType: RoadType, context: BindingOptions) => BoundAsset;
   readonly bindBuildingWithContext: (buildingType: BuildingType, context: BindingOptions) => BoundAsset;
   readonly bindPropWithContext: (propType: PropType, context: BindingOptions) => BoundAsset;

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "kappa": 1000,
+  "layers": {
+    "terrain": { "baseZ": -1000, "depthScale": 10 },
+    "roads": { "baseZ": -900, "depthScale": 10 },
+    "buildings": { "baseZ": 100, "depthScale": 10 },
+    "props": { "baseZ": 200, "depthScale": 10 },
+    "actors": { "baseZ": 300, "depthScale": 10 },
+    "ui": { "baseZ": 1000, "depthScale": 0 }
+  },
+  "depthInputs": ["tileX", "tileZ", "kappaX", "kappaZ"],
+  "forbiddenInputs": ["frameTime", "fps", "wallClock", "deviceSpeed"]
+}

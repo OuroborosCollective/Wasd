@@ -53,8 +53,8 @@ function toBoundAsset(
   };
 }
 
-function withCozyLog(kind: "road" | "prop", semanticType: string, bound: BoundAsset): BoundAsset {
-  if (isCozyEntry(bound.entry)) console.log(`[CozySpring] visible ${kind} ${semanticType} -> ${bound.entry?.id ?? "unknown"}`);
+function withCozyLog(kind: "road" | "prop", semanticType: string, bound: BoundAsset, debug?: boolean): BoundAsset {
+  if (debug && isCozyEntry(bound.entry)) console.log(`[CozySpring] visible ${kind} ${semanticType} -> ${bound.entry?.id ?? "unknown"}`);
   return bound;
 }
 
@@ -81,7 +81,8 @@ export function createWorldPlanAssetBinder(
   textureFor: (src: string | null | undefined) => BoundAsset["texture"],
   options?: { debug?: boolean },
 ): WorldPlanAssetBinder {
-  const director = createAssetBindingDirector(manifest, options?.debug ?? false);
+  const debug = options?.debug ?? false;
+  const director = createAssetBindingDirector(manifest, debug);
 
   const toContext = (options: BindingOptions): AssetBindingContext => ({
     seed: options.seed,
@@ -102,14 +103,27 @@ export function createWorldPlanAssetBinder(
     visualSignature,
   });
 
+  const bindTerrainResolved = (terrainType: string, context: BindingOptions): BoundAsset => {
+    const visualSignature = signatureFor("terrain", terrainType, context);
+    const grResult = pickGraphicRiverTile(manifest, visualSignature.deterministicSeed, terrainKind(terrainType, context.biome));
+    if (grResult?.entry) return simpleBindEntry(terrainType, grResult.entry, visualSignature);
+    const roadResult = pickGraphicRiverTile(manifest, visualSignature.deterministicSeed, "grass");
+    if (roadResult?.entry) return simpleBindEntry(terrainType, roadResult.entry, visualSignature);
+    return simpleBindEntry(terrainType, null, visualSignature);
+  };
+
   return {
+    bindTerrain: (terrainType: string, seed: string) => {
+      return bindTerrainResolved(terrainType, { seed, biome: "plains" });
+    },
+
     bindRoad: (roadType: RoadType, seed?: string) => {
       const roadSeed = seed ?? roadType;
       const context: BindingOptions = { seed: roadSeed, biome: "plains", variantHint: "cozy-spring" };
       const visualSignature = signatureFor("road", roadType, context);
       const result = director.bindRoad(roadType, toContext(context));
       const cozyBound = toBoundAsset(roadType, result, textureFor, visualSignature);
-      if (isCozyEntry(cozyBound.entry)) return withCozyLog("road", roadType, cozyBound);
+      if (isCozyEntry(cozyBound.entry)) return withCozyLog("road", roadType, cozyBound, debug);
       const grResult = pickGraphicRiverTile(manifest, visualSignature.deterministicSeed, roadKind(roadType));
       if (grResult?.entry) return simpleBindEntry(roadType, grResult.entry, visualSignature);
       return cozyBound;
@@ -129,7 +143,7 @@ export function createWorldPlanAssetBinder(
       const visualSignature = signatureFor("prop", propType, context);
       const result = director.bindProp(propType, toContext(context));
       const cozyBound = toBoundAsset(propType, result, textureFor, visualSignature);
-      if (isCozyEntry(cozyBound.entry)) return withCozyLog("prop", propType, cozyBound);
+      if (isCozyEntry(cozyBound.entry)) return withCozyLog("prop", propType, cozyBound, debug);
       const grResult = pickGraphicRiverProp(manifest, visualSignature.deterministicSeed, propKind(propType));
       if (grResult?.entry) return simpleBindEntry(propType, grResult.entry, visualSignature);
       return cozyBound;
@@ -147,6 +161,11 @@ export function createWorldPlanAssetBinder(
       return toBoundAsset(role, result, textureFor, visualSignature);
     },
 
+    bindTerrainWithContext: (terrainType: string, context: BindingOptions) => {
+      const seed = combineSeed("terrain", String(terrainType), String(context.seed));
+      return bindTerrainResolved(terrainType, { ...context, seed });
+    },
+
     bindRoadWithContext: (roadType: RoadType, context: BindingOptions) => {
       const seed = combineSeed("road", String(roadType), String(context.seed));
       const nextContext: BindingOptions = { ...context, seed };
@@ -154,7 +173,7 @@ export function createWorldPlanAssetBinder(
       if (isCozyContext(context)) {
         const result = director.bindRoad(roadType, toContext({ ...nextContext, biome: context.biome ?? "plains", variantHint: context.variantHint ?? "cozy-spring" }));
         const bound = toBoundAsset(roadType, result, textureFor, visualSignature);
-        if (isCozyEntry(bound.entry)) return withCozyLog("road", roadType, bound);
+        if (isCozyEntry(bound.entry)) return withCozyLog("road", roadType, bound, debug);
       }
       const grKind = roadKind(roadType);
       const grResult = pickGraphicRiverTile(manifest, visualSignature.deterministicSeed, grKind);
@@ -181,7 +200,7 @@ export function createWorldPlanAssetBinder(
       if (isCozyContext(context)) {
         const result = director.bindProp(propType, toContext({ ...nextContext, biome: context.biome ?? "plains", variantHint: context.variantHint ?? "cozy-spring" }));
         const bound = toBoundAsset(propType, result, textureFor, visualSignature);
-        if (isCozyEntry(bound.entry)) return withCozyLog("prop", propType, bound);
+        if (isCozyEntry(bound.entry)) return withCozyLog("prop", propType, bound, debug);
       }
       const grKind = propKind(propType);
       const grResult = pickGraphicRiverProp(manifest, visualSignature.deterministicSeed, grKind);
@@ -227,4 +246,12 @@ function propKind(type: PropType): "tree" | "bush" | "plant" | "flower" {
 
 function roadKind(type: RoadType): "grass" | "road" | "desert" {
   return type === "dirt_road" || type === "gate_road" || type === "market_loop" ? "road" : "grass";
+}
+
+function terrainKind(terrainType: string, biome?: string | null): "grass" | "road" | "desert" {
+  const normalizedTerrain = terrainType.toLowerCase();
+  const normalizedBiome = String(biome ?? "").toLowerCase();
+  if (normalizedTerrain.includes("road")) return "road";
+  if (normalizedTerrain.includes("sand") || normalizedBiome.includes("desert")) return "desert";
+  return "grass";
 }
