@@ -166,14 +166,7 @@ export class CombatDirector {
     const weapon = equipment.MAIN_HAND;
 
     if (!weapon) {
-      return [
-        this.createXPEvent(
-          playerId,
-          "combat",
-          hit ? normalizedDamage * XP_MULTIPLIER : normalizedDamage * MISS_PENALTY,
-          "attack",
-        ),
-      ];
+      return [this.createXPEvent(playerId, "combat", hit ? normalizedDamage * XP_MULTIPLIER : normalizedDamage * MISS_PENALTY, "attack")];
     }
 
     const parsed = parseItemSignature(weapon.signature);
@@ -185,15 +178,7 @@ export class CombatDirector {
     if (crit) xpAmount *= CRIT_BONUS;
     else if (!hit) xpAmount *= MISS_PENALTY;
 
-    return [
-      this.createXPEvent(
-        playerId,
-        weaponSkill,
-        xpAmount * skillMultiplier * tierBonus,
-        "attack",
-        weapon.signature,
-      ),
-    ];
+    return [this.createXPEvent(playerId, weaponSkill, xpAmount * skillMultiplier * tierBonus, "attack", weapon.signature)];
   }
 
   public calculateDefendXP(
@@ -206,14 +191,7 @@ export class CombatDirector {
     const armor = equipment.CHEST;
 
     if (!armor) {
-      return [
-        this.createXPEvent(
-          playerId,
-          "evasion",
-          normalizedDamage * XP_MULTIPLIER * (hit ? 0.5 : 0.3),
-          "defend",
-        ),
-      ];
+      return [this.createXPEvent(playerId, "evasion", normalizedDamage * XP_MULTIPLIER * (hit ? 0.5 : 0.3), "defend")];
     }
 
     const parsed = parseItemSignature(armor.signature);
@@ -224,31 +202,12 @@ export class CombatDirector {
 
     if (!hit) xpAmount *= 1.5;
 
-    return [
-      this.createXPEvent(
-        playerId,
-        defendSkill,
-        xpAmount * skillMultiplier * tierBonus,
-        "defend",
-        armor.signature,
-      ),
-    ];
+    return [this.createXPEvent(playerId, defendSkill, xpAmount * skillMultiplier * tierBonus, "defend", armor.signature)];
   }
 
   public processCombatTick(input: CombatTickInput): CombatXPResult {
-    const attackXP = this.calculateAttackXP(
-      input.attackerId,
-      input.attackerEquipment,
-      input.hit,
-      input.damage,
-      input.crit,
-    );
-    const defendXP = this.calculateDefendXP(
-      input.defenderId,
-      input.defenderEquipment,
-      input.hit,
-      input.damage,
-    );
+    const attackXP = this.calculateAttackXP(input.attackerId, input.attackerEquipment, input.hit, input.damage, input.crit);
+    const defendXP = this.calculateDefendXP(input.defenderId, input.defenderEquipment, input.hit, input.damage);
     const allEvents = [...attackXP, ...defendXP];
     this.pendingXPevents.push(...allEvents);
 
@@ -303,14 +262,15 @@ export class CombatDirector {
     source: XPGainSource,
     itemSignature?: string,
   ): XPGainEvent {
-    return {
+    const event: XPGainEvent = {
       playerId,
       skillId,
       amount: Math.max(0, Math.floor(amount)),
       source,
-      itemSignature,
       tick: this.worldTick,
     };
+    if (typeof itemSignature === "string" && itemSignature.length > 0) event.itemSignature = itemSignature;
+    return event;
   }
 }
 
