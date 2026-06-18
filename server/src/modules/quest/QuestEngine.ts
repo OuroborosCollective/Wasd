@@ -3,6 +3,11 @@ import { getPostHogClient } from "../../services/posthog.js";
 import fs from "fs";
 import { resolveContentFile } from "../content/contentDataRoot.js";
 
+const QUEST_DATA_FILES = [
+  "quests/quests.json",
+  "quests/resource-expansion-quests.json",
+] as const;
+
 export class QuestEngine {
   private quests: Map<string, any> = new Map();
   /** Optional hook after a quest is completed (e.g. questline feature triggers + auto-chain). */
@@ -33,30 +38,72 @@ export class QuestEngine {
     this.xpRewardApplier = cb;
   }
 
-  private resolveQuestsPath(): string | null {
-    const p = resolveContentFile("quests/quests.json");
-    if (fs.existsSync(p)) return p;
-    return null;
+  private resolveQuestDataPaths(): string[] {
+    const paths: string[] = [];
+
+    for (const relativePath of QUEST_DATA_FILES) {
+      const absolutePath = resolveContentFile(relativePath);
+      if (fs.existsSync(absolutePath)) {
+        paths.push(absolutePath);
+      }
+    }
+
+    return paths;
+  }
+
+  private normalizeQuestDefinition(quest: any) {
+    return {
+      ...quest,
+      name: quest.title,
+      giver: quest.giverNpcId || quest.giverNpc,
+      objective: quest.objectiveType || quest.objectives?.[0]?.type || "custom"
+    };
   }
 
   private loadData() {
-    try {
-      const questsPath = this.resolveQuestsPath();
-      if (questsPath) {
-        const questData = JSON.parse(fs.readFileSync(questsPath, "utf-8"));
-        questData.forEach((quest: any) => {
-          // Map to internal format if needed
-          this.quests.set(quest.id, {
-            ...quest,
-            name: quest.title,
-            giver: quest.giverNpcId,
-            objective: quest.objectiveType
-          });
-        });
-        this.definitionVersion++;
+    const questPaths = this.resolveQuestDataPaths();
+    const mergedQuests: any[] = [];
+    const sourceByQuestId = new Map<string, string>();
+
+    for (const questPath of questPaths) {
+      let questData: unknown;
+      try {
+        questData = JSON.parse(fs.readFileSync(questPath, "utf-8"));
+      } catch (error) {
+        throw new Error(`[QuestEngine] Failed to load quest data from ${questPath}: ${(error as Error).message}`);
       }
-    } catch (error) {
-      console.error("Error loading Quest data:", error);
+
+      if (!Array.isArray(questData)) {
+        throw new Error(`[QuestEngine] Quest data file must contain an array: ${questPath}`);
+      }
+
+      for (const quest of questData) {
+        const questId = typeof quest?.id === "string" ? quest.id.trim() : "";
+        if (!questId) {
+          throw new Error(`[QuestEngine] Quest without string id in quest data file: ${questPath}`);
+        }
+
+        const previousSource = sourceByQuestId.get(questId);
+        if (previousSource) {
+          throw new Error(
+            `[QuestEngine] Duplicate quest id in quest game-data: ${questId} (${previousSource} and ${questPath})`
+          );
+        }
+
+        sourceByQuestId.set(questId, questPath);
+        mergedQuests.push(quest);
+      }
+    }
+
+    mergedQuests.sort((a, b) => a.id.localeCompare(b.id));
+
+    this.quests.clear();
+    for (const quest of mergedQuests) {
+      this.quests.set(quest.id, this.normalizeQuestDefinition(quest));
+    }
+
+    if (questPaths.length > 0) {
+      this.definitionVersion++;
     }
   }
 

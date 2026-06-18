@@ -28,5 +28,32 @@
       "xp": 250,
       "itemId": "copper_axe"
     }
+  },
+  {
+    "id": "resource_iron_restock",
+    "title": "Iron Restock",
+    "giverNpcId": "npc_4",
+    "targetNpcId": "npc_4",
+    "objectiveType": "collect",
+    "requiredItemId": "iron_scrap",
+    "requiredCount": 2,
+    "prerequisiteQuestIds": ["dummy_slayer"],
+    "reward": {
+      "gold": 110,
+      "xp": 180
+    }
+  },
+  {
+    "id": "resource_alchemist_bundle",
+    "title": "Alchemist's Bundle",
+    "giverNpcId": "npc_8_apprentice",
+    "targetNpcId": "npc_8_apprentice",
+    "objectiveType": "collect",
+    "requiredItemId": "mushroom",
+    "requiredCount": 3,
+    "reward": {
+      "gold": 60,
+      "xp": 95
+    }
   }
 ]
