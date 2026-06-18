@@ -11,6 +11,7 @@ on:
       - 'packages/shared/**'
       - 'scripts/write-runtime-entrypoints.mjs'
       - 'scripts/write-public-route-hub.mjs'
+      - 'scripts/audit-runtime-truth-paths.mjs'
       - 'Dockerfile.vps'
       - '.github/workflows/portal-smoke.yml'
   workflow_dispatch:
@@ -28,6 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+      CLIENT_2D_BUILD_SHA: smoke-test
+      CLIENT_2D_MARKER: REAL_PIXI_CLIENT
     timeout-minutes: 25
 
     steps:
@@ -45,7 +48,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Prepare pnpm
-        run: corepack prepare pnpm@9.12.2 --activate
+        run: corepack prepare pnpm@11.5.3 --activate
 
       - name: Print toolchain
         run: |
@@ -55,6 +58,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile --ignore-scripts
+
+      - name: Run runtime truth path audit
+        run: pnpm guard:runtime-truth
 
       - name: Build shared package
         run: pnpm --filter @wasd/shared build
@@ -70,14 +76,14 @@ jobs:
           mkdir -p apps/client-2d/dist/assets/cozy-spring
           # Ensure REAL_PIXI_CLIENT marker exists
           if [ -f apps/client-2d/dist/index.html ]; then
-            if ! grep -q "REAL_PIXI_CLIENT" apps/client-2d/dist/index.html; then
-              sed -i 's#</body>#<script>window.MARKER="REAL_PIXI_CLIENT"</script></body>#' apps/client-2d/dist/index.html
+            if ! grep -q "${CLIENT_2D_MARKER}" apps/client-2d/dist/index.html; then
+              sed -i "s#</body>#<script>window.MARKER=\"${CLIENT_2D_MARKER}\"</script></body>#" apps/client-2d/dist/index.html
             fi
           else
-            echo "<html><body>REAL_PIXI_CLIENT</body></html>" > apps/client-2d/dist/index.html
+            printf '<html><body>%s</body></html>\n' "${CLIENT_2D_MARKER}" > apps/client-2d/dist/index.html
           fi
           # Create required artifacts for Dockerfile.vps verification
-          echo '{"sha": "smoke-test"}' > apps/client-2d/dist/build-stamp.json
+          printf '{"sha":"%s"}\n' "${CLIENT_2D_BUILD_SHA}" > apps/client-2d/dist/build-stamp.json
           touch apps/client-2d/dist/manifest.webmanifest
           touch apps/client-2d/dist/service-worker.js
           echo '{"version": 3, "importPolicy": "tilesets-as-tiles-props-as-extracted-objects", "props": {"dummy": {}}}' > apps/client-2d/dist/assets/cozy-spring/manifest.json
@@ -188,4 +194,9 @@ jobs:
       - name: Build VPS Docker image
         run: |
           set -euo pipefail
-          docker build -f Dockerfile.vps -t wasd-vps-smoke:ci .
+          docker build \
+            -f Dockerfile.vps \
+            --build-arg CLIENT_2D_BUILD_SHA="${CLIENT_2D_BUILD_SHA}" \
+            --build-arg CLIENT_2D_MARKER="${CLIENT_2D_MARKER}" \
+            -t wasd-vps-smoke:ci \
+            .
