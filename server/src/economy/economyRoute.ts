@@ -8,7 +8,6 @@ import { transferInventoryItem } from "../inventory/InventoryTransferService.js"
 import { economyService } from "./economyRuntime.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
 import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
-import workOrderRoute from "./workOrderRoute.js";
 
 const router = Router();
 
@@ -164,7 +163,9 @@ router.post("/trade-transfer", tradeTransferRateLimiter, async (req, res) => {
   res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
 });
 
-router.use("/work-orders", workOrderRoute);
+const workOrderRoutePath = "./" + "workOrderRoute.js";
+const workOrderRouteModule = await import(workOrderRoutePath);
+router.use("/work-orders", workOrderRouteModule.default);
 
 router.get("/market-snapshot", async (_req, res) => {
   try {
