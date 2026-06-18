@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import type { Request, Response, NextFunction } from "express";
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { isSupabaseAuthConfigured, verifySupabaseToken } from "../config/supabase.js";
 
 export type AdminRequest = Request & {
@@ -59,40 +59,37 @@ function readDashboardConfiguredValue(): string {
   return (process.env.DASHBOARD_ADMIN_TSX || process.env.dashboard_admin_tsx || "").trim();
 }
 
-/**
- * Protects no-code admin HTTP APIs.
- * - If `ADMIN_PANEL_TOKEN` is set: accept `Authorization: Bearer ***` or `X-Admin-Token: <token>`.
- * - Also allows Supabase ID token (`Authorization: Bearer ***`) if configured.
- * - If `ADMIN_UID_ALLOWLIST` or `ADMIN_EMAIL_ALLOWLIST` is non-empty, user must match at least one.
- */
-export async function adminAuthMiddleware(req: AdminRequest, res: Response, next: NextFunction) {
+export const adminAuthMiddleware: RequestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const adminReq = req as AdminRequest;
   const panel = process.env.ADMIN_PANEL_TOKEN?.trim();
   const legacyPanel = process.env.GM_PANEL_TOKEN?.trim();
   const acceptedPanelTokens = [panel, legacyPanel].filter(
     (v): v is string => Boolean(v && v.trim().length > 0)
   );
   const authHeader = req.headers.authorization;
-  const bearer =
-    authHeader && authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  const bearer = authHeader && authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
   const headerToken = headerValue(req.headers["x-admin-token"]);
-  const hasPanelCandidate =
-    acceptedPanelTokens.includes(bearer) || acceptedPanelTokens.includes(headerToken);
+  const hasPanelCandidate = acceptedPanelTokens.includes(bearer) || acceptedPanelTokens.includes(headerToken);
 
   if (hasPanelCandidate && acceptedPanelTokens.length > 0) {
-    req.adminAuth = { mode: "token" };
-    return next();
+    adminReq.adminAuth = { mode: "token" };
+    next();
+    return;
   }
 
   if (hasValidSovereignLaunchCredential(req)) {
-    return next();
+    next();
+    return;
   }
 
   if (!bearer && !headerToken && acceptedPanelTokens.length > 0) {
-    return res.status(401).json({ error: "Admin token or Supabase Bearer required" });
+    res.status(401).json({ error: "Admin token or Supabase Bearer required" });
+    return;
   }
 
   if (!bearer) {
-    return res.status(401).json({ error: "Missing Authorization: Bearer ***" });
+    res.status(401).json({ error: "Missing Authorization: Bearer ***" });
+    return;
   }
 
   try {
@@ -102,7 +99,8 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
         const uid = typeof claims.sub === "string" ? claims.sub.trim() : "";
         const email = typeof claims.email === "string" ? claims.email.trim().toLowerCase() : "";
         if (!uid) {
-          return res.status(401).json({ error: "Invalid token" });
+          res.status(401).json({ error: "Invalid token" });
+          return;
         }
 
         const allowUid = parseAllowlist("ADMIN_UID_ALLOWLIST");
@@ -116,45 +114,49 @@ export async function adminAuthMiddleware(req: AdminRequest, res: Response, next
         }
 
         if (!authorized) {
-          return res.status(403).json({ error: "Forbidden: user not in allowlist" });
+          res.status(403).json({ error: "Forbidden: user not in allowlist" });
+          return;
         }
 
-        req.adminAuth = { mode: "supabase", uid };
-        return next();
-      } catch {
-        // Fall through to generic error
-      }
+        adminReq.adminAuth = { mode: "supabase", uid };
+        next();
+        return;
+      } catch {}
     }
 
     const hasPanel = acceptedPanelTokens.length > 0;
     if (!isSupabaseAuthConfigured() && !hasPanel) {
-      return res.status(503).json({
+      res.status(503).json({
         error: "Auth provider not configured. Set SUPABASE_JWT_SECRET (or JWT_SECRET / GOTRUE_JWT_SECRET) to match GoTrue, or use ADMIN_PANEL_TOKEN.",
       });
+      return;
     }
-    return res.status(401).json({ error: "Invalid token" });
+    res.status(401).json({ error: "Invalid token" });
   } catch {
-    return res.status(401).json({ error: "Invalid token" });
+    res.status(401).json({ error: "Invalid token" });
   }
-}
+};
 
-export function adminWriteBlocked(_req: Request, res: Response, next: NextFunction) {
+export const adminWriteBlocked: RequestHandler = (_req: Request, res: Response, next: NextFunction): void => {
   const ro = process.env.CONTENT_ADMIN_READONLY?.trim();
   if (ro === "1" || ro === "true" || ro === "yes") {
-    return res.status(403).json({ error: "Content admin is read-only (CONTENT_ADMIN_READONLY)" });
+    res.status(403).json({ error: "Content admin is read-only (CONTENT_ADMIN_READONLY)" });
+    return;
   }
   next();
-}
+};
 
-export function adminDashboardAccess(req: Request, res: Response, next: NextFunction) {
+export const adminDashboardAccess: RequestHandler = (req: Request, res: Response, next: NextFunction): void => {
   const expected = readDashboardConfiguredValue();
   if (!expected && process.env.NODE_ENV !== "production") {
-    return next();
+    next();
+    return;
   }
   const provided = readDashboardAccessValue(req);
   if (expected && provided && safeEqualText(provided, expected)) {
-    return next();
+    next();
+    return;
   }
   res.setHeader("WWW-Authenticate", 'Basic realm="Areloria Dashboard"');
-  return res.status(401).type("text/plain").send("Dashboard access required.");
-}
+  res.status(401).type("text/plain").send("Dashboard access required.");
+};
