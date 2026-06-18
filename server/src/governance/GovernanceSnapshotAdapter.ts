@@ -1,9 +1,13 @@
 import { stableHash32 } from "../core/determinism/AREDeterminism.js";
-import type { GovernanceSnapshot, GovernanceSnapshotTerritory } from "./GovernanceTypes.js";
+import type {
+  GovernanceSnapshot,
+  GovernanceSnapshotTerritory,
+} from "./GovernanceTypes.js";
 import { GovernanceService } from "./GovernanceService.js";
 
 function hashHex(parts: readonly unknown[]): string {
-  return stableHash32(parts.map((part) => String(part)).join("|")).toString(16).padStart(8, "0");
+  const seed = parts.map((part) => String(part)).join("|");
+  return stableHash32(seed).toString(16).padStart(8, "0");
 }
 
 export class GovernanceSnapshotAdapter {
@@ -17,7 +21,9 @@ export class GovernanceSnapshotAdapter {
       .map((territory): GovernanceSnapshotTerritory => {
         const state = this.service.getState(territory.territoryId);
         if (!state) {
-          throw new Error(`[GovernanceSnapshotAdapter] missing state for ${territory.territoryId}`);
+          throw new Error(
+            `[GovernanceSnapshotAdapter] missing state for ${territory.territoryId}`,
+          );
         }
 
         return Object.freeze({
@@ -27,7 +33,10 @@ export class GovernanceSnapshotAdapter {
           regionId: territory.regionId,
           chunkKey: territory.chunkKey,
           state,
-          conflictPressure: this.service.calculateConflictPressure(territory.territoryId, safeTick),
+          conflictPressure: this.service.calculateConflictPressure(
+            territory.territoryId,
+            safeTick,
+          ),
           ...(territory.parentId ? { parentId: territory.parentId } : {}),
           ...(territory.guildId ? { guildId: territory.guildId } : {}),
         });
