@@ -38,6 +38,7 @@ function compareStableString(a: string, b: string): number {
 }
 
 function stableNpcProjection(npc: NPC): Record<string, unknown> {
+    // Note: If fields are added here, you MUST update isNpcMatchingProjected accordingly.
     return {
         id: npc.id,
         profile: npc.profile,
@@ -53,6 +54,37 @@ function stableNpcProjection(npc: NPC): Record<string, unknown> {
     };
 }
 
+function isNpcMatchingProjected(npc: NPC, projected: Record<string, any>): boolean {
+    if (npc.id !== projected.id) return false;
+    if (npc.profile !== projected.profile) return false;
+
+    const stats = projected.stats;
+    if (npc.stats.integrity !== stats.integrity) return false;
+    if (npc.stats.legendSpreadChance !== stats.legendSpreadChance) return false;
+
+    const genealogy = projected.genealogy;
+    if (npc.genealogy.generation !== genealogy.generation) return false;
+
+    // Lineage and mutations are arrays, so we check lengths first, then contents.
+    // Note: stableNpcProjection sorts these, so we need to compare against the sorted version.
+    if (npc.genealogy.lineage.length !== genealogy.lineage.length) return false;
+    if (npc.genealogy.mutations.length !== genealogy.mutations.length) return false;
+
+    // For simplicity and correctness (since lineage/mutations can be mutated),
+    // if lengths match, we do a shallow check of sorted arrays.
+    const sortedLineage = [...npc.genealogy.lineage].sort(compareStableString);
+    for (let i = 0; i < sortedLineage.length; i++) {
+        if (sortedLineage[i] !== genealogy.lineage[i]) return false;
+    }
+
+    const sortedMutations = [...npc.genealogy.mutations].sort(compareStableString);
+    for (let i = 0; i < sortedMutations.length; i++) {
+        if (sortedMutations[i] !== genealogy.mutations[i]) return false;
+    }
+
+    return true;
+}
+
 function fnv1a32(input: string): string {
     let hash = 0x811c9dc5;
     for (let i = 0; i < input.length; i += 1) {
@@ -63,7 +95,7 @@ function fnv1a32(input: string): string {
 }
 
 export class AREStateCompiler extends EventEmitter {
-    private lastKnownState: Map<string, string> = new Map();
+    private lastKnownState: Map<string, Record<string, any>> = new Map();
     private currentVersion: number = 0;
     private mutationSequence: number = 0;
     private isProcessingGenealogy: boolean = false;
@@ -76,15 +108,17 @@ export class AREStateCompiler extends EventEmitter {
         const upserted: NPC[] = [];
         const upsertedProjected: Record<string, unknown>[] = [];
         const deleted: string[] = [];
-        const currentSerializedState: Map<string, string> = new Map();
+        const nextState: Map<string, Record<string, any>> = new Map();
 
-        // Bolt: Optimization - Iterate directly without O(N log N) sort of the entire population every tick.
+        // Bolt: Optimization - Use fast comparison to avoid redundant stringification and projection
         for (const [id, npc] of state.npcs) {
-            const projected = stableNpcProjection(npc);
-            const serialized = JSON.stringify(projected);
-            currentSerializedState.set(id, serialized);
+            const lastProjected = this.lastKnownState.get(id);
 
-            if (this.lastKnownState.get(id) !== serialized) {
+            if (lastProjected && isNpcMatchingProjected(npc, lastProjected)) {
+                nextState.set(id, lastProjected);
+            } else {
+                const projected = stableNpcProjection(npc);
+                nextState.set(id, projected);
                 upserted.push(npc);
                 upsertedProjected.push(projected);
             }
@@ -102,7 +136,7 @@ export class AREStateCompiler extends EventEmitter {
         upsertedProjected.sort((a, b) => compareStableString(String(a['id']), String(b['id'])));
         deleted.sort(compareStableString);
 
-        this.lastKnownState = currentSerializedState;
+        this.lastKnownState = nextState;
         const previousVersion = this.currentVersion;
         this.currentVersion++;
 

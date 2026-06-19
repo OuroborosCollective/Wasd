@@ -50,30 +50,44 @@ export interface GovernanceActor {
   readonly territoryIds?: readonly string[];
 }
 
+export type GovernanceActionKind =
+  | "setTaxRate"
+  | "setLawFlag"
+  | "assignGuardBudget"
+  | "declareConflictState";
+
+export interface GovernanceActionBase {
+  readonly actionId: string;
+  readonly kind: GovernanceActionKind;
+  readonly actorId: string;
+  readonly territoryId: string;
+  readonly tick: number;
+}
+
 export type GovernanceAction =
-  | {
+  | (GovernanceActionBase & {
       readonly type: "setTaxRate";
-      readonly territoryId: string;
+      readonly kind: "setTaxRate";
       readonly taxRatePerMille: number;
-    }
-  | {
+    })
+  | (GovernanceActionBase & {
       readonly type: "setLawFlag";
-      readonly territoryId: string;
+      readonly kind: "setLawFlag";
       readonly lawFlag: string;
       readonly enabled: boolean;
-    }
-  | {
+    })
+  | (GovernanceActionBase & {
       readonly type: "assignGuardBudget";
-      readonly territoryId: string;
+      readonly kind: "assignGuardBudget";
       readonly resourceBudget: number;
       readonly guardBudget: number;
       readonly militiaPool: number;
-    }
-  | {
+    })
+  | (GovernanceActionBase & {
       readonly type: "declareConflictState";
-      readonly territoryId: string;
+      readonly kind: "declareConflictState";
       readonly conflictState: ConflictState;
-    };
+    });
 
 export interface GovernanceActionContext {
   readonly actor: GovernanceActor;
@@ -106,6 +120,36 @@ export interface ConflictPressureOutput {
   readonly resourcePressurePerMille: number;
   readonly guardPressurePerMille: number;
   readonly stateHash: string;
+}
+
+export interface GovernanceActionDiagnostic {
+  readonly code: string;
+  readonly message: string;
+  readonly sideChannel?: boolean;
+}
+
+export interface GovernanceActionEvaluation {
+  readonly actionId: string;
+  readonly kind: GovernanceActionKind;
+  readonly status: string;
+  readonly supported: boolean;
+  readonly mutatesState: boolean;
+  readonly diagnostics: readonly GovernanceActionDiagnostic[];
+  readonly evaluationHash: string;
+}
+
+export type TerritoryLayer =
+  | "kingdom"
+  | "province_or_region"
+  | "settlement"
+  | "village_or_city"
+  | "guild_or_faction_overlay";
+
+export interface TerritoryKey {
+  readonly id: string;
+  readonly layer: TerritoryLayer;
+  readonly parentId?: string;
+  readonly chunkKey?: string;
 }
 
 export interface GovernanceSnapshotTerritory {
