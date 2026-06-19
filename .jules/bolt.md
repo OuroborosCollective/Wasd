@@ -21,3 +21,7 @@
 ## 2026-06-16 - [Optimizing AREStateCompiler Snapshots]
 **Learning:** Sorting the entire population in a simulation loop to generate delta snapshots is an (N \log N)$ bottleneck. By iterating directly and sorting only the delta (changed items), complexity drops to (N)$ for the common case where  \ll N$. Caching projections during comparison also avoids redundant (N)$ transformation work.
 **Action:** Minimize sorting in high-frequency loops by only sorting the resulting deltas rather than the source population.
+
+## 2026-06-19 - [Optimizing Recipe Matching Loop]
+**Learning:** Re-sorting and re-stringifying searching inputs within a `find` loop is a massive overhead. Sorting the query input once and using early exits (like array length) significantly boosts performance. Element-wise comparison is consistently faster than string serialization for small arrays.
+**Action:** Always lift invariant computations out of loops. Use fast-path checks (length, type) before performing deeper comparisons or transformations.
