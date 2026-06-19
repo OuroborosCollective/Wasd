@@ -58,6 +58,7 @@ Recent release-relevant progress:
 - Legacy loot table generation is quarantined; production loot truth remains `LootDirector -> ProceduralLootMachine -> loot_delta`.
 - PR #2036 is open to remove the public legacy-loot boolean bypass after Codex review.
 - The #2042 mobile/browser performance budget now has explicit 2D and 3D release measurements in `docs/RELEASE_CHECKLIST.md`.
+- #2045 now has an exact full-loop release gate in `docs/RELEASE_CHECKLIST.md`; the Playwright full-loop smoke rejects non-2xx/non-JSON runtime event responses instead of accepting weak HTTP status-only evidence.
 
 The release focus is now:
 
@@ -66,7 +67,7 @@ The release focus is now:
 3. complete player-facing UI coverage,
 4. collect real mobile/browser performance evidence against the documented #2042 budgets,
 5. ship an audited release content pack,
-6. promote full-loop E2E/live smoke into a required release gate.
+6. keep full-loop E2E/live smoke as a required release gate.
 
 ---
 
@@ -93,6 +94,7 @@ The release focus is now:
 | Playtester monitor | DONE / REPORTING | WebRTC monitor, signaling, viewer page and publisher page are shipped; release observability tracked by #2049. |
 | ARE deterministic primitives | DONE | `AREClock`, fixed clocks, seeded RNG and `createARESeed` exist; remaining audit cleanup tracked by #2041. |
 | Performance budget | DONE / EVIDENCE REQUIRED | #2042 budgets are documented in `docs/RELEASE_CHECKLIST.md`; release sign-off requires real 2D and 3D runtime metrics plus fallback proof when needed. |
+| Full-loop release gate | HARDENED / EVIDENCE REQUIRED | `e2e/full-loop-smoke.spec.ts` now requires real 2xx JSON runtime evidence for snapshot, NPC, quest, movement, resource, inventory and reconnect paths; green CI/live evidence is still required before release sign-off. |
 
 ---
 
@@ -109,7 +111,7 @@ These block a public release tag.
 | A5 | #2042 | Mobile/browser performance | 2D and 3D startup, FPS, p95 frame, memory and chunk-load budgets are documented; release sign-off is blocked unless real metrics meet standard budget or record a real fallback tier and reason. |
 | A6 | #2043 | Player-facing UI coverage | Critical systems are usable through server-backed UI flows without dev knowledge. |
 | A7 | #2044 | Release content pack | Audited `published-content/current` pack with licenses and model-path audit proof. |
-| A8 | #2045 | Full-loop release gate | Build, guards, model audit, unit tests, E2E, deploy verify and live health are green on release commit. |
+| A8 | #2045 | Full-loop release gate | Build, guards, model audit, unit tests, Playwright `e2e/smoke.spec.ts` and `e2e/full-loop-smoke.spec.ts`, deploy verify and live health are green on release commit. |
 
 ---
 
@@ -170,6 +172,7 @@ pnpm --filter @wasd/shared --if-present build
 pnpm --filter @wasd/client --if-present build
 pnpm --filter @wasd/client-2d --if-present build
 node scripts/check-are-determinism.mjs
+pnpm exec playwright test e2e/smoke.spec.ts e2e/full-loop-smoke.spec.ts
 ```
 
 Release CI should additionally include:
@@ -213,10 +216,10 @@ Any auth, persistence, infra, deploy, gameplay, or architecture change must be r
 4. Prove #2039 backup/restore.
 5. Harden #2040 production auth/session rules.
 6. Collect #2042 real 2D/3D performance evidence against the documented budgets.
-7. Make #2045 full-loop E2E and live smoke a required release gate.
+7. Keep #2045 full-loop E2E and live smoke required, and attach green Playwright/live evidence for the release commit.
 8. Complete #2044 release content pack audit.
 9. Prepare public alpha release notes.
 
 ---
 
-Last refreshed: 2026-06-15
+Last refreshed: 2026-06-19
