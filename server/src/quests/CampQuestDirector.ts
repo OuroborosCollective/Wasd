@@ -19,6 +19,10 @@ export interface CampQuestPoi {
   readonly chunkZ: number;
 }
 
+interface GatheringCampQuestPoi extends CampQuestPoi {
+  readonly type: GatheringCampPoiType;
+}
+
 export interface GenerateCampQuestOffersInput {
   readonly playerId: string;
   readonly logicalIndex: number;
@@ -90,6 +94,10 @@ export function isGatheringCampPoiType(value: string): value is GatheringCampPoi
   return value === "logging_camp" || value === "mining_camp" || value === "fishing_camp";
 }
 
+function isDiscoveredGatheringCampPoi(poi: CampQuestPoi, discovered: ReadonlySet<string>): poi is GatheringCampQuestPoi {
+  return discovered.has(poi.poiId) && isGatheringCampPoiType(poi.type);
+}
+
 export function getCampQuestCycle(logicalIndex: number): number {
   const safeTick = Number.isSafeInteger(logicalIndex) && logicalIndex >= 0 ? logicalIndex : 0;
   return Math.floor(safeTick / CAMP_QUEST_CYCLE_TICKS);
@@ -108,7 +116,7 @@ export function generateCampQuestOffers(input: GenerateCampQuestOffersInput): re
   const completed = new Set(input.completedQuestIds ?? []);
 
   const offers = input.worldPois
-    .filter((poi) => discovered.has(poi.poiId) && isGatheringCampPoiType(poi.type))
+    .filter((poi): poi is GatheringCampQuestPoi => isDiscoveredGatheringCampPoi(poi, discovered))
     .sort((a, b) => a.poiId.localeCompare(b.poiId))
     .map((poi): LiveGameplayQuestProgress | null => {
       const questId = `camp_daily:${poi.poiId}:${cycle}`;
