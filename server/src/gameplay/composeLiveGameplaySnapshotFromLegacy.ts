@@ -11,6 +11,7 @@ import { createDefaultStatBlock, statKeyToPropertyName, isEquipmentStatKey, capS
 import type { EquipmentStatBlock } from "../equipment/EquipmentStatTypes.js";
 import { getStarterProcessingStations } from "../crafting/ProcessingStations.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
+import { generateCampQuestOffers } from "../quests/CampQuestDirector.js";
 import { npcMemoryService } from "../npc/NpcMemoryService.js";
 import { npcRumorService } from "../npc/NpcRumorService.js";
 import { getNpcLineageWorldSurface } from "../modules/npc/NpcLineageWorldSurfaceRuntime.js";
@@ -236,8 +237,18 @@ export async function composeLiveGameplaySnapshotFromLegacy(
       return activeQuests.map(toLiveNpcQuestProgress);
     },
     getAvailableQuests: (playerId: string) => {
-      const availableQuests = npcQuestService.getAvailableQuests(playerId);
-      return availableQuests.map(toLiveNpcQuestProgress);
+      const npcQuests = npcQuestService.getAvailableQuests(playerId).map(toLiveNpcQuestProgress);
+      const completedQuestIds = npcQuestService
+        .getNpcDialogue(playerId, "village_trader_001")
+        .completedQuestIds;
+      const campQuests = generateCampQuestOffers({
+        playerId,
+        logicalIndex: input.logicalIndex,
+        worldPois: input.worldPois ?? [],
+        discoveredPoiIds: worldDiscoveryService.getDiscoveredPoiIds(playerId),
+        completedQuestIds,
+      });
+      return [...npcQuests, ...campQuests].sort((a, b) => a.questId.localeCompare(b.questId));
     },
     getCompletedQuestIds: (playerId: string) => {
       // Use public NPC dialogue method to get completed quest IDs
