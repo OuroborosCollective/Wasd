@@ -12,6 +12,7 @@ import { mcpRoute } from "../api/mcpRoute.js";
 import { adminContentRouter } from "../api/adminContentRoute.js";
 import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
 import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
+import { corsMiddleware } from "../middleware/corsMiddleware.js";
 import { voteRouter } from "../api/voteRoute.js";
 import { leaderboardRouter } from "../api/leaderboardRoute.js";
 import { questlineRouter } from "../api/questlineRoute.js";
@@ -143,6 +144,10 @@ export class ServerBootstrap {
   async start() {
     const app = express();
     const httpServer = createServer(app);
+
+    // Apply global CORS policy early
+    app.use(corsMiddleware());
+
     const selfHealingRuntime: any = { getStatus: () => ({ featuresProtected: 0, config: {}, active: false, totalErrors: 0, totalHealed: 0, healingRate: 0 }) };
     const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
     await initRedisClient();

@@ -158,15 +158,7 @@ export function scienceMascotRouter(): Router {
     });
   });
 
-  r.options("/science-mascot", (_req: Request, res: Response) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-    res.status(204).end();
-  });
-
   r.post("/science-mascot", adminRateLimiter, authMiddleware, async (req: Request, res: Response) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
     try {
       const body = req.body as {
         userMessage?: string;

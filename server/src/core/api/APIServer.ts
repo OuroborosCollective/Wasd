@@ -9,6 +9,7 @@
 import { worldStateRegistry } from '../state/WorldStateRegistry.js';
 import { arelorianKernel } from '../systems/ArelorianKernel.js';
 import { deterministicNow } from '../determinism/AREDeterminism.js';
+import { getAllowedOrigins, isOriginAllowed } from '../../utils/corsUtils.js';
 
 /**
  * Fixed-Point constant (kappa=1000)
@@ -166,23 +167,6 @@ function requireApiKey(req: any, res: any, next: any): void {
   res.status(401).json({ error: 'Unauthorized' });
 }
 
-function getAllowedOrigins(): string[] | boolean {
-  const configured = parseCsvEnv(process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGINS);
-  if (configured.length > 0) return configured;
-
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('ALLOWED_ORIGINS or CORS_ORIGINS must be configured in production.');
-  }
-
-  return [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:5173',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:3001',
-    'http://127.0.0.1:5173',
-  ];
-}
 
 /**
  * World heartbeat broadcast interval (10 ticks = 1 second)
@@ -277,11 +261,18 @@ export class APIServer {
 
     // Dynamic import Socket.io
     import('socket.io').then(({ Server }) => {
+      const allowedOrigins = getAllowedOrigins();
       this.io = new Server(server, {
         cors: {
-          origin: getAllowedOrigins(),
+          origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+            if (isOriginAllowed(origin, allowedOrigins)) {
+              callback(null, true);
+            } else {
+              callback(new Error('Not allowed by CORS'));
+            }
+          },
           methods: ['GET', 'POST'],
-          credentials: false,
+          credentials: true,
         },
       });
 
