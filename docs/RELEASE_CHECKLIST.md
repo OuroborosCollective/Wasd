@@ -2,7 +2,7 @@
 
 This document is the release sign-off checklist. Before any alpha, beta, or public tag, every release blocker below must be green through real runtime evidence.
 
-Last updated: 2026-06-15
+Last updated: 2026-06-19
 
 ---
 
@@ -54,13 +54,26 @@ Tracked by #2044.
 
 Tracked by #2045.
 
-| Test | Status |
-|---|---|
-| Basic smoke | ☐ |
-| Full-loop smoke | ☐ |
-| 2D post-login flow | ☐ |
-| Quest/resource/crafting flows | ☐ |
-| Live deploy smoke | ☐ |
+Exact required release gate:
+
+```bash
+pnpm run build
+pnpm run guard:all
+pnpm run assets:pixi:validate
+pnpm run assets:pixi:validate-batches
+pnpm --filter @wasd/server --if-present test
+pnpm exec playwright test e2e/smoke.spec.ts e2e/full-loop-smoke.spec.ts
+```
+
+The full-loop smoke must run against the real server/client runtime. It must not pass on stub pages, fake network packets, fake snapshots, or workflow-only success markers. Runtime events must return real HTTP 2xx JSON responses and expose gameplay evidence through server-authoritative snapshots.
+
+| Test | Required proof | Status |
+|---|---|---|
+| Basic smoke | `/health` and WebSocket guest/login flow are real 2xx/runtime responses | ☐ |
+| Full-loop smoke | login, movement, NPC, quest, combat stats, loot/inventory, reconnect | ☐ |
+| 2D post-login flow | real `/2d` shell renders post-login world root, HUD, dock and character surface | ☐ |
+| Quest/resource/crafting flows | server-backed runtime events return 2xx JSON and subsequent snapshots remain valid | ☐ |
+| Live deploy smoke | same checks against deployed runtime, not a CI fixture | ☐ |
 
 ---
 
