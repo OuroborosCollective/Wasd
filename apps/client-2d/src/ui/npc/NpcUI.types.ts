@@ -63,7 +63,7 @@ export interface NpcInteractionMenuProps {
   readonly items: readonly NpcMenuItem[];
   readonly selectedIndex: number;
   readonly onSelect: (index: number) => void;
-  readonly onConfirm: () => void;
+  readonly onConfirm: (index: number) => void;
   readonly onCancel: () => void;
 }
 
