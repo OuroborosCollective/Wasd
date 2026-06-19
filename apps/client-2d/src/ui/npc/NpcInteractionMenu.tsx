@@ -126,6 +126,7 @@ export function NpcInteractionMenu({
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
             role="menuitem"
+            aria-keyshortcuts={item.shortcut}
             style={{
               // Animation: staggered entrance
               animation: `menu-item-enter 0.3s ease-out ${index * 0.05}s both`,
@@ -221,20 +222,20 @@ export function NpcInteractionMenu({
             </div>
 
             {/* Right: Shortcut */}
-            <div
+            <kbd
+              className="cz-kbd"
+              aria-hidden="true"
               style={{
-                fontFamily: "Epilogue, sans-serif",
-                fontSize: "11px",
-                fontWeight: "600",
-                letterSpacing: "0.1em",
-                color: "#3b494c",
-                padding: "2px 6px",
-                border: "1px solid #3b494c",
                 borderRadius: "0px",
+                border: "1px solid #3b494c",
+                background: "transparent",
+                color: "#3b494c",
+                boxShadow: "none",
+                marginRight: 0,
               }}
             >
-              [{item.shortcut}]
-            </div>
+              {item.shortcut}
+            </kbd>
 
             {/* Selected Indicator */}
             {isSelected && (

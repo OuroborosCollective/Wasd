@@ -83,12 +83,13 @@ export function InteractionOverlayRoot() {
                 {overlay.type === 'DIALOGUE' && 'DIALOGUE'}
               </h2>
               <div className="interaction-header-actions">
-                <kbd className="interaction-esc-hint">ESC</kbd>
+                <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
                 <button
                   type="button"
                   className="interaction-close"
                   onClick={() => interactionUI.closeUI()}
-                  aria-label="Close interaction"
+                  aria-label="Close interaction [ESC]"
+                  aria-keyshortcuts="Escape"
                 >
                   ✕
                 </button>
