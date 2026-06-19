@@ -78,14 +78,19 @@ function expectFiniteNumber(value: unknown, label: string): asserts value is num
 }
 
 function expectStats(stats: GameplayStats | undefined, label: string): void {
-  expect(stats, `${label} stats should exist`).toBeTruthy();
-  expectFiniteNumber(stats?.level, `${label}.level`);
-  expectFiniteNumber(stats?.health, `${label}.health`);
-  expectFiniteNumber(stats?.maxHealth, `${label}.maxHealth`);
-  expect(stats.health).toBeGreaterThanOrEqual(0);
-  expect(stats.maxHealth).toBeGreaterThan(0);
-  expect(stats.health).toBeLessThanOrEqual(stats.maxHealth);
-  expect(stats.level).toBeGreaterThanOrEqual(1);
+  if (!stats) {
+    throw new Error(`${label} stats should exist`);
+  }
+
+  const { level, health, maxHealth } = stats;
+
+  expectFiniteNumber(level, `${label}.level`);
+  expectFiniteNumber(health, `${label}.health`);
+  expectFiniteNumber(maxHealth, `${label}.maxHealth`);
+  expect(health).toBeGreaterThanOrEqual(0);
+  expect(maxHealth).toBeGreaterThan(0);
+  expect(health).toBeLessThanOrEqual(maxHealth);
+  expect(level).toBeGreaterThanOrEqual(1);
 }
 
 async function expectJsonResponse<T>(response: { status(): number; ok(): boolean; headers(): Record<string, string>; json(): Promise<unknown> }, label: string): Promise<T> {
