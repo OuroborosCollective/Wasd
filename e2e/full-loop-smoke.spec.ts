@@ -34,13 +34,15 @@ interface WelcomePayload {
   stats: WelcomeStats;
 }
 
+interface GameplayStats {
+  level?: number;
+  health?: number;
+  maxHealth?: number;
+}
+
 interface GameplaySnapshot {
   snapshot?: {
-    stats?: {
-      level?: number;
-      health?: number;
-      maxHealth?: number;
-    };
+    stats?: GameplayStats;
     quests?: Array<{ id: string; status?: string }>;
     inventory?: unknown;
   };
@@ -75,7 +77,7 @@ function expectFiniteNumber(value: unknown, label: string): asserts value is num
   expect(Number.isFinite(value), `${label} should be finite`).toBe(true);
 }
 
-function expectStats(stats: GameplaySnapshot["snapshot"] extends infer S ? S extends { stats?: infer T } ? T : never : never, label: string): void {
+function expectStats(stats: GameplayStats | undefined, label: string): void {
   expect(stats, `${label} stats should exist`).toBeTruthy();
   expectFiniteNumber(stats?.level, `${label}.level`);
   expectFiniteNumber(stats?.health, `${label}.health`);
