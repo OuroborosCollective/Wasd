@@ -29,6 +29,13 @@ export interface CampQuestRequirement {
   readonly quantity: number;
 }
 
+export interface CampQuestResolutionInput {
+  readonly playerId: string;
+  readonly poiId: string;
+  readonly poiType: GatheringCampPoiType;
+  readonly logicalIndex: number;
+}
+
 export interface GenerateCampQuestOffersInput {
   readonly playerId: string;
   readonly logicalIndex: number;
@@ -113,16 +120,20 @@ export function campQuestIdFor(poiId: string, logicalIndex: number): string {
   return `camp_daily:${poiId}:${getCampQuestCycle(logicalIndex)}`;
 }
 
-export function resolveCampQuestRequirement(input: {
-  readonly playerId: string;
-  readonly poiId: string;
-  readonly poiType: GatheringCampPoiType;
-  readonly logicalIndex: number;
-}): CampQuestRequirement {
+function resolveCampQuestTemplate(input: CampQuestResolutionInput): CampQuestTemplate {
   const templatePool = TEMPLATES[input.poiType];
   const cycle = getCampQuestCycle(input.logicalIndex);
-  const template = templatePool[hashIndex(`${input.playerId.trim()}:${input.poiId}:${input.poiType}:${cycle}`, templatePool.length)];
+  return templatePool[hashIndex(`${input.playerId.trim()}:${input.poiId}:${input.poiType}:${cycle}`, templatePool.length)];
+}
+
+export function resolveCampQuestRequirement(input: CampQuestResolutionInput): CampQuestRequirement {
+  const template = resolveCampQuestTemplate(input);
   return Object.freeze({ ...template.requirement });
+}
+
+export function resolveCampQuestReward(input: CampQuestResolutionInput): LiveGameplayQuestReward {
+  const template = resolveCampQuestTemplate(input);
+  return Object.freeze({ ...template.reward });
 }
 
 export function generateCampQuestOffers(input: GenerateCampQuestOffersInput): readonly LiveGameplayQuestProgress[] {
@@ -140,8 +151,7 @@ export function generateCampQuestOffers(input: GenerateCampQuestOffersInput): re
       const questId = `camp_daily:${poi.poiId}:${cycle}`;
       if (completed.has(questId)) return null;
 
-      const templatePool = TEMPLATES[poi.type];
-      const template = templatePool[hashIndex(`${playerId}:${poi.poiId}:${poi.type}:${cycle}`, templatePool.length)];
+      const template = resolveCampQuestTemplate({ playerId, poiId: poi.poiId, poiType: poi.type, logicalIndex: input.logicalIndex });
 
       return Object.freeze({
         questId,
