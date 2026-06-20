@@ -152,9 +152,14 @@ export function NpcContextWindow({
 
               <button
                 onClick={onClose}
-                className="w-8 h-8 flex items-center justify-center"
+                aria-label="Close dialogue [ESC]"
+                aria-keyshortcuts="Escape"
+                className="flex items-center justify-center"
                 style={{
-                  width: 40,
+                  width: "auto",
+                  minWidth: 40,
+                  padding: "0 8px",
+                  gap: 8,
                   height: 40,
                   display: "flex",
                   alignItems: "center",
@@ -175,6 +180,7 @@ export function NpcContextWindow({
                   e.currentTarget.style.color = "#849396";
                 }}
               >
+                <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
                 ✕
               </button>
             </div>

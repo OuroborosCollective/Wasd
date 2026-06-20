@@ -55,7 +55,10 @@
 }
 
 .wow-close-btn {
-  width: 36px;
+  width: auto;
+  min-width: 36px;
+  padding: 0 8px;
+  gap: 8px;
   height: 36px;
   display: flex;
   align-items: center;
