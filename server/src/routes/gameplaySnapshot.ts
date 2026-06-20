@@ -129,7 +129,7 @@ export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = 
       worldPois,
       discoveredPoiIds,
     });
-    const npcActivity = generateNPCActivitySnapshot({ tick: serverTick, entities: npcActivityEntities });
+    const npcActivity = generateNPCActivitySnapshot({ tick: serverTick, entities: [...npcActivityEntities] });
 
     const snapshot = createGameplaySnapshot({
       serverTick,
@@ -142,7 +142,7 @@ export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = 
       crafting: { recipes: craftingRecipes },
       equipment,
       guild: guildSnapshot,
-      factions: factionStandings,
+      factions: [...factionStandings],
       map: { worldPois },
       npcActivity,
     });
