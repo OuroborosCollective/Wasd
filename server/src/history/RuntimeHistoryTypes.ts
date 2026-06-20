@@ -1,4 +1,4 @@
-export type RuntimeHistorySource = "economy_sell" | "trade_transfer" | "market_snapshot";
+export type RuntimeHistorySource = "economy_sell" | "trade_transfer" | "market_snapshot" | "quest_delta";
 
 export interface RuntimeHistoryEntry {
   readonly schemaVersion: 1;
