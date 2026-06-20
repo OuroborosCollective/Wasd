@@ -1,5 +1,5 @@
 import express, { type Request, type Response, type Router } from "express";
-import { authMiddleware } from "../middleware/authMiddleware.js";
+import { authRequestHandler } from "../middleware/authRequestHandler.js";
 import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 
 const EMILY_SYSTEM_PROMPT = `You are Emily, the Cyber-Zen Science Portal mascot for Areloria.
@@ -161,11 +161,11 @@ export function scienceMascotRouter(): Router {
   r.options("/science-mascot", (_req: Request, res: Response) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.status(204).end();
   });
 
-  r.post("/science-mascot", adminRateLimiter, authMiddleware, async (req: Request, res: Response) => {
+  r.post("/science-mascot", adminRateLimiter, authRequestHandler, async (req: Request, res: Response) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     try {
       const body = req.body as {
