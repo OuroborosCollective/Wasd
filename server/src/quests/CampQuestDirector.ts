@@ -66,7 +66,7 @@ const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = Ob
       description: "The foreman needs backup handles before production dips.",
       objectiveTitle: "Deliver 3 Wood Logs for tool handles",
       requirement: { itemId: "wood_log", quantity: 3 },
-      reward: { coins: 12, gatheringXp: 20, craftingXp: 5, reputation: 1 },
+      reward: { coins: 18, gatheringXp: 20, craftingXp: 5, reputation: 1 },
     },
   ]),
   mining_camp: Object.freeze([
@@ -82,7 +82,7 @@ const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = Ob
       description: "The mining crew needs backup copper counted before the next work cycle.",
       objectiveTitle: "Deliver 3 Copper Ore to the camp",
       requirement: { itemId: "copper_ore", quantity: 3 },
-      reward: { coins: 16, gatheringXp: 24, craftingXp: 4, reputation: 1 },
+      reward: { coins: 22, gatheringXp: 24, craftingXp: 4, reputation: 1 },
     },
   ]),
   fishing_camp: Object.freeze([
@@ -98,7 +98,7 @@ const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = Ob
       description: "The net crew needs small catches inspected after the last tide cycle.",
       objectiveTitle: "Deliver 3 Raw Fish for camp rationing",
       requirement: { itemId: "raw_fish", quantity: 3 },
-      reward: { coins: 14, gatheringXp: 22, craftingXp: 4, reputation: 1 },
+      reward: { coins: 20, gatheringXp: 22, craftingXp: 4, reputation: 1 },
     },
   ]),
 });
