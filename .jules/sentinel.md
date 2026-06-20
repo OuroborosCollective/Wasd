@@ -12,3 +12,8 @@
 **Vulnerability:** The `/science-mascot` endpoint was a public proxy for the Gemini AI API using a server-side secret, and `/resync` / `/snapshot` endpoints exposed full world state snapshots to unauthenticated users.
 **Learning:** AI proxy endpoints that allow client-controlled system prompts are high-risk for both resource abuse and prompt injection. State snapshots are sensitive data that should always be guarded by authentication.
 **Prevention:** Always apply `authMiddleware` to any endpoint that proxies external LLM APIs or returns comprehensive system/world state. Hardcode or strictly validate system prompts on the server.
+
+## 2025-05-14 - Timing Attack Vulnerability in Admin Auth Middleware
+**Vulnerability:** Sensitive administrative tokens (Sovereign Launch Key and Admin Panel Tokens) were compared using standard string equality (`===`) or `Array.includes`, making them vulnerable to timing attacks.
+**Learning:** Even when security utilities like `safeEqualText` are available in the same file, they can be overlooked if not consistently applied to all authentication paths.
+**Prevention:** Always use timing-safe comparison utilities for any secret or token verification. Prefer `.some()` with a safe comparison helper over `Array.includes()` for sets of valid tokens.
