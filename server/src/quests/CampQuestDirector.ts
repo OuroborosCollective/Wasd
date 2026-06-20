@@ -8,7 +8,7 @@ import type { LiveGameplayQuestProgress, LiveGameplayQuestReward } from "../game
 export const CAMP_QUEST_CYCLE_TICKS = 10 * 60 * 30;
 
 export type GatheringCampPoiType = "logging_camp" | "mining_camp" | "fishing_camp";
-export type CampQuestDeliveryItemId = "wood_log" | "copper_ore" | "stone" | "raw_fish";
+export type CampQuestDeliveryItemId = "wood_log" | "copper_ore" | "raw_fish";
 
 export interface CampQuestPoi {
   readonly poiId: string;
@@ -71,10 +71,10 @@ const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = Ob
       reward: { coins: 22, gatheringXp: 34, craftingXp: 0, reputation: 1 },
     },
     {
-      title: "Stone Sorting",
-      description: "The mining crew needs stone sorted before the next work cycle.",
-      objectiveTitle: "Deliver 4 Stone to the camp",
-      requirement: { itemId: "stone", quantity: 4 },
+      title: "Spare Ore Count",
+      description: "The mining crew needs backup copper counted before the next work cycle.",
+      objectiveTitle: "Deliver 3 Copper Ore to the camp",
+      requirement: { itemId: "copper_ore", quantity: 3 },
       reward: { coins: 16, gatheringXp: 24, craftingXp: 4, reputation: 1 },
     },
   ]),
