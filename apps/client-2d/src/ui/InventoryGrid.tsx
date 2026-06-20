@@ -436,7 +436,13 @@ export function InventoryGrid({ isOpen = true, onClose }: InventoryGridProps) {
       <div className="wow-inventory-header">
         <h2>INVENTORY</h2>
         {onClose && (
-          <button className="wow-close-btn" onClick={onClose} aria-label="Close">
+          <button
+            className="wow-close-btn"
+            onClick={onClose}
+            aria-label="Close inventory [ESC]"
+            aria-keyshortcuts="Escape"
+          >
+            <kbd className="cz-kbd">ESC</kbd>
             ✕
           </button>
         )}

@@ -44,6 +44,11 @@ export function useGameplayPanels() {
         return;
       }
 
+      if (event.key === "Escape") {
+        setOpenPanels((prev) => (prev.size === 0 ? prev : new Set()));
+        return;
+      }
+
       const panel = getPanelByShortcut(event.key);
       if (!panel) return;
 

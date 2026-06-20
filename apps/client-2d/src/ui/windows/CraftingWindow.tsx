@@ -108,7 +108,13 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
         <h2>CRAFTING</h2>
 
         {onClose && (
-          <button className="wow-close-btn" onClick={onClose} aria-label="Close">
+          <button
+            className="wow-close-btn"
+            onClick={onClose}
+            aria-label="Close crafting [ESC]"
+            aria-keyshortcuts="Escape"
+          >
+            <kbd className="cz-kbd">ESC</kbd>
             ✕
           </button>
         )}

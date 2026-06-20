@@ -378,8 +378,10 @@ export function CharacterWindow({
             type="button"
             className="wow-close-btn"
             onClick={onClose}
-            aria-label="Close"
+            aria-label="Close character [ESC]"
+            aria-keyshortcuts="Escape"
           >
+            <kbd className="cz-kbd">ESC</kbd>
             ✕
           </button>
         )}
