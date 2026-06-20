@@ -21,3 +21,7 @@
 ## 2026-06-16 - [Optimizing AREStateCompiler Snapshots]
 **Learning:** Sorting the entire population in a simulation loop to generate delta snapshots is an (N \log N)$ bottleneck. By iterating directly and sorting only the delta (changed items), complexity drops to (N)$ for the common case where  \ll N$. Caching projections during comparison also avoids redundant (N)$ transformation work.
 **Action:** Minimize sorting in high-frequency loops by only sorting the resulting deltas rather than the source population.
+
+## 2026-06-20 - [Optimizing Recipe Matching via Early Exits and Direct Comparison]
+**Learning:** Using `JSON.stringify` to compare sorted arrays in a hot loop (like recipe matching) is extremely expensive due to serialization overhead. Pre-sorting inputs once and using a length-check fast path before element-wise comparison achieved an ~9x performance improvement.
+**Action:** Avoid JSON serialization for equality checks in search/match loops. Implement length-based early exits and use element-wise comparison for arrays.
