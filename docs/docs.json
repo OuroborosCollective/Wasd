@@ -1,6 +1,5 @@
 {
   "name": "Areloria WASD",
-  "version": "1.0.0",
   "theme": "mint",
   "logo": {
     "light": "/assets/logo-light.svg",
@@ -13,51 +12,36 @@
     "light": "#07C983",
     "dark": "#15803D"
   },
-  "navigation": [
-    {
-      "group": "Getting Started",
-      "pages": [
-        "mintlify/index",
-        "mintlify/quickstart",
-        "mintlify/development/setup"
-      ]
-    },
-    {
-      "group": "Architecture",
-      "pages": [
-        "mintlify/architecture/overview",
-        "mintlify/architecture/server",
-        "mintlify/architecture/client",
-        "mintlify/architecture/determinism"
-      ]
-    },
-    {
-      "group": "Gameplay Systems",
-      "pages": [
-        "mintlify/gameplay/overview",
-        "mintlify/gameplay/npc-systems",
-        "mintlify/gameplay/quest-system",
-        "mintlify/gameplay/combat",
-        "mintlify/gameplay/economy"
-      ]
-    },
-    {
-      "group": "Deployment",
-      "pages": [
-        "mintlify/deployment/vps",
-        "mintlify/deployment/docker",
-        "mintlify/deployment/configuration"
-      ]
-    },
-    {
-      "group": "API Reference",
-      "pages": [
-        "mintlify/api/overview",
-        "mintlify/api/websocket",
-        "mintlify/api/rest"
-      ]
-    }
-  ],
+  "navigation": {
+    "Getting Started": [
+      "mintlify/index",
+      "mintlify/quickstart",
+      "mintlify/development/setup"
+    ],
+    "Architecture": [
+      "mintlify/architecture/overview",
+      "mintlify/architecture/server",
+      "mintlify/architecture/client",
+      "mintlify/architecture/determinism"
+    ],
+    "Gameplay Systems": [
+      "mintlify/gameplay/overview",
+      "mintlify/gameplay/npc-systems",
+      "mintlify/gameplay/quest-system",
+      "mintlify/gameplay/combat",
+      "mintlify/gameplay/economy"
+    ],
+    "Deployment": [
+      "mintlify/deployment/vps",
+      "mintlify/deployment/docker",
+      "mintlify/deployment/configuration"
+    ],
+    "API Reference": [
+      "mintlify/api/overview",
+      "mintlify/api/websocket",
+      "mintlify/api/rest"
+    ]
+  },
   "footerSocials": {
     "github": "https://github.com/Ouroboros-Collective/Areloria-WASD"
   }
