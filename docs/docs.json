@@ -1,7 +1,7 @@
 {
   "name": "Areloria WASD",
   "version": "1.0.0",
-  "theme": "#00d4aa",
+  "theme": "mint",
   "logo": {
     "light": "/assets/logo-light.svg",
     "dark": "/assets/logo-dark.svg",
