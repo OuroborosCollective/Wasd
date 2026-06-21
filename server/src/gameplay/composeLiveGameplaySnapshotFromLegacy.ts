@@ -11,7 +11,7 @@ import { createDefaultStatBlock, statKeyToPropertyName, isEquipmentStatKey, capS
 import type { EquipmentStatBlock } from "../equipment/EquipmentStatTypes.js";
 import { getStarterProcessingStations } from "../crafting/ProcessingStations.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
-import { generateCampQuestOffers } from "../quests/CampQuestDirector.js";
+import { campQuestService } from "../quests/CampQuestService.js";
 import { npcMemoryService } from "../npc/NpcMemoryService.js";
 import { npcRumorService } from "../npc/NpcRumorService.js";
 import { getNpcLineageWorldSurface } from "../modules/npc/NpcLineageWorldSurfaceRuntime.js";
@@ -231,29 +231,30 @@ export async function composeLiveGameplaySnapshotFromLegacy(
         interactionRadius: s.interactionRadius,
       }));
     },
-    // NPC Quest system integration
-    getActiveQuests: (playerId: string) => {
-      const activeQuests = npcQuestService.getActiveQuests(playerId);
-      return activeQuests.map(toLiveNpcQuestProgress);
-    },
-    getAvailableQuests: (playerId: string) => {
-      const npcQuests = npcQuestService.getAvailableQuests(playerId).map(toLiveNpcQuestProgress);
-      const completedQuestIds = npcQuestService
-        .getNpcDialogue(playerId, "village_trader_001")
-        .completedQuestIds;
-      const campQuests = generateCampQuestOffers({
+    getActiveQuests: async (playerId: string) => {
+      const npcActiveQuests = npcQuestService.getActiveQuests(playerId).map(toLiveNpcQuestProgress);
+      const campActiveQuests = await campQuestService.getActiveQuests({
         playerId,
         logicalIndex: input.logicalIndex,
         worldPois: input.worldPois ?? [],
         discoveredPoiIds: worldDiscoveryService.getDiscoveredPoiIds(playerId),
-        completedQuestIds,
+      });
+      return [...npcActiveQuests, ...campActiveQuests].sort((a, b) => a.questId.localeCompare(b.questId));
+    },
+    getAvailableQuests: async (playerId: string) => {
+      const npcQuests = npcQuestService.getAvailableQuests(playerId).map(toLiveNpcQuestProgress);
+      const campQuests = await campQuestService.getAvailableQuests({
+        playerId,
+        logicalIndex: input.logicalIndex,
+        worldPois: input.worldPois ?? [],
+        discoveredPoiIds: worldDiscoveryService.getDiscoveredPoiIds(playerId),
       });
       return [...npcQuests, ...campQuests].sort((a, b) => a.questId.localeCompare(b.questId));
     },
-    getCompletedQuestIds: (playerId: string) => {
-      // Use public NPC dialogue method to get completed quest IDs
-      const dialogue = npcQuestService.getNpcDialogue(playerId, "village_trader_001");
-      return [...dialogue.completedQuestIds];
+    getCompletedQuestIds: async (playerId: string) => {
+      const npcCompletedQuestIds = npcQuestService.getNpcDialogue(playerId, "village_trader_001").completedQuestIds;
+      const campCompletedQuestIds = await campQuestService.getCompletedQuestIds(playerId);
+      return [...npcCompletedQuestIds, ...campCompletedQuestIds].sort();
     },
     getNpcDialogues: (playerId: string) => {
       // Return dialogues for all known NPCs (village_trader_001)
