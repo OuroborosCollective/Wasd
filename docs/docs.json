@@ -6,40 +6,32 @@
     "dark": "/assets/logo-dark.svg",
     "href": "/"
   },
-  "favicon": "/assets/favicon.png",
   "colors": {
     "primary": "#00d4aa",
     "light": "#07C983",
     "dark": "#15803D"
   },
   "navigation": {
-    "Getting Started": [
+    "pages": [
       "mintlify/index",
       "mintlify/quickstart",
-      "mintlify/development/setup"
-    ],
-    "Architecture": [
+      "mintlify/development/setup",
       "mintlify/architecture/overview",
       "mintlify/architecture/server",
       "mintlify/architecture/client",
-      "mintlify/architecture/determinism"
-    ],
-    "Gameplay Systems": [
+      "mintlify/architecture/determinism",
       "mintlify/gameplay/overview",
       "mintlify/gameplay/npc-systems",
       "mintlify/gameplay/quest-system",
       "mintlify/gameplay/combat",
-      "mintlify/gameplay/economy"
-    ],
-    "Deployment": [
+      "mintlify/gameplay/economy",
       "mintlify/deployment/vps",
       "mintlify/deployment/docker",
-      "mintlify/deployment/configuration"
-    ],
-    "API Reference": [
+      "mintlify/deployment/configuration",
       "mintlify/api/overview",
       "mintlify/api/websocket",
-      "mintlify/api/rest"
+      "mintlify/api/rest",
+      "mintlify/components/showcase"
     ]
   },
   "footerSocials": {
