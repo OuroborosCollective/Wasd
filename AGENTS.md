@@ -320,3 +320,32 @@ Der MiniMax-M2.7 Agent ist für autonome System-Gesundheit, Bug-Fixing und ARELo
 - Manual triggers: system_health, npc_health, ui_optimization, full_analysis, fix_issue
 
 **Mehr Info:** `docs/MiniMax-Autonomous-Agent.md`
+
+---
+
+## Mintlify MCP Integration
+
+The project includes Mintlify MCP server configuration for documentation search and content management.
+
+### Configuration
+- `.mintlify/mcp.json` - MCP server configuration
+- `.mintlify/README.md` - Integration documentation
+
+### Available Tools
+- `search_mintlify` - Search Mintlify knowledge base
+- `query_docs_filesystem_mintlify` - Query documentation filesystem
+
+### Usage with AI Assistants
+Add to your AI assistant's MCP configuration:
+```json
+{
+  "mcpServers": {
+    "mintlify-docs": {
+      "command": "npx",
+      "args": ["-y", "@mintlify/mcp@latest"]
+    }
+  }
+}
+```
+
+See `.mintlify/README.md` for more details.

@@ -1,0 +1,31 @@
+{
+  "server": {
+    "name": "Mintlify",
+    "version": "1.0.0",
+    "transport": "http"
+  },
+  "mcpServers": {
+    "mintlify-docs": {
+      "command": "npx",
+      "args": ["-y", "@mintlify/mcp@latest"],
+      "description": "Mintlify documentation search and content management"
+    }
+  },
+  "capabilities": {
+    "tools": {
+      "search_mintlify": {
+        "name": "search_mintlify",
+        "description": "Search across the Mintlify knowledge base to find relevant information, code examples, API references, and guides."
+      },
+      "query_docs_filesystem_mintlify": {
+        "name": "query_docs_filesystem_mintlify",
+        "description": "Run read-only queries against the Mintlify documentation filesystem."
+      }
+    }
+  },
+  "documentation": {
+    "mcpDocs": "https://mintlify.com/docs/mcp",
+    "adminMcp": "https://mintlify.com/docs/admin-mcp",
+    "mcpRegistry": "https://mintlify.com/docs/mcp-registry"
+  }
+}
