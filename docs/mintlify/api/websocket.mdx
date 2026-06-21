@@ -60,36 +60,46 @@ Client                    Server
 
 ## Intent Protocol
 
+**The client sends wishes. The server assigns truth.**
+
+Client timestamp is diagnostic only. Server `tickId` is authoritative.
+
 ### Movement Intent
 
 ```typescript
+// Client sends: A wish
 {
   type: 'intent',
   payload: {
     action: 'move',
     data: {
       position: { x: 100, y: 200 },
-      direction: 45,  // degrees
-      clientId: 'player-123'
-    },
-    timestamp: 1234567890
+      direction: 45  // degrees
+    }
   }
+}
+
+// Server responds with accepted truth (in snapshot)
+{
+  tickId: 12345,           // Authoritative tick
+  logicalIndex: 123450,      // Logical execution index
+  receivedOrder: 7,         // Order among intents this tick
+  canonicalIntentHash: '0xabc123...'  // Deterministic hash
 }
 ```
 
 ### Attack Intent
 
 ```typescript
+// Client sends: A wish
 {
   type: 'intent',
   payload: {
     action: 'attack',
     data: {
       targetId: 'npc-456',
-      skillId: 'slash',  // optional
-      clientId: 'player-123'
-    },
-    timestamp: 1234567890
+      skillId: 'slash'  // optional
+    }
   }
 }
 ```
@@ -97,16 +107,15 @@ Client                    Server
 ### Skill Intent
 
 ```typescript
+// Client sends: A wish
 {
   type: 'intent',
   payload: {
     action: 'useSkill',
     data: {
       skillId: 'fireball',
-      targetId: 'enemy-789',  // or position for AOE
-      clientId: 'player-123'
-    },
-    timestamp: 1234567890
+      targetId: 'enemy-789'  // or position for AOE
+    }
   }
 }
 ```
@@ -114,16 +123,15 @@ Client                    Server
 ### Interact Intent
 
 ```typescript
+// Client sends: A wish
 {
   type: 'intent',
   payload: {
     action: 'interact',
     data: {
       targetId: 'npc-456',  // or 'resource-node-123'
-      interactionType: 'talk' | 'trade' | 'gather',
-      clientId: 'player-123'
-    },
-    timestamp: 1234567890
+      interactionType: 'talk' | 'trade' | 'gather'
+    }
   }
 }
 ```
@@ -131,6 +139,7 @@ Client                    Server
 ### Inventory Intent
 
 ```typescript
+// Client sends: A wish
 {
   type: 'intent',
   payload: {
@@ -138,11 +147,29 @@ Client                    Server
     data: {
       subAction: 'equip' | 'unequip' | 'move' | 'drop' | 'use',
       itemId: 'item-123',
-      targetSlot: 5,  // optional
-      clientId: 'player-123'
-    },
-    timestamp: 1234567890
+      targetSlot: 5  // optional
+    }
   }
+}
+```
+
+### Intent Truth Assignment
+
+```typescript
+// Server assigns truth to accepted intents
+interface ServerAcceptedIntent {
+  tickId: TickId;           // When intent was processed
+  logicalIndex: number;     // Order within tick
+  receivedOrder: number;    // Among all intents this tick
+  canonicalIntentHash: string; // Deterministic hash
+}
+
+// Client receives truth in snapshot
+interface IntentConfirmation {
+  clientIntentId: string;    // Client's request ID (for debugging)
+  serverTruth: ServerAcceptedIntent;
+  success: boolean;
+  reason?: string;  // If success=false
 }
 ```
 

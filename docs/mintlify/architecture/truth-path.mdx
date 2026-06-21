@@ -1,0 +1,238 @@
+---
+title: Truth Path Contract
+description: The architectural commitment that defines what makes a feature real in Areloria
+---
+
+# Truth Path Contract
+
+**A feature is real only when it is verifiable through the active runtime path.**
+
+This is not a style guideline. It is an architectural commitment that separates real systems from demonstrations, stubs, and approximations.
+
+```text
+Kein Snapshot, kein Spiel.
+Kein Tick, keine Wahrheit.
+Kein Guard, keine Architektur.
+Kein /2d Proof, keine Integration.
+```
+
+---
+
+## The Eight Verification Gates
+
+A feature passes the truth path only when it satisfies all eight gates:
+
+### 1. Runtime Source
+
+State must originate from the authoritative game server, not from client prediction, test fixtures, or mock objects.
+
+```typescript
+// ❌ Forbidden - Not from runtime
+const playerHealth = mockPlayer.health;
+
+// ✅ Required - From live runtime
+const playerHealth = serverSnapshot.players[id].health;
+```
+
+### 2. Tick Binding
+
+Every mutable state must be bound to a `TickId` or `logicalIndex`. Time-based state without tick binding is non-deterministic.
+
+```typescript
+// ❌ Forbidden - Time-based without tick binding
+const isExpired = Date.now() > expirationTime;
+
+// ✅ Required - Tick-bound time
+const isExpired = tick.logicalIndex > expirationTick;
+```
+
+### 3. Chunk Scope
+
+Simulation scope must be explicitly declared and bounded.
+
+```typescript
+interface SystemScope {
+  simulationRadius: number;  // chunks
+  broadcastRadius: number;   // chunks
+  observed: boolean;        // player nearby?
+}
+```
+
+### 4. Kappa Position
+
+Spatial positions use `KappaInt` (branded integer type) to prevent accidental mixing with raw numbers.
+
+```typescript
+type KappaInt = number & { readonly brand: unique symbol };
+type Position = { x: KappaInt; y: KappaInt; z?: KappaInt; };
+```
+
+### 5. Deterministic Seed
+
+All randomness uses explicit seeds. `Math.random()` and `Date.now()` are forbidden in truth path code.
+
+```typescript
+// ❌ Forbidden
+const roll = Math.random();
+const now = Date.now();
+
+// ✅ Required - Deterministic
+const rng = new DeterministicPrng(seed);
+const roll = rng.nextFloat(0, 1);
+const tickId = clock.getTickId();
+```
+
+### 6. State Hash / Manifest
+
+The manifest system provides server-authoritative state verification through hash chaining.
+
+```typescript
+interface Manifest {
+  hash: string;           // 64-char hex
+  previousHash: string;  // chain link
+  tickId: TickId;
+  worldId: WorldId;
+}
+```
+
+### 7. Replay Verification
+
+State must be reproducible from explicit inputs. Any simulation result must be verifiable by replaying with identical seeds.
+
+### 8. CI Smoke Proof
+
+Features must be covered by automated tests that verify truth path compliance. Stub systems must not pass CI.
+
+---
+
+## Forbidden in Truth Path
+
+These patterns are explicitly prohibited in any code that affects simulation state:
+
+| Forbidden Pattern | Reason | Use Instead |
+|-----------------|--------|-------------|
+| `Math.random()` | Non-deterministic | `DeterministicPrng(seed)` |
+| `Date.now()` | Wall-clock dependent | `TickId` / `logicalIndex` |
+| `new Date()` | Wall-clock dependent | `AREClock.getLogicalTime()` |
+| `performance.now()` | Variable timing | Deterministic timestamps |
+| `randomUUID()` | Non-reproducible | Seeded hash: `sha256(seed + data)` |
+| Client-authoritative mutation | Security violation | Server validates all intent |
+| Auth stubs in truth path | Trust violation | Real auth or explicit dev mode |
+| Mock state in production | Non-verifiable | Real runtime state |
+
+---
+
+## Intent Protocol (Corrected)
+
+The client sends **wishes**. The server assigns **truth**.
+
+```typescript
+// Client sends: A wish
+interface ClientIntent {
+  type: "intent";
+  clientIntentId?: string;  // only for dedupe/debug
+  payload: {
+    action: "move" | "attack" | "useSkill" | "interact";
+    data: unknown;
+  };
+}
+
+// Server responds: Accepted truth
+interface ServerAcceptedIntent {
+  tickId: TickId;
+  logicalIndex: number;
+  receivedOrder: number;
+  canonicalIntentHash: string;  // deterministic hash of intent
+}
+```
+
+**The client timestamp is diagnostic only. The server `tickId` is authoritative.**
+
+---
+
+## Side-Channel Isolation
+
+Non-truth-path concerns are explicitly separated:
+
+| Concern | Location | Examples |
+|---------|----------|----------|
+| Telemetry | Side-channel | Logging, metrics, analytics |
+| Debug UI | Development only | DevTools, HUD overlays |
+| Auth stubs | Development only | `AUTH_MODE=stub` |
+| Persistence | Bounded I/O | PostgreSQL, Redis |
+
+**Side-channel code may use non-deterministic patterns. Truth-path code may not.**
+
+---
+
+## Health Endpoint (Corrected Format)
+
+For development builds, explicitly declare dev mode:
+
+```json
+{
+  "status": "ok",
+  "auth": {
+    "mode": "disabled",
+    "truthPath": false,
+    "reason": "local development only"
+  },
+  "persistence": "file",
+  "content": "game-data",
+  "playtester": "disabled"
+}
+```
+
+Production builds must not expose `truthPath: false` in auth configuration.
+
+---
+
+## Verification Checklist
+
+Before merging any gameplay feature:
+
+- [ ] All random operations use `DeterministicPrng` with explicit seed
+- [ ] No `Date.now()`, `Math.random()`, or `performance.now()` in simulation code
+- [ ] State is bound to `TickId` or `logicalIndex`
+- [ ] Positions use `KappaInt` branded type
+- [ ] Manifest hash chain includes this state
+- [ ] Replay produces identical results
+- [ ] CI tests verify truth path compliance
+- [ ] Client intent has server-assigned `tickId`, not client timestamp
+- [ ] Auth stubs are explicitly marked as non-truth-path
+
+---
+
+## The Commitment
+
+This is not about code quality. This is about **trust**.
+
+When a player crafts an item, we must be able to prove:
+1. The item exists in server state (Runtime Source)
+2. It was created at a specific tick (Tick Binding)
+3. The player was at the correct position (Chunk Scope + Kappa)
+4. The crafting roll used a deterministic seed (Deterministic Seed)
+5. The state hash includes this item (Manifest)
+6. We can replay and verify (Replay Verification)
+7. Tests confirm it works (CI Smoke Proof)
+
+**If any gate is missing, the feature is not real. It is a story we are telling ourselves.**
+
+The world may become strange. But never non-deterministic by accident.
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Determinism" icon="hash" href="/mintlify/architecture/determinism">
+    Deterministic primitives and forbidden patterns
+  </Card>
+  <Card title="Server Architecture" icon="server" href="/mintlify/architecture/server">
+    Tick system and runtime architecture
+  </Card>
+  <Card title="Manifest System" icon="shield" href="/mintlify/api/overview">
+    State verification and hash chaining
+  </Card>
+  <Card title="Client Architecture" icon="monitor" href="/mintlify/architecture/client">
+    Client-server intent protocol
+  </Card>
+</CardGroup>
