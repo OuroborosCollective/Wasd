@@ -5,25 +5,39 @@
  * 
  * ARE Infinite Loot Machine routes with deterministic tick context.
  * Uses TickSystemContextProvider instead of direct tickIndex.
+ *
+ * SECURITY NOTE:
+ * These endpoints are administrative and must be protected by
+ * adminAuthMiddleware and adminRateLimiter at the mount point.
+ * They allow triggering loot generation and checking system status.
  */
 
 import { getLootDirector } from '../bootLootSystem.js';
-import express from 'express';
+import express, { Router } from 'express';
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
-export function createLootRoutes(app: any): void {
-  // Ensure JSON parsing is available for POST body
-  app.use(express.json());
+export function createLootRoutes(): Router {
+  const router = Router();
 
-  app.get('/admin/loot/status', (_req: any, res: any) => {
+  // Ensure JSON parsing is available for POST body
+  router.use(express.json({ limit: '1mb' }));
+
+  /**
+   * GET /status
+   * Returns the current status of the ARE Infinite Loot Machine.
+   * Required: Admin Authentication
+   */
+  router.get('/status', (_req, res) => {
     const lootDirector = getLootDirector();
 
     if (!lootDirector) {
-      return res.status(503).json({
+      // Fail securely: return a clear error when system is not ready
+      res.status(503).json({
         ok: false,
         error: 'Loot system not initialized',
         system: 'ARE_INFINITE_LOOT_MACHINE'
       });
+      return;
     }
 
     res.json({
@@ -33,14 +47,20 @@ export function createLootRoutes(app: any): void {
     });
   });
 
-  app.post('/admin/loot/generate', async (req: any, res: any) => {
+  /**
+   * POST /generate
+   * Generates loot based on provided context.
+   * Required: Admin Authentication
+   */
+  router.post('/generate', async (req, res) => {
     const lootDirector = getLootDirector();
 
     if (!lootDirector) {
-      return res.status(503).json({
+      res.status(503).json({
         ok: false,
         error: 'Loot system not initialized'
       });
+      return;
     }
 
     try {
@@ -82,11 +102,14 @@ export function createLootRoutes(app: any): void {
         },
       });
     } catch (error: any) {
+      // SECURITY: Do not leak stack traces or internal implementation details
+      console.error('[LootAdmin] Generation failed:', error);
       res.status(500).json({
         ok: false,
-        error: error.message,
-        stack: error.stack
+        error: 'Failed to generate loot'
       });
     }
   });
+
+  return router;
 }
