@@ -127,7 +127,11 @@ interface PlayerSave {
 ```json
 {
   "status": "ok",
-  "auth": "stub",
+  "auth": {
+    "provider": "none",
+    "mode": "development",
+    "truthPath": false
+  },
   "persistence": "file",
   "content": "game-data",
   "playtester": "disabled",

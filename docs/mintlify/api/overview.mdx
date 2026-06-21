@@ -54,13 +54,17 @@ Returns server health status:
 | Field | Type | Description |
 |-------|------|-------------|
 | `status` | string | `ok` or `degraded` |
-| `auth` | string | Auth mode: `stub`, `supabase`, `none` |
+| `auth.provider` | string | Auth provider: `none`, `supabase` |
+| `auth.mode` | string | `development` or `production` |
+| `auth.truthPath` | boolean | `false` = dev side-channel only |
 | `persistence` | string | Storage: `file`, `postgres`, `auto` |
 | `content` | string | Content root: `game-data` or pack path |
 | `playtester` | string | Playtester: `disabled`, `webrtc`, etc. |
 | `uptime` | number | Server uptime in seconds |
 | `tickRate` | number | Current tick rate in Hz |
 | `connectedPlayers` | number | Active player count |
+
+<Note>`truthPath: false` means auth is development-only (side-channel). Production requires `truthPath: true`.</Note>
 
 ## Client Configuration
 

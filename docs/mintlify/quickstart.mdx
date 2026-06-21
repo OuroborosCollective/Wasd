@@ -89,12 +89,18 @@ Expected response:
 ```json
 {
   "status": "ok",
-  "auth": "stub",
+  "auth": {
+    "provider": "none",
+    "mode": "development",
+    "truthPath": false
+  },
   "persistence": "file",
   "content": "game-data",
   "playtester": "disabled"
 }
 ```
+
+<Note>Auth with `truthPath: false` is development-only. Production builds expose real auth with `truthPath: true`.</Note>
 
 ## Access the Client
 
