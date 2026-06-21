@@ -3,6 +3,7 @@ import request from 'supertest';
 import express from 'express';
 import { createLootRoutes } from '../routes/lootRoutes.js';
 import { adminAuthMiddleware } from '../middleware/adminAuthMiddleware.js';
+import { adminRateLimiter } from '../middleware/rateLimitMiddleware.js';
 
 // Mock the dependencies
 vi.mock('../bootLootSystem.js', () => ({
@@ -32,8 +33,9 @@ describe('Loot Admin API Security', () => {
   beforeEach(() => {
     app = express();
     app.use(express.json());
-    // Mount the loot router with auth middleware as it is in ServerBootstrap.ts
-    app.use('/api/admin/loot', adminAuthMiddleware, createLootRoutes());
+    // Mount the loot router with rate limiter and auth middleware as it is in ServerBootstrap.ts
+    // This satisfies CodeQL requirements for rate-limiting authorized routes
+    app.use('/api/admin/loot', adminRateLimiter, adminAuthMiddleware, createLootRoutes());
   });
 
   it('should return 401 Unauthorized for unauthenticated access to /status', async () => {
