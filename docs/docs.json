@@ -17,6 +17,7 @@
       "mintlify/quickstart",
       "mintlify/development/setup",
       "mintlify/architecture/overview",
+      "mintlify/architecture/truth-path",
       "mintlify/architecture/server",
       "mintlify/architecture/client",
       "mintlify/architecture/determinism",

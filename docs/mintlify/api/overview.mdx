@@ -35,7 +35,11 @@ Returns server health status:
 ```json
 {
   "status": "ok",
-  "auth": "stub",
+  "auth": {
+    "mode": "disabled",
+    "truthPath": false,
+    "reason": "local development only"
+  },
   "persistence": "file",
   "content": "game-data",
   "playtester": "disabled",
