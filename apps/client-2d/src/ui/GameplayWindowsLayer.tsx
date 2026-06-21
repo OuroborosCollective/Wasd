@@ -25,10 +25,12 @@ function WindowFrame({
   id,
   title,
   children,
+  onClose,
 }: {
   id: GameplayPanelId;
   title: string;
   children: React.ReactNode;
+  onClose: () => void;
 }) {
   return (
     <section
@@ -37,6 +39,16 @@ function WindowFrame({
     >
       <header className="gameplay-window__header">
         <strong>{title}</strong>
+        <button
+          type="button"
+          className="gameplay-window__close"
+          onClick={onClose}
+          aria-label={`Close ${title} [ESC]`}
+          aria-keyshortcuts="Escape"
+        >
+          <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
+          ✕
+        </button>
       </header>
       <div className="gameplay-window__body">{children}</div>
     </section>
@@ -44,34 +56,44 @@ function WindowFrame({
 }
 
 export function GameplayWindowsLayer({ snapshot, openPanels }: Props) {
+  // We need a way to toggle from here. While usually provided by useGameplayPanels,
+  // we can just dispatch the same events that useGameplayPanels listens to.
+  const toggle = (panelId: GameplayPanelId) => {
+    window.dispatchEvent(
+      new CustomEvent("wasd:toggle-panel", {
+        detail: { panelId },
+      }),
+    );
+  };
+
   return (
     <div data-testid="gameplay-windows-layer" className="gameplay-windows-layer">
       {openPanels.has("character") && (
-        <WindowFrame id="character" title="Character">
+        <WindowFrame id="character" title="Character" onClose={() => toggle("character")}>
           <CharacterPaperdollRoot snapshot={snapshot} defaultOpen />
         </WindowFrame>
       )}
 
       {openPanels.has("quests") && (
-        <WindowFrame id="quests" title="Quest Journal">
+        <WindowFrame id="quests" title="Quest Journal" onClose={() => toggle("quests")}>
           <QuestJournalPanel snapshot={snapshot} />
         </WindowFrame>
       )}
 
       {openPanels.has("skills") && (
-        <WindowFrame id="skills" title="Skills">
+        <WindowFrame id="skills" title="Skills" onClose={() => toggle("skills")}>
           <SkillProgressionPanel skills={snapshot.skills ?? []} />
         </WindowFrame>
       )}
 
       {openPanels.has("resources") && (
-        <WindowFrame id="resources" title="Resources">
+        <WindowFrame id="resources" title="Resources" onClose={() => toggle("resources")}>
           <ResourceNodePanel resources={snapshot.resources ?? []} />
         </WindowFrame>
       )}
 
       {openPanels.has("inventory") && (
-        <WindowFrame id="inventory" title="Inventory">
+        <WindowFrame id="inventory" title="Inventory" onClose={() => toggle("inventory")}>
           <InventoryPanel
             inventory={snapshot.inventory ?? null}
             equipment={snapshot.equipment ?? null}
@@ -83,13 +105,13 @@ export function GameplayWindowsLayer({ snapshot, openPanels }: Props) {
       )}
 
       {openPanels.has("crafting") && (
-        <WindowFrame id="crafting" title="Crafting">
+        <WindowFrame id="crafting" title="Crafting" onClose={() => toggle("crafting")}>
           <CraftingWindow crafting={snapshot.crafting ?? { recipes: [] }} />
         </WindowFrame>
       )}
 
       {openPanels.has("equipment") && (
-        <WindowFrame id="equipment" title="Equipment">
+        <WindowFrame id="equipment" title="Equipment" onClose={() => toggle("equipment")}>
           <EquipmentPanel
             equipment={snapshot.equipment ?? null}
             inventory={snapshot.inventory ?? null}
@@ -99,13 +121,13 @@ export function GameplayWindowsLayer({ snapshot, openPanels }: Props) {
       )}
 
       {openPanels.has("modules") && (
-        <WindowFrame id="modules" title="Modules">
+        <WindowFrame id="modules" title="Modules" onClose={() => toggle("modules")}>
           <ModuleRegistryPanel />
         </WindowFrame>
       )}
 
       {openPanels.has("heartbeat") && (
-        <WindowFrame id="heartbeat" title="ARE Heartbeat">
+        <WindowFrame id="heartbeat" title="ARE Heartbeat" onClose={() => toggle("heartbeat")}>
           <AREHeartbeatPanel
             snapshot={{
               tickId: snapshot.serverTick ?? null,
@@ -121,7 +143,7 @@ export function GameplayWindowsLayer({ snapshot, openPanels }: Props) {
       )}
 
       {openPanels.has("selfheal") && (
-        <WindowFrame id="selfheal" title="SelfHeal">
+        <WindowFrame id="selfheal" title="SelfHeal" onClose={() => toggle("selfheal")}>
           <SelfHealWorkshopPanel />
         </WindowFrame>
       )}

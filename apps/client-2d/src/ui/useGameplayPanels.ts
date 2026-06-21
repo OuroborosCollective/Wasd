@@ -36,11 +36,17 @@ export function useGameplayPanels() {
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       // Skip if typing in an input field
+      const target = event.target as HTMLElement;
       if (
-        event.target instanceof HTMLInputElement ||
-        event.target instanceof HTMLTextAreaElement ||
-        event.target instanceof HTMLSelectElement
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable
       ) {
+        return;
+      }
+
+      if (event.key === "Escape") {
+        setOpenPanels(new Set());
         return;
       }
 
