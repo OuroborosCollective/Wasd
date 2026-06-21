@@ -51,14 +51,14 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^22.20.0",
     "@types/ws": "^8.18.1",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.61.1",
+    "@typescript-eslint/parser": "^8.61.1",
     "concurrently": "^10.0.0",
     "eslint": "^9.0.0",
-    "pnpm": "^11.5.0",
-    "sharp": "^0.33.5",
+    "pnpm": "^11.8.0",
+    "sharp": "^0.35.2",
     "typescript": "^5.8.0",
     "vitest": "^2.0.0",
     "ws": "^8.21.0"
