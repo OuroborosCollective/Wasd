@@ -1,0 +1,159 @@
+---
+title: Configuration Reference
+description: Complete environment variable reference for Areloria
+---
+
+# Configuration Reference
+
+Complete reference for all environment variables in Areloria.
+
+## Server Configuration
+
+### Basic Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | Server HTTP/WebSocket port |
+| `NODE_ENV` | `development` | Environment: `development`, `production` |
+| `ARELORIAN_PORT` | `3001` | Internal container port |
+| `WORLD_ID` | `default` | Unique world identifier |
+
+### Persistence
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PERSISTENCE_DRIVER` | `auto` | Driver: `auto`, `postgres`, `file` |
+| `DATABASE_URL` | (none) | PostgreSQL connection string |
+| `PLAYER_SAVE_FILE` | `data/players.json` | JSON fallback file path |
+| `DB_HOST` | `localhost` | PostgreSQL host |
+| `DB_PORT` | `5432` | PostgreSQL port |
+| `DB_NAME` | `areloria` | Database name |
+| `DB_USER` | (none) | Database user |
+| `DB_PASSWORD` | (none) | Database password |
+
+### Redis
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_URL` | (none) | Redis connection string |
+| `REDIS_HOST` | `localhost` | Redis host |
+| `REDIS_PORT` | `6379` | Redis port |
+
+## Authentication
+
+### Auth Provider
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_AUTH_PROVIDER` | `none` | Client auth: `supabase`, `none` |
+| `AUTH_PROVIDER` | `none` | Server auth: `supabase`, `none` |
+| `USE_SUPABASE_WS_LOGIN` | `false` | Enable Supabase WS auth |
+| `REQUIRE_SUPABASE_AUTH` | `false` | Require auth to play |
+| `ALLOW_GUEST_LOGIN` | `true` | Allow unauthenticated play |
+| `ALLOW_DEV_LOGIN` | `true` | Allow dev login bypass |
+
+### Supabase (Optional)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_SUPABASE_URL` | (none) | Supabase project URL |
+| `VITE_SUPABASE_PUBLIC_URL` | (none) | Public Supabase URL |
+| `VITE_SUPABASE_ANON_KEY` | (none) | Supabase anon key |
+| `SUPABASE_SERVICE_KEY` | (none) | Supabase service key |
+
+## Admin & Content
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ADMIN_PANEL_TOKEN` | (none) | Admin panel access token |
+| `ADMIN_UID_ALLOWLIST` | (none) | Comma-separated UIDs |
+| `ADMIN_EMAIL_ALLOWLIST` | (none) | Comma-separated emails |
+| `CONTENT_ADMIN_READONLY` | `false` | Read-only content mode |
+| `MAX_ADMIN_GLB_UPLOAD_MB` | `50` | Max GLB file size |
+| `CONTENT_PACK_DIR` | (none) | Published content pack path |
+| `USE_PUBLISHED_CONTENT` | `false` | Use published vs game-data |
+
+## Performance & Safety
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WS_MAX_MESSAGES_PER_PLAYER_UID_PER_SECOND` | `60` | Rate limit |
+| `STATE_BROADCAST_INTERVAL_MOBILE_MS` | `200` | Mobile broadcast interval |
+| `MAX_CONCURRENT_PLAYERS` | `1000` | Player limit |
+
+## Playtester Monitor
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PLAYTESTER_ENABLED` | `false` | Enable playtester mode |
+| `PLAYTESTER_MONITOR_MODE` | `webrtc` | Monitor mode |
+| `PLAYTESTER_MONITOR_TOKEN` | (none) | Monitor access token |
+| `PLAYTESTER_MONITOR_SIGNAL_PATH` | `/signal` | WebRTC signaling path |
+| `PLAYTESTER_STREAM_WIDTH` | `640` | Stream width |
+| `PLAYTESTER_STREAM_HEIGHT` | `480` | Stream height |
+| `PLAYTESTER_STREAM_FPS` | `30` | Stream FPS |
+| `PLAYTESTER_WEBRTC_ICE_SERVERS` | (none) | ICE server config |
+
+## Manifest System
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MANIFEST_AUTHORITY_SECRET` | (none) | Manifest signing secret |
+| `WORLD_ID` | `default` | World identifier for manifest |
+
+## Example .env File
+
+```bash
+# Server
+PORT=3001
+NODE_ENV=production
+ARELORIAN_PORT=3001
+WORLD_ID=production-1
+
+# Persistence
+PERSISTENCE_DRIVER=auto
+DATABASE_URL=postgresql://user:pass@localhost:5432/areloria
+PLAYER_SAVE_FILE=/app/data/players.json
+
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# Auth
+AUTH_PROVIDER=none
+ALLOW_GUEST_LOGIN=true
+ALLOW_DEV_LOGIN=true
+
+# Admin
+ADMIN_PANEL_TOKEN=your-secure-admin-token
+
+# Performance
+WS_MAX_MESSAGES_PER_PLAYER_UID_PER_SECOND=60
+
+# Manifest
+MANIFEST_AUTHORITY_SECRET=your-manifest-secret
+```
+
+## Environment-Specific Configs
+
+| File | Purpose |
+|------|---------|
+| `.env.example` | All defaults with comments |
+| `deploy/.env.production.template` | Production template |
+| `.env.docker` | Runtime secrets (not committed) |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="VPS Deployment" icon="cloud" href="/docs/mintlify/deployment/vps">
+    Deploy to production
+  </Card>
+  <Card title="Docker" icon="container" href="/docs/mintlify/deployment/docker">
+    Docker configuration
+  </Card>
+  <Card title="API Reference" icon="code" href="/docs/mintlify/api/overview">
+    REST and WebSocket APIs
+  </Card>
+  <Card title="Health Endpoint" icon="heart" href="/docs/mintlify/api/overview#health">
+    Health check usage
+  </Card>
+</CardGroup>

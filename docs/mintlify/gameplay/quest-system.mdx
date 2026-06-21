@@ -1,0 +1,176 @@
+---
+title: Quest System
+description: Quest design, objectives, and progression in Areloria
+---
+
+# Quest System
+
+Areloria features a server-authoritative quest system with persistent state, questlines, and dynamic objectives.
+
+## Architecture
+
+```
+Quest System
+├── QuestEngine           # Core quest logic
+├── QuestlineEngine       # Multi-quest chains
+├── ObjectiveTracker     # Progress tracking
+├── QuestBridge           # Snapshot integration
+└── Persistence           # Save/load quests
+```
+
+## Quest Structure
+
+```typescript
+interface Quest {
+  id: string;
+  title: string;
+  description: string;
+  objectives: Objective[];
+  rewards: Reward[];
+  prerequisites: string[];  // Quest IDs
+  questlineId?: string;
+}
+
+interface Objective {
+  type: 'talk' | 'collect' | 'combat' | 'gather' | 'craft' | 'explore';
+  targetId: string;
+  targetCount: number;
+  currentCount: number;
+  completed: boolean;
+}
+
+interface Reward {
+  type: 'xp' | 'item' | 'currency' | 'reputation';
+  value: number | string;
+}
+```
+
+## Objective Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| Talk | Speak to NPC | "Talk to the village elder" |
+| Collect | Gather items | "Collect 10 iron ore" |
+| Combat | Kill monsters | "Defeat 5 wolves" |
+| Gather | Harvest resources | "Gather 20 wood" |
+| Craft | Create items | "Craft a bronze sword" |
+| Explore | Visit location | "Find the old shrine" |
+
+## Questlines
+
+Quests can chain into questlines:
+
+```typescript
+interface Questline {
+  id: string;
+  name: string;
+  quests: string[];  // Quest IDs in order
+  currentQuestIndex: number;
+  completed: boolean;
+}
+```
+
+### Questline Flow
+
+```
+Quest 1: "The Beginning"
+  → Complete objectives
+  → Receive rewards
+  → Unlock Quest 2
+
+Quest 2: "The Journey"
+  → Complete objectives
+  → Receive rewards
+  → Unlock Quest 3
+
+Quest 3: "The Conclusion"
+  → Complete final objectives
+  → Questline complete
+```
+
+## NPC Quest Givers
+
+NPCs offer quests based on:
+
+```typescript
+interface QuestOffer {
+  npcId: string;
+  availableQuests: string[];
+  playerQualification: {
+    level?: number;
+    standing?: number;
+    completedQuests?: string[];
+    items?: string[];
+  };
+}
+```
+
+## Quest Persistence
+
+Quest state persists across sessions:
+
+```typescript
+interface QuestSave {
+  questId: string;
+  status: 'active' | 'completed' | 'failed';
+  objectiveProgress: Record<string, number>;
+  startedAtTick: number;
+  completedAtTick?: number;
+}
+```
+
+## Snapshot Integration
+
+Quest state appears in `LiveGameplaySnapshot`:
+
+```typescript
+interface QuestSnapshot {
+  activeQuests: Quest[];
+  completedQuestIds: string[];
+  questlineProgress: QuestlineProgress[];
+  nextAvailableQuests: string[];
+}
+```
+
+## Live Gameplay Loop
+
+```
+Quest: "Gather Wood"
+  → Player travels to forest
+  → Interacts with tree nodes
+  → Collects wood logs
+  → Objective updates (5/20 wood)
+  → Returns to quest giver
+  → Quest complete
+  → Receives XP reward
+  → Unlocks next quest
+```
+
+## Admin Tools
+
+Content admins manage quests via:
+
+```
+/api/admin/content/quests
+  ├── GET /                 # List all quests
+  ├── POST /                # Create quest
+  ├── PUT /:id              # Update quest
+  └── DELETE /:id           # Remove quest
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="NPC Systems" icon="users" href="/docs/mintlify/gameplay/npc-systems">
+    How NPCs give and track quests
+  </Card>
+  <Card title="Economy" icon="coins" href="/docs/mintlify/gameplay/economy">
+    Rewards and trading
+  </Card>
+  <Card title="Combat" icon="swords" href="/docs/mintlify/gameplay/combat">
+    Combat-related quests
+  </Card>
+  <Card title="API Reference" icon="code" href="/docs/mintlify/api/overview">
+    Quest API endpoints
+  </Card>
+</CardGroup>

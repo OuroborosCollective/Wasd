@@ -1,0 +1,59 @@
+{
+  "name": "Areloria WASD",
+  "version": "1.0.0",
+  "theme": "#00d4aa",
+  "logo": {
+    "light": "/assets/logo-light.svg",
+    "dark": "/assets/logo-dark.svg",
+    "href": "/docs/mintlify/"
+  },
+  "favicon": "/assets/favicon.png",
+  "nav": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "docs/mintlify/index",
+        "docs/mintlify/quickstart",
+        "docs/mintlify/development/setup"
+      ]
+    },
+    {
+      "group": "Architecture",
+      "pages": [
+        "docs/mintlify/architecture/overview",
+        "docs/mintlify/architecture/server",
+        "docs/mintlify/architecture/client",
+        "docs/mintlify/architecture/determinism"
+      ]
+    },
+    {
+      "group": "Gameplay Systems",
+      "pages": [
+        "docs/mintlify/gameplay/overview",
+        "docs/mintlify/gameplay/npc-systems",
+        "docs/mintlify/gameplay/quest-system",
+        "docs/mintlify/gameplay/combat",
+        "docs/mintlify/gameplay/economy"
+      ]
+    },
+    {
+      "group": "Deployment",
+      "pages": [
+        "docs/mintlify/deployment/vps",
+        "docs/mintlify/deployment/docker",
+        "docs/mintlify/deployment/configuration"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "docs/mintlify/api/overview",
+        "docs/mintlify/api/websocket",
+        "docs/mintlify/api/rest"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/Ouroboros-Collective/Areloria-WASD"
+  }
+}

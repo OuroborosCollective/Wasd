@@ -1,0 +1,198 @@
+---
+title: NPC Systems
+description: Autonomous NPCs with memory, reputation, and emergent behavior
+---
+
+# NPC Systems
+
+Areloria NPCs are not simple quest dispensers. They are **future citizens** with persistent memory, social relationships, and autonomous decision-making.
+
+## Core Architecture
+
+```
+NPC System
+├── NPCBrain           # Autonomous decision engine
+├── MemorySystem       # Persistent event memory
+├── ReputationSystem   # Player relationship tracking
+├── RumorNetwork      # Information propagation
+├── DialogueEngine     # Speech generation
+└── LineageSystem      # Family/birth journal
+```
+
+## NPC Brain
+
+The autonomous brain system enables NPCs to:
+
+- **Observe** world events in their vicinity
+- **Remember** significant interactions
+- **React** to player history
+- **Decide** on actions based on state
+- **Communicate** via dialogue and rumors
+
+### Brain Tick
+
+```typescript
+interface NPCTickContext {
+  npcId: string;
+  worldTick: number;
+  observationRadius: number;
+  memoryWeight: number;
+  deterministicSeed: string;
+}
+
+function brainTick(ctx: NPCTickContext): NPCDecision {
+  const observations = ctx.observe();
+  const relevantMemory = ctx.recall(observations);
+  const decision = ctx.deliberate(relevantMemory);
+  return decision;
+}
+```
+
+## Memory System
+
+NPCs track memories with deterministic persistence:
+
+```typescript
+interface NPCMemory {
+  id: string;
+  npcId: string;
+  eventType: 'player_interaction' | 'world_event' | 'trade' | 'combat';
+  tickId: number;
+  participants: string[];
+  summary: string;  // Deterministic summary hash
+  importance: number;
+  expiresAt?: number;
+}
+```
+
+### Memory Types
+
+| Type | Retention | Example |
+|------|-----------|---------|
+| Interaction | Long-term | "Player X helped me gather resources" |
+| World Event | Medium-term | "A dragon attacked the village" |
+| Trade | Medium-term | "Player Y sold me 100 iron ore" |
+| Combat | Short-term | "Player Z attacked me unprovoked" |
+
+## Reputation System
+
+Players build relationships with NPCs:
+
+```typescript
+interface ReputationProfile {
+  playerId: string;
+  npcId: string;
+  standing: number;      // -100 to +100
+  flags: string[];       // Quest flags, combat flags
+  lastInteraction: number;
+  totalInteractions: number;
+}
+```
+
+### Standing Thresholds
+
+| Standing | Relationship |
+|----------|---------------|
+| 75-100 | Close Friend |
+| 50-74 | Friend |
+| 25-49 | Acquaintance |
+| 0-24 | Neutral |
+| -24 to -1 | Unfriendly |
+| -50 to -25 | Hostile |
+| -100 to -51 | Enemy |
+
+## Rumor Network
+
+NPCs share information:
+
+```
+NPC A witnesses event
+  → Creates memory
+  → Shares with nearby NPCs
+  → NPCs may spread further
+  → Players hear through dialogue
+```
+
+Rumor propagation is deterministic and bounded:
+- Only significant events spread
+- Maximum gossip chain length
+- Probability-based with deterministic RNG
+
+## Dialogue System
+
+### Living Duden
+
+Runtime language content from `game-data/language/`:
+
+```
+game-data/language/
+├── npc_dialogue/
+│   ├── greetings.yaml
+│   ├── trades.yaml
+│   └── rumors.yaml
+└── system_messages.yaml
+```
+
+### Dialogue Flow
+
+```typescript
+interface DialogueRequest {
+  npcId: string;
+  playerId: string;
+  context: 'greeting' | 'trade' | 'quest' | 'rumor';
+  tickId: number;
+}
+
+function generateDialogue(request: DialogueRequest): string {
+  // Uses NPC state, memory, reputation, and context
+  // Deterministic based on seed
+}
+```
+
+## Lineage System
+
+NPCs can form families:
+
+```
+LineageSystem
+├── FamilyHouseRegistry
+├── BirthJournal
+├── LineageTickRunner
+└── WorldSurface Projection
+```
+
+### Birth Flow
+
+1. Two NPCs develop relationship (deterministic)
+2. FamilyHouseRegistry receives birth event
+3. BirthJournal records lineage
+4. New NPC spawns with inherited traits
+5. WorldSurface updated with family markers
+
+## NPC Types
+
+| Type | Behavior | Use Case |
+|------|----------|----------|
+| Gatherer | Collects local resources | Economy simulation |
+| Trader | Buys/sells goods | Commerce |
+| Guard | Patrols and defends | Security |
+| Quest Giver | Offers tasks | Progression |
+| Crafter | Processes materials | Crafting loop |
+| Noble | Makes political decisions | Factions |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quest System" icon="scroll" href="/docs/mintlify/gameplay/quest-system">
+    Quest design and objectives
+  </Card>
+  <Card title="Economy" icon="coins" href="/docs/mintlify/gameplay/economy">
+    Resource economy and trading
+  </Card>
+  <Card title="Determinism" icon="hash" href="/docs/mintlify/architecture/determinism">
+    Deterministic simulation rules
+  </Card>
+  <Card title="Server Architecture" icon="server" href="/docs/mintlify/architecture/server">
+    How NPC systems run on server
+  </Card>
+</CardGroup>

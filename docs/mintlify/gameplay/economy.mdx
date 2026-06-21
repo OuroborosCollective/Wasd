@@ -1,0 +1,200 @@
+---
+title: Economy System
+description: Resource economy, trading, and market systems
+---
+
+# Economy System
+
+Areloria features a deterministic resource economy with gathering, crafting, trading, and dynamic pricing.
+
+## Resource Gathering
+
+### Resource Nodes
+
+World contains resource nodes that respawn deterministically:
+
+```typescript
+interface ResourceNode {
+  id: string;
+  type: 'wood' | 'ore' | 'herb' | 'fish' | 'stone';
+  position: Vector2;
+  currentYield: number;
+  maxYield: number;
+  respawnTick: number;
+  depleted: boolean;
+}
+```
+
+### Gathering Flow
+
+```
+Find node
+  → Equip gathering tool
+  → Interact with node
+  → Server validates
+  → Server calculates yield (deterministic)
+  → Server adds item to inventory
+  → Server decreases node yield
+  → Broadcast update
+```
+
+### Tool Efficiency
+
+| Tool | Tier | Bonus |
+|------|------|-------|
+| Hand | 0 | None |
+| Stone Axe | 1 | +10% wood |
+| Iron Axe | 2 | +25% wood |
+| Steel Axe | 3 | +50% wood |
+
+## Crafting System
+
+### Recipe Structure
+
+```typescript
+interface Recipe {
+  id: string;
+  name: string;
+  category: 'weapon' | 'armor' | 'tool' | 'consumable' | 'material';
+  ingredients: Ingredient[];
+  results: CraftResult[];
+  craftingTime: number;  // Ticks
+  requiredSkill?: string;
+  requiredLevel: number;
+}
+
+interface Ingredient {
+  itemId: string;
+  quantity: number;
+}
+```
+
+### Crafting Loop
+
+```
+Open Crafting UI
+  → Select Recipe
+  → Check ingredients
+  → Check skill level
+  → Start crafting (takes time)
+  → Server processes at completion
+  → Results added to inventory
+  → XP awarded
+```
+
+## Trading
+
+### NPC Vendors
+
+NPCs buy and sell goods:
+
+```typescript
+interface VendorStock {
+  itemId: string;
+  quantity: number;
+  price: number;  // In copper/silver/gold
+  restockTick: number;
+}
+```
+
+### Player-to-Player Trade
+
+```
+Player A initiates trade
+  → Player B accepts
+  → Both offer items/gold
+  → Both confirm
+  → Server validates
+  → Server executes atomically
+  → Both receive results
+```
+
+### Pricing
+
+| Item Type | Price Factors |
+|-----------|---------------|
+| Raw Materials | Base cost + scarcity |
+| Processed Materials | Base cost + processing labor |
+| Equipment | Tier + stats + rarity |
+| Consumables | Base cost + effect potency |
+
+## Currency
+
+| Currency | Symbol | Conversion |
+|----------|--------|------------|
+| Copper | c | 1 |
+| Silver | s | 100c = 1s |
+| Gold | g | 100s = 1g |
+
+## Wallet System
+
+```typescript
+interface PlayerWallet {
+  playerId: string;
+  copper: number;
+  silver: number;
+  gold: number;
+  totalValue: number;  // Computed
+}
+
+function getTotalValue(wallet: PlayerWallet): number {
+  return wallet.copper + (wallet.silver * 100) + (wallet.gold * 10000);
+}
+```
+
+## Dynamic Pricing
+
+Market prices fluctuate based on:
+
+```typescript
+interface MarketState {
+  itemId: string;
+  averagePrice: number;
+  volume: number;       // Recent trades
+  supply: number;       // Available in market
+  demand: number;       // Player interest
+  priceTrend: 'up' | 'down' | 'stable';
+}
+```
+
+### Price Formula
+
+```
+newPrice = basePrice * (demand / supply) * trendMultiplier
+```
+
+## Economy Snapshot
+
+Economy state appears in `LiveGameplaySnapshot`:
+
+```typescript
+interface EconomySnapshot {
+  marketPrices: Record<string, number>;
+  totalTradeVolume: number;
+  activePlayerWallets: number;
+  resourceGeneration: ResourceGenStats;
+}
+```
+
+## Anti-Inflation Measures
+
+- Sinks: Repairs, taxes, fees, consumables
+- Faucets: Quest rewards, node gathering, mob drops
+- Balance: Regular economy audits
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="NPC Systems" icon="users" href="/docs/mintlify/gameplay/npc-systems">
+    NPC trading and vendors
+  </Card>
+  <Card title="Quest System" icon="scroll" href="/docs/mintlify/gameplay/quest-system">
+    Economy-related quests
+  </Card>
+  <Card title="Server Architecture" icon="server" href="/docs/mintlify/architecture/server">
+    Economy on the server
+  </Card>
+  <Card title="Determinism" icon="hash" href="/docs/mintlify/architecture/determinism">
+    Deterministic pricing
+  </Card>
+</CardGroup>
