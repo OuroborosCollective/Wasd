@@ -1,30 +1,46 @@
 /**
  * NPC QUEST API ROUTE
  *
- * Server-authoritative NPC quest management endpoints.
+ * Server-authoritative NPC and camp quest management endpoints.
  * Deterministic: No Math.random(), no Date.now() for gameplay state.
  * Client sends intent only, server validates and mutates.
  */
 
-import express, { Router } from "express";
+import express, { Router, type Response } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
+import { getVisibleChunkCoords } from "../resources/ChunkResourceGenerator.js";
+import { generateVisibleChunkPois, getStarterVillagePois } from "../world/WorldPoiGenerator.js";
+import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
+import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import { npcQuestService } from "./NpcQuestService.js";
+import { campQuestService } from "./CampQuestService.js";
+import { isCampQuestId, isGatheringCampPoiType, parseCampQuestId, type CampQuestPoi } from "./CampQuestDirector.js";
 
 const router = Router();
 router.use(express.json());
+
+interface CampQuestRouteContext {
+  readonly worldPois: readonly CampQuestPoi[];
+  readonly discoveredPoiIds: readonly string[];
+}
+
+type CampQuestRouteContextResult =
+  | { readonly ok: true; readonly context: CampQuestRouteContext }
+  | { readonly ok: false; readonly status: number; readonly reason: string };
 
 // Parse helpers
 function parseQuestId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  if (!/^[a-zA-Z0-9_]{1,64}$/.test(trimmed)) return null;
+  if (!/^[a-zA-Z0-9_:-]{1,160}$/.test(trimmed)) return null;
   return trimmed;
 }
 
 function parseNpcId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  if (!/^[a-zA-Z0-9_]{1,64}$/.test(trimmed)) return null;
+  if (!/^[a-zA-Z0-9_:-]{1,160}$/.test(trimmed)) return null;
   return trimmed;
 }
 
@@ -38,11 +54,110 @@ function parsePosition(value: unknown): { x: number; y: number } | null {
   return { x, y };
 }
 
-function parsePlayerId(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (trimmed.length < 1 || trimmed.length > 64) return null;
-  return trimmed;
+function getCurrentLogicalIndex(): number {
+  const tick = Number(tickContextProvider.getContext().tickIndex);
+  return Number.isSafeInteger(tick) && tick >= 0 ? tick : 0;
+}
+
+function toKappaPosition(playerPosition: { x: number; y: number }): { x: number; y: number } {
+  const maxAbs = Math.max(Math.abs(playerPosition.x), Math.abs(playerPosition.y));
+  if (maxAbs > 1000) return playerPosition;
+  return { x: playerPosition.x * 1000, y: playerPosition.y * 1000 };
+}
+
+function resolveVisibleWorldPois(playerPosition: { x: number; y: number }): readonly WorldPoiSnapshot[] {
+  const kappaPosition = toKappaPosition(playerPosition);
+  const tileX = Math.floor(kappaPosition.x / 1000);
+  const tileZ = Math.floor(kappaPosition.y / 1000);
+  const visibleChunks = getVisibleChunkCoords(tileX, tileZ);
+  return [...getStarterVillagePois(), ...generateVisibleChunkPois(visibleChunks)].sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function toCampQuestPois(worldPois: readonly WorldPoiSnapshot[]): readonly CampQuestPoi[] {
+  return worldPois.map((poi) => ({
+    poiId: poi.id,
+    type: poi.type,
+    title: poi.title,
+    x: poi.position.x,
+    y: poi.position.y,
+    chunkX: poi.chunk.x,
+    chunkZ: poi.chunk.z,
+  }));
+}
+
+function distance(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function isPlayerNearPoi(playerPosition: { x: number; y: number }, poi: WorldPoiSnapshot): boolean {
+  const kappaPosition = toKappaPosition(playerPosition);
+  const radius = Math.max(32, Math.floor(Number(poi.interactionRadius)));
+  return distance(kappaPosition, poi.position) <= radius;
+}
+
+async function resolveCampQuestRouteContext(input: {
+  readonly playerId: string;
+  readonly questId: string;
+  readonly npcId: string;
+  readonly playerPosition: { x: number; y: number };
+}): Promise<CampQuestRouteContextResult> {
+  const parsed = parseCampQuestId(input.questId);
+  if (!parsed) return { ok: false, status: 400, reason: "missing_quest" };
+
+  const expectedNpcId = `camp_npc:${parsed.poiId}`;
+  if (input.npcId !== expectedNpcId) {
+    return { ok: false, status: 400, reason: "missing_npc" };
+  }
+
+  const visibleWorldPois = resolveVisibleWorldPois(input.playerPosition);
+  const targetPoi = visibleWorldPois.find((poi) => poi.id === parsed.poiId);
+  if (!targetPoi || !isGatheringCampPoiType(targetPoi.type)) {
+    return { ok: false, status: 404, reason: "missing_quest" };
+  }
+
+  if (!isPlayerNearPoi(input.playerPosition, targetPoi)) {
+    return { ok: false, status: 400, reason: "npc_too_far" };
+  }
+
+  await worldDiscoveryService.hydratePlayer(input.playerId);
+  const newlyDiscovered = worldDiscoveryService.processDiscovery(
+    input.playerId,
+    toKappaPosition(input.playerPosition),
+    visibleWorldPois,
+  );
+  if (newlyDiscovered.length > 0) {
+    worldDiscoveryService.persistPlayer(input.playerId).catch((err) => {
+      console.error("[CampQuestRoute] Failed to persist discovery:", err);
+    });
+  }
+
+  const discoveredPoiIds = worldDiscoveryService.getDiscoveredPoiIds(input.playerId);
+  if (!discoveredPoiIds.includes(parsed.poiId)) {
+    return { ok: false, status: 400, reason: "quest_not_available" };
+  }
+
+  return {
+    ok: true,
+    context: {
+      worldPois: toCampQuestPois(visibleWorldPois),
+      discoveredPoiIds,
+    },
+  };
+}
+
+function sendQuestActionResult<T>(
+  res: Response,
+  result: { ok: true; result: T } | { ok: false; reason: string; details?: Record<string, unknown> },
+): void {
+  const statusCode = result.ok ? 200 : 400;
+  res.status(statusCode).json({
+    ok: result.ok,
+    reason: result.ok ? undefined : result.reason,
+    details: result.ok ? undefined : result.details,
+    result: result.ok ? result.result : undefined,
+  });
 }
 
 /**
@@ -114,7 +229,7 @@ router.post("/talk", async (req, res) => {
 /**
  * POST /api/quests/accept
  *
- * Accept a quest from an NPC.
+ * Accept a quest from an NPC or gathering camp.
  * Required: playerId, questId, npcId, playerPosition
  */
 router.post("/accept", async (req, res) => {
@@ -156,6 +271,24 @@ router.post("/accept", async (req, res) => {
     return;
   }
 
+  if (isCampQuestId(questId)) {
+    const campContext = await resolveCampQuestRouteContext({ playerId, questId, npcId, playerPosition });
+    if (!campContext.ok) {
+      res.status(campContext.status).json({ ok: false, reason: campContext.reason });
+      return;
+    }
+
+    const result = await campQuestService.acceptQuest({
+      playerId,
+      questId,
+      logicalIndex: getCurrentLogicalIndex(),
+      worldPois: campContext.context.worldPois,
+      discoveredPoiIds: campContext.context.discoveredPoiIds,
+    });
+    sendQuestActionResult(res, result);
+    return;
+  }
+
   // Check proximity
   if (!npcQuestService.isPlayerNearNpc(playerPosition.x, playerPosition.y, npcId)) {
     res.status(400).json({
@@ -167,13 +300,7 @@ router.post("/accept", async (req, res) => {
 
   // Accept quest
   const result = npcQuestService.acceptQuest(playerId, questId);
-
-  const statusCode = result.ok ? 200 : 400;
-  res.status(statusCode).json({
-    ok: result.ok,
-    reason: result.ok ? undefined : (result as { ok: false; reason: string }).reason,
-    result: result.ok ? (result as { ok: true; result: typeof result.result }).result : undefined,
-  });
+  sendQuestActionResult(res, result);
 });
 
 /**
@@ -221,6 +348,24 @@ router.post("/complete", async (req, res) => {
     return;
   }
 
+  if (isCampQuestId(questId)) {
+    const campContext = await resolveCampQuestRouteContext({ playerId, questId, npcId, playerPosition });
+    if (!campContext.ok) {
+      res.status(campContext.status).json({ ok: false, reason: campContext.reason });
+      return;
+    }
+
+    const result = await campQuestService.completeQuest({
+      playerId,
+      questId,
+      logicalIndex: getCurrentLogicalIndex(),
+      worldPois: campContext.context.worldPois,
+      discoveredPoiIds: campContext.context.discoveredPoiIds,
+    });
+    sendQuestActionResult(res, result);
+    return;
+  }
+
   // Check proximity
   if (!npcQuestService.isPlayerNearNpc(playerPosition.x, playerPosition.y, npcId)) {
     res.status(400).json({
@@ -232,19 +377,14 @@ router.post("/complete", async (req, res) => {
 
   // Complete quest
   const result = npcQuestService.completeQuest(playerId, questId);
-
-  const statusCode = result.ok ? 200 : 400;
-  res.status(statusCode).json({
-    ok: result.ok,
-    reason: result.ok ? undefined : (result as { ok: false; reason: string }).reason,
-    result: result.ok ? (result as { ok: true; result: typeof result.result }).result : undefined,
-  });
+  sendQuestActionResult(res, result);
 });
 
 /**
  * GET /api/quests/active
  *
- * Get all active quests for a player.
+ * Get all active NPC quests for a player. Camp quest active state is surfaced by /api/gameplay/snapshot,
+ * where the server has the current visible POI context.
  * Required: playerId (query param)
  */
 router.get("/active", async (req, res) => {
@@ -272,7 +412,8 @@ router.get("/active", async (req, res) => {
 /**
  * GET /api/quests/available
  *
- * Get all available quests for a player.
+ * Get all available NPC quests for a player. Camp quest offers are surfaced by /api/gameplay/snapshot,
+ * where the server has the current visible POI context.
  * Required: playerId (query param)
  */
 router.get("/available", async (req, res) => {
@@ -382,7 +523,7 @@ router.get("/reputation", async (req, res) => {
 /**
  * GET /api/quests/progress/:questId
  *
- * Get quest progress for a specific quest.
+ * Get quest progress for a specific NPC quest.
  * Required: playerId (query), questId (param)
  */
 router.get("/progress/:questId", async (req, res) => {
