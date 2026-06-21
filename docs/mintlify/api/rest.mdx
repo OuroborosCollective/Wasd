@@ -1,0 +1,300 @@
+---
+title: REST API Reference
+description: Detailed REST API endpoints for Areloria
+---
+
+# REST API Reference
+
+Complete reference for Areloria REST API endpoints.
+
+## Base URL
+
+```
+Production: https://arelorian.de
+Development: http://localhost:3000
+```
+
+## Authentication
+
+Admin endpoints require:
+
+```bash
+-H "Authorization: Bearer $ADMIN_PANEL_TOKEN"
+```
+
+## Health & Status
+
+### GET /health
+
+Server health status.
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "auth": "stub",
+  "persistence": "file",
+  "content": "game-data",
+  "playtester": "disabled",
+  "uptime": 3600,
+  "tickRate": 10.0,
+  "connectedPlayers": 3
+}
+```
+
+### GET /client-config.json
+
+Client configuration.
+
+**Response:**
+```json
+{
+  "serverUrl": "ws://localhost:3000",
+  "tickRate": 10,
+  "simulationRadius": 2,
+  "broadcastRadius": 1,
+  "worldId": "default",
+  "manifestAuthority": "0x..."
+}
+```
+
+## Admin Content API
+
+Base: `/api/admin/content/`
+
+### GET /api/admin/content/choices
+
+Get available choices for content creation.
+
+**Response:**
+```json
+{
+  "npcTypes": ["gatherer", "trader", "guard", "quest_giver"],
+  "questTypes": ["gather", "combat", "talk", "craft"],
+  "itemCategories": ["weapon", "armor", "tool", "consumable"]
+}
+```
+
+### GET /api/admin/content/glb-gallery-tree
+
+Get GLB file gallery tree.
+
+**Response:**
+```json
+{
+  "tree": [
+    {
+      "name": "characters",
+      "children": [
+        { "name": "warrior.glb", "path": "/models/characters/warrior.glb" }
+      ]
+    },
+    {
+      "name": "environment",
+      "children": [...]
+    }
+  ]
+}
+```
+
+### GET /api/admin/content/model-needs
+
+Get model requirements.
+
+**Response:**
+```json
+{
+  "needed": [
+    { "category": "characters", "type": "warrior", "priority": "high" }
+  ],
+  "satisfied": [
+    { "category": "characters", "type": "mage", "file": "mage.glb" }
+  ]
+}
+```
+
+### POST /api/admin/content/glb-upload
+
+Upload a GLB model file.
+
+**Request:**
+```
+Content-Type: multipart/form-data
+Authorization: Bearer $ADMIN_PANEL_TOKEN
+
+file: <GLB file>
+category: characters
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "fileId": "glb-001",
+  "path": "/models/characters/new-model.glb"
+}
+```
+
+### POST /api/admin/content/validate-preview
+
+Validate a preview configuration.
+
+**Request:**
+```json
+{
+  "modelPath": "/models/characters/warrior.glb",
+  "texturePath": "/textures/warrior.png",
+  "animation": "idle"
+}
+```
+
+**Response:**
+```json
+{
+  "valid": true,
+  "warnings": [],
+  "previewUrl": "/previews/warrior-001.png"
+}
+```
+
+### POST /api/admin/content/publish-pack
+
+Publish a content pack.
+
+**Request:**
+```json
+{
+  "packName": "release-v1.0",
+  "includeModels": true,
+  "includeTextures": true,
+  "includeQuests": true
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "packPath": "/published-content/release-v1.0",
+  "size": "150MB"
+}
+```
+
+## Manifest API
+
+Base: `/api/manifest/`
+
+### GET /api/manifest/current
+
+Get current manifest.
+
+**Response:**
+```json
+{
+  "hash": "0xabc123def456...",
+  "previousHash": "0xdef456789abc...",
+  "tickId": 12345,
+  "timestamp": 1234567890,
+  "worldId": "default"
+}
+```
+
+### GET /api/manifest/history
+
+Get manifest history.
+
+**Query params:**
+- `limit`: Number of entries (default: 10)
+- `since`: Starting tick ID
+
+**Response:**
+```json
+{
+  "history": [
+    { "hash": "0x...", "tickId": 12345 },
+    { "hash": "0x...", "tickId": 12344 }
+  ]
+}
+```
+
+### POST /api/manifest/resync
+
+Request state resync.
+
+**Request:**
+```json
+{
+  "clientId": "player-123",
+  "lastKnownTickId": 12340,
+  "lastKnownHash": "0xabc..."
+}
+```
+
+**Response:**
+```json
+{
+  "syncRequired": true,
+  "startTickId": 12341,
+  "snapshots": [...]
+}
+```
+
+## Player API
+
+### GET /api/player/:id (future)
+
+Get player data (requires auth).
+
+### PUT /api/player/:id (future)
+
+Update player data (requires auth).
+
+## Error Responses
+
+All errors follow this format:
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human readable message",
+    "details": {}
+  }
+}
+```
+
+### Error Codes
+
+| Code | HTTP | Description |
+|------|------|-------------|
+| `INVALID_REQUEST` | 400 | Malformed request |
+| `UNAUTHORIZED` | 401 | Missing/invalid auth |
+| `FORBIDDEN` | 403 | Insufficient permissions |
+| `NOT_FOUND` | 404 | Resource not found |
+| `RATE_LIMITED` | 429 | Too many requests |
+| `SERVER_ERROR` | 500 | Internal server error |
+
+## Rate Limits
+
+| Endpoint | Limit |
+|----------|-------|
+| General | 100 req/min |
+| Admin | 60 req/min |
+| Upload | 10 req/min |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Overview" icon="globe" href="/docs/mintlify/api/overview">
+    Complete API reference
+  </Card>
+  <Card title="WebSocket Protocol" icon="radio" href="/docs/mintlify/api/websocket">
+    Real-time communication
+  </Card>
+  <Card title="Deployment" icon="cloud" href="/docs/mintlify/deployment/vps">
+    Deploy to production
+  </Card>
+  <Card title="Architecture" icon="layers" href="/docs/mintlify/architecture/overview">
+    System architecture
+  </Card>
+</CardGroup>

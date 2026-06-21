@@ -1,0 +1,297 @@
+---
+title: API Overview
+description: REST and WebSocket API reference for Areloria
+---
+
+# API Overview
+
+Areloria exposes both REST and WebSocket APIs for client communication.
+
+## REST API
+
+### Base URL
+
+```
+http://localhost:3000
+# or in production:
+https://arelorian.de
+```
+
+### Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Server health status |
+| `/client-config.json` | GET | Client configuration |
+| `/api/admin/content/*` | * | Content administration |
+| `/api/manifest/*` | * | Manifest operations |
+
+## Health Endpoint
+
+### GET /health
+
+Returns server health status:
+
+```json
+{
+  "status": "ok",
+  "auth": "stub",
+  "persistence": "file",
+  "content": "game-data",
+  "playtester": "disabled",
+  "uptime": 3600,
+  "tickRate": 10.0,
+  "connectedPlayers": 3
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | `ok` or `degraded` |
+| `auth` | string | Auth mode: `stub`, `supabase`, `none` |
+| `persistence` | string | Storage: `file`, `postgres`, `auto` |
+| `content` | string | Content root: `game-data` or pack path |
+| `playtester` | string | Playtester: `disabled`, `webrtc`, etc. |
+| `uptime` | number | Server uptime in seconds |
+| `tickRate` | number | Current tick rate in Hz |
+| `connectedPlayers` | number | Active player count |
+
+## Client Configuration
+
+### GET /client-config.json
+
+Returns client configuration:
+
+```json
+{
+  "serverUrl": "ws://localhost:3000",
+  "tickRate": 10,
+  "simulationRadius": 2,
+  "broadcastRadius": 1,
+  "worldId": "default",
+  "manifestAuthority": "0x..."
+}
+```
+
+## Admin Content API
+
+Base: `/api/admin/content/`
+
+### Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/choices` | GET | Get choice options |
+| `/glb-gallery-tree` | GET | GLB file tree |
+| `/model-needs` | GET | Model requirements |
+| `/glb-upload` | POST | Upload GLB file |
+| `/validate-preview` | POST | Validate preview |
+| `/publish-pack` | POST | Publish content pack |
+
+### Authentication
+
+Requires `ADMIN_PANEL_TOKEN` header:
+
+```bash
+curl -H "Authorization: Bearer $ADMIN_PANEL_TOKEN" \
+  http://localhost:3000/api/admin/content/choices
+```
+
+## WebSocket API
+
+### Connection
+
+```javascript
+const ws = new WebSocket('ws://localhost:3000');
+
+// Or with authentication
+const ws = new WebSocket('ws://localhost:3000?token=' + authToken);
+```
+
+### Message Format
+
+All messages are JSON:
+
+```typescript
+interface WSMessage {
+  type: string;
+  payload: unknown;
+  clientId?: string;
+  tickId?: number;
+  timestamp: number;
+}
+```
+
+## Client → Server Messages
+
+### Intent
+
+```typescript
+{
+  type: 'intent',
+  payload: {
+    action: 'move' | 'attack' | 'useSkill' | 'interact' | 'inventory',
+    data: ActionData,
+    clientId: string,
+    timestamp: number
+  }
+}
+```
+
+### Chat
+
+```typescript
+{
+  type: 'chat',
+  payload: {
+    channel: 'global' | 'local' | 'guild' | 'party',
+    message: string,
+    clientId: string
+  }
+}
+```
+
+### Ping
+
+```typescript
+{
+  type: 'ping',
+  payload: { clientId: string }
+}
+```
+
+## Server → Client Messages
+
+### Snapshot
+
+```typescript
+{
+  type: 'snapshot',
+  tickId: number,
+  payload: {
+    players: PlayerState[],
+    npcs: NPCState[],
+    world: WorldState,
+    timestamp: number
+  }
+}
+```
+
+### Event
+
+```typescript
+{
+  type: 'event',
+  tickId: number,
+  payload: {
+    eventType: string,
+    data: EventData
+  }
+}
+```
+
+### Player Join
+
+```typescript
+{
+  type: 'player_join',
+  tickId: number,
+  payload: {
+    playerId: string,
+    name: string,
+    position: Vector2
+  }
+}
+```
+
+### Player Leave
+
+```typescript
+{
+  type: 'player_leave',
+  tickId: number,
+  payload: {
+    playerId: string,
+    reason: 'disconnect' | 'logout' | 'kick'
+  }
+}
+```
+
+### Pong
+
+```typescript
+{
+  type: 'pong',
+  tickId: number,
+  payload: { clientId: string }
+}
+```
+
+## Manifest API
+
+Base: `/api/manifest/`
+
+### GET /api/manifest/current
+
+Get current manifest:
+
+```json
+{
+  "hash": "0xabc123...",
+  "previousHash": "0xdef456...",
+  "tickId": 12345,
+  "timestamp": 1234567890
+}
+```
+
+### POST /api/manifest/resync
+
+Request manifest resync:
+
+```bash
+curl -X POST http://localhost:3000/api/manifest/resync \
+  -H "Content-Type: application/json" \
+  -d '{"clientId": "player-123"}'
+```
+
+## Error Responses
+
+```typescript
+interface ErrorResponse {
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+}
+```
+
+### Error Codes
+
+| Code | HTTP | Description |
+|------|------|-------------|
+| `INVALID_INTENT` | 400 | Invalid player intent |
+| `UNAUTHORIZED` | 401 | Not authenticated |
+| `FORBIDDEN` | 403 | Action not allowed |
+| `NOT_FOUND` | 404 | Resource not found |
+| `RATE_LIMITED` | 429 | Too many requests |
+| `SERVER_ERROR` | 500 | Internal error |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="WebSocket Protocol" icon="radio" href="/docs/mintlify/api/websocket">
+    Detailed WebSocket protocol
+  </Card>
+  <Card title="REST API" icon="file-code" href="/docs/mintlify/api/rest">
+    REST endpoint details
+  </Card>
+  <Card title="Server Architecture" icon="server" href="/docs/mintlify/architecture/server">
+    How the server handles requests
+  </Card>
+  <Card title="Client Architecture" icon="monitor" href="/docs/mintlify/architecture/client">
+    Client-side networking
+  </Card>
+</CardGroup>

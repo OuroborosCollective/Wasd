@@ -1,0 +1,182 @@
+---
+title: Combat System
+description: Combat mechanics, skills, and death/respawn in Areloria
+---
+
+# Combat System
+
+Areloria features server-authoritative combat with deterministic outcomes, skill usage, and proper death/respawn handling.
+
+## Core Combat Flow
+
+```
+Player Intent: "Attack Target"
+  → Server validates intent
+  → Server calculates outcome (deterministic)
+  → Server applies damage
+  → Server checks death condition
+  → Server emits combat event
+  → Client renders result
+```
+
+## Combat Mechanics
+
+### Damage Calculation
+
+```typescript
+interface DamageCalculation {
+  baseDamage: number;
+  attackPower: number;
+  defenseValue: number;
+  skillMultiplier: number;
+  criticalChance: number;
+  elementalBonus: number;
+}
+
+function calculateDamage(input: DamageCalculation, seed: string): DamageResult {
+  const rng = new DeterministicPrng(seed);
+  // All damage rolls are deterministic
+  const isCrit = rng.nextFloat(0, 1) < input.criticalChance;
+  const damage = /* ... deterministic calculation */;
+  return { damage, isCrit };
+}
+```
+
+### Combat Stats
+
+| Stat | Purpose |
+|------|---------|
+| Attack Power | Increases damage dealt |
+| Defense | Reduces damage taken |
+| Health | Vitality (0 = death) |
+| Mana | Skill energy cost |
+| Critical Chance | % chance for bonus damage |
+| Attack Speed | Attacks per second |
+
+## Skills System
+
+```typescript
+interface Skill {
+  id: string;
+  name: string;
+  manaCost: number;
+  cooldown: number;        // Ticks
+  baseDamage: number;
+  targetType: 'single' | 'aoe' | 'self';
+  range: number;
+  effects: SkillEffect[];
+}
+
+interface SkillEffect {
+  type: 'damage' | 'heal' | 'buff' | 'debuff';
+  value: number;
+  duration?: number;
+}
+```
+
+### Skill Usage Flow
+
+```
+Use Skill Button
+  → Check mana >= cost
+  → Check cooldown expired
+  → Find valid target(s)
+  → Send intent to server
+  → Server validates
+  → Server executes skill
+  → Server starts cooldown
+  → Server broadcasts event
+```
+
+## Death & Respawn
+
+### Death Conditions
+
+```typescript
+function checkDeath(player: Player): boolean {
+  return player.currentHealth <= 0;
+}
+```
+
+### Death Handling
+
+1. Player health reaches 0
+2. Server marks player as dead
+3. Server removes from active combat
+4. Server broadcasts death event
+5. Player enters ghost state
+
+### Respawn Options
+
+| Option | Wait Time | Penalty |
+|--------|-----------|---------|
+| Normal | 30 seconds | Dropped loot |
+| Shrine | 5 seconds | Small XP loss |
+| Home | Instant | None (if unlocked) |
+
+## Loot System
+
+### Drop Calculation
+
+```typescript
+interface LootDrop {
+  tableId: string;
+  items: LootItem[];
+  deterministicSeed: string;
+}
+
+function calculateLoot(drop: LootDrop): LootItem[] {
+  const rng = new DeterministicPrng(drop.deterministicSeed);
+  // Deterministic drop roll
+  return items.filter(() => rng.nextFloat(0, 1) < dropRate);
+}
+```
+
+### Loot Pickup
+
+```typescript
+// Server validates pickup
+function validateLootPickup(player: Player, loot: Loot): boolean {
+  return (
+    loot.spawnedFor === player.id ||  // Personal loot
+    loot.isGlobal ||                  // World loot
+    player.isInParty(loot.killerId)   // Party loot
+  );
+}
+```
+
+## Combat Events
+
+```typescript
+interface CombatEvent {
+  type: 'attack' | 'skill' | 'damage' | 'heal' | 'death' | 'respawn';
+  sourceId: string;
+  targetId?: string;
+  tickId: number;
+  data: CombatData;
+}
+```
+
+## PvP Considerations
+
+- Open PvP zones with flagging
+- Safe zones with no PvP
+- Guild wars for territory
+- Duel system for consensual combat
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quest System" icon="scroll" href="/docs/mintlify/gameplay/quest-system">
+    Combat-related quests
+  </Card>
+  <Card title="Inventory" icon="package" href="/docs/mintlify/gameplay/overview">
+    Loot and inventory
+  </Card>
+  <Card title="Determinism" icon="hash" href="/docs/mintlify/architecture/determinism">
+    Deterministic combat calculations
+  </Card>
+  <Card title="Server Architecture" icon="server" href="/docs/mintlify/architecture/server">
+    Combat on the server
+  </Card>
+</CardGroup>

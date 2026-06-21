@@ -1,0 +1,203 @@
+---
+title: Docker Deployment
+description: Detailed Docker configuration for Areloria
+---
+
+# Docker Deployment
+
+Deep dive into Docker configuration for Areloria production deployments.
+
+## Docker Architecture
+
+```
+┌─────────────────────────────────────────┐
+│              Docker Container           │
+│                                         │
+│  ┌───────────────────────────────────┐  │
+│  │       Areloria Game Server        │  │
+│  │         Node.js 22-alpine         │  │
+│  │                                   │  │
+│  │  ┌─────────┐    ┌─────────────┐  │  │
+│  │  │  Vite   │    │   Express   │  │  │
+│  │  │ Middleware   │  WebSocket  │  │  │
+│  │  └─────────┘    └─────────────┘  │  │
+│  └───────────────────────────────────┘  │
+│                                         │
+│  ┌─────────┐  ┌──────────────────────┐  │
+│  │ Game Data│  │    Player Data      │  │
+│  │ (RO mount) │   (RW volume)      │  │
+│  └─────────┘  └──────────────────────┘  │
+└─────────────────────────────────────────┘
+         ↓                ↓
+┌─────────────────┐  ┌─────────────────────┐
+│   Host Volume   │  │   External Services │
+│   game-data/    │  │  PostgreSQL, Redis  │
+└─────────────────┘  └─────────────────────┘
+```
+
+## Dockerfile.vps
+
+```dockerfile
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+COPY package*.json pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install --frozen-lockfile
+
+COPY . .
+RUN pnpm build && pnpm prune --prod
+
+# Production stage
+FROM node:22-alpine
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
+
+USER nodejs
+EXPOSE 3001
+
+CMD ["node", "dist/server/index.js"]
+```
+
+## Volume Mounts
+
+### Read-Only: Game Data
+
+```yaml
+volumes:
+  - ./game-data:/app/game-data:ro
+```
+
+Game content is read-only in the container.
+
+### Read-Write: Player Data
+
+```yaml
+volumes:
+  - ./data:/app/data
+```
+
+Player saves and logs are read-write.
+
+## Environment File
+
+Load environment from file:
+
+```yaml
+services:
+  arelorian:
+    env_file:
+      - path: .env
+        required: true
+```
+
+## Health Checks
+
+```yaml
+services:
+  arelorian:
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+```
+
+## Resource Limits
+
+```yaml
+services:
+  arelorian:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+```
+
+## Network Configuration
+
+```yaml
+services:
+  arelorian:
+    networks:
+      - arelorian-network
+    ports:
+      - "3001:3001"
+
+networks:
+  arelorian-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+```
+
+## Building
+
+### Build Command
+
+```bash
+docker build -f Dockerfile.vps -t arelorian:latest .
+```
+
+### Build with BuildKit
+
+```bash
+DOCKER_BUILDKIT=1 docker build -f Dockerfile.vps -t arelorian:latest .
+```
+
+## Running
+
+### Development Container
+
+```bash
+docker run -p 3001:3001 \
+  -v $(pwd)/game-data:/app/game-data:ro \
+  -v $(pwd)/data:/app/data \
+  --env-file .env \
+  arelorian:latest
+```
+
+### Production with Docker Compose
+
+```bash
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+## Multi-Stage Builds
+
+The Dockerfile uses multi-stage builds to minimize image size:
+
+1. **Builder stage**: Install deps, run build
+2. **Production stage**: Copy only production artifacts
+
+Result: ~200MB image vs ~1GB with full build tools.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="VPS Deployment" icon="cloud" href="/docs/mintlify/deployment/vps">
+    VPS deployment guide
+  </Card>
+  <Card title="Configuration" icon="settings" href="/docs/mintlify/deployment/configuration">
+    All environment variables
+  </Card>
+  <Card title="Server Architecture" icon="server" href="/docs/mintlify/architecture/server">
+    Server internals
+  </Card>
+  <Card title="Health Endpoint" icon="heart" href="/docs/mintlify/api/overview">
+    Health check API
+  </Card>
+</CardGroup>
