@@ -5,51 +5,51 @@
   "logo": {
     "light": "/assets/logo-light.svg",
     "dark": "/assets/logo-dark.svg",
-    "href": "/docs/mintlify/"
+    "href": "/"
   },
   "favicon": "/assets/favicon.png",
   "nav": [
     {
       "group": "Getting Started",
       "pages": [
-        "docs/mintlify/index",
-        "docs/mintlify/quickstart",
-        "docs/mintlify/development/setup"
+        "mintlify/index",
+        "mintlify/quickstart",
+        "mintlify/development/setup"
       ]
     },
     {
       "group": "Architecture",
       "pages": [
-        "docs/mintlify/architecture/overview",
-        "docs/mintlify/architecture/server",
-        "docs/mintlify/architecture/client",
-        "docs/mintlify/architecture/determinism"
+        "mintlify/architecture/overview",
+        "mintlify/architecture/server",
+        "mintlify/architecture/client",
+        "mintlify/architecture/determinism"
       ]
     },
     {
       "group": "Gameplay Systems",
       "pages": [
-        "docs/mintlify/gameplay/overview",
-        "docs/mintlify/gameplay/npc-systems",
-        "docs/mintlify/gameplay/quest-system",
-        "docs/mintlify/gameplay/combat",
-        "docs/mintlify/gameplay/economy"
+        "mintlify/gameplay/overview",
+        "mintlify/gameplay/npc-systems",
+        "mintlify/gameplay/quest-system",
+        "mintlify/gameplay/combat",
+        "mintlify/gameplay/economy"
       ]
     },
     {
       "group": "Deployment",
       "pages": [
-        "docs/mintlify/deployment/vps",
-        "docs/mintlify/deployment/docker",
-        "docs/mintlify/deployment/configuration"
+        "mintlify/deployment/vps",
+        "mintlify/deployment/docker",
+        "mintlify/deployment/configuration"
       ]
     },
     {
       "group": "API Reference",
       "pages": [
-        "docs/mintlify/api/overview",
-        "docs/mintlify/api/websocket",
-        "docs/mintlify/api/rest"
+        "mintlify/api/overview",
+        "mintlify/api/websocket",
+        "mintlify/api/rest"
       ]
     }
   ],
