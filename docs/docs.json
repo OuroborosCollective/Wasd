@@ -1,5 +1,6 @@
 {
   "name": "Areloria WASD",
+  "homepage": "https://arelorian.de",
   "theme": "mint",
   "logo": {
     "light": "/assets/logo-light.svg",
@@ -36,6 +37,7 @@
     ]
   },
   "footerSocials": {
-    "github": "https://github.com/Ouroboros-Collective/Areloria-WASD"
+    "github": "https://github.com/OuroborosCollective/Wasd",
+    "twitter": "https://x.com/ARElorianMMORPG"
   }
 }
