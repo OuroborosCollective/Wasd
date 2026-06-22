@@ -3,6 +3,7 @@ import express from "express";
 import request from "supertest";
 import { createLootRouter } from "../routes/lootRoutes.js";
 import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
+import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 
 // Mock Supabase configuration to allow authMiddleware to run
 vi.mock("../config/supabase.js", () => ({
@@ -33,8 +34,8 @@ describe("Loot System Security Fix Verification", () => {
   it("FIXED: /api/admin/loot/status is protected by adminAuthMiddleware", async () => {
     process.env.ADMIN_PANEL_TOKEN = "secret";
     const app = express();
-    // Mount it like in ServerBootstrap
-    app.use("/api/admin/loot", adminAuthMiddleware, createLootRouter());
+    // Mount it like in ServerBootstrap (including rate limiter to satisfy CodeQL)
+    app.use("/api/admin/loot", adminRateLimiter, adminAuthMiddleware, createLootRouter());
 
     const r = await request(app).get("/api/admin/loot/status");
     expect(r.status).toBe(401);
@@ -49,7 +50,7 @@ describe("Loot System Security Fix Verification", () => {
   it("FIXED: /api/admin/loot/generate does NOT leak stack trace on error", async () => {
     process.env.ADMIN_PANEL_TOKEN = "secret";
     const app = express();
-    app.use("/api/admin/loot", adminAuthMiddleware, createLootRouter());
+    app.use("/api/admin/loot", adminRateLimiter, adminAuthMiddleware, createLootRouter());
 
     const r = await request(app)
       .post("/api/admin/loot/generate")
