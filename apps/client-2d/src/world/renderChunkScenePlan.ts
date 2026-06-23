@@ -1,6 +1,6 @@
 import { Container, Graphics, Sprite, type Texture } from "pixi.js";
 import type { ChunkScenePlan, KappaInt } from "@wasd/shared";
-import { fromKappaInt } from "@wasd/shared";
+import { deriveChunkBiome, fromKappaInt } from "@wasd/shared";
 import { make2dProp, resolveVisualCropPolicy } from "../stackedProps";
 import { iso3 } from "../isometricProjection";
 import type { BoundAsset, WorldPlanAssetBinder, WorldPlanRenderContext } from "./WorldPlanRenderTypes";
@@ -93,7 +93,11 @@ interface RenderOptions {
 }
 
 function defaultRenderOptions(plan: ChunkScenePlan): RenderOptions {
-  return { biomeId: "plains", worldState: { worldSeed: plan.input.worldSeed, worldTick: Number(plan.input.tick ?? 0) }, lod: "medium" };
+  return {
+    biomeId: deriveChunkBiome(plan.input.chunkX, plan.input.chunkZ, plan.input.worldSeed),
+    worldState: { worldSeed: plan.input.worldSeed, worldTick: Number(plan.input.tick ?? 0) },
+    lod: "medium"
+  };
 }
 
 function buildContexts(plan: ChunkScenePlan, options: RenderOptions): ChunkBindingContexts {
