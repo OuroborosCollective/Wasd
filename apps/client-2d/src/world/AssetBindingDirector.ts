@@ -1,265 +1,10 @@
-/**
- * Asset Binding Director
- * 
- * Core scoring and deterministic selection engine for asset binding.
- * Uses weighted scoring, candidate ranking, and deterministic random.
- * NEVER uses Date.now(), Math.random(), or any time-based seeds.
- * 
- * Asset Type Policy:
- * - props: usableAsProp=true, usableAsTile=false, category=props
- * - tilesets: usableAsTile=true, usableAsProp=false, category=tilesets
- * - Buildings: category=buildings, NOT props
- * 
- * Cozy Spring exclusion rules:
- * - Exclude props with kind="deco" (decor and homey items, extra cozy details)
- * - Exclude props with sourceName/group containing: petals, petal, ground-details, 
- *   ground_detail, label, text, ui, font, sheet, preview, NC
- * - Exclude tilesets from prop binding
- * - Exclude props from road/building binding
- */
-
 import type { AssetEntry, AssetManifest } from "../assetManifest";
-import type { BindingOptions, AssetBindingContext } from "./AssetBindingContext";
+import type { AssetBindingContext } from "./AssetBindingContext";
 import type { SemanticQuery } from "./AssetSemanticProfiles";
-import { 
-  hash32, 
-  deterministicFloat, 
-  deterministicInt, 
-  pickWeightedDeterministic,
-  combineSeed,
-  type WeightedEntry,
-} from "./DeterministicAssetRng";
-import {
-  getBuildingFallbackChain,
-  getNpcFallbackChain,
-  getPropFallbackChain,
-  getRoadFallbackChain,
-  getBiomeRoadTags,
-  getBiomeTreeTags,
-  getCultureBuildingTags,
-  getCultureCharacterTags,
-  combineContextTags,
-  findFallbackEntry,
-} from "./AssetFallbackChains";
+import { combineSeed, hash32, pickWeightedDeterministic, type WeightedEntry } from "./DeterministicAssetRng";
 import type { BuildingType, NpcRole, PropType, RoadType } from "@wasd/shared/world";
+import { deterministicAssetBindingId } from "./AssetBindingDirectorIds";
 
-/**
- * Hard runtime filter: is this entry a valid prop for world rendering?
- * Returns false for tilesets, sheet fragments, text artifacts, deco crops.
- */
-function isValidPropCandidate(id: string, entry: AssetEntry | null | undefined): boolean {
-  if (!entry) return false;
-  
-  // Must have source
-  if (!entry.src) return false;
-  
-  // Tilesets are NOT props
-  if (entry.category === 'tilesets') return false;
-  
-  // Cannot be marked as tile
-  if ((entry.meta as any)?.usableAsTile === true) return false;
-  
-  // Must be explicitly usable as prop (or not explicitly forbidden)
-  if ((entry.meta as any)?.usableAsProp === false) return false;
-  
-  const idLower = id.toLowerCase();
-  const srcLower = (entry.src || '').toLowerCase();
-  const groupLower = (entry.group || '').toLowerCase();
-  const sourceNameLower = (entry.sourceName || '').toLowerCase();
-  const kindLower = (entry.kind || '').toLowerCase();
-  
-  // Reject artifact patterns in ID/src/group/sourceName
-  // Use exact patterns that won't accidentally match real prop names
-  const artifactPatterns = [
-    'petals', 'petal', 'ground-details', 'ground_detail', 'ground detail',
-    'label', 'text', 'ui', 'font', 'sheet', 'preview',
-    'petals_and',
-    'decor-and-homey', 'extra-cozy-details', 'homey',
-    // Letter/font artifacts (e.g., "GA", "NC", "&", "E" sprites from alphabet packs)
-    'alphabet', 'letters', 'glyph', 'symbol', 'character_set', 'characterset',
-    'abc_', '_abc', 'az_', '_az', 'uppercase', 'lowercase', 'number',
-    'pixel_font', 'pixelfont', 'bitmap_font', 'bitmapfont',
-    'sign_letter', 'sign_number', 'wall_letter',
-    'tile_number', 'tile_letter', 'ground_number', 'ground_letter',
-  ];
-  
-  for (const pattern of artifactPatterns) {
-    if (idLower.includes(pattern) || srcLower.includes(pattern) || 
-        groupLower.includes(pattern) || sourceNameLower.includes(pattern)) {
-      return false;
-    }
-  }
-  
-  // Reject NC_ prefix patterns specifically (label artifacts like "NC_01.png")
-  // Only match at start of sourceName or as exact filename, not as substring in middle
-  const sourceName = entry.sourceName || '';
-  const srcFilename = entry.src?.split('/').pop() || '';
-  const combinedName = (entry.id || '') + ' ' + sourceName + ' ' + srcFilename;
-  const combinedLower = combinedName.toLowerCase();
-  
-  // Check for NC_ prefix pattern (artifact filenames like "NC_01", "NC_plant")
-  if (/\bnc_\d/.test(combinedLower) || /\bnc_[a-z]/.test(combinedLower) || 
-      (sourceName.toLowerCase().startsWith('nc_')) || (srcFilename.toLowerCase().startsWith('nc_'))) {
-    return false;
-  }
-  
-  // Reject kind="deco" (decor and homey items, extra cozy details are not proper props)
-  if (kindLower === 'deco' || kindLower === 'petal') {
-    return false;
-  }
-  
-  // Size validation: props should not be absurdly large
-  // Standard props: max 256x256
-  // Trees: max 384x384
-  const width = entry.width ?? 0;
-  const height = entry.height ?? 0;
-  const isTree = kindLower === 'tree';
-  
-  if (isTree) {
-    if (width > 384 || height > 384) return false;
-  } else {
-    if (width > 256 || height > 256) return false;
-    // Also reject very small crops (likely sheet fragments)
-    if (width < 16 || height < 16) return false;
-  }
-  
-  // Reject entries with single-letter or very short IDs that look like sprite sheet cells
-  // These are often letter/symbol sprites from alphabet packs (e.g., "G", "A", "N", "C", "&", "E")
-  // that were incorrectly imported as game entities
-  const idBase = idLower.split('_')[0].split('-')[0]; // Get first segment of ID
-  if (idBase && idBase.length <= 2 && /^[a-z0-9&]+$/.test(idBase)) {
-    // Reject single letters or letter combinations like "ga", "nc", "&", "e"
-    // but allow proper prop names that happen to be short
-    const singleLetterPatterns = ['ga', 'nc', 'ea', 'eb', 'ec', 'ed', 'npc', 'ga_', 'nc_'];
-    for (const pattern of singleLetterPatterns) {
-      if (idLower === pattern || idLower.startsWith(pattern + '_') || idLower.startsWith(pattern + '-')) {
-        return false;
-      }
-    }
-  }
-  
-  return true;
-}
-
-/**
- * Hard runtime filter: is this entry a valid character/NPC for rendering?
- * Returns false for letter sprites, symbol packs, or non-entity artifacts.
- */
-function isValidCharacterCandidate(id: string, entry: AssetEntry | null | undefined): boolean {
-  if (!entry) return false;
-  
-  // Must have source
-  if (!entry.src) return false;
-  
-  // Cannot be marked as prop or tile
-  if ((entry.meta as any)?.usableAsProp === true) return false;
-  if ((entry.meta as any)?.usableAsTile === true) return false;
-  
-  const idLower = id.toLowerCase();
-  const srcLower = (entry.src || '').toLowerCase();
-  const groupLower = (entry.group || '').toLowerCase();
-  const sourceNameLower = (entry.sourceName || '').toLowerCase();
-  const kindLower = (entry.kind || '').toLowerCase();
-  
-  // Reject if kind is "deco" or similar non-character kinds
-  if (kindLower === 'deco' || kindLower === 'prop' || kindLower === 'tile') {
-    return false;
-  }
-  
-  // Reject artifact patterns in ID/src/group/sourceName
-  const artifactPatterns = [
-    'alphabet', 'letters', 'glyph', 'symbol', 'character_set', 'characterset',
-    'abc_', '_abc', 'az_', '_az', 'uppercase', 'lowercase',
-    'pixel_font', 'pixelfont', 'bitmap_font', 'bitmapfont',
-    'ground_', 'tile_', 'terrain_', 'prop_',
-    'petals', 'petal', 'ground-details', 'ground_detail',
-    'label', 'text', 'ui', 'font', 'sheet', 'preview',
-    'deco', 'decor',
-  ];
-  
-  for (const pattern of artifactPatterns) {
-    if (idLower.includes(pattern) || srcLower.includes(pattern) || 
-        groupLower.includes(pattern) || sourceNameLower.includes(pattern)) {
-      return false;
-    }
-  }
-  
-  // Reject NC_ prefix patterns (often letter sprite artifacts)
-  const srcFilename = entry.src?.split('/').pop() || '';
-  if (/\bnc_\d/.test(idLower) || /\bnc_[a-z]/.test(idLower) ||
-      srcFilename.toLowerCase().startsWith('nc_')) {
-    return false;
-  }
-  
-  // Reject entries with single-letter or very short IDs
-  const idBase = idLower.split('_')[0].split('-')[0];
-  if (idBase && idBase.length <= 2 && /^[a-z0-9&]+$/.test(idBase)) {
-    const singleLetterPatterns = ['ga', 'nc', 'ea', 'eb', 'ec', 'ed', 'npc', 'ga_', 'nc_'];
-    for (const pattern of singleLetterPatterns) {
-      if (idLower === pattern || idLower.startsWith(pattern + '_') || idLower.startsWith(pattern + '-')) {
-        return false;
-      }
-    }
-  }
-  
-  // Size validation: characters should be reasonable size
-  const width = entry.width ?? 0;
-  const height = entry.height ?? 0;
-  
-  // Reject tiny entries (likely sprite sheet fragments)
-  if (width < 16 || height < 16) return false;
-  // Reject huge entries (likely full sheets not sliced)
-  if (width > 512 || height > 512) return false;
-  
-  return true;
-}
-
-/**
- * Hard runtime filter: is this entry a valid tileset for terrain/road rendering?
- */
-function isValidTilesetCandidate(entry: AssetEntry | null | undefined): boolean {
-  if (!entry) return false;
-  
-  // Must have source
-  if (!entry.src) return false;
-  
-  // Must be tileset category
-  if (entry.category !== 'tilesets') return false;
-  
-  // Cannot be usable as prop (exclusive tileset)
-  if ((entry.meta as any)?.usableAsProp === true) return false;
-  
-  return true;
-}
-
-/**
- * Hard runtime filter: is this entry suitable for building rendering?
- * Buildings should come from buildings category or GraphicRiver fallbacks,
- * NOT from props or tilesets.
- */
-function isValidBuildingCandidate(entry: AssetEntry | null | undefined): boolean {
-  if (!entry) return false;
-  
-  // Must have source
-  if (!entry.src) return false;
-  
-  // Buildings should come from buildings category
-  if (entry.category === 'buildings') return true;
-  
-  // Reject props and tilesets for building binding
-  if (entry.category === 'props' || entry.category === 'tilesets') return false;
-  
-  // Reject if it looks like a prop
-  const srcLower = (entry.src || '').toLowerCase();
-  if (srcLower.includes('cozy-spring')) return false;
-  if (srcLower.includes('/props/')) return false;
-  
-  return true;
-}
-
-/**
- * Asset scoring result with debug info.
- */
 export interface ScoredAsset {
   readonly id: string;
   readonly entry: AssetEntry;
@@ -267,18 +12,12 @@ export interface ScoredAsset {
   readonly matchReasons: readonly string[];
 }
 
-/**
- * Binding result with debug info.
- */
 export interface BindingResult {
   readonly id: string;
   readonly entry: AssetEntry | null;
   readonly debug: BindingDebug;
 }
 
-/**
- * Debug information for binding decisions.
- */
 export interface BindingDebug {
   readonly seed: string;
   readonly semanticType: string;
@@ -289,45 +28,100 @@ export interface BindingDebug {
   readonly finalScore: number;
 }
 
-/**
- * Score weights for semantic matching.
- * Extended with GraphicRiver-specific weights for pattern matching.
- */
-const SCORE_WEIGHTS = {
-  exactKind: 100,
-  exactGroup: 50,
-  matchingTag: 15,
-  biomeTag: 20,
-  cultureTag: 15,
-  factionTag: 25,
-  lodMatch: 10,
-  wealthMatch: 12,
-  dangerMatch: 12,
-  worldAgeMatch: 8,
-  variantMatch: 5,
-  baseWeight: 20,
-  qualityBonus: 2,
-  deprecated: -100,
-  corrupt: -100,
-  missing: -100,
-  
-  // GraphicRiver-specific weights (for pattern-based matching)
-  patternMatch: 25,      // Asset ID contains requested keyword
-  sourceMatch: 20,       // Recognized source (GraphicRiver, Kenney, etc.)
-  isoMatch: 15,          // Isometric style match
-  subcategoryMatch: 12,   // Subcategory within pack matches
-  
-  // Fallback chain bonus (when using extended GraphicRiver fallbacks)
-  fallbackChain: 5,
-  
-  // Cozy Spring priority (for plains/cozy-spring context)
-  cozySpringMatch: 80,     // Entry has cozy-spring biomeTags or context is plains/cozy
-  cozySpringTag: 40,       // Entry ID/src contains cozy-spring identifiers
+type ManifestBucket = "tilesets" | "characters" | "buildings" | "props";
+
+const SCORE = {
+  base: 20,
+  kind: 100,
+  group: 50,
+  semantic: 35,
+  tag: 15,
+  biome: 20,
+  culture: 15,
+  faction: 25,
+  lod: 10,
+  quality: 2,
 };
 
-/**
- * AssetBindingDirector handles scoring and deterministic selection.
- */
+function lower(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function entryText(entry: AssetEntry): string {
+  return [
+    entry.id,
+    entry.src,
+    entry.source,
+    entry.sourcePath,
+    entry.sourceName,
+    entry.kind,
+    entry.group,
+    entry.category,
+    ...(entry.tags ?? []),
+    ...(entry.biomeTags ?? []),
+    ...(entry.cultureTags ?? []),
+    ...(entry.factionTags ?? []),
+  ].map(lower).filter(Boolean).join("|");
+}
+
+function containsAny(entry: AssetEntry, values: readonly unknown[]): boolean {
+  const haystack = entryText(entry);
+  return values.map(lower).filter(Boolean).some((value) => haystack.includes(value));
+}
+
+function sizeOf(entry: AssetEntry): { width: number; height: number } {
+  return {
+    width: entry.width ?? entry.frame?.w ?? entry.frameWidth ?? entry.tileWidth ?? 32,
+    height: entry.height ?? entry.frame?.h ?? entry.frameHeight ?? entry.tileHeight ?? 32,
+  };
+}
+
+function validForBucket(id: string, entry: AssetEntry | null | undefined, bucket: ManifestBucket): boolean {
+  if (!entry?.src) return false;
+  if (entry.src.toLowerCase().endsWith(".json")) return false;
+  if (entry.deprecated || entry.corrupt) return false;
+
+  const haystack = entryText({ ...entry, id });
+  const artifactTokens = ["alphabet", "letters", "glyph", "symbol", "font", "sheet", "preview", "label", "text", "ui"];
+  if (artifactTokens.some((token) => haystack.includes(token))) return false;
+  if (/\bnc_\d/.test(lower(id)) || /\bnc_[a-z]/.test(lower(id))) return false;
+
+  if (bucket === "tilesets") {
+    return entry.category === "tilesets" && (entry.meta as any)?.usableAsProp !== true;
+  }
+
+  if (bucket === "props") {
+    if (entry.category === "tilesets") return false;
+    if ((entry.meta as any)?.usableAsTile === true || (entry.meta as any)?.usableAsProp === false) return false;
+    const kind = lower(entry.kind);
+    if (kind === "deco" || kind === "petal") return false;
+    const size = sizeOf(entry);
+    if (size.width < 16 || size.height < 16) return false;
+    if (kind === "tree") return size.width <= 384 && size.height <= 384;
+    return size.width <= 256 && size.height <= 256;
+  }
+
+  if (bucket === "buildings") {
+    if (entry.category === "props" || entry.category === "tilesets") return false;
+    return entry.category === "buildings" || containsAny(entry, ["building", "house", "hut", "tower", "castle", "shop", "inn"]);
+  }
+
+  if (entry.category === "props" || entry.category === "tilesets") return false;
+  if ((entry.meta as any)?.usableAsProp === true || (entry.meta as any)?.usableAsTile === true) return false;
+  const size = sizeOf(entry);
+  return size.width >= 16 && size.height >= 16 && size.width <= 512 && size.height <= 512;
+}
+
+function collectBucket(manifest: AssetManifest | null, bucket: ManifestBucket): [string, AssetEntry][] {
+  const group = manifest?.[bucket] as Record<string, AssetEntry> | undefined;
+  if (!group) return [];
+  return Object.entries(group).filter(([id, entry]) => validForBucket(id, entry, bucket));
+}
+
+function semanticTags(query: SemanticQuery): readonly string[] {
+  return Array.isArray(query.tags) ? query.tags : [];
+}
+
 export class AssetBindingDirector {
   private manifest: AssetManifest | null;
   private debugMode: boolean;
@@ -337,642 +131,146 @@ export class AssetBindingDirector {
     this.debugMode = debugMode;
   }
 
-  /**
-   * Sets the manifest for binding.
-   */
   setManifest(manifest: AssetManifest | null): void {
     this.manifest = manifest;
   }
 
-  /**
-   * Sets debug mode for verbose logging.
-   */
   setDebugMode(debugMode: boolean): void {
     this.debugMode = debugMode;
   }
 
-  /**
-   * Scores a single asset entry against a semantic query.
-   */
   scoreAsset(entry: AssetEntry, query: SemanticQuery, context: AssetBindingContext): ScoredAsset {
-    let score = SCORE_WEIGHTS.baseWeight;
+    const id = deterministicAssetBindingId(entry, query, context);
+    const normalizedEntry: AssetEntry = { ...entry, id };
     const reasons: string[] = [];
+    let score = SCORE.base;
 
-    const entryTags = (entry.tags ?? []).map(t => String(t).toLowerCase());
-    const entryKind = String(entry.kind ?? '').toLowerCase();
-    const entryGroup = String(entry.group ?? '').toLowerCase();
-    const entryBiomeTags = (entry as any).biomeTags?.map((t: string) => t.toLowerCase()) ?? [];
-    const entryCultureTags = (entry as any).cultureTags?.map((t: string) => t.toLowerCase()) ?? [];
-    const entryFactionTags = (entry as any).factionTags?.map((t: string) => t.toLowerCase()) ?? [];
+    const kind = lower(entry.kind);
+    const group = lower(entry.group);
+    const semantic = lower(query.semanticType);
+    const queryKind = lower(query.kind);
 
-    // Exact kind match
-    if (entryKind === query.kind?.toLowerCase()) {
-      score += SCORE_WEIGHTS.exactKind;
-      reasons.push(`kind:${query.kind}`);
+    if (kind && (kind === queryKind || kind === semantic)) {
+      score += SCORE.kind;
+      reasons.push("kind");
     }
-
-    // Exact group match
-    if (entryGroup === query.semanticType.toLowerCase() || 
-        entryTags.includes(query.semanticType.toLowerCase())) {
-      score += SCORE_WEIGHTS.exactGroup;
-      reasons.push(`group:${query.semanticType}`);
+    if (group && (group === semantic || group === queryKind)) {
+      score += SCORE.group;
+      reasons.push("group");
     }
-
-    // Tag matching
-    for (const tag of query.tags) {
-      if (entryTags.includes(tag.toLowerCase())) {
-        score += SCORE_WEIGHTS.matchingTag;
+    if (containsAny(normalizedEntry, [semantic, queryKind])) {
+      score += SCORE.semantic;
+      reasons.push("semantic");
+    }
+    for (const tag of semanticTags(query)) {
+      if (containsAny(normalizedEntry, [tag])) {
+        score += SCORE.tag;
         reasons.push(`tag:${tag}`);
       }
     }
-
-    // Biome tag matching
-    if (query.biomeTags?.length) {
-      const biomeMatches = query.biomeTags.filter(t => entryBiomeTags.includes(t.toLowerCase())).length;
-      score += biomeMatches * SCORE_WEIGHTS.biomeTag;
-      if (biomeMatches > 0) reasons.push(`biome:${biomeMatches}`);
+    if (context.biome && containsAny(normalizedEntry, [context.biome])) {
+      score += SCORE.biome;
+      reasons.push("biome");
+    }
+    if (context.culture && containsAny(normalizedEntry, [context.culture])) {
+      score += SCORE.culture;
+      reasons.push("culture");
+    }
+    if (context.factionId && containsAny(normalizedEntry, [context.factionId])) {
+      score += SCORE.faction;
+      reasons.push("faction");
+    }
+    if (entry.lod && context.lod && entry.lod === context.lod) {
+      score += SCORE.lod;
+      reasons.push("lod");
+    }
+    if (Number.isFinite(entry.quality)) {
+      score += Math.max(0, Math.trunc(entry.quality ?? 0)) * SCORE.quality;
+      reasons.push("quality");
     }
 
-    // Culture tag matching
-    if (query.cultureTags?.length) {
-      const cultureMatches = query.cultureTags.filter(t => entryCultureTags.includes(t.toLowerCase())).length;
-      score += cultureMatches * SCORE_WEIGHTS.cultureTag;
-      if (cultureMatches > 0) reasons.push(`culture:${cultureMatches}`);
-    }
-
-    // Faction tag matching
-    if (context.factionId && entryFactionTags.length) {
-      const factionTag = context.factionId.toLowerCase();
-      if (entryFactionTags.some(t => t.includes(factionTag) || factionTag.includes(t))) {
-        score += SCORE_WEIGHTS.factionTag;
-        reasons.push(`faction:${context.factionId}`);
-      }
-    }
-
-    // LOD matching
-    if (query.lod && (entry as any).lod === query.lod) {
-      score += SCORE_WEIGHTS.lodMatch;
-      reasons.push(`lod:${query.lod}`);
-    }
-
-    // Wealth level matching
-    if (query.wealthLevel && entryTags.includes(query.wealthLevel)) {
-      score += SCORE_WEIGHTS.wealthMatch;
-      reasons.push(`wealth:${query.wealthLevel}`);
-    }
-
-    // Danger level matching
-    if (query.dangerLevel && entryTags.includes(query.dangerLevel)) {
-      score += SCORE_WEIGHTS.dangerMatch;
-      reasons.push(`danger:${query.dangerLevel}`);
-    }
-
-    // World age matching
-    if (query.worldAgePhase && entryTags.includes(query.worldAgePhase)) {
-      score += SCORE_WEIGHTS.worldAgeMatch;
-      reasons.push(`age:${query.worldAgePhase}`);
-    }
-
-    // Variant hint matching
-    if (query.variantHint && entryTags.some(t => t.includes(query.variantHint!.toLowerCase()))) {
-      score += SCORE_WEIGHTS.variantMatch;
-      reasons.push(`variant:${query.variantHint}`);
-    }
-
-    // Pattern matching (for GraphicRiver-style IDs)
-    const entryId = entry.id?.toLowerCase() ?? '';
-    for (const tag of query.tags) {
-      if (entryId.includes(tag.toLowerCase())) {
-        score += SCORE_WEIGHTS.patternMatch;
-        reasons.push(`pattern:${tag}`);
-        break; // Only count once
-      }
-    }
-
-    // Source matching
-    const entrySource = (entry as any).source?.toLowerCase() ?? '';
-    const recognizedSources = ['graphicriver', 'kenney', 'pipoya', 'assetpack01', 'sakpix', 'cozy-spring'];
-    for (const source of recognizedSources) {
-      if (entrySource.includes(source)) {
-        score += SCORE_WEIGHTS.sourceMatch;
-        reasons.push(`source:${source}`);
-        break;
-      }
-    }
-
-    // Cozy Spring style matching
-    if (entryId.includes('cozy') || entryId.includes('spring')) {
-      score += SCORE_WEIGHTS.isoMatch;
-      reasons.push('cozy-spring');
-    }
-    
-    // Cozy Spring priority: if context biome is plains OR variantHint is cozy-spring
-    const isPlainsBiome = context.biome === 'plains';
-    const isCozyVariant = context.variantHint?.toLowerCase().includes('cozy') || 
-                          context.variantHint?.toLowerCase().includes('spring');
-    
-    if (isPlainsBiome || isCozyVariant) {
-      // Check if entry has cozy-spring biome tags
-      const hasCozyBiome = entryBiomeTags.some(t => t.includes('cozy') || t.includes('spring') || t.includes('plains'));
-      if (hasCozyBiome) {
-        score += SCORE_WEIGHTS.cozySpringMatch;
-        reasons.push('cozy-spring:plains-priority');
-      }
-      
-      // Check if entry ID/src contains cozy identifiers
-      if (entryId.includes('cozy_spring') || entry.src?.includes('cozy-spring')) {
-        score += SCORE_WEIGHTS.cozySpringTag;
-        reasons.push('cozy-spring:tag-match');
-      }
-    }
-
-    // Quality bonus
-    const quality = (entry as any).quality ?? 50;
-    score += (quality / 100) * SCORE_WEIGHTS.qualityBonus;
-
-    // Deprecated penalty
-    if ((entry as any).deprecated) {
-      score += SCORE_WEIGHTS.deprecated;
-      reasons.push('deprecated');
-    }
-
-    // Corrupt penalty
-    if ((entry as any).corrupt) {
-      score += SCORE_WEIGHTS.corrupt;
-      reasons.push('corrupt');
-    }
-
-    return {
-      id: entry.id ?? String(Math.random()), // Fallback, should not happen
-      entry,
-      score,
-      matchReasons: reasons,
-    };
+    const tieBreaker = hash32(combineSeed(context.seed, query.semanticType, id)) % 997;
+    return { id, entry: normalizedEntry, score: score * 1000 + tieBreaker, matchReasons: reasons };
   }
 
-  /**
-   * Collects candidate assets from manifest category.
-   */
   collectCandidates(category: string): [string, AssetEntry][] {
-    if (!this.manifest) return [];
-    
-    const group = this.manifest[category as keyof AssetManifest] as Record<string, AssetEntry> | undefined;
-    if (!group) return [];
-
-    return Object.entries(group).filter(([, entry]) => {
-      // Must have valid src
-      if (!entry?.src) return false;
-      // Must not be JSON
-      if (entry.src.toLowerCase().endsWith('.json')) return false;
-      // Must not be deprecated or corrupt
-      if ((entry as any).deprecated || (entry as any).corrupt) return false;
-      return true;
-    });
+    if (category === "tilesets" || category === "characters" || category === "buildings" || category === "props") {
+      return collectBucket(this.manifest, category);
+    }
+    return [];
   }
 
-  /**
-   * Selects best candidate using deterministic weighted selection.
-   */
-  selectBestCandidate(
-    seed: string,
-    candidates: readonly ScoredAsset[],
-    topN: number = 5,
-  ): ScoredAsset | null {
+  selectBestCandidate(seed: string, candidates: readonly ScoredAsset[], topN = 8): ScoredAsset | null {
     if (candidates.length === 0) return null;
-    if (candidates.length === 1) return candidates[0];
-
-    // Sort by score descending
-    const sorted = [...candidates].sort((a, b) => b.score - a.score);
-    
-    // Take top N for weighted selection
-    const topCandidates = sorted.slice(0, Math.min(topN, candidates.length));
-    
-    if (topCandidates.length === 0) return null;
-    if (topCandidates.length === 1) return topCandidates[0];
-
-    // Weighted deterministic selection among top candidates
-    const weights: WeightedEntry<ScoredAsset>[] = topCandidates.map(c => ({
-      item: c,
-      weight: Math.max(1, c.score),
-    }));
-
-    return pickWeightedDeterministic(seed, weights);
+    const sorted = [...candidates].sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+    const top = sorted.slice(0, Math.min(topN, sorted.length));
+    const weighted: WeightedEntry<ScoredAsset>[] = top.map((item, index) => ({ item, weight: top.length - index }));
+    return pickWeightedDeterministic(seed, weighted) ?? top[0] ?? null;
   }
 
-  /**
-   * Binds a building deterministically.
-   * Only uses entries from buildings category (NOT props or tilesets).
-   * Falls back to GraphicRiver if no buildings category available.
-   */
-  bindBuilding(
-    buildingType: BuildingType,
-    context: AssetBindingContext,
-  ): BindingResult {
-    const seed = combineSeed('building', String(buildingType), String(context.seed));
-    const rawCandidates = this.collectCandidates('buildings');
-    
-    // CRITICAL: Filter out any cozy-spring props or tilesets that leaked into manifest
-    const candidates = rawCandidates.filter(([, entry]) => isValidBuildingCandidate(entry));
-    
-    if (candidates.length === 0) {
-      return this.createEmptyResult(seed, buildingType, true, 'no buildings in manifest');
-    }
+  bindRoad(roadType: RoadType, context: AssetBindingContext): BindingResult {
+    return this.bind("road", String(roadType), "tilesets", context, {
+      semanticType: String(roadType),
+      kind: "road",
+      tags: ["road", String(roadType)],
+    } as SemanticQuery);
+  }
 
-    // Create semantic query
-    const query = {
-      semanticType: buildingType,
-      kind: buildingType,
-      tags: [buildingType],
-      biomeTags: getBiomeRoadTags(context.biome),
-      cultureTags: getCultureBuildingTags(context.culture),
-      lod: context.lod,
-      wealthLevel: context.wealthLevel,
-      dangerLevel: context.dangerLevel,
-      worldAgePhase: context.worldAgePhase,
-      variantHint: context.variantHint,
-    };
+  bindBuilding(buildingType: BuildingType, context: AssetBindingContext): BindingResult {
+    return this.bind("building", String(buildingType), "buildings", context, {
+      semanticType: String(buildingType),
+      kind: String(buildingType),
+      tags: ["building", String(buildingType)],
+    } as SemanticQuery);
+  }
 
-    // Score all candidates
-    const scored = candidates.map(([id, entry]) => {
-      const enhancedEntry = { ...entry, id } as AssetEntry & { id: string };
-      return this.scoreAsset(enhancedEntry, query, context);
-    });
+  bindProp(propType: PropType, context: AssetBindingContext): BindingResult {
+    return this.bind("prop", String(propType), "props", context, {
+      semanticType: String(propType),
+      kind: String(propType),
+      tags: ["prop", String(propType)],
+    } as SemanticQuery);
+  }
 
-    // Select best candidate
+  bindNpc(role: NpcRole, context: AssetBindingContext): BindingResult {
+    const kind = role === "animal" ? "animal" : "npc";
+    return this.bind("npc", String(role), "characters", context, {
+      semanticType: String(role),
+      kind,
+      tags: [kind, String(role)],
+    } as SemanticQuery);
+  }
+
+  private bind(subject: string, semanticType: string, bucket: ManifestBucket, context: AssetBindingContext, query: SemanticQuery): BindingResult {
+    const seed = combineSeed(subject, semanticType, String(context.seed));
+    const candidates = collectBucket(this.manifest, bucket);
+    const scored = candidates.map(([id, entry]) => this.scoreAsset({ ...entry, id: entry.id ?? id }, query, context));
     const best = this.selectBestCandidate(seed, scored, 10);
 
-    if (best) {
+    if (!best) {
       return {
-        id: best.id,
-        entry: best.entry,
-        debug: {
-          seed,
-          semanticType: buildingType,
-          candidates: candidates.length,
-          scores: scored.slice(0, 10).map(s => ({ id: s.id, score: s.score, reasons: s.matchReasons })),
-          fallbackUsed: false,
-          finalScore: best.score,
-        },
+        id: `empty:${semanticType}:${hash32(seed).toString(16).padStart(8, "0")}`,
+        entry: null,
+        debug: { seed, semanticType, candidates: 0, scores: [], fallbackUsed: true, fallbackReason: `no valid ${bucket} candidates`, finalScore: 0 },
       };
     }
 
-    // Fallback chain
-    return this.bindBuildingFallback(seed, buildingType, context);
-  }
-
-  /**
-   * Handles building binding fallback.
-   */
-  private bindBuildingFallback(
-    seed: string,
-    buildingType: BuildingType,
-    context: AssetBindingContext,
-  ): BindingResult {
-    const chain = getBuildingFallbackChain(buildingType);
-    
-    for (const key of chain) {
-      const entry = findFallbackEntry(this.manifest, 'buildings', [key], seed);
-      if (entry) {
-        return {
-          id: entry.id ?? key,
-          entry,
-          debug: {
-            seed,
-            semanticType: buildingType,
-            candidates: 0,
-            scores: [],
-            fallbackUsed: true,
-            fallbackReason: `used chain key: ${key}`,
-            finalScore: 0,
-          },
-        };
-      }
-    }
-
-    return this.createEmptyResult(seed, buildingType, true, 'fallback chain exhausted');
-  }
-
-  /**
-   * Binds an NPC deterministically.
-   */
-  bindNpc(
-    role: NpcRole,
-    context: AssetBindingContext,
-  ): BindingResult {
-    const seed = combineSeed('npc', role, String(context.seed));
-    
-    // Collect candidates from characters category and apply strict filter
-    const rawCandidates = this.collectCandidates('characters');
-    const candidates = rawCandidates.filter(([id, entry]) => isValidCharacterCandidate(id, entry));
-
-    if (candidates.length === 0) {
-      return this.createEmptyResult(seed, role, true, 'no valid characters in manifest after filtering');
-    }
-
-    // Create semantic query
-    const query = {
-      semanticType: role,
-      kind: role === 'animal' ? 'animal' : 'npc',
-      tags: [role, role === 'animal' ? 'animal' : 'human'],
-      biomeTags: getBiomeRoadTags(context.biome),
-      cultureTags: getCultureCharacterTags(context.culture),
-      lod: context.lod,
-      wealthLevel: context.wealthLevel,
-      dangerLevel: context.dangerLevel,
-      worldAgePhase: context.worldAgePhase,
-      variantHint: context.variantHint,
-    };
-
-    // Score all candidates
-    const scored = candidates.map(([id, entry]) => {
-      const enhancedEntry = { ...entry, id } as AssetEntry & { id: string };
-      return this.scoreAsset(enhancedEntry, query, context);
-    });
-
-    // Select best candidate
-    const best = this.selectBestCandidate(seed, scored, 10);
-
-    if (best) {
-      return {
-        id: best.id,
-        entry: best.entry,
-        debug: {
-          seed,
-          semanticType: role,
-          candidates: candidates.length,
-          scores: scored.slice(0, 10).map(s => ({ id: s.id, score: s.score, reasons: s.matchReasons })),
-          fallbackUsed: false,
-          finalScore: best.score,
-        },
-      };
-    }
-
-    // Fallback chain
-    return this.bindNpcFallback(seed, role, context);
-  }
-
-  /**
-   * Handles NPC binding fallback.
-   */
-  private bindNpcFallback(
-    seed: string,
-    role: NpcRole,
-    context: AssetBindingContext,
-  ): BindingResult {
-    const chain = getNpcFallbackChain(role);
-    
-    for (const key of chain) {
-      const entry = findFallbackEntry(this.manifest, 'characters', [key], seed);
-      if (entry) {
-        return {
-          id: entry.id ?? key,
-          entry,
-          debug: {
-            seed,
-            semanticType: role,
-            candidates: 0,
-            scores: [],
-            fallbackUsed: true,
-            fallbackReason: `used chain key: ${key}`,
-            finalScore: 0,
-          },
-        };
-      }
-    }
-
-    return this.createEmptyResult(seed, role, true, 'fallback chain exhausted');
-  }
-
-  /**
-   * Binds a prop deterministically.
-   * Only binds entries from props category that pass isValidPropCandidate filter.
-   * Tilesets are never used as props (they're for terrain/roads only).
-   */
-  bindProp(
-    propType: PropType,
-    context: AssetBindingContext,
-  ): BindingResult {
-    const seed = combineSeed('prop', String(propType), String(context.seed));
-    
-    // CRITICAL: Only use props category, not tilesets
-    const rawCandidates = this.collectCandidates('props');
-    
-    // Apply hard filter to reject tilesets, artifacts, deco, small fragments
-    const candidates = rawCandidates.filter(([id, entry]) => isValidPropCandidate(id, entry));
-    
-    if (candidates.length === 0) {
-      return this.createEmptyResult(seed, propType, true, 'no valid props in manifest after filtering');
-    }
-
-    // Create semantic query with biome-specific tree tags
-    const query = {
-      semanticType: propType,
-      kind: propType === 'tree' ? 'tree' : propType,
-      tags: [propType, ...(propType === 'tree' ? getBiomeTreeTags(context.biome) : [])],
-      biomeTags: getBiomeRoadTags(context.biome),
-      cultureTags: getCultureBuildingTags(context.culture),
-      lod: context.lod,
-      wealthLevel: context.wealthLevel,
-      dangerLevel: context.dangerLevel,
-      worldAgePhase: context.worldAgePhase,
-      variantHint: context.variantHint,
-    };
-
-    // Score all candidates
-    const scored = candidates.map(([id, entry]) => {
-      const enhancedEntry = { ...entry, id } as AssetEntry & { id: string };
-      return this.scoreAsset(enhancedEntry, query, context);
-    });
-
-    // Select best candidate
-    const best = this.selectBestCandidate(seed, scored, 10);
-
-    if (best) {
-      // Log Cozy Spring bindings
-      if (best.entry?.src?.includes('cozy-spring')) {
-        console.log(`[CozySpring] bound prop ${propType} -> ${best.id}`);
-      }
-      return {
-        id: best.id,
-        entry: best.entry,
-        debug: {
-          seed,
-          semanticType: propType,
-          candidates: candidates.length,
-          scores: scored.slice(0, 10).map(s => ({ id: s.id, score: s.score, reasons: s.matchReasons })),
-          fallbackUsed: false,
-          finalScore: best.score,
-        },
-      };
-    }
-
-    // Fallback chain
-    return this.bindPropFallback(seed, propType, context);
-  }
-
-  /**
-   * Handles prop binding fallback.
-   * Only searches props category (not tilesets).
-   */
-  private bindPropFallback(
-    seed: string,
-    propType: PropType,
-    context: AssetBindingContext,
-  ): BindingResult {
-    const chain = getPropFallbackChain(propType);
-    
-    // CRITICAL: Only search props category for fallbacks, not tilesets
-    for (const key of chain) {
-      const entry = findFallbackEntry(this.manifest, 'props', [key], seed);
-      if (entry && isValidPropCandidate(entry.id ?? key, entry)) {
-        return {
-          id: entry.id ?? key,
-          entry,
-          debug: {
-            seed,
-            semanticType: propType,
-            candidates: 0,
-            scores: [],
-            fallbackUsed: true,
-            fallbackReason: `used chain key: ${key} in props`,
-            finalScore: 0,
-          },
-        };
-      }
-    }
-
-    return this.createEmptyResult(seed, propType, true, 'fallback chain exhausted');
-  }
-
-  /**
-   * Binds a road deterministically.
-   * Only uses tilesets that pass isValidTilesetCandidate filter.
-   */
-  bindRoad(
-    roadType: RoadType,
-    context: AssetBindingContext,
-  ): BindingResult {
-    const seed = combineSeed('road', String(roadType), String(context.seed));
-    
-    // CRITICAL: Only use tilesets category for road binding
-    const rawCandidates = this.collectCandidates('tilesets');
-    
-    // Apply hard filter to ensure only valid tilesets
-    const candidates = rawCandidates.filter(([, entry]) => isValidTilesetCandidate(entry));
-    
-    if (candidates.length === 0) {
-      return this.createEmptyResult(seed, roadType, true, 'no valid tilesets in manifest');
-    }
-
-    // Create semantic query with biome-specific road tags
-    const query = {
-      semanticType: roadType,
-      kind: roadType === 'grass' ? 'grass' : 'road',
-      tags: [roadType, ...getBiomeRoadTags(context.biome)],
-      biomeTags: getBiomeRoadTags(context.biome),
-      cultureTags: getCultureBuildingTags(context.culture),
-      lod: context.lod,
-      wealthLevel: context.wealthLevel,
-      dangerLevel: context.dangerLevel,
-      worldAgePhase: context.worldAgePhase,
-      variantHint: context.variantHint,
-    };
-
-    // Score all candidates
-    const scored = candidates.map(([id, entry]) => {
-      const enhancedEntry = { ...entry, id } as AssetEntry & { id: string };
-      return this.scoreAsset(enhancedEntry, query, context);
-    });
-
-    // Select best candidate
-    const best = this.selectBestCandidate(seed, scored, 10);
-
-    if (best) {
-      // Log Cozy Spring bindings
-      if (best.entry?.src?.includes('cozy-spring')) {
-        console.log(`[CozySpring] bound road ${roadType} -> ${best.id}`);
-      }
-      return {
-        id: best.id,
-        entry: best.entry,
-        debug: {
-          seed,
-          semanticType: roadType,
-          candidates: candidates.length,
-          scores: scored.slice(0, 10).map(s => ({ id: s.id, score: s.score, reasons: s.matchReasons })),
-          fallbackUsed: false,
-          finalScore: best.score,
-        },
-      };
-    }
-
-    // Fallback chain
-    return this.bindRoadFallback(seed, roadType, context);
-  }
-
-  /**
-   * Handles road binding fallback.
-   */
-  private bindRoadFallback(
-    seed: string,
-    roadType: RoadType,
-    context: AssetBindingContext,
-  ): BindingResult {
-    const chain = getRoadFallbackChain(roadType);
-    
-    for (const key of chain) {
-      const entry = findFallbackEntry(this.manifest, 'tilesets', [key], seed);
-      if (entry) {
-        return {
-          id: entry.id ?? key,
-          entry,
-          debug: {
-            seed,
-            semanticType: roadType,
-            candidates: 0,
-            scores: [],
-            fallbackUsed: true,
-            fallbackReason: `used chain key: ${key}`,
-            finalScore: 0,
-          },
-        };
-      }
-    }
-
-    return this.createEmptyResult(seed, roadType, true, 'fallback chain exhausted');
-  }
-
-  /**
-   * Creates an empty binding result.
-   */
-  private createEmptyResult(
-    seed: string,
-    semanticType: string,
-    fallbackUsed: boolean,
-    reason: string,
-  ): BindingResult {
+    if (this.debugMode) console.debug(`[AssetBindingDirector] ${semanticType} -> ${best.id}`);
     return {
-      id: 'none',
-      entry: null,
+      id: best.id,
+      entry: best.entry,
       debug: {
         seed,
         semanticType,
-        candidates: 0,
-        scores: [],
-        fallbackUsed,
-        fallbackReason: reason,
-        finalScore: -1000,
+        candidates: candidates.length,
+        scores: scored.sort((a, b) => b.score - a.score).slice(0, 10).map((item) => ({ id: item.id, score: item.score, reasons: item.matchReasons })),
+        fallbackUsed: false,
+        finalScore: best.score,
       },
     };
   }
 }
 
-/**
- * Creates a new AssetBindingDirector instance.
- */
-export function createAssetBindingDirector(
-  manifest: AssetManifest | null,
-  debugMode = false,
-): AssetBindingDirector {
+export function createAssetBindingDirector(manifest: AssetManifest | null, debugMode = false): AssetBindingDirector {
   return new AssetBindingDirector(manifest, debugMode);
 }

@@ -12,6 +12,7 @@ import type { EquipmentStatBlock } from "../equipment/EquipmentStatTypes.js";
 import { getStarterProcessingStations } from "../crafting/ProcessingStations.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
 import { generateCampQuestOffers } from "../quests/CampQuestDirector.js";
+import { campQuestRuntime } from "../quests/campQuestRuntime.js";
 import { npcMemoryService } from "../npc/NpcMemoryService.js";
 import { npcRumorService } from "../npc/NpcRumorService.js";
 import { getNpcLineageWorldSurface } from "../modules/npc/NpcLineageWorldSurfaceRuntime.js";
@@ -184,7 +185,6 @@ export async function composeLiveGameplaySnapshotFromLegacy(
       const eq = input.equipment as { slots?: readonly { slotId?: string; itemId?: string | null }[] } | null;
       if (!eq?.slots) return createDefaultStatBlock();
 
-      // Aggregate stats from equipped items (deterministic: sorted by slotId)
       const aggregated: Record<string, number> = {};
       const sortedSlots = [...eq.slots].sort((a, b) =>
         String(a.slotId ?? "").localeCompare(String(b.slotId ?? "")),
@@ -192,7 +192,6 @@ export async function composeLiveGameplaySnapshotFromLegacy(
 
       for (const slot of sortedSlots) {
         if (!slot.itemId) continue;
-        // Known gathering tool tier bonuses (deterministic, no unseeded entropy)
         const tierMap: Record<string, Partial<Record<string, number>>> = {
           wooden_axe: { gatheringXp: 100 },
           copper_pickaxe: { gatheringXp: 100 },
@@ -209,7 +208,6 @@ export async function composeLiveGameplaySnapshotFromLegacy(
         }
       }
 
-      // Build capped stat block
       const result = createDefaultStatBlock();
       const capped: EquipmentStatBlock = { ...result };
       for (const [key, value] of Object.entries(aggregated)) {
@@ -231,16 +229,17 @@ export async function composeLiveGameplaySnapshotFromLegacy(
         interactionRadius: s.interactionRadius,
       }));
     },
-    // NPC Quest system integration
     getActiveQuests: (playerId: string) => {
       const activeQuests = npcQuestService.getActiveQuests(playerId);
       return activeQuests.map(toLiveNpcQuestProgress);
     },
-    getAvailableQuests: (playerId: string) => {
+    getAvailableQuests: async (playerId: string) => {
       const npcQuests = npcQuestService.getAvailableQuests(playerId).map(toLiveNpcQuestProgress);
-      const completedQuestIds = npcQuestService
+      const npcCompletedQuestIds = npcQuestService
         .getNpcDialogue(playerId, "village_trader_001")
         .completedQuestIds;
+      const campCompletedQuestIds = await campQuestRuntime.getCompletedQuestIds(playerId);
+      const completedQuestIds = [...npcCompletedQuestIds, ...campCompletedQuestIds];
       const campQuests = generateCampQuestOffers({
         playerId,
         logicalIndex: input.logicalIndex,
@@ -250,13 +249,12 @@ export async function composeLiveGameplaySnapshotFromLegacy(
       });
       return [...npcQuests, ...campQuests].sort((a, b) => a.questId.localeCompare(b.questId));
     },
-    getCompletedQuestIds: (playerId: string) => {
-      // Use public NPC dialogue method to get completed quest IDs
+    getCompletedQuestIds: async (playerId: string) => {
       const dialogue = npcQuestService.getNpcDialogue(playerId, "village_trader_001");
-      return [...dialogue.completedQuestIds];
+      const campCompletedQuestIds = await campQuestRuntime.getCompletedQuestIds(playerId);
+      return [...dialogue.completedQuestIds, ...campCompletedQuestIds];
     },
     getNpcDialogues: (playerId: string) => {
-      // Return dialogues for all known NPCs (village_trader_001)
       const npcIds = ["village_trader_001"];
       return npcIds.map((npcId) => npcQuestService.getNpcDialogue(playerId, npcId));
     },
@@ -291,17 +289,13 @@ export async function composeLiveGameplaySnapshotFromLegacy(
 
   const baseSnapshot = await composer.compose(input.playerId, input.logicalIndex);
 
-  // Get camp NPCs and stocks for discovered gathering camp POIs
   const currentTick = input.logicalIndex;
   const discoveredPoiIds = worldDiscoveryService.getDiscoveredPoiIds(input.playerId);
-
-  // Filter worldPois to only discovered gathering camps
   const worldPois = input.worldPois ?? [];
   const discoveredCamps = worldPois.filter(
     (poi) => discoveredPoiIds.includes(poi.poiId) && isGatheringCampPoi(poi.type)
   );
 
-  // Convert to WorldPoiSnapshot format for camp NPC service
   const campPois: WorldPoiSnapshot[] = discoveredCamps.map((poi) => ({
     id: poi.poiId,
     type: poi.type as any,
@@ -312,16 +306,10 @@ export async function composeLiveGameplaySnapshotFromLegacy(
     tags: [],
   }));
 
-  // Update camp stock
   campNpcService.updateCampStock(campPois, currentTick);
-
-  // Generate camp NPCs
   const campNpcs = campNpcService.generateCampNpcs(campPois, currentTick);
-
-  // Get camp stocks
   const campStocks = campNpcService.getCampStockSnapshots(campPois, currentTick);
 
-  // Return snapshot with camp NPCs and stocks
   return Object.freeze({
     ...baseSnapshot,
     campNpcs: Object.freeze(campNpcs),
@@ -329,9 +317,6 @@ export async function composeLiveGameplaySnapshotFromLegacy(
   });
 }
 
-/**
- * Check if a POI type is a gathering camp.
- */
 function isGatheringCampPoi(poiType: string): boolean {
   return poiType === "logging_camp" || poiType === "mining_camp" || poiType === "fishing_camp";
 }

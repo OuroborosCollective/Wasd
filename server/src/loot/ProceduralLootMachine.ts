@@ -32,6 +32,40 @@ interface LootPolicy {
   minAreaLevel: number;
 }
 
+interface LootBaseItem {
+  id?: string;
+  name: string;
+  type: string;
+  minLevel?: number;
+  maxLevel?: number;
+  reqStr?: number;
+  reqInt?: number;
+  reqDex?: number;
+  icon?: string | null;
+  baseStats?: Record<string, number>;
+}
+
+interface LootQuarantineRecord {
+  uid: string;
+  kind: 'loot_quarantine';
+  code: 'ITEM_BASE_MISSING';
+  action: 'NO_DROP';
+  requestedBaseType: string;
+  meta: Readonly<{
+    policyVersion: string;
+    tickIndex: number;
+    dropSourceId: string;
+    lootIndex: number;
+    resultIndex: number;
+    axiomVersion: string;
+  }>;
+}
+
+interface LootBuildResult {
+  item: any | null;
+  quarantine: LootQuarantineRecord | null;
+}
+
 class ProceduralLootMachine {
   private db: any;
   private policy: LootPolicy;
@@ -62,6 +96,7 @@ class ProceduralLootMachine {
     seedHash: string;
     context: any;
     items: readonly any[];
+    quarantine: readonly LootQuarantineRecord[];
   }> {
     const context = this.normalizeContext(ctx);
     const seed = LootAxioms.makeSeed(context);
@@ -81,6 +116,7 @@ class ProceduralLootMachine {
     );
 
     const items: any[] = [];
+    const quarantine: LootQuarantineRecord[] = [];
 
     for (let i = 0; i < treasureResults.length; i++) {
       const entry = treasureResults[i];
@@ -91,7 +127,7 @@ class ProceduralLootMachine {
       }
 
       if (entry.type === 'baseType') {
-        const item = await this.makeItemFromBaseType({
+        const result = await this.makeItemFromBaseType({
           entry,
           context,
           rng,
@@ -100,14 +136,16 @@ class ProceduralLootMachine {
           seed
         });
 
-        items.push(item);
+        if (result.item) items.push(result.item);
+        if (result.quarantine) quarantine.push(result.quarantine);
       }
     }
 
     return Object.freeze({
       seedHash: LootAxioms.shortHash(seed),
       context,
-      items: Object.freeze(items)
+      items: Object.freeze(items),
+      quarantine: Object.freeze(quarantine)
     });
   }
 
@@ -118,8 +156,15 @@ class ProceduralLootMachine {
     mutation: any;
     resultIndex: number;
     seed: string;
-  }): Promise<any> {
+  }): Promise<LootBuildResult> {
     const baseItem = await this.resolveBaseItem(entry.id, context.areaLevel, rng);
+
+    if (!baseItem) {
+      return Object.freeze({
+        item: null,
+        quarantine: this.makeNoDropQuarantine(entry.id, context, resultIndex, seed)
+      });
+    }
 
     const rarity = this.rarityResolver.resolve({
       rng,
@@ -158,7 +203,7 @@ class ProceduralLootMachine {
         dexterity: Math.floor(Number(baseItem.reqDex || 0))
       }),
       visuals: Object.freeze({
-        icon: baseItem.icon || 'icons/items/fallback.png',
+        icon: baseItem.icon ? String(baseItem.icon) : null,
         color: this.colorForRarity(rarity.id)
       }),
       economy: Object.freeze({
@@ -178,13 +223,16 @@ class ProceduralLootMachine {
     const inspection = this.governor.inspect(item);
 
     if (!inspection.ok) {
-      return this.governor.sanitize({
-        ...item,
-        governorWarnings: inspection.warnings
+      return Object.freeze({
+        item: this.governor.sanitize({
+          ...item,
+          governorWarnings: inspection.warnings
+        }),
+        quarantine: null
       });
     }
 
-    return item;
+    return Object.freeze({ item, quarantine: null });
   }
 
   makeCurrency(entry: any, context: any, rng: any, resultIndex: number): any {
@@ -212,37 +260,31 @@ class ProceduralLootMachine {
     });
   }
 
-  async resolveBaseItem(baseType: string, areaLevel: number, rng: any): Promise<any> {
-    let bases: any[] = [];
+  async resolveBaseItem(baseType: string, areaLevel: number, rng: any): Promise<LootBaseItem | null> {
+    let bases: LootBaseItem[] = [];
 
     if (this.db.models?.ItemBase?.find) {
-      bases = await this.db.models.ItemBase.find({
+      const found = await this.db.models.ItemBase.find({
         type: baseType,
         minLevel: { $lte: areaLevel },
         maxLevel: { $gte: areaLevel }
       });
+      bases = Array.isArray(found) ? found.filter((item) => item && typeof item === 'object') : [];
     }
 
     if (!Array.isArray(bases) || bases.length === 0) {
-      bases = [{
-        id: `fallback-${baseType}`,
-        name: baseType.includes('sword') ? 'Iron Sword' : 'Wanderer Gear',
-        type: baseType,
-        minLevel: 1,
-        maxLevel: 999,
-        reqStr: 0,
-        reqInt: 0,
-        reqDex: 0,
-        icon: 'icons/items/fallback.png',
-        baseStats: baseType.includes('weapon')
-          ? { damageMin: 2, damageMax: 5, durability: 30 }
-          : { armor: 2, durability: 30 }
-      }];
+      return null;
     }
 
-    bases = bases.sort((a, b) => String(a.id || a.name).localeCompare(String(b.id || b.name)));
+    bases = bases
+      .map((item) => ({
+        ...item,
+        name: String(item.name || item.id || baseType),
+        type: String(item.type || baseType),
+      }))
+      .sort((a, b) => String(a.id || a.name).localeCompare(String(b.id || b.name)));
 
-    return rng.pick(bases);
+    return rng.pick(bases) ?? null;
   }
 
   mergeAttributes(baseStats: any, affixes: any[]): any {
@@ -320,6 +362,25 @@ class ProceduralLootMachine {
     });
 
     return `item-${LootAxioms.shortHash(sig, 32)}`;
+  }
+
+  makeNoDropQuarantine(baseType: string, context: any, resultIndex: number, seed: string): LootQuarantineRecord {
+    const sig = JSON.stringify({ seed, baseType, resultIndex, action: 'NO_DROP' });
+    return Object.freeze({
+      uid: `lootq-${LootAxioms.shortHash(sig, 32)}`,
+      kind: 'loot_quarantine',
+      code: 'ITEM_BASE_MISSING',
+      action: 'NO_DROP',
+      requestedBaseType: String(baseType),
+      meta: Object.freeze({
+        policyVersion: context.policyVersion,
+        tickIndex: context.tickIndex,
+        dropSourceId: context.dropSourceId,
+        lootIndex: context.lootIndex,
+        resultIndex,
+        axiomVersion: LootAxioms.VERSION
+      })
+    });
   }
 
   normalizeContext(ctx: LootContext): any {
