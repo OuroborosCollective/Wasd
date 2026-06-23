@@ -15,6 +15,10 @@ function clampAxis(value: number): number {
   return Math.max(-1, Math.min(1, value));
 }
 
+function tickToClientTimeMs(tickId: number): number {
+  return Math.max(0, Math.trunc(tickId)) * 100;
+}
+
 export function createInputBuffer(): InputBuffer {
   let moveX = 0;
   let moveY = 0;
@@ -31,7 +35,7 @@ export function createInputBuffer(): InputBuffer {
     moveY: 0,
     primary: false,
     skill1: false,
-    clientTimeMs: Date.now()
+    clientTimeMs: 0
   };
 
   return {
@@ -65,7 +69,7 @@ export function createInputBuffer(): InputBuffer {
         skill1,
         pointerX,
         pointerY,
-        clientTimeMs: Date.now()
+        clientTimeMs: tickToClientTimeMs(tickId)
       };
 
       primary = false;

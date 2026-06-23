@@ -18,10 +18,25 @@ export interface ServerResultBase {
   gameplayStateVersion?: number;
 }
 
-export function createRequestId(prefix: string): string {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
+let requestSequence = 0;
+
+function hashRequestSeed(seed: string): string {
+  let hash = 0x811c9dc5;
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+
+  return hash.toString(36).padStart(7, "0");
+}
+
+export function createRequestId(prefix: string, tickId = 0): string {
+  requestSequence += 1;
+  const safePrefix = prefix.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 32) || "req";
+  const seed = `${safePrefix}|${tickId}|${requestSequence}|${ARELORIA_GAMEPLAY_PROTOCOL_VERSION}`;
+
+  return `${safePrefix}_${tickId}_${requestSequence}_${hashRequestSeed(seed)}`;
 }
 
 export function isOkResult(result: ServerResultBase): boolean {
