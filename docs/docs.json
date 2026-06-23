@@ -33,7 +33,8 @@
       "mintlify/api/overview",
       "mintlify/api/websocket",
       "mintlify/api/rest",
-      "mintlify/components/showcase"
+      "mintlify/components/showcase",
+      "mintlify/changelog/overview"
     ]
   },
   "footerSocials": {
