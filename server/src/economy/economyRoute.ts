@@ -7,6 +7,7 @@ import { getInventoryStore } from "../inventory/inventoryRuntime.js";
 import { transferInventoryItem } from "../inventory/InventoryTransferService.js";
 import { economyService } from "./economyRuntime.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
+import { campQuestRuntime } from "../quests/campQuestRuntime.js";
 import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
 
 const router = Router();
@@ -35,6 +36,14 @@ const tradeTransferRateLimiter = rateLimit({
   message: { ok: false, error: "rate_limited" },
 });
 
+const campQuestRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: "rate_limited" },
+});
+
 router.use(express.json());
 router.use(economyLimiter);
 
@@ -45,6 +54,13 @@ function parseSafeId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!/^[a-zA-Z0-9_-]{1,96}$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+function parseCampQuestIdInput(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!/^camp_daily:[a-zA-Z0-9_:-]{1,144}:[0-9]{1,12}$/.test(trimmed)) return null;
   return trimmed;
 }
 
@@ -136,6 +152,29 @@ router.post("/buy-resource", buyResourceRateLimiter, async (req, res) => {
     res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
   } catch (error) {
     console.error("[economy-buy-resource] Failed to buy resource:", error);
+    res.status(500).json({ ok: false, error: "internal_error" });
+  }
+});
+
+router.post("/complete-camp-quest", campQuestRateLimiter, async (req, res) => {
+  const identity = resolveHttpPlayerIdentity(req);
+  if (!requireProductionAuth(identity, res)) return;
+
+  const questId = parseCampQuestIdInput(req.body?.questId);
+  const playerPosition = parsePosition(req.body?.playerPosition);
+  if (!questId) return void res.status(400).json({ ok: false, error: "invalid_quest_id" });
+  if (!playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+
+  try {
+    const result = await campQuestRuntime.completeCampQuest({
+      playerId: identity.playerId,
+      questId,
+      playerPosition,
+      currentTick: currentServerTick(),
+    });
+    res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
+  } catch (error) {
+    console.error("[economy-complete-camp-quest] Failed to complete camp quest:", error);
     res.status(500).json({ ok: false, error: "internal_error" });
   }
 });

@@ -8,6 +8,7 @@ import type { LiveGameplayQuestProgress, LiveGameplayQuestReward } from "../game
 export const CAMP_QUEST_CYCLE_TICKS = 10 * 60 * 30;
 
 export type GatheringCampPoiType = "logging_camp" | "mining_camp" | "fishing_camp";
+export type CampQuestDeliveryItemId = "wood_log" | "copper_ore" | "raw_fish";
 
 export interface CampQuestPoi {
   readonly poiId: string;
@@ -23,6 +24,18 @@ interface GatheringCampQuestPoi extends CampQuestPoi {
   readonly type: GatheringCampPoiType;
 }
 
+export interface CampQuestRequirement {
+  readonly itemId: CampQuestDeliveryItemId;
+  readonly quantity: number;
+}
+
+export interface CampQuestResolutionInput {
+  readonly playerId: string;
+  readonly poiId: string;
+  readonly poiType: GatheringCampPoiType;
+  readonly logicalIndex: number;
+}
+
 export interface GenerateCampQuestOffersInput {
   readonly playerId: string;
   readonly logicalIndex: number;
@@ -35,7 +48,7 @@ interface CampQuestTemplate {
   readonly title: string;
   readonly description: string;
   readonly objectiveTitle: string;
-  readonly objectiveRequired: number;
+  readonly requirement: CampQuestRequirement;
   readonly reward: LiveGameplayQuestReward;
 }
 
@@ -45,15 +58,15 @@ const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = Ob
       title: "Wood Delivery",
       description: "The logging crew needs a fresh wood-log delivery before the next hauling run.",
       objectiveTitle: "Deliver 6 Wood Logs to the camp",
-      objectiveRequired: 6,
+      requirement: { itemId: "wood_log", quantity: 6 },
       reward: { coins: 18, gatheringXp: 30, craftingXp: 0, reputation: 1 },
     },
     {
       title: "Tool Handle Supply",
       description: "The foreman needs backup handles before production dips.",
       objectiveTitle: "Deliver 3 Wood Logs for tool handles",
-      objectiveRequired: 3,
-      reward: { coins: 12, gatheringXp: 20, craftingXp: 5, reputation: 1 },
+      requirement: { itemId: "wood_log", quantity: 3 },
+      reward: { coins: 18, gatheringXp: 20, craftingXp: 5, reputation: 1 },
     },
   ]),
   mining_camp: Object.freeze([
@@ -61,15 +74,15 @@ const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = Ob
       title: "Ore Sample Run",
       description: "The miners need a clean ore sample logged for the next smelting batch.",
       objectiveTitle: "Deliver 5 Copper Ore to the camp",
-      objectiveRequired: 5,
+      requirement: { itemId: "copper_ore", quantity: 5 },
       reward: { coins: 22, gatheringXp: 34, craftingXp: 0, reputation: 1 },
     },
     {
-      title: "Stone Sorting",
-      description: "The mining crew needs stone sorted before the next work cycle.",
-      objectiveTitle: "Deliver 4 Stone to the camp",
-      objectiveRequired: 4,
-      reward: { coins: 16, gatheringXp: 24, craftingXp: 4, reputation: 1 },
+      title: "Spare Ore Count",
+      description: "The mining crew needs backup copper counted before the next work cycle.",
+      objectiveTitle: "Deliver 3 Copper Ore to the camp",
+      requirement: { itemId: "copper_ore", quantity: 3 },
+      reward: { coins: 22, gatheringXp: 24, craftingXp: 4, reputation: 1 },
     },
   ]),
   fishing_camp: Object.freeze([
@@ -77,15 +90,15 @@ const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = Ob
       title: "Fresh Catch Order",
       description: "The fishing camp needs a fresh catch counted before the next trader leaves.",
       objectiveTitle: "Deliver 5 Raw Fish to the camp",
-      objectiveRequired: 5,
+      requirement: { itemId: "raw_fish", quantity: 5 },
       reward: { coins: 20, gatheringXp: 32, craftingXp: 0, reputation: 1 },
     },
     {
       title: "Ration Check",
       description: "The net crew needs small catches inspected after the last tide cycle.",
       objectiveTitle: "Deliver 3 Raw Fish for camp rationing",
-      objectiveRequired: 3,
-      reward: { coins: 14, gatheringXp: 22, craftingXp: 4, reputation: 1 },
+      requirement: { itemId: "raw_fish", quantity: 3 },
+      reward: { coins: 20, gatheringXp: 22, craftingXp: 4, reputation: 1 },
     },
   ]),
 });
@@ -107,6 +120,22 @@ export function campQuestIdFor(poiId: string, logicalIndex: number): string {
   return `camp_daily:${poiId}:${getCampQuestCycle(logicalIndex)}`;
 }
 
+function resolveCampQuestTemplate(input: CampQuestResolutionInput): CampQuestTemplate {
+  const templatePool = TEMPLATES[input.poiType];
+  const cycle = getCampQuestCycle(input.logicalIndex);
+  return templatePool[hashIndex(`${input.playerId.trim()}:${input.poiId}:${input.poiType}:${cycle}`, templatePool.length)];
+}
+
+export function resolveCampQuestRequirement(input: CampQuestResolutionInput): CampQuestRequirement {
+  const template = resolveCampQuestTemplate(input);
+  return Object.freeze({ ...template.requirement });
+}
+
+export function resolveCampQuestReward(input: CampQuestResolutionInput): LiveGameplayQuestReward {
+  const template = resolveCampQuestTemplate(input);
+  return Object.freeze({ ...template.reward });
+}
+
 export function generateCampQuestOffers(input: GenerateCampQuestOffersInput): readonly LiveGameplayQuestProgress[] {
   const playerId = input.playerId.trim();
   if (!playerId) return Object.freeze([]);
@@ -122,8 +151,7 @@ export function generateCampQuestOffers(input: GenerateCampQuestOffersInput): re
       const questId = `camp_daily:${poi.poiId}:${cycle}`;
       if (completed.has(questId)) return null;
 
-      const templatePool = TEMPLATES[poi.type];
-      const template = templatePool[hashIndex(`${playerId}:${poi.poiId}:${poi.type}:${cycle}`, templatePool.length)];
+      const template = resolveCampQuestTemplate({ playerId, poiId: poi.poiId, poiType: poi.type, logicalIndex: input.logicalIndex });
 
       return Object.freeze({
         questId,
@@ -136,7 +164,7 @@ export function generateCampQuestOffers(input: GenerateCampQuestOffersInput): re
             objectiveId: `${questId}:deliver`,
             title: template.objectiveTitle,
             current: 0,
-            required: template.objectiveRequired,
+            required: template.requirement.quantity,
             completed: false,
           }),
           Object.freeze({
