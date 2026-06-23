@@ -1,0 +1,31 @@
+---
+title: Changelog
+description: Product updates shipped to Areloria WASD
+---
+
+<Update label="June 23, 2026" description="Camp quests, runtime truth, and determinism hardening">
+
+This week's release closes out the camp daily quest loop, hardens the live gameplay snapshot against placeholder data, and tightens determinism across the engine.
+
+## New features
+
+- **Server-authoritative camp quest delivery.** Players can now hand in camp daily quests through a dedicated completion endpoint. The server validates requirements and rewards, drops completed offers from the live snapshot, and applies inventory deltas deterministically. See [Quest system](/mintlify/gameplay/quest-system).
+- **Deterministic camp daily quest offers.** Each discovered camp now generates a stable daily quest offer from world seed and tick. Two players exploring the same camp see the same objectives, and offers appear in the live gameplay snapshot as soon as a camp is discovered. See [NPC systems](/mintlify/gameplay/npc-systems).
+- **Resource expansion quest pack.** A new additive quest set loads through the quest engine and expands the gathering and processing progression beyond the starter loop. See [Quest system](/mintlify/gameplay/quest-system).
+- **Runtime validation across ARE-Logic and data flow.** A new validation layer continuously checks combat, inventory, chunk, and tick subsystems at runtime and surfaces drift early. See [Determinism](/mintlify/architecture/determinism).
+
+## Updates
+
+- **Runtime truth for guild, faction, and NPC activity.** The live gameplay snapshot now pulls guild, faction, and NPC activity from runtime providers instead of placeholder paths, so the client renders authoritative server state. See [Truth path](/mintlify/architecture/truth-path).
+- **Combat tick processing is now operational.** Combat resolves on every tick instead of relying on partial updates, which clears a class of stuck engagements.
+- **Loot quarantine for missing base items.** The loot system now quarantines and logs drops that reference unknown base items instead of fabricating them, which prevents phantom rewards from entering inventories. See [Economy](/mintlify/gameplay/economy).
+- **Faster quest sync.** The quest engine reconciles progress against inventory in a single pass, cutting per-tick cost on characters with large inventories.
+- **Faster NPC delta snapshots.** Population change detection now compares NPCs by properties instead of serializing the full population, cutting snapshot work on busy regions.
+
+## Fixes
+
+- **Stateless determinism audit cleanup.** Client request IDs, guest player IDs, input timestamps, chunk and render biomes, and ARE state commit IDs now derive from tick and seed instead of wall-clock or volatile sources. Replays and reconnects stay byte-identical. See [Determinism](/mintlify/architecture/determinism).
+- **Deterministic asset binding fallbacks.** The 2D client now picks fallback asset IDs from a deterministic source, which removes a subtle visual drift between sessions.
+- **Admin and auth route hardening.** Asset pipeline and admin endpoints are now properly typed and rate-limited, closing gaps the server type checker surfaced. See [REST API](/mintlify/api/rest).
+
+</Update>
