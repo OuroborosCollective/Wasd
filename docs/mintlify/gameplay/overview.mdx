@@ -1,0 +1,134 @@
+---
+title: Gameplay Overview
+description: Core gameplay systems and mechanics in Areloria
+---
+
+# Gameplay Systems
+
+Areloria features a rich set of interconnected gameplay systems built on deterministic server-authoritative foundations.
+
+## Core Systems
+
+<CardGroup cols={2}>
+  <Card title="Player System" icon="user" href="/mintlify/gameplay/overview#player-system">
+    Character creation, stats, progression, and equipment
+  </Card>
+  <Card title="NPC Systems" icon="users" href="/mintlify/gameplay/npc-systems">
+    Memory, reputation, dialogue, and autonomous behavior
+  </Card>
+  <Card title="Quest System" icon="scroll" href="/mintlify/gameplay/quest-system">
+    Tasks, objectives, and questline progression
+  </Card>
+  <Card title="Combat" icon="swords" href="/mintlify/gameplay/combat">
+    Combat mechanics, skills, and death/respawn
+  </Card>
+</CardGroup>
+
+## Player System
+
+### Character Stats
+
+| Stat | Description |
+|------|-------------|
+| Health | Physical vitality (0 = death) |
+| Mana | magical energy for skills |
+| Level | Character progression level |
+| XP | Experience points toward next level |
+| Position | World coordinates |
+
+### Equipment & Inventory
+
+```
+Inventory System
+├── Grid-based storage
+├── Stack management
+├── Equipment slots (weapon, armor, tool, etc.)
+├── Loot drops from combat/gathering
+└── Item persistence
+```
+
+### Progression
+
+Players gain experience through:
+- Combat victories
+- Resource gathering
+- Quest completion
+- Crafting items
+
+## Resource Economy
+
+### Gathering Loop
+
+```
+Find Resource Node
+  → Use gathering tool
+  → Receive resource item
+  → Store in inventory
+  → Use for crafting or selling
+```
+
+### Processing
+
+Raw resources can be processed into refined materials:
+
+| Raw Material | Processed | Use |
+|--------------|-----------|-----|
+| Wood Log | Lumber | Construction |
+| Iron Ore | Iron Bar | Tools/Weapons |
+| Herb | Potion | Consumables |
+
+### Trading
+
+NPCs and player markets enable:
+- Selling gathered resources
+- Purchasing equipment
+- Quest rewards
+
+## World Systems
+
+### Chunks
+
+The world is divided into chunks for efficient simulation:
+
+```text
+chunk size = 16×16 tiles
+simulationRadiusChunks = 2 → 5×5 active simulation
+broadcastRadiusChunks = 1 → 3×3 client updates
+```
+
+### Weather & Time
+
+Dynamic systems affect gameplay:
+- Day/night cycles
+- Weather conditions
+- Seasonal effects
+
+## Active Gameplay Loop
+
+```text
+Gather starter resource node
+  → Gain skill XP
+  → Receive persistent resource item
+  → Craft starter recipe/tool
+  → Consume resource item
+  → Receive persistent crafted item
+  → Gain Crafting XP
+  → See updated state in LiveGameplaySnapshot and 2D panels
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="NPC Systems" icon="users" href="/mintlify/gameplay/npc-systems">
+    Autonomous NPC brain and social layer
+  </Card>
+  <Card title="Quest System" icon="scroll" href="/mintlify/gameplay/quest-system">
+    Quest design and progression
+  </Card>
+  <Card title="Combat" icon="swords" href="/mintlify/gameplay/combat">
+    Combat mechanics
+  </Card>
+  <Card title="Economy" icon="coins" href="/mintlify/gameplay/economy">
+    Resource economy and trading
+  </Card>
+</CardGroup>

@@ -1,0 +1,209 @@
+---
+title: VPS Deployment
+description: Deploy Areloria to a production VPS
+---
+
+# VPS Deployment
+
+This guide covers deploying Areloria to a production VPS with Docker.
+
+## Prerequisites
+
+- VPS with Ubuntu 20.04+ or Debian 11+
+- Docker & Docker Compose installed
+- Domain name pointed to VPS IP
+- Git access to the repository
+
+## Deployment Architecture
+
+```
+Internet → Nginx (port 80/443) → Docker Container (port 3001)
+                                              ↓
+                                     Node.js Game Server
+                                              ↓
+                                     PostgreSQL / Redis (optional)
+```
+
+## Quick Deployment
+
+### 1. Clone the Repository
+
+```bash
+ssh user@your-vps.com
+git clone https://github.com/OuroborosCollective/Areloria-WASD.git
+cd Areloria-WASD
+```
+
+### 2. Setup Environment
+
+```bash
+# Copy production template
+cp deploy/.env.production.template .env
+
+# Edit with your values
+nano .env
+```
+
+### 3. Configure Nginx
+
+```bash
+sudo ARELORIAN_DOMAIN=arelorian.de \
+     ARELORIAN_WWW_DOMAIN=www.arelorian.de \
+     ARELORIAN_PORT=3001 \
+     bash scripts/install-nginx-host-gateway.sh
+```
+
+### 4. Start with Docker
+
+```bash
+docker-compose up -d
+```
+
+## Environment Variables
+
+### Required Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `ARELORIAN_PORT` | Container internal port | `3001` |
+| `NODE_ENV` | Environment mode | `production` |
+| `PERSISTENCE_DRIVER` | Storage backend | `postgres` or `file` |
+
+### Optional Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | (none) | PostgreSQL connection string |
+| `REDIS_URL` | (none) | Redis connection string |
+| `AUTH_PROVIDER` | `none` | Auth: `supabase` or `none` |
+| `ADMIN_PANEL_TOKEN` | (none) | Admin panel access |
+
+### Production Template
+
+```bash
+# Server
+PORT=3001
+NODE_ENV=production
+ARELORIAN_PORT=3001
+
+# Persistence
+PERSISTENCE_DRIVER=auto
+PLAYER_SAVE_FILE=/app/data/players.json
+
+# Auth (optional)
+AUTH_PROVIDER=none
+# USE_SUPABASE_WS_LOGIN=false
+# REQUIRE_SUPABASE_AUTH=false
+# ALLOW_GUEST_LOGIN=true
+# ALLOW_DEV_LOGIN=true
+
+# Admin
+ADMIN_PANEL_TOKEN=your-secure-token
+
+# Performance
+WS_MAX_MESSAGES_PER_PLAYER_UID_PER_SECOND=60
+```
+
+## Docker Configuration
+
+### Dockerfile.vps
+
+The production Docker file is `Dockerfile.vps`:
+
+```dockerfile
+FROM node:22-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install -g pnpm && pnpm install --frozen-lockfile
+COPY . .
+RUN pnpm build
+EXPOSE 3001
+CMD ["node", "dist/server/index.js"]
+```
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  arelorian:
+    build:
+      context: .
+      dockerfile: Dockerfile.vps
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./game-data:/app/game-data:ro
+      - ./data:/app/data
+      - ./.env:/app/.env
+    restart: unless-stopped
+    networks:
+      - arelorian-network
+
+networks:
+  arelorian-network:
+    driver: bridge
+```
+
+## Verification
+
+### Health Check
+
+```bash
+curl https://arelorian.de/health
+```
+
+Expected response:
+```json
+{
+  "status": "ok",
+  "auth": "stub",
+  "persistence": "file",
+  "content": "game-data",
+  "playtester": "disabled",
+  "uptime": 3600,
+  "tickRate": 10.0
+}
+```
+
+### Client Access
+
+- **2D Client**: https://arelorian.de/2d
+- **Admin Panel**: https://arelorian.de/admin-content.html
+
+## Troubleshooting
+
+### Container Won't Start
+
+Check logs:
+```bash
+docker-compose logs -f arelorian
+```
+
+### Port Already in Use
+
+```bash
+sudo lsof -i :3001
+# Kill the process or change PORT
+```
+
+### Database Connection Failed
+
+Ensure PostgreSQL is running and `DATABASE_URL` is correct.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Docker Deployment" icon="container" href="/mintlify/deployment/docker">
+    Detailed Docker configuration
+  </Card>
+  <Card title="Configuration" icon="settings" href="/mintlify/deployment/configuration">
+    All environment variables
+  </Card>
+  <Card title="Architecture" icon="layers" href="/mintlify/architecture/overview">
+    System architecture
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/mintlify/quickstart">
+    Development setup
+  </Card>
+</CardGroup>

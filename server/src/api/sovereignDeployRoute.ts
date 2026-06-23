@@ -1,5 +1,5 @@
 import express from "express";
-import { adminWriteBlocked } from "../middleware/adminAuthMiddleware.js";
+import { adminWriteBlockedHandler } from "../middleware/adminRequestHandlers.js";
 import { sensitiveWriteRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { execFile, execFileSync } from "node:child_process";
 import net from "node:net";
@@ -57,9 +57,7 @@ function resolveSupabaseTcpTarget(): TcpTarget {
         const inferredPort = positivePort(parsed.port) ?? (parsed.protocol === "https:" ? 443 : 80);
         return { host: parsed.hostname, port: explicitPort ?? inferredPort, source: "SUPABASE_URL" };
       }
-    } catch {
-      // Fall through to the Docker-network default below.
-    }
+    } catch {}
   }
 
   return { host: "supabase-kong", port: explicitPort ?? 8000, source: "docker-default" };
@@ -129,7 +127,7 @@ export function sovereignDeployRouter(tick: WorldTick, options: SovereignDeployR
     res.json(await buildTruth(tick));
   });
 
-  router.post("/launch", adminWriteBlocked, sensitiveWriteRateLimiter, async (req, res) => {
+  router.post("/launch", adminWriteBlockedHandler, sensitiveWriteRateLimiter, async (req, res) => {
     if (!requireLaunchKey(req)) {
       res.status(403).json({ ok: false, error: "launch_key_required", message: "Sovereign Launch Key missing, wrong, or not configured." });
       return;

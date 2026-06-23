@@ -13,7 +13,7 @@
 import express, { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import { db as dbInstance } from "../core/Database.js";
-import { authMiddleware } from "../middleware/authMiddleware.js";
+import { authRequestHandler } from "../middleware/authRequestHandler.js";
 
 function getAuthenticatedPlayerId(req: Request): string | null {
   return (req as Request & { userId?: string; playerId?: string }).userId ||
@@ -50,7 +50,7 @@ export function createGLBUploadRouter(dbParam?: { query: (text: string, params?:
     message: { error: "Too many GLB write attempts, please try again shortly." },
   });
 
-  router.get("/my-models", readLimiter, authMiddleware, async (req: Request, res: Response) => {
+  router.get("/my-models", readLimiter, authRequestHandler, async (req: Request, res: Response) => {
     const playerId = getAuthenticatedPlayerId(req);
     if (!playerId) {
       res.status(401).json({ error: "Authentication required" });
@@ -69,15 +69,12 @@ export function createGLBUploadRouter(dbParam?: { query: (text: string, params?:
     }
   });
 
-  // Mutating routes are intentionally blocked. They still require auth first, so
-  // unauthenticated runtime probes see 401 while authenticated callers get an
-  // explicit 503 instead of a fake success or partial write.
-  router.post("/upload", writeLimiter, authMiddleware, disabledMutation);
-  router.delete("/place/:placeId", writeLimiter, authMiddleware, disabledMutation);
-  router.post("/place", writeLimiter, authMiddleware, disabledMutation);
-  router.post("/marketplace/list", writeLimiter, authMiddleware, disabledMutation);
-  router.post("/marketplace/buy", writeLimiter, authMiddleware, disabledMutation);
-  router.delete("/:modelId", writeLimiter, authMiddleware, disabledMutation);
+  router.post("/upload", writeLimiter, authRequestHandler, disabledMutation);
+  router.delete("/place/:placeId", writeLimiter, authRequestHandler, disabledMutation);
+  router.post("/place", writeLimiter, authRequestHandler, disabledMutation);
+  router.post("/marketplace/list", writeLimiter, authRequestHandler, disabledMutation);
+  router.post("/marketplace/buy", writeLimiter, authRequestHandler, disabledMutation);
+  router.delete("/:modelId", writeLimiter, authRequestHandler, disabledMutation);
 
   router.get("/land/:playerId", readLimiter, async (req: Request, res: Response) => {
     const { playerId } = req.params;
@@ -118,7 +115,7 @@ export function createGLBUploadRouter(dbParam?: { query: (text: string, params?:
     }
   });
 
-  router.get("/subscription-status", readLimiter, authMiddleware, async (req: Request, res: Response) => {
+  router.get("/subscription-status", readLimiter, authRequestHandler, async (req: Request, res: Response) => {
     const playerId = getAuthenticatedPlayerId(req);
     if (!playerId) {
       res.status(401).json({ error: "Authentication required" });

@@ -1,0 +1,346 @@
+---
+title: WebSocket Protocol
+description: Detailed WebSocket protocol for client-server communication
+---
+
+# WebSocket Protocol
+
+Areloria uses WebSocket for real-time bidirectional communication between clients and server.
+
+## Connection
+
+### Standard Connection
+
+```javascript
+const ws = new WebSocket('ws://localhost:3000/ws');
+```
+
+### With Authentication
+
+```javascript
+const ws = new WebSocket(`ws://localhost:3000/ws?token=${authToken}`);
+```
+
+### Connection Lifecycle
+
+```
+Client                    Server
+  │                          │
+  │──── CONNECT ────────────▶│
+  │                          │
+  │◀─── WELCOME ─────────────│
+  │                          │
+  │──── INTENTS ────────────▶│ (10 Hz)
+  │◀─── SNAPSHOTS ───────────│ (10 Hz)
+  │◀─── EVENTS ─────────────│ (as needed)
+  │                          │
+  │──── DISCONNECT ─────────▶│
+```
+
+## Message Types
+
+### Client → Server
+
+| Type | Frequency | Description |
+|------|-----------|-------------|
+| `intent` | On action | Player action intent |
+| `chat` | On message | Chat message |
+| `ping` | ~1 Hz | Keepalive |
+
+### Server → Client
+
+| Type | Frequency | Description |
+|------|-----------|-------------|
+| `welcome` | Once | Connection confirmed |
+| `snapshot` | 10 Hz | World state |
+| `event` | As needed | Discrete events |
+| `player_join` | As needed | Player connected |
+| `player_leave` | As needed | Player disconnected |
+| `pong` | On ping | Keepalive response |
+
+## Intent Protocol
+
+**The client sends wishes. The server assigns truth.**
+
+Client timestamp is diagnostic only. Server `tickId` is authoritative.
+
+### Movement Intent
+
+```typescript
+// Client sends: A wish
+{
+  type: 'intent',
+  payload: {
+    action: 'move',
+    data: {
+      position: { x: 100, y: 200 },
+      direction: 45  // degrees
+    }
+  }
+}
+
+// Server responds with accepted truth (in snapshot)
+{
+  tickId: 12345,           // Authoritative tick
+  logicalIndex: 123450,      // Logical execution index
+  receivedOrder: 7,         // Order among intents this tick
+  canonicalIntentHash: '0xabc123...'  // Deterministic hash
+}
+```
+
+### Attack Intent
+
+```typescript
+// Client sends: A wish
+{
+  type: 'intent',
+  payload: {
+    action: 'attack',
+    data: {
+      targetId: 'npc-456',
+      skillId: 'slash'  // optional
+    }
+  }
+}
+```
+
+### Skill Intent
+
+```typescript
+// Client sends: A wish
+{
+  type: 'intent',
+  payload: {
+    action: 'useSkill',
+    data: {
+      skillId: 'fireball',
+      targetId: 'enemy-789'  // or position for AOE
+    }
+  }
+}
+```
+
+### Interact Intent
+
+```typescript
+// Client sends: A wish
+{
+  type: 'intent',
+  payload: {
+    action: 'interact',
+    data: {
+      targetId: 'npc-456',  // or 'resource-node-123'
+      interactionType: 'talk' | 'trade' | 'gather'
+    }
+  }
+}
+```
+
+### Inventory Intent
+
+```typescript
+// Client sends: A wish
+{
+  type: 'intent',
+  payload: {
+    action: 'inventory',
+    data: {
+      subAction: 'equip' | 'unequip' | 'move' | 'drop' | 'use',
+      itemId: 'item-123',
+      targetSlot: 5  // optional
+    }
+  }
+}
+```
+
+### Intent Truth Assignment
+
+```typescript
+// Server assigns truth to accepted intents
+interface ServerAcceptedIntent {
+  tickId: TickId;           // When intent was processed
+  logicalIndex: number;     // Order within tick
+  receivedOrder: number;    // Among all intents this tick
+  canonicalIntentHash: string; // Deterministic hash
+}
+
+// Client receives truth in snapshot
+interface IntentConfirmation {
+  clientIntentId: string;    // Client's request ID (for debugging)
+  serverTruth: ServerAcceptedIntent;
+  success: boolean;
+  reason?: string;  // If success=false
+}
+```
+
+## Snapshot Protocol
+
+### Full Snapshot
+
+```typescript
+{
+  type: 'snapshot',
+  tickId: 12345,
+  payload: {
+    players: [
+      {
+        id: 'player-123',
+        name: 'Hero',
+        position: { x: 100, y: 200 },
+        health: 100,
+        maxHealth: 100,
+        mana: 50,
+        maxMana: 50,
+        level: 5,
+        equipment: { ... }
+      }
+    ],
+    npcs: [
+      {
+        id: 'npc-456',
+        name: 'Elder',
+        position: { x: 150, y: 180 },
+        health: 200,
+        state: 'idle'
+      }
+    ],
+    world: {
+      time: 'day',
+      weather: 'clear',
+      chunkX: 0,
+      chunkY: 0
+    },
+    timestamp: 1234567890
+  }
+}
+```
+
+### Delta Snapshot
+
+For efficiency, servers may send deltas:
+
+```typescript
+{
+  type: 'snapshot',
+  tickId: 12346,
+  payload: {
+    delta: {
+      players: {
+        'player-123': { health: 95 }  // Only changed fields
+      }
+    },
+    previousTickId: 12345
+  }
+}
+```
+
+## Event Protocol
+
+### Combat Events
+
+```typescript
+{
+  type: 'event',
+  tickId: 12347,
+  payload: {
+    eventType: 'damage',
+    data: {
+      sourceId: 'player-123',
+      targetId: 'enemy-789',
+      damage: 45,
+      isCrit: false,
+      damageType: 'physical'
+    }
+  }
+}
+```
+
+### Loot Events
+
+```typescript
+{
+  type: 'event',
+  tickId: 12348,
+  payload: {
+    eventType: 'loot_drop',
+    data: {
+      lootId: 'loot-001',
+      items: [
+        { id: 'gold-coin', quantity: 100 }
+      ],
+      position: { x: 100, y: 200 }
+    }
+  }
+}
+```
+
+### Quest Events
+
+```typescript
+{
+  type: 'event',
+  tickId: 12349,
+  payload: {
+    eventType: 'quest_progress',
+    data: {
+      questId: 'gather-wood',
+      objectiveIndex: 0,
+      current: 15,
+      target: 20
+    }
+  }
+}
+```
+
+## Rate Limiting
+
+| Setting | Value |
+|---------|-------|
+| Max intents/second/player | 60 |
+| Max chat messages/second/player | 5 |
+| Max connections/player | 1 |
+
+## Reconnection
+
+Clients should implement reconnection:
+
+```typescript
+class ReconnectingWS {
+  maxRetries = 5;
+  retryDelay = 1000;  // ms
+  
+  onDisconnect() {
+    this.state = 'reconnecting';
+    this.retryCount++;
+    
+    if (this.retryCount <= this.maxRetries) {
+      setTimeout(() => this.connect(), this.retryDelay * this.retryCount);
+    }
+  }
+}
+```
+
+### State Recovery
+
+After reconnect:
+1. Client sends current state hash
+2. Server compares with last known state
+3. Server sends delta to catch up
+4. Client resumes normal operation
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="REST API" icon="file-code" href="/mintlify/api/rest">
+    REST endpoint reference
+  </Card>
+  <Card title="API Overview" icon="globe" href="/mintlify/api/overview">
+    Complete API reference
+  </Card>
+  <Card title="Client Architecture" icon="monitor" href="/mintlify/architecture/client">
+    Client networking implementation
+  </Card>
+  <Card title="Server Architecture" icon="server" href="/mintlify/architecture/server">
+    Server WebSocket handling
+  </Card>
+</CardGroup>

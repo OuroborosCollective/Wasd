@@ -28,15 +28,23 @@ function normalizeDelta(delta: XPDelta): XPDelta | null {
   if (!isValidId(delta.skillId)) return null;
   if (!Number.isFinite(delta.amount) || delta.amount <= 0) return null;
 
-  return Object.freeze({
+  const normalized: XPDelta = {
     kind: "xp_delta",
     source: delta.source,
     tick: Number.isFinite(delta.tick) ? Math.max(0, Math.floor(delta.tick)) : 0,
     playerId: delta.playerId,
     skillId: delta.skillId,
     amount: Math.max(1, Math.floor(delta.amount)),
-    sourceId: delta.sourceId,
-  });
+  };
+
+  if (isValidId(delta.sourceId)) {
+    return Object.freeze({
+      ...normalized,
+      sourceId: delta.sourceId,
+    });
+  }
+
+  return Object.freeze(normalized);
 }
 
 function compareXPDelta(a: XPDelta, b: XPDelta): number {

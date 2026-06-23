@@ -1,0 +1,43 @@
+{
+  "name": "Areloria WASD",
+  "homepage": "https://arelorian.de",
+  "theme": "mint",
+  "logo": {
+    "light": "/assets/logo-light.svg",
+    "dark": "/assets/logo-dark.svg",
+    "href": "/"
+  },
+  "colors": {
+    "primary": "#00d4aa",
+    "light": "#07C983",
+    "dark": "#15803D"
+  },
+  "navigation": {
+    "pages": [
+      "mintlify/index",
+      "mintlify/quickstart",
+      "mintlify/development/setup",
+      "mintlify/architecture/overview",
+      "mintlify/architecture/truth-path",
+      "mintlify/architecture/server",
+      "mintlify/architecture/client",
+      "mintlify/architecture/determinism",
+      "mintlify/gameplay/overview",
+      "mintlify/gameplay/npc-systems",
+      "mintlify/gameplay/quest-system",
+      "mintlify/gameplay/combat",
+      "mintlify/gameplay/economy",
+      "mintlify/deployment/vps",
+      "mintlify/deployment/docker",
+      "mintlify/deployment/configuration",
+      "mintlify/api/overview",
+      "mintlify/api/websocket",
+      "mintlify/api/rest",
+      "mintlify/components/showcase"
+    ]
+  },
+  "footerSocials": {
+    "github": "https://github.com/OuroborosCollective/Wasd",
+    "twitter": "https://x.com/ARElorianMMORPG"
+  }
+}
