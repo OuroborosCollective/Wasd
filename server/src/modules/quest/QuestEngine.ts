@@ -333,6 +333,9 @@ export class QuestEngine {
       const needId = q.requiredItemId;
       const needCount = Math.max(1, Number(q.requiredCount ?? 1));
       if (!needId) continue;
+      // ⚡ Bolt Optimization: Use countItemInInventory which is O(N) but called only when needed.
+      // Since turn-in modifies the inventory, we don't cache counts here between multiple turn-ins
+      // to ensure correctness if multiple quests use the same item.
       if (this.countItemInInventory(player, needId) < needCount) continue;
 
       let removed = 0;
@@ -340,14 +343,14 @@ export class QuestEngine {
       for (let i = 0; i < inv.length && removed < needCount; i++) {
         const it = inv[i];
         if (!it || it.id !== needId) continue;
-        const q = Math.max(1, Math.floor(Number(it.quantity) || 1));
+        const qty = Math.max(1, Math.floor(Number(it.quantity) || 1));
         const need = needCount - removed;
-        if (q <= need) {
-          removed += q;
+        if (qty <= need) {
+          removed += qty;
           inv.splice(i, 1);
           i--;
         } else {
-          it.quantity = q - need;
+          it.quantity = qty - need;
           removed += need;
         }
       }
@@ -365,13 +368,31 @@ export class QuestEngine {
   /** Payload for client quest UI (minimal fields). */
   getQuestSyncForClient(player: any): any[] {
     if (!player.quests) return [];
+
+    // ⚡ Bolt Optimization: Pre-calculate inventory counts once per sync to avoid O(Q*N) scans.
+    // This is safe because getQuestSyncForClient is read-only.
+    let countMap: Map<string, number> | null = null;
+    const getCount = (itemId: string) => {
+      if (!countMap) {
+        countMap = new Map();
+        const inv = player.inventory || [];
+        for (const it of inv) {
+          if (it && it.id) {
+            const q = Math.max(1, Math.floor(Number(it.quantity) || 1));
+            countMap.set(it.id, (countMap.get(it.id) || 0) + q);
+          }
+        }
+      }
+      return countMap.get(itemId) || 0;
+    };
+
     return player.quests.map((q: any) => {
       const obj = q.objectiveType || q.objective;
       let progress: number | undefined;
       let progressMax: number | undefined;
       if (obj === "collect" && q.requiredItemId) {
         progressMax = Math.max(1, Number(q.requiredCount ?? 1));
-        progress = Math.min(progressMax, this.countItemInInventory(player, q.requiredItemId));
+        progress = Math.min(progressMax, getCount(q.requiredItemId));
       }
       return {
         id: q.id,
