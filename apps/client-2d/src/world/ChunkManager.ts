@@ -55,14 +55,16 @@ interface ChunkManagerConfig {
   chunkTiles: number;
   viewRadius: number;  // 1 = 3x3 grid, 2 = 5x5, etc.
   throttleMs: number;  // Visibility update throttling
-  worldTick: number;   // Current world tick (from server manifest, NOT Date.now())
+  worldTick: number;   // Current world tick from server manifest
   lod?: LodLevel;      // Level of Detail (default: "medium" for mobile)
 }
 
+const DEFAULT_WORLD_SEED = "areloria:earth_1_1";
+
 /** Default configuration */
 const DEFAULT_CONFIG: ChunkManagerConfig = {
-  worldSeed: "areloria:earth_1_1",
-  biomeId: "forest_village",
+  worldSeed: DEFAULT_WORLD_SEED,
+  biomeId: deriveChunkBiome(0, 0, DEFAULT_WORLD_SEED),
   chunkTiles: 16,
   viewRadius: 1,  // 3x3 grid
   throttleMs: 500,  // Prevent CPU spikes
@@ -295,6 +297,8 @@ export class ChunkManager {
     // Each chunk occupies chunkTiles x chunkTiles tiles
     const chunkPixelX = chunkX * this.config.chunkTiles * TILE_W;
     const chunkPixelZ = chunkZ * this.config.chunkTiles * TILE_H;
+    void chunkPixelX;
+    void chunkPixelZ;
     
     // For isometric, we calculate the screen position of chunk origin
     const originScreen = iso3({
@@ -339,6 +343,7 @@ export class ChunkManager {
       
       // Get pre-built road context (deterministic, pre-computed)
       const roadContext = bindingContexts.roadContexts.get(roadKey);
+      void roadContext;
       
       // Use context-aware binding for biome-adaptive roads
       const tileGraphic = this.createRoadTile();
@@ -559,6 +564,7 @@ export class ChunkManager {
    */
   destroy(): void {
     for (const [key, entry] of this.activeChunks) {
+      void key;
       this.ctx?.worldContainer.removeChild(entry.container);
       entry.container.destroy({ children: true });
     }
