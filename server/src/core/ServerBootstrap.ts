@@ -39,7 +39,7 @@ import { resolveWorldAssetsDir } from "./resolveWorldAssetsDir.js";
 import { resolveMirroredWorldAssetsDir } from "./resolveMirroredWorldAssetsDir.js";
 import { registerSelfHealingDashboard } from "../selfhealing/SelfHealingDashboard.js";
 import { createSelfHealWorkshopRouter } from "../routes/selfHealWorkshopRoute.js";
-import { createLootRoutes } from "../routes/lootRoutes.js";
+import { createLootRouter } from "../routes/lootRoutes.js";
 import { default as craftingRouter } from "../routes/craftingRoute.js";
 import { default as equipmentRouter } from "../routes/equipmentRoute.js";
 import { default as onboardingRouter } from "../routes/onboardingRoute.js";
@@ -245,7 +245,7 @@ export class ServerBootstrap {
     app.get("/api/playtester/debug-log", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.json({ ok: Boolean(tick.getPlaytesterDebugLogPath()), enabled: PlaytesterConfig.enabled, streamEnabled: PlaytesterConfig.streamEnabled, monitorMode: PlaytesterConfig.monitorMode, monitorPath: PlaytesterConfig.monitorPath, monitorSignalPath: PlaytesterConfig.monitorSignalPath, monitorPublisherPath: PlaytesterConfig.monitorPublisherPath, monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0, stream: { width: PlaytesterConfig.streamWidth, height: PlaytesterConfig.streamHeight, fps: PlaytesterConfig.streamFps, quality: PlaytesterConfig.streamQuality, shadows: PlaytesterConfig.streamShadows, particles: PlaytesterConfig.streamParticles, renderDistance: PlaytesterConfig.streamRenderDistance, iceServers: PlaytesterConfig.streamIceServers }, debugLogPath: tick.getPlaytesterDebugLogPath() }); });
     app.use("/api/admin/content", adminRateLimiter, adminAuthMiddleware, adminContentRouter(tick));
     // ARE Infinite Loot Machine Admin Routes
-    createLootRoutes(app);
+    app.use("/api/admin/loot", express.json(), adminRateLimiter, adminAuthMiddleware, createLootRouter());
     app.use("/api/vote", voteRouter(tick));
     const clientRoot = resolveClientRoot();
     const clientPath = path.join(clientRoot, "dist");

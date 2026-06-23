@@ -8,14 +8,13 @@
  */
 
 import { getLootDirector } from '../bootLootSystem.js';
-import express from 'express';
+import express, { Router } from 'express';
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
-export function createLootRoutes(app: any): void {
-  // Ensure JSON parsing is available for POST body
-  app.use(express.json());
+export function createLootRouter(): Router {
+  const router = express.Router();
 
-  app.get('/admin/loot/status', (_req: any, res: any) => {
+  router.get('/status', (_req: any, res: any) => {
     const lootDirector = getLootDirector();
 
     if (!lootDirector) {
@@ -33,7 +32,7 @@ export function createLootRoutes(app: any): void {
     });
   });
 
-  app.post('/admin/loot/generate', async (req: any, res: any) => {
+  router.post('/generate', async (req: any, res: any) => {
     const lootDirector = getLootDirector();
 
     if (!lootDirector) {
@@ -84,9 +83,10 @@ export function createLootRoutes(app: any): void {
     } catch (error: any) {
       res.status(500).json({
         ok: false,
-        error: error.message,
-        stack: error.stack
+        error: error.message
       });
     }
   });
+
+  return router;
 }
