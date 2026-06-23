@@ -1,0 +1,253 @@
+---
+title: Development Setup
+description: Set up your local development environment for Areloria
+---
+
+# Development Setup
+
+This guide helps you set up a complete local development environment for Areloria WASD.
+
+## Prerequisites
+
+Ensure you have the following installed:
+
+| Requirement | Version | Purpose |
+|-------------|---------|---------|
+| Node.js | 22.x+ | Server runtime |
+| pnpm | 9.x+ | Package manager |
+| Python | 3.x | Asset pipeline scripts |
+| Docker | Latest | Container testing |
+| Git | Any | Version control |
+
+## Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/OuroborosCollective/Areloria-WASD.git
+cd Areloria-WASD
+```
+
+### 2. Install Dependencies
+
+```bash
+pnpm install
+```
+
+### 3. Build Shared Package
+
+The `@wasd/shared` package is required for both server and client:
+
+```bash
+pnpm -C packages/shared build
+```
+
+If you encounter import errors:
+
+```bash
+rm packages/shared/*.tsbuildinfo
+pnpm -C packages/shared build
+```
+
+## Project Structure
+
+```
+Areloria-WASD/
+├── apps/                    # Application surfaces
+│   ├── client-2d/          # 2D PixiJS + React client
+│   ├── web/                # Web application
+│   └── portal-replit/      # Replit portal
+├── server/                  # Game server (Express + WebSocket)
+│   └── src/
+│       ├── core/           # WorldTick, systems
+│       ├── networking/     # WebSocket server
+│       ├── api/           # REST routes
+│       └── game-data/     # Content JSON
+├── packages/
+│   └── shared/            # Shared types & utilities
+├── docs/                   # Documentation
+├── scripts/               # Build & utility scripts
+└── .github/workflows/     # CI/CD
+```
+
+## Running Development
+
+### Full Monorepo Build
+
+```bash
+pnpm build
+```
+
+Builds clients first, then the server with embedded Vite middleware.
+
+### Development Server (Recommended)
+
+```bash
+npx tsx server/src/index.ts
+```
+
+Server runs on **port 3000** with Vite middleware for client assets.
+
+### Separate Client & Server
+
+**Terminal 1 - Server:**
+```bash
+pnpm --filter @wasd/server dev
+```
+
+**Terminal 2 - 2D Client:**
+```bash
+pnpm --filter @wasd/client-2d dev
+```
+
+## Environment Configuration
+
+### Create .env File
+
+```bash
+cp .env.example .env
+```
+
+### Key Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | Server port |
+| `NODE_ENV` | `development` | Environment |
+| `PERSISTENCE_DRIVER` | `file` | Persistence mode |
+| `AUTH_PROVIDER` | `none` | Auth provider |
+
+### Development Auth
+
+For development without authentication:
+
+```bash
+AUTH_PROVIDER=none
+ALLOW_GUEST_LOGIN=true
+ALLOW_DEV_LOGIN=true
+```
+
+## Testing
+
+### Unit & Integration Tests
+
+```bash
+pnpm test
+```
+
+### End-to-End Tests
+
+```bash
+# Install (first time)
+pnpm run test:e2e:install
+
+# Run
+pnpm run test:e2e
+```
+
+### CI Variant
+
+```bash
+pnpm run test:e2e:ci
+```
+
+## Linting
+
+```bash
+pnpm lint
+```
+
+Runs ESLint across server and client code.
+
+## Building
+
+### Build Commands
+
+| Command | Description |
+|---------|-------------|
+| `pnpm build` | Full monorepo build |
+| `pnpm build:2d` | 2D client only |
+| `pnpm build:server` | Server only |
+| `pnpm build:3d` | 3D client only |
+
+### Build Verification
+
+```bash
+pnpm run ci:verify
+```
+
+Runs lint, tests, and build without E2E.
+
+## Common Tasks
+
+### Adding a New System
+
+1. Create system file in `server/src/core/systems/`
+2. Register in `TickSystemRegistry`
+3. Add to `WorldTickScheduler`
+4. Write tests
+5. Update documentation
+
+### Adding New Content
+
+Content JSON files go in `server/src/game-data/`:
+
+```
+game-data/
+├── npcs/
+│   └── my-npc.json
+├── items/
+│   └── my-item.json
+└── quests/
+    └── my-quest.json
+```
+
+### Asset Pipeline
+
+Process Stitch-generated assets:
+
+```bash
+pnpm assets:stitch:intake
+pnpm assets:stitch:validate
+```
+
+## Troubleshooting
+
+### "Failed to resolve import @wasd/shared"
+
+```bash
+rm packages/shared/*.tsbuildinfo
+pnpm -C packages/shared build
+```
+
+### Port Already in Use
+
+```bash
+# Find and kill process on port 3000
+lsof -i :3000
+kill -9 <PID>
+```
+
+### Client Shows Blank Page
+
+```bash
+pnpm build:2d
+# Then restart server
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture Overview" icon="layers" href="/mintlify/architecture/overview">
+    Understand the system design
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/mintlify/quickstart">
+    Quick start guide
+  </Card>
+  <Card title="Deployment" icon="cloud" href="/mintlify/deployment/vps">
+    Deploy to production
+  </Card>
+  <Card title="Components" icon="layout" href="/mintlify/components/showcase">
+    Documentation components
+  </Card>
+</CardGroup>

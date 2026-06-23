@@ -1,0 +1,169 @@
+---
+title: Architecture Overview
+description: System architecture and design principles for Areloria WASD
+---
+
+# Architecture Overview
+
+Areloria WASD follows a **server-authoritative** architecture with deterministic simulation at its core. This document provides a high-level overview of the system design.
+
+## System Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Browser Clients                          │
+│  ┌──────────────────┐     ┌──────────────────────────────────┐ │
+│  │  2D Client (PixiJS│     │  3D Client (Babylon.js)         │ │
+│  │  + React)         │     │  Vite build                     │ │
+│  │  /2d route        │     │  / route                        │ │
+│  └────────┬───────────┘     └──────────┬───────────────────────┘ │
+└──────────┼─────────────────────────────┼────────────────────────┘
+           │                             │
+           │ WebSocket + HTTP             │
+           ▼                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Game Server (Node.js)                        │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │              Authoritative 10Hz Tick Loop                 │   │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────────────┐ │   │
+│  │  │ WorldTick  │  │ TickSystem │  │ WorldTickScheduler  │ │   │
+│  │  │  Scheduler │  │  Registry  │  │                     │ │   │
+│  │  └────────────┘  └────────────┘  └────────────────────┘ │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                   │
+│  ┌────────────┐  ┌────────────┐  ┌────────────────────────┐  │
+│  │  WebSocket │  │   REST     │  │  Game Systems           │  │
+│  │  Server    │  │   API      │  │  • Player System        │  │
+│  │            │  │            │  │  • NPC System           │  │
+│  │            │  │            │  │  • Quest System         │  │
+│  │            │  │            │  │  • Inventory System     │  │
+│  │            │  │            │  │  • Combat System        │  │
+│  └────────────┘  └────────────┘  └────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     External Services                            │
+│  ┌────────────┐  ┌────────────┐  ┌────────────────────────────┐│
+│  │ PostgreSQL │  │   Redis    │  │  Supabase Auth             ││
+│  │ (optional) │  │ (optional) │  │  (optional)                ││
+│  └────────────┘  └────────────┘  └────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Core Principles
+
+### 1. Server Authority
+
+All gameplay state follows this chain:
+
+```text
+client sends intent
+→ server validates
+→ server mutates
+→ server emits snapshot/event
+→ client renders
+```
+
+The client **never** authoritatively mutates:
+- Inventory or equipment
+- Character stats or XP
+- Quest state
+- Combat or loot
+- NPC memory or reputation
+- Economy state
+
+### 2. Determinism
+
+Gameplay state must be reproducible from explicit inputs. Simulation code **never** uses:
+
+```text
+Math.random()           ❌
+Date.now()              ❌
+new Date()               ❌
+performance.now()        ❌
+randomUUID()             ❌
+```
+
+Instead, use:
+```text
+TickId / logicalIndex    ✓
+KappaInt / branded types  ✓
+StateHash                ✓
+DeterministicPrng        ✓
+ARE clock/time adapters  ✓
+Stable seeds from world facts ✓
+```
+
+### 3. 10Hz Server Tick
+
+The authoritative server loop runs at **10Hz** (every 100ms). All systems must declare:
+
+- Cadence
+- Maximum work per tick
+- Chunk/region scope
+- Deterministic seed/time source
+- Failure behavior
+- Feature flag or registry entry
+
+## Monorepo Layout
+
+```
+Areloria-WASD/
+├── apps/                    # Application surfaces
+│   ├── client-2d/          # Active 2D browser client
+│   ├── web/                # Web application
+│   └── portal-replit/      # Replit deployment portal
+├── server/                  # Authoritative game server
+│   ├── src/
+│   │   ├── core/           # WorldTick, systems, registry
+│   │   ├── networking/     # WebSocket server
+│   │   ├── api/           # REST routes
+│   │   └── game-data/     # Content definitions
+│   └── services/          # Background services
+├── packages/               # Shared packages
+│   └── shared/            # Types, utilities
+├── docs/                  # Documentation (internal)
+├── scripts/               # Build, deploy, utility scripts
+└── .github/workflows/     # CI/CD pipelines
+```
+
+## Runtime Flow
+
+```
+Browser /2d Client
+  → Host Nginx
+  → 127.0.0.1:3001
+  → Docker Container
+  → Node.js Authoritative Server
+  → PostgreSQL / Redis (where enabled)
+```
+
+## Key Files
+
+| Path | Purpose |
+|------|---------|
+| `server/src/core/WorldTick.ts` | Main tick loop (legacy) |
+| `server/src/core/WorldTickScheduler.ts` | New scheduler architecture |
+| `server/src/core/TickSystemRegistry.ts` | System registration |
+| `server/src/networking/WebSocketServer.ts` | Client connections |
+| `server/src/core/manifest/` | Deterministic state manifests |
+| `apps/client-2d/src/App.tsx` | 2D client entry |
+| `apps/client-2d/src/manifest/` | Client divergence detection |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Server Architecture" icon="server" href="/mintlify/architecture/server">
+    Deep dive into the authoritative server
+  </Card>
+  <Card title="Client Architecture" icon="monitor" href="/mintlify/architecture/client">
+    2D and 3D rendering systems
+  </Card>
+  <Card title="Determinism" icon="hash" href="/mintlify/architecture/determinism">
+    Deterministic simulation rules
+  </Card>
+  <Card title="Deployment" icon="cloud" href="/mintlify/deployment/vps">
+    Deploy to production
+  </Card>
+</CardGroup>

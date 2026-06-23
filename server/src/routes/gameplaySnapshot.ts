@@ -20,6 +20,11 @@ import { getVisibleChunkCoords } from "../resources/ChunkResourceGenerator.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import { runLineageBirthForSnapshot, type LineageRuntimeStateProvider } from "../modules/npc/LineageBirthSnapshotBridge.js";
 import { getLineageRuntimeStateProvider } from "../modules/npc/LineageRuntimeStateProviderRegistry.js";
+import {
+  buildRuntimeNpcActivityContexts,
+  resolveRuntimeFactionStandings,
+  resolveRuntimeGuildSnapshot,
+} from "./gameplaySnapshotTruthProviders.js";
 
 export interface GameplaySnapshotRouterDeps {
   readonly lineageRuntimeStateProvider?: LineageRuntimeStateProvider;
@@ -115,7 +120,16 @@ export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = 
 
     const discoveryStats = worldDiscoveryService.getStats(identity.playerId);
     const discoveredPoiIds = worldDiscoveryService.getDiscoveredPoiIds(identity.playerId);
-    const npcActivity = generateNPCActivitySnapshot({ tick: serverTick, entities: [] });
+    const guildSnapshot = resolveRuntimeGuildSnapshot(identity.playerId);
+    const factionStandings = resolveRuntimeFactionStandings(identity.playerId);
+    const npcActivityEntities = buildRuntimeNpcActivityContexts({
+      playerId: identity.playerId,
+      tick: serverTick,
+      playerPosition,
+      worldPois,
+      discoveredPoiIds,
+    });
+    const npcActivity = generateNPCActivitySnapshot({ tick: serverTick, entities: [...npcActivityEntities] });
 
     const snapshot = createGameplaySnapshot({
       serverTick,
@@ -127,8 +141,8 @@ export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = 
       inventory,
       crafting: { recipes: craftingRecipes },
       equipment,
-      guild: null,
-      factions: [],
+      guild: guildSnapshot,
+      factions: [...factionStandings],
       map: { worldPois },
       npcActivity,
     });

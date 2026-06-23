@@ -1,0 +1,177 @@
+---
+title: Determinism
+description: Deterministic simulation principles and rules
+---
+
+# Determinism
+
+Areloria is built on the principle that **every gameplay outcome must be reproducible from explicit inputs**. This is the foundation of ARE (Areloria Reality Engine) logic.
+
+## Core Rule
+
+```text
+No snapshot without a tick.
+No tick without truth.
+No truth without a deterministic seed.
+```
+
+## Forbidden Patterns
+
+The following are **never** allowed in gameplay/simulation code:
+
+| Pattern | Reason | Use Instead |
+|---------|--------|-------------|
+| `Math.random()` | Non-deterministic | `DeterministicPrng` |
+| `Date.now()` | Wall-clock dependent | `TickId` / `logicalIndex` |
+| `new Date()` | Wall-clock dependent | ARE clock adapters |
+| `performance.now()` | Variable timing | Deterministic timestamps |
+| `randomUUID()` | Non-reproducible | Seeded hash functions |
+| Unordered iteration | Order-dependent state | Stable sorted traversal |
+
+## Good Seed Parts
+
+When creating deterministic seeds, combine these:
+
+```
+worldSeed | regionId | chunkId | tick | actorId | targetId | tableId | cycleId
+```
+
+Example:
+```typescript
+const seed = hash_combine([
+  worldSeed,
+  regionId,
+  chunkId,
+  tick.logicalIndex,
+  actor.id,
+  action.tableId,
+]);
+const rng = new DeterministicPrng(seed);
+```
+
+## ARE Deterministic Primitives
+
+### AREClock
+
+```typescript
+const clock = AREClock.fixed(worldSeed, startTick);
+const logicalTime = clock.getLogicalTime();
+const tickId = clock.getTickId();
+```
+
+### DeterministicPrng
+
+```typescript
+const rng = new DeterministicPrng(seed);
+// All random values are now deterministic
+const roll = rng.nextFloat(0, 100);
+const position = rng.nextInt(min, max);
+```
+
+### StateHash
+
+```typescript
+const hash = StateHash.compute(gameState, worldSeed);
+assert(hash === previousHash); // Verify consistency
+```
+
+## Type Safety
+
+Use branded types to prevent accidental mixing of values:
+
+```typescript
+type KappaInt = number & { readonly brand: unique symbol };
+type TickId = number & { readonly brand: unique symbol };
+
+function createKappa(value: number): KappaInt {
+  return value as KappaInt;
+}
+```
+
+## Manifest System
+
+The manifest system provides **server-authoritative state verification**:
+
+```
+server/src/core/manifest/
+├── ManifestFactory.ts       # Creates manifests
+├── ManifestHasher.ts        # Computes state hashes
+├── ManifestSigner.ts        # Signs manifests
+├── ManifestVerifier.ts      # Verifies manifests
+└── ManifestReplayGuard.ts   # Prevents replay attacks
+
+client/src/manifest/
+└── ClientManifestTracker.ts # Detects divergence
+```
+
+### Genesis State
+
+```
+GENESIS_STATE_HASH = '0'.repeat(64)
+GENESIS_PREVIOUS_HASH = 'GENESIS'
+```
+
+### Manifest Flow
+
+1. Server computes state hash at each tick
+2. Hash chain links to previous state
+3. Client tracks local manifest
+4. Divergence triggers resync
+
+## Observation Bounds
+
+Not everything is simulated at full cost everywhere:
+
+```text
+simulationRadiusChunks = 2  →  5×5 simulation envelope
+broadcastRadiusChunks  = 1  →  3×3 client broadcast envelope
+```
+
+Only **observed or relevant** regions receive expensive simulation.
+
+## Cadence Rules
+
+Every system must declare:
+
+```typescript
+interface SystemDeclaration {
+  name: string;
+  cadence: 'everyTick' | 'everyNTicks(n)' | 'onDemand';
+  chunkScope: 'all' | 'observed' | 'none';
+  maxWorkPerTick: number;      // ms budget
+  deterministicSeed: string;  // seed source
+  failureBehavior: 'skip' | 'retry' | 'halt';
+  featureFlag?: string;
+}
+```
+
+## Testing Determinism
+
+Run the deterministic validator:
+
+```bash
+pnpm run validate:determinism
+```
+
+This checks for:
+- Forbidden patterns in game code
+- Proper seed usage
+- Stable iteration order
+- Hash chain consistency
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture Overview" icon="layers" href="/mintlify/architecture/overview">
+    System design summary
+  </Card>
+  <Card title="Server Architecture" icon="server" href="/mintlify/architecture/server">
+    Authoritative game server
+  </Card>
+  <Card title="Gameplay Systems" icon="gamepad-2" href="/mintlify/gameplay/overview">
+    Core gameplay mechanics
+  </Card>
+  <Card title="Manifest System" icon="shield" href="/mintlify/api/overview">
+    State verification
+  </Card>
+</CardGroup>
