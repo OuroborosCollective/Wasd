@@ -28,7 +28,8 @@ function hasValidSovereignLaunchCredential(req: Request): boolean {
   const expected = (process.env.SOVEREIGN_LAUNCH_KEY || process.env.ADMIN_DEPLOY_TOKEN || "").trim();
   if (!expected) return false;
   const provided = headerValue(req.headers["x-sovereign-launch-key"]);
-  return provided.length > 0 && provided === expected;
+  // SECURITY: Use timing-safe comparison for administrative credentials
+  return provided.length > 0 && safeEqualText(provided, expected);
 }
 
 function hashBuffer(value: string): Buffer {
@@ -69,9 +70,13 @@ export const adminAuthMiddleware: RequestHandler = (req: Request, res: Response,
   const authHeader = req.headers.authorization;
   const bearer = authHeader && authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
   const headerToken = headerValue(req.headers["x-admin-token"]);
-  const hasPanelCandidate = acceptedPanelTokens.includes(bearer) || acceptedPanelTokens.includes(headerToken);
+  // SECURITY: Use timing-safe comparison for panel tokens
+  const hasPanelCandidate = acceptedPanelTokens.length > 0 && (
+    acceptedPanelTokens.some(t => safeEqualText(bearer, t)) ||
+    acceptedPanelTokens.some(t => safeEqualText(headerToken, t))
+  );
 
-  if (hasPanelCandidate && acceptedPanelTokens.length > 0) {
+  if (hasPanelCandidate) {
     adminReq.adminAuth = { mode: "token" };
     next();
     return;
