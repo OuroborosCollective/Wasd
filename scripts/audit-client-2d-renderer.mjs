@@ -19,6 +19,9 @@ const required = [
       ['streams chunks around player', 'streamChunks'],
       ['updates actor motion', 'actors.current.forEach'],
       ['registers mobile movement bridge', '__wasd2dMove'],
+      ['bridges stitch HUD', 'ArelorianStitchHud'],
+      ['publishes player debug position', 'debugPlayerPos'],
+      ['publishes visible chunk count', 'debugVisibleChunks'],
     ],
   },
   {
