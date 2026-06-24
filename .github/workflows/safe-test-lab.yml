@@ -23,9 +23,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -34,9 +38,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: |
-          # For pnpm v11, use --no-frozen-lockfile to avoid ERR_PNPM_IGNORED_BUILDS
-          pnpm install --no-frozen-lockfile --ignore-scripts
+        run: pnpm install --ignore-scripts
 
       - name: Run monorepo guard
         run: pnpm guard:monorepo:frozen
