@@ -3,13 +3,14 @@ title: Changelog
 description: Product updates shipped to Areloria WASD
 ---
 
-<Update label="June 24, 2026" description="2D world renderer fix">
+<Update label="June 24, 2026" description="2D world renderer fixes">
 
-This week's release upgrades the 2D client renderer so the world streams in cleanly and NPCs visibly move around it.
+This week's release upgrades the 2D client renderer so the world streams in cleanly and NPCs visibly move around it, with follow-up hardening for visual consistency.
 
 ## Fixes
 
 - **2D world renderer now streams chunks and animates NPCs.** The 2D client switches to the newer renderer path, which streams world chunks as you move and shows NPC motion in real time instead of stalling on a static scene. The scene renderer also handles texture atlas edge cases safely, removing a class of missing-tile glitches. See [Client architecture](/mintlify/architecture/client).
+- **Deterministic visual asset ordering.** The 2D client now picks visual assets in a stable order and filters out known letter, number, sheet, and font artifacts before they can bind to world objects. Two players in the same scene see the same sprites, and a class of stray glyph-on-tile glitches is gone. See [Determinism](/mintlify/architecture/determinism).
 
 </Update>
 
