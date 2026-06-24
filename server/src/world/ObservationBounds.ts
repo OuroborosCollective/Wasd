@@ -19,6 +19,10 @@ export interface ObservationBounds {
   readonly lodTier: RegionLodTier;
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
 export function normalizeChunkKey(chunkKey: unknown): string {
   return String(chunkKey ?? '').trim();
 }
@@ -58,7 +62,9 @@ export function classifyObservation(distanceChunks: number): RegionLodTier {
 
 export function createObservationBounds(input: ObservationBoundsInput): ObservationBounds {
   const chunkKeys = normalizeChunkKeys(input.chunkKeys ?? []);
-  const explicitDistance = Number.isFinite(input.distanceChunks) ? Math.max(0, Math.trunc(input.distanceChunks ?? 0)) : null;
+  const explicitDistance = isFiniteNumber(input.distanceChunks)
+    ? Math.max(0, Math.trunc(input.distanceChunks))
+    : null;
 
   let minimumDistanceChunks = explicitDistance ?? Number.POSITIVE_INFINITY;
   const observer = input.observerChunkKey ? parseChunkKey(input.observerChunkKey) : null;
