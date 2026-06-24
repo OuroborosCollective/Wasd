@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CampQuestService } from "../quests/CampQuestService.js";
-import { CAMP_QUEST_CYCLE_TICKS, campQuestIdFor, resolveCampQuestRequirement } from "../quests/CampQuestDirector.js";
+import { CAMP_QUEST_CYCLE_TICKS, campQuestIdFor, resolveCampQuestRequirement, resolveCampQuestReward } from "../quests/CampQuestDirector.js";
 import { CHUNK_POI_CONSTANTS, deriveChunkBiome, generateChunkPois } from "../world/WorldPoiGenerator.js";
 import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
 import type { GatheringCampPoiType } from "../quests/CampQuestDirector.js";
@@ -19,6 +19,12 @@ function findAuthoritativeCamp(): { poi: WorldPoiSnapshot; poiType: GatheringCam
     }
   }
   throw new Error("No deterministic gathering camp found in test scan range");
+}
+
+function expectedGatheringSkill(poiType: GatheringCampPoiType): "woodcutting" | "mining" | "fishing" {
+  if (poiType === "logging_camp") return "woodcutting";
+  if (poiType === "mining_camp") return "mining";
+  return "fishing";
 }
 
 class FakeInventoryService {
@@ -49,6 +55,15 @@ class FakeWalletService {
   }
 }
 
+class FakeSkillProgressionService {
+  public events: Array<{ skillId: string; amount: number; source: string }> = [];
+
+  async applyEvent(input: { skillId: string; amount: number; source: string }) {
+    this.events.push({ skillId: input.skillId, amount: input.amount, source: input.source });
+    return { playerId: "player_001", schemaVersion: 1, skills: [] };
+  }
+}
+
 class FakeDiscoveryService {
   constructor(private readonly discoveredPoiIds: readonly string[]) {}
 
@@ -67,20 +82,23 @@ class FakeHistoryLog {
 }
 
 describe("CampQuestService", () => {
-  it("completes an authoritative discovered camp quest by consuming inventory and granting coins", async () => {
+  it("completes an authoritative discovered camp quest by consuming inventory and granting coins plus XP", async () => {
     const camp = findAuthoritativeCamp();
     const playerId = "player_001";
     const currentTick = 0;
     const questId = campQuestIdFor(camp.poi.id, currentTick);
     const requirement = resolveCampQuestRequirement({ playerId, poiId: camp.poi.id, poiType: camp.poiType, logicalIndex: currentTick });
+    const reward = resolveCampQuestReward({ playerId, poiId: camp.poi.id, poiType: camp.poiType, logicalIndex: currentTick });
     const inventory = new FakeInventoryService(true);
     const wallet = new FakeWalletService();
     const history = new FakeHistoryLog();
+    const skills = new FakeSkillProgressionService();
     const service = new CampQuestService(
       inventory as any,
       wallet as any,
       new FakeDiscoveryService([camp.poi.id]) as any,
       history as any,
+      skills as any,
     );
 
     const result = await service.completeCampQuest({
@@ -95,11 +113,17 @@ describe("CampQuestService", () => {
     expect(result.questId).toBe(questId);
     expect(result.itemId).toBe(requirement.itemId);
     expect(result.quantity).toBe(requirement.quantity);
-    expect(result.coinsGranted).toBeGreaterThan(0);
+    expect(result.coinsGranted).toBe(reward.coins);
     expect(inventory.removed).toBe(true);
     expect(wallet.coinsAdded).toBe(result.coinsGranted);
     expect(history.writes).toHaveLength(1);
     expect(service.getCompletedQuestIds(playerId)).toContain(questId);
+    expect(result.skillXpGranted).toContainEqual({ skillId: expectedGatheringSkill(camp.poiType), amount: reward.gatheringXp });
+    expect(skills.events).toContainEqual({ skillId: expectedGatheringSkill(camp.poiType), amount: reward.gatheringXp, source: "quest_reward" });
+    if (reward.craftingXp > 0) {
+      expect(result.skillXpGranted).toContainEqual({ skillId: "crafting", amount: reward.craftingXp });
+      expect(skills.events).toContainEqual({ skillId: "crafting", amount: reward.craftingXp, source: "quest_reward" });
+    }
   });
 
   it("rejects undiscovered camps before mutating inventory", async () => {
@@ -121,6 +145,7 @@ describe("CampQuestService", () => {
 
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("poi_not_discovered");
+    expect(result.skillXpGranted).toEqual([]);
     expect(inventory.removed).toBe(false);
   });
 
@@ -142,6 +167,7 @@ describe("CampQuestService", () => {
 
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("invalid_cycle");
+    expect(result.skillXpGranted).toEqual([]);
   });
 
   it("rejects completion when the player is too far from the camp", async () => {
@@ -162,16 +188,19 @@ describe("CampQuestService", () => {
 
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("camp_too_far");
+    expect(result.skillXpGranted).toEqual([]);
   });
 
   it("rejects missing delivery resources before wallet reward", async () => {
     const camp = findAuthoritativeCamp();
     const wallet = new FakeWalletService();
+    const skills = new FakeSkillProgressionService();
     const service = new CampQuestService(
       new FakeInventoryService(false) as any,
       wallet as any,
       new FakeDiscoveryService([camp.poi.id]) as any,
       new FakeHistoryLog() as any,
+      skills as any,
     );
 
     const result = await service.completeCampQuest({
@@ -183,6 +212,8 @@ describe("CampQuestService", () => {
 
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("insufficient_items");
+    expect(result.skillXpGranted).toEqual([]);
     expect(wallet.coinsAdded).toBe(0);
+    expect(skills.events).toHaveLength(0);
   });
 });
