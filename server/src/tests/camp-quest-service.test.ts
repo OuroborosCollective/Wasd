@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CampQuestService } from "../quests/CampQuestService.js";
 import { CAMP_QUEST_CYCLE_TICKS, campQuestIdFor, resolveCampQuestRequirement, resolveCampQuestReward } from "../quests/CampQuestDirector.js";
 import { CHUNK_POI_CONSTANTS, deriveChunkBiome, generateChunkPois } from "../world/WorldPoiGenerator.js";
@@ -51,7 +51,7 @@ class FakeWalletService {
 
   async addCoins(input: { amount: number }) {
     this.coinsAdded += input.amount;
-    return { playerId: "player_001", balances: { coin: this.coinsAdded } };
+    return { playerId: "player_001", schemaVersion: 1 as const, balances: { coin: this.coinsAdded } };
   }
 }
 
@@ -60,7 +60,16 @@ class FakeSkillProgressionService {
 
   async applyEvent(input: { skillId: string; amount: number; source: string }) {
     this.events.push({ skillId: input.skillId, amount: input.amount, source: input.source });
-    return { playerId: "player_001", schemaVersion: 1, skills: [] };
+    return { playerId: "player_001", schemaVersion: 1 as const, skills: [] };
+  }
+}
+
+class FailingSkillProgressionService {
+  public events: Array<{ skillId: string; amount: number; source: string }> = [];
+
+  async applyEvent(input: { skillId: string; amount: number; source: string }) {
+    this.events.push({ skillId: input.skillId, amount: input.amount, source: input.source });
+    throw new Error("skill persistence unavailable");
   }
 }
 
@@ -124,6 +133,7 @@ describe("CampQuestService", () => {
     expect(result.itemId).toBe(requirement.itemId);
     expect(result.quantity).toBe(requirement.quantity);
     expect(result.coinsGranted).toBe(reward.coins);
+    expect(result.skillRewardStatus).toBe("applied");
     expect(inventory.removed).toBe(true);
     expect(wallet.coinsAdded).toBe(result.coinsGranted);
     expect(history.writes).toHaveLength(1);
@@ -134,6 +144,43 @@ describe("CampQuestService", () => {
       expect(result.skillXpGranted).toContainEqual({ skillId: "crafting", amount: reward.craftingXp });
       expect(skills.events).toContainEqual({ skillId: "crafting", amount: reward.craftingXp, source: "quest_reward" });
     }
+  });
+
+  it("keeps completion stable and honest when skill XP persistence fails", async () => {
+    const camp = findAuthoritativeCamp();
+    const playerId = "player_001";
+    const currentTick = 0;
+    const questId = campQuestIdFor(camp.poi.id, currentTick);
+    const inventory = new FakeInventoryService(true);
+    const wallet = new FakeWalletService();
+    const history = new FakeHistoryLog();
+    const skills = new FailingSkillProgressionService();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const service = new CampQuestService(
+      inventory as any,
+      wallet as any,
+      new FakeDiscoveryService([camp.poi.id]) as any,
+      history as any,
+      { getSkillProgressionService: async () => skills as any },
+    );
+
+    const result = await service.completeCampQuest({
+      playerId,
+      questId,
+      playerPosition: camp.poi.position,
+      currentTick,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.reason).toBe("completed");
+    expect(result.skillRewardStatus).toBe("failed");
+    expect(result.skillXpGranted).toEqual([]);
+    expect(inventory.removed).toBe(true);
+    expect(wallet.coinsAdded).toBe(result.coinsGranted);
+    expect(history.writes).toHaveLength(1);
+    expect(service.getCompletedQuestIds(playerId)).toContain(questId);
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 
   it("rejects undiscovered camps before mutating inventory", async () => {
@@ -155,6 +202,7 @@ describe("CampQuestService", () => {
 
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("poi_not_discovered");
+    expect(result.skillRewardStatus).toBe("skipped");
     expect(result.skillXpGranted).toEqual([]);
     expect(inventory.removed).toBe(false);
   });
@@ -177,6 +225,7 @@ describe("CampQuestService", () => {
 
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("invalid_cycle");
+    expect(result.skillRewardStatus).toBe("skipped");
     expect(result.skillXpGranted).toEqual([]);
   });
 
@@ -198,6 +247,7 @@ describe("CampQuestService", () => {
 
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("camp_too_far");
+    expect(result.skillRewardStatus).toBe("skipped");
     expect(result.skillXpGranted).toEqual([]);
   });
 
@@ -222,6 +272,7 @@ describe("CampQuestService", () => {
 
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("insufficient_items");
+    expect(result.skillRewardStatus).toBe("skipped");
     expect(result.skillXpGranted).toEqual([]);
     expect(wallet.coinsAdded).toBe(0);
     expect(skills.events).toHaveLength(0);
