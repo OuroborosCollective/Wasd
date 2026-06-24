@@ -73,6 +73,25 @@ export interface CompleteQuestResponse {
   };
 }
 
+export type CampQuestSkillRewardStatus = "applied" | "skipped" | "failed";
+
+export interface CompleteCampQuestResponse {
+  ok: boolean;
+  questId: string;
+  poiId: string;
+  itemId: string;
+  quantity: number;
+  coinsGranted: number;
+  newCoinBalance: number;
+  skillXpGranted: Array<{
+    skillId: "woodcutting" | "mining" | "fishing" | "crafting" | "combat";
+    amount: number;
+  }>;
+  skillRewardStatus: CampQuestSkillRewardStatus;
+  historyHash?: string;
+  reason: string;
+}
+
 /**
  * Talk to an NPC - updates quest progress and returns dialogue.
  */
@@ -169,6 +188,44 @@ export async function completeQuest(
       ok: data.ok,
       result: data.result,
       reason: data.reason,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: "network_error",
+      details: { message: String(error) },
+    };
+  }
+}
+
+/**
+ * Complete a deterministic camp daily quest through the economy runtime route.
+ * Client sends only intent; server validates discovery, POI authority, inventory, tick cycle and player position.
+ */
+export async function completeCampQuest(
+  questId: string,
+  playerPosition: { x: number; y: number },
+  playerId: string,
+): Promise<ActionResult<CompleteCampQuestResponse>> {
+  try {
+    const response = await fetch("/api/economy/complete-camp-quest", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-player-id": playerId,
+      },
+      body: JSON.stringify({
+        questId,
+        playerPosition,
+      }),
+    });
+
+    const data = await response.json();
+    const result = data.result as CompleteCampQuestResponse | undefined;
+    return {
+      ok: Boolean(data.ok),
+      result,
+      reason: result?.reason ?? data.reason ?? data.error,
     };
   } catch (error) {
     return {
