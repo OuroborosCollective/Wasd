@@ -1,5 +1,5 @@
 import { LiveGameplaySnapshotComposer, buildVendorEconomySnapshot, createEmptyVendorEconomySnapshot } from "./LiveGameplaySnapshotComposer.js";
-import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery, LiveGameplayCampNpc, LiveGameplayCampStock, LiveGameplayQuestProgress, LiveGameplayNpcMemory, LiveGameplayNpcRumor } from "./LiveGameplaySnapshotTypes.js";
+import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery, LiveGameplayCampNpc, LiveGameplayCampStock, LiveGameplayQuestProgress, LiveGameplayNpcDialogue, LiveGameplayNpcMemory, LiveGameplayNpcRumor } from "./LiveGameplaySnapshotTypes.js";
 import { toLiveEquipmentSlots } from "./adapters/EquipmentSnapshotAdapter.js";
 import { toLiveInventoryItems } from "./adapters/InventorySnapshotAdapter.js";
 import { getWalletService, getVendorStockService } from "../economy/economyRuntime.js";
@@ -74,6 +74,17 @@ interface NpcQuestProgressSource {
   }[];
 }
 
+interface LiveCampQuestPoiInput {
+  readonly poiId: string;
+  readonly type: string;
+  readonly title: string;
+  readonly x: number;
+  readonly y: number;
+  readonly chunkX: number;
+  readonly chunkZ: number;
+  readonly discovered?: boolean;
+}
+
 export interface ComposeLiveGameplaySnapshotFromLegacyInput {
   readonly playerId: string;
   readonly logicalIndex: number;
@@ -81,16 +92,7 @@ export interface ComposeLiveGameplaySnapshotFromLegacyInput {
   readonly equipment: LegacyEquipmentSnapshot | null;
   readonly skills: readonly LegacySkillSnapshot[];
   readonly resourceNodes: readonly LegacyResourceNodeSnapshot[];
-  readonly worldPois?: readonly {
-    readonly poiId: string;
-    readonly type: string;
-    readonly title: string;
-    readonly x: number;
-    readonly y: number;
-    readonly chunkX: number;
-    readonly chunkZ: number;
-    readonly discovered?: boolean;
-  }[];
+  readonly worldPois?: readonly LiveCampQuestPoiInput[];
   readonly discoveryStats?: {
     readonly discoveredPoiCount: number;
     readonly discoveredChunkCount: number;
@@ -131,6 +133,66 @@ function toLiveNpcQuestProgress(quest: NpcQuestProgressSource): LiveGameplayQues
       reputation: definition.reward.reputation,
     },
   };
+}
+
+function campQuestNpcLine(poiType: string, title: string, availableQuestIds: readonly string[], completedQuestIds: readonly string[]): string {
+  if (availableQuestIds.length > 0) {
+    if (poiType === "logging_camp") return `${title} needs a verified wood delivery before the next hauling cycle.`;
+    if (poiType === "mining_camp") return `${title} needs an ore delivery logged before the next smelting batch.`;
+    if (poiType === "fishing_camp") return `${title} needs fresh fish counted before the trader leaves.`;
+    return `${title} has a camp delivery available.`;
+  }
+  if (completedQuestIds.length > 0) return `${title} has recorded your delivery for this camp cycle.`;
+  return `${title} is standing by for the next deterministic camp cycle.`;
+}
+
+function buildCampNpcDialogues(input: {
+  readonly playerId: string;
+  readonly logicalIndex: number;
+  readonly worldPois: readonly LiveCampQuestPoiInput[];
+  readonly completedQuestIds: readonly string[];
+}): readonly LiveGameplayNpcDialogue[] {
+  const discoveredPoiIds = new Set(worldDiscoveryService.getDiscoveredPoiIds(input.playerId));
+  const discoveredCamps = input.worldPois
+    .filter((poi) => discoveredPoiIds.has(poi.poiId) && isGatheringCampPoi(poi.type))
+    .sort((a, b) => a.poiId.localeCompare(b.poiId));
+
+  if (discoveredCamps.length <= 0) return Object.freeze([]);
+
+  const campQuests = generateCampQuestOffers({
+    playerId: input.playerId,
+    logicalIndex: input.logicalIndex,
+    worldPois: discoveredCamps,
+    discoveredPoiIds: [...discoveredPoiIds],
+    completedQuestIds: input.completedQuestIds,
+  });
+
+  const availableByNpcId = new Map<string, string[]>();
+  for (const quest of campQuests) {
+    const npcId = quest.npcId ?? "";
+    if (!npcId) continue;
+    const list = availableByNpcId.get(npcId) ?? [];
+    list.push(quest.questId);
+    availableByNpcId.set(npcId, list);
+  }
+
+  return Object.freeze(discoveredCamps.map((poi): LiveGameplayNpcDialogue => {
+    const npcId = `camp_npc:${poi.poiId}`;
+    const availableQuestIds = Object.freeze([...(availableByNpcId.get(npcId) ?? [])].sort());
+    const completedQuestIds = Object.freeze(input.completedQuestIds
+      .filter((questId) => questId.startsWith(`camp_daily:${poi.poiId}:`))
+      .sort());
+
+    return Object.freeze({
+      npcId,
+      displayName: `${poi.title} Quartermaster`,
+      dialogueState: availableQuestIds.length > 0 ? "quest_available" : "quest_completed",
+      line: campQuestNpcLine(poi.type, poi.title, availableQuestIds, completedQuestIds),
+      availableQuestIds,
+      activeQuestIds: Object.freeze([]),
+      completedQuestIds,
+    });
+  }).sort((a, b) => a.npcId.localeCompare(b.npcId)));
 }
 
 export async function composeLiveGameplaySnapshotFromLegacy(
@@ -254,9 +316,17 @@ export async function composeLiveGameplaySnapshotFromLegacy(
       const campCompletedQuestIds = await campQuestRuntime.getCompletedQuestIds(playerId);
       return [...dialogue.completedQuestIds, ...campCompletedQuestIds];
     },
-    getNpcDialogues: (playerId: string) => {
-      const npcIds = ["village_trader_001"];
-      return npcIds.map((npcId) => npcQuestService.getNpcDialogue(playerId, npcId));
+    getNpcDialogues: async (playerId: string) => {
+      const villageDialogue = npcQuestService.getNpcDialogue(playerId, "village_trader_001");
+      const campCompletedQuestIds = await campQuestRuntime.getCompletedQuestIds(playerId);
+      const completedQuestIds = [...villageDialogue.completedQuestIds, ...campCompletedQuestIds];
+      const campDialogues = buildCampNpcDialogues({
+        playerId,
+        logicalIndex: input.logicalIndex,
+        worldPois: input.worldPois ?? [],
+        completedQuestIds,
+      });
+      return [villageDialogue, ...campDialogues].sort((a, b) => a.npcId.localeCompare(b.npcId));
     },
     getNpcReputations: (playerId: string) => {
       return npcQuestService.getAllNpcReputations(playerId);
