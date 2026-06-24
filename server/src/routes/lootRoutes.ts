@@ -7,14 +7,16 @@
  * Uses TickSystemContextProvider instead of direct tickIndex.
  */
 
+import { Router, json, type Request, type Response } from 'express';
 import { getLootDirector } from '../bootLootSystem.js';
-import express, { Router } from 'express';
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
 export function createLootRouter(): Router {
-  const router = express.Router();
+  const router = Router();
 
-  router.get('/status', (_req: any, res: any) => {
+  router.use(json());
+
+  router.get('/status', (_req: Request, res: Response) => {
     const lootDirector = getLootDirector();
 
     if (!lootDirector) {
@@ -32,7 +34,7 @@ export function createLootRouter(): Router {
     });
   });
 
-  router.post('/generate', async (req: any, res: any) => {
+  router.post('/generate', async (req: Request, res: Response) => {
     const lootDirector = getLootDirector();
 
     if (!lootDirector) {
@@ -54,7 +56,7 @@ export function createLootRouter(): Router {
 
       const result = await machine.generate({
         playerId: ctx.playerId || 'admin_test',
-        tickIndex: tickIndex,
+        tickIndex,
         dropSourceId: ctx.dropSourceId || 'admin',
         lootIndex: ctx.lootIndex || 0,
         areaLevel: ctx.areaLevel || 10,
