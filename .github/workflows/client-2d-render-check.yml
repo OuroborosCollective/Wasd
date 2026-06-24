@@ -6,6 +6,7 @@ on:
     paths:
       - 'apps/client-2d/**'
       - 'packages/shared/**'
+      - 'scripts/audit-client-2d-renderer.mjs'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/client-2d-render-check.yml'
@@ -41,6 +42,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile --ignore-scripts
+
+      - name: Audit 2D renderer wiring
+        run: node scripts/audit-client-2d-renderer.mjs
 
       - name: Build shared package
         run: pnpm --filter @wasd/shared build
