@@ -47,6 +47,10 @@ function lower(value: unknown): string {
   return String(value ?? "").trim().toLowerCase();
 }
 
+function deterministicCompare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 function entryText(entry: AssetEntry): string {
   return [
     entry.id,
@@ -82,7 +86,25 @@ function validForBucket(id: string, entry: AssetEntry | null | undefined, bucket
   if (entry.deprecated || entry.corrupt) return false;
 
   const haystack = entryText({ ...entry, id });
-  const artifactTokens = ["alphabet", "letters", "glyph", "symbol", "font", "sheet", "preview", "label", "text", "ui"];
+  const artifactTokens = [
+    "alphabet",
+    "letters",
+    "glyph",
+    "symbol",
+    "font",
+    "sheet",
+    "preview",
+    "label",
+    "text",
+    "ui",
+    "sign_letter",
+    "sign_number",
+    "wall_letter",
+    "tile_number",
+    "tile_letter",
+    "ground_number",
+    "ground_letter",
+  ];
   if (artifactTokens.some((token) => haystack.includes(token))) return false;
   if (/\bnc_\d/.test(lower(id)) || /\bnc_[a-z]/.test(lower(id))) return false;
 
@@ -202,7 +224,7 @@ export class AssetBindingDirector {
 
   selectBestCandidate(seed: string, candidates: readonly ScoredAsset[], topN = 8): ScoredAsset | null {
     if (candidates.length === 0) return null;
-    const sorted = [...candidates].sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+    const sorted = [...candidates].sort((a, b) => b.score - a.score || deterministicCompare(a.id, b.id));
     const top = sorted.slice(0, Math.min(topN, sorted.length));
     const weighted: WeightedEntry<ScoredAsset>[] = top.map((item, index) => ({ item, weight: top.length - index }));
     return pickWeightedDeterministic(seed, weighted) ?? top[0] ?? null;
@@ -263,7 +285,7 @@ export class AssetBindingDirector {
         seed,
         semanticType,
         candidates: candidates.length,
-        scores: scored.sort((a, b) => b.score - a.score).slice(0, 10).map((item) => ({ id: item.id, score: item.score, reasons: item.matchReasons })),
+        scores: scored.sort((a, b) => b.score - a.score || deterministicCompare(a.id, b.id)).slice(0, 10).map((item) => ({ id: item.id, score: item.score, reasons: item.matchReasons })),
         fallbackUsed: false,
         finalScore: best.score,
       },
