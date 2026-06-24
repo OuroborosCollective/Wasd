@@ -89,12 +89,15 @@ describe("ItemGenerator", () => {
     expect(item.affixes).toEqual(affixes);
   });
 
-  it("includes a generatedAt timestamp", () => {
-    const before = Date.now();
+  it("includes a generatedAt timestamp (deterministic default)", () => {
     const item = generator.generate("ring", "uncommon");
-    const after = Date.now();
-    expect(item.generatedAt).toBeGreaterThanOrEqual(before);
-    expect(item.generatedAt).toBeLessThanOrEqual(after);
+    expect(item.generatedAt).toBe(0);
+  });
+
+  it("preserves provided generatedAt timestamp", () => {
+    const ts = 123456789;
+    const item = generator.generate("ring", "uncommon", [], ts);
+    expect(item.generatedAt).toBe(ts);
   });
 });
 
