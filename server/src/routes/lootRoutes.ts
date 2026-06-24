@@ -2,13 +2,13 @@
 
 /**
  * LOOT ROUTES - Phase 11: OuroborosTickSystem Integration
- * 
+ *
  * ARE Infinite Loot Machine routes with deterministic tick context.
  * Uses TickSystemContextProvider instead of direct tickIndex.
  */
 
+import express, { type Router } from 'express';
 import { getLootDirector } from '../bootLootSystem.js';
-import express, { Router } from 'express';
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
 export function createLootRouter(): Router {
@@ -54,7 +54,7 @@ export function createLootRouter(): Router {
 
       const result = await machine.generate({
         playerId: ctx.playerId || 'admin_test',
-        tickIndex: tickIndex,
+        tickIndex,
         dropSourceId: ctx.dropSourceId || 'admin',
         lootIndex: ctx.lootIndex || 0,
         areaLevel: ctx.areaLevel || 10,
