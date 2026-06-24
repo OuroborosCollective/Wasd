@@ -3,6 +3,7 @@ import { Application, Container, Graphics, Text } from "pixi.js";
 import { deriveChunkBiome, generateChunkScenePlan } from "@wasd/shared";
 import { iso3, TILE_W, TILE_H } from "./isometricProjection";
 import { BootSurface, type BootState } from "./ui/BootSurface";
+import { ArelorianStitchHud, type PlayerVitalsData } from "./ArelorianStitchHud";
 
 const CHUNK_TILES = 16;
 const KAPPA_PER_TILE = 1000;
@@ -11,6 +12,7 @@ const WORLD_SEED_KEY = "wasd:runtime:worldSeed";
 
 type Actor = { root: Container; x: number; z: number; player: boolean; phase: number };
 type Move = { dx: number; dz: number };
+type HudMessage = { from: string; txt: string };
 
 declare global {
   interface Window {
@@ -82,6 +84,21 @@ function bootState(phase: string): BootState {
   return "waiting";
 }
 
+function makeHudVitals(chunkCount: number, pos: { x: number; z: number }): PlayerVitalsData {
+  const travelLoad = Math.abs(pos.x) + Math.abs(pos.z);
+  return {
+    hp: 100,
+    maxHp: 100,
+    mana: 72,
+    maxMana: 100,
+    stamina: Math.max(64, 100 - (travelLoad % 28)),
+    maxStamina: 100,
+    xp: Math.min(100, chunkCount * 3),
+    maxXp: 100,
+    level: Math.max(1, 1 + Math.floor(chunkCount / 25)),
+  };
+}
+
 export function DeterministicWorldIsoApp() {
   const seed = useRef(worldSeed());
   const host = useRef<HTMLDivElement>(null);
@@ -97,6 +114,21 @@ export function DeterministicWorldIsoApp() {
   const [phase, setPhase] = useState("mounting");
   const [error, setError] = useState<string | null>(null);
   const [chunkCount, setChunkCount] = useState(0);
+  const [playerHudPos, setPlayerHudPos] = useState({ x: player.current.x, z: player.current.z });
+  const [chunkHudCoords, setChunkHudCoords] = useState({ chunkX: chunkCoord(player.current.x), chunkZ: chunkCoord(player.current.z) });
+  const [messages, setMessages] = useState<HudMessage[]>([
+    { from: "System", txt: "Future renderer online. Local deterministic world stream active." },
+  ]);
+
+  function syncHudPosition(): void {
+    const next = { x: player.current.x, z: player.current.z };
+    setPlayerHudPos(next);
+    setChunkHudCoords({ chunkX: chunkCoord(next.x), chunkZ: chunkCoord(next.z) });
+  }
+
+  function addHudMessage(from: string, txt: string): void {
+    setMessages((current) => [...current.slice(-7), { from, txt }]);
+  }
 
   function place(id: string, x: number, z: number, name: string, isPlayer: boolean): void {
     const pixi = app.current;
@@ -180,6 +212,7 @@ export function DeterministicWorldIsoApp() {
     player.current.z += input.dz;
     place("self", player.current.x, player.current.z, "Architect", true);
     streamChunks();
+    syncHudPosition();
   }
 
   function tick(pixi: Application, delta = 1): void {
@@ -246,6 +279,7 @@ export function DeterministicWorldIsoApp() {
         pixi.stage.addChild(worldRoot);
         place("self", player.current.x, player.current.z, "Architect", true);
         streamChunks();
+        syncHudPosition();
         pixi.ticker.add((ticker) => tick(pixi, ticker.deltaTime));
         setPhase("ready");
       } catch (err) {
@@ -261,17 +295,47 @@ export function DeterministicWorldIsoApp() {
     };
   }, []);
 
+  const ready = phase === "ready";
+  const hudVitals = makeHudVitals(chunkCount, playerHudPos);
+
   return (
     <BootSurface bootState={bootState(phase)} error={error}>
       <div className="az-shell" data-testid="deterministic-world-root" data-boot-state={bootState(phase)}>
         <div data-testid="world-boot-status" className={`world-boot-status world-boot-status--${phase}`}>
           <strong>Areloria World</strong>
-          <span>{phase === "ready" ? `World ready · ${chunkCount} chunks` : phase === "failed" ? "World boot failed" : "Starting Pixi renderer…"}</span>
+          <span>{ready ? `World ready · ${chunkCount} chunks` : phase === "failed" ? "World boot failed" : "Starting Pixi renderer…"}</span>
           {error && <code>{error}</code>}
         </div>
         <div className="az-world-glow" />
         <div ref={host} className="az-pixi" data-testid="pixi-host" />
       </div>
+
+      <ArelorianStitchHud
+        connected={ready}
+        assetStatus={`LOCAL PLAN · ${chunkCount} CHUNKS`}
+        weaponCount={0}
+        equippedWeaponId={null}
+        inventoryItems={[]}
+        playerName="Architect"
+        messages={messages}
+        onSkill={(skillId) => addHudMessage("Skill", `${skillId.toUpperCase()} queued in local renderer.`)}
+        onChat={(text) => addHudMessage("Architect", text)}
+        onInteract={() => addHudMessage("World", "Nearest local NPC interaction queued.")}
+        onStrike={() => addHudMessage("Combat", "Local strike preview pulse emitted.")}
+        onCycleWeapon={() => addHudMessage("Inventory", "No weapon pool bound to the future renderer yet.")}
+        onToggleAutoMove={() => addHudMessage("System", "Auto-move remains disabled in local deterministic preview.")}
+        vitals={hudVitals}
+        debugPlayerPos={playerHudPos}
+        debugChunkCoords={chunkHudCoords}
+        debugVisibleChunks={chunkCount}
+        debugHeartbeatReceived={ready}
+        debugInitialized={ready}
+        debugNetworkStatus={ready ? "connected" : phase === "failed" ? "disconnected" : "waiting"}
+        debugServerTick={null}
+        debugAckSeq={null}
+        debugIdentity="future-local-renderer"
+        debugCharacter="Architect"
+      />
     </BootSurface>
   );
 }
