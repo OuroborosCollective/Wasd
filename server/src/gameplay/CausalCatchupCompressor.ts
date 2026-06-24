@@ -6,14 +6,18 @@ import {
   type CausalCatchupSummary,
 } from './CausalCatchupTypes';
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
 function clampPerMille(value: unknown): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(1000, Math.trunc(Number(value))));
+  if (!isFiniteNumber(value)) return 0;
+  return Math.max(0, Math.min(1000, Math.trunc(value)));
 }
 
 function normalizeTick(value: unknown): number | null {
-  if (!Number.isSafeInteger(value) || Number(value) < 0) return null;
-  return Number(value);
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) return null;
+  return value;
 }
 
 function normalizeText(value: unknown): string {
