@@ -35,6 +35,8 @@ export type CampQuestCompleteReason =
   | "insufficient_items"
   | "inventory_remove_failed";
 
+export type CampQuestSkillRewardStatus = "applied" | "skipped" | "failed";
+
 export interface CampQuestSkillXpGrant {
   readonly skillId: SkillId;
   readonly amount: number;
@@ -60,6 +62,7 @@ export interface CompleteCampQuestResult {
   readonly coinsGranted: number;
   readonly newCoinBalance: number;
   readonly skillXpGranted: readonly CampQuestSkillXpGrant[];
+  readonly skillRewardStatus: CampQuestSkillRewardStatus;
   readonly historyHash?: string;
   readonly reason: CampQuestCompleteReason;
 }
@@ -72,6 +75,11 @@ interface ParsedCampQuestId {
 interface ParsedGeneratedCampPoi {
   readonly poi: WorldPoiSnapshot;
   readonly poiType: GatheringCampPoiType;
+}
+
+interface AppliedSkillRewards {
+  readonly grants: readonly CampQuestSkillXpGrant[];
+  readonly status: CampQuestSkillRewardStatus;
 }
 
 function safeTick(value: number): number {
@@ -139,16 +147,18 @@ function completionHash(input: {
   readonly quantity: number;
   readonly coins: number;
   readonly skillXp: string;
+  readonly skillRewardStatus: CampQuestSkillRewardStatus;
   readonly tick: number;
 }): string {
   return stableHash32([
-    "CAMP_QUEST_COMPLETE_V1",
+    "CAMP_QUEST_COMPLETE_V2",
     input.playerId,
     input.questId,
     input.itemId,
     input.quantity,
     input.coins,
     input.skillXp,
+    input.skillRewardStatus,
     input.tick,
   ].join("|")).toString(16);
 }
@@ -199,8 +209,9 @@ export class CampQuestService {
     if (!removeResult.ok) return this.failure(input.questId, parsedQuest.poiId, requirement.itemId, requirement.quantity, "inventory_remove_failed");
 
     const wallet = await this.walletService.addCoins({ playerId, amount: reward.coins });
-    const skillXpGranted = await this.applySkillRewards({
+    const skillRewards = await this.applySkillRewards({
       playerId,
+      questId: input.questId,
       poiType: camp.poiType,
       gatheringXp: reward.gatheringXp,
       craftingXp: reward.craftingXp,
@@ -208,7 +219,7 @@ export class CampQuestService {
     completed.add(input.questId);
     this.completedQuestIdsByPlayer.set(playerId, completed);
 
-    const skillXpHashSource = skillXpGranted.map((grant) => `${grant.skillId}:${grant.amount}`).join(",");
+    const skillXpHashSource = skillRewards.grants.map((grant) => `${grant.skillId}:${grant.amount}`).join(",");
     const sourceHash = completionHash({
       playerId,
       questId: input.questId,
@@ -216,6 +227,7 @@ export class CampQuestService {
       quantity: requirement.quantity,
       coins: reward.coins,
       skillXp: skillXpHashSource,
+      skillRewardStatus: skillRewards.status,
       tick,
     });
     const history = this.history.write({
@@ -228,7 +240,8 @@ export class CampQuestService {
         itemId: requirement.itemId,
         quantity: requirement.quantity,
         reward,
-        skillXpGranted,
+        skillXpGranted: skillRewards.grants,
+        skillRewardStatus: skillRewards.status,
         sourceHash,
       },
     });
@@ -241,7 +254,8 @@ export class CampQuestService {
       quantity: requirement.quantity,
       coinsGranted: reward.coins,
       newCoinBalance: wallet.balances.coin,
-      skillXpGranted,
+      skillXpGranted: skillRewards.grants,
+      skillRewardStatus: skillRewards.status,
       historyHash: history.entryHash,
       reason: "completed" as const,
     });
@@ -253,38 +267,48 @@ export class CampQuestService {
 
   private async applySkillRewards(input: {
     readonly playerId: string;
+    readonly questId: string;
     readonly poiType: GatheringCampPoiType;
     readonly gatheringXp: number;
     readonly craftingXp: number;
-  }): Promise<readonly CampQuestSkillXpGrant[]> {
+  }): Promise<AppliedSkillRewards> {
     const grants: CampQuestSkillXpGrant[] = [];
-    const skillService = await (this.deps.getSkillProgressionService ?? getSkillProgressionService)();
     const gatheringAmount = normalizeXpAmount(input.gatheringXp);
-    if (gatheringAmount > 0) {
-      const skillId = gatheringSkillForCamp(input.poiType);
-      await skillService.applyEvent({
-        type: "skill_xp_gain",
-        playerId: input.playerId,
-        skillId,
-        amount: gatheringAmount,
-        source: "quest_reward",
-      });
-      grants.push(Object.freeze({ skillId, amount: gatheringAmount }));
-    }
-
     const craftingAmount = normalizeXpAmount(input.craftingXp);
-    if (craftingAmount > 0) {
-      await skillService.applyEvent({
-        type: "skill_xp_gain",
-        playerId: input.playerId,
-        skillId: "crafting",
-        amount: craftingAmount,
-        source: "quest_reward",
-      });
-      grants.push(Object.freeze({ skillId: "crafting", amount: craftingAmount }));
+    if (gatheringAmount <= 0 && craftingAmount <= 0) {
+      return Object.freeze({ grants: Object.freeze([]), status: "skipped" as const });
     }
 
-    return Object.freeze(grants.sort((a, b) => a.skillId.localeCompare(b.skillId)));
+    try {
+      const skillService = await (this.deps.getSkillProgressionService ?? getSkillProgressionService)();
+      if (gatheringAmount > 0) {
+        const skillId = gatheringSkillForCamp(input.poiType);
+        await skillService.applyEvent({
+          type: "skill_xp_gain",
+          playerId: input.playerId,
+          skillId,
+          amount: gatheringAmount,
+          source: "quest_reward",
+        });
+        grants.push(Object.freeze({ skillId, amount: gatheringAmount }));
+      }
+
+      if (craftingAmount > 0) {
+        await skillService.applyEvent({
+          type: "skill_xp_gain",
+          playerId: input.playerId,
+          skillId: "crafting",
+          amount: craftingAmount,
+          source: "quest_reward",
+        });
+        grants.push(Object.freeze({ skillId: "crafting", amount: craftingAmount }));
+      }
+
+      return Object.freeze({ grants: Object.freeze(grants.sort((a, b) => a.skillId.localeCompare(b.skillId))), status: "applied" as const });
+    } catch (error) {
+      console.error("[CampQuestService] Skill reward application failed:", { playerId: input.playerId, questId: input.questId, error });
+      return Object.freeze({ grants: Object.freeze(grants.sort((a, b) => a.skillId.localeCompare(b.skillId))), status: "failed" as const });
+    }
   }
 
   private failure(
@@ -303,6 +327,7 @@ export class CampQuestService {
       coinsGranted: 0,
       newCoinBalance: 0,
       skillXpGranted: Object.freeze([]),
+      skillRewardStatus: "skipped",
       reason,
     });
   }
