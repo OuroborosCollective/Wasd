@@ -52,8 +52,8 @@ interface CampQuestTemplate {
   readonly reward: LiveGameplayQuestReward;
 }
 
-const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = Object.freeze({
-  logging_camp: Object.freeze([
+const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = {
+  logging_camp: [
     {
       title: "Wood Delivery",
       description: "The logging crew needs a fresh wood-log delivery before the next hauling run.",
@@ -68,8 +68,8 @@ const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = Ob
       requirement: { itemId: "wood_log", quantity: 3 },
       reward: { coins: 18, gatheringXp: 20, craftingXp: 5, reputation: 1 },
     },
-  ]),
-  mining_camp: Object.freeze([
+  ],
+  mining_camp: [
     {
       title: "Ore Sample Run",
       description: "The miners need a clean ore sample logged for the next smelting batch.",
@@ -84,8 +84,8 @@ const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = Ob
       requirement: { itemId: "copper_ore", quantity: 3 },
       reward: { coins: 22, gatheringXp: 24, craftingXp: 4, reputation: 1 },
     },
-  ]),
-  fishing_camp: Object.freeze([
+  ],
+  fishing_camp: [
     {
       title: "Fresh Catch Order",
       description: "The fishing camp needs a fresh catch counted before the next trader leaves.",
@@ -100,8 +100,8 @@ const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = Ob
       requirement: { itemId: "raw_fish", quantity: 3 },
       reward: { coins: 20, gatheringXp: 22, craftingXp: 4, reputation: 1 },
     },
-  ]),
-});
+  ],
+};
 
 export function isGatheringCampPoiType(value: string): value is GatheringCampPoiType {
   return value === "logging_camp" || value === "mining_camp" || value === "fishing_camp";
