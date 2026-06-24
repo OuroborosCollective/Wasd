@@ -1,5 +1,6 @@
 import type { AreloriaBootConfig } from "../boot/boot.config";
 import type {
+  CausalCatchupSummaryPayload,
   ChatMessagePayload,
   ChatSendPayload,
   CharacterListPayload,
@@ -29,6 +30,7 @@ import type {
 import {
   ARELORIA_PROTOCOL_VERSION,
   createClientEnvelope,
+  isCausalCatchupSummaryPayload,
   isChatMessagePayload,
   isCombatResultPayload,
   isInventorySnapshotPayload,
@@ -52,7 +54,6 @@ import {
 } from "./protocol";
 import { createRequestId } from "../game/serverContract";
 
-// Phase 7: Identity fields passed to network client
 export interface NetworkIdentityFields {
   stableGuestId?: string;
   sessionToken?: string;
@@ -70,7 +71,6 @@ export interface NetworkEvents {
   onCombatResult?: (payload: CombatResultPayload) => void;
   onServerHeartbeat?: (payload: { serverTimeMs: number; serverTick?: number; clientSentAtMs?: number }) => void;
   onStatusChange?: (status: NetworkStatus) => void;
-  // Phase 4 Events
   onInventorySnapshot?: (payload: InventorySnapshotPayload) => void;
   onEquipmentSnapshot?: (payload: EquipmentSnapshotPayload) => void;
   onQuestSnapshot?: (payload: QuestSnapshotPayload) => void;
@@ -78,14 +78,13 @@ export interface NetworkEvents {
   onNpcDialogue?: (payload: NpcDialoguePayload) => void;
   onChunkObserve?: (payload: ChunkObservePayload) => void;
   onSkillResult?: (payload: SkillResultPayload) => void;
-  // Phase 5 Events
   onServerError?: (payload: ServerErrorPayload) => void;
   onChunkSnapshot?: (payload: ChunkSnapshotPayload) => void;
-  // Phase 7 Events
   onCharacterList?: (payload: CharacterListPayload) => void;
   onCharacterSelectResult?: (payload: CharacterSelectResultPayload) => void;
   onCharacterCreateResult?: (payload: CharacterCreateResultPayload) => void;
   onOwnershipError?: (payload: OwnershipErrorPayload) => void;
+  onCausalCatchupSummary?: (payload: CausalCatchupSummaryPayload) => void;
 }
 
 export interface NetworkClient {
@@ -94,7 +93,6 @@ export interface NetworkClient {
   sendInputFrame(frame: InputFrame): void;
   sendSkillCast(payload: SkillCastPayload): void;
   sendChat(text: string): void;
-  // Phase 4 Send Methods
   sendLootPickupRequest(payload: { tickId: number; sequenceId: number; entityId: string }): void;
   sendNpcInteractRequest(payload: { tickId: number; sequenceId: number; npcId: string }): void;
   sendChunkObserve(payload: ChunkObservePayload): void;
@@ -102,7 +100,6 @@ export interface NetworkClient {
   sendQuestAccept(questId: string): void;
   sendInventoryAction(payload: { action: string; itemId?: string; slot?: number }): void;
   sendEquipmentAction(payload: { action: string; slot?: string; itemId?: string }): void;
-  // Phase 7 Send Methods
   sendIdentityResume(): void;
   sendCharacterListRequest(): void;
   sendCharacterSelect(characterId: string): void;
@@ -145,7 +142,6 @@ export function createNetworkClient(
 
     heartbeatTimer = setInterval(() => {
       const clientTimeMs = Date.now();
-
       const payload: ClientHeartbeatPayload = {
         clientTimeMs,
         lastServerTick
@@ -185,13 +181,11 @@ export function createNetworkClient(
 
     if (envelope.type === "world_snapshot" && isWorldSnapshot(envelope.payload)) {
       lastServerTick = envelope.payload.serverTick;
-
       events.onWorldSnapshot?.({
         ...envelope.payload,
         protocolVersion: envelope.payload.protocolVersion || ARELORIA_PROTOCOL_VERSION,
         receivedAtMs: performance.now()
       });
-
       return;
     }
 
@@ -210,21 +204,17 @@ export function createNetworkClient(
       return;
     }
 
-    if (
-      envelope.type === "server_heartbeat" &&
-      isServerHeartbeatPayload(envelope.payload)
-    ) {
+    if (envelope.type === "server_heartbeat" && isServerHeartbeatPayload(envelope.payload)) {
       events.onServerHeartbeat?.({
         ...envelope.payload,
         clientSentAtMs:
-          isRecord(envelope.payload) &&
-          typeof envelope.payload.clientSentAtMs === "number"
+          isRecord(envelope.payload) && typeof envelope.payload.clientSentAtMs === "number"
             ? envelope.payload.clientSentAtMs
             : undefined
       });
+      return;
     }
 
-    // Phase 4 Message Handlers
     if (envelope.type === "inventory_snapshot" && isInventorySnapshotPayload(envelope.payload)) {
       events.onInventorySnapshot?.(envelope.payload);
       return;
@@ -265,7 +255,6 @@ export function createNetworkClient(
       return;
     }
 
-    // Phase 7 Message Handlers
     if (envelope.type === "character_list" && isCharacterListPayload(envelope.payload)) {
       events.onCharacterList?.(envelope.payload);
       return;
@@ -284,6 +273,10 @@ export function createNetworkClient(
     if (envelope.type === "ownership_error" && isOwnershipErrorPayload(envelope.payload)) {
       events.onOwnershipError?.(envelope.payload);
       return;
+    }
+
+    if (envelope.type === "causal_catchup_summary" && isCausalCatchupSummaryPayload(envelope.payload)) {
+      events.onCausalCatchupSummary?.(envelope.payload);
     }
   }
 
@@ -388,7 +381,6 @@ export function createNetworkClient(
       }
     },
 
-    // Phase 4 Send Methods
     sendLootPickupRequest(payload: { tickId: number; sequenceId: number; entityId: string }) {
       send("loot_pickup_request", {
         requestId: createRequestId("loot"),
@@ -438,7 +430,6 @@ export function createNetworkClient(
       });
     },
 
-    // Phase 7 Send Methods
     sendIdentityResume() {
       send("identity_resume", {
         sessionToken: identity.sessionToken
