@@ -26,9 +26,13 @@ const FIELD_SOURCE_ORDER: Record<RegionPressureField, readonly SignalGroupName[]
   warPressurePerMille: ['governance', 'npc', 'resource', 'market'],
 } as const;
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
 function clampPerMille(value: unknown): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(REGION_PRESSURE_KAPPA, Math.trunc(Number(value))));
+  if (!isFiniteNumber(value)) return 0;
+  return Math.max(0, Math.min(REGION_PRESSURE_KAPPA, Math.trunc(value)));
 }
 
 function normalizeSource(source: unknown, fallback: string): string {
@@ -37,7 +41,7 @@ function normalizeSource(source: unknown, fallback: string): string {
 }
 
 function capDelta(value: number, previousValue: number | undefined): number {
-  if (!Number.isFinite(previousValue)) return value;
+  if (!isFiniteNumber(previousValue)) return value;
   const previous = clampPerMille(previousValue);
   const delta = value - previous;
   if (Math.abs(delta) <= REGION_PRESSURE_MAX_DELTA_PER_TICK) return value;
