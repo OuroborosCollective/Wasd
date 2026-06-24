@@ -25,3 +25,7 @@
 ## 2026-06-22 - [Optimizing Quest Sync via Single-Pass Counting]
 **Learning:** `QuestEngine.getQuestSyncForClient` was performing a full $O(N)$ inventory scan for every "collect" quest, leading to $O(Q \times N)$ complexity per player sync. Implementing a lazy-initialized count `Map` reduces this to $O(Q + N)$, resulting in a measurable ~40% speedup in synchronization overhead for active players.
 **Action:** Always pre-calculate counts or lookups in a single pass when performing multiple searches across the same collection (e.g. inventory, active quests).
+
+## 2026-06-25 - [Optimizing Recipe Matcher Performance]
+**Learning:** Using `JSON.stringify` and sorting arrays inside a `find` loop for recipe matching creates a massive bottleneck ((R \times I \log I)$ with high serialization overhead). Hoisting the input sort, adding a length fast-path, and caching sorted recipe inputs on the objects reduces the cost to a single sort plus (R \times I)$ comparisons.
+**Action:** Always avoid `JSON.stringify` for array/object equality checks in search loops. Use hidden properties (e.g., `_sortedInputs`) to cache pre-processed state on static data structures.
