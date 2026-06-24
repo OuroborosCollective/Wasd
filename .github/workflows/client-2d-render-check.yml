@@ -1,0 +1,49 @@
+name: Client 2D Render Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/client-2d/**'
+      - 'packages/shared/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/client-2d-render-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: client-2d-render-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-2d:
+    name: Build Client 2D
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+      CI: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
+
+      - name: Build shared package
+        run: pnpm --filter @wasd/shared build
+
+      - name: Build 2D client
+        run: pnpm build:2d
