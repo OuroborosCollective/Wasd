@@ -77,7 +77,17 @@ class FakeHistoryLog {
 
   write(input: unknown) {
     this.writes.push(input);
-    return { schemaVersion: 1 as const, sequence: this.writes.length - 1, tick: 0, source: "quest_delta" as const, actorId: "player_001", subjectId: "quest", chunkKey: "0:0", payloadHash: "payload", entryHash: "history_hash" };
+    return {
+      schemaVersion: 1 as const,
+      sequence: this.writes.length - 1,
+      tick: 0,
+      source: "quest_delta" as const,
+      actorId: "player_001",
+      subjectId: "quest",
+      chunkKey: "0:0",
+      payloadHash: "payload",
+      entryHash: "history_hash",
+    };
   }
 }
 
@@ -98,7 +108,7 @@ describe("CampQuestService", () => {
       wallet as any,
       new FakeDiscoveryService([camp.poi.id]) as any,
       history as any,
-      skills as any,
+      { getSkillProgressionService: async () => skills as any },
     );
 
     const result = await service.completeCampQuest({
@@ -200,7 +210,7 @@ describe("CampQuestService", () => {
       wallet as any,
       new FakeDiscoveryService([camp.poi.id]) as any,
       new FakeHistoryLog() as any,
-      skills as any,
+      { getSkillProgressionService: async () => skills as any },
     );
 
     const result = await service.completeCampQuest({
