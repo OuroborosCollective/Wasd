@@ -3,16 +3,16 @@
  */
 
 import { stableHash32 } from "../core/determinism/AREDeterminism.js";
-import type { InventoryService } from "../inventory/InventoryService.js";
 import type { WalletService } from "../economy/WalletService.js";
 import type { RuntimeHistoryLog } from "../history/RuntimeHistoryLog.js";
 import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
+import type { InventoryService } from "../inventory/InventoryService.js";
+import { getSkillProgressionService } from "../skills/skillRuntime.js";
+import type { SkillId } from "../skills/SkillTypes.js";
 import type { WorldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import { CHUNK_POI_CONSTANTS, deriveChunkBiome, generateChunkPois } from "../world/WorldPoiGenerator.js";
 import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
-import type { SkillProgressionService } from "../skills/SkillProgressionService.js";
-import type { SkillId } from "../skills/SkillTypes.js";
 import {
   getCampQuestCycle,
   isGatheringCampPoiType,
@@ -38,6 +38,10 @@ export type CampQuestCompleteReason =
 export interface CampQuestSkillXpGrant {
   readonly skillId: SkillId;
   readonly amount: number;
+}
+
+export interface CampQuestServiceDeps {
+  readonly getSkillProgressionService?: typeof getSkillProgressionService;
 }
 
 export interface CompleteCampQuestInput {
@@ -128,8 +132,25 @@ function normalizeXpAmount(value: number): number {
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
 }
 
-function completionHash(input: { playerId: string; questId: string; itemId: string; quantity: number; coins: number; skillXp: string; tick: number }): string {
-  return stableHash32(["CAMP_QUEST_COMPLETE_V1", input.playerId, input.questId, input.itemId, input.quantity, input.coins, input.skillXp, input.tick].join("|")).toString(16);
+function completionHash(input: {
+  readonly playerId: string;
+  readonly questId: string;
+  readonly itemId: string;
+  readonly quantity: number;
+  readonly coins: number;
+  readonly skillXp: string;
+  readonly tick: number;
+}): string {
+  return stableHash32([
+    "CAMP_QUEST_COMPLETE_V1",
+    input.playerId,
+    input.questId,
+    input.itemId,
+    input.quantity,
+    input.coins,
+    input.skillXp,
+    input.tick,
+  ].join("|")).toString(16);
 }
 
 export class CampQuestService {
@@ -140,7 +161,7 @@ export class CampQuestService {
     private readonly walletService: WalletService,
     private readonly discoveryService: WorldDiscoveryService = worldDiscoveryService,
     private readonly history: RuntimeHistoryLog = runtimeHistoryLog,
-    private readonly skillProgressionService?: SkillProgressionService,
+    private readonly deps: CampQuestServiceDeps = {},
   ) {}
 
   getCompletedQuestIds(playerId: string): readonly string[] {
@@ -178,18 +199,38 @@ export class CampQuestService {
     if (!removeResult.ok) return this.failure(input.questId, parsedQuest.poiId, requirement.itemId, requirement.quantity, "inventory_remove_failed");
 
     const wallet = await this.walletService.addCoins({ playerId, amount: reward.coins });
-    const skillXpGranted = await this.applySkillRewards({ playerId, poiType: camp.poiType, gatheringXp: reward.gatheringXp, craftingXp: reward.craftingXp });
+    const skillXpGranted = await this.applySkillRewards({
+      playerId,
+      poiType: camp.poiType,
+      gatheringXp: reward.gatheringXp,
+      craftingXp: reward.craftingXp,
+    });
     completed.add(input.questId);
     this.completedQuestIdsByPlayer.set(playerId, completed);
 
     const skillXpHashSource = skillXpGranted.map((grant) => `${grant.skillId}:${grant.amount}`).join(",");
-    const sourceHash = completionHash({ playerId, questId: input.questId, itemId: requirement.itemId, quantity: requirement.quantity, coins: reward.coins, skillXp: skillXpHashSource, tick });
+    const sourceHash = completionHash({
+      playerId,
+      questId: input.questId,
+      itemId: requirement.itemId,
+      quantity: requirement.quantity,
+      coins: reward.coins,
+      skillXp: skillXpHashSource,
+      tick,
+    });
     const history = this.history.write({
       tick,
       source: "quest_delta",
       actorId: playerId,
       subjectId: input.questId,
-      payload: { poiId: parsedQuest.poiId, itemId: requirement.itemId, quantity: requirement.quantity, reward, skillXpGranted, sourceHash },
+      payload: {
+        poiId: parsedQuest.poiId,
+        itemId: requirement.itemId,
+        quantity: requirement.quantity,
+        reward,
+        skillXpGranted,
+        sourceHash,
+      },
     });
 
     return Object.freeze({
@@ -216,13 +257,12 @@ export class CampQuestService {
     readonly gatheringXp: number;
     readonly craftingXp: number;
   }): Promise<readonly CampQuestSkillXpGrant[]> {
-    if (!this.skillProgressionService) return Object.freeze([]);
-
     const grants: CampQuestSkillXpGrant[] = [];
+    const skillService = await (this.deps.getSkillProgressionService ?? getSkillProgressionService)();
     const gatheringAmount = normalizeXpAmount(input.gatheringXp);
     if (gatheringAmount > 0) {
       const skillId = gatheringSkillForCamp(input.poiType);
-      await this.skillProgressionService.applyEvent({
+      await skillService.applyEvent({
         type: "skill_xp_gain",
         playerId: input.playerId,
         skillId,
@@ -234,7 +274,7 @@ export class CampQuestService {
 
     const craftingAmount = normalizeXpAmount(input.craftingXp);
     if (craftingAmount > 0) {
-      await this.skillProgressionService.applyEvent({
+      await skillService.applyEvent({
         type: "skill_xp_gain",
         playerId: input.playerId,
         skillId: "crafting",
@@ -247,7 +287,23 @@ export class CampQuestService {
     return Object.freeze(grants.sort((a, b) => a.skillId.localeCompare(b.skillId)));
   }
 
-  private failure(questId: string, poiId: string, itemId: string, quantity: number, reason: Exclude<CampQuestCompleteReason, "completed">): CompleteCampQuestResult {
-    return Object.freeze({ ok: false, questId, poiId, itemId, quantity, coinsGranted: 0, newCoinBalance: 0, skillXpGranted: Object.freeze([]), reason });
+  private failure(
+    questId: string,
+    poiId: string,
+    itemId: string,
+    quantity: number,
+    reason: Exclude<CampQuestCompleteReason, "completed">,
+  ): CompleteCampQuestResult {
+    return Object.freeze({
+      ok: false,
+      questId,
+      poiId,
+      itemId,
+      quantity,
+      coinsGranted: 0,
+      newCoinBalance: 0,
+      skillXpGranted: Object.freeze([]),
+      reason,
+    });
   }
 }
