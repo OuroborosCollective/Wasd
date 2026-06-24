@@ -3,6 +3,16 @@ title: Changelog
 description: Product updates shipped to Areloria WASD
 ---
 
+<Update label="June 24, 2026" description="2D world renderer fix">
+
+This week's release upgrades the 2D client renderer so the world streams in cleanly and NPCs visibly move around it.
+
+## Fixes
+
+- **2D world renderer now streams chunks and animates NPCs.** The 2D client switches to the newer renderer path, which streams world chunks as you move and shows NPC motion in real time instead of stalling on a static scene. The scene renderer also handles texture atlas edge cases safely, removing a class of missing-tile glitches. See [Client architecture](/mintlify/architecture/client).
+
+</Update>
+
 <Update label="June 23, 2026" description="Camp quests, runtime truth, and determinism hardening">
 
 This week's release closes out the camp daily quest loop, hardens the live gameplay snapshot against placeholder data, and tightens determinism across the engine.
