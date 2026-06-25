@@ -11,6 +11,22 @@ const WORLD_SEED_KEY = "wasd:runtime:worldSeed";
 
 type Actor = { root: Container; x: number; z: number; player: boolean; phase: number };
 type Move = { dx: number; dz: number };
+type FutureRendererPhase = "mounting" | "init" | "ready" | "failed";
+
+export interface FutureRendererRuntimeSnapshot {
+  phase: FutureRendererPhase;
+  bootState: BootState;
+  playerPos: { x: number; z: number };
+  chunkCoords: { chunkX: number; chunkZ: number };
+  visibleChunks: number;
+  initialized: boolean;
+  networkStatus: "connected" | "disconnected" | "waiting";
+  error: string | null;
+}
+
+export interface DeterministicWorldIsoAppFutureProps {
+  onRuntimeSnapshot?: (snapshot: FutureRendererRuntimeSnapshot) => void;
+}
 
 declare global {
   interface Window {
@@ -75,14 +91,18 @@ function makeActor(name: string, player: boolean): Container {
   return c;
 }
 
-function bootState(phase: string): BootState {
+function bootState(phase: FutureRendererPhase): BootState {
   if (phase === "ready") return "ready";
   if (phase === "failed") return "error";
   if (phase === "init") return "initializing";
   return "waiting";
 }
 
-export function DeterministicWorldIsoApp() {
+function chunkKey(cx: number, cz: number): string {
+  return `${cx}:${cz}`;
+}
+
+export function DeterministicWorldIsoApp({ onRuntimeSnapshot }: DeterministicWorldIsoAppFutureProps = {}) {
   const seed = useRef(worldSeed());
   const host = useRef<HTMLDivElement>(null);
   const app = useRef<Application | null>(null);
@@ -91,12 +111,61 @@ export function DeterministicWorldIsoApp() {
   const actorLayer = useRef<Container | null>(null);
   const actors = useRef<Map<string, Actor>>(new Map());
   const chunks = useRef<Set<string>>(new Set());
+  const activeVisibleChunks = useRef<Set<string>>(new Set());
   const keys = useRef<Set<string>>(new Set());
   const player = useRef({ x: 8, z: 9 });
   const lastMove = useRef(0);
-  const [phase, setPhase] = useState("mounting");
+  const phaseRef = useRef<FutureRendererPhase>("mounting");
+  const errorRef = useRef<string | null>(null);
+  const [phase, setPhase] = useState<FutureRendererPhase>("mounting");
   const [error, setError] = useState<string | null>(null);
-  const [chunkCount, setChunkCount] = useState(0);
+  const [visibleChunkCount, setVisibleChunkCount] = useState(0);
+
+  function makeActiveVisibleChunkKeys(): Set<string> {
+    const visible = new Set<string>();
+    const centerX = chunkCoord(player.current.x);
+    const centerZ = chunkCoord(player.current.z);
+    for (let dz = -VIEW_RADIUS; dz <= VIEW_RADIUS; dz += 1) {
+      for (let dx = -VIEW_RADIUS; dx <= VIEW_RADIUS; dx += 1) {
+        visible.add(chunkKey(centerX + dx, centerZ + dz));
+      }
+    }
+    return visible;
+  }
+
+  function makeRuntimeSnapshot(
+    nextPhase = phaseRef.current,
+    nextVisibleChunkCount = activeVisibleChunks.current.size,
+    nextError = errorRef.current,
+  ): FutureRendererRuntimeSnapshot {
+    const playerPos = { x: player.current.x, z: player.current.z };
+    return {
+      phase: nextPhase,
+      bootState: bootState(nextPhase),
+      playerPos,
+      chunkCoords: { chunkX: chunkCoord(playerPos.x), chunkZ: chunkCoord(playerPos.z) },
+      visibleChunks: nextVisibleChunkCount,
+      initialized: nextPhase === "ready",
+      networkStatus: nextPhase === "ready" ? "connected" : nextPhase === "failed" ? "disconnected" : "waiting",
+      error: nextError,
+    };
+  }
+
+  function emitRuntimeSnapshot(
+    nextPhase = phaseRef.current,
+    nextVisibleChunkCount = activeVisibleChunks.current.size,
+    nextError = errorRef.current,
+  ): void {
+    onRuntimeSnapshot?.(makeRuntimeSnapshot(nextPhase, nextVisibleChunkCount, nextError));
+  }
+
+  function setRendererPhase(nextPhase: FutureRendererPhase, nextError = errorRef.current): void {
+    phaseRef.current = nextPhase;
+    errorRef.current = nextError;
+    setPhase(nextPhase);
+    setError(nextError);
+    emitRuntimeSnapshot(nextPhase, activeVisibleChunks.current.size, nextError);
+  }
 
   function place(id: string, x: number, z: number, name: string, isPlayer: boolean): void {
     const pixi = app.current;
@@ -124,7 +193,7 @@ export function DeterministicWorldIsoApp() {
     const pixi = app.current;
     const layer = terrain.current;
     if (!pixi || !layer) return;
-    const key = `${cx}:${cz}`;
+    const key = chunkKey(cx, cz);
     if (chunks.current.has(key)) return;
     chunks.current.add(key);
     const biomeId = deriveChunkBiome(cx, cz, seed.current);
@@ -166,10 +235,14 @@ export function DeterministicWorldIsoApp() {
   }
 
   function streamChunks(): void {
-    const centerX = chunkCoord(player.current.x);
-    const centerZ = chunkCoord(player.current.z);
-    for (let dz = -VIEW_RADIUS; dz <= VIEW_RADIUS; dz += 1) for (let dx = -VIEW_RADIUS; dx <= VIEW_RADIUS; dx += 1) renderChunk(centerX + dx, centerZ + dz);
-    setChunkCount(chunks.current.size);
+    const visible = makeActiveVisibleChunkKeys();
+    for (const key of visible) {
+      const [cx, cz] = key.split(":").map(Number);
+      renderChunk(cx, cz);
+    }
+    activeVisibleChunks.current = visible;
+    setVisibleChunkCount(visible.size);
+    emitRuntimeSnapshot(phaseRef.current, visible.size);
   }
 
   function move(input: Move): void {
@@ -204,6 +277,10 @@ export function DeterministicWorldIsoApp() {
   }
 
   useEffect(() => {
+    emitRuntimeSnapshot();
+  }, [onRuntimeSnapshot]);
+
+  useEffect(() => {
     window.__wasd2dMove = move;
     return () => {
       if (window.__wasd2dMove === move) delete window.__wasd2dMove;
@@ -226,7 +303,7 @@ export function DeterministicWorldIsoApp() {
     let cancelled = false;
     async function boot() {
       try {
-        setPhase("init");
+        setRendererPhase("init");
         const pixi = new Application();
         app.current = pixi;
         await pixi.init({ backgroundAlpha: 0, resizeTo: host.current!, antialias: true, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 2) });
@@ -247,10 +324,10 @@ export function DeterministicWorldIsoApp() {
         place("self", player.current.x, player.current.z, "Architect", true);
         streamChunks();
         pixi.ticker.add((ticker) => tick(pixi, ticker.deltaTime));
-        setPhase("ready");
+        setRendererPhase("ready");
       } catch (err) {
-        setPhase("failed");
-        setError(err instanceof Error ? `${err.name}: ${err.message}` : String(err ?? "unknown world boot error"));
+        const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err ?? "unknown world boot error");
+        setRendererPhase("failed", message);
       }
     }
     void boot();
@@ -266,7 +343,7 @@ export function DeterministicWorldIsoApp() {
       <div className="az-shell" data-testid="deterministic-world-root" data-boot-state={bootState(phase)}>
         <div data-testid="world-boot-status" className={`world-boot-status world-boot-status--${phase}`}>
           <strong>Areloria World</strong>
-          <span>{phase === "ready" ? `World ready · ${chunkCount} chunks` : phase === "failed" ? "World boot failed" : "Starting Pixi renderer…"}</span>
+          <span>{phase === "ready" ? `World ready · ${visibleChunkCount} chunks visible` : phase === "failed" ? "World boot failed" : "Starting Pixi renderer…"}</span>
           {error && <code>{error}</code>}
         </div>
         <div className="az-world-glow" />
