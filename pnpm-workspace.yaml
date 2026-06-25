@@ -20,6 +20,9 @@ allowBuilds:
   "sharp": true
   "ssh2": true
 minimumReleaseAgeExclude:
+  - '@types/node'
+  - 'nanoid'
+  - 'uuid'
   - '@nodable/entities'
   - 'acorn'
   - '@opentelemetry/api-logs'
