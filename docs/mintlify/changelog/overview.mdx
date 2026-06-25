@@ -3,6 +3,16 @@ title: Changelog
 description: Product updates shipped to Areloria WASD
 ---
 
+<Update label="June 25, 2026" description="HUD bridge for the 2D client">
+
+This week's release wires the in-world HUD onto the 2D renderer so vitals, chunk position, and chat sit on top of the live world instead of in a separate preview.
+
+## New features
+
+- **HUD bridge for the 2D client.** The 2D renderer now mounts the Arelorian Stitch HUD on top of the live world, surfacing player vitals (HP, mana, stamina, XP, level), current chunk coordinates, visible chunk count, and a rolling chat log while you play. Skill, interact, strike, weapon cycle, and chat inputs route through the HUD into the world view. See [Client architecture](/mintlify/architecture/client).
+
+</Update>
+
 <Update label="June 24, 2026" description="2D world renderer fixes">
 
 This week's release upgrades the 2D client renderer so the world streams in cleanly and NPCs visibly move around it, with follow-up hardening for visual consistency.
