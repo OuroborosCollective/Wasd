@@ -7,7 +7,16 @@ const required = [
   {
     path: 'apps/client-2d/src/DeterministicWorldIsoApp.tsx',
     checks: [
-      ['exports future renderer', 'DeterministicWorldIsoAppFuture'],
+      ['routes through HUD bridge', 'DeterministicWorldIsoAppHudBridge'],
+    ],
+  },
+  {
+    path: 'apps/client-2d/src/DeterministicWorldIsoAppHudBridge.tsx',
+    checks: [
+      ['imports future renderer', 'DeterministicWorldIsoAppFuture'],
+      ['bridges stitch HUD', 'ArelorianStitchHud'],
+      ['publishes player debug position', 'debugPlayerPos'],
+      ['publishes visible chunk count', 'debugVisibleChunks'],
     ],
   },
   {

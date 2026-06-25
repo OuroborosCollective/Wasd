@@ -1,1 +1,1 @@
-export { DeterministicWorldIsoApp } from "./DeterministicWorldIsoAppFuture";
+export { DeterministicWorldIsoApp } from "./DeterministicWorldIsoAppHudBridge";
