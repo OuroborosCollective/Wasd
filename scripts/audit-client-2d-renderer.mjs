@@ -14,20 +14,36 @@ const required = [
     path: 'apps/client-2d/src/DeterministicWorldIsoAppHudBridge.tsx',
     checks: [
       ['imports future renderer', 'DeterministicWorldIsoAppFuture'],
+      ['consumes renderer runtime snapshot type', 'FutureRendererRuntimeSnapshot'],
+      ['passes runtime snapshot callback', 'onRuntimeSnapshot'],
       ['bridges stitch HUD', 'ArelorianStitchHud'],
-      ['publishes player debug position', 'debugPlayerPos'],
-      ['publishes visible chunk count', 'debugVisibleChunks'],
+      ['publishes player debug position from runtime', 'debugPlayerPos={runtime.playerPos}'],
+      ['publishes visible chunk count from runtime', 'debugVisibleChunks={runtime.visibleChunks}'],
+      ['does not hardcode connected true', 'connected={runtime.networkStatus === "connected"}'],
+    ],
+    forbidden: [
+      ['hardcoded visible chunk count', 'const visibleChunks = 25'],
+      ['hardcoded HUD connected state', 'connected={true}'],
     ],
   },
   {
     path: 'apps/client-2d/src/DeterministicWorldIsoAppFuture.tsx',
     checks: [
+      ['exports runtime snapshot contract', 'FutureRendererRuntimeSnapshot'],
+      ['accepts runtime snapshot callback', 'onRuntimeSnapshot'],
+      ['stores current renderer phase in ref', 'phaseRef'],
+      ['tracks active visible chunks separately', 'activeVisibleChunks'],
+      ['computes active visible chunk keys', 'makeActiveVisibleChunkKeys'],
+      ['emits current runtime snapshot', 'emitRuntimeSnapshot'],
       ['uses shared chunk planner', 'generateChunkScenePlan'],
       ['derives biome from chunk and seed', 'deriveChunkBiome'],
       ['keeps visible chunk radius', 'VIEW_RADIUS = 2'],
       ['streams chunks around player', 'streamChunks'],
       ['updates actor motion', 'actors.current.forEach'],
       ['registers mobile movement bridge', '__wasd2dMove'],
+    ],
+    forbidden: [
+      ['reports cumulative loaded chunks as visible', 'visibleChunks: chunks.current.size'],
     ],
   },
   {
@@ -52,6 +68,9 @@ for (const entry of required) {
   if (content.trim() === 'x') failures.push(`${entry.path}: placeholder content`);
   for (const [label, token] of entry.checks) {
     if (!content.includes(token)) failures.push(`${entry.path}: missing ${label} (${token})`);
+  }
+  for (const [label, token] of entry.forbidden ?? []) {
+    if (content.includes(token)) failures.push(`${entry.path}: forbidden ${label} (${token})`);
   }
 }
 
