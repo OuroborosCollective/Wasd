@@ -12,15 +12,16 @@ const WORLD_SEED_KEY = "wasd:runtime:worldSeed";
 type Actor = { root: Container; x: number; z: number; player: boolean; phase: number };
 type Move = { dx: number; dz: number };
 type FutureRendererPhase = "mounting" | "init" | "ready" | "failed";
+type FutureRendererStatus = "waiting" | "ready" | "failed";
 
 export interface FutureRendererRuntimeSnapshot {
   phase: FutureRendererPhase;
   bootState: BootState;
+  rendererStatus: FutureRendererStatus;
   playerPos: { x: number; z: number };
   chunkCoords: { chunkX: number; chunkZ: number };
   visibleChunks: number;
   initialized: boolean;
-  networkStatus: "connected" | "disconnected" | "waiting";
   error: string | null;
 }
 
@@ -98,6 +99,12 @@ function bootState(phase: FutureRendererPhase): BootState {
   return "waiting";
 }
 
+function rendererStatus(phase: FutureRendererPhase): FutureRendererStatus {
+  if (phase === "ready") return "ready";
+  if (phase === "failed") return "failed";
+  return "waiting";
+}
+
 function chunkKey(cx: number, cz: number): string {
   return `${cx}:${cz}`;
 }
@@ -142,11 +149,11 @@ export function DeterministicWorldIsoApp({ onRuntimeSnapshot }: DeterministicWor
     return {
       phase: nextPhase,
       bootState: bootState(nextPhase),
+      rendererStatus: rendererStatus(nextPhase),
       playerPos,
       chunkCoords: { chunkX: chunkCoord(playerPos.x), chunkZ: chunkCoord(playerPos.z) },
       visibleChunks: nextVisibleChunkCount,
       initialized: nextPhase === "ready",
-      networkStatus: nextPhase === "ready" ? "connected" : nextPhase === "failed" ? "disconnected" : "waiting",
       error: nextError,
     };
   }
