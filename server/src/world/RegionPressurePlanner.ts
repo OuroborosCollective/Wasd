@@ -9,6 +9,7 @@ import {
   type RegionPressureSignal,
   type RegionPressureSignalInput,
   type RegionPressureSignalMap,
+  type RegionPressureSnapshot,
   type RegionPressureState,
 } from './RegionPressureTypes';
 
@@ -61,7 +62,7 @@ function normalizeSignal(
   field: RegionPressureField,
   signal: RegionPressureSignalInput | null,
   sourceName: string,
-  previousPressure: Partial<RegionPressureState> | null | undefined,
+  previousPressure: RegionPressureSnapshot | null | undefined,
 ): RegionPressureSignal {
   if (!signal || signal.support !== 'supported') {
     return Object.freeze({
@@ -71,7 +72,7 @@ function normalizeSignal(
     });
   }
 
-  const previousSignal = previousPressure?.[field] as RegionPressureSignal | undefined;
+  const previousSignal = previousPressure?.[field];
   const cappedValue = capDelta(clampPerMille(signal.valuePerMille), previousSignal?.valuePerMille);
 
   return Object.freeze({
