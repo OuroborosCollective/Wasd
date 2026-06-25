@@ -19,17 +19,21 @@ const required = [
       ['bridges stitch HUD', 'ArelorianStitchHud'],
       ['publishes player debug position from runtime', 'debugPlayerPos={runtime.playerPos}'],
       ['publishes visible chunk count from runtime', 'debugVisibleChunks={runtime.visibleChunks}'],
-      ['does not hardcode connected true', 'connected={runtime.networkStatus === "connected"}'],
+      ['uses renderer initialized state for HUD online state', 'connected={runtime.initialized}'],
+      ['keeps network debug waiting without a network source', 'debugNetworkStatus="waiting"'],
     ],
     forbidden: [
       ['hardcoded visible chunk count', 'const visibleChunks = 25'],
       ['hardcoded HUD connected state', 'connected={true}'],
+      ['renderer status masquerading as network', 'connected={runtime.networkStatus === "connected"}'],
+      ['renderer status passed as network debug', 'debugNetworkStatus={runtime.networkStatus}'],
     ],
   },
   {
     path: 'apps/client-2d/src/DeterministicWorldIsoAppFuture.tsx',
     checks: [
       ['exports runtime snapshot contract', 'FutureRendererRuntimeSnapshot'],
+      ['exports renderer status in snapshot', 'rendererStatus'],
       ['accepts runtime snapshot callback', 'onRuntimeSnapshot'],
       ['stores current renderer phase in ref', 'phaseRef'],
       ['tracks active visible chunks separately', 'activeVisibleChunks'],
@@ -44,6 +48,7 @@ const required = [
     ],
     forbidden: [
       ['reports cumulative loaded chunks as visible', 'visibleChunks: chunks.current.size'],
+      ['reports renderer phase as network status', 'networkStatus:'],
     ],
   },
   {
