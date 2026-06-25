@@ -3,6 +3,16 @@ title: Changelog
 description: Product updates shipped to Areloria WASD
 ---
 
+<Update label="June 25, 2026" description="2D client HUD overlay">
+
+This release wires the Arelorian Stitch HUD on top of the 2D world renderer, so the live world ships with player vitals, chat, and skill controls out of the box.
+
+## New features
+
+- **HUD overlay on the 2D client.** The 2D client entry now renders the Arelorian Stitch HUD over the deterministic world renderer. You see player vitals (HP, mana, stamina, XP, level), a chat feed, skill and interact buttons, and debug readouts for player position, chunk coordinates, and network status without any extra setup. The world renderer remains the authoritative visual layer underneath. See [Client architecture](/mintlify/architecture/client).
+
+</Update>
+
 <Update label="June 24, 2026" description="2D world renderer fixes">
 
 This week's release upgrades the 2D client renderer so the world streams in cleanly and NPCs visibly move around it, with follow-up hardening for visual consistency.
