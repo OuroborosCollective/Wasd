@@ -11,6 +11,22 @@ const WORLD_SEED_KEY = "wasd:runtime:worldSeed";
 
 type Actor = { root: Container; x: number; z: number; player: boolean; phase: number };
 type Move = { dx: number; dz: number };
+type FutureRendererPhase = "mounting" | "init" | "ready" | "failed";
+
+export interface FutureRendererRuntimeSnapshot {
+  phase: FutureRendererPhase;
+  bootState: BootState;
+  playerPos: { x: number; z: number };
+  chunkCoords: { chunkX: number; chunkZ: number };
+  visibleChunks: number;
+  initialized: boolean;
+  networkStatus: "connected" | "disconnected" | "waiting";
+  error: string | null;
+}
+
+export interface DeterministicWorldIsoAppFutureProps {
+  onRuntimeSnapshot?: (snapshot: FutureRendererRuntimeSnapshot) => void;
+}
 
 declare global {
   interface Window {
@@ -75,14 +91,14 @@ function makeActor(name: string, player: boolean): Container {
   return c;
 }
 
-function bootState(phase: string): BootState {
+function bootState(phase: FutureRendererPhase): BootState {
   if (phase === "ready") return "ready";
   if (phase === "failed") return "error";
   if (phase === "init") return "initializing";
   return "waiting";
 }
 
-export function DeterministicWorldIsoApp() {
+export function DeterministicWorldIsoApp({ onRuntimeSnapshot }: DeterministicWorldIsoAppFutureProps = {}) {
   const seed = useRef(worldSeed());
   const host = useRef<HTMLDivElement>(null);
   const app = useRef<Application | null>(null);
@@ -94,9 +110,27 @@ export function DeterministicWorldIsoApp() {
   const keys = useRef<Set<string>>(new Set());
   const player = useRef({ x: 8, z: 9 });
   const lastMove = useRef(0);
-  const [phase, setPhase] = useState("mounting");
+  const [phase, setPhase] = useState<FutureRendererPhase>("mounting");
   const [error, setError] = useState<string | null>(null);
   const [chunkCount, setChunkCount] = useState(0);
+
+  function makeRuntimeSnapshot(nextPhase = phase, nextChunkCount = chunks.current.size, nextError = error): FutureRendererRuntimeSnapshot {
+    const playerPos = { x: player.current.x, z: player.current.z };
+    return {
+      phase: nextPhase,
+      bootState: bootState(nextPhase),
+      playerPos,
+      chunkCoords: { chunkX: chunkCoord(playerPos.x), chunkZ: chunkCoord(playerPos.z) },
+      visibleChunks: nextChunkCount,
+      initialized: nextPhase === "ready",
+      networkStatus: nextPhase === "ready" ? "connected" : nextPhase === "failed" ? "disconnected" : "waiting",
+      error: nextError,
+    };
+  }
+
+  function emitRuntimeSnapshot(nextPhase = phase, nextChunkCount = chunks.current.size, nextError = error): void {
+    onRuntimeSnapshot?.(makeRuntimeSnapshot(nextPhase, nextChunkCount, nextError));
+  }
 
   function place(id: string, x: number, z: number, name: string, isPlayer: boolean): void {
     const pixi = app.current;
@@ -169,7 +203,9 @@ export function DeterministicWorldIsoApp() {
     const centerX = chunkCoord(player.current.x);
     const centerZ = chunkCoord(player.current.z);
     for (let dz = -VIEW_RADIUS; dz <= VIEW_RADIUS; dz += 1) for (let dx = -VIEW_RADIUS; dx <= VIEW_RADIUS; dx += 1) renderChunk(centerX + dx, centerZ + dz);
-    setChunkCount(chunks.current.size);
+    const nextChunkCount = chunks.current.size;
+    setChunkCount(nextChunkCount);
+    emitRuntimeSnapshot(phase, nextChunkCount);
   }
 
   function move(input: Move): void {
@@ -204,6 +240,10 @@ export function DeterministicWorldIsoApp() {
   }
 
   useEffect(() => {
+    emitRuntimeSnapshot();
+  }, [phase, chunkCount, error]);
+
+  useEffect(() => {
     window.__wasd2dMove = move;
     return () => {
       if (window.__wasd2dMove === move) delete window.__wasd2dMove;
@@ -227,6 +267,7 @@ export function DeterministicWorldIsoApp() {
     async function boot() {
       try {
         setPhase("init");
+        emitRuntimeSnapshot("init");
         const pixi = new Application();
         app.current = pixi;
         await pixi.init({ backgroundAlpha: 0, resizeTo: host.current!, antialias: true, autoDensity: true, resolution: Math.min(devicePixelRatio || 1, 2) });
@@ -248,9 +289,12 @@ export function DeterministicWorldIsoApp() {
         streamChunks();
         pixi.ticker.add((ticker) => tick(pixi, ticker.deltaTime));
         setPhase("ready");
+        emitRuntimeSnapshot("ready", chunks.current.size);
       } catch (err) {
+        const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err ?? "unknown world boot error");
         setPhase("failed");
-        setError(err instanceof Error ? `${err.name}: ${err.message}` : String(err ?? "unknown world boot error"));
+        setError(message);
+        emitRuntimeSnapshot("failed", chunks.current.size, message);
       }
     }
     void boot();
