@@ -220,7 +220,7 @@ export const MOUNTED_ROUTES: RouteEntry[] = [
     gameplayAffecting: true,
     requiresTickContext: true,
     hasAuth: true,
-    notes: "ARE Infinite Loot Machine - admin protected"
+    notes: "ARE Infinite Loot Machine - admin protected by adminAuthMiddleware at mount point"
   },
 
   // ---- Side-Channel Routes (Non-Gameplay) ----

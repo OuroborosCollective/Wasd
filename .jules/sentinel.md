@@ -12,3 +12,8 @@
 **Vulnerability:** The `/science-mascot` endpoint was a public proxy for the Gemini AI API using a server-side secret, and `/resync` / `/snapshot` endpoints exposed full world state snapshots to unauthenticated users.
 **Learning:** AI proxy endpoints that allow client-controlled system prompts are high-risk for both resource abuse and prompt injection. State snapshots are sensitive data that should always be guarded by authentication.
 **Prevention:** Always apply `authMiddleware` to any endpoint that proxies external LLM APIs or returns comprehensive system/world state. Hardcode or strictly validate system prompts on the server.
+
+## 2025-06-10 - [High] Unprotected Loot Administration Backdoor
+**Vulnerability:** The ARE Infinite Loot Machine endpoints (`/admin/loot/*`) were mounted directly to the Express app without authentication or rate limiting, allowing unauthenticated users to trigger item generation and probe system status.
+**Learning:** Legacy route attachment patterns (passing `app` to a function) often bypass the centralized middleware stacks applied to `Router` mount points in `ServerBootstrap.ts`.
+**Prevention:** Standardize all administrative features as Express `Router` modules and mount them at `/api/admin/*` in `ServerBootstrap.ts` with mandatory `adminAuthMiddleware` and `adminRateLimiter`.
