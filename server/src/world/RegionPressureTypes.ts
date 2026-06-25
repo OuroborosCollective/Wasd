@@ -25,7 +25,7 @@ export type RegionPressureSupport = 'supported' | 'not_supported_yet';
 
 export interface RegionPressureSignalInput {
   readonly valuePerMille?: number | null;
-  readonly support?: RegionPressureSupport | string | null;
+  readonly support?: RegionPressureSupport | null;
   readonly source?: string | null;
 }
 
@@ -47,20 +47,23 @@ export interface RegionPressurePlannerInput {
   readonly marketSignals?: RegionPressureSignalMap | null;
   readonly npcSignals?: RegionPressureSignalMap | null;
   readonly governanceSignals?: RegionPressureSignalMap | null;
-  readonly previousPressure?: Partial<RegionPressureState> | null;
+  readonly previousPressure?: RegionPressureSnapshot | null;
 }
 
 export type RegionPressureValueMap = Record<RegionPressureField, RegionPressureSignal>;
 
-export type RegionPressureState = RegionPressureValueMap & {
+export interface RegionPressureSnapshot extends RegionPressureValueMap {
+  readonly aggregatePressurePerMille: number;
+}
+
+export interface RegionPressureState extends RegionPressureSnapshot {
   readonly tick: number;
   readonly regionId: string;
   readonly chunkKeys: readonly string[];
   readonly lodTier: RegionLodTier;
-  readonly aggregatePressurePerMille: number;
   readonly unsupportedFields: readonly RegionPressureField[];
   readonly stateHash: string;
-};
+}
 
 export function isRegionLodTier(value: unknown): value is RegionLodTier {
   return typeof value === 'string' && REGION_LOD_TIERS.includes(value as RegionLodTier);
