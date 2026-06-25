@@ -91,10 +91,19 @@ export function NpcInteractionMenu({
         onSelect(prevIndex);
       } else if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        onConfirm();
+        onConfirm(selectedIndex);
       } else if (e.key === "Escape" || e.key === "0") {
         e.preventDefault();
         onCancel();
+      } else {
+        const itemIndex = items.findIndex((item) => item.shortcut === e.key);
+        if (itemIndex !== -1 && !items[itemIndex].isDisabled) {
+          e.preventDefault();
+          onSelect(itemIndex);
+          // Auto-confirm when using numeric shortcut for better UX
+          // Use itemIndex directly to avoid stale selectedIndex state
+          onConfirm(itemIndex);
+        }
       }
     },
     [selectedIndex, items.length, onSelect, onConfirm, onCancel]
@@ -122,10 +131,16 @@ export function NpcInteractionMenu({
             key={item.action}
             className="relative group"
             disabled={isDisabled}
-            onClick={() => !isDisabled && onSelect(index)}
+            onClick={() => {
+              if (!isDisabled) {
+                onSelect(index);
+                onConfirm(index);
+              }
+            }}
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
             role="menuitem"
+            aria-keyshortcuts={item.shortcut}
             style={{
               // Animation: staggered entrance
               animation: `menu-item-enter 0.3s ease-out ${index * 0.05}s both`,
