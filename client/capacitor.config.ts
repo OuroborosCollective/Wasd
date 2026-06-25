@@ -1,4 +1,6 @@
-{
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
   "appId": "com.ouroboros.arelorian",
   "appName": "Arelorian Alpha",
   "webDir": "dist",
@@ -14,8 +16,8 @@
   "plugins": {
     "StatusBar": {
       "style": "dark",
-      "overlay":false,
-      "color":"#0f0f1a"
+      "overlay": false,
+      "color": "#0f0f1a"
     },
     "SplashScreen": {
       "launchShowDuration": 0,
@@ -23,4 +25,6 @@
       "backgroundColor": "#0f0f1a"
     }
   }
-}
+};
+
+export default config;
