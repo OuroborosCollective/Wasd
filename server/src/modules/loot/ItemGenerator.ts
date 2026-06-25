@@ -1,5 +1,5 @@
 export class ItemGenerator {
-  generate(baseId: string, rarity: string, affixes: string[] = [], generatedAt = Date.now()) {
+  generate(baseId: string, rarity: string, affixes: string[] = [], generatedAt = Date.now() /* ARE-DETERMINISM-ALLOW: audit metadata */) {
     return {
       id: baseId,
       rarity,
