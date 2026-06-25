@@ -38,7 +38,6 @@ import {
   isQuestSnapshotPayload,
   isLootPickupResultPayload,
   isNpcDialoguePayload,
-  isChunkObservePayload,
   isSkillResultPayload,
   isServerErrorPayload,
   isChunkSnapshotPayload,
