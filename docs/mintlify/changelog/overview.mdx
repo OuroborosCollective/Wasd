@@ -3,6 +3,17 @@ title: Changelog
 description: Product updates shipped to Areloria WASD
 ---
 
+<Update label="June 25, 2026" description="NPC dialogue shortcuts and accessibility">
+
+This week's release makes NPC conversations faster to navigate from the keyboard and clearer for assistive tech.
+
+## Updates
+
+- **Numeric shortcuts in NPC dialogue.** Each option in an NPC interaction menu is now bound to its on-screen number key (`1`, `2`, `3`, …). Pressing the key selects and confirms that option in one step, so common NPC actions like trade, talk, or quest hand-in no longer require arrow keys plus `Enter`. Disabled options ignore their shortcut. Press `0` or `Escape` to leave the menu. See [NPC systems](/mintlify/gameplay/npc-systems).
+- **`ESC` hint on the NPC dialogue close button.** The NPC context window's close button now shows a visible `ESC` label and exposes an `aria-label` and `aria-keyshortcuts` so screen readers announce the shortcut. The button keeps the same hit area and styling as the standardized gameplay window close buttons. See [Client architecture](/mintlify/architecture/client).
+
+</Update>
+
 <Update label="June 25, 2026" description="Standardized gameplay window close buttons">
 
 This week's release adds a consistent close control to every gameplay HUD window.
