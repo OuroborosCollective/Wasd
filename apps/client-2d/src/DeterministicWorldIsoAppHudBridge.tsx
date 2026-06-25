@@ -10,11 +10,11 @@ type HudMessage = { from: string; txt: string };
 const INITIAL_RUNTIME: FutureRendererRuntimeSnapshot = {
   phase: "mounting",
   bootState: "waiting",
+  rendererStatus: "waiting",
   playerPos: { x: 8, z: 9 },
   chunkCoords: { chunkX: 0, chunkZ: 0 },
   visibleChunks: 0,
   initialized: false,
-  networkStatus: "waiting",
   error: null,
 };
 
@@ -53,8 +53,8 @@ export function DeterministicWorldIsoApp() {
     <>
       <FutureRenderer onRuntimeSnapshot={handleRuntimeSnapshot} />
       <ArelorianStitchHud
-        connected={runtime.networkStatus === "connected"}
-        assetStatus={`${runtime.bootState.toUpperCase()} · ${runtime.visibleChunks} CHUNKS`}
+        connected={runtime.initialized}
+        assetStatus={`${runtime.rendererStatus.toUpperCase()} · ${runtime.visibleChunks} CHUNKS`}
         weaponCount={0}
         equippedWeaponId={null}
         inventoryItems={[]}
@@ -75,7 +75,7 @@ export function DeterministicWorldIsoApp() {
         debugVisibleChunks={runtime.visibleChunks}
         debugHeartbeatReceived={runtime.initialized}
         debugInitialized={runtime.initialized}
-        debugNetworkStatus={runtime.networkStatus}
+        debugNetworkStatus="waiting"
         debugServerTick={null}
         debugAckSeq={null}
         debugIdentity="future-hud-bridge"
