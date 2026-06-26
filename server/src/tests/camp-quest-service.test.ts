@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CampQuestService } from "../quests/CampQuestService.js";
+import { CampQuestService, type CampQuestCompletionPersistence } from "../quests/CampQuestService.js";
 import { CAMP_QUEST_CYCLE_TICKS, campQuestIdFor, resolveCampQuestRequirement } from "../quests/CampQuestDirector.js";
 import { CHUNK_POI_CONSTANTS, deriveChunkBiome, generateChunkPois } from "../world/WorldPoiGenerator.js";
 import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
@@ -24,7 +24,7 @@ function findAuthoritativeCamp(): { poi: WorldPoiSnapshot; poiType: GatheringCam
 class FakeInventoryService {
   public itemId = "";
   public quantity = 0;
-  public removed = false;
+  public removeCount = 0;
 
   constructor(private hasRequiredItems: boolean) {}
 
@@ -35,22 +35,30 @@ class FakeInventoryService {
   }
 
   async removeItem(input: { itemId: string; quantity: number }) {
-    this.removed = true;
+    this.removeCount += 1;
     return { ok: true, playerId: "player_001", itemId: input.itemId, quantity: input.quantity, reason: "removed" as const };
   }
 }
 
 class FakeWalletService {
   public coinsAdded = 0;
+  public addCount = 0;
 
   async addCoins(input: { amount: number }) {
+    this.addCount += 1;
     this.coinsAdded += input.amount;
     return { playerId: "player_001", balances: { coin: this.coinsAdded } };
   }
 }
 
 class FakeDiscoveryService {
+  public hydrateCount = 0;
+
   constructor(private readonly discoveredPoiIds: readonly string[]) {}
+
+  async hydratePlayer(_playerId: string): Promise<void> {
+    this.hydrateCount += 1;
+  }
 
   isPoiDiscovered(_playerId: string, poiId: string): boolean {
     return this.discoveredPoiIds.includes(poiId);
@@ -66,6 +74,42 @@ class FakeHistoryLog {
   }
 }
 
+class FakeCompletionPersistence implements CampQuestCompletionPersistence {
+  public saved: readonly string[] = Object.freeze([]);
+  public loadCount = 0;
+  public saveCount = 0;
+
+  constructor(initial: readonly string[] = []) {
+    this.saved = Object.freeze([...initial].sort());
+  }
+
+  async loadCompletedQuestIds(_playerId: string): Promise<readonly string[]> {
+    this.loadCount += 1;
+    return this.saved;
+  }
+
+  async saveCompletedQuestIds(_playerId: string, questIds: readonly string[]): Promise<void> {
+    this.saveCount += 1;
+    this.saved = Object.freeze([...questIds].sort());
+  }
+}
+
+function createService(input: {
+  readonly inventory?: FakeInventoryService;
+  readonly wallet?: FakeWalletService;
+  readonly discovery?: FakeDiscoveryService;
+  readonly history?: FakeHistoryLog;
+  readonly persistence?: FakeCompletionPersistence;
+}): CampQuestService {
+  return new CampQuestService(
+    (input.inventory ?? new FakeInventoryService(true)) as any,
+    (input.wallet ?? new FakeWalletService()) as any,
+    (input.discovery ?? new FakeDiscoveryService([])) as any,
+    (input.history ?? new FakeHistoryLog()) as any,
+    input.persistence ?? new FakeCompletionPersistence(),
+  );
+}
+
 describe("CampQuestService", () => {
   it("completes an authoritative discovered camp quest by consuming inventory and granting coins", async () => {
     const camp = findAuthoritativeCamp();
@@ -76,12 +120,8 @@ describe("CampQuestService", () => {
     const inventory = new FakeInventoryService(true);
     const wallet = new FakeWalletService();
     const history = new FakeHistoryLog();
-    const service = new CampQuestService(
-      inventory as any,
-      wallet as any,
-      new FakeDiscoveryService([camp.poi.id]) as any,
-      history as any,
-    );
+    const persistence = new FakeCompletionPersistence();
+    const service = createService({ inventory, wallet, discovery: new FakeDiscoveryService([camp.poi.id]), history, persistence });
 
     const result = await service.completeCampQuest({
       playerId,
@@ -96,21 +136,68 @@ describe("CampQuestService", () => {
     expect(result.itemId).toBe(requirement.itemId);
     expect(result.quantity).toBe(requirement.quantity);
     expect(result.coinsGranted).toBeGreaterThan(0);
-    expect(inventory.removed).toBe(true);
+    expect(inventory.removeCount).toBe(1);
     expect(wallet.coinsAdded).toBe(result.coinsGranted);
     expect(history.writes).toHaveLength(1);
-    expect(service.getCompletedQuestIds(playerId)).toContain(questId);
+    expect(await service.getCompletedQuestIds(playerId)).toContain(questId);
+    expect(persistence.saved).toContain(questId);
   });
 
-  it("rejects undiscovered camps before mutating inventory", async () => {
+  it("hydrates persisted completion ids before exposing completed quest ids", async () => {
+    const camp = findAuthoritativeCamp();
+    const playerId = "player_001";
+    const questId = campQuestIdFor(camp.poi.id, 0);
+    const persistence = new FakeCompletionPersistence([questId]);
+    const service = createService({ persistence });
+
+    expect(await service.getCompletedQuestIds(playerId)).toContain(questId);
+    expect(persistence.loadCount).toBe(1);
+  });
+
+  it("rejects a persisted completed quest before mutating inventory", async () => {
+    const camp = findAuthoritativeCamp();
+    const playerId = "player_001";
+    const questId = campQuestIdFor(camp.poi.id, 0);
+    const inventory = new FakeInventoryService(true);
+    const wallet = new FakeWalletService();
+    const service = createService({
+      inventory,
+      wallet,
+      discovery: new FakeDiscoveryService([camp.poi.id]),
+      persistence: new FakeCompletionPersistence([questId]),
+    });
+
+    const result = await service.completeCampQuest({ playerId, questId, playerPosition: camp.poi.position, currentTick: 0 });
+
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("quest_already_completed");
+    expect(inventory.removeCount).toBe(0);
+    expect(wallet.addCount).toBe(0);
+  });
+
+  it("serializes parallel completion requests for one player quest", async () => {
+    const camp = findAuthoritativeCamp();
+    const playerId = "player_001";
+    const questId = campQuestIdFor(camp.poi.id, 0);
+    const inventory = new FakeInventoryService(true);
+    const wallet = new FakeWalletService();
+    const service = createService({ inventory, wallet, discovery: new FakeDiscoveryService([camp.poi.id]) });
+
+    const [first, second] = await Promise.all([
+      service.completeCampQuest({ playerId, questId, playerPosition: camp.poi.position, currentTick: 0 }),
+      service.completeCampQuest({ playerId, questId, playerPosition: camp.poi.position, currentTick: 0 }),
+    ]);
+
+    expect([first.reason, second.reason].sort()).toEqual(["completed", "quest_already_completed"].sort());
+    expect(inventory.removeCount).toBe(1);
+    expect(wallet.addCount).toBe(1);
+  });
+
+  it("rejects undiscovered camps after hydrating discovery and before mutating inventory", async () => {
     const camp = findAuthoritativeCamp();
     const inventory = new FakeInventoryService(true);
-    const service = new CampQuestService(
-      inventory as any,
-      new FakeWalletService() as any,
-      new FakeDiscoveryService([]) as any,
-      new FakeHistoryLog() as any,
-    );
+    const discovery = new FakeDiscoveryService([]);
+    const service = createService({ inventory, discovery });
 
     const result = await service.completeCampQuest({
       playerId: "player_001",
@@ -121,17 +208,13 @@ describe("CampQuestService", () => {
 
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("poi_not_discovered");
-    expect(inventory.removed).toBe(false);
+    expect(discovery.hydrateCount).toBe(1);
+    expect(inventory.removeCount).toBe(0);
   });
 
   it("rejects stale camp quest cycles", async () => {
     const camp = findAuthoritativeCamp();
-    const service = new CampQuestService(
-      new FakeInventoryService(true) as any,
-      new FakeWalletService() as any,
-      new FakeDiscoveryService([camp.poi.id]) as any,
-      new FakeHistoryLog() as any,
-    );
+    const service = createService({ discovery: new FakeDiscoveryService([camp.poi.id]) });
 
     const result = await service.completeCampQuest({
       playerId: "player_001",
@@ -146,12 +229,7 @@ describe("CampQuestService", () => {
 
   it("rejects completion when the player is too far from the camp", async () => {
     const camp = findAuthoritativeCamp();
-    const service = new CampQuestService(
-      new FakeInventoryService(true) as any,
-      new FakeWalletService() as any,
-      new FakeDiscoveryService([camp.poi.id]) as any,
-      new FakeHistoryLog() as any,
-    );
+    const service = createService({ discovery: new FakeDiscoveryService([camp.poi.id]) });
 
     const result = await service.completeCampQuest({
       playerId: "player_001",
@@ -167,12 +245,11 @@ describe("CampQuestService", () => {
   it("rejects missing delivery resources before wallet reward", async () => {
     const camp = findAuthoritativeCamp();
     const wallet = new FakeWalletService();
-    const service = new CampQuestService(
-      new FakeInventoryService(false) as any,
-      wallet as any,
-      new FakeDiscoveryService([camp.poi.id]) as any,
-      new FakeHistoryLog() as any,
-    );
+    const service = createService({
+      inventory: new FakeInventoryService(false),
+      wallet,
+      discovery: new FakeDiscoveryService([camp.poi.id]),
+    });
 
     const result = await service.completeCampQuest({
       playerId: "player_001",
