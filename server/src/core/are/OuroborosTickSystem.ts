@@ -47,7 +47,19 @@ export interface OuroborosTickSystemOptions {
   readonly enableNPCBrain?: boolean;
 }
 
-type EngineNpc = { id: string; name: string; position: { x: number; y: number }; faction?: string };
+type EngineNpc = {
+  id: string;
+  name: string;
+  position: { x: number; y: number };
+  faction?: string;
+  state?: string;
+  health?: number;
+  maxHealth?: number;
+  energy?: number;
+  maxEnergy?: number;
+  gold?: number;
+  wealth?: number;
+};
 type EnginePlayer = { id: string; name: string; position: { x: number; y: number } };
 
 type RuntimeMemory = Memory & { persistent: boolean };
@@ -184,6 +196,11 @@ function asName(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
+function asFiniteNumber(value: unknown): number | undefined {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 function readPosition(value: unknown): { x: number; y: number } | null {
   const record = asRecord(value);
   if (!record) return null;
@@ -207,6 +224,13 @@ function toNpc(value: unknown): EngineNpc | null {
     name: asName(record.name) ?? asName(record.displayName) ?? id,
     position,
     faction: asName(record.faction) ?? asName(record.factionId) ?? undefined,
+    state: asName(record.state) ?? asName(record.status) ?? undefined,
+    health: asFiniteNumber(record.health ?? record.hp ?? record.currentHealth),
+    maxHealth: asFiniteNumber(record.maxHealth ?? record.healthMax ?? record.maxHp),
+    energy: asFiniteNumber(record.energy ?? record.stamina ?? record.currentEnergy),
+    maxEnergy: asFiniteNumber(record.maxEnergy ?? record.energyMax ?? record.maxStamina),
+    gold: asFiniteNumber(record.gold ?? record.coins),
+    wealth: asFiniteNumber(record.wealth),
   };
 }
 
