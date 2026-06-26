@@ -3,6 +3,21 @@ title: Changelog
 description: Product updates shipped to Areloria WASD
 ---
 
+<Update label="June 26, 2026" description="Region pressure runtime and HUD truth wiring">
+
+This week's release pushes large-scale world simulation forward and makes the 2D HUD reflect what the renderer is actually doing.
+
+## New features
+
+- **Deterministic region pressure and causal catchup.** The server now plans per-region simulation pressure from observation bounds and level-of-detail state, and compresses catchup events into deterministic summaries when players rejoin or scroll across regions. Two clients in the same region see the same simulation cadence, and reconnects no longer flood the client with redundant history. See [Determinism](/mintlify/architecture/determinism) and [Truth path](/mintlify/architecture/truth-path).
+- **Causal catchup overlay on the 2D client.** A new render-only overlay surfaces incoming causal catchup summaries — event count, tick range, and summary hash — as a non-interactive side channel, so you can see when the world is filling in missed activity. See [Client architecture](/mintlify/architecture/client).
+
+## Updates
+
+- **HUD reads renderer truth.** Vitals, chunk coordinates, and visible chunk count in the 2D HUD now come straight from the renderer's runtime snapshot instead of placeholder values. Boot state, mana, stamina, XP, and level update as the renderer initializes, streams chunks, and recovers from errors, so the HUD reflects what's actually on screen. See [Client architecture](/mintlify/architecture/client).
+
+</Update>
+
 <Update label="June 25, 2026" description="NPC interaction accessibility and shortcuts">
 
 This week's release polishes the NPC dialogue flow so interactions are easier to reach, easier to read, and easier to dismiss.
