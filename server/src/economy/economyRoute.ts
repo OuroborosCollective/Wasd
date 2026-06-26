@@ -49,6 +49,8 @@ router.use(economyLimiter);
 
 const MAX_POSITION = 100_000;
 const MIN_POSITION = -100_000;
+const MAX_KAPPA_POSITION = 1_000_000_000;
+const MIN_KAPPA_POSITION = -1_000_000_000;
 
 function parseSafeId(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -70,15 +72,23 @@ function parseQuantity(value: unknown): number {
   return n;
 }
 
-function parsePosition(value: unknown): { x: number; y: number } | null {
+function parsePositionWithin(value: unknown, min: number, max: number): { x: number; y: number } | null {
   if (!value || typeof value !== "object") return null;
   const pos = value as { x?: unknown; y?: unknown };
   const x = Number(pos.x);
   const y = Number(pos.y);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  if (x < MIN_POSITION || x > MAX_POSITION) return null;
-  if (y < MIN_POSITION || y > MAX_POSITION) return null;
+  if (x < min || x > max) return null;
+  if (y < min || y > max) return null;
   return { x, y };
+}
+
+function parsePosition(value: unknown): { x: number; y: number } | null {
+  return parsePositionWithin(value, MIN_POSITION, MAX_POSITION);
+}
+
+function parseCampQuestPosition(value: unknown): { x: number; y: number } | null {
+  return parsePositionWithin(value, MIN_KAPPA_POSITION, MAX_KAPPA_POSITION);
 }
 
 function requireProductionAuth(identity: { authenticated: boolean }, res: Response): boolean {
@@ -161,7 +171,7 @@ router.post("/complete-camp-quest", campQuestRateLimiter, async (req, res) => {
   if (!requireProductionAuth(identity, res)) return;
 
   const questId = parseCampQuestIdInput(req.body?.questId);
-  const playerPosition = parsePosition(req.body?.playerPosition);
+  const playerPosition = parseCampQuestPosition(req.body?.playerPosition);
   if (!questId) return void res.status(400).json({ ok: false, error: "invalid_quest_id" });
   if (!playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
 
