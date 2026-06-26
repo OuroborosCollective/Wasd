@@ -4,23 +4,27 @@
  * LOOT ROUTES - Phase 11: OuroborosTickSystem Integration
  *
  * ARE Infinite Loot Machine admin routes with deterministic tick context.
- * The router is protected at the source so legacy mount points cannot bypass
- * admin authentication or rate limiting.
+ * The router is guarded at the source so legacy mount points cannot bypass
+ * admin access checks or rate limiting.
  */
 
 import { getLootDirector } from '../bootLootSystem.js';
-import express, { type Router } from 'express';
+import express, { type RequestHandler, type Router } from 'express';
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
 import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 
+const adminLootRateLimiter = adminRateLimiter as unknown as RequestHandler;
+
 export function createLootRouter(): Router {
   const router = express.Router();
 
-  // Ensure JSON parsing is available for POST body, then protect all admin loot
-  // endpoints before any handler executes.
+  // Ensure JSON parsing is available for POST body, then guard all admin loot
+  // endpoints before any handler executes. Keep the middleware split so Express
+  // 5 type resolution does not collapse mixed middleware overloads.
   router.use(express.json());
-  router.use(adminRateLimiter, adminAuthMiddleware);
+  router.use(adminLootRateLimiter);
+  router.use(adminAuthMiddleware);
 
   router.get('/status', (_req: any, res: any) => {
     const lootDirector = getLootDirector();
