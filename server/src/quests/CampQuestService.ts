@@ -2,6 +2,8 @@
  * Server-authoritative completion path for deterministic camp daily quests.
  */
 
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { stableHash32 } from "../core/determinism/AREDeterminism.js";
 import type { InventoryService } from "../inventory/InventoryService.js";
 import type { WalletService } from "../economy/WalletService.js";
@@ -61,6 +63,18 @@ interface ParsedGeneratedCampPoi {
   readonly poiType: GatheringCampPoiType;
 }
 
+export interface CampQuestCompletionPersistence {
+  loadCompletedQuestIds(playerId: string): Promise<readonly string[]>;
+  saveCompletedQuestIds(playerId: string, questIds: readonly string[]): Promise<void>;
+}
+
+interface CampQuestCompletionFilePayload {
+  readonly schemaVersion: 1;
+  readonly playerId: string;
+  readonly completedQuestIds: readonly string[];
+  readonly stateHash: string;
+}
+
 function safeTick(value: number): number {
   return Number.isSafeInteger(value) && value >= 0 ? value : 0;
 }
@@ -112,28 +126,112 @@ function completionHash(input: { playerId: string; questId: string; itemId: stri
   return stableHash32(["CAMP_QUEST_COMPLETE_V1", input.playerId, input.questId, input.itemId, input.quantity, input.coins, input.tick].join("|")).toString(16);
 }
 
+function normalizeQuestIds(questIds: readonly string[]): readonly string[] {
+  return Object.freeze([...new Set(questIds.filter((questId) => /^camp_daily:[a-zA-Z0-9_:-]{1,144}:[0-9]{1,12}$/.test(questId)))].sort());
+}
+
+function completionStateHash(playerId: string, questIds: readonly string[]): string {
+  return stableHash32(["CAMP_QUEST_COMPLETION_STATE_V1", playerId, ...questIds].join("|")).toString(16);
+}
+
+function sanitizePlayerFileName(playerId: string): string {
+  const normalized = playerId.trim().replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 96);
+  return normalized.length > 0 ? normalized : "anonymous";
+}
+
+export class JsonCampQuestCompletionPersistence implements CampQuestCompletionPersistence {
+  constructor(private readonly rootDir: string = process.env.CAMP_QUEST_COMPLETION_DIR ?? join(process.cwd(), ".runtime", "camp-quest-completions")) {}
+
+  async loadCompletedQuestIds(playerId: string): Promise<readonly string[]> {
+    try {
+      const raw = await readFile(this.filePath(playerId), "utf8");
+      const parsed = JSON.parse(raw) as Partial<CampQuestCompletionFilePayload>;
+      if (parsed.schemaVersion !== 1 || parsed.playerId !== playerId || !Array.isArray(parsed.completedQuestIds)) return Object.freeze([]);
+      const completedQuestIds = normalizeQuestIds(parsed.completedQuestIds.map(String));
+      const expectedHash = completionStateHash(playerId, completedQuestIds);
+      if (parsed.stateHash !== expectedHash) return Object.freeze([]);
+      return completedQuestIds;
+    } catch (error) {
+      const code = (error as { readonly code?: string }).code;
+      if (code === "ENOENT") return Object.freeze([]);
+      throw error;
+    }
+  }
+
+  async saveCompletedQuestIds(playerId: string, questIds: readonly string[]): Promise<void> {
+    const completedQuestIds = normalizeQuestIds(questIds);
+    const payload: CampQuestCompletionFilePayload = Object.freeze({
+      schemaVersion: 1,
+      playerId,
+      completedQuestIds,
+      stateHash: completionStateHash(playerId, completedQuestIds),
+    });
+    const target = this.filePath(playerId);
+    const temp = `${target}.${payload.stateHash}.tmp`;
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(temp, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+    await rename(temp, target);
+  }
+
+  private filePath(playerId: string): string {
+    return join(this.rootDir, `${sanitizePlayerFileName(playerId)}.json`);
+  }
+}
+
 export class CampQuestService {
   private readonly completedQuestIdsByPlayer = new Map<string, Set<string>>();
+  private readonly hydratedPlayers = new Set<string>();
+  private readonly completionTailsByKey = new Map<string, Promise<void>>();
 
   constructor(
     private readonly inventoryService: InventoryService,
     private readonly walletService: WalletService,
     private readonly discoveryService: WorldDiscoveryService = worldDiscoveryService,
     private readonly history: RuntimeHistoryLog = runtimeHistoryLog,
+    private readonly completionPersistence: CampQuestCompletionPersistence = new JsonCampQuestCompletionPersistence(),
   ) {}
 
-  getCompletedQuestIds(playerId: string): readonly string[] {
-    return Object.freeze([...(this.completedQuestIdsByPlayer.get(playerId) ?? new Set<string>())].sort());
+  async getCompletedQuestIds(playerId: string): Promise<readonly string[]> {
+    const safePlayerId = playerId.trim();
+    if (!safePlayerId || safePlayerId === "anonymous") return Object.freeze([]);
+    await this.hydrateCompletedQuestIds(safePlayerId);
+    return Object.freeze([...(this.completedQuestIdsByPlayer.get(safePlayerId) ?? new Set<string>())].sort());
   }
 
   async completeCampQuest(input: CompleteCampQuestInput): Promise<CompleteCampQuestResult> {
     const playerId = input.playerId.trim();
-    const tick = safeTick(input.currentTick);
     const parsedQuest = parseCampQuestId(input.questId);
+    const lockKey = parsedQuest ? `${playerId}:${input.questId}` : `${playerId}:invalid`;
+    const previousTail = this.completionTailsByKey.get(lockKey) ?? Promise.resolve();
+    let releaseTail: () => void = () => undefined;
+    const nextTail = new Promise<void>((resolve) => { releaseTail = resolve; });
+    const currentTail = previousTail.then(() => nextTail, () => nextTail);
+    this.completionTailsByKey.set(lockKey, currentTail);
+
+    await previousTail;
+    try {
+      return await this.completeCampQuestLocked(input, playerId, parsedQuest);
+    } finally {
+      releaseTail();
+      if (this.completionTailsByKey.get(lockKey) === currentTail) this.completionTailsByKey.delete(lockKey);
+    }
+  }
+
+  clearForTests(): void {
+    this.completedQuestIdsByPlayer.clear();
+    this.hydratedPlayers.clear();
+    this.completionTailsByKey.clear();
+  }
+
+  private async completeCampQuestLocked(input: CompleteCampQuestInput, playerId: string, parsedQuest: ParsedCampQuestId | null): Promise<CompleteCampQuestResult> {
+    const tick = safeTick(input.currentTick);
 
     if (!playerId || playerId === "anonymous") return this.failure(input.questId, "", "", 0, "invalid_player");
     if (!parsedQuest) return this.failure(input.questId, "", "", 0, "invalid_quest_id");
     if (parsedQuest.cycle !== getCampQuestCycle(tick)) return this.failure(input.questId, parsedQuest.poiId, "", 0, "invalid_cycle");
+
+    await this.hydrateCompletedQuestIds(playerId);
+    await this.discoveryService.hydratePlayer(playerId);
 
     const completed = this.completedQuestIdsByPlayer.get(playerId) ?? new Set<string>();
     if (completed.has(input.questId)) return this.failure(input.questId, parsedQuest.poiId, "", 0, "quest_already_completed");
@@ -158,6 +256,7 @@ export class CampQuestService {
     const wallet = await this.walletService.addCoins({ playerId, amount: rewardCoins });
     completed.add(input.questId);
     this.completedQuestIdsByPlayer.set(playerId, completed);
+    await this.completionPersistence.saveCompletedQuestIds(playerId, [...completed]);
 
     const sourceHash = completionHash({ playerId, questId: input.questId, itemId: requirement.itemId, quantity: requirement.quantity, coins: rewardCoins, tick });
     const history = this.history.write({
@@ -181,8 +280,11 @@ export class CampQuestService {
     });
   }
 
-  clearForTests(): void {
-    this.completedQuestIdsByPlayer.clear();
+  private async hydrateCompletedQuestIds(playerId: string): Promise<void> {
+    if (this.hydratedPlayers.has(playerId)) return;
+    const persisted = await this.completionPersistence.loadCompletedQuestIds(playerId);
+    this.completedQuestIdsByPlayer.set(playerId, new Set(persisted));
+    this.hydratedPlayers.add(playerId);
   }
 
   private failure(questId: string, poiId: string, itemId: string, quantity: number, reason: Exclude<CampQuestCompleteReason, "completed">): CompleteCampQuestResult {
