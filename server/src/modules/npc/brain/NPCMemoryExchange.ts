@@ -25,9 +25,16 @@ export interface NPCMemoryExchangeBatch {
   sideChannelOnly: true;
 }
 
+function stableStringCompare(a: string, b: string): number {
+  const ah = stableHash32(a);
+  const bh = stableHash32(b);
+  if (ah !== bh) return ah - bh;
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 function stablePayloadString(payload: Record<string, string | number | boolean>): string {
   return Object.entries(payload)
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => stableStringCompare(a, b))
     .map(([key, value]) => `${key}:${String(value)}`)
     .join("|");
 }
@@ -60,7 +67,7 @@ export function createNPCMemoryExchangeBatch(
   const ordered = [...entries].sort((a, b) => {
     if (a.tick !== b.tick) return a.tick - b.tick;
     if (a.sequence !== b.sequence) return a.sequence - b.sequence;
-    return a.id.localeCompare(b.id);
+    return stableStringCompare(a.id, b.id);
   });
   const batchHash = stableHash32(ordered.map((entry) => entry.factHash).join("|"))
     .toString(16)
