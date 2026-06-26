@@ -9,12 +9,12 @@ This release surfaces server snapshot freshness as a visible HUD state and adds 
 
 ## New features
 
-- **Snapshot freshness HUD state.** The 2D client now labels its connection to the server as `Live`, `Network delay`, `Snapshot is stale`, `Resync required`, or `Waiting for server snapshot`, based purely on how recent the last server snapshot is. The label is render-only and never invents gameplay state. See [Client architecture](/mintlify/architecture/client).
-- **Causal catchup event panel.** When the server sends a `causal_catchup_summary`, the client now shows a categorized list of what you missed: `Resource Depleted`, `Market Price`, `NPC Activity`, `Quest Complete`, `Combat`, `Governance`, and `Legend`. The panel is passive — it displays server-authoritative data and never replays or mutates anything. See [WebSocket API](/mintlify/api/websocket).
+- **Snapshot freshness HUD state.** The 2D client now labels your connection as `Live`, `Network delay`, `Snapshot is stale`, `Resync required`, or `Waiting for server snapshot`. Each label reflects how recent the last server snapshot is, renders only, and never invents gameplay state. See [Client architecture](/mintlify/architecture/client).
+- **Causal catchup event panel.** When the server sends a `causal_catchup_summary`, the client shows a categorized list of what you missed: `Resource Depleted`, `Market Price`, `NPC Activity`, `Quest Complete`, `Combat`, `Governance`, and `Legend`. The panel is passive and only displays server-authoritative data. See [WebSocket API](/mintlify/api/websocket).
 
 ## Updates
 
-- **Render-only snapshot interpolation.** Between 10 Hz server snapshots, the client interpolates position and facing for smooth 60 FPS rendering. Interpolation only reads the most recent server snapshots and never advances simulation state.
+- **Render-only snapshot interpolation.** Between 10 Hz server snapshots, the client interpolates position and facing for smooth 60 FPS rendering. Interpolation reads only the most recent server snapshots and never advances simulation state.
 
 </Update>
 
