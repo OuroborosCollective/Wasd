@@ -1,5 +1,5 @@
 /**
- * Camp quest runtime singleton.
+ * Camp quest runtime holder.
  */
 
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
@@ -10,11 +10,15 @@ import { CampQuestService } from "./CampQuestService.js";
 
 let servicePromise: Promise<CampQuestService> | null = null;
 
-async function getOrCreateCampQuestService(): Promise<CampQuestService> {
-  if (servicePromise) return servicePromise;
+async function buildCampQuestService(): Promise<CampQuestService> {
   const inventoryService = await getInventoryService();
   const walletService = await getWalletService();
-  servicePromise = Promise.resolve(new CampQuestService(inventoryService, walletService, worldDiscoveryService, runtimeHistoryLog));
+  return new CampQuestService(inventoryService, walletService, worldDiscoveryService, runtimeHistoryLog);
+}
+
+async function getOrCreateCampQuestService(): Promise<CampQuestService> {
+  if (servicePromise) return servicePromise;
+  servicePromise = buildCampQuestService();
   return servicePromise;
 }
 
