@@ -1,307 +1,284 @@
+#!/usr/bin/env node
 /**
  * Module Analysis Scanner
- * 
- * Scans all modules in server/src/modules/ and categorizes them:
- * - Category A: ARE-Aligned (follows TickSystem pattern)
- * - Category B: Deterministic-Ready (has game logic, needs ARE wrapping)
- * - Category C: Math/Date Utilities (pure functions, make deterministic)
- * - Category D: Non-Deterministic (uses Math.random/Date.now, needs refactoring)
- * - Category E: Stub/Fake (no real logic, delete)
- * 
- * Usage: node scripts/analyze-modules.mjs [--verbose] [--category=<A-E>] [--module=<name>]
+ *
+ * Scans server/src/modules and categorizes files for ARE-readiness.
+ * Text output is intended for humans. `--json` emits a machine-readable report
+ * for CI, release gates, and agents.
+ *
+ * Usage:
+ *   node scripts/analyze-modules.mjs [--verbose] [--category=<A-E>] [--module=<name>]
+ *   node scripts/analyze-modules.mjs --json
+ *   node scripts/analyze-modules.mjs --json=reports/module-analysis.json
  */
 
-import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, relative, basename, extname } from 'path';
-import { argv } from 'process';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "fs";
+import { dirname, extname, join, relative } from "path";
+import { argv, cwd, exit } from "process";
 
-const MODULES_DIR = 'server/src/modules';
-const ARE_DIR = 'server/src/core/are';
+const MODULES_DIR = "server/src/modules";
 
-// Patterns to detect
+const CATEGORY_LABELS = {
+  A: "ARE-Aligned",
+  B: "Deterministic-Ready",
+  C: "Utility/Low-Risk",
+  D: "Non-Deterministic",
+  E: "Stub/Fake",
+};
+
 const PATTERNS = {
-  // ARE-aligned patterns
   TICK_SYSTEM: /implements\s+TickSystem|extends\s+TickSystem|registerTickSystem/,
   TICK_SYSTEM_PRIORITY: /TickSystemPriority\./,
   KAPPA_TYPES: /Kappa|TickId|StateHash|ChunkKey/,
   DETERMINISTIC_PRNG: /DeterministicPrng|createDeterministicPrng|SeededARERng/,
   DELTA_PATTERN: /\bDelta\b|StateDelta|generateDelta/,
-  
-  // Non-deterministic patterns (Category D) - need to verify context
   MATH_RANDOM: /Math\.random\(/,
   DATE_NOW_ACTUAL: /Date\.now\(\)/,
   DATE_NEW_WITH_ALLOW: /new\s+Date\([^)]*\)\s*\/\*\s*ARE-DETERMINISM-ALLOW/,
   DATE_NEW_BARE: /new\s+Date\(\)/,
   PERFORMANCE_NOW: /performance\.now\(\)/,
   SET_TIMEOUT: /setTimeout|setInterval/,
-  
-  // Import patterns
   WORLD_TICK_IMPORT: /WorldTick[^a-zA-Z]|from\s+['"]\.\.\/WorldTick|WorldTickProvider/,
-  
-  // Stub patterns
   STUB_RETURN_NULL: /return\s+null|return\s+undefined/,
   STUB_EMPTY_ARRAY: /return\s*\[\s*\]/,
   STUB_NOT_IMPLEMENTED: /throw\s+new\s+Error\(['"]Not\s+implemented|NOT\s+IMPLEMENTED/i,
   STUB_COMMENT: /\/\/\s*(TODO|FIXME|HACK|stub|placeholder)/i,
-  
-  // Import patterns for analysis
-  ARE_IMPORT: /from\s+['"]\.\.\/\.\.\/core\/are|from\s+['"]\.\/are\//,
-  
-  // ARE allowed patterns (not actually non-deterministic)
-  ARE_TELEMETRY_SIDECHANNEL: /@are-telemetry-side-channel/,
   ARE_DETERMINISM_ALLOW: /ARE-DETERMINISM-ALLOW/,
+  ARE_TELEMETRY_SIDECHANNEL: /@are-telemetry-side-channel/,
 };
 
-// Parse command line args
 const args = argv.slice(2);
+const jsonArg = args.find((a) => a === "--json" || a.startsWith("--json="));
 const options = {
-  verbose: args.includes('--verbose'),
-  ci: args.includes('--ci'),
-  category: args.find(a => a.startsWith('--category='))?.split('=')[1],
-  module: args.find(a => a.startsWith('--module='))?.split('=')[1],
-  failOn: args.find(a => a.startsWith('--fail-on='))?.split('=')[1]?.split(',') || [],
-};
-
-const ModuleAnalysis = {
-  path: '',
-  module: '',
-  filename: '',
-  category: 'A',
-  patterns: [],
-  issues: [],
-  lines: 0,
-  imports: [],
+  verbose: args.includes("--verbose"),
+  ci: args.includes("--ci"),
+  json: Boolean(jsonArg),
+  jsonPath: jsonArg?.includes("=") ? jsonArg.split("=").slice(1).join("=") : null,
+  category: args.find((a) => a.startsWith("--category="))?.split("=")[1],
+  module: args.find((a) => a.startsWith("--module="))?.split("=")[1],
+  failOn: args.find((a) => a.startsWith("--fail-on="))?.split("=")[1]?.split(",").filter(Boolean) ?? [],
 };
 
 function scanFile(filePath) {
-  try {
-    const content = readFileSync(filePath, 'utf-8');
-    const lines = content.split('\n').length;
-    
-    // Extract imports
-    const imports = [];
-    const importRegex = /import\s+.*?\s+from\s+['"]([^'"]+)['"]/g;
-    let match;
-    while ((match = importRegex.exec(content)) !== null) {
-      imports.push(match[1]);
-    }
-    
-    return { content, lines, imports };
-  } catch (e) {
-    return null;
+  const content = readFileSync(filePath, "utf-8");
+  const imports = [];
+  const importRegex = /import\s+.*?\s+from\s+['"]([^'"]+)['"]/g;
+  let match;
+  while ((match = importRegex.exec(content)) !== null) {
+    imports.push(match[1]);
   }
+  return {
+    content,
+    lines: content.split("\n").length,
+    imports,
+  };
 }
 
-function categorizeModule(analysis) {
-  const { content, lines, imports } = analysis;
-  
-  const patternsFound = [];
+function addIssue(issues, code, reason, severity = "warning") {
+  issues.push({ code, reason, severity });
+}
+
+function categorizeModule({ content, lines }) {
+  const patterns = [];
   const issues = [];
-  
-  // Check for ARE-aligned patterns
-  const isAREAligned = PATTERNS.TICK_SYSTEM.test(content) || 
-                       PATTERNS.TICK_SYSTEM_PRIORITY.test(content) ||
-                       PATTERNS.KAPPA_TYPES.test(content);
-  
-  // Check for deterministic patterns
+
+  const isAREAligned = PATTERNS.TICK_SYSTEM.test(content)
+    || PATTERNS.TICK_SYSTEM_PRIORITY.test(content)
+    || PATTERNS.KAPPA_TYPES.test(content);
   const hasDeterministicPrng = PATTERNS.DETERMINISTIC_PRNG.test(content);
   const hasDelta = PATTERNS.DELTA_PATTERN.test(content);
-  
-  // Check for non-deterministic patterns (accounting for ARE annotations)
   const hasMathRandom = PATTERNS.MATH_RANDOM.test(content);
-  const hasDateNowActual = PATTERNS.DATE_NOW_ACTUAL.test(content);
+  const hasDateNow = PATTERNS.DATE_NOW_ACTUAL.test(content);
   const hasDateNewBare = PATTERNS.DATE_NEW_BARE.test(content) && !PATTERNS.DATE_NEW_WITH_ALLOW.test(content);
   const hasPerformanceNow = PATTERNS.PERFORMANCE_NOW.test(content);
   const hasSetTimeout = PATTERNS.SET_TIMEOUT.test(content);
   const hasWorldTickImport = PATTERNS.WORLD_TICK_IMPORT.test(content);
-  
-  // Check for ARE annotations that allow certain patterns
   const hasAREAllow = PATTERNS.ARE_DETERMINISM_ALLOW.test(content);
   const hasTelemetrySideChannel = PATTERNS.ARE_TELEMETRY_SIDECHANNEL.test(content);
-  
-  // Check for stub patterns
-  const isStub = PATTERNS.STUB_NOT_IMPLEMENTED.test(content) ||
-                 (PATTERNS.STUB_RETURN_NULL.test(content) && lines < 30);
+  const isStub = PATTERNS.STUB_NOT_IMPLEMENTED.test(content)
+    || (PATTERNS.STUB_RETURN_NULL.test(content) && lines < 30)
+    || (PATTERNS.STUB_EMPTY_ARRAY.test(content) && lines < 30);
   const hasStubComments = PATTERNS.STUB_COMMENT.test(content);
-  
-  if (isAREAligned) patternsFound.push('TICK_SYSTEM');
-  if (hasDeterministicPrng) patternsFound.push('DETERMINISTIC_PRNG');
-  if (hasDelta) patternsFound.push('DELTA');
-  
-  // Only flag Math.random as issue if not marked with ARE-DETERMINISM-ALLOW
-  if (hasMathRandom) {
-    patternsFound.push('MATH_RANDOM');
-    if (!hasAREAllow) {
-      issues.push('Uses Math.random - should use DeterministicPrng');
-    }
+
+  if (isAREAligned) patterns.push("TICK_SYSTEM");
+  if (hasDeterministicPrng) patterns.push("DETERMINISTIC_PRNG");
+  if (hasDelta) patterns.push("DELTA");
+  if (hasMathRandom) patterns.push("MATH_RANDOM");
+  if (hasDateNow) patterns.push("DATE_NOW");
+  if (hasDateNewBare) patterns.push("DATE_NEW");
+  if (hasPerformanceNow) patterns.push("PERFORMANCE_NOW");
+  if (hasSetTimeout) patterns.push("SET_TIMEOUT");
+  if (isStub) patterns.push("STUB");
+
+  if (hasMathRandom && !hasAREAllow) {
+    addIssue(issues, "MATH_RANDOM", "Uses Math.random in module code; use deterministic tick/seed RNG.", "error");
   }
-  
-  if (hasDateNowActual) {
-    patternsFound.push('DATE_NOW');
-    issues.push('Uses Date.now() - non-deterministic');
+  if (hasDateNow) {
+    addIssue(issues, "DATE_NOW", "Uses Date.now; truth-path code must use tick/runtime sources.", "error");
   }
-  
   if (hasDateNewBare && !hasTelemetrySideChannel) {
-    patternsFound.push('DATE_NEW');
-    issues.push('Uses bare new Date() - may be non-deterministic');
+    addIssue(issues, "DATE_NEW", "Uses bare new Date(); mark side-channel usage or replace with tick time.", "error");
   }
-  
   if (hasPerformanceNow && !hasAREAllow) {
-    patternsFound.push('PERFORMANCE_NOW');
-    issues.push('Uses performance.now() - check if for telemetry only');
+    addIssue(issues, "PERFORMANCE_NOW", "Uses performance.now without ARE side-channel allowance.", "warning");
   }
-  
-  if (hasSetTimeout) patternsFound.push('SET_TIMEOUT');
-  
-  // WorldTick import is expected in integration files, flag only in tick systems
-  if (hasWorldTickImport && !isAREAligned) {
-    // Only flag if not a wiring/integration file
-    const isIntegrationFile = content.includes('installARELootIntegration') || 
-                              content.includes('installDecomposition') ||
-                              content.includes('installRuntime');
-    if (!isIntegrationFile) {
-      issues.push('Direct WorldTick import - should use TickSystemContext');
-    }
+  if (hasWorldTickImport && !isAREAligned && !content.includes("installARE") && !content.includes("installRuntime")) {
+    addIssue(issues, "WORLD_TICK_IMPORT", "Direct WorldTick usage outside ARE-aligned integration; prefer TickSystemContext.", "warning");
   }
-  
-  if (isStub) patternsFound.push('STUB');
-  if (hasStubComments) issues.push('Contains TODO/FIXME/HACK comments');
-  
-  // Categorize
-  let category;
+  if (hasStubComments) {
+    addIssue(issues, "STUB_COMMENT", "Contains TODO/FIXME/HACK/stub/placeholder marker; verify it is not in truth path.", "warning");
+  }
   if (isStub && !isAREAligned) {
-    category = 'E';
-  } else if (hasMathRandom && !hasAREAllow) {
-    category = 'D';
-  } else if (hasDateNowActual || (hasDateNewBare && !hasTelemetrySideChannel)) {
-    category = 'D';
-  } else if (hasPerformanceNow && !hasAREAllow) {
-    category = 'D';
-  } else if (isAREAligned && hasDeterministicPrng) {
-    category = 'A';
-  } else if (isAREAligned || hasDelta) {
-    category = 'B';
-  } else if (patternsFound.length === 0 || hasStubComments) {
-    category = 'C';
-  } else {
-    category = 'B';
+    addIssue(issues, "STUB", "Small stub/fake module candidate; delete or wire to a real runtime source.", "error");
   }
-  
-  return { category, patterns: patternsFound, issues };
+
+  let category = "B";
+  if (isStub && !isAREAligned) category = "E";
+  else if (issues.some((issue) => issue.severity === "error" && ["MATH_RANDOM", "DATE_NOW", "DATE_NEW", "STUB"].includes(issue.code))) category = "D";
+  else if (isAREAligned && hasDeterministicPrng) category = "A";
+  else if (isAREAligned || hasDelta) category = "B";
+  else if (patterns.length === 0 || hasStubComments) category = "C";
+
+  return { category, patterns, issues };
+}
+
+function listTypeScriptFiles(modulePath) {
+  return readdirSync(modulePath)
+    .filter((file) => extname(file) === ".ts")
+    .sort((a, b) => a.localeCompare(b));
 }
 
 function analyzeModules() {
+  if (!existsSync(MODULES_DIR)) {
+    return [];
+  }
+
+  const moduleDirs = readdirSync(MODULES_DIR)
+    .filter((name) => statSync(join(MODULES_DIR, name)).isDirectory())
+    .sort((a, b) => a.localeCompare(b));
   const results = [];
-  
-  // Get all module directories
-  const moduleDirs = readdirSync(MODULES_DIR).filter(name => {
-    const stat = statSync(join(MODULES_DIR, name));
-    return stat.isDirectory();
-  });
-  
+
   for (const moduleDir of moduleDirs) {
+    if (options.module && options.module !== moduleDir) continue;
     const modulePath = join(MODULES_DIR, moduleDir);
-    const files = readdirSync(modulePath).filter(f => extname(f) === '.ts');
-    
-    for (const file of files) {
+    for (const file of listTypeScriptFiles(modulePath)) {
       const filePath = join(modulePath, file);
       const scan = scanFile(filePath);
-      
-      if (!scan) continue;
-      
-      const { lines, imports } = scan;
-      const { category, patterns, issues } = categorizeModule({ 
-        content: scan.content, 
-        lines, 
-        imports 
-      });
-      
-      // Filter by options
-      if (options.category && options.category !== category) continue;
-      if (options.module && options.module !== moduleDir) continue;
-      
+      const categorized = categorizeModule(scan);
+      if (options.category && options.category !== categorized.category) continue;
+
       results.push({
-        path: relative(process.cwd(), filePath),
+        path: relative(cwd(), filePath),
         module: moduleDir,
         filename: file,
-        category,
-        patterns,
-        issues,
-        lines,
-        imports: imports.slice(0, 5), // First 5 imports for brevity
+        category: categorized.category,
+        categoryLabel: CATEGORY_LABELS[categorized.category],
+        patterns: categorized.patterns,
+        issues: categorized.issues,
+        reasons: categorized.issues.map((issue) => issue.reason),
+        lines: scan.lines,
+        imports: scan.imports.slice(0, 5),
       });
     }
   }
-  
+
   return results;
 }
 
-function printResults(results) {
+function createReport(results) {
   const categories = { A: [], B: [], C: [], D: [], E: [] };
-  
-  for (const r of results) {
-    categories[r.category].push(r);
+  for (const result of results) {
+    categories[result.category].push(result);
   }
-  
-  console.log('\n=== MODULE ANALYSIS REPORT ===\n');
-  console.log(`Total modules analyzed: ${results.length}`);
-  console.log('\n--- BY CATEGORY ---');
-  
-  for (const [cat, modules] of Object.entries(categories)) {
-    const catNames = {
-      A: 'ARE-Aligned (follows standard)',
-      B: 'Deterministic-Ready (needs ARE wrapping)',
-      C: 'Math/Date Utilities (make deterministic)',
-      D: 'Non-Deterministic (needs refactoring)',
-      E: 'Stub/Fake (delete)',
-    };
-    console.log(`\nCategory ${cat} [${catNames[cat]}]: ${modules.length} modules`);
-    
-    if (options.verbose || modules.length <= 20) {
-      for (const m of modules) {
-        const issueStr = m.issues.length > 0 ? ` ⚠ ${m.issues.join(', ')}` : '';
-        console.log(`  - ${m.module}/${m.filename} (${m.lines} lines)${issueStr}`);
-        if (options.verbose && m.patterns.length > 0) {
-          console.log(`    Patterns: ${m.patterns.join(', ')}`);
+
+  const blockedCats = options.failOn.length > 0 ? options.failOn : ["D", "E"];
+  const blocked = blockedCats.flatMap((category) => categories[category] ?? []);
+
+  return {
+    schemaVersion: 1,
+    generatedBy: "scripts/analyze-modules.mjs",
+    filters: {
+      category: options.category ?? null,
+      module: options.module ?? null,
+      failOn: blockedCats,
+    },
+    summary: {
+      totalFiles: results.length,
+      byCategory: Object.fromEntries(Object.entries(categories).map(([key, value]) => [key, value.length])),
+      actionable: categories.B.length + categories.C.length + categories.D.length + categories.E.length,
+      immediateDeleteCandidates: categories.E.length,
+      criticalFixesNeeded: categories.D.length,
+      blockedCount: blocked.length,
+      gate: blocked.length > 0 ? "blocked" : "ready",
+    },
+    categories: Object.fromEntries(
+      Object.entries(categories).map(([key, value]) => [
+        key,
+        {
+          label: CATEGORY_LABELS[key],
+          count: value.length,
+          files: value,
+        },
+      ])
+    ),
+    files: results,
+  };
+}
+
+function printTextReport(report) {
+  console.log("\n=== MODULE ANALYSIS REPORT ===\n");
+  console.log(`Total files analyzed: ${report.summary.totalFiles}`);
+  console.log("\n--- BY CATEGORY ---");
+
+  for (const [category, data] of Object.entries(report.categories)) {
+    console.log(`\nCategory ${category} [${data.label}]: ${data.count} file(s)`);
+    if (options.verbose || data.files.length <= 20) {
+      for (const file of data.files) {
+        const issueText = file.issues.length > 0
+          ? ` ⚠ ${file.issues.map((issue) => `${issue.code}: ${issue.reason}`).join(" | ")}`
+          : "";
+        console.log(`  - ${file.path} (${file.lines} lines)${issueText}`);
+        if (options.verbose && file.patterns.length > 0) {
+          console.log(`    Patterns: ${file.patterns.join(", ")}`);
         }
       }
     } else {
-      console.log(`  ${modules.map(m => m.filename).join(', ')}`);
+      console.log(`  ${data.files.map((file) => file.filename).join(", ")}`);
     }
   }
-  
-  // Summary statistics
-  console.log('\n--- SUMMARY ---');
-  console.log(`ARE-Aligned (A): ${categories.A.length}`);
-  console.log(`Deterministic-Ready (B): ${categories.B.length}`);
-  console.log(`Math/Date Utilities (C): ${categories.C.length}`);
-  console.log(`Non-Deterministic (D): ${categories.D.length}`);
-  console.log(`Stub/Fake (E): ${categories.E.length}`);
-  
-  const totalNonDeterministic = categories.D.length + categories.E.length;
-  console.log(`\nActionable: ${categories.B.length + categories.C.length + categories.D.length + categories.E.length} modules need attention`);
-  console.log(`Immediate delete candidates: ${categories.E.length} stubs`);
-  console.log(`Critical fixes needed: ${categories.D.length} non-deterministic`);
 
-  // CI mode: exit non-zero if blocked categories found
-  if (options.ci || options.failOn.length > 0) {
-    const blockedCats = options.failOn.length > 0 ? options.failOn : ['D', 'E'];
-    const blocked = blockedCats.flatMap(c => categories[c] || []);
-    const nonBlocked = blockedCats.filter(c => categories[c]?.length > 0);
-
-    if (nonBlocked.length > 0) {
-      console.log(`\n❌ CI GATE FAILED: Found ${blocked.length} module(s) in blocked categories: ${nonBlocked.join(', ')}`);
-      console.log('   Use --fail-on=D,E to block D and E categories (default in CI mode)');
-      console.log('   Use --fail-on=D to block only non-deterministic modules');
-      if (options.ci) {
-        console.log('\n=== CI MODE: EXIT 1 ===');
-        process.exit(1);
-      }
-    } else {
-      console.log('\n✅ CI GATE PASSED: No blocked categories found');
-    }
+  console.log("\n--- SUMMARY ---");
+  for (const [category, count] of Object.entries(report.summary.byCategory)) {
+    console.log(`${category} ${CATEGORY_LABELS[category]}: ${count}`);
   }
+  console.log(`Actionable: ${report.summary.actionable}`);
+  console.log(`Immediate delete candidates: ${report.summary.immediateDeleteCandidates}`);
+  console.log(`Critical fixes needed: ${report.summary.criticalFixesNeeded}`);
+  console.log(`Gate: ${report.summary.gate}`);
+}
+
+function emitJson(report) {
+  const json = `${JSON.stringify(report, null, 2)}\n`;
+  if (options.jsonPath) {
+    mkdirSync(dirname(options.jsonPath), { recursive: true });
+    writeFileSync(options.jsonPath, json, "utf-8");
+    return;
+  }
+  console.log(json);
 }
 
 const results = analyzeModules();
-printResults(results);
+const report = createReport(results);
+
+if (options.json) emitJson(report);
+else printTextReport(report);
+
+if (options.ci || options.failOn.length > 0) {
+  if (report.summary.blockedCount > 0) {
+    if (!options.json) {
+      console.log(`\n❌ CI GATE FAILED: ${report.summary.blockedCount} file(s) in blocked categories.`);
+    }
+    exit(1);
+  }
+  if (!options.json) console.log("\n✅ CI GATE PASSED: No blocked categories found");
+}
