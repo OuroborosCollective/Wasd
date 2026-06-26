@@ -3,6 +3,18 @@ title: Changelog
 description: Product updates shipped to Areloria WASD
 ---
 
+<Update label="June 26, 2026" description="Snapshot interpolation, stale-state overlay, and causal catchup panel">
+
+This week's release smooths motion in the 2D client, flags when the world view falls behind the server, and surfaces causal catchup information in a dedicated panel.
+
+## New features
+
+- **Snapshot interpolation in the 2D client.** The client now visually interpolates positions and facing between server snapshots, so movement reads as smooth instead of stepping tick-by-tick. Interpolation is render-only and never invents authoritative state. See [Client architecture](/mintlify/architecture/client).
+- **Stale-state overlay.** A passive overlay now flags when the rendered world falls behind fresh server snapshots, so you can tell visual lag apart from gameplay state. The overlay is render-only and reads validated server payloads. See [Client architecture](/mintlify/architecture/client).
+- **Causal catchup panel.** A new in-client panel renders the server's causal catchup summary — event count, tick range, chunk and region references, and the deterministic hash — for slow or reconnecting sessions. The panel reads server-authoritative data only and never mutates world state. See [WebSocket API](/mintlify/api/websocket) and [Client architecture](/mintlify/architecture/client).
+
+</Update>
+
 <Update label="June 26, 2026" description="Region pressure runtime, causal catchup, HUD truth wiring, and ARE audit pass">
 
 This week's release adds deterministic region pressure planning, a causal catchup side channel, HUD wiring that reads renderer truth, and an audit pass that gates NPC, navigation, and admin surfaces on real runtime sources.
