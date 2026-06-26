@@ -31,6 +31,17 @@ export interface NavAgent {
   active: boolean;
 }
 
+export type NavMeshSourceStatus = "missing" | "available" | "rebuild_blocked";
+
+export interface NavigationStats {
+  agents: number;
+  dirtyRegions: number;
+  initialized: boolean;
+  hasNavMesh: boolean;
+  navMeshSource: NavMeshSourceStatus;
+  rebuildBlocked: boolean;
+}
+
 const DEFAULT_NAV_CONFIG: NavMeshConfig = {
   cellSize: 0.3,
   cellHeight: 0.2,
@@ -54,6 +65,7 @@ export class NavigationService {
   private agents: Map<string, NavAgent> = new Map();
   private initialized = false;
   private navMesh: any = null; // Recast navmesh instance
+  private navMeshSource: NavMeshSourceStatus = "missing";
 
   constructor(config?: Partial<NavMeshConfig>) {
     this.config = { ...DEFAULT_NAV_CONFIG, ...config };
@@ -64,11 +76,15 @@ export class NavigationService {
     this.scene = scene;
 
     try {
-      // Recast-detour is loaded as WASM — init lazily
-      // For now, mark as initialized and defer mesh building
+      // Recast-detour is loaded as WASM — init lazily. Until an actual navmesh
+      // source is attached, navigation queries must report blocked/unknown rather
+      // than pretending every point is walkable.
       this.initialized = true;
+      this.navMeshSource = this.navMesh ? "available" : "missing";
       console.log("[NavigationService] Navigation service initialized.");
     } catch (err) {
+      this.initialized = false;
+      this.navMeshSource = "missing";
       console.error("[NavigationService] Failed to initialize:", err);
     }
   }
@@ -83,7 +99,7 @@ export class NavigationService {
     return Array.from(this.dirtyRegions.entries()).map(([id, bounds]) => ({ id, bounds }));
   }
 
-  /** Clear a dirty region after rebuild. */
+  /** Clear a dirty region after a real rebuild. */
   clearDirty(id: string): void {
     this.dirtyRegions.delete(id);
   }
@@ -96,6 +112,15 @@ export class NavigationService {
   /** Rebuild dirty regions of the navmesh. */
   async rebuildDirtyRegions(): Promise<void> {
     if (!this.needsRebuild()) return;
+
+    if (!this.navMesh) {
+      this.navMeshSource = "rebuild_blocked";
+      console.warn(
+        `[NavigationService] Navmesh rebuild blocked: no Recast/Detour navmesh source is attached. ` +
+          `${this.dirtyRegions.size} dirty area(s) remain queued.`
+      );
+      return;
+    }
 
     // Collect all dirty bounds
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -111,8 +136,10 @@ export class NavigationService {
       `${this.dirtyRegions.size} dirty areas.`
     );
 
-    // TODO: Call recast-detour rebuild with scene meshes in bounds
-    // For now, clear dirty regions
+    // TODO: Call recast-detour rebuild with scene meshes in bounds.
+    // Dirty regions are cleared only after the real navmesh source confirms the
+    // rebuild path above is available.
+    this.navMeshSource = "available";
     this.dirtyRegions.clear();
   }
 
@@ -153,18 +180,26 @@ export class NavigationService {
     return Array.from(this.agents.values()).filter((a) => a.active);
   }
 
-  /** Check if a position is walkable. */
-  isWalkable(x: number, y: number): boolean {
-    // TODO: Query navmesh
-    return true;
+  /** Check if a position is walkable. Unknown navmesh state is not walkable truth. */
+  isWalkable(_x: number, _y: number): boolean {
+    if (!this.initialized || !this.navMesh) {
+      this.navMeshSource = this.navMeshSource === "available" ? "missing" : this.navMeshSource;
+      return false;
+    }
+
+    // TODO: Query navmesh once the Recast/Detour source is wired.
+    return false;
   }
 
   /** Get stats. */
-  getStats(): { agents: number; dirtyRegions: number; initialized: boolean } {
+  getStats(): NavigationStats {
     return {
       agents: this.agents.size,
       dirtyRegions: this.dirtyRegions.size,
       initialized: this.initialized,
+      hasNavMesh: Boolean(this.navMesh),
+      navMeshSource: this.navMeshSource,
+      rebuildBlocked: this.navMeshSource === "rebuild_blocked" || (!this.navMesh && this.dirtyRegions.size > 0),
     };
   }
 
@@ -172,6 +207,7 @@ export class NavigationService {
     this.agents.clear();
     this.dirtyRegions.clear();
     this.navMesh = null;
+    this.navMeshSource = "missing";
     this.initialized = false;
   }
 }
