@@ -119,8 +119,8 @@ function categorizeModule({ content, lines }) {
   if (hasDateNewBare && !hasTelemetrySideChannel) {
     addIssue(issues, "DATE_NEW", "Uses bare new Date(); mark side-channel usage or replace with tick time.", "error");
   }
-  if (hasPerformanceNow && !hasAREAllow) {
-    addIssue(issues, "PERFORMANCE_NOW", "Uses performance.now without ARE side-channel allowance.", "warning");
+  if (hasPerformanceNow && !hasAREAllow && !hasTelemetrySideChannel) {
+    addIssue(issues, "PERFORMANCE_NOW", "Uses performance.now without ARE side-channel allowance.", "error");
   }
   if (hasWorldTickImport && !isAREAligned && !content.includes("installARE") && !content.includes("installRuntime")) {
     addIssue(issues, "WORLD_TICK_IMPORT", "Direct WorldTick usage outside ARE-aligned integration; prefer TickSystemContext.", "warning");
@@ -134,7 +134,7 @@ function categorizeModule({ content, lines }) {
 
   let category = "B";
   if (isStub && !isAREAligned) category = "E";
-  else if (issues.some((issue) => issue.severity === "error" && ["MATH_RANDOM", "DATE_NOW", "DATE_NEW", "STUB"].includes(issue.code))) category = "D";
+  else if (issues.some((issue) => issue.severity === "error" && ["MATH_RANDOM", "DATE_NOW", "DATE_NEW", "PERFORMANCE_NOW", "STUB"].includes(issue.code))) category = "D";
   else if (isAREAligned && hasDeterministicPrng) category = "A";
   else if (isAREAligned || hasDelta) category = "B";
   else if (patterns.length === 0 || hasStubComments) category = "C";
@@ -143,9 +143,21 @@ function categorizeModule({ content, lines }) {
 }
 
 function listTypeScriptFiles(modulePath) {
-  return readdirSync(modulePath)
-    .filter((file) => extname(file) === ".ts")
-    .sort((a, b) => a.localeCompare(b));
+  const files = [];
+  const visit = (dir) => {
+    for (const entry of readdirSync(dir).sort((a, b) => a.localeCompare(b))) {
+      const fullPath = join(dir, entry);
+      const stat = statSync(fullPath);
+      if (stat.isDirectory()) {
+        if (entry === "dist" || entry === "node_modules" || entry.startsWith(".")) continue;
+        visit(fullPath);
+      } else if (stat.isFile() && extname(entry) === ".ts" && !entry.endsWith(".d.ts")) {
+        files.push(fullPath);
+      }
+    }
+  };
+  visit(modulePath);
+  return files.sort((a, b) => a.localeCompare(b));
 }
 
 function analyzeModules() {
@@ -161,8 +173,7 @@ function analyzeModules() {
   for (const moduleDir of moduleDirs) {
     if (options.module && options.module !== moduleDir) continue;
     const modulePath = join(MODULES_DIR, moduleDir);
-    for (const file of listTypeScriptFiles(modulePath)) {
-      const filePath = join(modulePath, file);
+    for (const filePath of listTypeScriptFiles(modulePath)) {
       const scan = scanFile(filePath);
       const categorized = categorizeModule(scan);
       if (options.category && options.category !== categorized.category) continue;
@@ -170,7 +181,7 @@ function analyzeModules() {
       results.push({
         path: relative(cwd(), filePath),
         module: moduleDir,
-        filename: file,
+        filename: relative(modulePath, filePath),
         category: categorized.category,
         categoryLabel: CATEGORY_LABELS[categorized.category],
         patterns: categorized.patterns,
