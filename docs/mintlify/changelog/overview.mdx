@@ -3,19 +3,27 @@ title: Changelog
 description: Product updates shipped to Areloria WASD
 ---
 
-<Update label="June 26, 2026" description="Region pressure runtime, causal catchup, and HUD truth wiring">
+<Update label="June 26, 2026" description="Region pressure runtime, causal catchup, HUD truth wiring, and ARE audit pass">
 
-This week's release adds deterministic region pressure planning, a causal catchup side channel, and HUD wiring that reads renderer truth instead of placeholder values.
+This week's release adds deterministic region pressure planning, a causal catchup side channel, HUD wiring that reads renderer truth, and an audit pass that gates NPC, navigation, and admin surfaces on real runtime sources.
 
 ## New features
 
 - **Deterministic region pressure planner.** The server prioritizes which regions to stream from observation bounds and current load. Busy areas resolve first, distant regions degrade gracefully, and two players in the same area see the same prioritization. See [Architecture overview](/mintlify/architecture/overview) and [Truth path](/mintlify/architecture/truth-path).
 - **Causal catchup summary on the WebSocket protocol.** Slow or reconnecting clients receive a `causal_catchup_summary` message with missed significant events, tick range, chunk/region references, and deterministic hashes. It is marked `sideChannelOnly: true` and never replaces authoritative `snapshot` or `event` traffic. See [WebSocket API](/mintlify/api/websocket).
 - **Causal catchup overlay in the 2D client.** A passive render-only overlay surfaces event count, tick range, and summary hash while normal snapshots continue to stream. See [Client architecture](/mintlify/architecture/client).
+- **Admin audit view surfaces explicit unknown state.** The admin audit panel now renders each runtime source with a `ready`, `unknown`, or `blocked` status instead of showing a blank screen when truth is not yet wired. Operators can see at a glance which subsystems are reporting authoritative state. See [Truth path](/mintlify/architecture/truth-path).
 
 ## Updates
 
 - **HUD reads renderer truth.** Vitals, chunk coordinates, and visible chunk count now come from the renderer runtime snapshot rather than placeholders. Boot state, mana, stamina, XP, and level update from the visible runtime path.
+- **NPC brains trace runtime vitals.** NPC decision-making now reads state, health, energy, and gold from the live runtime tick instead of hard-coded defaults, and marks any missing source as `unknown` rather than fabricating a value. NPC behavior reflects what actually happened in the world. See [NPC systems](/mintlify/gameplay/npc-systems) and [Determinism](/mintlify/architecture/determinism).
+- **Deterministic NPC memory exchange.** NPCs exchange memories through a stable, hashed structure with deterministic ordering, so two players observing the same encounter see the same outcomes on replay. See [NPC systems](/mintlify/gameplay/npc-systems).
+
+## Fixes
+
+- **Client navigation gated on a real navmesh source.** The client no longer reports every position as walkable while the navmesh is missing. Navigation status now exposes `missing`, `available`, or `rebuild_blocked`, and rebuilds are skipped with a clear warning until a real Recast/Detour source is attached. See [Client architecture](/mintlify/architecture/client).
+- **Loot admin routes hardened at the source.** The loot admin router now applies admin authentication and rate limiting before any handler runs, so legacy mount points cannot bypass access checks. See [REST API](/mintlify/api/rest).
 
 </Update>
 
