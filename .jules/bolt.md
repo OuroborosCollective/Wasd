@@ -25,3 +25,7 @@
 ## 2026-06-22 - [Optimizing Quest Sync via Single-Pass Counting]
 **Learning:** `QuestEngine.getQuestSyncForClient` was performing a full $O(N)$ inventory scan for every "collect" quest, leading to $O(Q \times N)$ complexity per player sync. Implementing a lazy-initialized count `Map` reduces this to $O(Q + N)$, resulting in a measurable ~40% speedup in synchronization overhead for active players.
 **Action:** Always pre-calculate counts or lookups in a single pass when performing multiple searches across the same collection (e.g. inventory, active quests).
+
+## 2024-05-22 - [Safe Caching with WeakMap in Hot Paths]
+**Learning:** While direct object mutation is slightly faster for caching results in hot paths, it violates immutability expectations and fails PR hygiene if objects are potentially frozen. Using a `WeakMap` provides (1)$ lookup with similar performance benefits while maintaining pure-functional-like behavior for the input objects.
+**Action:** Use `WeakMap` for internal implementation caching in utility classes like `RecipeMatcher` to avoid mutating shared state.
