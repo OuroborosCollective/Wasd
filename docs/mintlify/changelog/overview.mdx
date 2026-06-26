@@ -3,15 +3,19 @@ title: Changelog
 description: Product updates shipped to Areloria WASD
 ---
 
-<Update label="June 26, 2026" description="Region pressure planning and causal catchup">
+<Update label="June 26, 2026" description="Region pressure runtime, causal catchup, and HUD truth wiring">
 
-This week's release adds a server-side region pressure planner and a causal catchup path so the world stays responsive when a client falls behind.
+This week's release adds deterministic region pressure planning, a causal catchup side channel, and HUD wiring that reads renderer truth instead of placeholder values.
 
 ## New features
 
-- **Deterministic region pressure planner.** The server now prioritizes which regions to stream to you based on your observation bounds and current load. Busy areas resolve first, and distant regions degrade gracefully instead of starving the active view. Two players in the same area see the same prioritization. See [Architecture overview](/mintlify/architecture/overview).
-- **Causal catchup for slow or reconnecting clients.** When a client lags behind the live tick, the server now sends a compressed summary of missed events on a dedicated side channel instead of replaying every step. Catching up after a hiccup or reconnect is faster and uses less bandwidth. See [WebSocket API](/mintlify/api/websocket).
-- **Sync state overlay in the 2D client.** A small, non-interactive overlay in the corner of the 2D client now shows when a causal catchup is in progress, including the number of events being reconciled. It disappears once the client is back in sync. See [Client architecture](/mintlify/architecture/client).
+- **Deterministic region pressure planner.** The server prioritizes which regions to stream from observation bounds and current load. Busy areas resolve first, distant regions degrade gracefully, and two players in the same area see the same prioritization. See [Architecture overview](/mintlify/architecture/overview) and [Truth path](/mintlify/architecture/truth-path).
+- **Causal catchup summary on the WebSocket protocol.** Slow or reconnecting clients receive a `causal_catchup_summary` message with missed significant events, tick range, chunk/region references, and deterministic hashes. It is marked `sideChannelOnly: true` and never replaces authoritative `snapshot` or `event` traffic. See [WebSocket API](/mintlify/api/websocket).
+- **Causal catchup overlay in the 2D client.** A passive render-only overlay surfaces event count, tick range, and summary hash while normal snapshots continue to stream. See [Client architecture](/mintlify/architecture/client).
+
+## Updates
+
+- **HUD reads renderer truth.** Vitals, chunk coordinates, and visible chunk count now come from the renderer runtime snapshot rather than placeholders. Boot state, mana, stamina, XP, and level update from the visible runtime path.
 
 </Update>
 

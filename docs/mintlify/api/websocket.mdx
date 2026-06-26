@@ -54,6 +54,7 @@ Client                    Server
 | `welcome` | Once | Connection confirmed |
 | `snapshot` | 10 Hz | World state |
 | `event` | As needed | Discrete events |
+| `causal_catchup_summary` | After catchup window | Render-only side-channel summary of significant missed events |
 | `player_join` | As needed | Player connected |
 | `player_leave` | As needed | Player disconnected |
 | `pong` | On ping | Keepalive response |
@@ -62,7 +63,7 @@ Client                    Server
 
 **The client sends wishes. The server assigns truth.**
 
-Client timestamp is diagnostic only. Server `tickId` is authoritative.
+Client time is diagnostic only. Server `tickId`, `logicalIndex`, `receivedOrder`, and deterministic hashes are authoritative.
 
 ### Movement Intent
 
@@ -70,6 +71,7 @@ Client timestamp is diagnostic only. Server `tickId` is authoritative.
 // Client sends: A wish
 {
   type: 'intent',
+  clientIntentId: 'move-0001', // debug/dedupe only
   payload: {
     action: 'move',
     data: {
@@ -82,8 +84,8 @@ Client timestamp is diagnostic only. Server `tickId` is authoritative.
 // Server responds with accepted truth (in snapshot)
 {
   tickId: 12345,           // Authoritative tick
-  logicalIndex: 123450,      // Logical execution index
-  receivedOrder: 7,         // Order among intents this tick
+  logicalIndex: 123450,    // Logical execution index
+  receivedOrder: 7,        // Order among intents this tick
   canonicalIntentHash: '0xabc123...'  // Deterministic hash
 }
 ```
@@ -94,6 +96,7 @@ Client timestamp is diagnostic only. Server `tickId` is authoritative.
 // Client sends: A wish
 {
   type: 'intent',
+  clientIntentId: 'attack-0001',
   payload: {
     action: 'attack',
     data: {
@@ -110,6 +113,7 @@ Client timestamp is diagnostic only. Server `tickId` is authoritative.
 // Client sends: A wish
 {
   type: 'intent',
+  clientIntentId: 'skill-0001',
   payload: {
     action: 'useSkill',
     data: {
@@ -126,6 +130,7 @@ Client timestamp is diagnostic only. Server `tickId` is authoritative.
 // Client sends: A wish
 {
   type: 'intent',
+  clientIntentId: 'interact-0001',
   payload: {
     action: 'interact',
     data: {
@@ -142,6 +147,7 @@ Client timestamp is diagnostic only. Server `tickId` is authoritative.
 // Client sends: A wish
 {
   type: 'intent',
+  clientIntentId: 'inventory-0001',
   payload: {
     action: 'inventory',
     data: {
@@ -158,18 +164,18 @@ Client timestamp is diagnostic only. Server `tickId` is authoritative.
 ```typescript
 // Server assigns truth to accepted intents
 interface ServerAcceptedIntent {
-  tickId: TickId;           // When intent was processed
-  logicalIndex: number;     // Order within tick
-  receivedOrder: number;    // Among all intents this tick
+  tickId: TickId;              // When intent was processed
+  logicalIndex: number;        // Order within tick
+  receivedOrder: number;       // Among all intents this tick
   canonicalIntentHash: string; // Deterministic hash
 }
 
 // Client receives truth in snapshot
 interface IntentConfirmation {
-  clientIntentId: string;    // Client's request ID (for debugging)
+  clientIntentId: string;      // Client request ID for debugging/dedupe only
   serverTruth: ServerAcceptedIntent;
   success: boolean;
-  reason?: string;  // If success=false
+  reason?: string;             // If success=false
 }
 ```
 
@@ -181,6 +187,9 @@ interface IntentConfirmation {
 {
   type: 'snapshot',
   tickId: 12345,
+  previousTickId: 12344,
+  stateHash: '0xstate...',
+  previousStateHash: '0xprev...',
   payload: {
     players: [
       {
@@ -209,11 +218,12 @@ interface IntentConfirmation {
       weather: 'clear',
       chunkX: 0,
       chunkY: 0
-    },
-    timestamp: 1234567890
+    }
   }
 }
 ```
+
+Snapshot metadata must be server-derived from tick/runtime state. Wall-clock timestamps are telemetry only and must not drive simulation.
 
 ### Delta Snapshot
 
@@ -223,16 +233,96 @@ For efficiency, servers may send deltas:
 {
   type: 'snapshot',
   tickId: 12346,
+  stateHash: '0xstate2...',
   payload: {
     delta: {
       players: {
         'player-123': { health: 95 }  // Only changed fields
       }
     },
-    previousTickId: 12345
+    previousTickId: 12345,
+    previousStateHash: '0xstate1...'
   }
 }
 ```
+
+## Causal Catchup Summary
+
+When a client rejoins after a disconnect or falls behind the live tick window, the server may emit a `causal_catchup_summary` message on the same WebSocket connection. The summary is a **render-only side channel** that describes significant events the client missed, so the UI can show a catchup banner without replaying every snapshot.
+
+The summary is advisory and never authoritative. Clients must not mutate gameplay state from it. Authoritative state still arrives through `snapshot` and `event` messages. The `sideChannelOnly: true` flag routes the payload to passive overlays or notifications.
+
+### Payload
+
+```typescript
+type CausalCatchupEventType =
+  | 'resource_depleted'
+  | 'market_price_changed'
+  | 'npc_activity_changed'
+  | 'quest_completed'
+  | 'combat_result'
+  | 'governance_action'
+  | 'legend_recorded';
+
+interface CausalCatchupEventPayload {
+  eventId: string;
+  type: CausalCatchupEventType;
+  tick: number;
+  significancePerMille: number;  // 0-1000 importance score
+  regionId: string;
+  chunkKey: string;
+  payloadHash: string;           // Deterministic hash of event data
+  eventHash: string;             // Deterministic hash of event identity
+}
+
+interface CausalCatchupSummaryPayload {
+  eventCount: number;
+  firstTick: number | null;      // null when eventCount === 0
+  lastTick: number | null;
+  events: CausalCatchupEventPayload[];
+  summaryHash: string;           // Deterministic hash of the full summary
+  sideChannelOnly: true;
+}
+```
+
+### Example
+
+```typescript
+{
+  type: 'causal_catchup_summary',
+  payload: {
+    eventCount: 2,
+    firstTick: 41200,
+    lastTick: 41460,
+    events: [
+      {
+        eventId: 'evt-001',
+        type: 'resource_depleted',
+        tick: 41200,
+        significancePerMille: 720,
+        regionId: 'region-north-3',
+        chunkKey: '3:5',
+        payloadHash: '0xabc...',
+        eventHash: '0xdef...'
+      },
+      {
+        eventId: 'evt-002',
+        type: 'market_price_changed',
+        tick: 41460,
+        significancePerMille: 540,
+        regionId: 'region-north-3',
+        chunkKey: '3:5',
+        payloadHash: '0x123...',
+        eventHash: '0x456...'
+      }
+    ],
+    summaryHash: '0x789...',
+    sideChannelOnly: true
+  }
+}
+```
+
+Clients can render this through a passive overlay, for example: “Causal catchup observed: 2 event(s), ticks 41200–41460.”
 
 ## Event Protocol
 
@@ -307,12 +397,12 @@ Clients should implement reconnection:
 ```typescript
 class ReconnectingWS {
   maxRetries = 5;
-  retryDelay = 1000;  // ms
-  
+  retryDelay = 1000;  // ms, client-side network backoff only
+
   onDisconnect() {
     this.state = 'reconnecting';
     this.retryCount++;
-    
+
     if (this.retryCount <= this.maxRetries) {
       setTimeout(() => this.connect(), this.retryDelay * this.retryCount);
     }
@@ -320,13 +410,15 @@ class ReconnectingWS {
 }
 ```
 
+Client reconnect timers are network-side behavior only. They do not create simulation ticks or authoritative time.
+
 ### State Recovery
 
 After reconnect:
-1. Client sends current state hash
-2. Server compares with last known state
-3. Server sends delta to catch up
-4. Client resumes normal operation
+1. Client sends last known `stateHash` and `tickId`
+2. Server compares with runtime truth
+3. Server sends authoritative snapshot/delta and optional `causal_catchup_summary`
+4. Client resumes normal rendering from server truth
 
 ## Next Steps
 

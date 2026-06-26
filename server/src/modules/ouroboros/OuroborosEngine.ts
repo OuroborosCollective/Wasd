@@ -48,6 +48,44 @@ export interface OuroborosEngineConfig extends OuroborosConfig {
   npcBrainInterval: number;
 }
 
+type NPCBrainSourceKind = "runtime" | "memory" | "unknown";
+type NPCBrainTraceStatus = "ready" | "unknown";
+
+interface NPCBrainNumberSource {
+  value: number;
+  source: NPCBrainSourceKind;
+  reason: string;
+}
+
+interface NPCBrainStringSource {
+  value: string;
+  source: NPCBrainSourceKind;
+  reason: string;
+}
+
+export interface NPCBrainSourceTrace {
+  tick: number;
+  status: NPCBrainTraceStatus;
+  state: NPCBrainStringSource;
+  health: NPCBrainNumberSource;
+  energy: NPCBrainNumberSource;
+  gold: NPCBrainNumberSource;
+}
+
+type NPCBrainRuntimeNPC = {
+  id: string;
+  name: string;
+  position: { x: number; y: number };
+  faction?: string;
+  state?: string;
+  health?: number;
+  maxHealth?: number;
+  energy?: number;
+  maxEnergy?: number;
+  gold?: number;
+  wealth?: number;
+};
+
 const DEFAULT_ENGINE_CONFIG: OuroborosEngineConfig = {
   perceptionRadius: 50,
   legendSpreadChance: 0.02,
@@ -70,6 +108,7 @@ export class OuroborosEngine {
   // NPC Brain System integration
   private npcBrainRunner: NPCBrainRunner;
   private npcMemories: Map<string, NPCMemoryV3> = new Map();
+  private npcBrainSourceTraces: Map<string, NPCBrainSourceTrace> = new Map();
 
   constructor(config?: Partial<OuroborosEngineConfig>) {
     this.config = { ...DEFAULT_ENGINE_CONFIG, ...config };
@@ -98,7 +137,7 @@ export class OuroborosEngine {
 
   tick(
     tickCount: number,
-    npcs: Array<{ id: string; name: string; position: { x: number; y: number }; faction?: string }>,
+    npcs: NPCBrainRuntimeNPC[],
     players: Array<{ id: string; name: string; position: { x: number; y: number } }>,
     memoryCache: NPCMemoryCache,
     relationships: NPCRelationshipSystem,
@@ -267,6 +306,8 @@ export class OuroborosEngine {
       npcBrainInterval: this.config.npcBrainInterval,
       trackedNPCs: this.npcMemories.size,
       npcBrainStats: this.npcBrainRunner?.getStats() ?? null,
+      npcBrainSourceTraceCount: this.npcBrainSourceTraces.size,
+      latestNPCBrainSourceTraces: Array.from(this.npcBrainSourceTraces.entries()).slice(-5),
     };
   }
 
@@ -276,7 +317,7 @@ export class OuroborosEngine {
    * Run NPC brain tick for single NPC
    */
   private runNPCBrainTick(
-    npc: { id: string; name: string; position: { x: number; y: number }; faction?: string },
+    npc: NPCBrainRuntimeNPC,
     ctx: AgentContext,
     tickCount: number,
     nearby: Array<{ id: string; name: string; type: "npc" | "player"; position: { x: number; y: number }; faction?: string }>
@@ -319,28 +360,99 @@ export class OuroborosEngine {
       hostile: e.type !== "npc", // Players are hostile by default in this simplified model
     }));
 
-    // Run NPC brain
+    const stateSource = this.resolveNPCBrainState(npc);
+    const vitals = this.resolveNPCBrainVitals(npc, memory);
+    const trace: NPCBrainSourceTrace = {
+      tick: tickCount,
+      status: [stateSource, vitals.health, vitals.energy, vitals.gold].some((entry) => entry.source === "unknown") ? "unknown" : "ready",
+      state: stateSource,
+      health: vitals.health,
+      energy: vitals.energy,
+      gold: vitals.gold,
+    };
+
+    // Run NPC brain. Missing runtime sources are deliberately traced as unknown;
+    // the neutral numeric values only keep the deterministic brain evaluator total.
     const output = this.npcBrainRunner.runWithContext({
       npcId: npc.id,
       npcName: npc.name,
       position: npc.position,
       homeRegionId: ctx.regionId,
       factionId: npc.faction,
-      state: "idle",
-      health: 0.8, // TODO: Get from actual NPC state
-      energy: 0.7,
-      gold: 50,
+      state: stateSource.value,
+      health: vitals.health.value,
+      energy: vitals.energy.value,
+      gold: vitals.gold.value,
       memory,
       nearbyEntities: brainNearbyEntities,
       tick: tickCount,
       worldSnapshot,
     });
 
+    this.npcBrainSourceTraces.set(npc.id, trace);
+
     // Store updated memory
     this.npcMemories.set(npc.id, output.memory);
 
     // Emit world events based on NPC decisions
     this.emitNPCCognitiveEvents(npc, output.decision, tickCount);
+  }
+
+  private resolveNPCBrainState(npc: NPCBrainRuntimeNPC): NPCBrainStringSource {
+    if (typeof npc.state === "string" && npc.state.trim().length > 0) {
+      return { value: npc.state, source: "runtime", reason: "npc.state" };
+    }
+    return { value: "idle", source: "unknown", reason: "missing runtime npc.state; neutral evaluator state used" };
+  }
+
+  private resolveNPCBrainVitals(npc: NPCBrainRuntimeNPC, memory: NPCMemoryV3): {
+    health: NPCBrainNumberSource;
+    energy: NPCBrainNumberSource;
+    gold: NPCBrainNumberSource;
+  } {
+    return {
+      health: this.resolveRatioSource(npc.health, npc.maxHealth, 1, "npc.health"),
+      energy: this.resolveRatioSource(npc.energy, npc.maxEnergy, 1, "npc.energy"),
+      gold: this.resolveGoldSource(npc, memory),
+    };
+  }
+
+  private resolveRatioSource(value: unknown, maxValue: unknown, neutralValue: number, label: string): NPCBrainNumberSource {
+    const numericValue = typeof value === "number" && Number.isFinite(value) ? value : null;
+    const numericMax = typeof maxValue === "number" && Number.isFinite(maxValue) && maxValue > 0 ? maxValue : null;
+
+    if (numericValue !== null && numericMax !== null) {
+      return { value: this.clamp01(numericValue / numericMax), source: "runtime", reason: `${label}/${label.replace(/^[^.]+\./, "max")}` };
+    }
+
+    if (numericValue !== null && numericValue >= 0 && numericValue <= 1) {
+      return { value: numericValue, source: "runtime", reason: `${label} ratio` };
+    }
+
+    return { value: neutralValue, source: "unknown", reason: `missing runtime ${label}; neutral evaluator value used` };
+  }
+
+  private resolveGoldSource(npc: NPCBrainRuntimeNPC, memory: NPCMemoryV3): NPCBrainNumberSource {
+    const runtimeGold = typeof npc.gold === "number" && Number.isFinite(npc.gold) ? npc.gold : null;
+    const runtimeWealth = typeof npc.wealth === "number" && Number.isFinite(npc.wealth) ? npc.wealth : null;
+    if (runtimeGold !== null) return { value: runtimeGold, source: "runtime", reason: "npc.gold" };
+    if (runtimeWealth !== null) return { value: runtimeWealth, source: "runtime", reason: "npc.wealth" };
+
+    const memoryWealthHasProvenance =
+      memory.economy.lastTradeTick > 0 ||
+      memory.learning.lastOutcomeTick > 0 ||
+      memory.learning.totalActions > 0;
+    if (memoryWealthHasProvenance && Number.isFinite(memory.economy.wealth)) {
+      return { value: memory.economy.wealth, source: "memory", reason: "memory.economy.wealth:provenance" };
+    }
+
+    return { value: 0, source: "unknown", reason: "missing runtime wealth; default memory wealth ignored" };
+  }
+
+  private clamp01(value: number): number {
+    if (value < 0) return 0;
+    if (value > 1) return 1;
+    return value;
   }
 
   /**
@@ -394,6 +506,11 @@ export class OuroborosEngine {
     return this.npcMemories.get(npcId);
   }
 
+  /** Get last NPC brain source trace by ID. */
+  getNPCBrainSourceTrace(npcId: string): NPCBrainSourceTrace | undefined {
+    return this.npcBrainSourceTraces.get(npcId);
+  }
+
   /**
    * Get all NPC memories (for debugging)
    */
@@ -406,6 +523,7 @@ export class OuroborosEngine {
    */
   resetNPCBrains(): void {
     this.npcMemories.clear();
+    this.npcBrainSourceTraces.clear();
     this.npcBrainRunner?.reset();
   }
 }
