@@ -46,6 +46,7 @@ export function createNPCMemoryExchangeEntry(params: Omit<NPCMemoryExchangeEntry
     params.tick,
     params.sequence,
     params.chunkKey,
+    params.kappa1000 ?? "kappa1000:unknown",
     params.relevancePerMille,
     params.source,
     params.status,
