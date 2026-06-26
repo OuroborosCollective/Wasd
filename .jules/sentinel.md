@@ -12,3 +12,8 @@
 **Vulnerability:** The `/science-mascot` endpoint was a public proxy for the Gemini AI API using a server-side secret, and `/resync` / `/snapshot` endpoints exposed full world state snapshots to unauthenticated users.
 **Learning:** AI proxy endpoints that allow client-controlled system prompts are high-risk for both resource abuse and prompt injection. State snapshots are sensitive data that should always be guarded by authentication.
 **Prevention:** Always apply `authMiddleware` to any endpoint that proxies external LLM APIs or returns comprehensive system/world state. Hardcode or strictly validate system prompts on the server.
+
+## 2025-06-12 - [Medium] Unprotected Monitoring Endpoints
+**Vulnerability:** The `/agora/api` monitoring routes were publicly accessible, exposing sensitive system metadata including build hashes, uptime, persistence statistics, and ARE world hash snapshots.
+**Learning:** Secondary or modular monitoring interfaces can be easily overlooked when applying top-level administrative protections in `ServerBootstrap.ts`.
+**Prevention:** Audit all feature-specific routers (like Agora) to ensure administrative sub-paths explicitly apply `adminAuthMiddleware` and `adminRateLimiter` if they are not already covered by a parent mount point.
