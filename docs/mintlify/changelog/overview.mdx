@@ -3,13 +3,46 @@ title: Changelog
 description: Product updates shipped to Areloria WASD
 ---
 
-<Update label="June 24, 2026" description="2D world renderer fix">
+<Update label="June 25, 2026" description="NPC interaction accessibility and shortcuts">
 
-This week's release upgrades the 2D client renderer so the world streams in cleanly and NPCs visibly move around it.
+This week's release polishes the NPC dialogue flow so interactions are easier to reach, easier to read, and easier to dismiss.
+
+## Updates
+
+- **Numeric shortcuts for NPC dialogue options.** The NPC interaction menu now supports `1`, `2`, `3`, and beyond as functional hotkeys for the listed options, so you can pick a response without taking your hand off the keyboard. This release also fixes a timing bug that could confirm a stale option. See [NPC systems](/mintlify/gameplay/npc-systems).
+- **Accessible NPC window controls.** The NPC context window's close button now shows a visible `ESC` keyboard hint and exposes accessibility labels and key-shortcut hints to screen readers, matching the standardized close behavior across the rest of the HUD. See [NPC systems](/mintlify/gameplay/npc-systems).
+- **Consistent NPC dialogue styling.** Styling and accessibility cues are now consistent across the NPC dialogue components, so context windows and interaction menus feel like one surface instead of two.
+
+</Update>
+
+<Update label="June 25, 2026" description="Standardized gameplay window close buttons">
+
+This week's release adds a consistent close control to every gameplay HUD window.
+
+## Updates
+
+- **Close buttons on all gameplay windows.** Character, Quest Journal, Skills, and the rest of the gameplay panels now share a standardized close button in the window header. Each button shows a visible `ESC` keyboard hint and exposes accessibility labels. Closing a window dismisses it the same way as toggling the panel from the HUD. See [Client architecture](/mintlify/architecture/client).
+
+</Update>
+
+<Update label="June 25, 2026" description="HUD bridge for the 2D client">
+
+This week's release wires the in-world HUD onto the 2D renderer so vitals, chunk position, and chat sit on top of the live world instead of in a separate preview.
+
+## New features
+
+- **HUD bridge for the 2D client.** The 2D renderer now mounts the Arelorian Stitch HUD on top of the live world. While you play, the HUD surfaces player vitals (HP, mana, stamina, XP, level), current chunk coordinates, visible chunk count, and a rolling chat log. Skill, interact, strike, weapon cycle, and chat inputs route through the HUD into the world view. See [Client architecture](/mintlify/architecture/client).
+
+</Update>
+
+<Update label="June 24, 2026" description="2D world renderer fixes">
+
+This week's release upgrades the 2D client renderer so the world streams in cleanly and NPCs visibly move around it, with follow-up hardening for visual consistency.
 
 ## Fixes
 
 - **2D world renderer now streams chunks and animates NPCs.** The 2D client switches to the newer renderer path, which streams world chunks as you move and shows NPC motion in real time instead of stalling on a static scene. The scene renderer also handles texture atlas edge cases safely, removing a class of missing-tile glitches. See [Client architecture](/mintlify/architecture/client).
+- **Deterministic visual asset ordering.** The 2D client now picks visual assets in a stable order and filters out known letter, number, sheet, and font artifacts before they can bind to world objects. Two players in the same scene see the same sprites, and a class of stray glyph-on-tile glitches is gone. See [Determinism](/mintlify/architecture/determinism).
 
 </Update>
 

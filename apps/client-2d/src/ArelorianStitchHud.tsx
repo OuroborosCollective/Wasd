@@ -539,7 +539,7 @@ function GameplayWindowsLayerWithSnapshot({ liveGameplay }: { liveGameplay: Retu
 
   return (
     <>
-      <GameplayWindowsLayer snapshot={liveGameplay} openPanels={openPanels} />
+      <GameplayWindowsLayer snapshot={liveGameplay} openPanels={openPanels} onClose={togglePanel} />
       <GameplayWindowDock openPanels={openPanels} onToggle={togglePanel} />
     </>
   );

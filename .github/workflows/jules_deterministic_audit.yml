@@ -28,6 +28,19 @@ jobs:
           git checkout -q --force FETCH_HEAD
           git config --global --add safe.directory "$PWD"
 
+      - name: Detect server relevant changes
+        id: changes
+        run: |
+          set -euo pipefail
+          git -c protocol.version=2 fetch -q --no-tags --depth=1 origin "${{ github.base_ref }}"
+          changed="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD || true)"
+          printf '%s\n' "$changed"
+          if printf '%s\n' "$changed" | grep -E '^(server/|packages/shared/|packages/core-logic/|package\.json$|pnpm-lock\.yaml$|tsconfig\.base\.json$)' >/dev/null; then
+            echo "server_relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "server_relevant=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -58,9 +71,14 @@ jobs:
           NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/core-logic run typecheck
 
       - name: Typecheck @wasd/server (tsc --noEmit)
+        if: steps.changes.outputs.server_relevant == 'true'
         run: |
           set -o pipefail
           NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/server exec tsc --noEmit --pretty false 2>&1 | tee /tmp/wasd-server-tsc.log
+
+      - name: Skip server typecheck for non-server PR
+        if: steps.changes.outputs.server_relevant != 'true'
+        run: echo "No server/shared/core changes detected; skipping server tsc gate for this PR."
 
       - name: Typecheck @wasd/portal
         run: |
