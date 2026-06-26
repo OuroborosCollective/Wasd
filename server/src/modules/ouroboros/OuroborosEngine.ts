@@ -437,8 +437,16 @@ export class OuroborosEngine {
     const runtimeWealth = typeof npc.wealth === "number" && Number.isFinite(npc.wealth) ? npc.wealth : null;
     if (runtimeGold !== null) return { value: runtimeGold, source: "runtime", reason: "npc.gold" };
     if (runtimeWealth !== null) return { value: runtimeWealth, source: "runtime", reason: "npc.wealth" };
-    if (Number.isFinite(memory.economy.wealth)) return { value: memory.economy.wealth, source: "memory", reason: "memory.economy.wealth" };
-    return { value: 0, source: "unknown", reason: "missing runtime and memory wealth; neutral evaluator value used" };
+
+    const memoryWealthHasProvenance =
+      memory.economy.lastTradeTick > 0 ||
+      memory.learning.lastOutcomeTick > 0 ||
+      memory.learning.totalActions > 0;
+    if (memoryWealthHasProvenance && Number.isFinite(memory.economy.wealth)) {
+      return { value: memory.economy.wealth, source: "memory", reason: "memory.economy.wealth:provenance" };
+    }
+
+    return { value: 0, source: "unknown", reason: "missing runtime wealth; default memory wealth ignored" };
   }
 
   private clamp01(value: number): number {
