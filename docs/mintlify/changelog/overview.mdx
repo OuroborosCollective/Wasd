@@ -9,7 +9,7 @@ This week's release adds a server-side region pressure planner and a causal catc
 
 ## New features
 
-- **Deterministic region pressure planner.** The server now prioritizes which regions to stream to each player based on their observation bounds and current load, so busy areas resolve first and distant regions degrade gracefully instead of starving the active view. Two players in the same area see the same prioritization. See [Architecture overview](/mintlify/architecture/overview).
+- **Deterministic region pressure planner.** The server now prioritizes which regions to stream to you based on your observation bounds and current load. Busy areas resolve first, and distant regions degrade gracefully instead of starving the active view. Two players in the same area see the same prioritization. See [Architecture overview](/mintlify/architecture/overview).
 - **Causal catchup for slow or reconnecting clients.** When a client lags behind the live tick, the server now sends a compressed summary of missed events on a dedicated side channel instead of replaying every step. Catching up after a hiccup or reconnect is faster and uses less bandwidth. See [WebSocket API](/mintlify/api/websocket).
 - **Sync state overlay in the 2D client.** A small, non-interactive overlay in the corner of the 2D client now shows when a causal catchup is in progress, including the number of events being reconciled. It disappears once the client is back in sync. See [Client architecture](/mintlify/architecture/client).
 
