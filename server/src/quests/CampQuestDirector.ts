@@ -52,8 +52,8 @@ interface CampQuestTemplate {
   readonly reward: LiveGameplayQuestReward;
 }
 
-const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = Object.freeze({
-  logging_camp: Object.freeze([
+const TEMPLATES: Readonly<Record<GatheringCampPoiType, readonly CampQuestTemplate[]>> = Object.freeze({
+  logging_camp: Object.freeze<CampQuestTemplate[]>([
     {
       title: "Wood Delivery",
       description: "The logging crew needs a fresh wood-log delivery before the next hauling run.",
@@ -69,7 +69,7 @@ const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = Ob
       reward: { coins: 18, gatheringXp: 20, craftingXp: 5, reputation: 1 },
     },
   ]),
-  mining_camp: Object.freeze([
+  mining_camp: Object.freeze<CampQuestTemplate[]>([
     {
       title: "Ore Sample Run",
       description: "The miners need a clean ore sample logged for the next smelting batch.",
@@ -85,7 +85,7 @@ const TEMPLATES: Record<GatheringCampPoiType, readonly CampQuestTemplate[]> = Ob
       reward: { coins: 22, gatheringXp: 24, craftingXp: 4, reputation: 1 },
     },
   ]),
-  fishing_camp: Object.freeze([
+  fishing_camp: Object.freeze<CampQuestTemplate[]>([
     {
       title: "Fresh Catch Order",
       description: "The fishing camp needs a fresh catch counted before the next trader leaves.",
