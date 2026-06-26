@@ -9,8 +9,8 @@ This week's release smooths motion in the 2D client, flags when the world view f
 
 ## New features
 
-- **Snapshot interpolation in the 2D client.** Positions and facing between server snapshots are now visually interpolated, so movement reads as smooth instead of stepping tick-by-tick. The interpolation is render-only and never invents authoritative state. See [Client architecture](/mintlify/architecture/client).
-- **Stale-state overlay.** A passive overlay now indicates when the rendered world is running behind fresh server snapshots, so you can tell visual lag apart from gameplay state. The overlay is render-only and reads validated server payloads. See [Client architecture](/mintlify/architecture/client).
+- **Snapshot interpolation in the 2D client.** The client now visually interpolates positions and facing between server snapshots, so movement reads as smooth instead of stepping tick-by-tick. Interpolation is render-only and never invents authoritative state. See [Client architecture](/mintlify/architecture/client).
+- **Stale-state overlay.** A passive overlay now flags when the rendered world falls behind fresh server snapshots, so you can tell visual lag apart from gameplay state. The overlay is render-only and reads validated server payloads. See [Client architecture](/mintlify/architecture/client).
 - **Causal catchup panel.** A new in-client panel renders the server's causal catchup summary — event count, tick range, chunk and region references, and the deterministic hash — for slow or reconnecting sessions. The panel reads server-authoritative data only and never mutates world state. See [WebSocket API](/mintlify/api/websocket) and [Client architecture](/mintlify/architecture/client).
 
 </Update>
