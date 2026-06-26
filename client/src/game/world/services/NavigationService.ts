@@ -54,6 +54,8 @@ export class NavigationService {
   private agents: Map<string, NavAgent> = new Map();
   private initialized = false;
   private navMesh: any = null; // Recast navmesh instance
+  private navMeshSource: "none" | "placeholder" | "recast" = "none";
+  private lastRebuildTime: number | null = null;
 
   constructor(config?: Partial<NavMeshConfig>) {
     this.config = { ...DEFAULT_NAV_CONFIG, ...config };
@@ -65,9 +67,10 @@ export class NavigationService {
 
     try {
       // Recast-detour is loaded as WASM — init lazily
-      // For now, mark as initialized and defer mesh building
+      // For now, mark as initialized with placeholder source
       this.initialized = true;
-      console.log("[NavigationService] Navigation service initialized.");
+      this.navMeshSource = "placeholder";
+      console.log("[NavigationService] Navigation service initialized (source: placeholder, no recast mesh).");
     } catch (err) {
       console.error("[NavigationService] Failed to initialize:", err);
     }
@@ -112,8 +115,9 @@ export class NavigationService {
     );
 
     // TODO: Call recast-detour rebuild with scene meshes in bounds
-    // For now, clear dirty regions
+    // For now, clear dirty regions and record rebuild time
     this.dirtyRegions.clear();
+    this.lastRebuildTime = performance.now();
   }
 
   /** Register a crowd agent (NPC). */
@@ -153,18 +157,30 @@ export class NavigationService {
     return Array.from(this.agents.values()).filter((a) => a.active);
   }
 
-  /** Check if a position is walkable. */
+  /** Check if a position is walkable. Returns false when navmesh source is unavailable. */
   isWalkable(x: number, y: number): boolean {
-    // TODO: Query navmesh
-    return true;
+    // No real navmesh source available — report unknown as false (fail-closed)
+    if (this.navMeshSource === "none") {
+      return false;
+    }
+    // Placeholder source — cannot make real walkability determination
+    if (this.navMeshSource === "placeholder") {
+      return false;
+    }
+    // TODO: Query actual Recast navmesh
+    // const result = this.navMesh.getPolyAt(x, y);
+    // return result !== null && result.walkable === true;
+    return false;
   }
 
-  /** Get stats. */
-  getStats(): { agents: number; dirtyRegions: number; initialized: boolean } {
+  /** Get stats including navmesh source and rebuild status. */
+  getStats(): { agents: number; dirtyRegions: number; initialized: boolean; navMeshSource: string; hasRebuiltMesh: boolean } {
     return {
       agents: this.agents.size,
       dirtyRegions: this.dirtyRegions.size,
       initialized: this.initialized,
+      navMeshSource: this.navMeshSource,
+      hasRebuiltMesh: this.lastRebuildTime !== null,
     };
   }
 
@@ -172,6 +188,8 @@ export class NavigationService {
     this.agents.clear();
     this.dirtyRegions.clear();
     this.navMesh = null;
+    this.navMeshSource = "none";
+    this.lastRebuildTime = null;
     this.initialized = false;
   }
 }
