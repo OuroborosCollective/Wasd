@@ -54,6 +54,7 @@ Client                    Server
 | `welcome` | Once | Connection confirmed |
 | `snapshot` | 10 Hz | World state |
 | `event` | As needed | Discrete events |
+| `causal_catchup_summary` | After catchup window | Side-channel summary of significant events the client missed |
 | `player_join` | As needed | Player connected |
 | `player_leave` | As needed | Player disconnected |
 | `pong` | On ping | Keepalive response |
@@ -291,6 +292,84 @@ For efficiency, servers may send deltas:
   }
 }
 ```
+
+## Causal catchup summary
+
+When a client rejoins after a disconnect or falls behind the live tick window, the server emits a `causal_catchup_summary` message on the same WebSocket connection. The summary is a **render-only side channel**: it describes significant events the client missed (resource depletions, market price changes, NPC activity shifts, quest completions, combat results, governance actions, and recorded legends) so the UI can surface a catchup banner without replaying every snapshot.
+
+The summary is advisory and never authoritative. Do not mutate game state from it — authoritative state still arrives through `snapshot` and `event` messages. The `sideChannelOnly: true` flag is always set and lets clients route the payload to a dedicated overlay or notification layer.
+
+### Payload
+
+```typescript
+type CausalCatchupEventType =
+  | "resource_depleted"
+  | "market_price_changed"
+  | "npc_activity_changed"
+  | "quest_completed"
+  | "combat_result"
+  | "governance_action"
+  | "legend_recorded";
+
+interface CausalCatchupEventPayload {
+  eventId: string;
+  type: CausalCatchupEventType;
+  tick: number;
+  significancePerMille: number;  // 0–1000 importance score
+  regionId: string;
+  chunkKey: string;
+  payloadHash: string;            // Deterministic hash of event data
+  eventHash: string;              // Deterministic hash of event identity
+}
+
+interface CausalCatchupSummaryPayload {
+  eventCount: number;
+  firstTick: number | null;       // null when eventCount === 0
+  lastTick: number | null;
+  events: CausalCatchupEventPayload[];
+  summaryHash: string;            // Deterministic hash of the full summary
+  sideChannelOnly: true;
+}
+```
+
+### Example
+
+```typescript
+{
+  type: 'causal_catchup_summary',
+  payload: {
+    eventCount: 2,
+    firstTick: 41200,
+    lastTick: 41460,
+    events: [
+      {
+        eventId: 'evt-001',
+        type: 'resource_depleted',
+        tick: 41200,
+        significancePerMille: 720,
+        regionId: 'region-north-3',
+        chunkKey: '3:5',
+        payloadHash: '0xabc...',
+        eventHash: '0xdef...'
+      },
+      {
+        eventId: 'evt-002',
+        type: 'market_price_changed',
+        tick: 41460,
+        significancePerMille: 540,
+        regionId: 'region-north-3',
+        chunkKey: '3:5',
+        payloadHash: '0x123...',
+        eventHash: '0x456...'
+      }
+    ],
+    summaryHash: '0x789...',
+    sideChannelOnly: true
+  }
+}
+```
+
+Clients can render this through a passive overlay (e.g. "Causal catchup observed: 2 event(s), ticks 41200–41460") while normal snapshots stream in.
 
 ## Rate Limiting
 
