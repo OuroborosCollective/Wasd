@@ -3,6 +3,21 @@ title: Changelog
 description: Product updates shipped to Areloria WASD
 ---
 
+<Update label="June 26, 2026" description="Snapshot freshness HUD and causal catchup panel">
+
+This release surfaces server snapshot freshness as a visible HUD state and adds a passive panel that lists the missed events delivered by the causal catchup side channel.
+
+## New features
+
+- **Snapshot freshness HUD state.** The 2D client now labels its connection to the server as `Live`, `Network delay`, `Snapshot is stale`, `Resync required`, or `Waiting for server snapshot`, based purely on how recent the last server snapshot is. The label is render-only and never invents gameplay state. See [Client architecture](/mintlify/architecture/client).
+- **Causal catchup event panel.** When the server sends a `causal_catchup_summary`, the client now shows a categorized list of what you missed: `Resource Depleted`, `Market Price`, `NPC Activity`, `Quest Complete`, `Combat`, `Governance`, and `Legend`. The panel is passive — it displays server-authoritative data and never replays or mutates anything. See [WebSocket API](/mintlify/api/websocket).
+
+## Updates
+
+- **Render-only snapshot interpolation.** Between 10 Hz server snapshots, the client interpolates position and facing for smooth 60 FPS rendering. Interpolation only reads the most recent server snapshots and never advances simulation state.
+
+</Update>
+
 <Update label="June 26, 2026" description="Region pressure runtime, causal catchup, HUD truth wiring, and ARE audit pass">
 
 This week's release adds deterministic region pressure planning, a causal catchup side channel, HUD wiring that reads renderer truth, and an audit pass that gates NPC, navigation, and admin surfaces on real runtime sources.
