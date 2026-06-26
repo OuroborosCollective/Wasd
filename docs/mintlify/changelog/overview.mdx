@@ -9,7 +9,7 @@ This week's release adds a deterministic side channel that tells clients what si
 
 ## New features
 
-- **Causal catchup summary on the WebSocket protocol.** The server now emits a `causal_catchup_summary` message that lists significant events the client missed — resource depletions, market price changes, NPC activity shifts, quest completions, combat results, governance actions, and recorded legends — with a deterministic hash, region, chunk, and tick for each one. The summary is advisory only (`sideChannelOnly: true`) and never replaces authoritative `snapshot` or `event` traffic. See [WebSocket Protocol](/mintlify/api/websocket).
+- **Causal catchup summary on the WebSocket protocol.** The server now emits a `causal_catchup_summary` message that lists significant events the client missed, including resource depletions, market price changes, NPC activity shifts, quest completions, combat results, governance actions, and recorded legends. Each entry carries a deterministic hash, region, chunk, and tick. The summary is advisory only (`sideChannelOnly: true`) and never replaces authoritative `snapshot` or `event` traffic. See [WebSocket protocol](/mintlify/api/websocket).
 - **Sync state overlay in the 2D client.** The 2D renderer mounts a passive overlay that surfaces the latest causal catchup summary (event count, tick range, summary hash) so players can see at a glance that the client has caught up after a reconnect. See [Client architecture](/mintlify/architecture/client).
 
 </Update>

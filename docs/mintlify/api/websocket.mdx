@@ -293,11 +293,11 @@ For efficiency, servers may send deltas:
 }
 ```
 
-## Causal catchup summary
+## Causal Catchup Summary
 
-When a client rejoins after a disconnect or falls behind the live tick window, the server emits a `causal_catchup_summary` message on the same WebSocket connection. The summary is a **render-only side channel**: it describes significant events the client missed (resource depletions, market price changes, NPC activity shifts, quest completions, combat results, governance actions, and recorded legends) so the UI can surface a catchup banner without replaying every snapshot.
+When a client rejoins after a disconnect or falls behind the live tick window, the server emits a `causal_catchup_summary` message on the same WebSocket connection. The summary is a **render-only side channel** that describes significant events the client missed, so the UI can surface a catchup banner without replaying every snapshot. Covered event types include resource depletions, market price changes, NPC activity shifts, quest completions, combat results, governance actions, and recorded legends.
 
-The summary is advisory and never authoritative. Do not mutate game state from it — authoritative state still arrives through `snapshot` and `event` messages. The `sideChannelOnly: true` flag is always set and lets clients route the payload to a dedicated overlay or notification layer.
+The summary is advisory and never authoritative. Do not mutate game state from it — authoritative state still arrives through `snapshot` and `event` messages. The `sideChannelOnly: true` flag is always set, so you can route the payload to a dedicated overlay or notification layer.
 
 ### Payload
 
