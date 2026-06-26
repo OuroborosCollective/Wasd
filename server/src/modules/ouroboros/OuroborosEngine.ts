@@ -320,21 +320,34 @@ export class OuroborosEngine {
     }));
 
     // Run NPC brain
-    const output = this.npcBrainRunner.runWithContext({
+    // NOTE: health, energy, gold are hardcoded fallbacks because OuroborosEngine's npc
+    // input type only has {id, name, position, faction}. Real NPC state (health, energy, gold)
+    // lives in separate systems (e.g., ImpactBusterHandler, QuestEngine). The brain should
+    // be updated to receive a full NPCState object when available. Until then, these values
+    // are clearly marked as fallbacks so brain traces don't misrepresent them as real state.
+    const brainContext = {
       npcId: npc.id,
       npcName: npc.name,
       position: npc.position,
       homeRegionId: ctx.regionId,
       factionId: npc.faction,
-      state: "idle",
-      health: 0.8, // TODO: Get from actual NPC state
+      state: "idle" as const,
+      // Fallback values — NOT real NPC state
+      health: 0.8,
       energy: 0.7,
       gold: 50,
       memory,
       nearbyEntities: brainNearbyEntities,
       tick: tickCount,
       worldSnapshot,
-    });
+      // Mark which values are fallbacks for trace transparency
+      _source: {
+        health: "fallback" as const,
+        energy: "fallback" as const,
+        gold: "fallback" as const,
+      },
+    };
+    const output = this.npcBrainRunner.runWithContext(brainContext);
 
     // Store updated memory
     this.npcMemories.set(npc.id, output.memory);

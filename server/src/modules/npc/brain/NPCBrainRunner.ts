@@ -172,6 +172,12 @@ export class NPCBrainRunner {
     }>;
     tick: number;
     worldSnapshot: NPCWorldSnapshot;
+    /** Source tracking for brain trace transparency */
+    _source?: {
+      health?: "fallback" | "real";
+      energy?: "fallback" | "real";
+      gold?: "fallback" | "real";
+    };
   }): NPCBrainOutput {
     const input: NPCDecisionInput = {
       tick: params.tick,
