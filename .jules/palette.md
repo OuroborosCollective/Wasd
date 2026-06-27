@@ -20,3 +20,7 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+
+## 2025-05-16 - Onboarding Efficiency with autoFocus
+**Learning:** For dedicated onboarding screens like Character Creation, missing `autoFocus` on the primary name input creates unnecessary friction. Standardizing English localization across these critical first-impression panels is essential for maintaining UI professionalism.
+**Action:** Always apply `autoFocus` to the primary input field in dedicated creation or login forms and ensure complete English localization for all player-facing strings.

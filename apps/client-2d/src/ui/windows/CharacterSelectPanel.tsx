@@ -38,44 +38,44 @@ interface StartPathInfo {
 
 const START_PATH_INFO: Record<StartPath, StartPathInfo> = {
   wanderer: {
-    label: "Wanderer — neutraler Start",
+    label: "Wanderer — Neutral Start",
     shortLabel: "Wanderer",
-    starterKit: ["Reiseration", "Trainingsspeer", "Wegmarke"],
-    tutorialFocus: "Bewegen, NPC ansprechen, erste Quest, erster Kampf.",
-    firstResourceSpot: "Dorfplatz, Übungsfeld und erster NPC am Wegstein.",
-    firstGoal: "Sprich mit dem ersten NPC und sichere den Außenposten.",
+    starterKit: ["Travel Ration", "Training Spear", "Waymark"],
+    tutorialFocus: "Movement, talking to NPCs, first quest, first combat.",
+    firstResourceSpot: "Village square, practice field, and first NPC at the waystone.",
+    firstGoal: "Speak with the first NPC and secure the outpost.",
   },
   forager: {
-    label: "Forager — Sammeln-Tutorial",
+    label: "Forager — Gathering Tutorial",
     shortLabel: "Forager",
-    starterKit: ["Sammelbeutel", "Kräutermesser", "Feldnotiz"],
-    tutorialFocus: "Kräuter, Beeren, Pilze und einfache Naturmaterialien finden.",
-    firstResourceSpot: "Kräuterwiese am Waldrand mit Foraging-Knoten.",
-    firstGoal: "Sammle 3 Kräuter und bringe sie zur Vorratskiste.",
+    starterKit: ["Gathering Bag", "Herbal Knife", "Field Note"],
+    tutorialFocus: "Finding herbs, berries, mushrooms, and basic natural materials.",
+    firstResourceSpot: "Herb meadow at the edge of the forest with foraging nodes.",
+    firstGoal: "Collect 3 herbs and bring them to the supply chest.",
   },
   miner: {
-    label: "Miner — Erz & Spitzhacke",
+    label: "Miner — Ore & Pickaxe",
     shortLabel: "Miner",
-    starterKit: ["Einfache Spitzhacke", "Erzbeutel", "Kupfermarke"],
-    tutorialFocus: "Stein, Kupfer, Erzadern und robuste Materialien abbauen.",
-    firstResourceSpot: "Felsnase nördlich des Starts mit Stein- und Kupferadern.",
-    firstGoal: "Baue 3 Kupfererz ab und prüfe den ersten Schmelzauftrag.",
+    starterKit: ["Simple Pickaxe", "Ore Bag", "Copper Mark"],
+    tutorialFocus: "Mining stone, copper, ore veins, and robust materials.",
+    firstResourceSpot: "Rocky outcrop north of the start with stone and copper veins.",
+    firstGoal: "Mine 3 copper ore and check the first smelting order.",
   },
   angler: {
-    label: "Angler — Wasser & Angel",
+    label: "Angler — Water & Fishing Rod",
     shortLabel: "Angler",
-    starterKit: ["Einfache Angel", "Köderbeutel", "Kleines Netz"],
-    tutorialFocus: "Fishing-Spots erkennen, Fisch fangen und später Kochen lernen.",
-    firstResourceSpot: "Ufersteg am nahen Wasser mit markiertem Fishing-Spot.",
-    firstGoal: "Fange 3 Fische und bereite den ersten Kochauftrag vor.",
+    starterKit: ["Simple Fishing Rod", "Bait Bag", "Small Net"],
+    tutorialFocus: "Identifying fishing spots, catching fish, and later learning to cook.",
+    firstResourceSpot: "Lakeside dock near water with marked fishing spot.",
+    firstGoal: "Catch 3 fish and prepare the first cooking order.",
   },
   artisan: {
-    label: "Artisan — Werkbank & Crafting",
+    label: "Artisan — Workbench & Crafting",
     shortLabel: "Artisan",
-    starterKit: ["Werkzeugrolle", "Holzplanke", "Rezeptkarte"],
-    tutorialFocus: "Werkbank, erste Rezepte, einfache Verarbeitung und Reparatur.",
-    firstResourceSpot: "Werkbank-Zelt beim Startlager mit Crafting-Auftrag.",
-    firstGoal: "Fertige eine Holzplanke oder repariere ein einfaches Werkzeug.",
+    starterKit: ["Tool Roll", "Wooden Plank", "Recipe Card"],
+    tutorialFocus: "Workbench, first recipes, simple processing, and repair.",
+    firstResourceSpot: "Workbench tent at the start camp with crafting order.",
+    firstGoal: "Craft a wooden plank or repair a simple tool.",
   },
 };
 
@@ -101,8 +101,8 @@ export function CharacterSelectPanel({ onCreated }: Props) {
     <section data-testid="character-select" className="are-window character-select-panel">
       <h2>Character Creation</h2>
       <p>
-        Erstelle deinen ersten Areloria-Charakter. Areloria ist klassenlos: Skills wachsen durch Nutzung,
-        nicht durch eine feste Klasse.
+        Create your first Areloria character. Areloria is classless: skills grow through use,
+        not through a fixed class.
       </p>
 
       <label className="character-form-label">
@@ -115,11 +115,12 @@ export function CharacterSelectPanel({ onCreated }: Props) {
           minLength={3}
           maxLength={32}
           className="character-form-input"
+          autoFocus
         />
       </label>
 
       <label className="character-form-label">
-        Startpfad
+        Starting Path
         <select
           value={startPath}
           onChange={(event) => setStartPath(event.target.value as StartPath)}
@@ -136,31 +137,31 @@ export function CharacterSelectPanel({ onCreated }: Props) {
       <article className="character-start-path-card" data-testid="character-start-path-card">
         <header>
           <strong>{selectedPath.shortLabel}</strong>
-          <span>Startpfad · keine Klasse</span>
+          <span>Starting Path · No Class</span>
         </header>
         <dl>
           <div>
-            <dt>Starter-Kit</dt>
+            <dt>Starter Kit</dt>
             <dd>{selectedPath.starterKit.join(" · ")}</dd>
           </div>
           <div>
-            <dt>Tutorial-Fokus</dt>
+            <dt>Tutorial Focus</dt>
             <dd>{selectedPath.tutorialFocus}</dd>
           </div>
           <div>
-            <dt>Erster Ressourcen-Spot</dt>
+            <dt>First Resource Spot</dt>
             <dd>{selectedPath.firstResourceSpot}</dd>
           </div>
           <div>
-            <dt>Erstes Ziel</dt>
+            <dt>First Goal</dt>
             <dd>{selectedPath.firstGoal}</dd>
           </div>
         </dl>
       </article>
 
       <p className="character-form-hint">
-        Keine Klasse, keine Sperren: Der Startpfad bestimmt nur Startausrüstung, Tutorial-Fokus und den ersten
-        Ressourcen-Spot. Danach kannst du alle Skills frei trainieren.
+        No classes, no restrictions: The starting path only determines starting equipment, tutorial focus,
+        and the first resource spot. Afterwards, you can freely train all skills.
       </p>
 
       <button
