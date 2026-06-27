@@ -127,7 +127,15 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
                   <div key={objective.id} className="quest-journal-objective">
                     <span>{objective.label}</span>
                     <b>{objective.current}/{objective.required}{objective.completed ? " ✓" : ""}</b>
-                    <i aria-hidden="true"><em style={{ width: `${progress}%` }} /></i>
+                    <i
+                      role="progressbar"
+                      aria-label={`${objective.label} progress`}
+                      aria-valuenow={progress}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <em style={{ width: `${progress}%` }} />
+                    </i>
                   </div>
                 );
               })}
