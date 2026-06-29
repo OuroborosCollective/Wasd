@@ -12,3 +12,8 @@
 **Vulnerability:** The `/science-mascot` endpoint was a public proxy for the Gemini AI API using a server-side secret, and `/resync` / `/snapshot` endpoints exposed full world state snapshots to unauthenticated users.
 **Learning:** AI proxy endpoints that allow client-controlled system prompts are high-risk for both resource abuse and prompt injection. State snapshots are sensitive data that should always be guarded by authentication.
 **Prevention:** Always apply `authMiddleware` to any endpoint that proxies external LLM APIs or returns comprehensive system/world state. Hardcode or strictly validate system prompts on the server.
+
+## 2025-06-05 - [High] Insecure Player Identity and Time Manipulation in Warfront
+**Vulnerability:** Warfront endpoints (/status, /contribute, /claim) allowed arbitrary `playerId` inputs and client-provided `now` timestamps, enabling any user to impersonate other players and bypass cycle-based time constraints.
+**Learning:** Gameplay-critical endpoints often inherit loose development-time defaults (like `playerId` query params) that become severe vulnerabilities if not switched to server-authoritative resolution and hardened against client-provided metadata in production.
+**Prevention:** Always use `resolveHttpPlayerIdentity` and enforce `authRequestHandler` on any endpoint that modifies player state or returns sensitive progression data. Explicitly disable client-provided timestamps in production logic.
