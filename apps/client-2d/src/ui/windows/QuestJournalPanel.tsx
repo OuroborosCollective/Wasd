@@ -127,7 +127,16 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
                   <div key={objective.id} className="quest-journal-objective">
                     <span>{objective.label}</span>
                     <b>{objective.current}/{objective.required}{objective.completed ? " ✓" : ""}</b>
-                    <i aria-hidden="true"><em style={{ width: `${progress}%` }} /></i>
+                    <i
+                      role="progressbar"
+                      aria-label={`${objective.label} progress`}
+                      aria-valuenow={objective.current}
+                      aria-valuemin={0}
+                      aria-valuemax={objective.required}
+                      aria-valuetext={`${objective.current} of ${objective.required} ${objective.label}`}
+                    >
+                      <em style={{ width: `${progress}%` }} />
+                    </i>
                   </div>
                 );
               })}
@@ -140,6 +149,7 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
                 data-testid={`quest-claim-${quest.id}`}
                 disabled={claimingQuestId === quest.id}
                 onClick={() => void claimReward(quest.id)}
+                aria-label={`Claim reward for ${quest.title}`}
               >
                 {claimingQuestId === quest.id ? "Claiming…" : "Claim Reward"}
               </button>

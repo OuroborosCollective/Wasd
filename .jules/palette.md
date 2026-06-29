@@ -20,3 +20,7 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+
+## 2025-05-16 - Standardizing Progress Bar Accessibility
+**Learning:** Purely visual progress bars (e.g., using <i> and <em>) are invisible to screen readers. Implementing the WAI-ARIA `progressbar` pattern with `role`, `aria-valuenow`, and especially `aria-valuetext` provides crucial context for non-visual users.
+**Action:** Use the `progressbar` pattern for all completion-based UI elements, ensuring `aria-valuetext` describes the current status in a human-readable format (e.g., "3 of 5 Wood").
