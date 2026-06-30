@@ -68,8 +68,20 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
       {objective && (
         <div className="quest-preview-objective">
           <span>{objective.label}</span>
-          <b>{objective.current}/{objective.required}{objective.completed ? " ✓" : ""}</b>
-          <i aria-hidden="true"><em style={{ width: `${progress}%` }} /></i>
+          <b>
+            {objective.current}/{objective.required}
+            {objective.completed ? " ✓" : ""}
+          </b>
+          <i
+            role="progressbar"
+            aria-label={`${objective.label} progress`}
+            aria-valuenow={objective.current}
+            aria-valuemin={0}
+            aria-valuemax={objective.required}
+            aria-valuetext={`${objective.current} of ${objective.required} ${objective.label}`}
+          >
+            <em style={{ width: `${progress}%` }} aria-hidden="true" />
+          </i>
         </div>
       )}
 
