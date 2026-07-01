@@ -12,3 +12,8 @@
 **Vulnerability:** The `/science-mascot` endpoint was a public proxy for the Gemini AI API using a server-side secret, and `/resync` / `/snapshot` endpoints exposed full world state snapshots to unauthenticated users.
 **Learning:** AI proxy endpoints that allow client-controlled system prompts are high-risk for both resource abuse and prompt injection. State snapshots are sensitive data that should always be guarded by authentication.
 **Prevention:** Always apply `authMiddleware` to any endpoint that proxies external LLM APIs or returns comprehensive system/world state. Hardcode or strictly validate system prompts on the server.
+
+## 2025-06-05 - [High] Public Finance Gateway and Identity Spoofing
+**Vulnerability:** PayPal checkout and verification endpoints were public without rate limiting, and the `clientId` (recipient of credits) was trusted directly from the client request body.
+**Learning:** Publicly accessible financial gateways can be abused for payment fraud testing or DoS. Trusting the client-provided user ID for transactions allows users to redirect value to other accounts.
+**Prevention:** Enforce `authMiddleware` and `adminRateLimiter` on all financial entry points. Always resolve the transaction beneficiary identity from the server-authoritative `req.playerId`.

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { paypalAdapter } from "../finance/PayPalAdapter.js";
+import { authRequestHandler } from "../middleware/authRequestHandler.js";
 
 export function financeRouter(): Router {
   const router = Router();
@@ -15,9 +16,9 @@ export function financeRouter(): Router {
     });
   });
 
-  router.post("/paypal/checkout", async (req, res) => {
+  router.post("/paypal/checkout", authRequestHandler, async (req, res) => {
     try {
-      const clientId = String(req.body?.clientId || process.env.ARE_SDK_CLIENT_ID || "local-engine");
+      const clientId = String((req as any).playerId || req.body?.clientId || process.env.ARE_SDK_CLIENT_ID || "local-engine");
       const displayName = String(req.body?.displayName || clientId);
       const credits = Number(req.body?.credits ?? 0);
       const returnUrl = req.body?.returnUrl ? String(req.body.returnUrl) : undefined;
@@ -29,7 +30,7 @@ export function financeRouter(): Router {
     }
   });
 
-  router.post("/paypal/verify", async (req, res) => {
+  router.post("/paypal/verify", authRequestHandler, async (req, res) => {
     try {
       const transactionId = String(req.body?.transactionId || req.body?.orderId || "");
       const result = await paypalAdapter.creditVerifiedTransaction(transactionId);

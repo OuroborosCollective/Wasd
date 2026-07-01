@@ -228,7 +228,7 @@ export class ServerBootstrap {
     app.use("/api/quests", npcQuestRouter);
     app.use("/api/self-healing", adminRateLimiter, adminAuthMiddleware, createSelfHealWorkshopRouter());
     app.use("/api/manifest", createManifestResyncRouter(tick));
-    app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());
+    app.use("/api/finance", adminRateLimiter, express.json({ limit: "1mb" }), financeRouter());
     app.use("/api/are-shadow", adminRateLimiter, adminAuthMiddleware, areShadowLogRouter());
     app.use("/api/asset-brain", createAssetBrainRouter());
     app.use("/api/glb", createGLBUploadRouter());
