@@ -146,7 +146,7 @@ export class ServerBootstrap {
     const selfHealingRuntime: any = { getStatus: () => ({ featuresProtected: 0, config: {}, active: false, totalErrors: 0, totalHealed: 0, healingRate: 0 }) };
     const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
     await initRedisClient();
-    app.use("/api/mcp", mcpRoute());
+    app.use("/api/mcp", adminRateLimiter, mcpRoute());
     app.use("/api/v1", scienceMascotRouter());
     app.use("/api/client2d-assets", adminRateLimiter, adminAuthMiddleware, client2dAssetUploadRouter());
     app.use("/api/leaderboard", leaderboardRouter());
@@ -227,11 +227,11 @@ export class ServerBootstrap {
     app.use("/api/npc", npcQuestRouter);
     app.use("/api/quests", npcQuestRouter);
     app.use("/api/self-healing", adminRateLimiter, adminAuthMiddleware, createSelfHealWorkshopRouter());
-    app.use("/api/manifest", createManifestResyncRouter(tick));
-    app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());
+    app.use("/api/manifest", adminRateLimiter, createManifestResyncRouter(tick));
+    app.use("/api/finance", adminRateLimiter, express.json({ limit: "1mb" }), financeRouter());
     app.use("/api/are-shadow", adminRateLimiter, adminAuthMiddleware, areShadowLogRouter());
-    app.use("/api/asset-brain", createAssetBrainRouter());
-    app.use("/api/glb", createGLBUploadRouter());
+    app.use("/api/asset-brain", adminRateLimiter, createAssetBrainRouter());
+    app.use("/api/glb", adminRateLimiter, createGLBUploadRouter());
     app.use("/api/sovereign/deploy", adminRateLimiter, adminAuthMiddleware, sovereignDeployRouter(tick));
     const monitorStream = new PlaytesterMonitorStream(httpServer, (options) => tick.buildPlaytesterMonitorPayload(options));
     monitorStream.start();
