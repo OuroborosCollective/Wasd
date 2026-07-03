@@ -56,7 +56,7 @@ export function warfrontRouter(tick?: WorldTick): Router {
     res.json({ ok: true, cycle: tick.warfrontSystem.getCycleSnapshot(resolveNow(req)), rewards: tick.warfrontSystem.getRewardTiers(), frontBossSpawnPoint: tick.warfrontSystem.getFrontBossSpawnPoint() });
   });
 
-  r.get("/status", authRequestHandler, (req: Request, res: Response) => {
+  r.get("/status", warfrontActionLimiter, authRequestHandler, (req: Request, res: Response) => {
     if (!tick?.warfrontSystem) return res.status(503).json({ ok: false, error: "warfront_runtime_unavailable" });
     const player = resolvePlayer(tick, req);
     if (!player) return res.status(404).json({ ok: false, error: "player_not_found" });
