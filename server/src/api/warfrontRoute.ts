@@ -3,7 +3,6 @@ import type { WorldTick } from "../core/are/index.js";
 import { WarfrontCombatTelemetry } from "../modules/warfront/WarfrontCombatTelemetry.js";
 import type { WarfrontSectorKind } from "../modules/warfront/warfrontTypes.js";
 import { authRequestHandler } from "../middleware/authRequestHandler.js";
-import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { rateLimit } from "express-rate-limit";
 
