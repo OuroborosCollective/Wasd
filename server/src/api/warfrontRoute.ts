@@ -2,14 +2,27 @@ import express, { type Request, type Response, type Router } from "express";
 import type { WorldTick } from "../core/are/index.js";
 import { WarfrontCombatTelemetry } from "../modules/warfront/WarfrontCombatTelemetry.js";
 import type { WarfrontSectorKind } from "../modules/warfront/warfrontTypes.js";
+import { authRequestHandler } from "../middleware/authRequestHandler.js";
+import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
+import { rateLimit } from "express-rate-limit";
+
+const warfrontActionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: "rate_limited" },
+});
 
 function resolvePlayer(tick: WorldTick, req: Request): any | null {
-  const rawId = req.query.playerId ?? req.body?.playerId;
-  const playerId = typeof rawId === "string" && rawId.trim().length > 0 ? rawId.trim() : "dummy_player";
+  const identity = resolveHttpPlayerIdentity(req as any);
+  const playerId = identity?.playerId;
+  if (!playerId) return null;
   return tick.playerSystem.getPlayer(playerId) ?? null;
 }
 
 function resolveNow(req: Request): number | undefined {
+  if (process.env.NODE_ENV === "production") return undefined;
   const raw = req.query.now ?? req.body?.now;
   const value = typeof raw === "string" || typeof raw === "number" ? Number(raw) : Number.NaN;
   return Number.isFinite(value) && value >= 0 ? Math.floor(value) : undefined;
@@ -43,14 +56,14 @@ export function warfrontRouter(tick?: WorldTick): Router {
     res.json({ ok: true, cycle: tick.warfrontSystem.getCycleSnapshot(resolveNow(req)), rewards: tick.warfrontSystem.getRewardTiers(), frontBossSpawnPoint: tick.warfrontSystem.getFrontBossSpawnPoint() });
   });
 
-  r.get("/status", (req: Request, res: Response) => {
+  r.get("/status", authRequestHandler, (req: Request, res: Response) => {
     if (!tick?.warfrontSystem) return res.status(503).json({ ok: false, error: "warfront_runtime_unavailable" });
     const player = resolvePlayer(tick, req);
     if (!player) return res.status(404).json({ ok: false, error: "player_not_found" });
     res.json({ ok: true, playerId: player.id, status: tick.warfrontSystem.getStatusForPlayer(player, resolveNow(req)) });
   });
 
-  r.post("/contribute", express.json({ limit: "64kb" }), (req: Request, res: Response) => {
+  r.post("/contribute", warfrontActionLimiter, authRequestHandler, express.json({ limit: "64kb" }), (req: Request, res: Response) => {
     if (!tick?.warfrontSystem) return res.status(503).json({ ok: false, error: "warfront_runtime_unavailable" });
     const player = resolvePlayer(tick, req);
     if (!player) return res.status(404).json({ ok: false, error: "player_not_found" });
@@ -62,7 +75,7 @@ export function warfrontRouter(tick?: WorldTick): Router {
     res.status(result.accepted ? 200 : 409).json({ ok: result.accepted, result, status: tick.warfrontSystem.getStatusForPlayer(player, resolveNow(req)) });
   });
 
-  r.post("/claim", express.json({ limit: "64kb" }), (req: Request, res: Response) => {
+  r.post("/claim", warfrontActionLimiter, authRequestHandler, express.json({ limit: "64kb" }), (req: Request, res: Response) => {
     if (!tick?.warfrontSystem) return res.status(503).json({ ok: false, error: "warfront_runtime_unavailable" });
     const player = resolvePlayer(tick, req);
     if (!player) return res.status(404).json({ ok: false, error: "player_not_found" });
