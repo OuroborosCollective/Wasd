@@ -64,7 +64,7 @@ export function handleGameplayQuestEvent(event: GameplayQuestEvent): QuestGamepl
         ok: true,
         playerId: event.playerId,
         changed: false,
-        questIds: before.quests.map((q) => q.id).sort(),
+        questIds: before.questIds,
         reason: "npc_does_not_progress_quest",
       };
     }
@@ -75,14 +75,15 @@ export function handleGameplayQuestEvent(event: GameplayQuestEvent): QuestGamepl
       npcId: event.npcId,
     });
 
+    const changed = before.quests !== after.quests;
+
     return {
       ok: true,
       playerId: event.playerId,
-      changed: JSON.stringify(before.quests) !== JSON.stringify(after.quests),
-      questIds: changedQuestIdsBeforeAfter(
-        before.quests.map((q) => q.id),
-        after.quests.map((q) => q.id)
-      ),
+      changed,
+      questIds: changed
+        ? changedQuestIdsBeforeAfter(before.questIds, after.questIds)
+        : before.questIds,
     };
   }
 
@@ -95,7 +96,7 @@ export function handleGameplayQuestEvent(event: GameplayQuestEvent): QuestGamepl
         ok: true,
         playerId: event.playerId,
         changed: false,
-        questIds: before.quests.map((q) => q.id).sort(),
+        questIds: before.questIds,
         reason: "npc_kill_does_not_progress_quest",
       };
     }
@@ -106,14 +107,15 @@ export function handleGameplayQuestEvent(event: GameplayQuestEvent): QuestGamepl
       npcId: event.npcId,
     });
 
+    const changed = before.quests !== after.quests;
+
     return {
       ok: true,
       playerId: event.playerId,
-      changed: JSON.stringify(before.quests) !== JSON.stringify(after.quests),
-      questIds: changedQuestIdsBeforeAfter(
-        before.quests.map((q) => q.id),
-        after.quests.map((q) => q.id)
-      ),
+      changed,
+      questIds: changed
+        ? changedQuestIdsBeforeAfter(before.questIds, after.questIds)
+        : before.questIds,
     };
   }
 
@@ -122,7 +124,7 @@ export function handleGameplayQuestEvent(event: GameplayQuestEvent): QuestGamepl
     ok: false,
     playerId: unknownEvent.playerId,
     changed: false,
-    questIds: before.quests.map((q) => q.id).sort(),
+    questIds: before.questIds,
     reason: "unsupported_event",
   };
 }
