@@ -381,6 +381,7 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
                       onClick={() => handleUnequip(slot.slotId)}
                       data-testid={`unequip-slot-${slot.slotId}`}
                       title={`Unequip ${slot.title}`}
+                      aria-label={`Unequip ${slot.title}`}
                     >
                       ✕
                     </button>
