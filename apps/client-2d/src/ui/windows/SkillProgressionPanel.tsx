@@ -21,7 +21,6 @@ export function SkillProgressionPanel({ skills }: Props) {
   if (!skills.length) {
     return (
       <section data-testid="skill-panel-empty" className="are-window">
-        <h2>Skills</h2>
         <p className="are-text-muted">No live skill data yet.</p>
       </section>
     );
@@ -29,8 +28,6 @@ export function SkillProgressionPanel({ skills }: Props) {
 
   return (
     <section data-testid="skill-panel-live" className="are-window">
-      <h2>Skills</h2>
-
       <div className="skill-list">
         {skills.map((skill) => (
           <article key={skill.id} className="skill-row" data-testid={`skill-progress-${skill.id}`}>

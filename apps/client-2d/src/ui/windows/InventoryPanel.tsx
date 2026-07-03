@@ -115,7 +115,6 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
   if (!inventory) {
     return (
       <section data-testid="inventory-panel-empty" className="are-window">
-        <h2>Inventory</h2>
         <p className="are-text-muted">Loading inventory…</p>
       </section>
     );
@@ -300,7 +299,6 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
   if (!slots.length && !equipped.length) {
     return (
       <section data-testid="inventory-panel-empty" className="are-window">
-        <h2>Inventory</h2>
         <p className="are-text-muted">No items collected yet.</p>
         <p className="are-text-muted">
           <small>Walk near resource nodes and gather to collect items.</small>
@@ -311,8 +309,6 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
 
   return (
     <section data-testid="inventory-panel-live" className="are-window">
-      <h2>Inventory</h2>
-
       {/* Wallet Section */}
       <div className="wallet-section" data-testid="wallet-coin-balance">
         <span className="wallet-label">💰 Coins:</span>
@@ -398,6 +394,7 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
             <div className="tools-grid">
               {tools.map((slot) => {
                 const iconPath = getGatheringToolIcon(slot.itemId);
+                const toolName = TOOL_NAMES[slot.itemId] ?? slot.name;
                 return (
                   <button
                     key={slot.slotId}
@@ -405,7 +402,8 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
                     className={`tool-button rarity-${TOOL_RARITY[slot.itemId] ?? "common"}`}
                     onClick={() => handleEquip(slot.itemId)}
                     data-testid={`equip-item-${slot.itemId}`}
-                    title={`Equip ${slot.name}`}
+                    title={`Equip ${toolName}`}
+                    aria-label={`Equip ${toolName}`}
                   >
                     {iconPath && (
                       <img src={iconPath} alt={slot.name} className="tool-svg-icon" />
@@ -438,6 +436,8 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
           className="sell-all-button"
           onClick={handleSellAll}
           data-testid="sell-all-resources-button"
+          title="Sell all collectable resources in inventory"
+          aria-label="Sell all collectable resources in inventory"
         >
           Sell All Resources
         </button>
@@ -481,6 +481,7 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
                   onClick={() => handleSell(slot.itemId, slot.quantity)}
                   data-testid={`vendor-sell-${slot.itemId}`}
                   title={`Sell ${slot.name} for ${totalValue} coins`}
+                  aria-label={`Sell ${slot.name} for ${totalValue} coins`}
                 >
                   SELL {totalValue}c
                 </button>
