@@ -150,6 +150,7 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
                 type="button"
                 className="quest-journal-claim-button"
                 data-testid={`quest-claim-${quest.id}`}
+                aria-label={`Claim reward for ${quest.title}`}
                 disabled={claimingQuestId === quest.id}
                 onClick={() => void claimReward(quest.id)}
               >
