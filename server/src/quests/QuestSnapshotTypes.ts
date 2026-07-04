@@ -36,11 +36,16 @@ export interface QuestSnapshot {
 export interface PlayerQuestState {
   playerId: string;
   quests: QuestSnapshot[];
+  /**
+   * ⚡ Bolt Optimization: Cached sorted quest IDs for high-performance bridge comparisons.
+   */
+  questIds: string[];
 }
 
 export const EMPTY_PLAYER_QUEST_STATE: PlayerQuestState = {
   playerId: "unknown",
   quests: [],
+  questIds: [],
 };
 
 /**

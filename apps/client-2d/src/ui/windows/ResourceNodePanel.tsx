@@ -33,7 +33,6 @@ export function ResourceNodePanel({ resources }: Props) {
   if (!resources.length) {
     return (
       <section data-testid="resource-panel-empty" className="are-window">
-        <h2>Resources</h2>
         <p className="are-text-muted">No live resource nodes yet.</p>
       </section>
     );
@@ -41,8 +40,6 @@ export function ResourceNodePanel({ resources }: Props) {
 
   return (
     <section data-testid="resource-panel-live" className="are-window">
-      <h2>Resources</h2>
-
       <div className="resource-list">
         {resources.map((node) => (
           <article
@@ -78,6 +75,8 @@ export function ResourceNodePanel({ resources }: Props) {
                 type="button"
                 className="gather-button"
                 data-testid={`gather-resource-${node.itemRewardId}`}
+                title={`Gather ${node.title}`}
+                aria-label={`Gather ${node.title}`}
                 onClick={() => {
                   window.dispatchEvent(
                     new CustomEvent("wasd:client-action", {

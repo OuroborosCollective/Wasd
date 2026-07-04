@@ -21,8 +21,6 @@ export function PaperdollPanel({ paperdoll }: Props) {
 
   return (
     <section data-testid="paperdoll-panel-live" className="are-window paperdoll-panel">
-      <h2>Character</h2>
-
       {character ? (
         <div className="paperdoll-character">
           <strong>{character.displayName}</strong>
