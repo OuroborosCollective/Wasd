@@ -1,0 +1,110 @@
+name: Stitch CV Requirements Guard
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/stitch_cv_requirements.txt'
+      - 'scripts/stitch_atlas_intake.py'
+      - 'scripts/__tests__/stitch_atlas_intake.test.py'
+      - '.github/workflows/stitch-cv-requirements-guard.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'scripts/stitch_cv_requirements.txt'
+      - 'scripts/stitch_atlas_intake.py'
+      - 'scripts/__tests__/stitch_atlas_intake.test.py'
+      - '.github/workflows/stitch-cv-requirements-guard.yml'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: stitch-cv-requirements-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-cv-requirements:
+    name: Validate CV requirements and Stitch intake
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Python Stitch CV dependencies
+        run: |
+          set -euo pipefail
+
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-pip > /dev/null 2>&1
+          python3 -m pip install --upgrade --quiet pip
+          python3 -m pip install --quiet -r scripts/stitch_cv_requirements.txt
+          python3 - <<'PY'
+          import cv2
+          import numpy
+          from PIL import Image
+
+          print("Python Stitch CV dependencies OK")
+          PY
+
+      - name: Run Python invariant tests
+        run: |
+          set -euo pipefail
+
+          python3 scripts/__tests__/stitch_atlas_intake.test.py
+
+      - name: Run deterministic Stitch intake sample
+        run: |
+          set -euo pipefail
+
+          INPUT_DIR="/tmp/stitch-cv-requirements-input"
+          OUTPUT_DIR="/tmp/stitch-cv-requirements-output"
+          MANIFEST="$OUTPUT_DIR/manifest.json"
+
+          rm -rf "$INPUT_DIR" "$OUTPUT_DIR" assets/quarantine/stitch apps/client-2d/public/2d-assets/stitch
+          mkdir -p "$INPUT_DIR"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          input_dir = Path("/tmp/stitch-cv-requirements-input")
+          input_dir.mkdir(parents=True, exist_ok=True)
+          Image.new("RGBA", (512, 512), (180, 60, 40, 255)).save(input_dir / "enemy_skeleton_idle_4x4.png")
+          Image.new("RGBA", (256, 256), (40, 120, 60, 255)).save(input_dir / "tile_swamp_ground.png")
+          PY
+
+          python3 scripts/stitch_atlas_intake.py \
+            --input "$INPUT_DIR" \
+            --output "$OUTPUT_DIR" \
+            --pack-id stitch_cv_requirements_guard
+
+          test -f "$MANIFEST"
+          sha256sum "$MANIFEST" | awk '{print $1}' > /tmp/stitch-cv-guard-before.sha256
+
+          python3 scripts/stitch_atlas_intake.py \
+            --input "$INPUT_DIR" \
+            --output "$OUTPUT_DIR" \
+            --pack-id stitch_cv_requirements_guard
+
+          sha256sum "$MANIFEST" | awk '{print $1}' > /tmp/stitch-cv-guard-after.sha256
+          diff -u /tmp/stitch-cv-guard-before.sha256 /tmp/stitch-cv-guard-after.sha256
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("/tmp/stitch-cv-requirements-output/manifest.json").read_text(encoding="utf-8"))
+          assert manifest["deterministic"] is True
+          assert manifest["assetCount"] > 0
+          assert len(manifest["assets"]) == manifest["assetCount"]
+          print("Stitch CV requirements guard manifest OK")
+          PY
