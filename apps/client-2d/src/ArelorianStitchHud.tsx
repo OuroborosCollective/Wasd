@@ -9,6 +9,7 @@ import { GuildStatusPanel } from "./ui/windows/GuildStatusPanel";
 import { FactionStandingPanel } from "./ui/windows/FactionStandingPanel";
 import { MapStatusPanel } from "./ui/windows/MapStatusPanel";
 import { ResourceNodePanel } from "./ui/windows/ResourceNodePanel";
+import { EconomyWorkOrderPanel } from "./ui/windows/EconomyWorkOrderPanel";
 import { useLiveGameplaySnapshot } from "./game/useLiveGameplaySnapshot";
 import { GameplayWindowDock } from "./ui/GameplayWindowDock";
 import { GameplayWindowsLayer } from "./ui/GameplayWindowsLayer";
@@ -17,7 +18,7 @@ import { publishPlayerPositionBridge } from "./game/PlayerPositionBridge";
 import "./areHeartbeat.css";
 
 type Msg = { from: string; txt: string };
-type HudPanel = "inventory" | "character" | "map" | "combat" | "guild" | "factions" | "quests" | "resources" | null;
+type HudPanel = "inventory" | "character" | "map" | "combat" | "guild" | "factions" | "quests" | "resources" | "work-orders" | null;
 type HudOverlay = "vitals" | "radar" | "chat";
 
 export interface PlayerVitalsData {
@@ -79,6 +80,7 @@ const panels: { id: Exclude<HudPanel, null>; label: string; icon: string; shortc
   { id: "factions", label: "Factions", icon: "⚖", shortcut: "f" },
   { id: "quests", label: "Quests", icon: "!", shortcut: "q" },
   { id: "resources", label: "Resources", icon: "⛏", shortcut: "r" },
+  { id: "work-orders", label: "Orders", icon: "⌘", shortcut: "o" },
 ];
 
 // Chat button for side menu
@@ -500,6 +502,7 @@ function StitchPanel({
         {panel === "factions" && <FactionStandingPanel snapshot={liveGameplay} />}
         {panel === "quests" && <QuestJournalPanel snapshot={liveGameplay} />}
         {panel === "resources" && <ResourceNodePanel resources={liveGameplay.resources ?? []} />}
+        {panel === "work-orders" && <EconomyWorkOrderPanel />}
         {panel === "inventory" && weaponCount > 0 && <button className="stitch-cycle-fallback" type="button" onClick={onCycleWeapon}>Cycle Gear Visual</button>}
       </div>
     </div>
@@ -516,6 +519,7 @@ function panelTitle(panel: Exclude<HudPanel, null>) {
     factions: "Faction Reputation",
     quests: "Quest Journal",
     resources: "Resource Nodes",
+    "work-orders": "NPC Work Orders",
   } as const)[panel];
 }
 
