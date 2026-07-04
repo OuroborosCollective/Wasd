@@ -9,7 +9,8 @@ import {
   canonicalizeClientIntent,
   chunkKeyFromWorldPosition,
 } from "../intents/ServerCanonicalIntent.js";
-import { economyService } from "./economyRuntime.js";
+import { economyService, vendorStockService } from "./economyRuntime.js";
+import { deriveEconomyWorkOrders } from "../quests/EconomyWorkOrderService.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
 import { campQuestRuntime } from "../quests/campQuestRuntime.js";
 import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
@@ -227,6 +228,20 @@ router.post("/trade-transfer", tradeTransferRateLimiter, async (req, res) => {
   }
 
   res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
+});
+
+router.get("/work-orders", async (req, res) => {
+  const vendorId = parseSafeId(req.query.vendorId) ?? "village_trader_001";
+  const tick = currentServerTick();
+
+  try {
+    const stock = await vendorStockService.getStock(vendorId);
+    const orders = deriveEconomyWorkOrders({ stock, tick, npcId: vendorId });
+    res.json({ ok: true, tick, vendorId, orders });
+  } catch (error) {
+    console.error("[economy-work-orders] Failed to derive work orders:", error);
+    res.status(500).json({ ok: false, error: "internal_error" });
+  }
 });
 
 router.get("/market-snapshot", async (_req, res) => {
