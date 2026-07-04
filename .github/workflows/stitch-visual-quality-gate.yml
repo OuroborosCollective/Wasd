@@ -1,0 +1,86 @@
+name: Stitch Visual Quality Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'assets/raw/stitch/**'
+      - 'assets/runtime/stitch/**'
+      - 'apps/client-2d/public/2d-assets/stitch/**'
+      - 'scripts/stitch_atlas_intake.py'
+      - 'scripts/stitch_visual_quality_gate.py'
+      - 'scripts/__tests__/stitch_atlas_intake.test.py'
+      - 'scripts/__tests__/stitch_visual_quality_gate.test.py'
+      - 'scripts/stitch_cv_requirements.txt'
+      - '.github/workflows/stitch-atlas-intake.yml'
+      - '.github/workflows/stitch-visual-quality-gate.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'assets/raw/stitch/**'
+      - 'assets/runtime/stitch/**'
+      - 'apps/client-2d/public/2d-assets/stitch/**'
+      - 'scripts/stitch_atlas_intake.py'
+      - 'scripts/stitch_visual_quality_gate.py'
+      - 'scripts/__tests__/stitch_atlas_intake.test.py'
+      - 'scripts/__tests__/stitch_visual_quality_gate.test.py'
+      - 'scripts/stitch_cv_requirements.txt'
+      - '.github/workflows/stitch-atlas-intake.yml'
+      - '.github/workflows/stitch-visual-quality-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stitch-visual-quality-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  visual-quality:
+    name: Validate accepted Stitch runtime assets
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Python Stitch CV dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-pip > /dev/null 2>&1
+          python3 -m pip install --upgrade --quiet pip
+          python3 -m pip install --quiet -r scripts/stitch_cv_requirements.txt
+
+      - name: Run visual quality gate unit tests
+        run: |
+          set -euo pipefail
+          python3 scripts/__tests__/stitch_visual_quality_gate.test.py
+
+      - name: Run Stitch intake for gate input
+        run: |
+          set -euo pipefail
+          python3 scripts/stitch_atlas_intake.py \
+            --input assets/raw/stitch \
+            --pack-id stitch_25d_atlas_pack_001
+
+      - name: Demote invalid accepted runtime assets
+        run: |
+          set -euo pipefail
+          python3 scripts/stitch_visual_quality_gate.py \
+            --manifest apps/client-2d/public/2d-assets/stitch/manifest.json \
+            --demote-invalid-accepted
+
+      - name: Validate accepted runtime asset visibility
+        run: |
+          set -euo pipefail
+          python3 scripts/stitch_visual_quality_gate.py \
+            --manifest apps/client-2d/public/2d-assets/stitch/manifest.json
