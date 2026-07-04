@@ -72,6 +72,13 @@ jobs:
             --input assets/raw/stitch \
             --pack-id stitch_25d_atlas_pack_001
 
+      - name: Demote invalid accepted runtime assets
+        run: |
+          set -euo pipefail
+          python3 scripts/stitch_visual_quality_gate.py \
+            --manifest apps/client-2d/public/2d-assets/stitch/manifest.json \
+            --demote-invalid-accepted
+
       - name: Validate accepted runtime asset visibility
         run: |
           set -euo pipefail
