@@ -22,8 +22,8 @@ Before you begin, ensure you have:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/OuroborosCollective/Areloria-WASD.git
-cd Areloria-WASD
+git clone https://github.com/OuroborosCollective/Wasd.git
+cd Wasd
 ```
 
 ### 2. Install Dependencies
@@ -85,16 +85,35 @@ Once running, check the health endpoint:
 curl http://localhost:3000/health
 ```
 
-Expected response:
+Expected response shape:
 ```json
 {
+  "ok": true,
   "status": "ok",
-  "auth": "stub",
-  "persistence": "file",
-  "content": "game-data",
-  "playtester": "disabled"
+  "project": "ARELORIAN MMORPG",
+  "version": "0.2.0",
+  "authorization": {
+    "mode": "development",
+    "simulationAuthority": false,
+    "useSupabaseWsLogin": false,
+    "requireSupabaseAuth": false,
+    "allowGuestLogin": true,
+    "allowDevLogin": true
+  },
+  "persistence": {
+    "status": "file"
+  },
+  "content": {
+    "mode": "game-data"
+  },
+  "are": {
+    "worldHash": "server-derived",
+    "replay": "available"
+  }
 }
 ```
+
+Development authorization is a side-channel convenience. Gameplay authority still comes from server tick, chunk scope, deterministic seed, replay, and state hash — never from a client or placeholder.
 
 ## Access the Client
 
@@ -138,6 +157,9 @@ Key variables:
 <CardGroup cols={2}>
   <Card title="Architecture Overview" icon="layers" href="/mintlify/architecture/overview">
     Understand how the pieces fit together
+  </Card>
+  <Card title="Wahrheitspfad Contract" icon="shield-check" href="/mintlify/architecture/truth-path">
+    Verify what counts as real runtime evidence
   </Card>
   <Card title="Server Architecture" icon="server" href="/mintlify/architecture/server">
     Deep dive into the authoritative server
