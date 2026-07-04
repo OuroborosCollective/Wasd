@@ -5,7 +5,7 @@ scripts/__tests__/stitch_atlas_intake.test.py
 Invariant tests for the deterministic Stitch 2.5D asset intake pipeline.
 
 These tests intentionally avoid brittle fixed accepted/manual-review counts. The
-CV pipeline is allowed to get stricter over time, but it must keep runtime truth
+CV pipeline is allowed to get stricter over time, but it must keep runtime
 safe: deterministic manifest, no unknown runtime assets, atlas frameCount sync,
 ZIP/loose image collection, and stable replay.
 """
@@ -143,10 +143,11 @@ def run_tests() -> bool:
             zf.writestr("inside/readme.txt", "ignored")
         sources = collect_sources(root)
         source_names = [source.display_source_path for source in sources]
-        passed, failed = count(test(len(sources) == 4, "Directory collects loose images and ZIP images"), passed, failed)
+        passed, failed = count(test(len(sources) == 5, "Directory keeps loose images and ZIP images as separate source entries"), passed, failed)
         passed, failed = count(test(any("enemy_skeleton.jpg" in name for name in source_names), "Collects JPG"), passed, failed)
         passed, failed = count(test(any("prop_tree.png" in name for name in source_names), "Collects PNG"), passed, failed)
         passed, failed = count(test(any("ui_icon.jpeg" in name for name in source_names), "Collects JPEG"), passed, failed)
+        passed, failed = count(test(any("npc_guard_source.jpeg" in name for name in source_names), "Collects loose image that is also archived"), passed, failed)
         passed, failed = count(test(any("pack.zip!/inside/npc_guard.jpeg" in name for name in source_names), "Collects JPEG inside ZIP"), passed, failed)
 
     print("\n=== runtime intake tests ===")
