@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import type { ClientIntent, ClientIntentAction } from "@wasd/shared";
+import type { ClientIntent, ClientIntentAction, ClientIntentPayloadByAction } from "@wasd/shared";
 
 export type CanonicalIntentHash = string;
 
 export interface ServerCanonicalIntent<TAction extends ClientIntentAction = ClientIntentAction> {
   readonly action: TAction;
-  readonly payload: ClientIntent<TAction>["payload"];
+  readonly payload: ClientIntentPayloadByAction[TAction];
   readonly requestId?: string;
   readonly actorId: string;
   readonly tickId: number | string;
@@ -27,6 +27,8 @@ export interface WorldPosition2D {
   readonly x: number;
   readonly y: number;
 }
+
+type CanonicalIntentWithoutHash<TAction extends ClientIntentAction> = Omit<ServerCanonicalIntent<TAction>, "intentHash">;
 
 const FORBIDDEN_CLIENT_AUTHORITY_KEYS = new Set([
   "actorId",
@@ -97,7 +99,7 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(stableNormalize(value));
 }
 
-function deriveIntentHash(parts: Omit<ServerCanonicalIntent, "intentHash">): CanonicalIntentHash {
+function deriveIntentHash<TAction extends ClientIntentAction>(parts: CanonicalIntentWithoutHash<TAction>): CanonicalIntentHash {
   const hashInput = stableStringify({
     action: parts.action,
     actorId: parts.actorId,
@@ -135,9 +137,9 @@ export function canonicalizeClientIntent<TAction extends ClientIntentAction>(
   const chunkKey = assertSafeIdentifier(context.chunkKey, "chunkKey");
   const logicalIndex = assertSafeFiniteInteger(context.logicalIndex, "logicalIndex");
   const receivedOrder = assertSafeFiniteInteger(context.receivedOrder, "receivedOrder");
-  const normalizedPayload = stableNormalize(clientIntent.payload) as ClientIntent<TAction>["payload"];
+  const normalizedPayload = stableNormalize(clientIntent.payload) as ClientIntentPayloadByAction[TAction];
 
-  const withoutHash: Omit<ServerCanonicalIntent<TAction>, "intentHash"> = {
+  const withoutHash: CanonicalIntentWithoutHash<TAction> = {
     action: clientIntent.action,
     payload: normalizedPayload,
     requestId: clientIntent.requestId,
