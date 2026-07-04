@@ -5,6 +5,10 @@ import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { getInventoryStore } from "../inventory/inventoryRuntime.js";
 import { transferInventoryItem } from "../inventory/InventoryTransferService.js";
+import {
+  canonicalizeClientIntent,
+  chunkKeyFromWorldPosition,
+} from "../intents/ServerCanonicalIntent.js";
 import { economyService } from "./economyRuntime.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
 import { campQuestRuntime } from "../quests/campQuestRuntime.js";
@@ -101,16 +105,39 @@ router.post("/sell-resource", async (req, res) => {
   const itemId = parseSafeId(req.body?.itemId);
   const quantity = parseQuantity(req.body?.quantity);
   const playerPosition = parsePosition(req.body?.playerPosition);
-  const vendorId = parseSafeId(req.body?.vendorId) ?? undefined;
+  const vendorId = parseSafeId(req.body?.vendorId) ?? "village_trader_001";
 
   if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item_id" });
   if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
   if (req.body?.playerPosition !== undefined && !playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
 
+  const tick = currentServerTick();
+  const canonicalIntent = playerPosition
+    ? canonicalizeClientIntent<"interact">(
+        {
+          action: "interact",
+          payload: {
+            targetId: vendorId,
+            interaction: "sell_resource",
+            itemId,
+            quantity,
+            playerPosition,
+          },
+        },
+        {
+          actorId: identity.playerId,
+          tickId: tick,
+          logicalIndex: tick,
+          receivedOrder: 0,
+          chunkKey: chunkKeyFromWorldPosition(playerPosition),
+        },
+      )
+    : null;
+
   try {
-    const result = await economyService.sellResource({ playerId: identity.playerId, itemId, quantity, playerPosition: playerPosition ?? undefined, vendorId, currentTick: currentServerTick() });
+    const result = await economyService.sellResource({ playerId: identity.playerId, itemId, quantity, playerPosition: playerPosition ?? undefined, vendorId, currentTick: tick });
     if (result.ok) npcQuestService.updateQuestProgress(identity.playerId, "sell", itemId, quantity);
-    res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
+    res.status(result.ok ? 200 : 400).json({ ok: result.ok, result, ...(canonicalIntent ? { canonicalIntent } : {}) });
   } catch (error) {
     console.error("[economy-sell-resource] Failed to sell resource:", error);
     res.status(500).json({ ok: false, error: "internal_error" });
