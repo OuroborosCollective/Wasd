@@ -4,6 +4,7 @@ import type { ResourceNodeStore } from "./ResourceNodeStore.js";
 import { resourceNodeStore } from "./ResourceNodeStore.js";
 import type { GatherResourceResult, RequiredToolSlot, ResourceNodeSnapshot } from "./ResourceTypes.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
+import type { InventoryItemOrigin } from "../inventory/InventoryTypes.js";
 import { equipmentService } from "../equipment/equipmentRuntime.js";
 import { applyPermille, getGatheringToolBonus } from "../equipment/EquipmentBonus.js";
 import { resourceEcologyService, type ResourceEcologyService } from "./ResourceEcologyService.js";
@@ -28,6 +29,7 @@ export interface GatherInput {
   nodeId: string;
   playerPosition: { x: number; y: number };
   currentTick: number;
+  inventoryOrigin?: InventoryItemOrigin;
   onItemReward?: (item: { id: string; name: string; quantity: number }) => void;
 }
 
@@ -55,7 +57,7 @@ export class GatheringService {
   }
 
   async gather(input: GatherInput): Promise<GatherResourceResult> {
-    const { playerId, nodeId, playerPosition, currentTick, onItemReward } = input;
+    const { playerId, nodeId, playerPosition, currentTick, inventoryOrigin, onItemReward } = input;
 
     const skillService = await getSkillProgressionService();
     const skillState: PlayerSkillState = await skillService.getPlayerSkillState(playerId);
@@ -133,6 +135,7 @@ export class GatheringService {
         playerId,
         itemId: result.itemRewardId,
         quantity: totalQuantity,
+        ...(inventoryOrigin ? { origin: inventoryOrigin } : {}),
       });
 
       result.inventoryAdded = inventoryResult.ok;

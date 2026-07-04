@@ -156,6 +156,12 @@ router.post("/gather", async (req, res) => {
     nodeId: canonicalPayload.nodeId,
     playerPosition: canonicalPayload.playerPosition,
     currentTick,
+    inventoryOrigin: {
+      uid: canonicalIntent.intentHash,
+      tick: currentTick,
+      source: "gather_delta",
+      sourceHash: canonicalIntent.intentHash,
+    },
   });
 
   // Update NPC quest progress if gather succeeded

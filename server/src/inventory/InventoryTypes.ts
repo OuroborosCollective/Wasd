@@ -39,6 +39,7 @@ export interface InventorySlot {
 
 export type InventoryOriginSource =
   | "loot_delta"
+  | "gather_delta"
   | "crafting_delta"
   | "trade_delta"
   | "storage_delta"
@@ -110,7 +111,7 @@ export function isInventoryItemId(value: unknown): value is InventoryItemId {
 }
 
 export function isInventoryOriginSource(value: unknown): value is InventoryOriginSource {
-  return typeof value === "string" && ["loot_delta", "crafting_delta", "trade_delta", "storage_delta", "quest_delta", "system_delta"].includes(value);
+  return typeof value === "string" && ["loot_delta", "gather_delta", "crafting_delta", "trade_delta", "storage_delta", "quest_delta", "system_delta"].includes(value);
 }
 
 export function normalizeQuantity(value: unknown): number {
