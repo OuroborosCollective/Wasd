@@ -131,7 +131,7 @@ router.post("/gather", async (req, res) => {
     ? Math.max(0, Math.floor(tickContext.tickIndex))
     : 0;
 
-  const canonicalIntent = canonicalizeClientIntent(
+  const canonicalIntent = canonicalizeClientIntent<"gather">(
     {
       action: "gather",
       requestId: parseOptionalRequestId(req.body?.requestId ?? req.body?.intentId),
@@ -148,12 +148,13 @@ router.post("/gather", async (req, res) => {
       chunkKey: chunkKeyFromWorldPosition(playerPosition),
     },
   );
+  const canonicalPayload = canonicalIntent.payload;
 
   // Attempt gather with server-canonicalized intent payload.
   const result = await gatheringService.gather({
     playerId: canonicalIntent.actorId,
-    nodeId: canonicalIntent.payload.nodeId,
-    playerPosition: canonicalIntent.payload.playerPosition,
+    nodeId: canonicalPayload.nodeId,
+    playerPosition: canonicalPayload.playerPosition,
     currentTick,
   });
 
