@@ -19,6 +19,10 @@ import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { gatheringService } from "../resources/GatheringService.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
+import {
+  canonicalizeClientIntent,
+  chunkKeyFromWorldPosition,
+} from "../intents/ServerCanonicalIntent.js";
 
 const router = express.Router();
 
@@ -74,6 +78,13 @@ function parsePosition(value: unknown): { x: number; y: number } | null {
   };
 }
 
+function parseOptionalRequestId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!/^[a-zA-Z0-9:_./-]{1,160}$/.test(trimmed)) return undefined;
+  return trimmed;
+}
+
 /**
  * POST /api/resource/gather
  *
@@ -114,24 +125,42 @@ router.post("/gather", async (req, res) => {
     return;
   }
 
-  // Parse and validate currentTick (defaults to 0)
-  const rawTick = Number(req.body?.currentTick ?? 0);
-  const currentTick = Number.isFinite(rawTick)
-    ? Math.max(0, Math.floor(rawTick))
+  // Phase 11: Use server tick context as the only simulation tick source for this route.
+  const tickContext = tickContextProvider.getContext();
+  const currentTick = Number.isFinite(tickContext.tickIndex)
+    ? Math.max(0, Math.floor(tickContext.tickIndex))
     : 0;
 
-  // Attempt gather
+  const canonicalIntent = canonicalizeClientIntent(
+    {
+      action: "gather",
+      requestId: parseOptionalRequestId(req.body?.requestId ?? req.body?.intentId),
+      payload: {
+        nodeId,
+        playerPosition,
+      },
+    },
+    {
+      actorId: identity.playerId,
+      tickId: tickContext.tickId,
+      logicalIndex: currentTick,
+      receivedOrder: 0,
+      chunkKey: chunkKeyFromWorldPosition(playerPosition),
+    },
+  );
+
+  // Attempt gather with server-canonicalized intent payload.
   const result = await gatheringService.gather({
-    playerId: identity.playerId,
-    nodeId,
-    playerPosition,
+    playerId: canonicalIntent.actorId,
+    nodeId: canonicalIntent.payload.nodeId,
+    playerPosition: canonicalIntent.payload.playerPosition,
     currentTick,
   });
 
   // Update NPC quest progress if gather succeeded
   if (result.ok && result.itemRewardId) {
     npcQuestService.updateQuestProgress(
-      identity.playerId,
+      canonicalIntent.actorId,
       "gather",
       result.itemRewardId,
       result.inventoryQuantity ?? 1,
@@ -140,10 +169,10 @@ router.post("/gather", async (req, res) => {
 
   // Return 200 for success, 409 for failure (conflict with world state)
   // Phase 11: Include deterministic tick context for Ouroboros integration
-  const tickContext = tickContextProvider.getContext();
   res.status(result.ok ? 200 : 409).json({
     ok: result.ok,
     result,
+    canonicalIntent,
     // Ouroboros tick system context
     tickContext: {
       tickId: tickContext.tickId,
