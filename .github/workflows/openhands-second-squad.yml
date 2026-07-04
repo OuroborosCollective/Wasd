@@ -32,6 +32,7 @@ concurrency:
 
 env:
   OPENHANDS_MACRO: "@second-squad"
+  OPENHANDS_RESOLVER_VERSION: "0.48.0"
   TARGET_BRANCH: main
   MAX_ITERATIONS: "40"
   PR_TYPE: "draft"
@@ -143,10 +144,17 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: 📦 Install OpenHands
+      - name: 📦 Install OpenHands resolver
         run: |
           python -m pip install --upgrade pip
-          python -m pip install openhands-ai
+          python -m pip install "openhands-ai==${OPENHANDS_RESOLVER_VERSION}"
+          python - <<'PY'
+          import importlib.metadata
+          import openhands.resolver.resolve_issue
+
+          print("openhands-ai", importlib.metadata.version("openhands-ai"))
+          print("resolver module", openhands.resolver.resolve_issue.__file__)
+          PY
 
       - name: 💬 Post start comment
         uses: actions/github-script@v7
@@ -163,14 +171,15 @@ jobs:
                 "",
                 `Issue: #${process.env.ISSUE_NUMBER}`,
                 `Reason: \`${process.env.REASON}\``,
+                `OpenHands resolver: \`${process.env.OPENHANDS_RESOLVER_VERSION}\``,
                 `Run: ${runUrl}`
               ].join("\n")
             });
 
       - name: 🧠 Run Second Squad
         id: squad
-        continue-on-error: true
         run: |
+          set -o pipefail
           cd /tmp
           rm -rf squad-workspace
           mkdir -p squad-workspace
@@ -179,6 +188,10 @@ jobs:
             --selected-repo "${{ github.repository }}" \
             --issue-number "${{ env.ISSUE_NUMBER }}" \
             --max-iterations "${{ env.MAX_ITERATIONS }}" \
+            --token "${{ env.GITHUB_TOKEN }}" \
+            --llm-model "${{ env.LLM_MODEL }}" \
+            --llm-api-key "${{ env.LLM_API_KEY }}" \
+            --output-dir /tmp/squad-workspace/output \
             2>&1 | tee /tmp/squad-resolve.log
 
       - name: 📤 Upload artifacts
@@ -186,7 +199,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: second-squad-${{ matrix.issue_number }}
-          path: /tmp/squad-resolve.log
+          path: |
+            /tmp/squad-resolve.log
+            /tmp/squad-workspace/output
           if-no-files-found: warn
           retention-days: 14
 
@@ -207,6 +222,17 @@ jobs:
             } catch {}
 
             const success = process.env.SUCCESS === "success";
+            const staleLabel = success ? "second-squad-needs-help" : "second-squad-fixed";
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: Number(process.env.ISSUE_NUMBER),
+                name: staleLabel
+              });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
 
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
@@ -220,7 +246,7 @@ jobs:
               repo: context.repo.repo,
               issue_number: Number(process.env.ISSUE_NUMBER),
               body: [
-                success ? "✅ **Second Squad hat das Issue behoben!**" : "⚠️ **Second Squad hat Hilfe benötigt.**",
+                success ? "✅ **Second Squad ist erfolgreich durchgelaufen.**" : "⚠️ **Second Squad ist fehlgeschlagen und benötigt Hilfe.**",
                 "",
                 `Run: ${runUrl}`,
                 logContent ? ["```", logContent, "```"].join("\n") : ""
