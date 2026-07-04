@@ -1,1 +1,159 @@
-name: Probe
+name: Stitch 2.5D Atlas Intake Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      input_zip:
+        description: 'Input path: ZIP, folder, or image file. Defaults to assets/raw/stitch.'
+        required: false
+        default: ''
+      pack_id:
+        description: 'Pack ID for manifest'
+        required: false
+        default: 'stitch_25d_atlas_pack_001'
+  pull_request:
+    paths:
+      - 'scripts/stitch_atlas_intake.py'
+      - 'scripts/__tests__/stitch_atlas_intake.test.py'
+      - 'scripts/stitch_cv_requirements.txt'
+      - '.github/workflows/stitch-atlas-intake.yml'
+      - 'assets/raw/stitch/**'
+      - 'apps/client-2d/**'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/stitch_atlas_intake.py'
+      - 'scripts/__tests__/stitch_atlas_intake.test.py'
+      - 'scripts/stitch_cv_requirements.txt'
+      - '.github/workflows/stitch-atlas-intake.yml'
+      - 'assets/raw/stitch/**'
+      - 'apps/client-2d/**'
+
+permissions:
+  contents: read
+  packages: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: stitch-atlas-intake-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-python-tests:
+    name: Validate Python Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python CV dependencies
+        run: |
+          set -euo pipefail
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --quiet -r scripts/stitch_cv_requirements.txt
+      - name: Run Python tests
+        run: python3 scripts/__tests__/stitch_atlas_intake.test.py
+
+  intake:
+    name: Run Stitch Atlas Intake
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python CV dependencies
+        run: |
+          set -euo pipefail
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --quiet -r scripts/stitch_cv_requirements.txt
+      - name: Resolve input
+        id: input_check
+        env:
+          REQUESTED_INPUT: ${{ github.event.inputs.input_zip || '' }}
+          REQUESTED_PACK_ID: ${{ github.event.inputs.pack_id || 'stitch_25d_atlas_pack_001' }}
+        run: |
+          set -euo pipefail
+          input_path="$REQUESTED_INPUT"
+          if [ -z "$input_path" ]; then
+            input_path="assets/raw/stitch"
+          fi
+          if [ ! -e "$input_path" ]; then
+            echo "Input path missing: $input_path"
+            find assets/raw -maxdepth 6 -type f | sort || true
+            exit 1
+          fi
+          echo "INPUT_PATH=$input_path" >> "$GITHUB_OUTPUT"
+          echo "PACK_ID=$REQUESTED_PACK_ID" >> "$GITHUB_OUTPUT"
+      - name: Run intake
+        run: |
+          set -euo pipefail
+          python3 scripts/stitch_atlas_intake.py \
+            --input "${{ steps.input_check.outputs.INPUT_PATH }}" \
+            --pack-id "${{ steps.input_check.outputs.PACK_ID }}"
+      - name: Validate manifest and replay
+        run: |
+          set -euo pipefail
+          manifest="apps/client-2d/public/2d-assets/stitch/manifest.json"
+          test -f "$manifest"
+          python3 - <<'PY'
+import json
+path = "apps/client-2d/public/2d-assets/stitch/manifest.json"
+with open(path, "r", encoding="utf-8") as f:
+    manifest = json.load(f)
+assert manifest.get("deterministic") is True
+assert isinstance(manifest.get("assets"), list)
+assert len(manifest.get("assets", [])) > 0
+for asset in manifest["assets"]:
+    assert asset.get("assetId")
+    assert asset.get("sourcePath")
+    assert not asset["sourcePath"].startswith("/")
+print("Manifest validation OK")
+PY
+          sha256sum "$manifest" | awk '{print $1}' > /tmp/stitch-before.sha256
+          python3 scripts/stitch_atlas_intake.py \
+            --input "${{ steps.input_check.outputs.INPUT_PATH }}" \
+            --pack-id "${{ steps.input_check.outputs.PACK_ID }}"
+          sha256sum "$manifest" | awk '{print $1}' > /tmp/stitch-after.sha256
+          diff -u /tmp/stitch-before.sha256 /tmp/stitch-after.sha256
+      - name: Upload intake artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: stitch-intake-output
+          path: |
+            apps/client-2d/public/2d-assets/stitch/**
+            assets/quarantine/stitch/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+  build-client-2d:
+    name: Build client-2d
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [intake, validate-python-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: stitch-intake-output
+          path: /tmp/stitch-intake-output
+      - name: Restore intake artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p apps/client-2d/public/2d-assets/stitch
+          if [ -d "/tmp/stitch-intake-output/apps/client-2d/public/2d-assets/stitch" ]; then
+            cp -R /tmp/stitch-intake-output/apps/client-2d/public/2d-assets/stitch/. apps/client-2d/public/2d-assets/stitch/
+          else
+            cp -R /tmp/stitch-intake-output/. apps/client-2d/public/2d-assets/stitch/
+          fi
+          test -f apps/client-2d/public/2d-assets/stitch/manifest.json
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: corepack prepare pnpm@9.12.2 --activate
+      - run: pnpm install --no-frozen-lockfile
+      - name: Build client-2d
+        run: NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @wasd/client-2d build
