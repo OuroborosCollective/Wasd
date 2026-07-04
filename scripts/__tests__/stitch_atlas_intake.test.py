@@ -143,11 +143,16 @@ def run_tests() -> bool:
             zf.writestr("inside/readme.txt", "ignored")
         sources = collect_sources(root)
         source_names = [source.display_source_path for source in sources]
-        passed, failed = count(test(len(sources) == 4, "Directory collects loose images and ZIP images"), passed, failed)
+        source_hashes_by_name = {source.display_source_path: stable_hash(source.data) for source in sources}
+        passed, failed = count(test(len(sources) == 5, "Directory keeps loose images and ZIP images as distinct sources"), passed, failed)
         passed, failed = count(test(any("enemy_skeleton.jpg" in name for name in source_names), "Collects JPG"), passed, failed)
         passed, failed = count(test(any("prop_tree.png" in name for name in source_names), "Collects PNG"), passed, failed)
         passed, failed = count(test(any("ui_icon.jpeg" in name for name in source_names), "Collects JPEG"), passed, failed)
+        passed, failed = count(test(any("npc_guard_source.jpeg" in name for name in source_names), "Collects loose image also packed into ZIP"), passed, failed)
         passed, failed = count(test(any("pack.zip!/inside/npc_guard.jpeg" in name for name in source_names), "Collects JPEG inside ZIP"), passed, failed)
+        loose_npc = next((name for name in source_names if name.endswith("npc_guard_source.jpeg")), "")
+        zipped_npc = next((name for name in source_names if "pack.zip!/inside/npc_guard.jpeg" in name), "")
+        passed, failed = count(test(bool(loose_npc) and bool(zipped_npc) and loose_npc != zipped_npc and source_hashes_by_name[loose_npc] == source_hashes_by_name[zipped_npc], "Loose and ZIP copies keep separate source paths with same content hash"), passed, failed)
 
     print("\n=== runtime intake tests ===")
     with tempfile.TemporaryDirectory() as tmp:
