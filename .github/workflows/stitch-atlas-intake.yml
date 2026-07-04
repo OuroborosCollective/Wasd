@@ -117,13 +117,21 @@ jobs:
           echo "  INPUT_ZIP=$(cat "$GITHUB_OUTPUT" | grep '^INPUT_ZIP=' | tail -n1 | cut -d= -f2-)"
           echo "  PACK_ID=$REQUESTED_PACK_ID"
 
-      - name: Install Python and Pillow
+      - name: Install Python Stitch CV dependencies
         run: |
           set -euo pipefail
 
           sudo apt-get update -qq
           sudo apt-get install -y -qq python3-pip > /dev/null 2>&1
-          python3 -m pip install --quiet Pillow
+          python3 -m pip install --upgrade --quiet pip
+          python3 -m pip install --quiet -r scripts/stitch_cv_requirements.txt
+          python3 - <<'PY'
+          import cv2
+          import numpy
+          from PIL import Image
+
+          print("Python Stitch CV dependencies OK")
+          PY
 
       - name: Validate input path
         run: |
@@ -296,13 +304,21 @@ print("All sourcePaths are stable, relative, and clean")
         with:
           fetch-depth: 1
 
-      - name: Install Python and Pillow
+      - name: Install Python Stitch CV dependencies
         run: |
           set -euo pipefail
 
           sudo apt-get update -qq
           sudo apt-get install -y -qq python3-pip > /dev/null 2>&1
-          python3 -m pip install --quiet Pillow
+          python3 -m pip install --upgrade --quiet pip
+          python3 -m pip install --quiet -r scripts/stitch_cv_requirements.txt
+          python3 - <<'PY'
+          import cv2
+          import numpy
+          from PIL import Image
+
+          print("Python Stitch CV dependencies OK")
+          PY
 
       - name: Run Python tests
         run: |
