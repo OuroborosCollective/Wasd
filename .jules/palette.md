@@ -20,3 +20,7 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+
+## 2026-07-04 - Standardizing ESC pattern for custom overlays
+**Learning:** Overlays that bypass the standard `WindowFrame` registry (like `CampTradePanel`) can easily miss global keyboard patterns. Manually implementing the ESC listener and pairing it with a visual `<kbd>` hint and `aria-keyshortcuts` metadata ensures a consistent "way out" across the entire HUD.
+**Action:** For any custom overlay or dialogue panel, ensure the ESC shortcut is explicitly handled and visually hinted to maintain parity with the standard `WindowFrame` behavior.

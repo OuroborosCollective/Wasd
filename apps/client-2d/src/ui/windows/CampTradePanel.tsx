@@ -18,7 +18,7 @@
  * - After buy, refetches snapshot to update inventory, wallet, and camp stock
  */
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import type { CampStockSnapshot, CampNpcSnapshot } from "../../game/liveGameplaySnapshot";
 import { dispatchBuyCampStock } from "../../game/gameplayActions";
 import { useLiveGameplaySnapshot } from "../../game/useLiveGameplaySnapshot";
@@ -112,6 +112,17 @@ export function CampTradePanel({ npc, campStock, onClose }: CampTradePanelProps)
   const accent = NPC_COLORS[npc.type] ?? { primary: COLORS.manaCyan, glow: "rgba(0, 229, 255, 0.5)" };
   const itemName = ITEM_NAMES[sellItemId] ?? sellItemId;
   const itemIcon = ITEM_ICONS[sellItemId] ?? "inventory_2";
+
+  // Keyboard shortcut: ESC to close
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   const handleBuy = useCallback(async () => {
     if (!hasStock || buying || !canAfford) return;
@@ -226,9 +237,14 @@ export function CampTradePanel({ npc, campStock, onClose }: CampTradePanelProps)
                 cursor: "pointer",
                 fontSize: "20px",
                 padding: "4px 8px",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
               }}
-              aria-label="Close"
+              aria-label="Close [ESC]"
+              aria-keyshortcuts="Escape"
             >
+              <kbd className="cz-kbd" aria-hidden="true" style={{ margin: 0 }}>ESC</kbd>
               ✕
             </button>
           )}
