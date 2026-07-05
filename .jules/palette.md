@@ -20,3 +20,6 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+## 2025-05-16 - Robust Async UI Feedback and Standardized Close Buttons
+**Learning:** Asynchronous UI actions (like crafting) must use `try...finally` blocks to ensure loading states are cleared even on failure. Additionally, standardizing close buttons with `<kbd>ESC</kbd>` hints and `aria-keyshortcuts` across all HUD windows creates a predictable "way out" for users.
+**Action:** Always wrap async state resets in `finally` and apply the standardized `wow-close-btn` pattern to all dialog-like components.
