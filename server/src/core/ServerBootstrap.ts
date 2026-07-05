@@ -10,7 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { mcpRoute } from "../api/mcpRoute.js";
 import { adminContentRouter } from "../api/adminContentRoute.js";
-import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
+import { adminAuthMiddleware, safeEqualText } from "../middleware/adminAuthMiddleware.js";
 import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { voteRouter } from "../api/voteRoute.js";
 import { leaderboardRouter } from "../api/leaderboardRoute.js";
@@ -134,7 +134,7 @@ export function buildClientPublicConfigJson(req?: Request): string {
 
 function envTruthy(key: string): boolean { const v = process.env[key]?.trim().toLowerCase(); return v === "true" || v === "1" || v === "yes"; }
 function shouldProxyBody(method: string): boolean { return ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase()); }
-function canAccessPlaytesterMonitor(req: Request): boolean { const token = PlaytesterConfig.monitorToken; if (!token) return true; return req.query.token as string === token; }
+function canAccessPlaytesterMonitor(req: Request): boolean { const token = PlaytesterConfig.monitorToken; if (!token) return true; return safeEqualText(req.query.token as string || "", token); }
 function safeHealthValue<T>(fn: () => T, fallback: T): T { try { return fn(); } catch { return fallback; } }
 
 export class ServerBootstrap {
@@ -155,7 +155,7 @@ export class ServerBootstrap {
     app.get("/client-config.json", (_req, res) => { res.type("application/json"); res.setHeader("Cache-Control", "no-store"); res.send(buildClientPublicConfigJson(_req)); });
     app.use("/health", healthRoutes({ getTick: () => (this as any)._tick as WorldTick | undefined, isInitializing: () => this.initializing, getPort: () => Number(process.env.PORT || 3000) }));
     app.use("/agora", agoraRouter({ getTick: () => (this as any)._tick as WorldTick | undefined, isInitializing: () => this.initializing, getPort: () => Number(process.env.PORT || 3000) }));
-    app.get("/health", (_req, res) => {
+    app.get("/health", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
       const tick = (this as any)._tick as WorldTick | undefined;
       const selfHealingStatus = safeHealthValue(() => selfHealingRuntime.getStatus(), { active: false, config: {}, totalErrors: 0, totalHealed: 0, healingRate: 0, featuresProtected: 0 } as any);
       res.status(this.initializing ? 503 : 200).json({
