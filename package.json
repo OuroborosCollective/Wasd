@@ -53,12 +53,12 @@
   "devDependencies": {
     "@types/node": "^22.20.0",
     "@types/ws": "^8.18.1",
-    "@typescript-eslint/eslint-plugin": "^8.61.1",
-    "@typescript-eslint/parser": "^8.61.1",
+    "@typescript-eslint/eslint-plugin": "^8.62.1",
+    "@typescript-eslint/parser": "^8.62.1",
     "concurrently": "^10.0.0",
     "eslint": "^9.0.0",
-    "pnpm": "^11.8.0",
-    "sharp": "^0.35.2",
+    "pnpm": "^11.10.0",
+    "sharp": "^0.35.3",
     "typescript": "^5.8.0",
     "vitest": "^2.0.0",
     "ws": "^8.21.0"
