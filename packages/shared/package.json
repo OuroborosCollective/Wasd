@@ -32,11 +32,11 @@
     "cannon-es": "^0.20.0",
     "eventemitter3": "^5.0.4",
     "ioredis": "^5.11.0",
-    "nanoid": "^5.1.15",
+    "nanoid": "^5.1.16",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@babylonjs/core": "^9.13.0",
+    "@babylonjs/core": "^9.15.0",
     "@types/node": "^22.20.0",
     "typescript": "^5.8.0",
     "vitest": "^4.1.8"
