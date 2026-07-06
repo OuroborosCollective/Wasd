@@ -21,6 +21,6 @@
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
 
-## 2025-05-16 - Standardizing Loading States and Preventing Redundant Headers
-**Learning:** Hybrid components that function both as standalone overlays and embedded panels in a `WindowFrame` (like `CraftingWindow`) can cause UX clutter with redundant headers. Additionally, providing immediate visual feedback during asynchronous actions (e.g., "CRAFTING...") via `aria-busy` and `isSubmitting` patterns is essential for "feel-good" interactions.
-**Action:** Conditionally render internal headers based on the presence of navigation props (like `onClose`) and always wrap async action resets in `finally` blocks to ensure the UI remains interactive.
+## 2025-05-16 - Standardizing Loading States and Interaction Resilience
+**Learning:** Providing immediate visual feedback during asynchronous actions (e.g., "CRAFTING...") via `aria-busy` and `isSubmitting` patterns is essential for "feel-good" interactions. Wrapping async resets in `finally` blocks ensures the UI never remains locked on failure.
+**Action:** Always implement local loading states for interactive HUD buttons and ensure async handlers use `try...finally` to clean up submittng states.

@@ -110,14 +110,14 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
 
   return (
     <div className="wow-inventory-overlay" role="dialog" aria-label="Crafting">
-      {onClose && (
-        <div className="wow-inventory-header">
-          <h2>CRAFTING</h2>
+      <div className="wow-inventory-header">
+        <h2>CRAFTING</h2>
+        {onClose && (
           <button className="wow-close-btn" onClick={onClose} aria-label="Close">
             ✕
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="char-content">
         {recipes.length === 0 ? (
