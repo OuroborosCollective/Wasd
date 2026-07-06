@@ -29,3 +29,7 @@
 ## 2026-06-30 - [Optimizing RecipeMatcher via Caching and Comparison]
 **Learning:** The previous implementation of `RecipeMatcher.match` performed (N \cdot M \log M)$ work by sorting and stringifying both the input and every recipe's ingredients on every call. Using a `WeakMap` for recipe input caching and hoisting the input sorting reduces overhead significantly. Element-wise comparison is also much faster than `JSON.stringify`.
 **Action:** Always hoist sorting outside of search loops and use `WeakMap` to cache transformations of stable objects in hot paths.
+
+## 2026-07-05 - [Optimizing MasterExpansionOrchestrator Convergence Loop]
+**Learning:** High-frequency game loops (e.g., 100ms ticks) should avoid O(N) operations on historical data, even if that data is cached with a 1s TTL. By pre-calculating a grouped index (Map) during the cache refresh, we can shift loop complexity from O(N_events) to O(N_active_signatures), which is typically orders of magnitude smaller. Hoisting calculations (like resonance) that are constant for a group further reduces overhead.
+**Action:** In recurring tick-based logic, always index historical data by the key used for matching and iterate over the smaller active set rather than the larger historical set.

@@ -145,6 +145,10 @@ export class MasterExpansionOrchestrator {
   private lastCacheUpdate = 0;
   private readonly CACHE_TTL = 1000;
 
+  // Optimized lookup caches updated on the same cadence as cachedLegends
+  private cachedHighIntensityEvents: HighIntensityEvent[] = [];
+  private cachedEventsByOrigin: Map<string, HighIntensityEvent[]> = new Map();
+
   constructor(
     private plexityLogic: PlexityLogic,
     private constructionScheduler: ConstructionScheduler,
@@ -174,6 +178,20 @@ export class MasterExpansionOrchestrator {
     if (this.worldHistory && (now - this.lastCacheUpdate) > this.CACHE_TTL) {
       this.cachedLegends = this.worldHistory.getLegends() || [];
       this.lastCacheUpdate = now;
+
+      // Bolt: Pre-calculate and cache high-intensity events to avoid redundant O(N) scans every tick.
+      this.cachedHighIntensityEvents = extractHighIntensityEvents(this.cachedLegends, INTENSITY_THRESHOLD);
+
+      // Bolt: Group events by origin (Signature ID) for O(1) matching during the convergence loop.
+      this.cachedEventsByOrigin.clear();
+      for (const event of this.cachedHighIntensityEvents) {
+        let group = this.cachedEventsByOrigin.get(event.origin);
+        if (!group) {
+          group = [];
+          this.cachedEventsByOrigin.set(event.origin, group);
+        }
+        group.push(event);
+      }
     }
     return this.cachedLegends;
   }
@@ -181,33 +199,34 @@ export class MasterExpansionOrchestrator {
   private async unifiedConvergenceLoop(): Promise<void> {
     try {
       const signatures = this.signatureSource.getActiveSignatures();
-      const legends = this.getLegends();
-      const highIntensityEvents = extractHighIntensityEvents(legends, INTENSITY_THRESHOLD);
+      // Ensure caches are updated if TTL expired
+      this.getLegends();
       
-      const sigMap = new Map<string, Signature>();
-      for (const sig of signatures) {
-        sigMap.set(sig.id, sig);
-      }
-      
-      for (const event of highIntensityEvents) {
-        const signature = sigMap.get(event.origin);
-        if (!signature) continue;
-        
+      // Bolt: Optimization - Instead of iterating over all historical high-intensity events (~thousands),
+      // we iterate over active signatures (~dozens) and perform O(1) lookups into the grouped event cache.
+      for (const signature of signatures) {
+        const matchingEvents = this.cachedEventsByOrigin.get(signature.id);
+        if (!matchingEvents || matchingEvents.length === 0) continue;
+
+        // Hoist resonance calculation as it's common for all events matching this signature
         const resonanceScore = this.calculateResonance(signature);
-        const plexityResult = calculatePlexity(event, signature, resonanceScore);
         
-        if (plexityResult.triggerConstruction) {
-          const hasRequirement = await this.checkInventoryRequirement();
+        for (const event of matchingEvents) {
+          const plexityResult = calculatePlexity(event, signature, resonanceScore);
           
-          if (hasRequirement) {
-            await this.triggerConstructionPipeline({
-              targetId: event.id,
-              intensity: event.intensity,
-              resonance: resonanceScore,
-              plexity: plexityResult.score,
-              type: event.type,
-              timestamp: event.timestamp
-            });
+          if (plexityResult.triggerConstruction) {
+            const hasRequirement = await this.checkInventoryRequirement();
+
+            if (hasRequirement) {
+              await this.triggerConstructionPipeline({
+                targetId: event.id,
+                intensity: event.intensity,
+                resonance: resonanceScore,
+                plexity: plexityResult.score,
+                type: event.type,
+                timestamp: event.timestamp
+              });
+            }
           }
         }
       }
