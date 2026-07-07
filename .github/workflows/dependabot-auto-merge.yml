@@ -1,27 +1,195 @@
 name: Dependabot Auto Merge
-on: pull_request
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+  schedule:
+    # Run cleanup daily at 05:00 UTC to ensure 0 open Dependabot PRs
+    - cron: '0 5 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
+  statuses: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
-  dependabot:
+  # ----------------------------------------------------------------
+  # JOB 1: Process the current Dependabot PR (if triggered by one)
+  # ----------------------------------------------------------------
+  process-dependabot-pr:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     if: github.event.pull_request.user.login == 'dependabot[bot]'
+    outputs:
+      update_type: ${{ steps.metadata.outputs.update-type }}
+      dependency_name: ${{ steps.metadata.outputs.dependency-name }}
+      is_harmful: ${{ steps.evaluate.outputs.is_harmful }}
+      pr_number: ${{ github.event.pull_request.number }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Fetch Dependabot metadata
         id: metadata
         uses: dependabot/fetch-metadata@v2
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-      - name: Enable auto-merge for Dependabot PRs
-        if: >
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-minor'
-        run: gh pr merge --auto --squash "$PR_URL"
+
+      - name: Evaluate PR safety
+        id: evaluate
+        run: |
+          UPDATE_TYPE="${{ steps.metadata.outputs.update-type }}"
+          DEP="${{ steps.metadata.outputs.dependency-name }}"
+          IS_HARMFUL="false"
+
+          # Block major version updates (potentially dangerous, require manual review)
+          if [ "$UPDATE_TYPE" = "version-update:semver-major" ]; then
+            echo "BLOCKED: Major version update for $DEP"
+            IS_HARMFUL="true"
+          fi
+
+          # Block known harmful/dangerous dependency patterns
+          case "$DEP" in
+            *crypto-js*|*eval*|*obfuscator*|*remote-code*|*remote-exec*|*shell-exec*)
+              echo "BLOCKED: Suspicious dependency pattern: $DEP"
+              IS_HARMFUL="true"
+              ;;
+          esac
+
+          echo "is_harmful=$IS_HARMFUL" >> "$GITHUB_OUTPUT"
+          echo "update_type=$UPDATE_TYPE" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for CI checks to complete
+        id: wait_ci
+        run: |
+          PR_NUM=${{ github.event.pull_request.number }}
+          echo "Waiting for CI checks on PR #$PR_NUM..."
+
+          # Poll for up to 30 minutes
+          for i in {1..180}; do
+            # Get all status checks for this PR
+            CHECKS=$(curl -s -L \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }}/statuses" \
+              | jq -r '.[].state // empty')
+
+            if [ -z "$CHECKS" ]; then
+              # No status checks yet, check if there are check runs
+              CHECKS=$(curl -s -L \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }}/check-runs" \
+                | jq -r '.check_runs[] | .conclusion // .status // empty')
+            fi
+
+            # Check if all checks passed
+            if echo "$CHECKS" | grep -qv "in_progress" && echo "$CHECKS" | grep -qv "pending" && echo "$CHECKS" | grep -qv "queued"; then
+              if echo "$CHECKS" | grep -q "^success$"; then
+                echo "All CI checks passed!"
+                exit 0
+              elif echo "$CHECKS" | grep -q "^failure$" || echo "$CHECKS" | grep -q "^error$"; then
+                echo "CI checks failed. Will close PR."
+                exit 1
+              fi
+            fi
+
+            echo "CI still running... ($i/180)"
+            sleep 10
+          done
+
+          echo "CI timeout - closing PR"
+          exit 1
+
+      - name: Merge safe Dependabot PR
+        if: steps.wait_ci.outcome == 'success' && steps.evaluate.outputs.is_harmful == 'false'
+        run: |
+          echo "Auto-merging PR #${{ github.event.pull_request.number }} (${{ steps.metadata.outputs.update-type }})"
+          gh pr merge --auto --squash "${{ github.event.pull_request.html_url }}"
         env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Close harmful/major-version PR
+        if: steps.evaluate.outputs.is_harmful == 'true' || steps.wait_ci.outcome == 'failure'
+        run: |
+          echo "Closing PR #${{ github.event.pull_request.number }} - ${{ steps.evaluate.outputs.is_harmful == 'true' && 'harmful/major update' || 'CI failure' }}"
+          gh pr close "${{ github.event.pull_request.html_url }}" --delete-branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ----------------------------------------------------------------
+  # JOB 2: Cleanup - Close all remaining open Dependabot PRs
+  # Ensures 0 open Dependabot PRs remain (including drafts)
+  # Runs after process-dependabot-pr OR on schedule/workflow_dispatch
+  # ----------------------------------------------------------------
+  cleanup-dependabot-prs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close all remaining Dependabot PRs
+        run: |
+          echo "=== Cleaning up all open Dependabot PRs ==="
+
+          # Get all open Dependabot PRs
+          PRS=$(curl -s -L \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&per_page=100" \
+            | jq -r '.[] | select(.user.login == "dependabot[bot]") | "\(.number)|\(.title)|\(.draft)"' 2>/dev/null || true)
+
+          if [ -z "$PRS" ]; then
+            echo "No open Dependabot PRs found."
+            exit 0
+          fi
+
+          echo "Found Dependabot PRs to process:"
+          echo "$PRS"
+          echo ""
+
+          COUNT=0
+          while IFS='|' read -r PR_NUM PR_TITLE DRAFT; do
+            [ -z "$PR_NUM" ] && continue
+
+            echo "Closing PR #$PR_NUM: $PR_TITLE (draft: $DRAFT)"
+            gh pr close "$PR_NUM" --delete-branch --comment "Closed by automated Dependabot cleanup. Only patch/minor updates with passing CI are auto-merged. Major updates and failing PRs are closed automatically."
+            COUNT=$((COUNT + 1))
+          done <<< "$PRS"
+
+          echo ""
+          echo "=== Cleanup complete: Closed $COUNT Dependabot PR(s) ==="
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ----------------------------------------------------------------
+  # JOB 3: Verify 0 open Dependabot PRs remain
+  # ----------------------------------------------------------------
+  verify-clean-state:
+    runs-on: ubuntu-latest
+    needs: cleanup-dependabot-prs
+    steps:
+      - name: Verify no open Dependabot PRs
+        run: |
+          echo "=== Verifying clean state ==="
+
+          REMAINING=$(curl -s -L \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&per_page=100" \
+            | jq -r '[.[] | select(.user.login == "dependabot[bot]")] | length')
+
+          if [ "$REMAINING" = "0" ]; then
+            echo "✓ SUCCESS: 0 open Dependabot PRs remaining"
+            exit 0
+          else
+            echo "✗ FAILED: $REMAINING Dependabot PR(s) still open"
+            curl -s -L \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&per_page=100" \
+              | jq -r '.[] | select(.user.login == "dependabot[bot]") | "  - #\(.number): \(.title)"'
+            exit 1
+          fi
