@@ -24,3 +24,7 @@
 ## 2025-05-16 - Local Loading States for Asynchronous UI Actions
 **Learning:** In asynchronous UI actions like equipping or selling items, missing feedback can lead to "double-click" race conditions and user confusion. Implementing a local `pendingActionId` state with `try...finally` ensures immediate visual feedback (e.g., "SELLING...") and prevents conflicting concurrent requests.
 **Action:** Use a `pendingActionId` pattern and `try...finally` blocks for all asynchronous button actions to provide clear loading states and disable interaction during processing.
+
+## 2025-05-17 - PNPM Version Mismatch in CI
+**Learning:** The `packageManager` field in the root `package.json` must exactly match the pnpm version used by CI runners (e.g., v11.10.0 vs v11.8.0) to prevent build failures, even if local development uses a slightly different version.
+**Action:** Always verify CI logs for pnpm version warnings and align the `packageManager` field with the environment's expected version to ensure build stability.
