@@ -10,6 +10,7 @@ import { SkillWindow } from "./windows/SkillWindow.js";
 import { GuildWindow } from "./windows/GuildWindow.js";
 import { CraftingWindow } from "./windows/CraftingWindow.js";
 import type { StorageSnapshot } from "./StorageOverlay.js";
+import { useLiveGameplaySnapshot } from "../game/useLiveGameplaySnapshot.js";
 import "./windows/windows.css";
 
 export type ActiveOverlay =
@@ -243,11 +244,18 @@ export function useOverlayRenderer(): {
 
       case "CRAFTING":
         return function CraftingOverlayComponent() {
+          const snapshot = useLiveGameplaySnapshot();
           return (
-            <CraftingWindow
-              isOpen={true}
-              onClose={() => interactionUI.closeUI()}
-            />
+            <div className="wow-inventory-overlay" role="dialog" aria-label="Crafting">
+              <div className="wow-inventory-header">
+                <h2>CRAFTING</h2>
+                <button className="wow-close-btn" onClick={() => interactionUI.closeUI()} aria-label="Close [ESC]">
+                  <kbd className="cz-kbd">ESC</kbd>
+                  ✕
+                </button>
+              </div>
+              <CraftingWindow crafting={snapshot.crafting ?? { recipes: [] }} />
+            </div>
           );
         };
 
