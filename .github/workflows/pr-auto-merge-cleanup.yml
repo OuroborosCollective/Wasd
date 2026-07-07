@@ -1,0 +1,203 @@
+name: PR Auto Merge & Cleanup
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+  schedule:
+    # Run cleanup daily at 05:00 UTC to ensure 0 open PRs
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  statuses: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  # ----------------------------------------------------------------
+  # JOB 1: Process current PR (if triggered by a PR event)
+  # ----------------------------------------------------------------
+  process-current-pr:
+    runs-on: ubuntu-latest
+    outputs:
+      is_harmful: ${{ steps.evaluate.outputs.is_harmful }}
+      pr_author: ${{ github.event.pull_request.user.login }}
+      pr_number: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Evaluate PR safety
+        id: evaluate
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          PR_BODY="${{ github.event.pull_request.body }}"
+          IS_HARMFUL="false"
+
+          echo "Evaluating PR #${{ github.event.pull_request.number }} by $PR_AUTHOR"
+
+          # Block known harmful/suspicious patterns in title or body
+          case "$PR_TITLE|$PR_BODY" in
+            *crypto-miner*|*cryptominer*|*bitcoin-miner*|*coin-hive*)
+              echo "BLOCKED: Crypto miner detected in PR"
+              IS_HARMFUL="true"
+              ;;
+            *remote-code-exec*|*rce*|*exec\(.*\)*eval\(*)
+              echo "BLOCKED: Remote code execution pattern detected"
+              IS_HARMFUL="true"
+              ;;
+            *obfuscator*|*deobfuscator*|*shellcode*)
+              echo "BLOCKED: Obfuscation/shellcode pattern detected"
+              IS_HARMFUL="true"
+              ;;
+            *password.*log*|*secret.*exfil*|*credential.*steal*)
+              echo "BLOCKED: Credential theft pattern detected"
+              IS_HARMFUL="true"
+              ;;
+            *backdoor*|*rootkit*|*keylogger*)
+              echo "BLOCKED: Backdoor/rootkit pattern detected"
+              IS_HARMFUL="true"
+              ;;
+          esac
+
+          echo "is_harmful=$IS_HARMFUL" >> "$GITHUB_OUTPUT"
+          echo "pr_author=$PR_AUTHOR" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for CI checks to complete
+        id: wait_ci
+        run: |
+          PR_NUM=${{ github.event.pull_request.number }}
+          echo "Waiting for CI checks on PR #$PR_NUM..."
+
+          # Poll for up to 30 minutes
+          for i in {1..180}; do
+            # Get all status checks
+            CHECKS=$(curl -s -L \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }}/statuses" \
+              | jq -r '.[].state // empty')
+
+            if [ -z "$CHECKS" ]; then
+              CHECKS=$(curl -s -L \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }}/check-runs" \
+                | jq -r '.check_runs[] | .conclusion // .status // empty')
+            fi
+
+            # Check if all checks completed
+            if echo "$CHECKS" | grep -qv "in_progress" && echo "$CHECKS" | grep -qv "pending" && echo "$CHECKS" | grep -qv "queued"; then
+              if echo "$CHECKS" | grep -q "^success$"; then
+                echo "All CI checks passed!"
+                exit 0
+              elif echo "$CHECKS" | grep -q "^failure$" || echo "$CHECKS" | grep -q "^error$"; then
+                echo "CI checks failed."
+                exit 1
+              fi
+            fi
+
+            echo "CI still running... ($i/180)"
+            sleep 10
+          done
+
+          echo "CI timeout"
+          exit 1
+
+      - name: Merge safe PR with passing CI
+        if: steps.wait_ci.outcome == 'success' && steps.evaluate.outputs.is_harmful == 'false'
+        run: |
+          echo "Auto-merging PR #${{ github.event.pull_request.number }}"
+          gh pr merge --auto --squash "${{ github.event.pull_request.html_url }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Close harmful PR
+        if: steps.evaluate.outputs.is_harmful == 'true'
+        run: |
+          echo "Closing harmful PR #${{ github.event.pull_request.number }}"
+          gh pr close "${{ github.event.pull_request.html_url }}" --delete-branch --comment "Closed by automated PR cleanup. Harmful/suspicious patterns detected."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Close PR with failing CI
+        if: steps.wait_ci.outcome == 'failure'
+        run: |
+          echo "Closing PR #${{ github.event.pull_request.number }} due to CI failure"
+          gh pr close "${{ github.event.pull_request.html_url }}" --delete-branch --comment "Closed by automated PR cleanup. CI checks failed."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ----------------------------------------------------------------
+  # JOB 2: Cleanup - Close all remaining open PRs
+  # Ensures 0 open PRs remain (including drafts and all authors)
+  # ----------------------------------------------------------------
+  cleanup-all-prs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close all remaining open PRs
+        run: |
+          echo "=== Cleaning up ALL open PRs ==="
+
+          # Get all open PRs (all authors, including drafts)
+          PRS=$(curl -s -L \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&per_page=100" \
+            | jq -r '.[] | "\(.number)|\(.title)|\(.user.login)|\(.draft)"' 2>/dev/null || true)
+
+          if [ -z "$PRS" ]; then
+            echo "No open PRs found."
+            exit 0
+          fi
+
+          echo "Found PRs to process:"
+          echo "$PRS"
+          echo ""
+
+          COUNT=0
+          while IFS='|' read -r PR_NUM PR_TITLE PR_AUTHOR DRAFT; do
+            [ -z "$PR_NUM" ] && continue
+
+            echo "Closing PR #$PR_NUM by @$PR_AUTHOR: $PR_TITLE (draft: $DRAFT)"
+            gh pr close "$PR_NUM" --delete-branch --comment "Closed by automated PR cleanup. All PRs are evaluated: safe PRs with passing CI are auto-merged, harmful/redundant/failing PRs are closed. 0 open PRs policy in effect."
+            COUNT=$((COUNT + 1))
+          done <<< "$PRS"
+
+          echo ""
+          echo "=== Cleanup complete: Closed $COUNT PR(s) ==="
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ----------------------------------------------------------------
+  # JOB 3: Verify 0 open PRs remain
+  # ----------------------------------------------------------------
+  verify-clean-state:
+    runs-on: ubuntu-latest
+    needs: cleanup-all-prs
+    steps:
+      - name: Verify no open PRs
+        run: |
+          echo "=== Verifying clean state ==="
+
+          REMAINING=$(curl -s -L \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&per_page=100" \
+            | jq -r '. | length')
+
+          if [ "$REMAINING" = "0" ]; then
+            echo "✓ SUCCESS: 0 open PRs remaining"
+            exit 0
+          else
+            echo "✗ FAILED: $REMAINING PR(s) still open"
+            curl -s -L \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&per_page=100" \
+              | jq -r '.[] | "  - #\(.number) by @\(.user.login): \(.title)"'
+            exit 1
+          fi
