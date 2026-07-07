@@ -20,12 +20,10 @@ env:
 
 jobs:
   # ----------------------------------------------------------------
-  # JOB 1: Process current PR (only when triggered by a PR event)
-  # Skip on schedule/workflow_dispatch (no pull_request context)
+  # JOB 1: Process current PR (if triggered by a PR event)
   # ----------------------------------------------------------------
   process-current-pr:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     outputs:
       is_harmful: ${{ steps.evaluate.outputs.is_harmful }}
       pr_author: ${{ github.event.pull_request.user.login }}
@@ -140,9 +138,6 @@ jobs:
   cleanup-all-prs:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Close all remaining open PRs
         run: |
           echo "=== Cleaning up ALL open PRs ==="
