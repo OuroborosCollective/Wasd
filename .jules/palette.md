@@ -20,3 +20,7 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+
+## 2025-05-16 - Local Loading States for Asynchronous UI Actions
+**Learning:** In asynchronous UI actions like equipping or selling items, missing feedback can lead to "double-click" race conditions and user confusion. Implementing a local `pendingActionId` state with `try...finally` ensures immediate visual feedback (e.g., "SELLING...") and prevents conflicting concurrent requests.
+**Action:** Use a `pendingActionId` pattern and `try...finally` blocks for all asynchronous button actions to provide clear loading states and disable interaction during processing.

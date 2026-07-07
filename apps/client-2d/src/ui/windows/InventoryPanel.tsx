@@ -17,7 +17,7 @@
  * - After unequip, refetches snapshot to update inventory and equipment
  */
 
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import type {
   PlayerInventorySnapshot,
   PlayerEquipmentSnapshot,
@@ -101,6 +101,7 @@ const DEFAULT_SELL_PRICES: Record<string, number> = {
 const VENDOR_ID = "village_trader_001";
 
 export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, equipmentStats }: Props) {
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const slots = inventory?.slots ?? [];
   const equipped = equipment?.slots ?? [];
   const tools = slots.filter((slot) => GATHERING_TOOL_IDS.has(slot.itemId));
@@ -169,29 +170,34 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
 
   const handleEquip = useCallback(
     async (itemId: string) => {
-      const result = await equipGatheringTool(itemId);
+      setPendingActionId(`equip-${itemId}`);
+      try {
+        const result = await equipGatheringTool(itemId);
 
-      if (result.ok && result.result?.ok) {
-        window.dispatchEvent(
-          new CustomEvent("wasd:toast", {
-            detail: {
-              type: "success",
-              message: "Tool equipped",
-            },
-          }),
-        );
+        if (result.ok && result.result?.ok) {
+          window.dispatchEvent(
+            new CustomEvent("wasd:toast", {
+              detail: {
+                type: "success",
+                message: "Tool equipped",
+              },
+            }),
+          );
 
-        // Refetch snapshot to update equipment/paperdoll display
-        await refetchSnapshot();
-      } else {
-        window.dispatchEvent(
-          new CustomEvent("wasd:toast", {
-            detail: {
-              type: "error",
-              message: `Equip failed: ${result.result?.reason ?? "unknown"}`,
-            },
-          }),
-        );
+          // Refetch snapshot to update equipment/paperdoll display
+          await refetchSnapshot();
+        } else {
+          window.dispatchEvent(
+            new CustomEvent("wasd:toast", {
+              detail: {
+                type: "error",
+                message: `Equip failed: ${result.result?.reason ?? "unknown"}`,
+              },
+            }),
+          );
+        }
+      } finally {
+        setPendingActionId(null);
       }
     },
     [refetchSnapshot],
@@ -199,29 +205,34 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
 
   const handleUnequip = useCallback(
     async (slotId: string) => {
-      const result = await unequipGatheringTool(slotId);
+      setPendingActionId(`unequip-${slotId}`);
+      try {
+        const result = await unequipGatheringTool(slotId);
 
-      if (result.ok && result.result?.ok) {
-        window.dispatchEvent(
-          new CustomEvent("wasd:toast", {
-            detail: {
-              type: "success",
-              message: "Tool unequipped",
-            },
-          }),
-        );
+        if (result.ok && result.result?.ok) {
+          window.dispatchEvent(
+            new CustomEvent("wasd:toast", {
+              detail: {
+                type: "success",
+                message: "Tool unequipped",
+              },
+            }),
+          );
 
-        // Refetch snapshot to update equipment/paperdoll display
-        await refetchSnapshot();
-      } else {
-        window.dispatchEvent(
-          new CustomEvent("wasd:toast", {
-            detail: {
-              type: "error",
-              message: `Unequip failed: ${result.result?.reason ?? "unknown"}`,
-            },
-          }),
-        );
+          // Refetch snapshot to update equipment/paperdoll display
+          await refetchSnapshot();
+        } else {
+          window.dispatchEvent(
+            new CustomEvent("wasd:toast", {
+              detail: {
+                type: "error",
+                message: `Unequip failed: ${result.result?.reason ?? "unknown"}`,
+              },
+            }),
+          );
+        }
+      } finally {
+        setPendingActionId(null);
       }
     },
     [refetchSnapshot],
@@ -229,68 +240,77 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
 
   const handleSell = useCallback(
     async (itemId: string, quantity: number) => {
-      const result = await dispatchSellResource({ itemId, quantity });
+      setPendingActionId(`sell-${itemId}`);
+      try {
+        const result = await dispatchSellResource({ itemId, quantity });
 
-      if (result.ok && result.result) {
-        const price = getEffectivePrice(itemId);
-        window.dispatchEvent(
-          new CustomEvent("wasd:toast", {
-            detail: {
-              type: "success",
-              message: `Sold ${quantity} for ${result.result.totalCoins} coins`,
-            },
-          }),
-        );
-      } else {
-        // Provide user-friendly error message for vendor proximity issues
-        let errorMessage = result.error ?? "Sell failed";
-        if (result.error === "vendor_too_far") {
-          errorMessage = "Return to village trader to sell resources";
-        } else if (result.error === "missing_player_position") {
-          errorMessage = "Cannot determine position - try moving slightly";
+        if (result.ok && result.result) {
+          window.dispatchEvent(
+            new CustomEvent("wasd:toast", {
+              detail: {
+                type: "success",
+                message: `Sold ${quantity} for ${result.result.totalCoins} coins`,
+              },
+            }),
+          );
+        } else {
+          // Provide user-friendly error message for vendor proximity issues
+          let errorMessage = result.error ?? "Sell failed";
+          if (result.error === "vendor_too_far") {
+            errorMessage = "Return to village trader to sell resources";
+          } else if (result.error === "missing_player_position") {
+            errorMessage = "Cannot determine position - try moving slightly";
+          }
+          window.dispatchEvent(
+            new CustomEvent("wasd:toast", {
+              detail: {
+                type: "error",
+                message: errorMessage,
+              },
+            }),
+          );
         }
-        window.dispatchEvent(
-          new CustomEvent("wasd:toast", {
-            detail: {
-              type: "error",
-              message: errorMessage,
-            },
-          }),
-        );
+      } finally {
+        setPendingActionId(null);
       }
     },
-    [getEffectivePrice],
+    [],
   );
 
   const handleSellAll = useCallback(
     async () => {
-      const result = await dispatchSellAllResources();
+      setPendingActionId("sell-all");
+      try {
+        const result = await dispatchSellAllResources();
 
-      if (result.ok && result.result) {
-        window.dispatchEvent(
-          new CustomEvent("wasd:toast", {
-            detail: {
-              type: "success",
-              message: `Sold all resources for ${result.result.totalCoins} coins`,
-            },
-          }),
-        );
-      } else {
-        // Provide user-friendly error message for vendor proximity issues
-        let errorMessage = result.error ?? "Nothing to sell";
-        if (result.error === "vendor_too_far") {
-          errorMessage = "Return to village trader to sell resources";
-        } else if (result.error === "missing_player_position") {
-          errorMessage = "Cannot determine position - try moving slightly";
+        if (result.ok && result.result) {
+          window.dispatchEvent(
+            new CustomEvent("wasd:toast", {
+              detail: {
+                type: "success",
+                message: `Sold all resources for ${result.result.totalCoins} coins`,
+              },
+            }),
+          );
+        } else {
+          // Provide user-friendly error message for vendor proximity issues
+          let errorMessage = result.error ?? "Nothing to sell";
+          if (result.error === "vendor_too_far") {
+            errorMessage = "Return to village trader to sell resources";
+          } else if (result.error === "missing_player_position") {
+            errorMessage = "Cannot determine position - try moving slightly";
+          }
+          window.dispatchEvent(
+            new CustomEvent("wasd:toast", {
+              detail: {
+                type: "error",
+                message: errorMessage,
+              },
+            }),
+          );
         }
-        window.dispatchEvent(
-          new CustomEvent("wasd:toast", {
-            detail: {
-              type: "error",
-              message: errorMessage,
-            },
-          }),
-        );
+      } finally {
+        setPendingActionId(null);
       }
     },
     [],
@@ -378,8 +398,10 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
                       data-testid={`unequip-slot-${slot.slotId}`}
                       title={`Unequip ${slot.title}`}
                       aria-label={`Unequip ${slot.title}`}
+                      disabled={Boolean(pendingActionId)}
+                      aria-busy={pendingActionId === `unequip-${slot.slotId}`}
                     >
-                      ✕
+                      {pendingActionId === `unequip-${slot.slotId}` ? "..." : "✕"}
                     </button>
                   </div>
                 );
@@ -404,11 +426,17 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
                     data-testid={`equip-item-${slot.itemId}`}
                     title={`Equip ${toolName}`}
                     aria-label={`Equip ${toolName}`}
+                    disabled={Boolean(pendingActionId)}
+                    aria-busy={pendingActionId === `equip-${slot.itemId}`}
                   >
                     {iconPath && (
                       <img src={iconPath} alt={slot.name} className="tool-svg-icon" />
                     )}
-                    <span className="tool-name">{TOOL_NAMES[slot.itemId] ?? slot.name}</span>
+                    <span className="tool-name">
+                      {pendingActionId === `equip-${slot.itemId}`
+                        ? "EQUIPPING..."
+                        : TOOL_NAMES[slot.itemId] ?? slot.name}
+                    </span>
                   </button>
                 );
               })}
@@ -438,8 +466,10 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
           data-testid="sell-all-resources-button"
           title="Sell all collectable resources in inventory"
           aria-label="Sell all collectable resources in inventory"
+          disabled={Boolean(pendingActionId)}
+          aria-busy={pendingActionId === "sell-all"}
         >
-          Sell All Resources
+          {pendingActionId === "sell-all" ? "SELLING ALL..." : "Sell All Resources"}
         </button>
       )}
 
@@ -482,8 +512,12 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
                   data-testid={`vendor-sell-${slot.itemId}`}
                   title={`Sell ${slot.name} for ${totalValue} coins`}
                   aria-label={`Sell ${slot.name} for ${totalValue} coins`}
+                  disabled={Boolean(pendingActionId)}
+                  aria-busy={pendingActionId === `sell-${slot.itemId}`}
                 >
-                  SELL {totalValue}c
+                  {pendingActionId === `sell-${slot.itemId}`
+                    ? "SELLING..."
+                    : `SELL ${totalValue}c`}
                 </button>
               )}
             </article>
