@@ -31,13 +31,15 @@ jobs:
     steps:
       - name: Evaluate PR safety
         id: evaluate
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
-          PR_BODY="${{ github.event.pull_request.body }}"
           IS_HARMFUL="false"
 
-          echo "Evaluating PR #${{ github.event.pull_request.number }} by $PR_AUTHOR"
+          echo "Evaluating PR #$PR_NUMBER by $PR_AUTHOR"
 
           # Block known harmful/suspicious patterns in title or body
           case "$PR_TITLE|$PR_BODY" in
@@ -68,24 +70,28 @@ jobs:
 
       - name: Wait for CI checks to complete
         id: wait_ci
+        env:
+          PR_NUM: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUM=${{ github.event.pull_request.number }}
           echo "Waiting for CI checks on PR #$PR_NUM..."
 
           # Poll for up to 30 minutes
           for i in {1..180}; do
             # Get all status checks
             CHECKS=$(curl -s -L \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }}/statuses" \
+              "https://api.github.com/repos/$REPOSITORY/commits/$HEAD_SHA/statuses" \
               | jq -r '.[].state // empty')
 
             if [ -z "$CHECKS" ]; then
               CHECKS=$(curl -s -L \
-                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Authorization: Bearer $GH_TOKEN" \
                 -H "Accept: application/vnd.github+json" \
-                "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }}/check-runs" \
+                "https://api.github.com/repos/$REPOSITORY/commits/$HEAD_SHA/check-runs" \
                 | jq -r '.check_runs[] | .conclusion // .status // empty')
             fi
 
@@ -109,27 +115,33 @@ jobs:
 
       - name: Merge safe PR with passing CI
         if: steps.wait_ci.outcome == 'success' && steps.evaluate.outputs.is_harmful == 'false'
-        run: |
-          echo "Auto-merging PR #${{ github.event.pull_request.number }}"
-          gh pr merge --auto --squash "${{ github.event.pull_request.html_url }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          echo "Auto-merging PR #$PR_NUMBER"
+          gh pr merge --auto --squash "$PR_URL"
 
       - name: Close harmful PR
         if: steps.evaluate.outputs.is_harmful == 'true'
-        run: |
-          echo "Closing harmful PR #${{ github.event.pull_request.number }}"
-          gh pr close "${{ github.event.pull_request.html_url }}" --delete-branch --comment "Closed by automated PR cleanup. Harmful/suspicious patterns detected."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          echo "Closing harmful PR #$PR_NUMBER"
+          gh pr close "$PR_URL" --delete-branch --comment "Closed by automated PR cleanup. Harmful/suspicious patterns detected."
 
       - name: Close PR with failing CI
         if: steps.wait_ci.outcome == 'failure'
-        run: |
-          echo "Closing PR #${{ github.event.pull_request.number }} due to CI failure"
-          gh pr close "${{ github.event.pull_request.html_url }}" --delete-branch --comment "Closed by automated PR cleanup. CI checks failed."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          echo "Closing PR #$PR_NUMBER due to CI failure"
+          gh pr close "$PR_URL" --delete-branch --comment "Closed by automated PR cleanup. CI checks failed."
 
   # ----------------------------------------------------------------
   # JOB 2: Cleanup - Close all remaining open PRs
@@ -138,15 +150,21 @@ jobs:
   cleanup-all-prs:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Close all remaining open PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           echo "=== Cleaning up ALL open PRs ==="
 
           # Get all open PRs (all authors, including drafts)
           PRS=$(curl -s -L \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&per_page=100" \
+            "https://api.github.com/repos/$REPOSITORY/pulls?state=open&per_page=100" \
             | jq -r '.[] | "\(.number)|\(.title)|\(.user.login)|\(.draft)"' 2>/dev/null || true)
 
           if [ -z "$PRS" ]; then
@@ -180,13 +198,16 @@ jobs:
     needs: cleanup-all-prs
     steps:
       - name: Verify no open PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           echo "=== Verifying clean state ==="
 
           REMAINING=$(curl -s -L \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&per_page=100" \
+            "https://api.github.com/repos/$REPOSITORY/pulls?state=open&per_page=100" \
             | jq -r '. | length')
 
           if [ "$REMAINING" = "0" ]; then
@@ -195,9 +216,9 @@ jobs:
           else
             echo "✗ FAILED: $REMAINING PR(s) still open"
             curl -s -L \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&per_page=100" \
+              "https://api.github.com/repos/$REPOSITORY/pulls?state=open&per_page=100" \
               | jq -r '.[] | "  - #\(.number) by @\(.user.login): \(.title)"'
             exit 1
           fi
