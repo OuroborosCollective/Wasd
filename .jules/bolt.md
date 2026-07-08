@@ -29,3 +29,7 @@
 ## 2026-06-30 - [Optimizing RecipeMatcher via Caching and Comparison]
 **Learning:** The previous implementation of `RecipeMatcher.match` performed (N \cdot M \log M)$ work by sorting and stringifying both the input and every recipe's ingredients on every call. Using a `WeakMap` for recipe input caching and hoisting the input sorting reduces overhead significantly. Element-wise comparison is also much faster than `JSON.stringify`.
 **Action:** Always hoist sorting outside of search loops and use `WeakMap` to cache transformations of stable objects in hot paths.
+
+## 2025-05-24 - [Optimizing stableStringify in RuntimeHistoryLog]
+**Learning:** Declarative `.map().join()` patterns in TypeScript/JavaScript are clean but incur overhead from intermediate array and string allocations. Replacing these with manual `for` loops and direct string concatenation can yield ~20-25% performance gains in hot paths like deterministic history logging or state hashing.
+**Action:** Use manual loops and string concatenation for high-frequency serialization/stringification logic where performance is critical. Always verify with benchmarks and ensure 100% parity with the original declarative output.
