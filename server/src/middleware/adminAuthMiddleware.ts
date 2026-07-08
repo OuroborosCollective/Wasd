@@ -35,7 +35,7 @@ function hashBuffer(value: string): Buffer {
   return createHash("sha256").update(value, "utf8").digest();
 }
 
-function safeEqualText(a: string, b: string): boolean {
+export function safeEqualText(a: string, b: string): boolean {
   const left = hashBuffer(a);
   const right = hashBuffer(b);
   return left.length === right.length && timingSafeEqual(left, right);
@@ -69,7 +69,8 @@ export const adminAuthMiddleware: RequestHandler = (req: Request, res: Response,
   const authHeader = req.headers.authorization;
   const bearer = authHeader && authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
   const headerToken = headerValue(req.headers["x-admin-token"]);
-  const hasPanelCandidate = acceptedPanelTokens.includes(bearer) || acceptedPanelTokens.includes(headerToken);
+  const hasPanelCandidate = acceptedPanelTokens.some(t => safeEqualText(bearer, t)) ||
+                           acceptedPanelTokens.some(t => safeEqualText(headerToken, t));
 
   if (hasPanelCandidate && acceptedPanelTokens.length > 0) {
     adminReq.adminAuth = { mode: "token" };

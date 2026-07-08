@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import fs from "fs/promises";
 import path from "path";
 import { z } from "zod";
+import { safeEqualText } from "../middleware/adminAuthMiddleware.js";
 
 // Store SSE Transports for connecting clients
 const transports = new Map<string, { transport: SSEServerTransport }>();
@@ -192,7 +193,7 @@ export function mcpRoute() {
     }
 
     const token = authHeader.split(" ")[1];
-    if (token !== adminToken) {
+    if (!token || !safeEqualText(token, adminToken)) {
       console.warn("[MCP] Unauthorized attempt: Invalid Bearer Token");
       res.status(403).json({ error: "Forbidden: Invalid Admin Token" });
       return;
