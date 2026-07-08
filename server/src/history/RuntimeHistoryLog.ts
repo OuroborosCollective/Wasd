@@ -1,16 +1,33 @@
 import { stableHash32 } from "../core/determinism/AREDeterminism.js";
 import type { RuntimeHistoryEntry, RuntimeHistoryWriteInput } from "./RuntimeHistoryTypes.js";
 
+/**
+ * Bolt: Optimization - Use manual loops and string concatenation instead of .map().join()
+ * to reduce intermediate array allocations and GC pressure in performance-sensitive history logging.
+ * Preserves localeCompare sorting for hash parity.
+ */
 function stableStringify(value: unknown): string {
   if (value === null || value === undefined) return String(value);
   if (typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+
+  if (Array.isArray(value)) {
+    let res = "[";
+    for (let i = 0; i < value.length; i++) {
+      if (i > 0) res += ",";
+      res += stableStringify(value[i]);
+    }
+    return res + "]";
+  }
 
   const record = value as Record<string, unknown>;
-  return `{${Object.keys(record)
-    .sort((a, b) => a.localeCompare(b))
-    .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
-    .join(",")}}`;
+  const keys = Object.keys(record).sort((a, b) => a.localeCompare(b));
+  let res = "{";
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    if (i > 0) res += ",";
+    res += JSON.stringify(key) + ":" + stableStringify(record[key]);
+  }
+  return res + "}";
 }
 
 function normalizeTick(value: number): number {
