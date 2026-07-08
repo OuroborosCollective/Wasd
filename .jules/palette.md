@@ -20,3 +20,7 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+
+## 2026-07-08 - Conditional Headers and Button Label Clarity
+**Learning:** Moving primary UI headers into conditional blocks (e.g., only when an 'onClose' prop is present) can lead to regressions where the window becomes nameless in certain layouts. Additionally, always ensure that a "craftable" or "available" state has a positive action label (e.g., "Craft") rather than a generic or negative one (e.g., "Locked").
+**Action:** Keep UI titles outside of close-button conditional blocks and always provide explicit "positive" labels for active states in `getBlockedMessage`-style helpers.
