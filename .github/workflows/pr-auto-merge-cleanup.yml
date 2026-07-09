@@ -29,12 +29,16 @@ jobs:
       pr_author: ${{ github.event.pull_request.user.login }}
       pr_number: ${{ github.event.pull_request.number }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Evaluate PR safety
         id: evaluate
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
-          PR_BODY="${{ github.event.pull_request.body }}"
           IS_HARMFUL="false"
 
           echo "Evaluating PR #${{ github.event.pull_request.number }} by $PR_AUTHOR"
@@ -138,6 +142,9 @@ jobs:
   cleanup-all-prs:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Close all remaining open PRs
         run: |
           echo "=== Cleaning up ALL open PRs ==="
