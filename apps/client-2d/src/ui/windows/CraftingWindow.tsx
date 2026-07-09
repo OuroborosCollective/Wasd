@@ -8,7 +8,7 @@
  * Shows station requirements and proximity feedback.
  */
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useLiveGameplaySnapshot } from "../../game/useLiveGameplaySnapshot";
 import { craftRecipe } from "../../game/crafting";
 import { fetchGameplaySnapshot, liveGameplayStore, DEFAULT_GAMEPLAY_PLAYER_ID } from "../../game/liveGameplayStore";
@@ -17,6 +17,7 @@ import type { CraftingSnapshot } from "../../game/liveGameplaySnapshot";
 interface CraftingWindowProps {
   readonly isOpen?: boolean;
   readonly onClose?: () => void;
+  readonly crafting?: CraftingSnapshot;
 }
 
 const STATION_EMOJI: Record<string, string> = {
@@ -31,7 +32,9 @@ const STATION_NAME: Record<string, string> = {
   workbench: "Workbench",
 };
 
-function getBlockedMessage(blockedReason?: string): string {
+function getBlockedMessage(craftable: boolean, blockedReason?: string): string {
+  if (craftable) return "Craft";
+
   switch (blockedReason) {
     case "missing_ingredients":
       return "Missing Items";
@@ -53,50 +56,56 @@ function getStationRequirement(recipe: { stationType?: string }): string | null 
   return `${emoji} ${name} required`;
 }
 
-export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) {
+export function CraftingWindow({ isOpen = true, onClose, crafting: propCrafting }: CraftingWindowProps) {
+  const [isCraftingId, setIsCraftingId] = useState<string | null>(null);
   const snapshot = useLiveGameplaySnapshot();
-  const crafting: CraftingSnapshot = snapshot.crafting ?? { recipes: [] };
+  const crafting: CraftingSnapshot = propCrafting ?? snapshot.crafting ?? { recipes: [] };
   const recipes = crafting.recipes ?? [];
 
   const handleCraft = useCallback(async (recipeId: string) => {
-    const result = await craftRecipe(recipeId);
+    setIsCraftingId(recipeId);
+    try {
+      const result = await craftRecipe(recipeId);
 
-    if (result.ok && result.result?.ok) {
-      window.dispatchEvent(
-        new CustomEvent("wasd:toast", {
-          detail: {
-            type: "success",
-            message: `Crafted ${result.result.outputs?.[0]?.itemId ?? "item"}!`,
-          },
-        }),
-      );
+      if (result.ok && result.result?.ok) {
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "success",
+              message: `Crafted ${result.result.outputs?.[0]?.itemId ?? "item"}!`,
+            },
+          }),
+        );
 
-      // Refetch snapshot to update inventory, crafting state, and quest progress
-      const next = await fetchGameplaySnapshot(DEFAULT_GAMEPLAY_PLAYER_ID);
-      if (next) {
-        liveGameplayStore.setSnapshot(next);
+        // Refetch snapshot to update inventory, crafting state, and quest progress
+        const next = await fetchGameplaySnapshot(DEFAULT_GAMEPLAY_PLAYER_ID);
+        if (next) {
+          liveGameplayStore.setSnapshot(next);
+        }
+      } else {
+        const reason = result.result?.reason;
+        let message = "Craft failed";
+        if (reason === "station_too_far") {
+          message = "Move near a station to craft this";
+        } else if (reason === "missing_player_position") {
+          message = "Waiting for position sync...";
+        } else if (reason === "missing_ingredients") {
+          message = "Missing required items";
+        } else if (reason) {
+          message = `Craft failed: ${reason}`;
+        }
+
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "error",
+              message,
+            },
+          }),
+        );
       }
-    } else {
-      const reason = result.result?.reason;
-      let message = "Craft failed";
-      if (reason === "station_too_far") {
-        message = "Move near a station to craft this";
-      } else if (reason === "missing_player_position") {
-        message = "Waiting for position sync...";
-      } else if (reason === "missing_ingredients") {
-        message = "Missing required items";
-      } else if (reason) {
-        message = `Craft failed: ${reason}`;
-      }
-
-      window.dispatchEvent(
-        new CustomEvent("wasd:toast", {
-          detail: {
-            type: "error",
-            message,
-          },
-        }),
-      );
+    } finally {
+      setIsCraftingId((prev) => (prev === recipeId ? null : prev));
     }
   }, []);
 
@@ -160,11 +169,12 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
                   <button
                     type="button"
                     className="crafting-row__button"
-                    disabled={!recipe.craftable}
-                    onClick={() => handleCraft(recipe.id)}
+                    disabled={!recipe.craftable || !!isCraftingId}
+                    onClick={() => !isCraftingId && void handleCraft(recipe.id)}
                     data-testid={`process-${recipe.id}`}
+                    aria-busy={isCraftingId === recipe.id}
                   >
-                    {getBlockedMessage(recipe.blockedReason)}
+                    {isCraftingId === recipe.id ? "Crafting…" : getBlockedMessage(recipe.craftable, recipe.blockedReason)}
                   </button>
                 </article>
               );

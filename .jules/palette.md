@@ -20,3 +20,7 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+
+## 2025-05-16 - Safe Local Loading States for Sequential Actions
+**Learning:** In 'wow-style' grid interfaces (like crafting), using a single 'isActioning' state can cause race conditions if the state is cleared globally. Using a functional update `(prev === actionId ? null : prev)` ensures loading feedback only disappears for the specific completed operation.
+**Action:** When implementing per-item loading states, always verify the ID before clearing and disable all sibling actions if the backend requires sequential processing.
