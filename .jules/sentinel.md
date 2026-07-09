@@ -17,3 +17,8 @@
 **Vulnerability:** The Agora Monitor API (mounted at `/agora/api/live`, `/agora/api/config`, etc.) was publicly accessible, exposing system uptime, port configuration, build hashes, and persistence/ARE guard statistics.
 **Learning:** Monitoring endpoints are often overlooked because they seem like "read-only status," but they leak internal system architecture details that can be used to plan further attacks.
 **Prevention:** Apply `adminAuthMiddleware` and `adminRateLimiter` to all monitoring and diagnostic API routers, even if they only provide "live status" information.
+
+## 2025-07-09 - [High] Timing Side-Channel in Admin Token Validation
+**Vulnerability:** Administrative token validation in `adminAuthMiddleware.ts` and `mcpRoute.ts` used standard string comparisons (`===` or `includes`), which are vulnerable to timing side-channel attacks.
+**Learning:** Comparing sensitive tokens using non-constant-time methods leaks information about the correct token. Even using `timingSafeEqual` directly on variable-length strings is risky as it leaks length.
+**Prevention:** Use a timing-safe comparison utility that hashes both inputs (e.g., SHA-256) before using `crypto.timingSafeEqual`. This ensures constant-time comparison regardless of input length or content.
