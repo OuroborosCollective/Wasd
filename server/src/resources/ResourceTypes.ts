@@ -15,6 +15,8 @@ export type ResourceGatherReason =
   | "level_too_low"
   | "missing_tool"
   | "invalid_player"
+  | "inventory_write_failed"
+  | "transaction_failed"
   | "gathered";
 
 export type RequiredToolSlot = "woodcutting_tool" | "mining_tool" | "fishing_tool";
