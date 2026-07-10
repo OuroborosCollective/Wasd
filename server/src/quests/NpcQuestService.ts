@@ -52,14 +52,6 @@ function createEmptyPlayerState(): PlayerQuestState {
   };
 }
 
-function copyObjectiveState(
-  input: Map<string, { current: number; required: number; completed: boolean }>,
-): Map<string, { current: number; required: number; completed: boolean }> {
-  return new Map(
-    [...input.entries()].map(([objectiveId, state]) => [objectiveId, { ...state }]),
-  );
-}
-
 export class NpcQuestService {
   private readonly playerQuestStates = new Map<string, PlayerQuestState>();
   private readonly npcReputations = new Map<string, Map<string, NpcReputationState>>();
@@ -281,8 +273,7 @@ export class NpcQuestService {
       const process = active.objectives.get("process_wood_plank");
       const sell = active.objectives.get("sell_wood_plank");
       if (allComplete) dialogueState = "quest_ready_to_complete";
-      else if (sell?.completed) dialogueState = "quest_active_ready_to_return";
-      else if (process?.completed) dialogueState = "quest_active_ready_to_sell";
+      else if (sell?.completed || process?.completed) dialogueState = "quest_active_ready_to_sell";
       else if (gather?.completed) dialogueState = "quest_active_ready_to_process";
       else dialogueState = "quest_active_missing_wood";
     }
@@ -312,8 +303,7 @@ export class NpcQuestService {
       case "quest_available": return "Greetings, traveler! The village store needs wood planks. Gather two logs, process a plank, sell it to me, then return for confirmation.";
       case "quest_active_missing_wood": return "The supply order still needs two wood logs.";
       case "quest_active_ready_to_process": return "The logs are ready. Process a plank at the workbench.";
-      case "quest_active_ready_to_sell": return "The plank is ready. Sell one wood plank to me.";
-      case "quest_active_ready_to_return": return "The sale is recorded. Speak with me once more to confirm the completed order.";
+      case "quest_active_ready_to_sell": return "Complete the plank sale if it is still pending, then speak with me again to confirm the order.";
       case "quest_ready_to_complete": return "Every objective is confirmed. Claim the persisted reward when ready.";
       case "quest_completed": return "Your completed supply order is recorded.";
     }
