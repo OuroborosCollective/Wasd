@@ -51,4 +51,14 @@ jobs:
         run: pnpm --filter @wasd/shared build
 
       - name: Build 2D client
-        run: pnpm build:2d
+        run: |
+          set -o pipefail
+          pnpm build:2d 2>&1 | tee /tmp/client-2d-render-build.log
+
+      - name: Upload render build evidence
+        if: always() && hashFiles('/tmp/client-2d-render-build.log') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-2d-render-build-log
+          path: /tmp/client-2d-render-build.log
+          retention-days: 3
