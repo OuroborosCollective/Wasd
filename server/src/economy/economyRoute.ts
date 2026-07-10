@@ -3,13 +3,19 @@ import rateLimit from "express-rate-limit";
 import { stableHash32 } from "../core/determinism/AREDeterminism.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
-import { getInventoryStore } from "../inventory/inventoryRuntime.js";
-import { transferInventoryItem } from "../inventory/InventoryTransferService.js";
+import { getInventoryService } from "../inventory/inventoryRuntime.js";
+import { transferInventoryItemPersistent } from "../inventory/InventoryTransferService.js";
 import {
   canonicalizeClientIntent,
   chunkKeyFromWorldPosition,
+  type ServerCanonicalIntent,
 } from "../intents/ServerCanonicalIntent.js";
 import { economyService, vendorStockService } from "./economyRuntime.js";
+import {
+  getAllVendors,
+  getVendorActorEvidence,
+  type VendorActorEvidence,
+} from "./VillageVendors.js";
 import { deriveEconomyWorkOrders } from "../quests/EconomyWorkOrderService.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
 import { campQuestRuntime } from "../quests/campQuestRuntime.js";
@@ -55,11 +61,46 @@ router.use(economyLimiter);
 const MAX_POSITION = 100_000;
 const MIN_POSITION = -100_000;
 
+type RuntimeTickContext = {
+  readonly tick: number;
+  readonly tickId: number | string;
+};
+
+type EconomyInteractPayload = {
+  readonly targetId: string;
+  readonly interaction: "sell_resource" | "sell_all_resources" | "buy_resource" | "complete_camp_quest";
+  readonly playerPosition: { readonly x: number; readonly y: number };
+  readonly itemId?: string;
+  readonly quantity?: number;
+  readonly questId?: string;
+};
+
+type EconomyInventoryPayload = {
+  readonly operation: "move";
+  readonly itemId: string;
+  readonly toPlayerId: string;
+  readonly quantity: number;
+};
+
+type CanonicalEconomyInteract = ServerCanonicalIntent<"interact"> & {
+  readonly payload: EconomyInteractPayload;
+};
+
+type CanonicalEconomyInventory = ServerCanonicalIntent<"inventory"> & {
+  readonly payload: EconomyInventoryPayload;
+};
+
 function parseSafeId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!/^[a-zA-Z0-9_-]{1,96}$/.test(trimmed)) return null;
   return trimmed;
+}
+
+function parseRequestId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return /^[a-zA-Z0-9:_./-]{1,160}$/.test(trimmed) ? trimmed : undefined;
 }
 
 function parseCampQuestIdInput(value: unknown): string | null {
@@ -70,20 +111,21 @@ function parseCampQuestIdInput(value: unknown): string | null {
 }
 
 function parseQuantity(value: unknown): number {
-  const n = Math.floor(Number(value));
-  if (!Number.isFinite(n) || n <= 0) return -1;
-  return n;
+  const quantity = Math.floor(Number(value));
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : -1;
 }
 
 function parsePosition(value: unknown): { x: number; y: number } | null {
   if (!value || typeof value !== "object") return null;
-  const pos = value as { x?: unknown; y?: unknown };
-  const x = Number(pos.x);
-  const y = Number(pos.y);
+  const position = value as { x?: unknown; y?: unknown };
+  const x = Number(position.x);
+  const y = Number(position.y);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  if (x < MIN_POSITION || x > MAX_POSITION) return null;
-  if (y < MIN_POSITION || y > MAX_POSITION) return null;
-  return { x, y };
+  if (x < MIN_POSITION || x > MAX_POSITION || y < MIN_POSITION || y > MAX_POSITION) return null;
+  return {
+    x: Math.round(x * 1000) / 1000,
+    y: Math.round(y * 1000) / 1000,
+  };
 }
 
 function requireProductionAuth(identity: { authenticated: boolean }, res: Response): boolean {
@@ -94,9 +136,82 @@ function requireProductionAuth(identity: { authenticated: boolean }, res: Respon
   return true;
 }
 
-function currentServerTick(): number {
-  const tick = Number(tickContextProvider.getContext().tickIndex);
-  return Number.isSafeInteger(tick) && tick >= 0 ? tick : 0;
+function resolveRuntimeTickContext(): RuntimeTickContext | null {
+  const context = tickContextProvider.getContext();
+  const tick = Number(context.tickIndex);
+  const tickId = context.tickId;
+  const validTickId =
+    (typeof tickId === "number" && Number.isSafeInteger(tickId) && tickId >= 0) ||
+    (typeof tickId === "string" && /^[a-zA-Z0-9:_./-]{1,160}$/.test(tickId));
+
+  if (!Number.isSafeInteger(tick) || tick < 0 || !validTickId) return null;
+  return { tick, tickId };
+}
+
+function requireRuntimeTickContext(res: Response): RuntimeTickContext | null {
+  const runtime = resolveRuntimeTickContext();
+  if (!runtime) {
+    res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
+    return null;
+  }
+  return runtime;
+}
+
+function resolveVendorEvidence(value: unknown): { actor: VendorActorEvidence } | { error: string } {
+  const fallbackVendor = getAllVendors()[0];
+  if (!fallbackVendor) return { error: "vendor_runtime_unavailable" };
+
+  const vendorId = value === undefined || value === null || value === ""
+    ? fallbackVendor.id
+    : parseSafeId(value);
+  if (!vendorId) return { error: "invalid_vendor_id" };
+
+  const actor = getVendorActorEvidence(vendorId);
+  return actor ? { actor } : { error: "unknown_vendor" };
+}
+
+function canonicalizeEconomyInteract(input: {
+  readonly actorId: string;
+  readonly runtime: RuntimeTickContext;
+  readonly requestId?: string;
+  readonly payload: EconomyInteractPayload;
+}): CanonicalEconomyInteract {
+  return canonicalizeClientIntent<"interact">(
+    {
+      action: "interact",
+      requestId: input.requestId,
+      payload: input.payload,
+    },
+    {
+      actorId: input.actorId,
+      tickId: input.runtime.tickId,
+      logicalIndex: input.runtime.tick,
+      receivedOrder: 0,
+      chunkKey: chunkKeyFromWorldPosition(input.payload.playerPosition),
+    },
+  ) as CanonicalEconomyInteract;
+}
+
+function canonicalizeEconomyInventory(input: {
+  readonly actorId: string;
+  readonly runtime: RuntimeTickContext;
+  readonly requestId?: string;
+  readonly payload: EconomyInventoryPayload;
+}): CanonicalEconomyInventory {
+  return canonicalizeClientIntent<"inventory">(
+    {
+      action: "inventory",
+      requestId: input.requestId,
+      payload: input.payload,
+    },
+    {
+      actorId: input.actorId,
+      tickId: input.runtime.tickId,
+      logicalIndex: input.runtime.tick,
+      receivedOrder: 0,
+      chunkKey: `inventory:${input.actorId}`,
+    },
+  ) as CanonicalEconomyInventory;
 }
 
 router.post("/sell-resource", async (req, res) => {
@@ -106,42 +221,45 @@ router.post("/sell-resource", async (req, res) => {
   const itemId = parseSafeId(req.body?.itemId);
   const quantity = parseQuantity(req.body?.quantity);
   const playerPosition = parsePosition(req.body?.playerPosition);
-  const vendorId = parseSafeId(req.body?.vendorId) ?? "village_trader_001";
+  const vendor = resolveVendorEvidence(req.body?.vendorId);
+  const runtime = requireRuntimeTickContext(res);
 
   if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item_id" });
   if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
-  if (req.body?.playerPosition !== undefined && !playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  if (!playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  if ("error" in vendor) return void res.status(vendor.error === "vendor_runtime_unavailable" ? 503 : 400).json({ ok: false, error: vendor.error });
+  if (!runtime) return;
 
-  const tick = currentServerTick();
-  const canonicalIntent = playerPosition
-    ? canonicalizeClientIntent<"interact">(
-        {
-          action: "interact",
-          payload: {
-            targetId: vendorId,
-            interaction: "sell_resource",
-            itemId,
-            quantity,
-            playerPosition,
-          },
-        },
-        {
-          actorId: identity.playerId,
-          tickId: tick,
-          logicalIndex: tick,
-          receivedOrder: 0,
-          chunkKey: chunkKeyFromWorldPosition(playerPosition),
-        },
-      )
-    : null;
+  const canonicalIntent = canonicalizeEconomyInteract({
+    actorId: identity.playerId,
+    runtime,
+    requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
+    payload: {
+      targetId: vendor.actor.actorId,
+      interaction: "sell_resource",
+      itemId,
+      quantity,
+      playerPosition,
+    },
+  });
+  const payload = canonicalIntent.payload;
 
   try {
-    const result = await economyService.sellResource({ playerId: identity.playerId, itemId, quantity, playerPosition: playerPosition ?? undefined, vendorId, currentTick: tick });
-    if (result.ok) npcQuestService.updateQuestProgress(identity.playerId, "sell", itemId, quantity);
-    res.status(result.ok ? 200 : 400).json({ ok: result.ok, result, ...(canonicalIntent ? { canonicalIntent } : {}) });
+    const result = await economyService.sellResource({
+      playerId: canonicalIntent.actorId,
+      itemId: payload.itemId ?? "",
+      quantity: payload.quantity ?? 0,
+      playerPosition: payload.playerPosition,
+      vendorId: payload.targetId,
+      currentTick: canonicalIntent.logicalIndex,
+    });
+    if (result.ok && payload.itemId && payload.quantity) {
+      npcQuestService.updateQuestProgress(canonicalIntent.actorId, "sell", payload.itemId, payload.quantity);
+    }
+    res.status(result.ok ? 200 : 409).json({ ok: result.ok, result, canonicalIntent });
   } catch (error) {
     console.error("[economy-sell-resource] Failed to sell resource:", error);
-    res.status(500).json({ ok: false, error: "internal_error" });
+    res.status(500).json({ ok: false, error: "internal_error", canonicalIntent });
   }
 });
 
@@ -150,15 +268,35 @@ router.post("/sell-all-resources", async (req, res) => {
   if (!requireProductionAuth(identity, res)) return;
 
   const playerPosition = parsePosition(req.body?.playerPosition);
-  const vendorId = parseSafeId(req.body?.vendorId) ?? undefined;
-  if (req.body?.playerPosition !== undefined && !playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  const vendor = resolveVendorEvidence(req.body?.vendorId);
+  const runtime = requireRuntimeTickContext(res);
+
+  if (!playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  if ("error" in vendor) return void res.status(vendor.error === "vendor_runtime_unavailable" ? 503 : 400).json({ ok: false, error: vendor.error });
+  if (!runtime) return;
+
+  const canonicalIntent = canonicalizeEconomyInteract({
+    actorId: identity.playerId,
+    runtime,
+    requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
+    payload: {
+      targetId: vendor.actor.actorId,
+      interaction: "sell_all_resources",
+      playerPosition,
+    },
+  });
 
   try {
-    const result = await economyService.sellAllResources({ playerId: identity.playerId, playerPosition: playerPosition ?? undefined, vendorId, currentTick: currentServerTick() });
-    res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
+    const result = await economyService.sellAllResources({
+      playerId: canonicalIntent.actorId,
+      playerPosition: canonicalIntent.payload.playerPosition,
+      vendorId: canonicalIntent.payload.targetId,
+      currentTick: canonicalIntent.logicalIndex,
+    });
+    res.status(result.ok ? 200 : 409).json({ ok: result.ok, result, canonicalIntent });
   } catch (error) {
     console.error("[economy-sell-all-resources] Failed to sell resources:", error);
-    res.status(500).json({ ok: false, error: "internal_error" });
+    res.status(500).json({ ok: false, error: "internal_error", canonicalIntent });
   }
 });
 
@@ -169,18 +307,42 @@ router.post("/buy-resource", buyResourceRateLimiter, async (req, res) => {
   const itemId = parseSafeId(req.body?.itemId);
   const quantity = parseQuantity(req.body?.quantity);
   const playerPosition = parsePosition(req.body?.playerPosition);
-  const vendorId = parseSafeId(req.body?.vendorId) ?? undefined;
+  const vendor = resolveVendorEvidence(req.body?.vendorId);
+  const runtime = requireRuntimeTickContext(res);
 
   if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item_id" });
   if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
-  if (req.body?.playerPosition !== undefined && !playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  if (!playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  if ("error" in vendor) return void res.status(vendor.error === "vendor_runtime_unavailable" ? 503 : 400).json({ ok: false, error: vendor.error });
+  if (!runtime) return;
+
+  const canonicalIntent = canonicalizeEconomyInteract({
+    actorId: identity.playerId,
+    runtime,
+    requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
+    payload: {
+      targetId: vendor.actor.actorId,
+      interaction: "buy_resource",
+      itemId,
+      quantity,
+      playerPosition,
+    },
+  });
+  const payload = canonicalIntent.payload;
 
   try {
-    const result = await economyService.buyResource({ playerId: identity.playerId, itemId, quantity, playerPosition: playerPosition ?? undefined, vendorId, currentTick: currentServerTick() });
-    res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
+    const result = await economyService.buyResource({
+      playerId: canonicalIntent.actorId,
+      itemId: payload.itemId ?? "",
+      quantity: payload.quantity ?? 0,
+      playerPosition: payload.playerPosition,
+      vendorId: payload.targetId,
+      currentTick: canonicalIntent.logicalIndex,
+    });
+    res.status(result.ok ? 200 : 409).json({ ok: result.ok, result, canonicalIntent });
   } catch (error) {
     console.error("[economy-buy-resource] Failed to buy resource:", error);
-    res.status(500).json({ ok: false, error: "internal_error" });
+    res.status(500).json({ ok: false, error: "internal_error", canonicalIntent });
   }
 });
 
@@ -190,20 +352,35 @@ router.post("/complete-camp-quest", campQuestRateLimiter, async (req, res) => {
 
   const questId = parseCampQuestIdInput(req.body?.questId);
   const playerPosition = parsePosition(req.body?.playerPosition);
+  const runtime = requireRuntimeTickContext(res);
+
   if (!questId) return void res.status(400).json({ ok: false, error: "invalid_quest_id" });
   if (!playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  if (!runtime) return;
+
+  const canonicalIntent = canonicalizeEconomyInteract({
+    actorId: identity.playerId,
+    runtime,
+    requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
+    payload: {
+      targetId: questId,
+      interaction: "complete_camp_quest",
+      questId,
+      playerPosition,
+    },
+  });
 
   try {
     const result = await campQuestRuntime.completeCampQuest({
-      playerId: identity.playerId,
-      questId,
-      playerPosition,
-      currentTick: currentServerTick(),
+      playerId: canonicalIntent.actorId,
+      questId: canonicalIntent.payload.questId ?? canonicalIntent.payload.targetId,
+      playerPosition: canonicalIntent.payload.playerPosition,
+      currentTick: canonicalIntent.logicalIndex,
     });
-    res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
+    res.status(result.ok ? 200 : 409).json({ ok: result.ok, result, canonicalIntent });
   } catch (error) {
     console.error("[economy-complete-camp-quest] Failed to complete camp quest:", error);
-    res.status(500).json({ ok: false, error: "internal_error" });
+    res.status(500).json({ ok: false, error: "internal_error", canonicalIntent });
   }
 });
 
@@ -214,30 +391,73 @@ router.post("/trade-transfer", tradeTransferRateLimiter, async (req, res) => {
   const toPlayerId = parseSafeId(req.body?.toPlayerId);
   const itemId = parseSafeId(req.body?.itemId);
   const quantity = parseQuantity(req.body?.quantity);
-  const tick = currentServerTick();
+  const runtime = requireRuntimeTickContext(res);
 
   if (!toPlayerId) return void res.status(400).json({ ok: false, error: "invalid_receiver" });
   if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item_id" });
   if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
+  if (!runtime) return;
 
-  const sourceHash = stableHash32(["HTTP_TRADE_TRANSFER_V1", identity.playerId, toPlayerId, itemId, quantity, tick].join("|")).toString(16);
-  const result = transferInventoryItem(getInventoryStore(), { fromPlayerId: identity.playerId, toPlayerId, itemId, quantity, tick, uid: `trade:${sourceHash}`, sourceHash });
+  const canonicalIntent = canonicalizeEconomyInventory({
+    actorId: identity.playerId,
+    runtime,
+    requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
+    payload: {
+      operation: "move",
+      itemId,
+      toPlayerId,
+      quantity,
+    },
+  });
+  const inventoryService = await getInventoryService();
+  const result = await transferInventoryItemPersistent(inventoryService, {
+    fromPlayerId: canonicalIntent.actorId,
+    toPlayerId: canonicalIntent.payload.toPlayerId,
+    itemId: canonicalIntent.payload.itemId,
+    quantity: canonicalIntent.payload.quantity,
+    tick: canonicalIntent.logicalIndex,
+    uid: `trade:${canonicalIntent.intentHash}`,
+    sourceHash: canonicalIntent.intentHash,
+  });
 
   if (result.ok) {
-    runtimeHistoryLog.write({ tick, source: "trade_transfer", actorId: identity.playerId, subjectId: `${toPlayerId}:${itemId}`, payload: result });
+    runtimeHistoryLog.write({
+      tick: canonicalIntent.logicalIndex,
+      source: "trade_transfer",
+      actorId: canonicalIntent.actorId,
+      subjectId: `${canonicalIntent.payload.toPlayerId}:${canonicalIntent.payload.itemId}`,
+      payload: { ...result, intentHash: canonicalIntent.intentHash },
+    });
   }
 
-  res.status(result.ok ? 200 : 400).json({ ok: result.ok, result });
+  res.status(result.ok ? 200 : 409).json({ ok: result.ok, result, canonicalIntent });
 });
 
 router.get("/work-orders", async (req, res) => {
-  const vendorId = parseSafeId(req.query.vendorId) ?? "village_trader_001";
-  const tick = currentServerTick();
+  const vendor = resolveVendorEvidence(req.query.vendorId);
+  const runtime = requireRuntimeTickContext(res);
+
+  if ("error" in vendor) return void res.status(vendor.error === "vendor_runtime_unavailable" ? 503 : 400).json({ ok: false, error: vendor.error });
+  if (!runtime) return;
 
   try {
-    const stock = await vendorStockService.getStock(vendorId);
-    const orders = deriveEconomyWorkOrders({ stock, tick, npcId: vendorId });
-    res.json({ ok: true, tick, vendorId, orders });
+    const stock = await vendorStockService.getStock(vendor.actor.actorId);
+    const orders = deriveEconomyWorkOrders({ stock, tick: runtime.tick, actor: vendor.actor });
+    const revisionHash = stableHash32([
+      "ECONOMY_WORK_ORDER_RESPONSE_V1",
+      vendor.actor.definitionHash,
+      ...orders.map((order) => order.stateHash).sort(),
+    ].join("|")).toString(16);
+
+    res.json({
+      ok: true,
+      tick: runtime.tick,
+      tickId: runtime.tickId,
+      vendorId: vendor.actor.actorId,
+      actorEvidence: vendor.actor,
+      revisionHash,
+      orders,
+    });
   } catch (error) {
     console.error("[economy-work-orders] Failed to derive work orders:", error);
     res.status(500).json({ ok: false, error: "internal_error" });
