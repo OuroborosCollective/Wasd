@@ -120,7 +120,7 @@ function projectComposerQuest(input: ComposerQuestProgress): LiveGameplaySnapsho
     ? input.objectives
         .map((objective) => normalizeComposerObjective(objective as ComposerQuestObjective))
         .filter((objective): objective is LiveGameplaySnapshot["quests"][number]["objectives"][number] => objective !== null)
-        .sort((a, b) => a.id.localeCompare(b.id))
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     : [];
 
   return {
@@ -181,7 +181,7 @@ function projectComposerQuests(input: Record<string, unknown>): LiveGameplaySnap
     }
   }
 
-  return output.sort((a, b) => a.id.localeCompare(b.id));
+  return output.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 function copyArrayField(input: unknown): unknown[] {
