@@ -8,7 +8,7 @@
  * Shows station requirements and proximity feedback.
  */
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useLiveGameplaySnapshot } from "../../game/useLiveGameplaySnapshot";
 import { craftRecipe } from "../../game/crafting";
 import { fetchGameplaySnapshot, liveGameplayStore, DEFAULT_GAMEPLAY_PLAYER_ID } from "../../game/liveGameplayStore";
@@ -42,7 +42,7 @@ function getBlockedMessage(blockedReason?: string): string {
     case "level_too_low":
       return "Level Locked";
     default:
-      return "Locked";
+      return "Craft";
   }
 }
 
@@ -55,48 +55,54 @@ function getStationRequirement(recipe: { stationType?: string }): string | null 
 
 export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) {
   const snapshot = useLiveGameplaySnapshot();
+  const [isCraftingId, setIsCraftingId] = useState<string | null>(null);
   const crafting: CraftingSnapshot = snapshot.crafting ?? { recipes: [] };
   const recipes = crafting.recipes ?? [];
 
   const handleCraft = useCallback(async (recipeId: string) => {
-    const result = await craftRecipe(recipeId);
+    setIsCraftingId(recipeId);
+    try {
+      const result = await craftRecipe(recipeId);
 
-    if (result.ok && result.result?.ok) {
-      window.dispatchEvent(
-        new CustomEvent("wasd:toast", {
-          detail: {
-            type: "success",
-            message: `Crafted ${result.result.outputs?.[0]?.itemId ?? "item"}!`,
-          },
-        }),
-      );
+      if (result.ok && result.result?.ok) {
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "success",
+              message: `Crafted ${result.result.outputs?.[0]?.itemId ?? "item"}!`,
+            },
+          }),
+        );
 
-      // Refetch snapshot to update inventory, crafting state, and quest progress
-      const next = await fetchGameplaySnapshot(DEFAULT_GAMEPLAY_PLAYER_ID);
-      if (next) {
-        liveGameplayStore.setSnapshot(next);
+        // Refetch snapshot to update inventory, crafting state, and quest progress
+        const next = await fetchGameplaySnapshot(DEFAULT_GAMEPLAY_PLAYER_ID);
+        if (next) {
+          liveGameplayStore.setSnapshot(next);
+        }
+      } else {
+        const reason = result.result?.reason;
+        let message = "Craft failed";
+        if (reason === "station_too_far") {
+          message = "Move near a station to craft this";
+        } else if (reason === "missing_player_position") {
+          message = "Waiting for position sync...";
+        } else if (reason === "missing_ingredients") {
+          message = "Missing required items";
+        } else if (reason) {
+          message = `Craft failed: ${reason}`;
+        }
+
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "error",
+              message,
+            },
+          }),
+        );
       }
-    } else {
-      const reason = result.result?.reason;
-      let message = "Craft failed";
-      if (reason === "station_too_far") {
-        message = "Move near a station to craft this";
-      } else if (reason === "missing_player_position") {
-        message = "Waiting for position sync...";
-      } else if (reason === "missing_ingredients") {
-        message = "Missing required items";
-      } else if (reason) {
-        message = `Craft failed: ${reason}`;
-      }
-
-      window.dispatchEvent(
-        new CustomEvent("wasd:toast", {
-          detail: {
-            type: "error",
-            message,
-          },
-        }),
-      );
+    } finally {
+      setIsCraftingId(null);
     }
   }, []);
 
@@ -108,7 +114,13 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
         <h2>CRAFTING</h2>
 
         {onClose && (
-          <button className="wow-close-btn" onClick={onClose} aria-label="Close">
+          <button
+            className="wow-close-btn"
+            onClick={onClose}
+            aria-label="Close [ESC]"
+            aria-keyshortcuts="Escape"
+          >
+            <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
             ✕
           </button>
         )}
@@ -160,11 +172,12 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
                   <button
                     type="button"
                     className="crafting-row__button"
-                    disabled={!recipe.craftable}
+                    disabled={!recipe.craftable || !!isCraftingId}
                     onClick={() => handleCraft(recipe.id)}
                     data-testid={`process-${recipe.id}`}
+                    aria-busy={isCraftingId === recipe.id}
                   >
-                    {getBlockedMessage(recipe.blockedReason)}
+                    {isCraftingId === recipe.id ? "CRAFTING..." : getBlockedMessage(recipe.blockedReason)}
                   </button>
                 </article>
               );

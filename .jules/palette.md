@@ -20,3 +20,6 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+## 2025-05-16 - Enhanced Crafting Interaction Feedback
+**Learning:** Providing immediate visual feedback ("CRAFTING...") during async server-authoritative actions prevents user frustration and accidental double-clicks. Pairing this with corrected default button labels ("Craft" vs "Locked") significantly improves discoverability for new players.
+**Action:** Always implement local loading states for primary action buttons and ensure the default state of action helpers handles the 'available' case with an actionable verb.
