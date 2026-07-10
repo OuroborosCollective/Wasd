@@ -10,6 +10,9 @@
  * - Deterministic IDs and positions
  */
 
+import { stableHash32 } from "../core/determinism/AREDeterminism.js";
+import { chunkKeyFromWorldPosition } from "../intents/ServerCanonicalIntent.js";
+
 export interface VendorDefinition {
   id: string;
   name: string;
@@ -22,20 +25,23 @@ export interface VendorDefinition {
   interactionRadius: number;
 }
 
+export interface VendorActorEvidence {
+  readonly schemaVersion: 1;
+  readonly actorId: string;
+  readonly actorType: "npc";
+  readonly role: VendorDefinition["role"];
+  readonly vendorType: VendorDefinition["vendorType"];
+  readonly position: VendorDefinition["position"];
+  readonly chunkKey: string;
+  readonly definitionHash: string;
+}
+
 export interface VendorDistanceResult {
   withinRange: boolean;
   distance: number;
   requiredDistance: number;
 }
 
-/**
- * Village Trader - the primary resource vendor NPC.
- * Position is near the starter village center (chunk 0/0).
- *
- * Position derived from world coordinate system:
- * - Starter village center: approximately (460, 500)
- * - Vendor placed slightly east of center for visibility
- */
 export const VILLAGE_TRADER: VendorDefinition = {
   id: "village_trader_001",
   name: "Mira the Quartermaster",
@@ -48,18 +54,10 @@ export const VILLAGE_TRADER: VendorDefinition = {
   interactionRadius: 32,
 } as const;
 
-/**
- * Get the village resource vendor.
- * Returns the single village trader for all resource selling.
- */
 export function getVillageResourceVendor(): VendorDefinition {
   return VILLAGE_TRADER;
 }
 
-/**
- * Calculate Euclidean distance between two positions.
- * Uses standard Euclidean distance formula.
- */
 export function calculateDistance(
   posA: { x: number; y: number },
   posB: { x: number; y: number }
@@ -69,9 +67,6 @@ export function calculateDistance(
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-/**
- * Check if a player position is within vendor interaction range.
- */
 export function checkVendorProximity(
   playerPosition: { x: number; y: number },
   vendor: VendorDefinition = VILLAGE_TRADER
@@ -79,26 +74,47 @@ export function checkVendorProximity(
   const distance = calculateDistance(playerPosition, vendor.position);
   return {
     withinRange: distance <= vendor.interactionRadius,
-    distance: Math.round(distance * 100) / 100, // Round to 2 decimal places
+    distance: Math.round(distance * 100) / 100,
     requiredDistance: vendor.interactionRadius,
   };
 }
 
-/**
- * Get all vendors (for future expansion).
- * Currently returns only the village trader.
- */
 export function getAllVendors(): VendorDefinition[] {
   return [VILLAGE_TRADER];
 }
 
-/**
- * Find a vendor by ID.
- * Returns undefined if not found.
- */
 export function getVendorById(vendorId: string): VendorDefinition | undefined {
   if (vendorId === VILLAGE_TRADER.id) {
     return VILLAGE_TRADER;
   }
   return undefined;
+}
+
+export function getVendorActorEvidence(vendorId: string): VendorActorEvidence | null {
+  const vendor = getVendorById(vendorId);
+  if (!vendor) return null;
+
+  const chunkKey = chunkKeyFromWorldPosition(vendor.position);
+  const definitionHash = stableHash32([
+    "VENDOR_ACTOR_V1",
+    vendor.id,
+    vendor.name,
+    vendor.role,
+    vendor.vendorType,
+    vendor.position.x,
+    vendor.position.y,
+    vendor.interactionRadius,
+    chunkKey,
+  ].join("|")).toString(16);
+
+  return Object.freeze({
+    schemaVersion: 1,
+    actorId: vendor.id,
+    actorType: "npc",
+    role: vendor.role,
+    vendorType: vendor.vendorType,
+    position: Object.freeze({ ...vendor.position }),
+    chunkKey,
+    definitionHash,
+  });
 }
