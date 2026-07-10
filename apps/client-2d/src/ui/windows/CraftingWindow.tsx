@@ -8,7 +8,7 @@
  * Shows station requirements and proximity feedback.
  */
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useLiveGameplaySnapshot } from "../../game/useLiveGameplaySnapshot";
 import { craftRecipe } from "../../game/crafting";
 import { fetchGameplaySnapshot, liveGameplayStore, DEFAULT_GAMEPLAY_PLAYER_ID } from "../../game/liveGameplayStore";
@@ -32,6 +32,7 @@ const STATION_NAME: Record<string, string> = {
 };
 
 function getBlockedMessage(blockedReason?: string): string {
+  if (!blockedReason) return "Craft";
   switch (blockedReason) {
     case "missing_ingredients":
       return "Missing Items";
@@ -54,14 +55,17 @@ function getStationRequirement(recipe: { stationType?: string }): string | null 
 }
 
 export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) {
+  const [isCraftingId, setIsCraftingId] = useState<string | null>(null);
   const snapshot = useLiveGameplaySnapshot();
   const crafting: CraftingSnapshot = snapshot.crafting ?? { recipes: [] };
   const recipes = crafting.recipes ?? [];
 
   const handleCraft = useCallback(async (recipeId: string) => {
-    const result = await craftRecipe(recipeId);
+    setIsCraftingId(recipeId);
+    try {
+      const result = await craftRecipe(recipeId);
 
-    if (result.ok && result.result?.ok) {
+      if (result.ok && result.result?.ok) {
       window.dispatchEvent(
         new CustomEvent("wasd:toast", {
           detail: {
@@ -89,14 +93,17 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
         message = `Craft failed: ${reason}`;
       }
 
-      window.dispatchEvent(
-        new CustomEvent("wasd:toast", {
-          detail: {
-            type: "error",
-            message,
-          },
-        }),
-      );
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: "error",
+              message,
+            },
+          }),
+        );
+      }
+    } finally {
+      setIsCraftingId((prev) => (prev === recipeId ? null : prev));
     }
   }, []);
 
@@ -160,11 +167,17 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
                   <button
                     type="button"
                     className="crafting-row__button"
-                    disabled={!recipe.craftable}
+                    disabled={!recipe.craftable || !!isCraftingId}
                     onClick={() => handleCraft(recipe.id)}
                     data-testid={`process-${recipe.id}`}
+                    aria-busy={isCraftingId === recipe.id}
+                    aria-label={
+                      isCraftingId === recipe.id ? "Crafting..." : `Craft ${recipe.title}`
+                    }
                   >
-                    {getBlockedMessage(recipe.blockedReason)}
+                    {isCraftingId === recipe.id
+                      ? "CRAFTING..."
+                      : getBlockedMessage(recipe.blockedReason)}
                   </button>
                 </article>
               );
