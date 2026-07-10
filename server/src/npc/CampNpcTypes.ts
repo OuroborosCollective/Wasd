@@ -34,8 +34,10 @@ export interface CampStockEntry {
 export interface CampStockSnapshot {
   readonly poiId: string;
   readonly items: readonly CampStockEntry[];
-  readonly lastUpdatedTick: number | null;
+  /** Last deposit tick, or the real observation tick while no deposit exists yet. */
+  readonly lastUpdatedTick: number;
   readonly observedAtTick: number;
+  readonly hasDepositedState: boolean;
   readonly revisionHash: string;
 }
 
@@ -72,21 +74,9 @@ export function getNpcRole(type: CampNpcType): string {
 }
 
 export const ACTIVITY_MESSAGES: Record<CampNpcType, Record<CampNpcActivity, string>> = Object.freeze({
-  camp_woodcutter: Object.freeze({
-    gathering: "Chopping nearby trees",
-    returning: "Carrying wood",
-    depositing: "Stacking logs",
-  }),
-  camp_miner: Object.freeze({
-    gathering: "Mining ore vein",
-    returning: "Hauling ore",
-    depositing: "Sorting ore",
-  }),
-  camp_fisher: Object.freeze({
-    gathering: "Casting line",
-    returning: "Carrying fish",
-    depositing: "Packing fish",
-  }),
+  camp_woodcutter: Object.freeze({ gathering: "Chopping nearby trees", returning: "Carrying wood", depositing: "Stacking logs" }),
+  camp_miner: Object.freeze({ gathering: "Mining ore vein", returning: "Hauling ore", depositing: "Sorting ore" }),
+  camp_fisher: Object.freeze({ gathering: "Casting line", returning: "Carrying fish", depositing: "Packing fish" }),
 });
 
 export const NPC_DIALOGUE: Record<CampNpcType, { greeting: string; gathering: string; depositing: string; trading: string }> = Object.freeze({
