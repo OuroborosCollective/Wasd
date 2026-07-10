@@ -1,16 +1,16 @@
 import { getWalletService } from "../economy/economyRuntime.js";
+import type { WalletState } from "../economy/WalletTypes.js";
 import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
 import { npcMemoryService } from "../npc/NpcMemoryService.js";
 import { getSkillProgressionService } from "../skills/skillRuntime.js";
 import type { PlayerSkillState } from "../skills/SkillTypes.js";
-import type { WalletState } from "../economy/WalletTypes.js";
 import { JsonNpcQuestPersistenceAdapter } from "./JsonNpcQuestPersistenceAdapter.js";
-import { npcQuestService, type NpcQuestService } from "./NpcQuestService.js";
-import type { ActionResult, QuestProgressSnapshot } from "./NpcQuestTypes.js";
 import type {
   NpcQuestPersistenceAdapter,
   PersistedNpcQuestPlayerState,
 } from "./NpcQuestPersistence.js";
+import { npcQuestService, type NpcQuestService } from "./NpcQuestService.js";
+import type { ActionResult, QuestProgressSnapshot } from "./NpcQuestTypes.js";
 
 export interface NpcQuestMutationEvidence {
   readonly intentHash: string;
@@ -70,7 +70,8 @@ export class NpcQuestRuntime {
         this.service.restorePlayerState(before);
         return { ok: false, reason: "persistence_failed" };
       }
-      void npcMemoryService.recordQuestAccepted(playerId, this.service.getQuestDefinition(questId)?.npcId ?? "", questId);
+      const npcId = this.service.getQuestDefinition(questId)?.npcId;
+      if (npcId) void npcMemoryService.recordQuestAccepted(playerId, npcId, questId);
       const history = runtimeHistoryLog.write({
         tick: evidence.tick,
         source: "quest_accept",
@@ -118,7 +119,7 @@ export class NpcQuestRuntime {
     playerId: string,
     npcId: string,
     evidence: NpcQuestMutationEvidence,
-  ): Promise<ActionResult<readonly QuestProgressSnapshot[] & { intentHash?: string }>> {
+  ): Promise<ActionResult<readonly QuestProgressSnapshot[]>> {
     return this.runExclusive(playerId, async () => {
       await this.hydratePlayer(playerId);
       const before = this.service.clonePlayerState(playerId);
@@ -141,7 +142,7 @@ export class NpcQuestRuntime {
         chunkKey: evidence.chunkKey,
         payload: { intentHash: evidence.intentHash, updated: result.result },
       });
-      return result as ActionResult<readonly QuestProgressSnapshot[] & { intentHash?: string }>;
+      return result;
     });
   }
 
@@ -272,14 +273,15 @@ export class NpcQuestRuntime {
   private async runExclusive<T>(playerId: string, work: () => Promise<T>): Promise<T> {
     const previous = this.locks.get(playerId) ?? Promise.resolve();
     let release!: () => void;
-    const current = new Promise<void>((resolve) => { release = resolve; });
-    this.locks.set(playerId, previous.then(() => current));
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const tail = previous.then(() => gate);
+    this.locks.set(playerId, tail);
     await previous;
     try {
       return await work();
     } finally {
       release();
-      if (this.locks.get(playerId) === current) this.locks.delete(playerId);
+      if (this.locks.get(playerId) === tail) this.locks.delete(playerId);
     }
   }
 }
