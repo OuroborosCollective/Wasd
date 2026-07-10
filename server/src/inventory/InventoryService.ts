@@ -35,6 +35,10 @@ export class InventoryService {
     return this.store.getAppliedOriginUids(playerId);
   }
 
+  getMovementEventCount(): number {
+    return this.store.getMovementEventCount();
+  }
+
   async addItem(input: {
     playerId: string;
     itemId: InventoryItemId | string;
@@ -99,8 +103,12 @@ export class InventoryService {
     playerId: string,
     state: PlayerInventoryState,
     appliedOriginUids: readonly string[] = [],
+    movementEventCount?: number,
   ): Promise<void> {
     this.replacePlayerInventory(playerId, state, appliedOriginUids);
+    if (movementEventCount !== undefined) {
+      this.store.truncateMovementEvents(movementEventCount);
+    }
     await this.persistInventory(playerId, state);
   }
 
