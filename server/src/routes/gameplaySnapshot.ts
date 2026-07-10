@@ -1,37 +1,36 @@
 import express from "express";
-import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
-import { createGameplaySnapshot, type WorldPoiSnapshot } from "./gameplaySnapshotUtils.js";
-import { questProgressionStore } from "../quests/QuestProgressionStore.js";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
-import { getSkillProgressionService } from "../skills/skillRuntime.js";
-import { gatheringService } from "../resources/GatheringService.js";
-import { getInventoryService } from "../inventory/inventoryRuntime.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
+import { worldTickAdapter } from "../core/are/WorldTickThinShellAdapter.js";
+import { characterService } from "../character/characterRuntime.js";
+import { createPaperdollSnapshot } from "../character/PaperdollTypes.js";
+import { createStartPathQuestSnapshot } from "../character/StartPathQuestLine.js";
+import { toCharacterProfileSnapshot } from "../character/CharacterTypes.js";
 import { craftingService } from "../crafting/CraftingService.js";
 import { equipmentService } from "../equipment/equipmentRuntime.js";
 import { workOrderService } from "../economy/WorkOrderService.js";
-import { characterService } from "../character/characterRuntime.js";
-import { toCharacterProfileSnapshot } from "../character/CharacterTypes.js";
-import { createPaperdollSnapshot } from "../character/PaperdollTypes.js";
-import { createStartPathQuestSnapshot } from "../character/StartPathQuestLine.js";
 import { composeLiveGameplaySnapshotFromLegacy } from "../gameplay/composeLiveGameplaySnapshotFromLegacy.js";
 import { generateNPCActivitySnapshot } from "../gameplay/NPCActivitySnapshotGenerator.js";
-import { generateVisibleChunkPois, getStarterVillagePois } from "../world/WorldPoiGenerator.js";
+import { getInventoryService } from "../inventory/inventoryRuntime.js";
+import { npcQuestRuntime } from "../quests/NpcQuestRuntime.js";
+import { questProgressionStore } from "../quests/QuestProgressionStore.js";
 import { getVisibleChunkCoords } from "../resources/ChunkResourceGenerator.js";
+import { gatheringService } from "../resources/GatheringService.js";
+import { getSkillProgressionService } from "../skills/skillRuntime.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
-import { runLineageBirthForSnapshot, type LineageRuntimeStateProvider } from "../modules/npc/LineageBirthSnapshotBridge.js";
-import { getLineageRuntimeStateProvider } from "../modules/npc/LineageRuntimeStateProviderRegistry.js";
+import { generateVisibleChunkPois, getStarterVillagePois } from "../world/WorldPoiGenerator.js";
+import { createGameplaySnapshot, type WorldPoiSnapshot } from "./gameplaySnapshotUtils.js";
 import {
   buildRuntimeNpcActivityContexts,
   resolveRuntimeFactionStandings,
   resolveRuntimeGuildSnapshot,
 } from "./gameplaySnapshotTruthProviders.js";
 
-export interface GameplaySnapshotRouterDeps {
-  readonly lineageRuntimeStateProvider?: LineageRuntimeStateProvider;
-}
+export interface GameplaySnapshotRouterDeps {}
 
-function getCurrentTickId(): number {
-  return tickContextProvider.getTickCounter();
+function getCurrentTickId(): number | null {
+  const tick = Number(tickContextProvider.getTickCounter());
+  return Number.isSafeInteger(tick) && tick >= 0 ? tick : null;
 }
 
 function isGuestHttpAllowed(): boolean {
@@ -44,11 +43,15 @@ function rejectUnauthenticatedInLockedProduction(identity: { authenticated: bool
   return process.env.NODE_ENV === "production" && !identity.authenticated && !isGuestHttpAllowed();
 }
 
-function resolveLineageRuntimeStateProvider(deps: GameplaySnapshotRouterDeps): LineageRuntimeStateProvider | undefined {
-  return deps.lineageRuntimeStateProvider ?? getLineageRuntimeStateProvider();
+function runtimePlayerPosition(playerId: string): { x: number; y: number } | undefined {
+  const player = worldTickAdapter.playerSystem.getPlayer(playerId);
+  const x = Number(player?.position?.x);
+  const y = Number(player?.position?.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined;
+  return { x, y };
 }
 
-export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = {}) {
+export function createGameplaySnapshotRouter(_deps: GameplaySnapshotRouterDeps = {}) {
   const router = express.Router();
 
   router.get("/snapshot", async (req, res) => {
@@ -59,16 +62,23 @@ export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = 
     }
 
     const serverTick = getCurrentTickId();
-    await questProgressionStore.hydratePlayer(identity.playerId);
+    if (serverTick === null) {
+      res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
+      return;
+    }
+
+    await Promise.all([
+      questProgressionStore.hydratePlayer(identity.playerId),
+      npcQuestRuntime.hydratePlayer(identity.playerId),
+      worldDiscoveryService.hydratePlayer(identity.playerId),
+    ]);
     const questState = questProgressionStore.getPlayerQuestState(identity.playerId);
 
     const skillService = await getSkillProgressionService();
     await skillService.hydratePlayer(identity.playerId);
     const skillState = await skillService.getPlayerSkillState(identity.playerId);
 
-    const pxRaw = req.query.px;
-    const pyRaw = req.query.py;
-    const playerPosition = typeof pxRaw === "string" && typeof pyRaw === "string" ? { x: Number(pxRaw), y: Number(pyRaw) } : undefined;
+    const playerPosition = runtimePlayerPosition(identity.playerId);
     const resources = gatheringService.listResourceSnapshots(serverTick, playerPosition);
     const workOrders = workOrderService.listSnapshots(serverTick);
 
@@ -79,13 +89,15 @@ export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = 
     const character = await characterService.getCharacterProfile(identity.playerId);
     const characterSnapshot = toCharacterProfileSnapshot(character);
     const derivedStartPathQuest = createStartPathQuestSnapshot({ character: characterSnapshot, inventory, equipment });
-    const persistedStartPathQuest = derivedStartPathQuest ? questState.quests.find((quest) => quest.id === derivedStartPathQuest.id) : null;
+    const persistedStartPathQuest = derivedStartPathQuest
+      ? questState.quests.find((quest) => quest.id === derivedStartPathQuest.id)
+      : null;
     const startPathQuest = persistedStartPathQuest?.status === "completed"
       ? persistedStartPathQuest
-      : derivedStartPathQuest?.status === "completed"
-        ? questProgressionStore.upsertDerivedQuestSnapshot(identity.playerId, derivedStartPathQuest)
-        : derivedStartPathQuest;
-    const baseQuests = startPathQuest ? questState.quests.filter((quest) => quest.id !== startPathQuest.id) : questState.quests;
+      : derivedStartPathQuest;
+    const baseQuests = startPathQuest
+      ? questState.quests.filter((quest) => quest.id !== startPathQuest.id)
+      : questState.quests;
     const paperdoll = createPaperdollSnapshot({ character: characterSnapshot, equipment });
 
     let worldPois: WorldPoiSnapshot[] = [];
@@ -93,30 +105,9 @@ export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = 
       const tileX = Math.floor(playerPosition.x / 1000);
       const tileZ = Math.floor(playerPosition.y / 1000);
       const visibleChunks = getVisibleChunkCoords(tileX, tileZ);
-      const generatedPois = generateVisibleChunkPois(visibleChunks);
-      const starterPois = getStarterVillagePois();
-      worldPois = [...starterPois, ...generatedPois].sort((a, b) => a.id.localeCompare(b.id));
+      worldPois = [...getStarterVillagePois(), ...generateVisibleChunkPois(visibleChunks)]
+        .sort((a, b) => a.id.localeCompare(b.id));
     }
-
-    await worldDiscoveryService.hydratePlayer(identity.playerId);
-    let recentDiscoveries: readonly { poiId: string; title: string; type: string }[] = [];
-    if (playerPosition && worldPois.length > 0) {
-      const playerPositionKappa = { x: playerPosition.x * 1000, y: playerPosition.y * 1000 };
-      const newDiscoveries = worldDiscoveryService.processDiscovery(identity.playerId, playerPositionKappa, worldPois);
-      if (newDiscoveries.length > 0) {
-        recentDiscoveries = newDiscoveries.map((poiId) => {
-          const poi = worldPois.find((candidate) => candidate.id === poiId);
-          return { poiId, title: poi?.title ?? poiId, type: poi?.type ?? "unknown" };
-        });
-      }
-    }
-
-    await runLineageBirthForSnapshot({
-      playerId: identity.playerId,
-      logicalIndex: serverTick,
-      provider: resolveLineageRuntimeStateProvider(deps),
-      context: { worldPois, playerPosition },
-    });
 
     const discoveryStats = worldDiscoveryService.getStats(identity.playerId);
     const discoveredPoiIds = worldDiscoveryService.getDiscoveredPoiIds(identity.playerId);
@@ -167,11 +158,7 @@ export function createGameplaySnapshotRouter(deps: GameplaySnapshotRouterDeps = 
       resourceNodes: resources,
       worldPois: liveWorldPois,
       discoveryStats,
-      recentDiscoveries,
-    });
-
-    worldDiscoveryService.persistPlayer(identity.playerId).catch((err) => {
-      console.error("[Discovery] Failed to persist:", err);
+      recentDiscoveries: [],
     });
 
     res.json({
