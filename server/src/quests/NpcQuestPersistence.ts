@@ -41,6 +41,16 @@ function safeId(value: unknown, fallback: string): string {
   return /^[a-zA-Z0-9:_./-]{1,160}$/.test(trimmed) ? trimmed : fallback;
 }
 
+function safeIdList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const identifiers: string[] = [];
+  for (const candidate of value) {
+    const identifier = safeId(candidate, "");
+    if (identifier) identifiers.push(identifier);
+  }
+  return [...new Set<string>(identifiers)].sort((a, b) => a.localeCompare(b));
+}
+
 function safeCount(value: unknown, minimum = 0): number {
   const count = Math.floor(Number(value));
   return Number.isSafeInteger(count) && count >= minimum ? count : minimum;
@@ -51,15 +61,15 @@ export function normalizeNpcQuestPlayerState(
   fallbackPlayerId: string,
 ): PersistedNpcQuestPlayerState {
   const playerId = safeId(input?.playerId, fallbackPlayerId);
-  const activeQuests = Array.isArray(input?.activeQuests)
+  const activeQuests: PersistedNpcQuestActiveState[] = Array.isArray(input?.activeQuests)
     ? input.activeQuests
-        .map((quest) => ({
+        .map((quest): PersistedNpcQuestActiveState => ({
           questId: safeId(quest?.questId, "unknown_quest"),
           rewardClaimed: Boolean(quest?.rewardClaimed),
           started: Boolean(quest?.started),
           objectives: Array.isArray(quest?.objectives)
             ? quest.objectives
-                .map((objective) => {
+                .map((objective): PersistedNpcQuestObjectiveState => {
                   const required = Math.max(1, safeCount(objective?.required, 1));
                   const current = Math.min(required, safeCount(objective?.current));
                   return {
@@ -76,20 +86,14 @@ export function normalizeNpcQuestPlayerState(
         .sort((a, b) => a.questId.localeCompare(b.questId))
     : [];
 
-  const completedQuestIds = Array.isArray(input?.completedQuestIds)
-    ? [...new Set(input.completedQuestIds.map((id) => safeId(id, "")).filter(Boolean))].sort()
-    : [];
-  const rewardClaimedQuestIds = Array.isArray(input?.rewardClaimedQuestIds)
-    ? [...new Set(input.rewardClaimedQuestIds.map((id) => safeId(id, "")).filter(Boolean))].sort()
-    : [];
-  const reputations = Array.isArray(input?.reputations)
+  const completedQuestIds = safeIdList(input?.completedQuestIds);
+  const rewardClaimedQuestIds = safeIdList(input?.rewardClaimedQuestIds);
+  const reputations: PersistedNpcReputationState[] = Array.isArray(input?.reputations)
     ? input.reputations
-        .map((entry) => ({
+        .map((entry): PersistedNpcReputationState => ({
           npcId: safeId(entry?.npcId, "unknown_npc"),
           reputation: Math.trunc(Number(entry?.reputation ?? 0)),
-          completedQuestIds: Array.isArray(entry?.completedQuestIds)
-            ? [...new Set(entry.completedQuestIds.map((id) => safeId(id, "")).filter(Boolean))].sort()
-            : [],
+          completedQuestIds: safeIdList(entry?.completedQuestIds),
         }))
         .filter((entry) => entry.npcId !== "unknown_npc")
         .sort((a, b) => a.npcId.localeCompare(b.npcId))
