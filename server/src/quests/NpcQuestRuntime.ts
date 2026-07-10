@@ -74,11 +74,11 @@ export class NpcQuestRuntime {
       if (npcId) void npcMemoryService.recordQuestAccepted(playerId, npcId, questId);
       const history = runtimeHistoryLog.write({
         tick: evidence.tick,
-        source: "quest_accept",
+        source: "quest_delta",
         actorId: playerId,
         subjectId: questId,
         chunkKey: evidence.chunkKey,
-        payload: { intentHash: evidence.intentHash, progress: result.result },
+        payload: { kind: "quest_accept", intentHash: evidence.intentHash, progress: result.result },
       });
       return {
         ok: true,
@@ -136,11 +136,11 @@ export class NpcQuestRuntime {
       }
       runtimeHistoryLog.write({
         tick: evidence.tick,
-        source: "npc_talk",
+        source: "quest_delta",
         actorId: playerId,
         subjectId: npcId,
         chunkKey: evidence.chunkKey,
-        payload: { intentHash: evidence.intentHash, updated: result.result },
+        payload: { kind: "npc_talk", intentHash: evidence.intentHash, updated: result.result },
       });
       return result;
     });
@@ -196,17 +196,19 @@ export class NpcQuestRuntime {
           `Completed quest: ${questId}`,
         );
         if (!memory.ok) throw new Error(memory.reason);
+        const memoryEventId = memory.result.eventId;
 
         const reputationSnapshot = await npcMemoryService.getMemorySnapshot(playerId, definition.npcId);
         const wallet = await walletService.getWallet(playerId);
         const skills = await skillService.getPlayerSkillState(playerId);
         const history = runtimeHistoryLog.write({
           tick: evidence.tick,
-          source: "quest_complete",
+          source: "quest_delta",
           actorId: playerId,
           subjectId: questId,
           chunkKey: evidence.chunkKey,
           payload: {
+            kind: "quest_complete",
             intentHash: evidence.intentHash,
             reward: definition.reward,
             wallet: wallet.balances,
@@ -214,16 +216,14 @@ export class NpcQuestRuntime {
           },
         });
 
-        if (memory.result) {
-          import("../npc/NpcRumorService.js")
-            .then(({ npcRumorService }) => npcRumorService.createRumorFromMemory(
-              playerId,
-              definition.npcId,
-              memory.result.eventId,
-              "helped_village",
-            ))
-            .catch((error) => console.warn("[npc-quest-runtime] Rumor side-channel failed:", error));
-        }
+        import("../npc/NpcRumorService.js")
+          .then(({ npcRumorService }) => npcRumorService.createRumorFromMemory(
+            playerId,
+            definition.npcId,
+            memoryEventId,
+            "helped_village",
+          ))
+          .catch((error) => console.warn("[npc-quest-runtime] Rumor side-channel failed:", error));
 
         return {
           ok: true,
