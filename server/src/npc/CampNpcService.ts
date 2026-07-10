@@ -158,11 +158,13 @@ export class CampNpcService {
             buyPrice: isCampStockBuyable(itemId) ? getCampStockBuyPrice(itemId) : null,
           }))
           .sort((a, b) => a.itemId.localeCompare(b.itemId));
+        const hasDepositedState = state.lastProcessedCycle >= 0;
         return Object.freeze({
           poiId: poi.id,
           items: Object.freeze(items),
-          lastUpdatedTick: state.lastProcessedCycle >= 0 ? state.lastProcessedCycle * 40 + 30 : null,
+          lastUpdatedTick: hasDepositedState ? state.lastProcessedCycle * 40 + 30 : currentTick,
           observedAtTick: currentTick,
+          hasDepositedState,
           revisionHash: stockHash(poi.id, state),
         });
       })
