@@ -8,7 +8,7 @@
 import express from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { gatheringService } from "../resources/GatheringService.js";
-import { npcQuestService } from "../quests/NpcQuestService.js";
+import { npcQuestRuntime } from "../quests/NpcQuestRuntime.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import {
   canonicalizeClientIntent,
@@ -136,18 +136,21 @@ router.post("/gather", async (req, res) => {
     },
   });
 
+  let questProgressCommitted = true;
   if (result.ok && result.itemRewardId && result.inventoryAdded) {
-    npcQuestService.updateQuestProgress(
+    const questProgress = await npcQuestRuntime.updateQuestProgress(
       canonicalIntent.actorId,
       "gather",
       result.itemRewardId,
       result.inventoryQuantity ?? 0,
     );
+    questProgressCommitted = questProgress.ok;
   }
 
-  res.status(result.ok ? 200 : 409).json({
-    ok: result.ok,
+  res.status(result.ok && questProgressCommitted ? 200 : result.ok ? 503 : 409).json({
+    ok: result.ok && questProgressCommitted,
     result,
+    ...(questProgressCommitted ? {} : { error: "quest_progress_persistence_failed" }),
     canonicalIntent,
     tickContext: {
       tickId: tickContext.tickId,
