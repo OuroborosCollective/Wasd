@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
-import type { ClientIntent, ClientIntentAction, ClientIntentPayloadByAction } from "@wasd/shared";
+import {
+  isClientIntentAction,
+  type ClientIntent,
+  type ClientIntentAction,
+  type ClientIntentPayloadByAction,
+} from "@wasd/shared";
 
 export type CanonicalIntentHash = string;
 
@@ -59,6 +64,17 @@ function assertSafeIdentifier(value: string, fieldName: string): string {
     throw new Error(`${fieldName} must be a safe deterministic identifier`);
   }
   return trimmed;
+}
+
+function assertSafeTickId(value: number | string): number | string {
+  if (typeof value === "number") {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      throw new Error("tickId must be a safe non-negative integer or deterministic identifier");
+    }
+    return value;
+  }
+
+  return assertSafeIdentifier(value, "tickId");
 }
 
 function stableNormalize(value: unknown, path = "payload"): unknown {
@@ -133,18 +149,26 @@ export function canonicalizeClientIntent<TAction extends ClientIntentAction>(
   clientIntent: ClientIntent<TAction>,
   context: CanonicalIntentContext,
 ): ServerCanonicalIntent<TAction> {
+  if (!isClientIntentAction(clientIntent.action)) {
+    throw new Error("client intent action is not supported");
+  }
+
   const actorId = assertSafeIdentifier(context.actorId, "actorId");
   const chunkKey = assertSafeIdentifier(context.chunkKey, "chunkKey");
+  const tickId = assertSafeTickId(context.tickId);
   const logicalIndex = assertSafeFiniteInteger(context.logicalIndex, "logicalIndex");
   const receivedOrder = assertSafeFiniteInteger(context.receivedOrder, "receivedOrder");
+  const requestId = clientIntent.requestId === undefined
+    ? undefined
+    : assertSafeIdentifier(clientIntent.requestId, "requestId");
   const normalizedPayload = stableNormalize(clientIntent.payload) as ClientIntentPayloadByAction[TAction];
 
   const withoutHash: CanonicalIntentWithoutHash<TAction> = {
     action: clientIntent.action,
     payload: normalizedPayload,
-    requestId: clientIntent.requestId,
+    requestId,
     actorId,
-    tickId: context.tickId,
+    tickId,
     logicalIndex,
     receivedOrder,
     chunkKey,
