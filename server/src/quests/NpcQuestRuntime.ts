@@ -70,8 +70,7 @@ export class NpcQuestRuntime {
         this.service.restorePlayerState(before);
         return { ok: false, reason: "persistence_failed" };
       }
-      const npcId = this.service.getQuestDefinition(questId)?.npcId;
-      if (npcId) void npcMemoryService.recordQuestAccepted(playerId, npcId, questId);
+
       const history = runtimeHistoryLog.write({
         tick: evidence.tick,
         source: "quest_delta",
@@ -80,6 +79,11 @@ export class NpcQuestRuntime {
         chunkKey: evidence.chunkKey,
         payload: { kind: "quest_accept", intentHash: evidence.intentHash, progress: result.result },
       });
+      const npcId = this.service.getQuestDefinition(questId)?.npcId;
+      if (npcId) {
+        void npcMemoryService.recordQuestAccepted(playerId, npcId, questId)
+          .catch((error) => console.warn("[npc-quest-runtime] Accept memory side-channel failed:", error));
+      }
       return {
         ok: true,
         result: Object.freeze({
@@ -187,20 +191,9 @@ export class NpcQuestRuntime {
         if (!completed.ok) throw new Error(completed.reason);
         await this.persist(playerId);
 
-        const memory = await npcMemoryService.recordMemoryEvent(
-          playerId,
-          definition.npcId,
-          "quest_completed",
-          questId,
-          definition.reward.reputation,
-          `Completed quest: ${questId}`,
-        );
-        if (!memory.ok) throw new Error(memory.reason);
-        const memoryEventId = memory.result.eventId;
-
-        const reputationSnapshot = await npcMemoryService.getMemorySnapshot(playerId, definition.npcId);
         const wallet = await walletService.getWallet(playerId);
         const skills = await skillService.getPlayerSkillState(playerId);
+        const persistedReputation = completed.result.reputation.reputation;
         const history = runtimeHistoryLog.write({
           tick: evidence.tick,
           source: "quest_delta",
@@ -212,18 +205,16 @@ export class NpcQuestRuntime {
             intentHash: evidence.intentHash,
             reward: definition.reward,
             wallet: wallet.balances,
-            reputation: reputationSnapshot?.reputation ?? definition.reward.reputation,
+            reputation: persistedReputation,
           },
         });
 
-        import("../npc/NpcRumorService.js")
-          .then(({ npcRumorService }) => npcRumorService.createRumorFromMemory(
-            playerId,
-            definition.npcId,
-            memoryEventId,
-            "helped_village",
-          ))
-          .catch((error) => console.warn("[npc-quest-runtime] Rumor side-channel failed:", error));
+        this.recordCompletionSideChannels(
+          playerId,
+          definition.npcId,
+          questId,
+          definition.reward.reputation,
+        );
 
         return {
           ok: true,
@@ -232,7 +223,7 @@ export class NpcQuestRuntime {
             reward: definition.reward,
             wallet,
             skills,
-            reputation: reputationSnapshot?.reputation ?? definition.reward.reputation,
+            reputation: persistedReputation,
             intentHash: evidence.intentHash,
             historyHash: history.entryHash,
             tick: evidence.tick,
@@ -240,14 +231,16 @@ export class NpcQuestRuntime {
         };
       } catch (error) {
         this.service.restorePlayerState(beforeQuest);
-        await Promise.allSettled([
+        const recovery = await Promise.allSettled([
           walletService.restoreWallet(playerId, beforeWallet),
           skillService.restorePlayerSkillState(playerId, beforeSkills),
           this.persistence.savePlayerState(beforeQuest),
         ]);
         return {
           ok: false,
-          reason: "reward_commit_failed",
+          reason: recovery.every((entry) => entry.status === "fulfilled")
+            ? "reward_commit_failed"
+            : "reward_recovery_failed",
           details: { message: error instanceof Error ? error.message : "unknown" },
         };
       }
@@ -264,6 +257,34 @@ export class NpcQuestRuntime {
   public resetHydrationForTests(playerId?: string): void {
     if (playerId) this.hydratedPlayers.delete(playerId);
     else this.hydratedPlayers.clear();
+  }
+
+  private recordCompletionSideChannels(
+    playerId: string,
+    npcId: string,
+    questId: string,
+    reputationDelta: number,
+  ): void {
+    void npcMemoryService.recordMemoryEvent(
+      playerId,
+      npcId,
+      "quest_completed",
+      questId,
+      reputationDelta,
+      `Completed quest: ${questId}`,
+    ).then((memory) => {
+      if (!memory.ok) {
+        console.warn("[npc-quest-runtime] Completion memory side-channel rejected:", memory.reason);
+        return;
+      }
+      return import("../npc/NpcRumorService.js")
+        .then(({ npcRumorService }) => npcRumorService.createRumorFromMemory(
+          playerId,
+          npcId,
+          memory.result.eventId,
+          "helped_village",
+        ));
+    }).catch((error) => console.warn("[npc-quest-runtime] Completion side-channel failed:", error));
   }
 
   private async persist(playerId: string): Promise<void> {
