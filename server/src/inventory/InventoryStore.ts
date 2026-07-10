@@ -86,9 +86,14 @@ function createMovementEvent(input: {
   });
 }
 
+function normalizeOriginUids(values: readonly string[]): string[] {
+  return [...new Set(values.map((value) => String(value).trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
 export class InventoryStore {
   private readonly inventories = new Map<string, PlayerInventoryState>();
-  private readonly seenOriginUids = new Set<string>();
+  private readonly appliedOriginUidsByPlayer = new Map<string, Set<string>>();
   private readonly movementEvents: InventoryMovementEvent[] = [];
 
   getPlayerInventory(playerId: string): PlayerInventoryState {
@@ -98,6 +103,10 @@ export class InventoryStore {
     const created = createDefaultInventoryState(playerId);
     this.inventories.set(playerId, created);
     return created;
+  }
+
+  getAppliedOriginUids(playerId: string): readonly string[] {
+    return Object.freeze(normalizeOriginUids([...(this.appliedOriginUidsByPlayer.get(playerId) ?? [])]));
   }
 
   addItem(input: {
@@ -127,7 +136,8 @@ export class InventoryStore {
       return { ok: false, playerId: input.playerId, itemId: definition.id, quantity, reason: "invalid_origin", state };
     }
 
-    if (origin && this.seenOriginUids.has(origin.uid)) {
+    const appliedOrigins = this.appliedOriginUidsByPlayer.get(input.playerId) ?? new Set<string>();
+    if (origin && appliedOrigins.has(origin.uid)) {
       return { ok: false, playerId: input.playerId, itemId: definition.id, quantity, reason: "duplicate_origin", state };
     }
 
@@ -175,7 +185,10 @@ export class InventoryStore {
     }
 
     this.inventories.set(input.playerId, nextState);
-    if (origin) this.seenOriginUids.add(origin.uid);
+    if (origin) {
+      appliedOrigins.add(origin.uid);
+      this.appliedOriginUidsByPlayer.set(input.playerId, appliedOrigins);
+    }
     this.movementEvents.push(createMovementEvent({
       sequence: this.movementEvents.length,
       playerId: input.playerId,
@@ -190,8 +203,13 @@ export class InventoryStore {
     return { ok: true, playerId: input.playerId, itemId: definition.id, quantity, reason: "added", state: nextState };
   }
 
-  replacePlayerInventory(playerId: string, state: PlayerInventoryState): void {
+  replacePlayerInventory(
+    playerId: string,
+    state: PlayerInventoryState,
+    appliedOriginUids: readonly string[] = [],
+  ): void {
     this.inventories.set(playerId, normalizePlayerInventoryState(state, playerId));
+    this.appliedOriginUidsByPlayer.set(playerId, new Set(normalizeOriginUids(appliedOriginUids)));
   }
 
   removeItem(input: {
@@ -253,7 +271,7 @@ export class InventoryStore {
 
   clearForTests(): void {
     this.inventories.clear();
-    this.seenOriginUids.clear();
+    this.appliedOriginUidsByPlayer.clear();
     this.movementEvents.length = 0;
   }
 }
