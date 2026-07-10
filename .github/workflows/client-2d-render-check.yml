@@ -7,6 +7,12 @@ on:
       - 'apps/client-2d/**'
       - 'packages/shared/**'
       - 'scripts/audit-client-2d-renderer.mjs'
+      - 'scripts/extract-biome-atlas-v2.mjs'
+      - 'scripts/extract-2d-weapon-pool.mjs'
+      - 'scripts/extract-forest-biome-pack.mjs'
+      - 'scripts/are-asset-forge.mjs'
+      - 'scripts/enrich-stitch-atlas-frames.mjs'
+      - 'scripts/validate-client-2d-assets.mjs'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/client-2d-render-check.yml'
@@ -50,15 +56,18 @@ jobs:
       - name: Build shared package
         run: pnpm --filter @wasd/shared build
 
+      - name: Generate and validate deterministic 2D assets
+        run: pnpm --filter @wasd/client-2d validate:assets
+
       - name: Build 2D client
         run: |
           set -o pipefail
-          pnpm build:2d 2>&1 | tee /tmp/client-2d-render-build.log
+          pnpm build:2d 2>&1 | tee client-2d-render-build.log
 
       - name: Upload render build evidence
-        if: always() && hashFiles('/tmp/client-2d-render-build.log') != ''
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: client-2d-render-build-log
-          path: /tmp/client-2d-render-build.log
+          path: client-2d-render-build.log
           retention-days: 3
