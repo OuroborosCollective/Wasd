@@ -1,7 +1,8 @@
 import { stableHash32 } from "../core/determinism/AREDeterminism.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
+import type { InventoryService } from "../inventory/InventoryService.js";
 import { getSkillProgressionService } from "../skills/skillRuntime.js";
-import type { SkillSnapshot } from "../skills/SkillTypes.js";
+import type { PlayerSkillState, SkillSnapshot } from "../skills/SkillTypes.js";
 import { ALL_CRAFTING_RECIPES } from "./StarterRecipes.js";
 import {
   getProcessingStationById,
@@ -12,6 +13,24 @@ import type {
   CraftingRecipeSnapshot,
   CraftingResult,
 } from "./CraftingTypes.js";
+
+interface CraftingSkillRuntime {
+  hydratePlayer(playerId: string): Promise<void>;
+  getPlayerSkillState(playerId: string): Promise<PlayerSkillState>;
+  applyEvent(event: {
+    type: "skill_xp_gain";
+    playerId: string;
+    skillId: "crafting";
+    amount: number;
+    source: "crafting";
+  }): Promise<unknown>;
+  restorePlayerSkillState(playerId: string, state: PlayerSkillState): Promise<void>;
+}
+
+export interface CraftingServiceDependencies {
+  readonly inventoryService?: InventoryService;
+  readonly skillService?: CraftingSkillRuntime;
+}
 
 function craftingLevelFromSkills(skills: SkillSnapshot[]): number {
   return skills.find((skill) => skill.id === "crafting")?.level ?? 1;
@@ -48,8 +67,14 @@ function outputOriginUids(operationId: string, recipe: CraftingRecipe): readonly
 export class CraftingService {
   private readonly recipes = new Map<string, CraftingRecipe>();
   private readonly playerLocks = new Map<string, Promise<void>>();
+  /** Compatibility test hooks; production resolves through injected/runtime services. */
+  private _inventoryService?: InventoryService;
+  private _skillService?: CraftingSkillRuntime;
 
-  public constructor(recipes: readonly CraftingRecipe[] = ALL_CRAFTING_RECIPES) {
+  public constructor(
+    recipes: readonly CraftingRecipe[] = ALL_CRAFTING_RECIPES,
+    private readonly dependencies: CraftingServiceDependencies = {},
+  ) {
     for (const recipe of recipes) this.recipes.set(recipe.id, recipe);
   }
 
@@ -61,11 +86,11 @@ export class CraftingService {
     playerId: string,
     playerPosition?: { x: number; y: number },
   ): Promise<CraftingRecipeSnapshot[]> {
-    const skillService = await getSkillProgressionService();
+    const skillService = await this.resolveSkillService();
     await skillService.hydratePlayer(playerId);
     const skillState = await skillService.getPlayerSkillState(playerId);
     const craftingLevel = craftingLevelFromSkills(skillState.skills);
-    const inventoryService = await getInventoryService();
+    const inventoryService = await this.resolveInventoryService();
 
     return Promise.all(
       this.listRecipes().map(async (recipe) => {
@@ -159,14 +184,14 @@ export class CraftingService {
       }
     }
 
-    const skillService = await getSkillProgressionService();
+    const skillService = await this.resolveSkillService();
     await skillService.hydratePlayer(input.playerId);
     const skillState = await skillService.getPlayerSkillState(input.playerId);
     if (craftingLevelFromSkills(skillState.skills) < recipe.requiredLevel) {
       return { ok: false, playerId: input.playerId, recipeId: recipe.id, reason: "level_too_low" };
     }
 
-    const inventoryService = await getInventoryService();
+    const inventoryService = await this.resolveInventoryService();
     const originUids = outputOriginUids(input.operationId, recipe);
     const appliedOrigins = inventoryService.getAppliedOriginUids(input.playerId);
     const replayMatches = originUids.filter((uid) => appliedOrigins.includes(uid)).length;
@@ -279,6 +304,14 @@ export class CraftingService {
         rollbackOk,
       };
     }
+  }
+
+  private async resolveInventoryService(): Promise<InventoryService> {
+    return this._inventoryService ?? this.dependencies.inventoryService ?? getInventoryService();
+  }
+
+  private async resolveSkillService(): Promise<CraftingSkillRuntime> {
+    return this._skillService ?? this.dependencies.skillService ?? getSkillProgressionService();
   }
 
   private async runExclusive<T>(playerId: string, work: () => Promise<T>): Promise<T> {
