@@ -1,4 +1,5 @@
 import { stableHash32 } from "../core/determinism/AREDeterminism.js";
+import type { InventoryService } from "./InventoryService.js";
 import { InventoryStore } from "./InventoryStore.js";
 import {
   INVENTORY_CAPACITY,
@@ -19,7 +20,8 @@ export type InventoryTransferFailureReason =
   | "not_enough_items"
   | "receiver_inventory_full"
   | "sender_remove_failed"
-  | "receiver_add_failed";
+  | "receiver_add_failed"
+  | "transaction_failed";
 
 export interface InventoryTransferInput {
   readonly fromPlayerId: string;
@@ -43,6 +45,8 @@ export interface InventoryTransferResult {
   readonly receiverState?: PlayerInventoryState;
   readonly movementHashes?: readonly string[];
 }
+
+let persistentTransferQueue: Promise<void> = Promise.resolve();
 
 function normalizePlayerId(value: string): string {
   return value.trim();
@@ -82,62 +86,104 @@ function transferHash(input: {
   ].join("|")).toString(16);
 }
 
-function hasOriginUid(store: InventoryStore, uid: string): boolean {
-  return store.getMovementEvents().some((event) => event.origin?.uid === uid);
-}
-
-function canReceiverAccept(store: InventoryStore, playerId: string, itemId: InventoryItemId): boolean {
+function canReceiverAcceptState(state: PlayerInventoryState, itemId: InventoryItemId): boolean {
   const definition = ITEM_DEFINITIONS[itemId];
-  const state = store.getPlayerInventory(playerId);
   const existing = state.slots.find((slot) => slot.itemId === itemId);
   return Boolean(existing && definition.stackable) || state.slots.length < INVENTORY_CAPACITY;
+}
+
+function cloneState(state: PlayerInventoryState): PlayerInventoryState {
+  return {
+    playerId: state.playerId,
+    schemaVersion: 1,
+    capacity: state.capacity,
+    slots: state.slots.map((slot) => ({ ...slot })),
+  };
+}
+
+function failure(input: {
+  reason: InventoryTransferFailureReason;
+  hash?: string;
+  fromPlayerId: string;
+  toPlayerId: string;
+  itemId?: InventoryItemId;
+  quantity?: number;
+  senderState?: PlayerInventoryState;
+  receiverState?: PlayerInventoryState;
+}): InventoryTransferResult {
+  return Object.freeze({
+    ok: false,
+    reason: input.reason,
+    transferHash: input.hash ?? "0",
+    fromPlayerId: input.fromPlayerId,
+    toPlayerId: input.toPlayerId,
+    itemId: input.itemId ?? "wood_log",
+    quantity: input.quantity ?? 0,
+    ...(input.senderState ? { senderState: input.senderState } : {}),
+    ...(input.receiverState ? { receiverState: input.receiverState } : {}),
+  });
+}
+
+async function withPersistentTransferLock<T>(operation: () => Promise<T>): Promise<T> {
+  let release: () => void = () => undefined;
+  const previous = persistentTransferQueue;
+  persistentTransferQueue = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
+  await previous;
+  try {
+    return await operation();
+  } finally {
+    release();
+  }
 }
 
 export function transferInventoryItem(store: InventoryStore, input: InventoryTransferInput): InventoryTransferResult {
   const fromPlayerId = normalizePlayerId(input.fromPlayerId);
   const toPlayerId = normalizePlayerId(input.toPlayerId);
-  const fallbackItemId: InventoryItemId = "wood_log";
 
   if (!isValidRuntimePlayerId(fromPlayerId) || !isValidRuntimePlayerId(toPlayerId)) {
-    return Object.freeze({ ok: false, reason: "invalid_player", transferHash: "0", fromPlayerId, toPlayerId, itemId: fallbackItemId, quantity: 0 });
+    return failure({ reason: "invalid_player", fromPlayerId, toPlayerId });
   }
-
   if (fromPlayerId === toPlayerId) {
-    return Object.freeze({ ok: false, reason: "same_player", transferHash: "0", fromPlayerId, toPlayerId, itemId: fallbackItemId, quantity: 0 });
+    return failure({ reason: "same_player", fromPlayerId, toPlayerId });
   }
-
   if (!isInventoryItemId(input.itemId)) {
-    return Object.freeze({ ok: false, reason: "invalid_item", transferHash: "0", fromPlayerId, toPlayerId, itemId: fallbackItemId, quantity: 0 });
+    return failure({ reason: "invalid_item", fromPlayerId, toPlayerId });
   }
 
   const quantity = normalizeQuantity(input.quantity);
   if (quantity <= 0) {
-    return Object.freeze({ ok: false, reason: "invalid_quantity", transferHash: "0", fromPlayerId, toPlayerId, itemId: input.itemId, quantity: 0 });
+    return failure({ reason: "invalid_quantity", fromPlayerId, toPlayerId, itemId: input.itemId });
   }
 
   const origin = normalizeOrigin(input);
   if (!origin) {
-    return Object.freeze({ ok: false, reason: "invalid_origin", transferHash: "0", fromPlayerId, toPlayerId, itemId: input.itemId, quantity });
+    return failure({ reason: "invalid_origin", fromPlayerId, toPlayerId, itemId: input.itemId, quantity });
   }
-
   const hash = transferHash({ fromPlayerId, toPlayerId, itemId: input.itemId, quantity, ...origin });
 
-  if (hasOriginUid(store, origin.uid)) {
-    return Object.freeze({ ok: false, reason: "duplicate_origin", transferHash: hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity });
+  const senderBefore = cloneState(store.getPlayerInventory(fromPlayerId));
+  const receiverBefore = cloneState(store.getPlayerInventory(toPlayerId));
+  const senderOrigins = [...store.getAppliedOriginUids(fromPlayerId)];
+  const receiverOrigins = [...store.getAppliedOriginUids(toPlayerId)];
+  const movementCountBefore = store.getMovementEventCount();
+
+  if (receiverOrigins.includes(origin.uid)) {
+    return failure({ reason: "duplicate_origin", hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity });
+  }
+  const senderSlot = senderBefore.slots.find((slot) => slot.itemId === input.itemId);
+  if (!senderSlot || senderSlot.quantity < quantity) {
+    return failure({ reason: "not_enough_items", hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity, senderState: senderBefore });
+  }
+  if (!canReceiverAcceptState(receiverBefore, input.itemId)) {
+    return failure({ reason: "receiver_inventory_full", hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity, receiverState: receiverBefore });
   }
 
-  if (!store.hasItems({ playerId: fromPlayerId, items: [{ itemId: input.itemId, quantity }] })) {
-    return Object.freeze({ ok: false, reason: "not_enough_items", transferHash: hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity, senderState: store.getPlayerInventory(fromPlayerId) });
-  }
-
-  if (!canReceiverAccept(store, toPlayerId, input.itemId)) {
-    return Object.freeze({ ok: false, reason: "receiver_inventory_full", transferHash: hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity, receiverState: store.getPlayerInventory(toPlayerId) });
-  }
-
-  const movementCountBefore = store.getMovementEvents().length;
   const removeResult = store.removeItem({ playerId: fromPlayerId, itemId: input.itemId, quantity });
   if (!removeResult.ok) {
-    return Object.freeze({ ok: false, reason: "sender_remove_failed", transferHash: hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity, senderState: removeResult.state });
+    return failure({ reason: "sender_remove_failed", hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity, senderState: removeResult.state });
   }
 
   const addResult = store.addItem({
@@ -146,9 +192,11 @@ export function transferInventoryItem(store: InventoryStore, input: InventoryTra
     quantity,
     origin: { uid: origin.uid, tick: origin.tick, source: "trade_delta", sourceHash: origin.sourceHash },
   });
-
   if (!addResult.ok) {
-    return Object.freeze({ ok: false, reason: "receiver_add_failed", transferHash: hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity, senderState: removeResult.state, receiverState: addResult.state });
+    store.replacePlayerInventory(fromPlayerId, senderBefore, senderOrigins);
+    store.replacePlayerInventory(toPlayerId, receiverBefore, receiverOrigins);
+    store.truncateMovementEvents(movementCountBefore);
+    return failure({ reason: "receiver_add_failed", hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity, senderState: senderBefore, receiverState: receiverBefore });
   }
 
   const movementHashes = store.getMovementEvents().slice(movementCountBefore).map((event) => event.movementHash);
@@ -163,5 +211,97 @@ export function transferInventoryItem(store: InventoryStore, input: InventoryTra
     senderState: removeResult.state,
     receiverState: addResult.state,
     movementHashes: Object.freeze(movementHashes),
+  });
+}
+
+export async function transferInventoryItemPersistent(
+  service: InventoryService,
+  input: InventoryTransferInput,
+): Promise<InventoryTransferResult> {
+  return withPersistentTransferLock(async () => {
+    const fromPlayerId = normalizePlayerId(input.fromPlayerId);
+    const toPlayerId = normalizePlayerId(input.toPlayerId);
+
+    if (!isValidRuntimePlayerId(fromPlayerId) || !isValidRuntimePlayerId(toPlayerId)) {
+      return failure({ reason: "invalid_player", fromPlayerId, toPlayerId });
+    }
+    if (fromPlayerId === toPlayerId) {
+      return failure({ reason: "same_player", fromPlayerId, toPlayerId });
+    }
+    if (!isInventoryItemId(input.itemId)) {
+      return failure({ reason: "invalid_item", fromPlayerId, toPlayerId });
+    }
+
+    const quantity = normalizeQuantity(input.quantity);
+    if (quantity <= 0) {
+      return failure({ reason: "invalid_quantity", fromPlayerId, toPlayerId, itemId: input.itemId });
+    }
+    const origin = normalizeOrigin(input);
+    if (!origin) {
+      return failure({ reason: "invalid_origin", fromPlayerId, toPlayerId, itemId: input.itemId, quantity });
+    }
+
+    const hash = transferHash({ fromPlayerId, toPlayerId, itemId: input.itemId, quantity, ...origin });
+    const [senderBeforeRaw, receiverBeforeRaw] = await Promise.all([
+      service.getPlayerInventory(fromPlayerId),
+      service.getPlayerInventory(toPlayerId),
+    ]);
+    const senderBefore = cloneState(senderBeforeRaw);
+    const receiverBefore = cloneState(receiverBeforeRaw);
+    const senderOrigins = [...service.getAppliedOriginUids(fromPlayerId)];
+    const receiverOrigins = [...service.getAppliedOriginUids(toPlayerId)];
+    const movementCountBefore = service.getMovementEventCount();
+
+    if (receiverOrigins.includes(origin.uid)) {
+      return failure({ reason: "duplicate_origin", hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity });
+    }
+    const senderSlot = senderBefore.slots.find((slot) => slot.itemId === input.itemId);
+    if (!senderSlot || senderSlot.quantity < quantity) {
+      return failure({ reason: "not_enough_items", hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity, senderState: senderBefore });
+    }
+    if (!canReceiverAcceptState(receiverBefore, input.itemId)) {
+      return failure({ reason: "receiver_inventory_full", hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity, receiverState: receiverBefore });
+    }
+
+    try {
+      const removeResult = await service.removeItem({
+        playerId: fromPlayerId,
+        itemId: input.itemId,
+        quantity,
+      });
+      if (!removeResult.ok) {
+        return failure({ reason: "sender_remove_failed", hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity, senderState: removeResult.state });
+      }
+
+      const addResult = await service.addItem({
+        playerId: toPlayerId,
+        itemId: input.itemId,
+        quantity,
+        origin: { uid: origin.uid, tick: origin.tick, source: "trade_delta", sourceHash: origin.sourceHash },
+      });
+      if (!addResult.ok) {
+        await service.restorePlayerInventory(fromPlayerId, senderBefore, senderOrigins, movementCountBefore);
+        await service.restorePlayerInventory(toPlayerId, receiverBefore, receiverOrigins, movementCountBefore);
+        return failure({ reason: "receiver_add_failed", hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity, senderState: senderBefore, receiverState: receiverBefore });
+      }
+
+      const movementHashes = service.getMovementEvents().slice(movementCountBefore).map((event) => event.movementHash);
+      return Object.freeze({
+        ok: true,
+        reason: "transferred",
+        transferHash: hash,
+        fromPlayerId,
+        toPlayerId,
+        itemId: input.itemId,
+        quantity,
+        senderState: removeResult.state,
+        receiverState: addResult.state,
+        movementHashes: Object.freeze(movementHashes),
+      });
+    } catch {
+      await service.restorePlayerInventory(fromPlayerId, senderBefore, senderOrigins, movementCountBefore);
+      await service.restorePlayerInventory(toPlayerId, receiverBefore, receiverOrigins, movementCountBefore);
+      return failure({ reason: "transaction_failed", hash, fromPlayerId, toPlayerId, itemId: input.itemId, quantity, senderState: senderBefore, receiverState: receiverBefore });
+    }
   });
 }

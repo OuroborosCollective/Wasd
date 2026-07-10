@@ -7,10 +7,7 @@ import { VendorStockService } from "./VendorStockService.js";
 import type { DemandBand, VendorStockState } from "./VendorStockTypes.js";
 import { isSellable } from "./ResourceSellPrices.js";
 import { calculateDynamicPrice } from "./DemandPricing.js";
-import {
-  getVillageResourceVendor,
-  checkVendorProximity,
-} from "./VillageVendors.js";
+import { getVillageResourceVendor, checkVendorProximity } from "./VillageVendors.js";
 import { runtimeHistoryLog, type RuntimeHistoryLog } from "../history/RuntimeHistoryLog.js";
 
 export interface SellResourceInput {
@@ -34,7 +31,7 @@ export interface SellResourceResult {
   stockAfter: number;
   demandBand: DemandBand;
   historyHash?: string;
-  reason?: "sold" | "invalid_player" | "invalid_item" | "invalid_quantity" | "not_sellable" | "insufficient_quantity" | "missing_player_position" | "invalid_player_position" | "vendor_too_far" | "missing_vendor" | "invalid_vendor" | "transaction_failed";
+  reason?: "sold" | "invalid_player" | "invalid_item" | "invalid_quantity" | "not_sellable" | "insufficient_quantity" | "missing_player_position" | "invalid_player_position" | "vendor_too_far" | "missing_vendor" | "invalid_vendor" | "invalid_tick" | "transaction_failed";
 }
 
 export interface BuyResourceInput {
@@ -59,7 +56,7 @@ export interface BuyResourceResult {
   demandBand: DemandBand;
   originUid?: string;
   historyHash?: string;
-  reason?: "bought" | "invalid_player" | "invalid_item" | "invalid_quantity" | "not_sellable" | "insufficient_stock" | "insufficient_wallet" | "inventory_add_failed" | "missing_player_position" | "invalid_player_position" | "vendor_too_far" | "missing_vendor" | "invalid_vendor" | "transaction_failed";
+  reason?: "bought" | "invalid_player" | "invalid_item" | "invalid_quantity" | "not_sellable" | "insufficient_stock" | "insufficient_wallet" | "inventory_add_failed" | "missing_player_position" | "invalid_player_position" | "vendor_too_far" | "missing_vendor" | "invalid_vendor" | "invalid_tick" | "transaction_failed";
 }
 
 export interface SellAllResourcesInput {
@@ -75,7 +72,7 @@ export interface SellAllResourcesResult {
   totalCoins: number;
   newBalance: number;
   historyHash?: string;
-  reason?: "sold" | "nothing_to_sell" | "invalid_player" | "missing_player_position" | "invalid_player_position" | "vendor_too_far" | "missing_vendor" | "invalid_vendor" | "transaction_failed";
+  reason?: "sold" | "nothing_to_sell" | "invalid_player" | "missing_player_position" | "invalid_player_position" | "vendor_too_far" | "missing_vendor" | "invalid_vendor" | "invalid_tick" | "transaction_failed";
 }
 
 interface EconomyStateSnapshot {
@@ -88,9 +85,9 @@ interface EconomyStateSnapshot {
   readonly stock: VendorStockState;
 }
 
-function normalizeTick(value: number | undefined): number {
-  const tick = Number(value ?? 0);
-  return Number.isSafeInteger(tick) && tick >= 0 ? tick : 0;
+function resolveTick(value: number | undefined): number | null {
+  const tick = Number(value);
+  return Number.isSafeInteger(tick) && tick >= 0 ? tick : null;
 }
 
 function tradeDeltaHash(input: { playerId: string; vendorId: string; itemId: string; quantity: number; totalCoins: number; stockBefore: number; currentTick: number }): string {
@@ -98,28 +95,15 @@ function tradeDeltaHash(input: { playerId: string; vendorId: string; itemId: str
 }
 
 function cloneInventory(state: PlayerInventoryState): PlayerInventoryState {
-  return {
-    playerId: state.playerId,
-    schemaVersion: 1,
-    capacity: state.capacity,
-    slots: state.slots.map((slot) => ({ ...slot })),
-  };
+  return { playerId: state.playerId, schemaVersion: 1, capacity: state.capacity, slots: state.slots.map((slot) => ({ ...slot })) };
 }
 
 function cloneWallet(state: WalletState): WalletState {
-  return {
-    playerId: state.playerId,
-    schemaVersion: 1,
-    balances: { ...state.balances },
-  };
+  return { playerId: state.playerId, schemaVersion: 1, balances: { ...state.balances } };
 }
 
 function cloneStock(state: VendorStockState): VendorStockState {
-  return Object.freeze({
-    vendorId: state.vendorId,
-    schemaVersion: 1,
-    items: Object.freeze({ ...state.items }),
-  });
+  return Object.freeze({ vendorId: state.vendorId, schemaVersion: 1, items: Object.freeze({ ...state.items }) });
 }
 
 export class EconomyService {
@@ -135,6 +119,8 @@ export class EconomyService {
   async sellResource(input: SellResourceInput): Promise<SellResourceResult> {
     return this.withMutationLock(async () => {
       if (!input.playerId || input.playerId === "anonymous") return this.sellFailure(input, "invalid_player");
+      const currentTick = resolveTick(input.currentTick);
+      if (currentTick === null) return this.sellFailure(input, "invalid_tick");
       const quantity = Math.floor(Number(input.quantity));
       if (quantity <= 0 || !Number.isFinite(quantity)) return this.sellFailure(input, "invalid_quantity");
       if (!isSellable(input.itemId)) return this.sellFailure(input, "not_sellable");
@@ -154,16 +140,12 @@ export class EconomyService {
 
       try {
         const removeResult = await this.inventoryService.removeItem({ playerId: input.playerId, itemId: input.itemId, quantity });
-        if (!removeResult.ok) {
-          return { ok: false, itemId: String(input.itemId), quantitySold: 0, unitPrice: priceInfo.unitPrice, basePrice: priceInfo.basePrice, totalCoins: 0, newBalance: snapshot.wallet.balances.coin, stockBefore, stockAfter: stockBefore, demandBand: priceInfo.demandBand, reason: "insufficient_quantity" };
-        }
+        if (!removeResult.ok) return { ok: false, itemId: String(input.itemId), quantitySold: 0, unitPrice: priceInfo.unitPrice, basePrice: priceInfo.basePrice, totalCoins: 0, newBalance: snapshot.wallet.balances.coin, stockBefore, stockAfter: stockBefore, demandBand: priceInfo.demandBand, reason: "insufficient_quantity" };
 
         const updatedWallet = await this.walletService.addCoins({ playerId: input.playerId, amount: totalCoins });
         const stockAfter = await this.vendorStockService.addItems(vendorId, input.itemId, quantity);
-        const currentTick = normalizeTick(input.currentTick);
         const resolvedStockAfter = stockAfter.items[input.itemId] ?? stockBefore + quantity;
         const history = this.history.write({ tick: currentTick, source: "economy_sell", actorId: input.playerId, subjectId: `${vendorId}:${input.itemId}`, payload: { itemId: input.itemId, quantity, totalCoins, stockBefore, stockAfter: resolvedStockAfter } });
-
         return { ok: true, itemId: String(input.itemId), quantitySold: quantity, unitPrice: priceInfo.unitPrice, basePrice: priceInfo.basePrice, totalCoins, newBalance: updatedWallet.balances.coin, stockBefore, stockAfter: resolvedStockAfter, demandBand: priceInfo.demandBand, historyHash: history.entryHash, reason: "sold" };
       } catch (error) {
         await this.restoreStateOrThrow(snapshot, error);
@@ -175,6 +157,8 @@ export class EconomyService {
   async buyResource(input: BuyResourceInput): Promise<BuyResourceResult> {
     return this.withMutationLock(async () => {
       if (!input.playerId || input.playerId === "anonymous") return this.buyFailure(input, "invalid_player");
+      const currentTick = resolveTick(input.currentTick);
+      if (currentTick === null) return this.buyFailure(input, "invalid_tick");
       const quantity = Math.floor(Number(input.quantity));
       if (quantity <= 0 || !Number.isFinite(quantity)) return this.buyFailure(input, "invalid_quantity");
       if (!isSellable(input.itemId)) return this.buyFailure(input, "not_sellable");
@@ -189,14 +173,11 @@ export class EconomyService {
       if (stockBefore < quantity) return this.buyFailure(input, "insufficient_stock", quantity, stockBefore, priceInfo);
 
       const existingSlot = snapshot.inventory.slots.find((slot) => slot.itemId === input.itemId);
-      if (!existingSlot && snapshot.inventory.slots.length >= snapshot.inventory.capacity) {
-        return this.buyFailure(input, "inventory_add_failed", quantity, stockBefore, priceInfo);
-      }
+      if (!existingSlot && snapshot.inventory.slots.length >= snapshot.inventory.capacity) return this.buyFailure(input, "inventory_add_failed", quantity, stockBefore, priceInfo);
 
       const totalCoins = quantity * priceInfo.unitPrice;
       if (snapshot.wallet.balances.coin < totalCoins) return this.buyFailure(input, "insufficient_wallet", quantity, stockBefore, priceInfo);
 
-      const currentTick = normalizeTick(input.currentTick);
       const sourceHash = tradeDeltaHash({ playerId: input.playerId, vendorId, itemId: String(input.itemId), quantity, totalCoins, stockBefore, currentTick });
       const originUid = `buy:${sourceHash}`;
 
@@ -224,6 +205,8 @@ export class EconomyService {
   async sellAllResources(input: SellAllResourcesInput): Promise<SellAllResourcesResult> {
     return this.withMutationLock(async () => {
       if (!input.playerId || input.playerId === "anonymous") return { ok: false, sold: [], totalCoins: 0, newBalance: 0, reason: "invalid_player" };
+      const currentTick = resolveTick(input.currentTick);
+      if (currentTick === null) return { ok: false, sold: [], totalCoins: 0, newBalance: 0, reason: "invalid_tick" };
 
       const vendorProximityResult = this.validateVendorProximity(input);
       if (!vendorProximityResult.valid) return { ok: false, sold: [], totalCoins: 0, newBalance: 0, reason: vendorProximityResult.reason ?? "vendor_too_far" };
@@ -236,7 +219,6 @@ export class EconomyService {
       const sortedSlots = [...sellableSlots].sort((a, b) => a.itemId.localeCompare(b.itemId));
       const sellOps: Array<{ itemId: string; quantity: number; unitPrice: number; basePrice: number; totalCoins: number; stockBefore: number; stockAfter: number; demandBand: DemandBand }> = [];
       let totalCoins = 0;
-
       for (const slot of sortedSlots) {
         const stockBefore = snapshot.stock.items[slot.itemId] ?? 0;
         const priceInfo = calculateDynamicPrice(slot.itemId, stockBefore);
@@ -250,13 +232,9 @@ export class EconomyService {
           const removeResult = await this.inventoryService.removeItem({ playerId: input.playerId, itemId: op.itemId, quantity: op.quantity });
           if (!removeResult.ok) throw new Error(`sell_all_remove_failed:${op.itemId}:${removeResult.reason ?? "unknown"}`);
         }
-
         const updatedWallet = await this.walletService.addCoins({ playerId: input.playerId, amount: totalCoins });
-        for (const op of sellOps) {
-          await this.vendorStockService.addItems(vendorId, op.itemId, op.quantity);
-        }
-
-        const history = this.history.write({ tick: normalizeTick(input.currentTick), source: "economy_sell", actorId: input.playerId, subjectId: `${vendorId}:sell_all`, payload: { totalCoins, sold: sellOps } });
+        for (const op of sellOps) await this.vendorStockService.addItems(vendorId, op.itemId, op.quantity);
+        const history = this.history.write({ tick: currentTick, source: "economy_sell", actorId: input.playerId, subjectId: `${vendorId}:sell_all`, payload: { totalCoins, sold: sellOps } });
         return { ok: true, sold: sellOps.map((op) => ({ itemId: op.itemId, quantitySold: op.quantity, unitPrice: op.unitPrice, basePrice: op.basePrice, totalCoins: op.totalCoins, stockBefore: op.stockBefore, stockAfter: op.stockAfter, demandBand: op.demandBand })), totalCoins, newBalance: updatedWallet.balances.coin, historyHash: history.entryHash, reason: "sold" };
       } catch (error) {
         await this.restoreStateOrThrow(snapshot, error);
@@ -271,7 +249,6 @@ export class EconomyService {
       this.walletService.getWallet(playerId),
       this.vendorStockService.getStock(vendorId),
     ]);
-
     return {
       playerId,
       vendorId,
@@ -285,37 +262,20 @@ export class EconomyService {
 
   private async restoreStateOrThrow(snapshot: EconomyStateSnapshot, cause: unknown): Promise<void> {
     const results = await Promise.allSettled([
-      this.inventoryService.restorePlayerInventory(
-        snapshot.playerId,
-        snapshot.inventory,
-        snapshot.appliedOriginUids,
-        snapshot.movementEventCount,
-      ),
+      this.inventoryService.restorePlayerInventory(snapshot.playerId, snapshot.inventory, snapshot.appliedOriginUids, snapshot.movementEventCount),
       this.walletService.restoreWallet(snapshot.playerId, snapshot.wallet),
       this.vendorStockService.restoreStock(snapshot.vendorId, snapshot.stock),
     ]);
-    const rollbackFailures = results
-      .filter((result): result is PromiseRejectedResult => result.status === "rejected")
-      .map((result) => result.reason);
-
-    if (rollbackFailures.length > 0) {
-      throw new AggregateError([cause, ...rollbackFailures], "economy_transaction_rollback_failed");
-    }
+    const rollbackFailures = results.filter((result): result is PromiseRejectedResult => result.status === "rejected").map((result) => result.reason);
+    if (rollbackFailures.length > 0) throw new AggregateError([cause, ...rollbackFailures], "economy_transaction_rollback_failed");
   }
 
   private async withMutationLock<T>(operation: () => Promise<T>): Promise<T> {
     let release: () => void = () => undefined;
     const previous = this.mutationQueue;
-    this.mutationQueue = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-
+    this.mutationQueue = new Promise<void>((resolve) => { release = resolve; });
     await previous;
-    try {
-      return await operation();
-    } finally {
-      release();
-    }
+    try { return await operation(); } finally { release(); }
   }
 
   private async sellFailure(input: SellResourceInput, reason: NonNullable<SellResourceResult["reason"]>, _quantity = 0): Promise<SellResourceResult> {
