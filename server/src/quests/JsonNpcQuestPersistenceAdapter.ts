@@ -62,13 +62,15 @@ export class JsonNpcQuestPersistenceAdapter implements NpcQuestPersistenceAdapte
     try {
       const raw = await readFile(this.filePath, "utf8");
       const parsed = JSON.parse(raw) as Partial<NpcQuestStateFile>;
-      const players = Array.isArray(parsed.players)
-        ? parsed.players.map((player) => normalizeNpcQuestPlayerState(player, player.playerId ?? "unknown"))
-        : [];
-      return stableFile(players);
+      if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.players)) {
+        throw new Error("invalid_npc_quest_state_schema");
+      }
+      return stableFile(
+        parsed.players.map((player) => normalizeNpcQuestPlayerState(player, player.playerId ?? "unknown")),
+      );
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return stableFile([]);
-      return stableFile([]);
+      throw error;
     }
   }
 }
