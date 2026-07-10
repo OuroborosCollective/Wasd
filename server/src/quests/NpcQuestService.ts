@@ -102,13 +102,15 @@ export class NpcQuestService {
   public getQuestProgress(playerId: string, questId: string): QuestProgressSnapshot | null {
     const quest = this.questDefinitions.get(questId);
     if (!quest) return null;
-    const playerState = this.getOrCreatePlayerState(playerId);
-    const active = playerState.activeQuests.get(questId);
+    const playerState = this.playerQuestStates.get(playerId);
+    const active = playerState?.activeQuests.get(questId);
     let state: QuestProgressSnapshot["state"] = "available";
-    if (playerState.completedQuestIds.has(questId)) {
+    if (playerState?.completedQuestIds.has(questId)) {
       state = "completed";
     } else if (active) {
-      const complete = quest.objectives.every((objective) => active.objectives.get(objective.objectiveId)?.completed === true);
+      const complete = quest.objectives.every(
+        (objective) => active.objectives.get(objective.objectiveId)?.completed === true,
+      );
       state = complete ? "ready_to_complete" : "active";
     }
     const objectives = quest.objectives.map((objective): NpcQuestObjective => {
@@ -125,7 +127,8 @@ export class NpcQuestService {
   }
 
   public getActiveQuests(playerId: string): readonly QuestProgressSnapshot[] {
-    const state = this.getOrCreatePlayerState(playerId);
+    const state = this.playerQuestStates.get(playerId);
+    if (!state) return Object.freeze([]);
     return Object.freeze(
       [...state.activeQuests.keys()]
         .map((questId) => this.getQuestProgress(playerId, questId))
@@ -135,10 +138,10 @@ export class NpcQuestService {
   }
 
   public getAvailableQuests(playerId: string): readonly QuestProgressSnapshot[] {
-    const state = this.getOrCreatePlayerState(playerId);
+    const state = this.playerQuestStates.get(playerId);
     const result: QuestProgressSnapshot[] = [];
     for (const [questId, quest] of this.questDefinitions) {
-      if (state.completedQuestIds.has(questId) || state.activeQuests.has(questId)) continue;
+      if (state?.completedQuestIds.has(questId) || state?.activeQuests.has(questId)) continue;
       result.push(Object.freeze({
         questId,
         state: "available" as const,
@@ -155,7 +158,7 @@ export class NpcQuestService {
   }
 
   public getCompletedQuestIds(playerId: string): readonly string[] {
-    return Object.freeze([...this.getOrCreatePlayerState(playerId).completedQuestIds].sort());
+    return Object.freeze([...(this.playerQuestStates.get(playerId)?.completedQuestIds ?? [])].sort());
   }
 
   public acceptQuest(playerId: string, questId: string): ActionResult<QuestProgressSnapshot> {
@@ -189,7 +192,8 @@ export class NpcQuestService {
       if (!quest) continue;
       for (const objective of quest.objectives) {
         const matches = eventType === "craft"
-          ? objective.eventType === "craft" && (objective.targetRecipeId === targetId || objective.targetItemId === targetId)
+          ? objective.eventType === "craft" &&
+            (objective.targetRecipeId === targetId || objective.targetItemId === targetId)
           : objective.eventType === eventType && objective.targetItemId === targetId;
         if (!matches) continue;
         const objectiveState = active.objectives.get(objective.objectiveId);
@@ -234,7 +238,9 @@ export class NpcQuestService {
     const state = this.getOrCreatePlayerState(playerId);
     const active = state.activeQuests.get(questId);
     if (!active) return { ok: false, reason: QuestFailReasons.QUEST_NOT_AVAILABLE };
-    const complete = quest.objectives.every((objective) => active.objectives.get(objective.objectiveId)?.completed === true);
+    const complete = quest.objectives.every(
+      (objective) => active.objectives.get(objective.objectiveId)?.completed === true,
+    );
     if (!complete) return { ok: false, reason: QuestFailReasons.OBJECTIVE_NOT_COMPLETE };
     if (active.rewardClaimed || state.rewardClaimed.has(questId)) {
       return { ok: false, reason: QuestFailReasons.REWARD_ALREADY_CLAIMED };
@@ -259,16 +265,20 @@ export class NpcQuestService {
 
   public getNpcDialogue(playerId: string, npcId: string): NpcDialogueSnapshot {
     const npc = this.npcDefinitions.get(npcId);
-    const playerState = this.getOrCreatePlayerState(playerId);
+    const playerState = this.playerQuestStates.get(playerId);
     let dialogueState: NpcDialogueState = "quest_available";
-    const active = [...playerState.activeQuests.values()].find(
+    const active = [...(playerState?.activeQuests.values() ?? [])].find(
       (candidate) => this.questDefinitions.get(candidate.questId)?.npcId === npcId,
     );
-    if ([...playerState.completedQuestIds].some((questId) => this.questDefinitions.get(questId)?.npcId === npcId)) {
+    if ([...(playerState?.completedQuestIds ?? [])].some(
+      (questId) => this.questDefinitions.get(questId)?.npcId === npcId,
+    )) {
       dialogueState = "quest_completed";
     } else if (active) {
       const quest = this.questDefinitions.get(active.questId);
-      const allComplete = quest?.objectives.every((objective) => active.objectives.get(objective.objectiveId)?.completed === true) ?? false;
+      const allComplete = quest?.objectives.every(
+        (objective) => active.objectives.get(objective.objectiveId)?.completed === true,
+      ) ?? false;
       const gather = active.objectives.get("gather_wood_logs");
       const process = active.objectives.get("process_wood_plank");
       const sell = active.objectives.get("sell_wood_plank");
@@ -283,7 +293,7 @@ export class NpcQuestService {
     const activeQuestIds = this.getActiveQuests(playerId)
       .filter((quest) => this.questDefinitions.get(quest.questId)?.npcId === npcId)
       .map((quest) => quest.questId);
-    const completedQuestIds = [...playerState.completedQuestIds]
+    const completedQuestIds = [...(playerState?.completedQuestIds ?? [])]
       .filter((questId) => this.questDefinitions.get(questId)?.npcId === npcId)
       .sort();
     return Object.freeze({
@@ -311,7 +321,8 @@ export class NpcQuestService {
 
   public getNpcReputation(playerId: string, npcId: string): NpcReputationSnapshot | null {
     if (!this.npcDefinitions.has(npcId)) return null;
-    const state = this.getOrCreateNpcReputation(npcId, playerId);
+    const state = this.npcReputations.get(npcId)?.get(playerId);
+    if (!state) return null;
     return Object.freeze({
       npcId,
       playerId,
@@ -377,15 +388,17 @@ export class NpcQuestService {
   }
 
   public exportPlayerState(playerId: string): PersistedNpcQuestPlayerState {
-    const state = this.getOrCreatePlayerState(playerId);
-    const reputations = [...this.npcDefinitions.keys()].map((npcId) => {
-      const reputation = this.getOrCreateNpcReputation(npcId, playerId);
-      return {
-        npcId,
-        reputation: reputation.reputation,
-        completedQuestIds: [...reputation.completedQuestIds].sort(),
-      };
-    });
+    const state = this.playerQuestStates.get(playerId) ?? createEmptyPlayerState();
+    const reputations = [...this.npcDefinitions.keys()]
+      .map((npcId) => {
+        const reputation = this.npcReputations.get(npcId)?.get(playerId);
+        return reputation ? {
+          npcId,
+          reputation: reputation.reputation,
+          completedQuestIds: [...reputation.completedQuestIds].sort(),
+        } : null;
+      })
+      .filter((entry): entry is { npcId: string; reputation: number; completedQuestIds: string[] } => entry !== null);
     return normalizeNpcQuestPlayerState({
       schemaVersion: 1,
       playerId,
