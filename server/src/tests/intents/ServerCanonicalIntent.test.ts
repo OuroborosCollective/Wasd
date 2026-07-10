@@ -116,4 +116,48 @@ describe("ServerCanonicalIntent", () => {
       }),
     ).toThrow(/server-authoritative/);
   });
+
+  it("rejects invalid tick evidence instead of canonicalizing a fake tick", () => {
+    expect(() => canonicalizeClientIntent(gatherIntent(), {
+      actorId: "player:test",
+      tickId: Number.NaN,
+      logicalIndex: 1,
+      receivedOrder: 0,
+      chunkKey: "chunk:0:0",
+    })).toThrow(/tickId/);
+
+    expect(() => canonicalizeClientIntent(gatherIntent(), {
+      actorId: "player:test",
+      tickId: 1,
+      logicalIndex: Number.NaN,
+      receivedOrder: 0,
+      chunkKey: "chunk:0:0",
+    })).toThrow(/logicalIndex/);
+  });
+
+  it("rejects unsupported actions and unsafe request ids", () => {
+    const unsupported = {
+      action: "sell",
+      payload: {},
+    } as unknown as ClientIntent;
+    expect(() => canonicalizeClientIntent(unsupported, {
+      actorId: "player:test",
+      tickId: 1,
+      logicalIndex: 1,
+      receivedOrder: 0,
+      chunkKey: "chunk:0:0",
+    })).toThrow(/action/);
+
+    const unsafeRequest = {
+      ...gatherIntent(),
+      requestId: "request id with spaces",
+    };
+    expect(() => canonicalizeClientIntent(unsafeRequest, {
+      actorId: "player:test",
+      tickId: 1,
+      logicalIndex: 1,
+      receivedOrder: 0,
+      chunkKey: "chunk:0:0",
+    })).toThrow(/requestId/);
+  });
 });
