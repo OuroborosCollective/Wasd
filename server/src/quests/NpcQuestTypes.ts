@@ -114,8 +114,18 @@ export const VILLAGE_SUPPLY_ORDER_QUEST: NpcQuestDefinition = Object.freeze({
 });
 
 export type ActionResult<T> =
-  | { ok: true; result: T }
-  | { ok: false; reason: string; details?: Record<string, unknown> };
+  | {
+      readonly ok: true;
+      readonly result: T;
+      readonly reason?: undefined;
+      readonly details?: undefined;
+    }
+  | {
+      readonly ok: false;
+      readonly reason: string;
+      readonly details?: Record<string, unknown>;
+      readonly result?: undefined;
+    };
 
 export const QuestFailReasons = Object.freeze({
   MISSING_PLAYER: "missing_player",
@@ -132,6 +142,7 @@ export const QuestFailReasons = Object.freeze({
   REWARD_ALREADY_CLAIMED: "reward_already_claimed",
   PERSISTENCE_FAILED: "persistence_failed",
   REWARD_COMMIT_FAILED: "reward_commit_failed",
+  REWARD_RECOVERY_FAILED: "reward_recovery_failed",
 } as const);
 
 export type QuestFailReason = typeof QuestFailReasons[keyof typeof QuestFailReasons];
