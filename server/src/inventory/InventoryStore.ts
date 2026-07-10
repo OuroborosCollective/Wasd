@@ -109,6 +109,15 @@ export class InventoryStore {
     return Object.freeze(normalizeOriginUids([...(this.appliedOriginUidsByPlayer.get(playerId) ?? [])]));
   }
 
+  getMovementEventCount(): number {
+    return this.movementEvents.length;
+  }
+
+  truncateMovementEvents(count: number): void {
+    const safeCount = Number.isSafeInteger(count) && count >= 0 ? count : 0;
+    this.movementEvents.length = Math.min(safeCount, this.movementEvents.length);
+  }
+
   addItem(input: {
     playerId: string;
     itemId: InventoryItemId | string;
