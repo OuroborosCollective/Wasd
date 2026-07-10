@@ -10,6 +10,7 @@ import {
   type ServerCanonicalIntent,
 } from "../intents/ServerCanonicalIntent.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
+import { isInventoryItemId, type InventoryItemId } from "../inventory/InventoryTypes.js";
 import { getVisibleChunkCoords } from "../resources/ChunkResourceGenerator.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import { generateVisibleChunkPois, getStarterVillagePois } from "../world/WorldPoiGenerator.js";
@@ -29,7 +30,7 @@ interface CampInteractPayload {
   readonly interaction: "camp_talk" | "camp_buy_stock";
   readonly poiId: string;
   readonly playerPosition: { readonly x: number; readonly y: number };
-  readonly itemId?: string;
+  readonly itemId?: InventoryItemId;
   readonly quantity?: number;
 }
 
@@ -43,6 +44,10 @@ function parseId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return /^[a-zA-Z0-9:_-]{1,192}$/.test(trimmed) ? trimmed : null;
+}
+
+function parseInventoryItemId(value: unknown): InventoryItemId | null {
+  return isInventoryItemId(value) ? value : null;
 }
 
 function parseRequestId(value: unknown): string | undefined {
@@ -219,7 +224,7 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
   if (!requireProductionAuth(identity, res)) return;
   const npcId = parseId(req.params.npcId);
-  const itemId = parseId(req.body?.itemId);
+  const itemId = parseInventoryItemId(req.body?.itemId);
   const quantity = parseQuantity(req.body?.quantity);
   const tick = runtimeTick();
   const position = runtimePosition(identity.playerId);
@@ -305,7 +310,7 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
         origin: {
           uid: originUid,
           tick: tick.tick,
-          source: "economy_delta",
+          source: "trade_delta",
           sourceHash: intent.intentHash,
         },
       });
