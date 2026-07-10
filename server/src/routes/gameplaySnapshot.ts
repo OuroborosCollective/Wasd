@@ -1,6 +1,7 @@
 import express from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
+import { stableHash32 } from "../core/determinism/AREDeterminism.js";
 import { worldTickAdapter } from "../core/are/WorldTickThinShellAdapter.js";
 import { characterService } from "../character/characterRuntime.js";
 import { createPaperdollSnapshot } from "../character/PaperdollTypes.js";
@@ -51,6 +52,11 @@ function runtimePlayerPosition(playerId: string): { x: number; y: number } | und
   return { x, y };
 }
 
+function snapshotRevision(playerId: string, serverTick: number, snapshot: unknown): string {
+  const payload = JSON.stringify(snapshot);
+  return stableHash32(`LIVE_GAMEPLAY_REVISION_V2|${playerId}|${serverTick}|${payload}`).toString(16);
+}
+
 export function createGameplaySnapshotRouter(_deps: GameplaySnapshotRouterDeps = {}) {
   const router = express.Router();
 
@@ -84,7 +90,7 @@ export function createGameplaySnapshotRouter(_deps: GameplaySnapshotRouterDeps =
 
     const inventoryService = await getInventoryService();
     const inventory = await inventoryService.getPlayerInventory(identity.playerId);
-    const craftingRecipes = await craftingService.listRecipeSnapshots(identity.playerId);
+    const craftingRecipes = await craftingService.listRecipeSnapshots(identity.playerId, playerPosition);
     const equipment = await equipmentService.getPlayerEquipment(identity.playerId);
     const character = await characterService.getCharacterProfile(identity.playerId);
     const characterSnapshot = toCharacterProfileSnapshot(character);
@@ -149,7 +155,7 @@ export function createGameplaySnapshotRouter(_deps: GameplaySnapshotRouterDeps =
       discovered: discoveredPoiIds.includes(poi.id),
     }));
 
-    const liveGameplaySnapshot = await composeLiveGameplaySnapshotFromLegacy({
+    const composed = await composeLiveGameplaySnapshotFromLegacy({
       playerId: identity.playerId,
       logicalIndex: serverTick,
       inventory,
@@ -160,12 +166,16 @@ export function createGameplaySnapshotRouter(_deps: GameplaySnapshotRouterDeps =
       discoveryStats,
       recentDiscoveries: [],
     });
+    const revisionHash = snapshotRevision(identity.playerId, serverTick, composed);
+    const liveGameplaySnapshot = Object.freeze({ ...composed, revisionHash });
 
     res.json({
       ok: true,
       playerId: identity.playerId,
       playerIdentitySource: identity.source,
       authenticated: identity.authenticated,
+      serverTick,
+      revisionHash,
       snapshot,
       liveGameplaySnapshot,
       workOrders,
