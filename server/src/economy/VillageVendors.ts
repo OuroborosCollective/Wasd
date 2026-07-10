@@ -5,8 +5,8 @@
  * Vendors are stationary NPCs that players must be near to sell resources.
  *
  * Rules:
- * - No Math.random()
- * - No Date.now()
+ * - No host randomness
+ * - No wall-clock gameplay truth
  * - Deterministic IDs and positions
  */
 
