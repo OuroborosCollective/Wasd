@@ -31,6 +31,10 @@ export class InventoryService {
     return this.store.getPlayerInventory(playerId);
   }
 
+  getAppliedOriginUids(playerId: string): readonly string[] {
+    return this.store.getAppliedOriginUids(playerId);
+  }
+
   async addItem(input: {
     playerId: string;
     itemId: InventoryItemId | string;
@@ -42,9 +46,7 @@ export class InventoryService {
     const result = this.store.addItem(input);
 
     if (result.ok && result.state) {
-      await this.persistence.savePlayerInventory(
-        createPersistedPlayerInventoryState(input.playerId, result.state),
-      );
+      await this.persistInventory(input.playerId, result.state);
     }
 
     return result;
@@ -60,9 +62,7 @@ export class InventoryService {
     const result = this.store.removeItem(input);
 
     if (result.ok && result.state) {
-      await this.persistence.savePlayerInventory(
-        createPersistedPlayerInventoryState(input.playerId, result.state),
-      );
+      await this.persistInventory(input.playerId, result.state);
     }
 
     return result;
@@ -78,13 +78,30 @@ export class InventoryService {
 
   async persistInventory(playerId: string, state: PlayerInventoryState): Promise<void> {
     await this.persistence.savePlayerInventory(
-      createPersistedPlayerInventoryState(playerId, state),
+      createPersistedPlayerInventoryState(
+        playerId,
+        state,
+        this.store.getAppliedOriginUids(playerId),
+      ),
     );
   }
 
-  replacePlayerInventory(playerId: string, state: PlayerInventoryState): void {
-    this.store.replacePlayerInventory(playerId, state);
+  replacePlayerInventory(
+    playerId: string,
+    state: PlayerInventoryState,
+    appliedOriginUids: readonly string[] = [],
+  ): void {
+    this.store.replacePlayerInventory(playerId, state, appliedOriginUids);
     this.hydratedPlayers.add(playerId);
+  }
+
+  async restorePlayerInventory(
+    playerId: string,
+    state: PlayerInventoryState,
+    appliedOriginUids: readonly string[] = [],
+  ): Promise<void> {
+    this.replacePlayerInventory(playerId, state, appliedOriginUids);
+    await this.persistInventory(playerId, state);
   }
 
   async hydratePlayer(playerId: string): Promise<void> {
@@ -92,7 +109,7 @@ export class InventoryService {
 
     const persisted = await this.persistence.loadPlayerInventory(playerId);
     if (persisted) {
-      this.store.replacePlayerInventory(playerId, persisted);
+      this.store.replacePlayerInventory(playerId, persisted, persisted.appliedOriginUids);
     }
 
     this.hydratedPlayers.add(playerId);
