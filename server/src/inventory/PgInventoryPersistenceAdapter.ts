@@ -11,7 +11,33 @@ import {
   type InventoryPersistenceAdapter,
   type PersistedPlayerInventoryState,
 } from "./InventoryPersistence.js";
-import { normalizePlayerInventoryState } from "./InventoryTypes.js";
+import type { PlayerInventoryState } from "./InventoryTypes.js";
+
+interface PersistedInventoryJson {
+  readonly slots?: unknown;
+  readonly appliedOriginUids?: unknown;
+}
+
+function readPersistedInventoryJson(value: unknown): {
+  slots: PlayerInventoryState["slots"];
+  appliedOriginUids: string[];
+} {
+  if (Array.isArray(value)) {
+    return { slots: value as PlayerInventoryState["slots"], appliedOriginUids: [] };
+  }
+
+  if (!value || typeof value !== "object") {
+    return { slots: [], appliedOriginUids: [] };
+  }
+
+  const record = value as PersistedInventoryJson;
+  return {
+    slots: Array.isArray(record.slots) ? record.slots as PlayerInventoryState["slots"] : [],
+    appliedOriginUids: Array.isArray(record.appliedOriginUids)
+      ? record.appliedOriginUids.map((entry) => String(entry))
+      : [],
+  };
+}
 
 export class PgInventoryPersistenceAdapter implements InventoryPersistenceAdapter {
   constructor(private readonly databaseUrl = process.env.DATABASE_URL) {}
@@ -31,13 +57,16 @@ export class PgInventoryPersistenceAdapter implements InventoryPersistenceAdapte
       const row = result.rows[0];
       if (!row) return null;
 
-      return normalizePlayerInventoryState(
+      const persisted = readPersistedInventoryJson(row.inventory_json);
+      return createPersistedPlayerInventoryState(
+        row.player_id,
         {
           playerId: row.player_id,
           schemaVersion: 1,
-          slots: Array.isArray(row.inventory_json) ? row.inventory_json : [],
+          slots: persisted.slots,
+          capacity: 32,
         },
-        playerId,
+        persisted.appliedOriginUids,
       );
     } finally {
       await client.end().catch(() => undefined);
@@ -47,7 +76,11 @@ export class PgInventoryPersistenceAdapter implements InventoryPersistenceAdapte
   async savePlayerInventory(state: PersistedPlayerInventoryState): Promise<void> {
     if (!this.databaseUrl) return;
 
-    const normalized = createPersistedPlayerInventoryState(state.playerId, state);
+    const normalized = createPersistedPlayerInventoryState(
+      state.playerId,
+      state,
+      state.appliedOriginUids,
+    );
     const client = new Client({ connectionString: this.databaseUrl });
 
     try {
@@ -62,7 +95,14 @@ export class PgInventoryPersistenceAdapter implements InventoryPersistenceAdapte
           inventory_json = EXCLUDED.inventory_json,
           updated_at = NOW()
         `,
-        [normalized.playerId, normalized.schemaVersion, JSON.stringify(normalized.slots)],
+        [
+          normalized.playerId,
+          normalized.schemaVersion,
+          JSON.stringify({
+            slots: normalized.slots,
+            appliedOriginUids: normalized.appliedOriginUids,
+          }),
+        ],
       );
     } finally {
       await client.end().catch(() => undefined);

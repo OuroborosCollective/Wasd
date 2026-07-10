@@ -12,7 +12,6 @@ import {
   type InventoryPersistenceAdapter,
   type PersistedPlayerInventoryState,
 } from "./InventoryPersistence.js";
-import { normalizePlayerInventoryState } from "./InventoryTypes.js";
 
 interface InventoryFile {
   schemaVersion: 1;
@@ -23,7 +22,11 @@ function stableFile(players: PersistedPlayerInventoryState[]): InventoryFile {
   return {
     schemaVersion: 1,
     players: [...players]
-      .map((player) => createPersistedPlayerInventoryState(player.playerId, player))
+      .map((player) => createPersistedPlayerInventoryState(
+        player.playerId,
+        player,
+        player.appliedOriginUids,
+      ))
       .sort((a, b) => a.playerId.localeCompare(b.playerId)),
   };
 }
@@ -40,12 +43,18 @@ export class JsonInventoryPersistenceAdapter implements InventoryPersistenceAdap
   async loadPlayerInventory(playerId: string): Promise<PersistedPlayerInventoryState | null> {
     const file = await this.readFileSafe();
     const found = file.players.find((player) => player.playerId === playerId);
-    return found ? normalizePlayerInventoryState(found, playerId) : null;
+    return found
+      ? createPersistedPlayerInventoryState(found.playerId, found, found.appliedOriginUids)
+      : null;
   }
 
   async savePlayerInventory(state: PersistedPlayerInventoryState): Promise<void> {
     const file = await this.readFileSafe();
-    const normalized = createPersistedPlayerInventoryState(state.playerId, state);
+    const normalized = createPersistedPlayerInventoryState(
+      state.playerId,
+      state,
+      state.appliedOriginUids,
+    );
     const withoutPlayer = file.players.filter((player) => player.playerId !== normalized.playerId);
     await this.writeFileAtomic(stableFile([...withoutPlayer, normalized]));
   }
@@ -70,7 +79,11 @@ export class JsonInventoryPersistenceAdapter implements InventoryPersistenceAdap
 
       return stableFile(
         Array.isArray(parsed.players)
-          ? parsed.players.map((player) => normalizePlayerInventoryState(player, player.playerId))
+          ? parsed.players.map((player) => createPersistedPlayerInventoryState(
+              player.playerId,
+              player,
+              Array.isArray(player.appliedOriginUids) ? player.appliedOriginUids : [],
+            ))
           : [],
       );
     } catch {
