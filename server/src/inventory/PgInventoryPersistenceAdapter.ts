@@ -11,6 +11,7 @@ import {
   type InventoryPersistenceAdapter,
   type PersistedPlayerInventoryState,
 } from "./InventoryPersistence.js";
+import type { PlayerInventoryState } from "./InventoryTypes.js";
 
 interface PersistedInventoryJson {
   readonly slots?: unknown;
@@ -18,11 +19,11 @@ interface PersistedInventoryJson {
 }
 
 function readPersistedInventoryJson(value: unknown): {
-  slots: unknown[];
+  slots: PlayerInventoryState["slots"];
   appliedOriginUids: string[];
 } {
   if (Array.isArray(value)) {
-    return { slots: value, appliedOriginUids: [] };
+    return { slots: value as PlayerInventoryState["slots"], appliedOriginUids: [] };
   }
 
   if (!value || typeof value !== "object") {
@@ -31,7 +32,7 @@ function readPersistedInventoryJson(value: unknown): {
 
   const record = value as PersistedInventoryJson;
   return {
-    slots: Array.isArray(record.slots) ? record.slots : [],
+    slots: Array.isArray(record.slots) ? record.slots as PlayerInventoryState["slots"] : [],
     appliedOriginUids: Array.isArray(record.appliedOriginUids)
       ? record.appliedOriginUids.map((entry) => String(entry))
       : [],
