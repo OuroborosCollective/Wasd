@@ -104,6 +104,19 @@ export class ResourceEcologyService {
     return this.states.delete(nodeId);
   }
 
+  captureNodeState(nodeId: string): ResourceNodeEcologyState | null {
+    const state = this.states.get(nodeId);
+    return state ? freezeState(state) : null;
+  }
+
+  restoreNodeState(nodeId: string, state: ResourceNodeEcologyState | null): void {
+    if (state) {
+      this.states.set(nodeId, freezeState(state));
+    } else {
+      this.states.delete(nodeId);
+    }
+  }
+
   applyExtraction(input: ResourceEcologyExtractionInput): ResourceNodeEcologySnapshot | null {
     const current = this.states.get(input.nodeId);
     if (!current) return null;
