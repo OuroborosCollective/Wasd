@@ -1,25 +1,25 @@
 import express, { Router, type Response } from "express";
 import rateLimit from "express-rate-limit";
-import { stableHash32 } from "../core/determinism/AREDeterminism.js";
-import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
-import { getInventoryService } from "../inventory/inventoryRuntime.js";
-import { transferInventoryItemPersistent } from "../inventory/InventoryTransferService.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
+import { stableHash32 } from "../core/determinism/AREDeterminism.js";
+import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
 import {
   canonicalizeClientIntent,
   chunkKeyFromWorldPosition,
   type ServerCanonicalIntent,
 } from "../intents/ServerCanonicalIntent.js";
+import { getInventoryService } from "../inventory/inventoryRuntime.js";
+import { transferInventoryItemPersistent } from "../inventory/InventoryTransferService.js";
+import { deriveEconomyWorkOrders } from "../quests/EconomyWorkOrderService.js";
+import { npcQuestRuntime } from "../quests/NpcQuestRuntime.js";
+import { campQuestRuntime } from "../quests/campQuestRuntime.js";
 import { economyService, vendorStockService } from "./economyRuntime.js";
 import {
   getAllVendors,
   getVendorActorEvidence,
   type VendorActorEvidence,
 } from "./VillageVendors.js";
-import { deriveEconomyWorkOrders } from "../quests/EconomyWorkOrderService.js";
-import { npcQuestService } from "../quests/NpcQuestService.js";
-import { campQuestRuntime } from "../quests/campQuestRuntime.js";
-import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
 
 const router = Router();
 
@@ -195,6 +195,23 @@ function canonicalizeEconomyInventory(input: {
   ) as CanonicalEconomyInventory;
 }
 
+async function persistSoldQuestProgress(
+  playerId: string,
+  sold: readonly { readonly itemId: string; readonly quantitySold: number }[],
+): Promise<{ committed: boolean; error?: string }> {
+  for (const entry of [...sold].sort((a, b) => a.itemId.localeCompare(b.itemId))) {
+    if (entry.quantitySold <= 0) continue;
+    const progress = await npcQuestRuntime.updateQuestProgress(
+      playerId,
+      "sell",
+      entry.itemId,
+      entry.quantitySold,
+    );
+    if (!progress.ok) return { committed: false, error: progress.reason };
+  }
+  return { committed: true };
+}
+
 router.post("/sell-resource", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
   if (!requireProductionAuth(identity, res)) return;
@@ -227,10 +244,19 @@ router.post("/sell-resource", async (req, res) => {
       vendorId: payload.targetId,
       currentTick: canonicalIntent.logicalIndex,
     });
-    if (result.ok && payload.itemId && payload.quantity) {
-      npcQuestService.updateQuestProgress(canonicalIntent.actorId, "sell", payload.itemId, payload.quantity);
-    }
-    res.status(result.ok ? 200 : 409).json({ ok: result.ok, result, canonicalIntent });
+    const questProgress = result.ok
+      ? await persistSoldQuestProgress(canonicalIntent.actorId, [{
+          itemId: result.itemId,
+          quantitySold: result.quantitySold,
+        }])
+      : { committed: false as const };
+    res.status(result.ok ? 200 : 409).json({
+      ok: result.ok,
+      result,
+      canonicalIntent,
+      questProgressCommitted: result.ok ? questProgress.committed : null,
+      ...(questProgress.error ? { questProgressError: questProgress.error } : {}),
+    });
   } catch (error) {
     console.error("[economy-sell-resource] Failed to sell resource:", error);
     res.status(500).json({ ok: false, error: "internal_error", canonicalIntent });
@@ -262,7 +288,16 @@ router.post("/sell-all-resources", async (req, res) => {
       vendorId: canonicalIntent.payload.targetId,
       currentTick: canonicalIntent.logicalIndex,
     });
-    res.status(result.ok ? 200 : 409).json({ ok: result.ok, result, canonicalIntent });
+    const questProgress = result.ok
+      ? await persistSoldQuestProgress(canonicalIntent.actorId, result.sold)
+      : { committed: false as const };
+    res.status(result.ok ? 200 : 409).json({
+      ok: result.ok,
+      result,
+      canonicalIntent,
+      questProgressCommitted: result.ok ? questProgress.committed : null,
+      ...(questProgress.error ? { questProgressError: questProgress.error } : {}),
+    });
   } catch (error) {
     console.error("[economy-sell-all-resources] Failed to sell resources:", error);
     res.status(500).json({ ok: false, error: "internal_error", canonicalIntent });
@@ -412,9 +447,16 @@ router.get("/work-orders", async (req, res) => {
 });
 
 router.get("/market-snapshot", async (_req, res) => {
+  const runtime = requireRuntimeTick(res);
+  if (!runtime) return;
   try {
     const snapshot = await economyService.marketSnapshot();
-    res.json({ ok: true, snapshot });
+    const revisionHash = stableHash32([
+      "ECONOMY_MARKET_RESPONSE_V2",
+      runtime.tick,
+      JSON.stringify(snapshot),
+    ].join("|")).toString(16);
+    res.json({ ok: true, tick: runtime.tick, tickId: runtime.tickId, revisionHash, snapshot });
   } catch (error) {
     console.error("[economy-market-snapshot] Failed to create snapshot:", error);
     res.status(500).json({ ok: false, error: "internal_error" });
