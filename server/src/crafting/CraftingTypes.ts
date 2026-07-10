@@ -2,13 +2,13 @@
  * CRAFTING TYPES
  *
  * Deterministic crafting recipe types for server-authoritative crafting.
- * No Date.now(), no Math.random(), stable recipe IDs and ordering.
  */
 
 import type { InventoryItemId } from "../inventory/InventoryTypes.js";
 import type { ProcessingStationType } from "./ProcessingStations.js";
 
 export type RecipeId =
+  | "saw_wood_planks"
   | "craft_wood_plank"
   | "smelt_copper_ingot"
   | "cook_raw_fish"
@@ -36,6 +36,7 @@ export interface CraftingRecipe {
   craftingXpReward: number;
   ingredients: RecipeIngredient[];
   outputs: RecipeOutput[];
+  /** Zero means the current runtime commits the recipe immediately in one tick. */
   craftTicks: number;
   stationType?: ProcessingStationType;
 }
@@ -47,10 +48,14 @@ export type CraftingFailureReason =
   | "missing_ingredients"
   | "inventory_full"
   | "invalid_player"
+  | "invalid_tick"
+  | "invalid_operation_id"
   | "missing_player_position"
   | "invalid_player_position"
   | "station_too_far"
-  | "station_type_mismatch";
+  | "station_type_mismatch"
+  | "transaction_failed"
+  | "transaction_recovery_failed";
 
 export interface CraftingResult {
   ok: boolean;
@@ -60,6 +65,11 @@ export interface CraftingResult {
   consumed?: RecipeIngredient[];
   outputs?: RecipeOutput[];
   craftingXpReward?: number;
+  currentTick?: number;
+  craftHash?: string;
+  originUids?: readonly string[];
+  replayed?: boolean;
+  rollbackOk?: boolean;
 }
 
 export interface CraftingRecipeSnapshot {
