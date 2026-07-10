@@ -83,6 +83,7 @@ interface EconomyStateSnapshot {
   readonly vendorId: string;
   readonly inventory: PlayerInventoryState;
   readonly appliedOriginUids: readonly string[];
+  readonly movementEventCount: number;
   readonly wallet: WalletState;
   readonly stock: VendorStockState;
 }
@@ -276,6 +277,7 @@ export class EconomyService {
       vendorId,
       inventory: cloneInventory(inventory),
       appliedOriginUids: [...this.inventoryService.getAppliedOriginUids(playerId)],
+      movementEventCount: this.inventoryService.getMovementEventCount(),
       wallet: cloneWallet(wallet),
       stock: cloneStock(stock),
     };
@@ -283,7 +285,12 @@ export class EconomyService {
 
   private async restoreStateOrThrow(snapshot: EconomyStateSnapshot, cause: unknown): Promise<void> {
     const results = await Promise.allSettled([
-      this.inventoryService.restorePlayerInventory(snapshot.playerId, snapshot.inventory, snapshot.appliedOriginUids),
+      this.inventoryService.restorePlayerInventory(
+        snapshot.playerId,
+        snapshot.inventory,
+        snapshot.appliedOriginUids,
+        snapshot.movementEventCount,
+      ),
       this.walletService.restoreWallet(snapshot.playerId, snapshot.wallet),
       this.vendorStockService.restoreStock(snapshot.vendorId, snapshot.stock),
     ]);
