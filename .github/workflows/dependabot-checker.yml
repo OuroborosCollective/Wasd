@@ -54,9 +54,6 @@ jobs:
             echo "server_relevant=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # ----------------------------
-      # SAFETY CHECK (skip AI for truly sensitive files)
-      # ----------------------------
       - name: Block sensitive paths
         run: |
           set -euo pipefail
@@ -88,21 +85,30 @@ jobs:
 
       - name: Lint
         run: |
-          set -euo pipefail
-          pnpm -r --if-present lint || echo "::warning::package lint failed after optional autofix; continuing to deterministic gates"
-          pnpm run guard:all
-          if [ "${{ steps.changes.outputs.server_relevant }}" = "true" ]; then
-            NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/server exec tsc --noEmit
-          else
-            echo "No server/shared/core changes detected; skipping server tsc gate for this PR."
-          fi
+          set -o pipefail
+          {
+            set -euo pipefail
+            pnpm -r --if-present lint || echo "::warning::package lint failed after optional autofix; continuing to deterministic gates"
+            pnpm run guard:all
+            if [ "${{ steps.changes.outputs.server_relevant }}" = "true" ]; then
+              NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/server exec tsc --noEmit
+            else
+              echo "No server/shared/core changes detected; skipping server tsc gate for this PR."
+            fi
+          } 2>&1 | tee "$RUNNER_TEMP/runtime-truth-lint.log"
+
+      - name: Upload runtime truth lint diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-truth-lint-${{ github.sha }}
+          path: ${{ runner.temp }}/runtime-truth-lint.log
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Test
         run: pnpm -r --if-present test
 
-      # ----------------------------
-      # GATE
-      # ----------------------------
       - name: Merge Gate
         id: gate
         run: |
@@ -119,9 +125,6 @@ jobs:
           pnpm -r --if-present test
           echo "safe=true" >> $GITHUB_OUTPUT
 
-      # ----------------------------
-      # COMMIT FIXES
-      # ----------------------------
       - name: Commit AI fixes
         if: ${{ github.actor == 'dependabot[bot]' || contains(github.head_ref, 'fix/') }}
         run: |
