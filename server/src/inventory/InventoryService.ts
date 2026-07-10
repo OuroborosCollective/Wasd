@@ -14,6 +14,7 @@ import type {
   InventoryAddResult,
   InventoryItemId,
   InventoryItemOrigin,
+  InventoryMovementEvent,
   InventoryRemoveResult,
   PlayerInventoryState,
 } from "./InventoryTypes.js";
@@ -37,6 +38,10 @@ export class InventoryService {
 
   getMovementEventCount(): number {
     return this.store.getMovementEventCount();
+  }
+
+  getMovementEvents(playerId?: string): readonly InventoryMovementEvent[] {
+    return this.store.getMovementEvents(playerId);
   }
 
   async addItem(input: {
