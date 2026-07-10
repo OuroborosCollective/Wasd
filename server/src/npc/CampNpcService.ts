@@ -50,10 +50,7 @@ function validTick(value: unknown): value is number {
 }
 
 function copyState(state: CampStockStateSnapshot | MutableCampStockState): MutableCampStockState {
-  return {
-    items: { ...state.items },
-    lastProcessedCycle: state.lastProcessedCycle,
-  };
+  return { items: { ...state.items }, lastProcessedCycle: state.lastProcessedCycle };
 }
 
 function freezeState(state: CampStockStateSnapshot | MutableCampStockState): CampStockStateSnapshot {
@@ -80,10 +77,7 @@ function latestDepositedCycle(currentTick: number): number {
 export class CampNpcService {
   private readonly campStocks = new Map<string, MutableCampStockState>();
 
-  public generateCampNpcs(
-    pois: readonly WorldPoiSnapshot[],
-    currentTick: number,
-  ): CampNpcSnapshot[] {
+  public generateCampNpcs(pois: readonly WorldPoiSnapshot[], currentTick: number): CampNpcSnapshot[] {
     if (!validTick(currentTick)) return [];
     const npcs: CampNpcSnapshot[] = [];
     for (const poi of pois) {
@@ -127,13 +121,9 @@ export class CampNpcService {
     return activity === "depositing" ? "idle" : "working";
   }
 
-  /** Explicit tick mutation hook. Snapshot reads never call this method. */
+  /** Compatibility hook retained for callers; projection is deliberately mutation-free. */
   public updateCampStock(pois: readonly WorldPoiSnapshot[], currentTick: number): void {
-    if (!validTick(currentTick)) return;
-    for (const poi of pois) {
-      if (!isGatheringCamp(poi.type)) continue;
-      this.campStocks.set(poi.id, copyState(this.projectStockState(poi, currentTick)));
-    }
+    void this.getCampStockSnapshots(pois, currentTick);
   }
 
   public projectStockState(poi: WorldPoiSnapshot, currentTick: number): CampStockStateSnapshot {
@@ -154,10 +144,7 @@ export class CampNpcService {
     return freezeState(projected);
   }
 
-  public getCampStockSnapshots(
-    pois: readonly WorldPoiSnapshot[],
-    currentTick: number,
-  ): CampStockSnapshot[] {
+  public getCampStockSnapshots(pois: readonly WorldPoiSnapshot[], currentTick: number): CampStockSnapshot[] {
     if (!validTick(currentTick)) return [];
     return pois
       .filter((poi) => isGatheringCamp(poi.type))
@@ -228,7 +215,6 @@ export class CampNpcService {
     else this.campStocks.set(poiId, copyState(state));
   }
 
-  /** Compatibility wrapper for tests and old callers with an already committed stock state. */
   public buyStock(input: {
     poiId: string;
     itemId: string;
