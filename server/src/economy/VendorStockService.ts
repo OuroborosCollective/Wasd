@@ -6,9 +6,9 @@
  */
 
 import { VendorStockStore } from "./VendorStockStore.js";
-import type {
-  VendorStockPersistenceAdapter,
-  PersistedVendorStockState,
+import {
+  createPersistedVendorStockState,
+  type VendorStockPersistenceAdapter,
 } from "./VendorStockPersistence.js";
 import type { VendorStockState } from "./VendorStockTypes.js";
 
@@ -35,7 +35,7 @@ export class VendorStockService {
     const result = this.store.addItems(vendorId, itemId, quantity);
 
     if (result.items[itemId] !== undefined) {
-      await this.persistence.saveStock(createPersistedVendorStockState(vendorId, result));
+      await this.persistStock(vendorId, result);
     }
 
     return result;
@@ -45,13 +45,28 @@ export class VendorStockService {
     await this.hydrateVendor(vendorId);
     const result = this.store.removeItems(vendorId, itemId, quantity);
     if (!result) return null;
-    await this.persistence.saveStock(createPersistedVendorStockState(vendorId, result));
+    await this.persistStock(vendorId, result);
     return result;
   }
 
   async getStockEntries(vendorId: string): Promise<Array<{ itemId: string; quantity: number }>> {
     await this.hydrateVendor(vendorId);
     return this.store.getStockEntries(vendorId);
+  }
+
+  async persistStock(vendorId: string, state: VendorStockState): Promise<void> {
+    await this.persistence.saveStock(createPersistedVendorStockState(vendorId, state));
+  }
+
+  async restoreStock(vendorId: string, state: VendorStockState): Promise<void> {
+    const restored: VendorStockState = Object.freeze({
+      vendorId,
+      schemaVersion: 1,
+      items: Object.freeze({ ...state.items }),
+    });
+    this.store.replaceStock(vendorId, restored);
+    this.hydratedVendors.add(vendorId);
+    await this.persistStock(vendorId, restored);
   }
 
   private async hydrateVendor(vendorId: string): Promise<void> {
@@ -68,15 +83,4 @@ export class VendorStockService {
   clearForTests(): void {
     this.hydratedVendors.clear();
   }
-}
-
-function createPersistedVendorStockState(
-  vendorId: string,
-  state: VendorStockState,
-): PersistedVendorStockState {
-  return {
-    vendorId,
-    schemaVersion: state.schemaVersion,
-    items: { ...state.items },
-  };
 }
