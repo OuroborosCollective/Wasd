@@ -26,7 +26,6 @@ export type NpcDialogueState =
   | "quest_active_missing_wood"
   | "quest_active_ready_to_process"
   | "quest_active_ready_to_sell"
-  | "quest_active_ready_to_return"
   | "quest_ready_to_complete"
   | "quest_completed";
 
