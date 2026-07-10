@@ -38,8 +38,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Install repository-pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -62,7 +64,7 @@ jobs:
       - name: Build 2D client
         run: |
           set -o pipefail
-          pnpm build:2d 2>&1 | tee client-2d-render-build.log
+          pnpm --filter @wasd/client-2d build 2>&1 | tee client-2d-render-build.log
 
       - name: Upload render build evidence
         if: always()
