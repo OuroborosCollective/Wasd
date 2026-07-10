@@ -1,0 +1,287 @@
+import { getWalletService } from "../economy/economyRuntime.js";
+import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
+import { npcMemoryService } from "../npc/NpcMemoryService.js";
+import { getSkillProgressionService } from "../skills/skillRuntime.js";
+import type { PlayerSkillState } from "../skills/SkillTypes.js";
+import type { WalletState } from "../economy/WalletTypes.js";
+import { JsonNpcQuestPersistenceAdapter } from "./JsonNpcQuestPersistenceAdapter.js";
+import { npcQuestService, type NpcQuestService } from "./NpcQuestService.js";
+import type { ActionResult, QuestProgressSnapshot } from "./NpcQuestTypes.js";
+import type {
+  NpcQuestPersistenceAdapter,
+  PersistedNpcQuestPlayerState,
+} from "./NpcQuestPersistence.js";
+
+export interface NpcQuestMutationEvidence {
+  readonly intentHash: string;
+  readonly tick: number;
+  readonly chunkKey: string;
+}
+
+export interface NpcQuestCompletionResult {
+  readonly questProgress: QuestProgressSnapshot;
+  readonly reward: {
+    readonly coins: number;
+    readonly gatheringXp: number;
+    readonly craftingXp: number;
+    readonly reputation: number;
+  };
+  readonly wallet: WalletState;
+  readonly skills: PlayerSkillState;
+  readonly reputation: number;
+  readonly intentHash: string;
+  readonly historyHash: string;
+  readonly tick: number;
+}
+
+function stableState(value: PersistedNpcQuestPlayerState): string {
+  return JSON.stringify(value);
+}
+
+export class NpcQuestRuntime {
+  private readonly hydratedPlayers = new Set<string>();
+  private readonly locks = new Map<string, Promise<void>>();
+
+  public constructor(
+    private readonly service: NpcQuestService = npcQuestService,
+    private readonly persistence: NpcQuestPersistenceAdapter = new JsonNpcQuestPersistenceAdapter(),
+  ) {}
+
+  public async hydratePlayer(playerId: string): Promise<void> {
+    if (this.hydratedPlayers.has(playerId)) return;
+    const persisted = await this.persistence.loadPlayerState(playerId);
+    if (persisted) this.service.restorePlayerState(persisted);
+    this.hydratedPlayers.add(playerId);
+  }
+
+  public async acceptQuest(
+    playerId: string,
+    questId: string,
+    evidence: NpcQuestMutationEvidence,
+  ): Promise<ActionResult<QuestProgressSnapshot & { intentHash: string; historyHash: string; tick: number }>> {
+    return this.runExclusive(playerId, async () => {
+      await this.hydratePlayer(playerId);
+      const before = this.service.clonePlayerState(playerId);
+      const result = this.service.acceptQuest(playerId, questId);
+      if (!result.ok) return result;
+      try {
+        await this.persist(playerId);
+      } catch {
+        this.service.restorePlayerState(before);
+        return { ok: false, reason: "persistence_failed" };
+      }
+      void npcMemoryService.recordQuestAccepted(playerId, this.service.getQuestDefinition(questId)?.npcId ?? "", questId);
+      const history = runtimeHistoryLog.write({
+        tick: evidence.tick,
+        source: "quest_accept",
+        actorId: playerId,
+        subjectId: questId,
+        chunkKey: evidence.chunkKey,
+        payload: { intentHash: evidence.intentHash, progress: result.result },
+      });
+      return {
+        ok: true,
+        result: Object.freeze({
+          ...result.result,
+          intentHash: evidence.intentHash,
+          historyHash: history.entryHash,
+          tick: evidence.tick,
+        }),
+      };
+    });
+  }
+
+  public async updateQuestProgress(
+    playerId: string,
+    eventType: "gather" | "craft" | "sell",
+    targetId: string,
+    quantity: number,
+  ): Promise<ActionResult<readonly QuestProgressSnapshot[]>> {
+    return this.runExclusive(playerId, async () => {
+      await this.hydratePlayer(playerId);
+      const before = this.service.clonePlayerState(playerId);
+      const result = this.service.updateQuestProgress(playerId, eventType, targetId, quantity);
+      if (!result.ok) return result;
+      const after = this.service.clonePlayerState(playerId);
+      if (stableState(before) === stableState(after)) return result;
+      try {
+        await this.persistence.savePlayerState(after);
+        return result;
+      } catch {
+        this.service.restorePlayerState(before);
+        return { ok: false, reason: "persistence_failed" };
+      }
+    });
+  }
+
+  public async updateTalkObjective(
+    playerId: string,
+    npcId: string,
+    evidence: NpcQuestMutationEvidence,
+  ): Promise<ActionResult<readonly QuestProgressSnapshot[] & { intentHash?: string }>> {
+    return this.runExclusive(playerId, async () => {
+      await this.hydratePlayer(playerId);
+      const before = this.service.clonePlayerState(playerId);
+      const result = this.service.updateTalkObjective(playerId, npcId);
+      if (!result.ok) return result;
+      const after = this.service.clonePlayerState(playerId);
+      if (stableState(before) !== stableState(after)) {
+        try {
+          await this.persistence.savePlayerState(after);
+        } catch {
+          this.service.restorePlayerState(before);
+          return { ok: false, reason: "persistence_failed" };
+        }
+      }
+      runtimeHistoryLog.write({
+        tick: evidence.tick,
+        source: "npc_talk",
+        actorId: playerId,
+        subjectId: npcId,
+        chunkKey: evidence.chunkKey,
+        payload: { intentHash: evidence.intentHash, updated: result.result },
+      });
+      return result as ActionResult<readonly QuestProgressSnapshot[] & { intentHash?: string }>;
+    });
+  }
+
+  public async completeQuestWithRewards(
+    playerId: string,
+    questId: string,
+    evidence: NpcQuestMutationEvidence,
+  ): Promise<ActionResult<NpcQuestCompletionResult>> {
+    return this.runExclusive(playerId, async () => {
+      await this.hydratePlayer(playerId);
+      const definition = this.service.getQuestDefinition(questId);
+      if (!definition) return { ok: false, reason: "missing_quest" };
+      const progress = this.service.getQuestProgress(playerId, questId);
+      if (!progress || progress.state !== "ready_to_complete") {
+        return { ok: false, reason: "objective_not_complete" };
+      }
+
+      const walletService = await getWalletService();
+      const skillService = await getSkillProgressionService();
+      const beforeQuest = this.service.clonePlayerState(playerId);
+      const beforeWallet = await walletService.getWallet(playerId);
+      const beforeSkills = await skillService.getPlayerSkillState(playerId);
+
+      try {
+        await walletService.addCoins({ playerId, amount: definition.reward.coins });
+        await skillService.applyEvent({
+          type: "skill_xp_gain",
+          playerId,
+          skillId: "woodcutting",
+          amount: definition.reward.gatheringXp,
+          source: "quest_reward",
+        });
+        await skillService.applyEvent({
+          type: "skill_xp_gain",
+          playerId,
+          skillId: "crafting",
+          amount: definition.reward.craftingXp,
+          source: "quest_reward",
+        });
+
+        const completed = this.service.completeQuest(playerId, questId);
+        if (!completed.ok) throw new Error(completed.reason);
+        await this.persist(playerId);
+
+        const memory = await npcMemoryService.recordMemoryEvent(
+          playerId,
+          definition.npcId,
+          "quest_completed",
+          questId,
+          definition.reward.reputation,
+          `Completed quest: ${questId}`,
+        );
+        if (!memory.ok) throw new Error(memory.reason);
+
+        const reputationSnapshot = await npcMemoryService.getMemorySnapshot(playerId, definition.npcId);
+        const wallet = await walletService.getWallet(playerId);
+        const skills = await skillService.getPlayerSkillState(playerId);
+        const history = runtimeHistoryLog.write({
+          tick: evidence.tick,
+          source: "quest_complete",
+          actorId: playerId,
+          subjectId: questId,
+          chunkKey: evidence.chunkKey,
+          payload: {
+            intentHash: evidence.intentHash,
+            reward: definition.reward,
+            wallet: wallet.balances,
+            reputation: reputationSnapshot?.reputation ?? definition.reward.reputation,
+          },
+        });
+
+        if (memory.result) {
+          import("../npc/NpcRumorService.js")
+            .then(({ npcRumorService }) => npcRumorService.createRumorFromMemory(
+              playerId,
+              definition.npcId,
+              memory.result.eventId,
+              "helped_village",
+            ))
+            .catch((error) => console.warn("[npc-quest-runtime] Rumor side-channel failed:", error));
+        }
+
+        return {
+          ok: true,
+          result: Object.freeze({
+            questProgress: completed.result.questProgress,
+            reward: definition.reward,
+            wallet,
+            skills,
+            reputation: reputationSnapshot?.reputation ?? definition.reward.reputation,
+            intentHash: evidence.intentHash,
+            historyHash: history.entryHash,
+            tick: evidence.tick,
+          }),
+        };
+      } catch (error) {
+        this.service.restorePlayerState(beforeQuest);
+        await Promise.allSettled([
+          walletService.restoreWallet(playerId, beforeWallet),
+          skillService.restorePlayerSkillState(playerId, beforeSkills),
+          this.persistence.savePlayerState(beforeQuest),
+        ]);
+        return {
+          ok: false,
+          reason: "reward_commit_failed",
+          details: { message: error instanceof Error ? error.message : "unknown" },
+        };
+      }
+    });
+  }
+
+  public async persistPlayer(playerId: string): Promise<void> {
+    await this.runExclusive(playerId, async () => {
+      await this.hydratePlayer(playerId);
+      await this.persist(playerId);
+    });
+  }
+
+  public resetHydrationForTests(playerId?: string): void {
+    if (playerId) this.hydratedPlayers.delete(playerId);
+    else this.hydratedPlayers.clear();
+  }
+
+  private async persist(playerId: string): Promise<void> {
+    await this.persistence.savePlayerState(this.service.exportPlayerState(playerId));
+  }
+
+  private async runExclusive<T>(playerId: string, work: () => Promise<T>): Promise<T> {
+    const previous = this.locks.get(playerId) ?? Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => { release = resolve; });
+    this.locks.set(playerId, previous.then(() => current));
+    await previous;
+    try {
+      return await work();
+    } finally {
+      release();
+      if (this.locks.get(playerId) === current) this.locks.delete(playerId);
+    }
+  }
+}
+
+export const npcQuestRuntime = new NpcQuestRuntime();
