@@ -1,306 +1,376 @@
-import express, { Router } from "express";
+import express, { Router, type Response } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
-import { campNpcService } from "./CampNpcService.js";
-import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
+import { worldTickAdapter } from "../core/are/WorldTickThinShellAdapter.js";
+import { getWalletService } from "../economy/economyRuntime.js";
+import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
+import {
+  canonicalizeClientIntent,
+  chunkKeyFromWorldPosition,
+  type ServerCanonicalIntent,
+} from "../intents/ServerCanonicalIntent.js";
+import { getInventoryService } from "../inventory/inventoryRuntime.js";
+import { getVisibleChunkCoords } from "../resources/ChunkResourceGenerator.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import { generateVisibleChunkPois, getStarterVillagePois } from "../world/WorldPoiGenerator.js";
-import { getVisibleChunkCoords } from "../resources/ChunkResourceGenerator.js";
-import { getWalletService } from "../economy/economyRuntime.js";
-import { getInventoryService } from "../inventory/inventoryRuntime.js";
+import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
+import { campNpcService } from "./CampNpcService.js";
 
 const router = Router();
-
 router.use(express.json());
 
-function queryNumber(value: unknown): number | null {
-  if (Array.isArray(value)) return queryNumber(value[0]);
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
+interface RuntimeTickContext {
+  readonly tick: number;
+  readonly tickId: number | string;
 }
 
-function requestVisibleChunks(req: express.Request): Array<{ chunkX: number; chunkZ: number }> {
-  const tileX = queryNumber(req.query.tileX ?? req.query.x);
-  const tileZ = queryNumber(req.query.tileZ ?? req.query.z ?? req.query.y);
-  if (tileX === null || tileZ === null) return [];
-  return getVisibleChunkCoords(Math.floor(tileX), Math.floor(tileZ));
+interface CampInteractPayload {
+  readonly targetId: string;
+  readonly interaction: "camp_talk" | "camp_buy_stock";
+  readonly poiId: string;
+  readonly playerPosition: { readonly x: number; readonly y: number };
+  readonly itemId?: string;
+  readonly quantity?: number;
+}
+
+type CanonicalCampIntent = ServerCanonicalIntent<"interact"> & {
+  readonly payload: CampInteractPayload;
+};
+
+const transactionLocks = new Map<string, Promise<void>>();
+
+function parseId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return /^[a-zA-Z0-9:_-]{1,192}$/.test(trimmed) ? trimmed : null;
+}
+
+function parseRequestId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return /^[a-zA-Z0-9:_./-]{1,192}$/.test(trimmed) ? trimmed : undefined;
+}
+
+function parseQuantity(value: unknown): number | null {
+  const quantity = Math.floor(Number(value));
+  return Number.isSafeInteger(quantity) && quantity > 0 ? quantity : null;
+}
+
+function requireProductionAuth(identity: { authenticated: boolean }, res: Response): boolean {
+  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+    res.status(401).json({ ok: false, error: "authenticated_player_required" });
+    return false;
+  }
+  return true;
+}
+
+function runtimeTick(): RuntimeTickContext | null {
+  const context = tickContextProvider.getContext();
+  const tick = Number(context.tickIndex);
+  const tickId = context.tickId;
+  const validTickId =
+    (typeof tickId === "number" && Number.isSafeInteger(tickId) && tickId >= 0) ||
+    (typeof tickId === "string" && /^[a-zA-Z0-9:_./-]{1,160}$/.test(tickId));
+  return Number.isSafeInteger(tick) && tick >= 0 && validTickId ? { tick, tickId } : null;
+}
+
+function runtimePosition(playerId: string): { x: number; y: number } | null {
+  const player = worldTickAdapter.playerSystem.getPlayer(playerId);
+  const x = Number(player?.position?.x);
+  const y = Number(player?.position?.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };
+}
+
+function poiIdFromNpcId(npcId: string): string | null {
+  const match = npcId.match(/^npc:(.+):worker:0$/);
+  return match?.[1] ?? null;
+}
+
+function visiblePois(position: { x: number; y: number }): WorldPoiSnapshot[] {
+  const tileX = Math.floor(position.x / 1000);
+  const tileZ = Math.floor(position.y / 1000);
+  return [...getStarterVillagePois(), ...generateVisibleChunkPois(getVisibleChunkCoords(tileX, tileZ))]
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function resolveCampActor(
+  npcId: string,
+  position: { x: number; y: number },
+): { poiId: string; poi: WorldPoiSnapshot } | null {
+  const poiId = poiIdFromNpcId(npcId);
+  if (!poiId) return null;
+  const poi = visiblePois(position).find((candidate) => candidate.id === poiId);
+  return poi ? { poiId, poi } : null;
+}
+
+function nearPoi(position: { x: number; y: number }, poi: WorldPoiSnapshot): boolean {
+  const dx = position.x - poi.position.x;
+  const dy = position.y - poi.position.y;
+  return Math.sqrt(dx * dx + dy * dy) <= 48;
+}
+
+async function runExclusive<T>(key: string, work: () => Promise<T>): Promise<T> {
+  const previous = transactionLocks.get(key) ?? Promise.resolve();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const tail = previous.then(() => gate);
+  transactionLocks.set(key, tail);
+  await previous;
+  try {
+    return await work();
+  } finally {
+    release();
+    if (transactionLocks.get(key) === tail) transactionLocks.delete(key);
+  }
 }
 
 router.get("/camp/:npcId", async (req, res) => {
-  const npcId = req.params.npcId;
-  const currentTick = Number(req.query.tick ?? 0);
-  const dialogueResult = campNpcService.getNpcDialogue(npcId, currentTick);
-
-  if (!dialogueResult) {
-    res.status(404).json({
-      ok: false,
-      error: "npc_not_found",
-    });
-    return;
-  }
-
-  const match = npcId.match(/^npc:(.+):worker:0$/);
-  if (!match) {
-    res.status(404).json({
-      ok: false,
-      error: "npc_not_found",
-    });
-    return;
-  }
-
-  const poiId = match[1];
-
-  res.status(200).json({
+  const identity = resolveHttpPlayerIdentity(req);
+  if (!requireProductionAuth(identity, res)) return;
+  const npcId = parseId(req.params.npcId);
+  const tick = runtimeTick();
+  const position = runtimePosition(identity.playerId);
+  if (!npcId) return void res.status(404).json({ ok: false, error: "npc_not_found" });
+  if (!tick) return void res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
+  if (!position) return void res.status(409).json({ ok: false, error: "runtime_player_position_unavailable" });
+  const actor = resolveCampActor(npcId, position);
+  if (!actor) return void res.status(404).json({ ok: false, error: "npc_not_found" });
+  const dialogue = campNpcService.getNpcDialogue(npcId, tick.tick);
+  if (!dialogue) return void res.status(404).json({ ok: false, error: "npc_not_found" });
+  res.json({
     ok: true,
-    result: {
-      npcId,
-      poiId,
-      message: dialogueResult.message,
-      activity: dialogueResult.activity,
-    },
+    runtimeEvidence: { tick: tick.tick, tickId: tick.tickId },
+    result: { npcId, poiId: actor.poiId, message: dialogue.message, activity: dialogue.activity },
   });
 });
 
 router.post("/camp/:npcId/interact", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  const npcId = req.params.npcId;
-  const currentTick = Number(req.query.tick ?? 0);
-  const match = npcId.match(/^npc:(.+):worker:0$/);
-
-  if (!match) {
-    res.status(404).json({
-      ok: false,
-      error: "npc_not_found",
-    });
-    return;
+  if (!requireProductionAuth(identity, res)) return;
+  const npcId = parseId(req.params.npcId);
+  const tick = runtimeTick();
+  const position = runtimePosition(identity.playerId);
+  if (!npcId) return void res.status(404).json({ ok: false, error: "npc_not_found" });
+  if (!tick) return void res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
+  if (!position) return void res.status(409).json({ ok: false, error: "runtime_player_position_unavailable" });
+  const actor = resolveCampActor(npcId, position);
+  if (!actor) return void res.status(404).json({ ok: false, error: "npc_not_found" });
+  await worldDiscoveryService.hydratePlayer(identity.playerId);
+  if (!worldDiscoveryService.isPoiDiscovered(identity.playerId, actor.poiId)) {
+    return void res.status(403).json({ ok: false, error: "poi_not_discovered" });
   }
-
-  const poiId = match[1];
-  const isDiscovered = worldDiscoveryService.isPoiDiscovered(identity.playerId, poiId);
-
-  if (!isDiscovered) {
-    res.status(403).json({
-      ok: false,
-      error: "poi_not_discovered",
-      message: "You haven't discovered this location yet.",
-    });
-    return;
-  }
-
-  const dialogueResult = campNpcService.getNpcDialogue(npcId, currentTick);
-
-  if (!dialogueResult) {
-    res.status(404).json({
-      ok: false,
-      error: "npc_not_found",
-    });
-    return;
-  }
-
-  res.status(200).json({
+  if (!nearPoi(position, actor.poi)) return void res.status(403).json({ ok: false, error: "camp_too_far" });
+  const dialogue = campNpcService.getNpcDialogue(npcId, tick.tick);
+  if (!dialogue) return void res.status(404).json({ ok: false, error: "npc_not_found" });
+  const intent = canonicalizeClientIntent<"interact">(
+    {
+      action: "interact",
+      requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
+      payload: {
+        targetId: npcId,
+        interaction: "camp_talk",
+        poiId: actor.poiId,
+        playerPosition: position,
+      },
+    },
+    {
+      actorId: identity.playerId,
+      tickId: tick.tickId,
+      logicalIndex: tick.tick,
+      receivedOrder: 0,
+      chunkKey: chunkKeyFromWorldPosition(position),
+    },
+  ) as CanonicalCampIntent;
+  res.json({
     ok: true,
+    canonicalIntent: intent,
     result: {
       npcId,
-      poiId,
-      message: dialogueResult.message,
-      activity: dialogueResult.activity,
+      poiId: actor.poiId,
+      message: dialogue.message,
+      activity: dialogue.activity,
       interactionType: "talk",
     },
   });
 });
 
 router.get("/camp/:npcId/stock", async (req, res) => {
-  const npcId = req.params.npcId;
-  const currentTick = Number(req.query.tick ?? 0);
-  const match = npcId.match(/^npc:(.+):worker:0$/);
-
-  if (!match) {
-    res.status(404).json({
-      ok: false,
-      error: "npc_not_found",
-    });
-    return;
+  const identity = resolveHttpPlayerIdentity(req);
+  if (!requireProductionAuth(identity, res)) return;
+  const npcId = parseId(req.params.npcId);
+  const tick = runtimeTick();
+  const position = runtimePosition(identity.playerId);
+  if (!npcId) return void res.status(404).json({ ok: false, error: "npc_not_found" });
+  if (!tick) return void res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
+  if (!position) return void res.status(409).json({ ok: false, error: "runtime_player_position_unavailable" });
+  const actor = resolveCampActor(npcId, position);
+  if (!actor) return void res.status(404).json({ ok: false, error: "npc_not_found" });
+  await worldDiscoveryService.hydratePlayer(identity.playerId);
+  if (!worldDiscoveryService.isPoiDiscovered(identity.playerId, actor.poiId)) {
+    return void res.status(403).json({ ok: false, error: "poi_not_discovered" });
   }
-
-  const poiId = match[1];
-  const starterPois = getStarterVillagePois();
-  const generatedPois = generateVisibleChunkPois(requestVisibleChunks(req));
-  const allPois: WorldPoiSnapshot[] = [...starterPois, ...generatedPois].sort((a, b) => a.id.localeCompare(b.id));
-  const poi = allPois.find((p) => p.id === poiId);
-
-  if (!poi) {
-    res.status(200).json({
-      ok: true,
-      result: {
-        npcId,
-        poiId,
-        stock: [],
-        message: "Camp stock not available for this location.",
-      },
-    });
-    return;
-  }
-
-  const campStocks = campNpcService.getCampStockSnapshots([poi], currentTick);
-  const campStock = campStocks.find((s) => s.poiId === poiId);
-
-  res.status(200).json({
-    ok: true,
-    result: {
-      npcId,
-      poiId,
-      stock: campStock?.items ?? [],
-      lastUpdatedTick: campStock?.lastUpdatedTick ?? 0,
-    },
-  });
+  const stock = campNpcService.getCampStockSnapshots([actor.poi], tick.tick)[0];
+  if (!stock) return void res.status(404).json({ ok: false, error: "stock_actor_unavailable" });
+  res.json({ ok: true, result: { npcId, ...stock } });
 });
 
 router.post("/camp/:npcId/buy-stock", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  const npcId = req.params.npcId;
-  const { playerId, itemId, quantity, playerPosition } = req.body;
-
-  if (!playerId || playerId !== identity.playerId) {
-    res.status(400).json({
-      ok: false,
-      error: "invalid_player",
-    });
-    return;
+  if (!requireProductionAuth(identity, res)) return;
+  const npcId = parseId(req.params.npcId);
+  const itemId = parseId(req.body?.itemId);
+  const quantity = parseQuantity(req.body?.quantity);
+  const tick = runtimeTick();
+  const position = runtimePosition(identity.playerId);
+  if (!npcId) return void res.status(404).json({ ok: false, error: "invalid_npc" });
+  if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item" });
+  if (!quantity) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
+  if (!tick) return void res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
+  if (!position) return void res.status(409).json({ ok: false, error: "runtime_player_position_unavailable" });
+  const actor = resolveCampActor(npcId, position);
+  if (!actor) return void res.status(404).json({ ok: false, error: "invalid_npc" });
+  await worldDiscoveryService.hydratePlayer(identity.playerId);
+  if (!worldDiscoveryService.isPoiDiscovered(identity.playerId, actor.poiId)) {
+    return void res.status(403).json({ ok: false, error: "undiscovered_camp" });
   }
+  if (!nearPoi(position, actor.poi)) return void res.status(403).json({ ok: false, error: "camp_too_far" });
 
-  const match = npcId.match(/^npc:(.+):worker:0$/);
-  if (!match) {
-    res.status(404).json({
-      ok: false,
-      error: "invalid_npc",
-    });
-    return;
-  }
-
-  const poiId = match[1];
-
-  if (!Number.isInteger(quantity) || quantity <= 0) {
-    res.status(400).json({
-      ok: false,
-      error: "invalid_quantity",
-    });
-    return;
-  }
-
-  const isDiscovered = worldDiscoveryService.isPoiDiscovered(playerId, poiId);
-  if (!isDiscovered) {
-    res.status(403).json({
-      ok: false,
-      error: "undiscovered_camp",
-    });
-    return;
-  }
-
-  if (playerPosition === undefined || playerPosition === null) {
-    res.status(400).json({
-      ok: false,
-      error: "missing_player_position",
-    });
-    return;
-  }
-
-  if (
-    typeof playerPosition.x !== "number" ||
-    typeof playerPosition.y !== "number" ||
-    !Number.isFinite(playerPosition.x) ||
-    !Number.isFinite(playerPosition.y)
-  ) {
-    res.status(400).json({
-      ok: false,
-      error: "invalid_player_position",
-    });
-    return;
-  }
-
-  const tileX = Math.floor(playerPosition.x / 1000);
-  const tileZ = Math.floor(playerPosition.y / 1000);
-  const visibleChunks = getVisibleChunkCoords(tileX, tileZ);
-  const starterPois = getStarterVillagePois();
-  const generatedPois = generateVisibleChunkPois(visibleChunks);
-  const allPois: WorldPoiSnapshot[] = [...starterPois, ...generatedPois].sort((a, b) => a.id.localeCompare(b.id));
-  const poi = allPois.find((p) => p.id === poiId);
-
-  if (!poi) {
-    res.status(404).json({
-      ok: false,
-      error: "invalid_npc",
-    });
-    return;
-  }
-
-  const INTERACTION_RADIUS = 48;
-  const dx = playerPosition.x - poi.position.x;
-  const dy = playerPosition.y - poi.position.y;
-  const distance = Math.sqrt(dx * dx + dy * dy);
-
-  if (distance > INTERACTION_RADIUS) {
-    res.status(403).json({
-      ok: false,
-      error: "camp_too_far",
-    });
-    return;
-  }
-
-  const walletService = await getWalletService();
-  const wallet = await walletService.getWallet(playerId);
-  const buyResult = campNpcService.buyStock({
-    poiId,
-    itemId,
-    quantity,
-  });
-
-  if (!buyResult.ok) {
-    const buyError = buyResult as { ok: false; error: string };
-    res.status(400).json({
-      ok: false,
-      error: buyError.error,
-    });
-    return;
-  }
-
-  if (wallet.balances.coin < buyResult.totalCost) {
-    const stockState = campNpcService.getStockState(poiId);
-    if (stockState) {
-      stockState.items[itemId] = (stockState.items[itemId] || 0) + quantity;
-    }
-    res.status(400).json({
-      ok: false,
-      error: "insufficient_coins",
-    });
-    return;
-  }
-
-  await walletService.addCoins({
-    playerId,
-    amount: -buyResult.totalCost,
-  });
-
-  const inventoryService = await getInventoryService();
-  await inventoryService.addItem({
-    playerId,
-    itemId,
-    quantity,
-  });
-
-  const newWallet = await walletService.getWallet(playerId);
-
-  res.status(200).json({
-    ok: true,
-    result: {
-      npcId,
-      poiId,
-      itemId,
-      quantityBought: quantity,
-      unitPrice: buyResult.unitPrice,
-      totalCoins: buyResult.totalCost,
-      newCoinBalance: newWallet.balances.coin,
-      remainingCampStock: buyResult.remainingStock,
+  const intent = canonicalizeClientIntent<"interact">(
+    {
+      action: "interact",
+      requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
+      payload: {
+        targetId: npcId,
+        interaction: "camp_buy_stock",
+        poiId: actor.poiId,
+        playerPosition: position,
+        itemId,
+        quantity,
+      },
     },
+    {
+      actorId: identity.playerId,
+      tickId: tick.tickId,
+      logicalIndex: tick.tick,
+      receivedOrder: 0,
+      chunkKey: chunkKeyFromWorldPosition(position),
+    },
+  ) as CanonicalCampIntent;
+
+  const outcome = await runExclusive(`${identity.playerId}:${actor.poiId}`, async () => {
+    const inventoryService = await getInventoryService();
+    const walletService = await getWalletService();
+    const originUid = `camp-buy:${intent.intentHash}`;
+    if (inventoryService.getAppliedOriginUids(identity.playerId).includes(originUid)) {
+      const wallet = await walletService.getWallet(identity.playerId);
+      const stock = campNpcService.getCampStockSnapshots([actor.poi], tick.tick)[0];
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          canonicalIntent: intent,
+          result: {
+            npcId,
+            poiId: actor.poiId,
+            itemId,
+            quantityBought: quantity,
+            replayed: true,
+            newCoinBalance: wallet.balances.coin,
+            remainingCampStock: stock?.items.find((entry) => entry.itemId === itemId)?.quantity ?? 0,
+            stockRevisionHash: stock?.revisionHash ?? null,
+          },
+        },
+      };
+    }
+
+    const plan = campNpcService.planBuyStock({ poi: actor.poi, currentTick: tick.tick, itemId, quantity });
+    if (!plan.ok) return { status: 409, body: { ok: false, error: plan.error, canonicalIntent: intent } };
+    const walletBefore = await walletService.getWallet(identity.playerId);
+    if (walletBefore.balances.coin < plan.totalCost) {
+      return { status: 409, body: { ok: false, error: "insufficient_coins", canonicalIntent: intent } };
+    }
+    const inventoryBefore = await inventoryService.getPlayerInventory(identity.playerId);
+    const originsBefore = inventoryService.getAppliedOriginUids(identity.playerId);
+    const movementCountBefore = inventoryService.getMovementEventCount();
+    const stockBefore = campNpcService.getStockState(actor.poiId);
+
+    try {
+      campNpcService.commitStockState(actor.poiId, plan.nextState);
+      await walletService.subtractCoins({ playerId: identity.playerId, amount: plan.totalCost });
+      const added = await inventoryService.addItem({
+        playerId: identity.playerId,
+        itemId,
+        quantity,
+        origin: {
+          uid: originUid,
+          tick: tick.tick,
+          source: "economy_delta",
+          sourceHash: intent.intentHash,
+        },
+      });
+      if (!added.ok) throw new Error(added.reason ?? "inventory_add_failed");
+      const wallet = await walletService.getWallet(identity.playerId);
+      const history = runtimeHistoryLog.write({
+        tick: tick.tick,
+        source: "market_snapshot",
+        actorId: identity.playerId,
+        subjectId: `${actor.poiId}:${itemId}`,
+        chunkKey: intent.chunkKey,
+        payload: {
+          kind: "camp_buy",
+          intentHash: intent.intentHash,
+          quantity,
+          totalCost: plan.totalCost,
+          stockRevisionHash: plan.stockRevisionHash,
+        },
+      });
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          canonicalIntent: intent,
+          result: {
+            npcId,
+            poiId: actor.poiId,
+            itemId,
+            quantityBought: quantity,
+            unitPrice: plan.unitPrice,
+            totalCoins: plan.totalCost,
+            newCoinBalance: wallet.balances.coin,
+            remainingCampStock: plan.remainingStock,
+            stockRevisionHash: plan.stockRevisionHash,
+            historyHash: history.entryHash,
+            replayed: false,
+          },
+        },
+      };
+    } catch (error) {
+      campNpcService.restoreStockState(actor.poiId, stockBefore);
+      const recovery = await Promise.allSettled([
+        walletService.restoreWallet(identity.playerId, walletBefore),
+        inventoryService.restorePlayerInventory(
+          identity.playerId,
+          inventoryBefore,
+          originsBefore,
+          movementCountBefore,
+        ),
+      ]);
+      const rollbackOk = recovery.every((entry) => entry.status === "fulfilled");
+      return {
+        status: 503,
+        body: {
+          ok: false,
+          error: rollbackOk ? "camp_buy_failed" : "transaction_recovery_failed",
+          rollbackOk,
+          detail: error instanceof Error ? error.message : "unknown",
+          canonicalIntent: intent,
+        },
+      };
+    }
   });
+
+  res.status(outcome.status).json(outcome.body);
 });
 
 export default router;
