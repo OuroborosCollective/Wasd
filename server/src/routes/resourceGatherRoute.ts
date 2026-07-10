@@ -136,7 +136,8 @@ router.post("/gather", async (req, res) => {
     },
   });
 
-  let questProgressCommitted = true;
+  let questProgressCommitted: boolean | null = null;
+  let questProgressError: string | undefined;
   if (result.ok && result.itemRewardId && result.inventoryAdded) {
     const questProgress = await npcQuestRuntime.updateQuestProgress(
       canonicalIntent.actorId,
@@ -145,12 +146,14 @@ router.post("/gather", async (req, res) => {
       result.inventoryQuantity ?? 0,
     );
     questProgressCommitted = questProgress.ok;
+    if (!questProgress.ok) questProgressError = questProgress.reason;
   }
 
-  res.status(result.ok && questProgressCommitted ? 200 : result.ok ? 503 : 409).json({
-    ok: result.ok && questProgressCommitted,
+  res.status(result.ok ? 200 : 409).json({
+    ok: result.ok,
     result,
-    ...(questProgressCommitted ? {} : { error: "quest_progress_persistence_failed" }),
+    questProgressCommitted,
+    ...(questProgressError ? { questProgressError } : {}),
     canonicalIntent,
     tickContext: {
       tickId: tickContext.tickId,
