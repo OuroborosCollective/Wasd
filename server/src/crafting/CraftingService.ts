@@ -13,6 +13,12 @@ import type {
   CraftingRecipeSnapshot,
   CraftingResult,
 } from "./CraftingTypes.js";
+import {
+  createCraftingReceipt,
+  type CraftingReceiptPersistenceAdapter,
+  type PersistedCraftingReceipt,
+} from "./CraftingReceiptPersistence.js";
+import { JsonCraftingReceiptPersistenceAdapter } from "./JsonCraftingReceiptPersistenceAdapter.js";
 
 interface CraftingSkillRuntime {
   hydratePlayer(playerId: string): Promise<void>;
@@ -30,10 +36,15 @@ interface CraftingSkillRuntime {
 export interface CraftingServiceDependencies {
   readonly inventoryService?: InventoryService;
   readonly skillService?: CraftingSkillRuntime;
+  readonly receiptPersistence?: CraftingReceiptPersistenceAdapter;
 }
 
 function craftingLevelFromSkills(skills: SkillSnapshot[]): number {
   return skills.find((skill) => skill.id === "crafting")?.level ?? 1;
+}
+
+function craftingXpFromSkills(skills: SkillSnapshot[]): number {
+  return skills.find((skill) => skill.id === "crafting")?.xp ?? 0;
 }
 
 function validTick(value: unknown): value is number {
@@ -64,12 +75,24 @@ function outputOriginUids(operationId: string, recipe: CraftingRecipe): readonly
   return Object.freeze(recipe.outputs.map((_output, index) => `craft:${operationId}:output:${index}`));
 }
 
+function sameReceiptContract(
+  receipt: PersistedCraftingReceipt,
+  input: { playerId: string; recipeId: string; craftHash: string; originUids: readonly string[] },
+): boolean {
+  return receipt.playerId === input.playerId &&
+    receipt.recipeId === input.recipeId &&
+    receipt.craftHash === input.craftHash &&
+    receipt.originUids.length === input.originUids.length &&
+    receipt.originUids.every((uid, index) => uid === input.originUids[index]);
+}
+
 export class CraftingService {
   private readonly recipes = new Map<string, CraftingRecipe>();
   private readonly playerLocks = new Map<string, Promise<void>>();
   /** Compatibility test hooks; production resolves through injected/runtime services. */
   private _inventoryService?: InventoryService;
   private _skillService?: CraftingSkillRuntime;
+  private _receiptPersistence?: CraftingReceiptPersistenceAdapter;
 
   public constructor(
     recipes: readonly CraftingRecipe[] = ALL_CRAFTING_RECIPES,
@@ -185,42 +208,69 @@ export class CraftingService {
     }
 
     const skillService = await this.resolveSkillService();
+    const inventoryService = await this.resolveInventoryService();
+    const receiptPersistence = await this.resolveReceiptPersistence();
     await skillService.hydratePlayer(input.playerId);
+
+    const deltaHash = craftHash(input.operationId, recipe);
+    const originUids = outputOriginUids(input.operationId, recipe);
+    const existingReceipt = await receiptPersistence.loadReceipt(input.operationId);
+    if (existingReceipt) {
+      if (!sameReceiptContract(existingReceipt, {
+        playerId: input.playerId,
+        recipeId: recipe.id,
+        craftHash: deltaHash,
+        originUids,
+      })) {
+        return { ok: false, playerId: input.playerId, recipeId: recipe.id, reason: "transaction_failed", rollbackOk: false };
+      }
+      if (existingReceipt.status === "prepared") {
+        const recovery = await Promise.allSettled([
+          inventoryService.restorePlayerInventory(
+            input.playerId,
+            existingReceipt.inventoryBefore,
+            existingReceipt.appliedOriginUidsBefore,
+            existingReceipt.movementEventCountBefore,
+          ),
+          skillService.restorePlayerSkillState(input.playerId, existingReceipt.skillsBefore),
+          receiptPersistence.deleteReceipt(input.operationId),
+        ]);
+        if (!recovery.every((entry) => entry.status === "fulfilled")) {
+          return { ok: false, playerId: input.playerId, recipeId: recipe.id, reason: "transaction_recovery_failed", rollbackOk: false };
+        }
+      } else {
+        const appliedOrigins = inventoryService.getAppliedOriginUids(input.playerId);
+        const skillState = await skillService.getPlayerSkillState(input.playerId);
+        const receiptValid = originUids.every((uid) => appliedOrigins.includes(uid)) &&
+          craftingXpFromSkills(skillState.skills) >= existingReceipt.expectedCraftingXpAfter;
+        if (!receiptValid) {
+          return { ok: false, playerId: input.playerId, recipeId: recipe.id, reason: "transaction_failed", rollbackOk: false };
+        }
+        return {
+          ok: true,
+          playerId: input.playerId,
+          recipeId: recipe.id,
+          reason: "crafted",
+          consumed: [...recipe.ingredients],
+          outputs: [...recipe.outputs],
+          craftingXpReward: recipe.craftingXpReward,
+          currentTick: input.currentTick,
+          craftHash: deltaHash,
+          receiptHash: existingReceipt.receiptHash,
+          originUids,
+          replayed: true,
+        };
+      }
+    }
+
     const skillState = await skillService.getPlayerSkillState(input.playerId);
     if (craftingLevelFromSkills(skillState.skills) < recipe.requiredLevel) {
       return { ok: false, playerId: input.playerId, recipeId: recipe.id, reason: "level_too_low" };
     }
-
-    const inventoryService = await this.resolveInventoryService();
-    const originUids = outputOriginUids(input.operationId, recipe);
     const appliedOrigins = inventoryService.getAppliedOriginUids(input.playerId);
-    const replayMatches = originUids.filter((uid) => appliedOrigins.includes(uid)).length;
-    const deltaHash = craftHash(input.operationId, recipe);
-    if (replayMatches === originUids.length) {
-      return {
-        ok: true,
-        playerId: input.playerId,
-        recipeId: recipe.id,
-        reason: "crafted",
-        consumed: [...recipe.ingredients],
-        outputs: [...recipe.outputs],
-        craftingXpReward: recipe.craftingXpReward,
-        currentTick: input.currentTick,
-        craftHash: deltaHash,
-        originUids,
-        replayed: true,
-      };
+    if (originUids.some((uid) => appliedOrigins.includes(uid))) {
+      return { ok: false, playerId: input.playerId, recipeId: recipe.id, reason: "transaction_failed", rollbackOk: false };
     }
-    if (replayMatches > 0) {
-      return {
-        ok: false,
-        playerId: input.playerId,
-        recipeId: recipe.id,
-        reason: "transaction_failed",
-        rollbackOk: false,
-      };
-    }
-
     const hasIngredients = await inventoryService.hasItems({
       playerId: input.playerId,
       items: [...recipe.ingredients],
@@ -233,9 +283,24 @@ export class CraftingService {
     const originsBefore = inventoryService.getAppliedOriginUids(input.playerId);
     const movementCountBefore = inventoryService.getMovementEventCount();
     const skillsBefore = await skillService.getPlayerSkillState(input.playerId);
+    const expectedCraftingXpAfter = craftingXpFromSkills(skillsBefore.skills) + recipe.craftingXpReward;
+    const preparedReceipt = createCraftingReceipt({
+      operationId: input.operationId,
+      playerId: input.playerId,
+      recipeId: recipe.id,
+      craftHash: deltaHash,
+      originUids,
+      status: "prepared",
+      inventoryBefore,
+      appliedOriginUidsBefore: originsBefore,
+      movementEventCountBefore: movementCountBefore,
+      skillsBefore,
+      expectedCraftingXpAfter,
+    });
     let failureReason: "inventory_full" | "transaction_failed" = "transaction_failed";
 
     try {
+      await receiptPersistence.saveReceipt(preparedReceipt);
       for (const ingredient of recipe.ingredients) {
         const removed = await inventoryService.removeItem({
           playerId: input.playerId,
@@ -271,6 +336,15 @@ export class CraftingService {
         amount: recipe.craftingXpReward,
         source: "crafting",
       });
+      const skillsAfter = await skillService.getPlayerSkillState(input.playerId);
+      if (craftingXpFromSkills(skillsAfter.skills) < expectedCraftingXpAfter) {
+        throw new Error("crafting_xp_commit_unverified");
+      }
+      const committedReceipt = createCraftingReceipt({
+        ...preparedReceipt,
+        status: "committed",
+      });
+      await receiptPersistence.saveReceipt(committedReceipt);
 
       return {
         ok: true,
@@ -282,6 +356,7 @@ export class CraftingService {
         craftingXpReward: recipe.craftingXpReward,
         currentTick: input.currentTick,
         craftHash: deltaHash,
+        receiptHash: committedReceipt.receiptHash,
         originUids,
         replayed: false,
       };
@@ -294,6 +369,7 @@ export class CraftingService {
           movementCountBefore,
         ),
         skillService.restorePlayerSkillState(input.playerId, skillsBefore),
+        receiptPersistence.deleteReceipt(input.operationId),
       ]);
       const rollbackOk = recovery.every((entry) => entry.status === "fulfilled");
       return {
@@ -312,6 +388,12 @@ export class CraftingService {
 
   private async resolveSkillService(): Promise<CraftingSkillRuntime> {
     return this._skillService ?? this.dependencies.skillService ?? getSkillProgressionService();
+  }
+
+  private async resolveReceiptPersistence(): Promise<CraftingReceiptPersistenceAdapter> {
+    if (this._receiptPersistence) return this._receiptPersistence;
+    this._receiptPersistence = this.dependencies.receiptPersistence ?? new JsonCraftingReceiptPersistenceAdapter();
+    return this._receiptPersistence;
   }
 
   private async runExclusive<T>(playerId: string, work: () => Promise<T>): Promise<T> {
