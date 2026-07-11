@@ -49,10 +49,6 @@ export interface NpcQuestCompletionResult {
   readonly tick: number;
 }
 
-function stableState(value: PersistedNpcQuestPlayerState): string {
-  return JSON.stringify(value);
-}
-
 function sameSourceMutation(a: PersistedNpcQuestSourceMutation, b: NpcQuestSourceMutationEvidence): boolean {
   return a.intentHash === b.intentHash &&
     a.eventType === b.eventType &&
@@ -90,12 +86,12 @@ export class NpcQuestRuntime {
     questId: string,
     evidence: NpcQuestMutationEvidence,
   ): Promise<ActionResult<QuestProgressSnapshot & { intentHash: string; historyHash: string; tick: number }>> {
-    return this.runExclusive(playerId, async () => {
+    return this.runExclusive<ActionResult<QuestProgressSnapshot & { intentHash: string; historyHash: string; tick: number }>>(playerId, async () => {
       await this.hydratePlayer(playerId);
       const before = this.service.clonePlayerState(playerId);
       const historyLength = runtimeHistoryLog.captureLength();
       const result = this.service.acceptQuest(playerId, questId);
-      if (!result.ok) return result;
+      if (result.ok === false) return { ok: false, reason: result.reason, ...(result.details ? { details: result.details } : {}) };
       try {
         const history = runtimeHistoryLog.write({
           tick: evidence.tick,
@@ -132,14 +128,12 @@ export class NpcQuestRuntime {
     playerId: string,
     evidence: NpcQuestSourceMutationEvidence,
   ): Promise<ActionResult<NpcQuestProgressCommitResult>> {
-    return this.runExclusive(playerId, async () => {
+    return this.runExclusive<ActionResult<NpcQuestProgressCommitResult>>(playerId, async () => {
       await this.hydratePlayer(playerId);
       const playerReceipts = this.getSourceMutationMap(playerId);
       const existing = playerReceipts.get(evidence.intentHash);
       if (existing) {
-        if (!sameSourceMutation(existing, evidence)) {
-          return { ok: false, reason: "source_intent_conflict" };
-        }
+        if (!sameSourceMutation(existing, evidence)) return { ok: false, reason: "source_intent_conflict" };
         return {
           ok: true,
           result: Object.freeze({
@@ -160,7 +154,7 @@ export class NpcQuestRuntime {
         evidence.targetId,
         evidence.quantity,
       );
-      if (!result.ok) return result;
+      if (result.ok === false) return { ok: false, reason: result.reason, ...(result.details ? { details: result.details } : {}) };
 
       try {
         const history = runtimeHistoryLog.write({
@@ -212,12 +206,12 @@ export class NpcQuestRuntime {
     npcId: string,
     evidence: NpcQuestMutationEvidence,
   ): Promise<ActionResult<readonly QuestProgressSnapshot[]>> {
-    return this.runExclusive(playerId, async () => {
+    return this.runExclusive<ActionResult<readonly QuestProgressSnapshot[]>>(playerId, async () => {
       await this.hydratePlayer(playerId);
       const before = this.service.clonePlayerState(playerId);
       const historyLength = runtimeHistoryLog.captureLength();
       const result = this.service.updateTalkObjective(playerId, npcId);
-      if (!result.ok) return result;
+      if (result.ok === false) return { ok: false, reason: result.reason, ...(result.details ? { details: result.details } : {}) };
       try {
         runtimeHistoryLog.write({
           tick: evidence.tick,
@@ -228,7 +222,7 @@ export class NpcQuestRuntime {
           payload: { kind: "npc_talk", intentHash: evidence.intentHash, updated: result.result },
         });
         await this.persist(playerId);
-        return result;
+        return { ok: true, result: result.result };
       } catch {
         this.service.restorePlayerState(before);
         runtimeHistoryLog.truncate(historyLength);
@@ -242,14 +236,12 @@ export class NpcQuestRuntime {
     questId: string,
     evidence: NpcQuestMutationEvidence,
   ): Promise<ActionResult<NpcQuestCompletionResult>> {
-    return this.runExclusive(playerId, async () => {
+    return this.runExclusive<ActionResult<NpcQuestCompletionResult>>(playerId, async () => {
       await this.hydratePlayer(playerId);
       const definition = this.service.getQuestDefinition(questId);
       if (!definition) return { ok: false, reason: "missing_quest" };
       const progress = this.service.getQuestProgress(playerId, questId);
-      if (!progress || progress.state !== "ready_to_complete") {
-        return { ok: false, reason: "objective_not_complete" };
-      }
+      if (!progress || progress.state !== "ready_to_complete") return { ok: false, reason: "objective_not_complete" };
 
       const walletService = await getWalletService();
       const skillService = await getSkillProgressionService();
@@ -260,23 +252,11 @@ export class NpcQuestRuntime {
 
       try {
         await walletService.addCoins({ playerId, amount: definition.reward.coins });
-        await skillService.applyEvent({
-          type: "skill_xp_gain",
-          playerId,
-          skillId: "woodcutting",
-          amount: definition.reward.gatheringXp,
-          source: "quest_reward",
-        });
-        await skillService.applyEvent({
-          type: "skill_xp_gain",
-          playerId,
-          skillId: "crafting",
-          amount: definition.reward.craftingXp,
-          source: "quest_reward",
-        });
+        await skillService.applyEvent({ type: "skill_xp_gain", playerId, skillId: "woodcutting", amount: definition.reward.gatheringXp, source: "quest_reward" });
+        await skillService.applyEvent({ type: "skill_xp_gain", playerId, skillId: "crafting", amount: definition.reward.craftingXp, source: "quest_reward" });
 
         const completed = this.service.completeQuest(playerId, questId);
-        if (!completed.ok) throw new Error(completed.reason);
+        if (completed.ok === false) throw new Error(completed.reason);
         const wallet = await walletService.getWallet(playerId);
         const skills = await skillService.getPlayerSkillState(playerId);
         const persistedReputation = completed.result.reputation.reputation;
@@ -295,13 +275,7 @@ export class NpcQuestRuntime {
           },
         });
         await this.persist(playerId);
-
-        this.recordCompletionSideChannels(
-          playerId,
-          definition.npcId,
-          questId,
-          definition.reward.reputation,
-        );
+        this.recordCompletionSideChannels(playerId, definition.npcId, questId, definition.reward.reputation);
 
         return {
           ok: true,
@@ -326,9 +300,7 @@ export class NpcQuestRuntime {
         ]);
         return {
           ok: false,
-          reason: recovery.every((entry) => entry.status === "fulfilled")
-            ? "reward_commit_failed"
-            : "reward_recovery_failed",
+          reason: recovery.every((entry) => entry.status === "fulfilled") ? "reward_commit_failed" : "reward_recovery_failed",
           details: { message: error instanceof Error ? error.message : "unknown" },
         };
       }
@@ -361,10 +333,7 @@ export class NpcQuestRuntime {
     return map;
   }
 
-  private withSourceMutations(
-    playerId: string,
-    state: PersistedNpcQuestPlayerState,
-  ): PersistedNpcQuestPlayerState {
+  private withSourceMutations(playerId: string, state: PersistedNpcQuestPlayerState): PersistedNpcQuestPlayerState {
     return Object.freeze({
       ...state,
       appliedSourceMutations: Object.freeze(
@@ -373,12 +342,7 @@ export class NpcQuestRuntime {
     });
   }
 
-  private recordCompletionSideChannels(
-    playerId: string,
-    npcId: string,
-    questId: string,
-    reputationDelta: number,
-  ): void {
+  private recordCompletionSideChannels(playerId: string, npcId: string, questId: string, reputationDelta: number): void {
     void npcMemoryService.recordMemoryEvent(
       playerId,
       npcId,
@@ -387,7 +351,7 @@ export class NpcQuestRuntime {
       reputationDelta,
       `Completed quest: ${questId}`,
     ).then((memory) => {
-      if (!memory.ok) {
+      if (memory.ok === false) {
         console.warn("[npc-quest-runtime] Completion memory side-channel rejected:", memory.reason);
         return;
       }
