@@ -58,22 +58,9 @@ const GAMEPLAY_PLAYER_ID_KEY = "wasd:2d:playerId";
 const PUBLIC_KEY_KEY = "wasd:2d:publicKey";
 const ANON_ID_SEED_KEY = "wasd:2d:anonSeed";
 const REQUIRED_SOURCE_KEYS = Object.freeze([
-  "character",
-  "quests",
-  "dialogues",
-  "skills",
-  "resources",
-  "inventory",
-  "crafting",
-  "equipment",
-  "wallet",
-  "vendorEconomy",
-  "camp",
-  "discovery",
-  "guild",
-  "factions",
-  "map",
-  "workOrders",
+  "character", "quests", "dialogues", "skills", "resources", "inventory",
+  "crafting", "equipment", "wallet", "vendorEconomy", "camp", "discovery",
+  "guild", "factions", "map", "workOrders",
 ] as const);
 
 function stableHash32(input: string): number {
@@ -86,11 +73,7 @@ function stableHash32(input: string): number {
 }
 
 function prettifyId(value: string): string {
-  return value
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
-    .join(" ");
+  return value.split("_").filter(Boolean).map((part) => part.slice(0, 1).toUpperCase() + part.slice(1)).join(" ");
 }
 
 function safeStoredValue(key: string): string | null {
@@ -140,7 +123,7 @@ function validRevision(value: unknown): value is string {
 }
 
 function validEvidenceHash(value: unknown): value is string {
-  return typeof value === "string" && /^[a-fA-F0-9]{8,128}$/.test(value);
+  return typeof value === "string" && /^[a-fA-F0-9]{1,128}$/.test(value);
 }
 
 function normalizeSourceEvidence(value: unknown): SourceEvidence | null {
@@ -163,54 +146,31 @@ function questStatusFromComposerState(state: unknown): LiveGameplaySnapshot["que
   return "locked";
 }
 
-function normalizeComposerObjective(
-  input: ComposerQuestObjective,
-): LiveGameplaySnapshot["quests"][number]["objectives"][number] | null {
-  const objectiveId = typeof input.objectiveId === "string" && input.objectiveId.trim()
-    ? input.objectiveId.trim()
-    : null;
+function normalizeComposerObjective(input: ComposerQuestObjective): LiveGameplaySnapshot["quests"][number]["objectives"][number] | null {
+  const objectiveId = typeof input.objectiveId === "string" && input.objectiveId.trim() ? input.objectiveId.trim() : null;
   if (!objectiveId) return null;
   const requiredRaw = Number(input.required);
   const currentRaw = Number(input.current);
   if (!Number.isFinite(requiredRaw) || requiredRaw < 1 || !Number.isFinite(currentRaw) || currentRaw < 0) return null;
   const required = Math.floor(requiredRaw);
   const current = Math.min(required, Math.floor(currentRaw));
-  return {
-    id: objectiveId,
-    label: String(input.title ?? prettifyId(objectiveId)),
-    current,
-    required,
-    completed: input.completed === true && current >= required,
-  };
+  return { id: objectiveId, label: String(input.title ?? prettifyId(objectiveId)), current, required, completed: input.completed === true && current >= required };
 }
 
 function projectComposerQuest(input: ComposerQuestProgress): LiveGameplaySnapshot["quests"][number] | null {
   const questId = typeof input.questId === "string" && input.questId.trim()
     ? input.questId.trim()
-    : typeof input.id === "string" && input.id.trim()
-      ? input.id.trim()
-      : null;
+    : typeof input.id === "string" && input.id.trim() ? input.id.trim() : null;
   if (!questId) return null;
   const objectives = Array.isArray(input.objectives)
-    ? input.objectives
-        .map((objective) => normalizeComposerObjective(objective as ComposerQuestObjective))
+    ? input.objectives.map((objective) => normalizeComposerObjective(objective as ComposerQuestObjective))
         .filter((objective): objective is LiveGameplaySnapshot["quests"][number]["objectives"][number] => objective !== null)
         .sort((a, b) => a.id.localeCompare(b.id))
     : [];
-  return {
-    id: questId,
-    title: String(input.title ?? prettifyId(questId)),
-    description: String(input.description ?? ""),
-    status: questStatusFromComposerState(input.state),
-    objectives,
-  };
+  return { id: questId, title: String(input.title ?? prettifyId(questId)), description: String(input.description ?? ""), status: questStatusFromComposerState(input.state), objectives };
 }
 
-function appendComposerQuestList(
-  output: LiveGameplaySnapshot["quests"],
-  seenQuestIds: Set<string>,
-  input: unknown,
-): void {
+function appendComposerQuestList(output: LiveGameplaySnapshot["quests"], seenQuestIds: Set<string>, input: unknown): void {
   if (!Array.isArray(input)) return;
   for (const rawQuest of input) {
     const quest = projectComposerQuest(rawQuest as ComposerQuestProgress);
@@ -252,36 +212,17 @@ function evidenceFromRecord(input: Record<string, unknown>): SnapshotEvidence | 
   if (!validPlayerId(playerId) || !validTick(serverTick) || !validRevision(revisionHash)) return null;
   if (!validSequence(revisionSequence) || !sourceEvidence) return null;
   if (lastMutationHash !== null && lastMutationHash !== undefined && !validEvidenceHash(lastMutationHash)) return null;
-  return {
-    playerId,
-    serverTick,
-    revisionHash,
-    revisionSequence,
-    lastMutationHash: typeof lastMutationHash === "string" ? lastMutationHash : null,
-    sourceEvidence,
-  };
+  return { playerId, serverTick, revisionHash, revisionSequence, lastMutationHash: typeof lastMutationHash === "string" ? lastMutationHash : null, sourceEvidence };
 }
 
 function hasCompleteComposerCore(input: Record<string, unknown>): boolean {
-  return Array.isArray(input.inventory) &&
-    Array.isArray(input.equipment) &&
-    Array.isArray(input.skills) &&
-    Array.isArray(input.resourceNodes) &&
-    Array.isArray(input.activeQuests) &&
-    Array.isArray(input.availableQuests) &&
-    Array.isArray(input.completedQuestIds) &&
-    Array.isArray(input.npcDialogues) &&
-    Array.isArray(input.npcReputations) &&
-    Array.isArray(input.npcMemories) &&
-    Array.isArray(input.npcRumors) &&
-    Array.isArray(input.campNpcs) &&
-    Array.isArray(input.campStocks) &&
-    Array.isArray(input.worldPois) &&
-    Array.isArray(input.processingStations) &&
-    Boolean(input.wallet && typeof input.wallet === "object") &&
-    Boolean(input.vendorEconomy && typeof input.vendorEconomy === "object") &&
-    Boolean(input.discoveryStats && typeof input.discoveryStats === "object") &&
-    Boolean(input.worldSurface && typeof input.worldSurface === "object") &&
+  return Array.isArray(input.inventory) && Array.isArray(input.equipment) && Array.isArray(input.skills) &&
+    Array.isArray(input.resourceNodes) && Array.isArray(input.activeQuests) && Array.isArray(input.availableQuests) &&
+    Array.isArray(input.completedQuestIds) && Array.isArray(input.npcDialogues) && Array.isArray(input.npcReputations) &&
+    Array.isArray(input.npcMemories) && Array.isArray(input.npcRumors) && Array.isArray(input.campNpcs) &&
+    Array.isArray(input.campStocks) && Array.isArray(input.worldPois) && Array.isArray(input.processingStations) &&
+    Boolean(input.wallet && typeof input.wallet === "object") && Boolean(input.vendorEconomy && typeof input.vendorEconomy === "object") &&
+    Boolean(input.discoveryStats && typeof input.discoveryStats === "object") && Boolean(input.worldSurface && typeof input.worldSurface === "object") &&
     normalizeSourceEvidence(input.sourceEvidence) !== null;
 }
 
@@ -294,7 +235,6 @@ function projectComposerSnapshot(input: Record<string, unknown>): Partial<LiveGa
   const skills = Array.isArray(input.skills) ? input.skills : [];
   const resourceNodes = Array.isArray(input.resourceNodes) ? input.resourceNodes : [];
   const wallet = input.wallet && typeof input.wallet === "object" ? input.wallet as Record<string, unknown> : {};
-
   return {
     status: evidence && coreComplete ? "live" : "stale",
     serverTick: evidence?.serverTick ?? null,
@@ -311,63 +251,10 @@ function projectComposerSnapshot(input: Record<string, unknown>): Partial<LiveGa
     npcReputations: copyArrayField(input.npcReputations) as LiveGameplaySnapshot["npcReputations"],
     npcMemories: copyArrayField(input.npcMemories) as LiveGameplaySnapshot["npcMemories"],
     npcRumors: copyArrayField(input.npcRumors) as LiveGameplaySnapshot["npcRumors"],
-    skills: skills.map((skill: any) => {
-      const id = String(skill.skillId ?? skill.id ?? "unknown");
-      return {
-        id,
-        title: prettifyId(id),
-        level: Number(skill.level),
-        xp: Number(skill.xp),
-        xpForNextLevel: Number(skill.xpForNextLevel),
-        progressRatio: Number(skill.progressRatio),
-      };
-    }) as LiveGameplaySnapshot["skills"],
-    resources: resourceNodes.map((node: any) => {
-      const skillId = String(node.skillId ?? "unknown");
-      const resourceId = String(node.resourceId ?? node.itemRewardId ?? "unknown");
-      return {
-        id: String(node.nodeId ?? ""),
-        kind: skillId === "fishing" ? "fish_spot" : skillId === "mining" ? "ore" : "tree",
-        title: prettifyId(resourceId),
-        skillId,
-        requiredLevel: Number(node.requiredLevel),
-        xpReward: Number(node.xpReward),
-        itemRewardId: resourceId,
-        itemRewardName: prettifyId(resourceId),
-        position: { x: Number(node.x), y: Number(node.y) },
-        radius: Number(node.radius),
-        status: node.available === true ? "available" : node.available === false ? "depleted" : "locked",
-        depletedUntilTick: typeof node.depletedUntilTick === "number" ? node.depletedUntilTick : null,
-        remainingTicks: Number(node.remainingTicks),
-      };
-    }) as LiveGameplaySnapshot["resources"],
-    inventory: {
-      playerId,
-      schemaVersion: 1,
-      capacity: Number((input.inventoryState as any)?.capacity ?? 32),
-      slots: inventory.map((item: any) => {
-        const itemId = String(item.itemId ?? item.id ?? "unknown_item");
-        return {
-          slotId: String(item.slotId ?? `slot_${itemId}`),
-          itemId,
-          name: String(item.name ?? prettifyId(itemId)),
-          quantity: Number(item.quantity ?? item.count),
-          category: item.category ?? "resource",
-          stackable: item.stackable !== false,
-          maxStack: Number(item.maxStack ?? 999),
-        };
-      }),
-    },
-    equipment: {
-      playerId,
-      schemaVersion: 1,
-      slots: equipment.map((slot: any) => ({
-        slotId: String(slot.slot ?? slot.slotId ?? "unknown_slot"),
-        itemId: String(slot.itemId ?? ""),
-        title: String(slot.title ?? prettifyId(String(slot.itemId ?? "unknown"))),
-        tier: Number(slot.tier),
-      })),
-    },
+    skills: skills.map((skill: any) => { const id = String(skill.skillId ?? skill.id ?? "unknown"); return { id, title: prettifyId(id), level: Number(skill.level), xp: Number(skill.xp), xpForNextLevel: Number(skill.xpForNextLevel), progressRatio: Number(skill.progressRatio) }; }) as LiveGameplaySnapshot["skills"],
+    resources: resourceNodes.map((node: any) => { const skillId = String(node.skillId ?? "unknown"); const resourceId = String(node.resourceId ?? node.itemRewardId ?? "unknown"); return { id: String(node.nodeId ?? ""), kind: skillId === "fishing" ? "fish_spot" : skillId === "mining" ? "ore" : "tree", title: prettifyId(resourceId), skillId, requiredLevel: Number(node.requiredLevel), xpReward: Number(node.xpReward), itemRewardId: resourceId, itemRewardName: prettifyId(resourceId), position: { x: Number(node.x), y: Number(node.y) }, radius: Number(node.radius), status: node.available === true ? "available" : node.available === false ? "depleted" : "locked", depletedUntilTick: typeof node.depletedUntilTick === "number" ? node.depletedUntilTick : null, remainingTicks: Number(node.remainingTicks) }; }) as LiveGameplaySnapshot["resources"],
+    inventory: { playerId, schemaVersion: 1, capacity: Number((input.inventoryState as any)?.capacity ?? 32), slots: inventory.map((item: any) => { const itemId = String(item.itemId ?? item.id ?? "unknown_item"); return { slotId: String(item.slotId ?? `slot_${itemId}`), itemId, name: String(item.name ?? prettifyId(itemId)), quantity: Number(item.quantity ?? item.count), category: item.category ?? "resource", stackable: item.stackable !== false, maxStack: Number(item.maxStack ?? 999) }; }) },
+    equipment: { playerId, schemaVersion: 1, slots: equipment.map((slot: any) => ({ slotId: String(slot.slot ?? slot.slotId ?? "unknown_slot"), itemId: String(slot.itemId ?? ""), title: String(slot.title ?? prettifyId(String(slot.itemId ?? "unknown"))), tier: Number(slot.tier) })) },
     wallet: { coin: Number(wallet.coin) },
     worldPois: copyArrayField(input.worldPois) as LiveGameplaySnapshot["worldPois"],
     vendorEconomy: input.vendorEconomy as LiveGameplaySnapshot["vendorEconomy"],
@@ -380,78 +267,28 @@ function projectComposerSnapshot(input: Record<string, unknown>): Partial<LiveGa
   };
 }
 
-function mergeComposerIntoLegacy(
-  legacy: Record<string, unknown>,
-  composer: Record<string, unknown>,
-): Record<string, unknown> {
+function mergeComposerIntoLegacy(legacy: Record<string, unknown>, composer: Record<string, unknown>): Record<string, unknown> {
   const projected = projectComposerSnapshot(composer) as Record<string, unknown>;
-  return {
-    ...legacy,
-    ...projected,
-    paperdoll: legacy.paperdoll,
-    character: legacy.character,
-    crafting: legacy.crafting,
-    guild: legacy.guild,
-    factions: legacy.factions,
-    map: legacy.map,
-  };
+  return { ...legacy, ...projected, paperdoll: legacy.paperdoll, character: legacy.character, crafting: legacy.crafting, guild: legacy.guild, factions: legacy.factions, map: legacy.map };
 }
 
 function pickSnapshotPayload(data: unknown): Record<string, unknown> {
   const raw = data && typeof data === "object" ? data as Record<string, unknown> : {};
-  const envelopeEvidence = {
-    playerId: raw.playerId,
-    serverTick: raw.serverTick,
-    revisionHash: raw.revisionHash,
-    revisionSequence: raw.revisionSequence,
-    lastMutationHash: raw.lastMutationHash,
-    sourceEvidence: raw.sourceEvidence,
-  };
+  const envelopeEvidence = { playerId: raw.playerId, serverTick: raw.serverTick, revisionHash: raw.revisionHash, revisionSequence: raw.revisionSequence, lastMutationHash: raw.lastMutationHash, sourceEvidence: raw.sourceEvidence };
   let selected: Record<string, unknown>;
-  if (raw.snapshot && typeof raw.snapshot === "object" && raw.liveGameplaySnapshot && typeof raw.liveGameplaySnapshot === "object") {
-    selected = mergeComposerIntoLegacy(raw.snapshot as Record<string, unknown>, raw.liveGameplaySnapshot as Record<string, unknown>);
-  } else if (raw.liveGameplaySnapshot && typeof raw.liveGameplaySnapshot === "object") {
-    selected = projectComposerSnapshot(raw.liveGameplaySnapshot as Record<string, unknown>) as Record<string, unknown>;
-  } else if (raw.schemaVersion === "live-gameplay-snapshot.v1") {
-    selected = projectComposerSnapshot(raw) as Record<string, unknown>;
-  } else if (raw.snapshot && typeof raw.snapshot === "object") {
-    const snapshot = raw.snapshot as Record<string, unknown>;
-    selected = snapshot.schemaVersion === "live-gameplay-snapshot.v1"
-      ? projectComposerSnapshot(snapshot) as Record<string, unknown>
-      : snapshot;
-  } else {
-    selected = raw;
-  }
-  return {
-    ...selected,
-    runtimePlayerId: selected.runtimePlayerId ?? selected.playerId ?? envelopeEvidence.playerId,
-    serverTick: selected.serverTick ?? selected.logicalIndex ?? envelopeEvidence.serverTick,
-    revisionHash: selected.revisionHash ?? envelopeEvidence.revisionHash,
-    revisionSequence: selected.revisionSequence ?? envelopeEvidence.revisionSequence,
-    lastMutationHash: selected.lastMutationHash ?? envelopeEvidence.lastMutationHash,
-    sourceEvidence: selected.sourceEvidence ?? envelopeEvidence.sourceEvidence,
-  };
+  if (raw.snapshot && typeof raw.snapshot === "object" && raw.liveGameplaySnapshot && typeof raw.liveGameplaySnapshot === "object") selected = mergeComposerIntoLegacy(raw.snapshot as Record<string, unknown>, raw.liveGameplaySnapshot as Record<string, unknown>);
+  else if (raw.liveGameplaySnapshot && typeof raw.liveGameplaySnapshot === "object") selected = projectComposerSnapshot(raw.liveGameplaySnapshot as Record<string, unknown>) as Record<string, unknown>;
+  else if (raw.schemaVersion === "live-gameplay-snapshot.v1") selected = projectComposerSnapshot(raw) as Record<string, unknown>;
+  else if (raw.snapshot && typeof raw.snapshot === "object") { const snapshot = raw.snapshot as Record<string, unknown>; selected = snapshot.schemaVersion === "live-gameplay-snapshot.v1" ? projectComposerSnapshot(snapshot) as Record<string, unknown> : snapshot; }
+  else selected = raw;
+  return { ...selected, runtimePlayerId: selected.runtimePlayerId ?? selected.playerId ?? envelopeEvidence.playerId, serverTick: selected.serverTick ?? selected.logicalIndex ?? envelopeEvidence.serverTick, revisionHash: selected.revisionHash ?? envelopeEvidence.revisionHash, revisionSequence: selected.revisionSequence ?? envelopeEvidence.revisionSequence, lastMutationHash: selected.lastMutationHash ?? envelopeEvidence.lastMutationHash, sourceEvidence: selected.sourceEvidence ?? envelopeEvidence.sourceEvidence };
 }
 
 function normalizeCandidate(data: unknown): { snapshot: EvidencedSnapshot; evidence: SnapshotEvidence | null } {
   const picked = pickSnapshotPayload(data);
-  const evidence = evidenceFromRecord({
-    playerId: picked.runtimePlayerId ?? picked.playerId,
-    serverTick: picked.serverTick,
-    revisionHash: picked.revisionHash,
-    revisionSequence: picked.revisionSequence,
-    lastMutationHash: picked.lastMutationHash,
-    sourceEvidence: picked.sourceEvidence,
-  });
+  const evidence = evidenceFromRecord({ playerId: picked.runtimePlayerId ?? picked.playerId, serverTick: picked.serverTick, revisionHash: picked.revisionHash, revisionSequence: picked.revisionSequence, lastMutationHash: picked.lastMutationHash, sourceEvidence: picked.sourceEvidence });
   const normalized = normalizeLiveGameplaySnapshot(picked as Partial<LiveGameplaySnapshot>) as EvidencedSnapshot;
-  const snapshot = Object.assign({}, normalized, {
-    status: evidence && picked.status === "live" ? "live" : picked.status === "waiting" ? "waiting" : "stale",
-    runtimePlayerId: evidence?.playerId,
-    revisionHash: evidence?.revisionHash,
-    revisionSequence: evidence?.revisionSequence,
-    lastMutationHash: evidence?.lastMutationHash,
-    sourceEvidence: evidence?.sourceEvidence,
-  }) as EvidencedSnapshot;
+  const snapshot = Object.assign({}, normalized, { status: evidence && picked.status === "live" ? "live" : picked.status === "waiting" ? "waiting" : "stale", runtimePlayerId: evidence?.playerId, revisionHash: evidence?.revisionHash, revisionSequence: evidence?.revisionSequence, lastMutationHash: evidence?.lastMutationHash, sourceEvidence: evidence?.sourceEvidence }) as EvidencedSnapshot;
   return { snapshot, evidence };
 }
 
@@ -465,120 +302,49 @@ export class LiveGameplayStore {
   private snapshot: EvidencedSnapshot = normalizeLiveGameplaySnapshot(EMPTY_LIVE_GAMEPLAY_SNAPSHOT) as EvidencedSnapshot;
   private evidence: SnapshotEvidence | null = null;
   private readonly listeners = new Set<Listener>();
-
-  public getSnapshot(): LiveGameplaySnapshot {
-    return this.snapshot;
-  }
-
-  public getEvidence(): SnapshotEvidence | null {
-    return this.evidence ? Object.freeze({ ...this.evidence }) : null;
-  }
-
-  public setSnapshot(
-    next: unknown,
-    expectedPlayerId: string = getDefaultGameplayPlayerId(),
-    requirements: SnapshotApplyRequirements = {},
-  ): boolean {
+  public getSnapshot(): LiveGameplaySnapshot { return this.snapshot; }
+  public getEvidence(): SnapshotEvidence | null { return this.evidence ? Object.freeze({ ...this.evidence }) : null; }
+  public setSnapshot(next: unknown, expectedPlayerId: string = getDefaultGameplayPlayerId(), requirements: SnapshotApplyRequirements = {}): boolean {
     const candidate = normalizeCandidate(next);
-    if (!candidate.evidence || candidate.evidence.playerId !== expectedPlayerId || candidate.snapshot.status !== "live") {
-      this.markStale();
-      return false;
-    }
+    if (!candidate.evidence || candidate.evidence.playerId !== expectedPlayerId || candidate.snapshot.status !== "live") { this.markStale(); return false; }
     if (this.evidence) {
-      if (candidate.evidence.serverTick < this.evidence.serverTick) {
-        this.markStale();
-        return false;
-      }
+      if (candidate.evidence.serverTick < this.evidence.serverTick) { this.markStale(); return false; }
       if (candidate.evidence.serverTick === this.evidence.serverTick) {
-        if (candidate.evidence.revisionSequence < this.evidence.revisionSequence) {
-          this.markStale();
-          return false;
-        }
-        if (
-          candidate.evidence.revisionSequence === this.evidence.revisionSequence &&
-          candidate.evidence.revisionHash !== this.evidence.revisionHash
-        ) {
-          this.markStale();
-          return false;
-        }
+        if (candidate.evidence.revisionSequence < this.evidence.revisionSequence) { this.markStale(); return false; }
+        if (candidate.evidence.revisionSequence === this.evidence.revisionSequence && candidate.evidence.revisionHash !== this.evidence.revisionHash) { this.markStale(); return false; }
       }
     }
-    if (requirements.after && !evidenceIsNewer(candidate.evidence, requirements.after)) {
-      this.markStale();
-      return false;
-    }
-    if (
-      requirements.expectedMutationHash &&
-      candidate.evidence.lastMutationHash !== requirements.expectedMutationHash
-    ) {
-      this.markStale();
-      return false;
-    }
+    if (requirements.after && !evidenceIsNewer(candidate.evidence, requirements.after)) { this.markStale(); return false; }
+    if (requirements.expectedMutationHash && candidate.evidence.lastMutationHash !== requirements.expectedMutationHash) { this.markStale(); return false; }
     this.evidence = candidate.evidence;
     this.snapshot = candidate.snapshot;
     this.emit();
     return true;
   }
-
-  public markStale(): void {
-    if (this.snapshot.status === "stale") return;
-    this.snapshot = Object.assign({}, this.snapshot, { status: "stale" }) as EvidencedSnapshot;
-    this.emit();
-  }
-
-  public updateFromNetworkPacket(packet: unknown): void {
-    const detail = packet as Record<string, unknown>;
-    const type = detail?.type as string ?? detail?.event as string;
-    const payload = detail?.payload as Record<string, unknown> ?? detail;
-    if (
-      type === "gameplay_snapshot" ||
-      type === "GAMEPLAY_SNAPSHOT" ||
-      type === "world_snapshot" ||
-      type === "WORLD_SNAPSHOT" ||
-      (payload && typeof payload === "object" && payload.schemaVersion === "live-gameplay-snapshot.v1")
-    ) {
-      this.setSnapshot(payload);
-    }
-  }
-
-  public subscribe(listener: Listener): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-
-  private emit(): void {
-    for (const listener of [...this.listeners]) listener();
-  }
+  public markStale(): void { if (this.snapshot.status === "stale") return; this.snapshot = Object.assign({}, this.snapshot, { status: "stale" }) as EvidencedSnapshot; this.emit(); }
+  public updateFromNetworkPacket(packet: unknown): void { const detail = packet as Record<string, unknown>; const type = detail?.type as string ?? detail?.event as string; const payload = detail?.payload as Record<string, unknown> ?? detail; if (type === "gameplay_snapshot" || type === "GAMEPLAY_SNAPSHOT" || type === "world_snapshot" || type === "WORLD_SNAPSHOT" || (payload && typeof payload === "object" && payload.schemaVersion === "live-gameplay-snapshot.v1")) this.setSnapshot(payload); }
+  public subscribe(listener: Listener): () => void { this.listeners.add(listener); return () => this.listeners.delete(listener); }
+  private emit(): void { for (const listener of [...this.listeners]) listener(); }
 }
 
 export const liveGameplayStore = new LiveGameplayStore();
 /** Compatibility export only. Runtime actions must resolve the actor at action time. */
 export const DEFAULT_GAMEPLAY_PLAYER_ID = getDefaultGameplayPlayerId();
 
-export async function fetchGameplaySnapshot(
-  playerId: string = getDefaultGameplayPlayerId(),
-): Promise<EvidencedSnapshot | null> {
+export async function fetchGameplaySnapshot(playerId: string = getDefaultGameplayPlayerId()): Promise<EvidencedSnapshot | null> {
   try {
-    const response = await fetch("/api/gameplay/snapshot", {
-      cache: "no-store",
-      headers: { "x-player-id": playerId },
-    });
+    const response = await fetch("/api/gameplay/snapshot", { cache: "no-store", headers: { "x-player-id": playerId } });
     if (!response.ok) return null;
     const candidate = normalizeCandidate(await response.json());
     if (!candidate.evidence || candidate.evidence.playerId !== playerId || candidate.snapshot.status !== "live") return null;
     return candidate.snapshot;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 export async function requestGameplaySnapshot(): Promise<LiveGameplaySnapshot> {
   const playerId = getDefaultGameplayPlayerId();
   const snapshot = await fetchGameplaySnapshot(playerId);
-  if (!snapshot) {
-    liveGameplayStore.markStale();
-    return liveGameplayStore.getSnapshot();
-  }
+  if (!snapshot) { liveGameplayStore.markStale(); return liveGameplayStore.getSnapshot(); }
   liveGameplayStore.setSnapshot(snapshot, playerId);
   return liveGameplayStore.getSnapshot();
 }
