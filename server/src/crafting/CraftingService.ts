@@ -341,8 +341,17 @@ export class CraftingService {
         throw new Error("crafting_xp_commit_unverified");
       }
       const committedReceipt = createCraftingReceipt({
-        ...preparedReceipt,
+        operationId: preparedReceipt.operationId,
+        playerId: preparedReceipt.playerId,
+        recipeId: preparedReceipt.recipeId,
+        craftHash: preparedReceipt.craftHash,
+        originUids: preparedReceipt.originUids,
         status: "committed",
+        inventoryBefore: preparedReceipt.inventoryBefore,
+        appliedOriginUidsBefore: preparedReceipt.appliedOriginUidsBefore,
+        movementEventCountBefore: preparedReceipt.movementEventCountBefore,
+        skillsBefore: preparedReceipt.skillsBefore,
+        expectedCraftingXpAfter: preparedReceipt.expectedCraftingXpAfter,
       });
       await receiptPersistence.saveReceipt(committedReceipt);
 
