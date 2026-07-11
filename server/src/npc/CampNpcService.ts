@@ -29,6 +29,7 @@ export interface CampStockStateSnapshot {
 export type CampStockPurchasePlan =
   | {
       readonly ok: true;
+      readonly error?: undefined;
       readonly poiId: string;
       readonly itemId: string;
       readonly quantity: number;
@@ -111,10 +112,7 @@ export class CampNpcService {
       camp_fisher: { dx: 1, dy: 1 },
     };
     const offset = offsets[npcType];
-    return {
-      x: poi.position.x + offset.dx * 1000,
-      y: poi.position.y + offset.dy * 1000,
-    };
+    return { x: poi.position.x + offset.dx * 1000, y: poi.position.y + offset.dy * 1000 };
   }
 
   private getNpcState(activity: CampNpcActivity): CampNpcState {
