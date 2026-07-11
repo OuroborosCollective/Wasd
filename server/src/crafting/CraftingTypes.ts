@@ -67,6 +67,7 @@ export interface CraftingResult {
   craftingXpReward?: number;
   currentTick?: number;
   craftHash?: string;
+  receiptHash?: string;
   originUids?: readonly string[];
   replayed?: boolean;
   rollbackOk?: boolean;
