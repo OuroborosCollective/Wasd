@@ -18,6 +18,7 @@ interface RuntimeTickContext {
 }
 
 interface QuestInteractPayload {
+  readonly [key: string]: unknown;
   readonly targetId: string;
   readonly interaction: "npc_talk" | "quest_accept" | "quest_complete";
   readonly questId?: string;
