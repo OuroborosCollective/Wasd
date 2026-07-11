@@ -51,6 +51,25 @@ export class RuntimeHistoryLog {
     return entry;
   }
 
+  captureLength(): number {
+    return this.entries.length;
+  }
+
+  truncate(length: number): void {
+    if (!Number.isSafeInteger(length) || length < 0 || length > this.entries.length) {
+      throw new Error("invalid_runtime_history_length");
+    }
+    this.entries.length = length;
+  }
+
+  latestByActor(actorId: string): RuntimeHistoryEntry | null {
+    for (let index = this.entries.length - 1; index >= 0; index -= 1) {
+      const entry = this.entries[index];
+      if (entry.actorId === actorId) return Object.freeze({ ...entry });
+    }
+    return null;
+  }
+
   list(): readonly RuntimeHistoryEntry[] {
     return Object.freeze(this.entries.map((entry) => Object.freeze({ ...entry })));
   }
