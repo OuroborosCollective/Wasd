@@ -8,7 +8,7 @@
 import express from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { gatheringService } from "../resources/GatheringService.js";
-import { npcQuestService } from "../quests/NpcQuestService.js";
+import { npcQuestRuntime } from "../quests/NpcQuestRuntime.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import {
   canonicalizeClientIntent,
@@ -136,18 +136,55 @@ router.post("/gather", async (req, res) => {
     },
   });
 
-  if (result.ok && result.itemRewardId && result.inventoryAdded) {
-    npcQuestService.updateQuestProgress(
-      canonicalIntent.actorId,
-      "gather",
-      result.itemRewardId,
-      result.inventoryQuantity ?? 0,
-    );
+  if (!result.ok) {
+    res.status(409).json({
+      ok: false,
+      result,
+      questProgressCommitted: null,
+      canonicalIntent,
+      tickContext: {
+        tickId: tickContext.tickId,
+        worldTimeHours: tickContext.worldTimeHours,
+        seedHash: tickContext.seedHash,
+      },
+    });
+    return;
   }
 
-  res.status(result.ok ? 200 : 409).json({
-    ok: result.ok,
+  let questProgressHistoryHash: string | undefined;
+  if (result.itemRewardId && result.inventoryAdded) {
+    const questProgress = await npcQuestRuntime.updateQuestProgress(
+      canonicalIntent.actorId,
+      {
+        intentHash: canonicalIntent.intentHash,
+        tick: canonicalIntent.logicalIndex,
+        chunkKey: canonicalIntent.chunkKey,
+        eventType: "gather",
+        targetId: result.itemRewardId,
+        quantity: result.inventoryQuantity ?? 0,
+      },
+    );
+    if (!questProgress.ok) {
+      res.status(503).json({
+        ok: false,
+        error: "quest_progress_commit_failed",
+        gatherCommitted: true,
+        result,
+        questProgressCommitted: false,
+        questProgressError: questProgress.reason,
+        canonicalIntent,
+      });
+      return;
+    }
+    questProgressHistoryHash = questProgress.result.historyHash;
+  }
+
+  res.status(200).json({
+    ok: true,
+    gatherCommitted: true,
     result,
+    questProgressCommitted: result.itemRewardId && result.inventoryAdded ? true : null,
+    ...(questProgressHistoryHash ? { questProgressHistoryHash } : {}),
     canonicalIntent,
     tickContext: {
       tickId: tickContext.tickId,

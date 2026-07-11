@@ -1,10 +1,11 @@
-import { LiveGameplaySnapshotComposer, buildVendorEconomySnapshot, createEmptyVendorEconomySnapshot } from "./LiveGameplaySnapshotComposer.js";
+import { LiveGameplaySnapshotComposer, buildVendorEconomySnapshot } from "./LiveGameplaySnapshotComposer.js";
 import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery, LiveGameplayCampNpc, LiveGameplayCampStock, LiveGameplayQuestProgress, LiveGameplayNpcMemory, LiveGameplayNpcRumor } from "./LiveGameplaySnapshotTypes.js";
 import { toLiveEquipmentSlots } from "./adapters/EquipmentSnapshotAdapter.js";
 import { toLiveInventoryItems } from "./adapters/InventorySnapshotAdapter.js";
 import { getWalletService, getVendorStockService } from "../economy/economyRuntime.js";
 import { getVillageResourceVendor } from "../economy/VillageVendors.js";
 import { campNpcService } from "../npc/CampNpcService.js";
+import { campStockRuntime } from "../npc/CampStockRuntime.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
 import { createDefaultStatBlock, statKeyToPropertyName, isEquipmentStatKey, capStatValue } from "../equipment/EquipmentStatTypes.js";
@@ -121,7 +122,6 @@ function toLiveNpcQuestProgress(quest: NpcQuestProgressSource): LiveGameplayQues
   } satisfies Omit<LiveGameplayQuestProgress, "reward">;
 
   if (!definition) return base;
-
   return {
     ...base,
     reward: {
@@ -167,13 +167,9 @@ export async function composeLiveGameplaySnapshotFromLegacy(
     getWorldPois: () => input.worldPois ?? [],
     getWorldSurface: (playerId: string, logicalIndex: number) => getNpcLineageWorldSurface(playerId, logicalIndex),
     getVendorEconomy: async () => {
-      try {
-        const vendorStockService = await getVendorStockService();
-        const stockEntries = await vendorStockService.getStockEntries(vendor.id);
-        return buildVendorEconomySnapshot(vendor.id, vendor.name, stockEntries);
-      } catch {
-        return createEmptyVendorEconomySnapshot();
-      }
+      const vendorStockService = await getVendorStockService();
+      const stockEntries = await vendorStockService.getStockEntries(vendor.id);
+      return buildVendorEconomySnapshot(vendor.id, vendor.name, stockEntries);
     },
     getDiscoveryStats: () => input.discoveryStats ?? {
       discoveredPoiCount: 0,
@@ -184,12 +180,10 @@ export async function composeLiveGameplaySnapshotFromLegacy(
     getEquipmentStats: (_playerId: string): EquipmentStatBlock => {
       const eq = input.equipment as { slots?: readonly { slotId?: string; itemId?: string | null }[] } | null;
       if (!eq?.slots) return createDefaultStatBlock();
-
       const aggregated: Record<string, number> = {};
       const sortedSlots = [...eq.slots].sort((a, b) =>
         String(a.slotId ?? "").localeCompare(String(b.slotId ?? "")),
       );
-
       for (const slot of sortedSlots) {
         if (!slot.itemId) continue;
         const tierMap: Record<string, Partial<Record<string, number>>> = {
@@ -207,9 +201,7 @@ export async function composeLiveGameplaySnapshotFromLegacy(
           }
         }
       }
-
-      const result = createDefaultStatBlock();
-      const capped: EquipmentStatBlock = { ...result };
+      const capped: EquipmentStatBlock = { ...createDefaultStatBlock() };
       for (const [key, value] of Object.entries(aggregated)) {
         if (isEquipmentStatKey(key)) {
           const propName = statKeyToPropertyName(key);
@@ -218,26 +210,18 @@ export async function composeLiveGameplaySnapshotFromLegacy(
       }
       return Object.freeze(capped);
     },
-    getProcessingStations: () => {
-      const stations = getStarterProcessingStations();
-      return stations.map((s) => ({
-        id: s.id,
-        type: s.type,
-        title: s.title,
-        x: s.position.x,
-        y: s.position.y,
-        interactionRadius: s.interactionRadius,
-      }));
-    },
-    getActiveQuests: (playerId: string) => {
-      const activeQuests = npcQuestService.getActiveQuests(playerId);
-      return activeQuests.map(toLiveNpcQuestProgress);
-    },
+    getProcessingStations: () => getStarterProcessingStations().map((station) => ({
+      id: station.id,
+      type: station.type,
+      title: station.title,
+      x: station.position.x,
+      y: station.position.y,
+      interactionRadius: station.interactionRadius,
+    })),
+    getActiveQuests: (playerId: string) => npcQuestService.getActiveQuests(playerId).map(toLiveNpcQuestProgress),
     getAvailableQuests: async (playerId: string) => {
       const npcQuests = npcQuestService.getAvailableQuests(playerId).map(toLiveNpcQuestProgress);
-      const npcCompletedQuestIds = npcQuestService
-        .getNpcDialogue(playerId, "village_trader_001")
-        .completedQuestIds;
+      const npcCompletedQuestIds = npcQuestService.getCompletedQuestIds(playerId);
       const campCompletedQuestIds = await campQuestRuntime.getCompletedQuestIds(playerId);
       const completedQuestIds = [...npcCompletedQuestIds, ...campCompletedQuestIds];
       const campQuests = generateCampQuestOffers({
@@ -250,52 +234,45 @@ export async function composeLiveGameplaySnapshotFromLegacy(
       return [...npcQuests, ...campQuests].sort((a, b) => a.questId.localeCompare(b.questId));
     },
     getCompletedQuestIds: async (playerId: string) => {
-      const dialogue = npcQuestService.getNpcDialogue(playerId, "village_trader_001");
+      const npcCompletedQuestIds = npcQuestService.getCompletedQuestIds(playerId);
       const campCompletedQuestIds = await campQuestRuntime.getCompletedQuestIds(playerId);
-      return [...dialogue.completedQuestIds, ...campCompletedQuestIds];
+      return [...new Set([...npcCompletedQuestIds, ...campCompletedQuestIds])].sort();
     },
-    getNpcDialogues: (playerId: string) => {
-      const npcIds = ["village_trader_001"];
-      return npcIds.map((npcId) => npcQuestService.getNpcDialogue(playerId, npcId));
-    },
-    getNpcReputations: (playerId: string) => {
-      return npcQuestService.getAllNpcReputations(playerId);
-    },
+    getNpcDialogues: (playerId: string) => [npcQuestService.getNpcDialogue(playerId, "village_trader_001")],
+    getNpcReputations: (playerId: string) => npcQuestService.getAllNpcReputations(playerId),
     getNpcMemories: async (playerId: string) => {
       const snapshots = await npcMemoryService.getAllMemorySnapshots(playerId);
-      return snapshots.map((s): LiveGameplayNpcMemory => ({
-        npcId: s.npcId,
-        playerId: s.playerId,
-        reputation: s.reputation,
-        trustTier: s.trustTier,
-        memoryEventCount: s.memoryEventCount,
-        recentMemoryNotes: s.recentMemoryNotes,
-        knownRumorCount: s.knownRumorCount,
+      return snapshots.map((snapshot): LiveGameplayNpcMemory => ({
+        npcId: snapshot.npcId,
+        playerId: snapshot.playerId,
+        reputation: snapshot.reputation,
+        trustTier: snapshot.trustTier,
+        memoryEventCount: snapshot.memoryEventCount,
+        recentMemoryNotes: snapshot.recentMemoryNotes,
+        knownRumorCount: snapshot.knownRumorCount,
       }));
     },
     getNpcRumors: async (playerId: string) => {
       const rumors = await npcRumorService.getRumorSnapshots(playerId);
-      return rumors.map((r): LiveGameplayNpcRumor => ({
-        rumorId: r.rumorId,
-        npcId: r.npcId,
-        playerId: r.playerId,
-        kind: r.kind,
-        weight: r.weight,
-        note: r.note,
-        sourceNpcId: r.sourceNpcId,
+      return rumors.map((rumor): LiveGameplayNpcRumor => ({
+        rumorId: rumor.rumorId,
+        npcId: rumor.npcId,
+        playerId: rumor.playerId,
+        kind: rumor.kind,
+        weight: rumor.weight,
+        note: rumor.note,
+        sourceNpcId: rumor.sourceNpcId,
       }));
     },
   });
 
   const baseSnapshot = await composer.compose(input.playerId, input.logicalIndex);
-
   const currentTick = input.logicalIndex;
   const discoveredPoiIds = worldDiscoveryService.getDiscoveredPoiIds(input.playerId);
   const worldPois = input.worldPois ?? [];
   const discoveredCamps = worldPois.filter(
-    (poi) => discoveredPoiIds.includes(poi.poiId) && isGatheringCampPoi(poi.type)
+    (poi) => discoveredPoiIds.includes(poi.poiId) && isGatheringCampPoi(poi.type),
   );
-
   const campPois: WorldPoiSnapshot[] = discoveredCamps.map((poi) => ({
     id: poi.poiId,
     type: poi.type as any,
@@ -306,7 +283,7 @@ export async function composeLiveGameplaySnapshotFromLegacy(
     tags: [],
   }));
 
-  campNpcService.updateCampStock(campPois, currentTick);
+  await campStockRuntime.hydratePois(campPois.map((poi) => poi.id));
   const campNpcs = campNpcService.generateCampNpcs(campPois, currentTick);
   const campStocks = campNpcService.getCampStockSnapshots(campPois, currentTick);
 

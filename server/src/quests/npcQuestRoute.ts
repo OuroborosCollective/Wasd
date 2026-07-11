@@ -1,427 +1,290 @@
-/**
- * NPC QUEST API ROUTE
- *
- * Server-authoritative NPC quest management endpoints.
- * Deterministic: No Math.random(), no Date.now() for gameplay state.
- * Client sends intent only, server validates and mutates.
- */
-
-import express, { Router } from "express";
+import express, { Router, type Response } from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
+import {
+  canonicalizeClientIntent,
+  chunkKeyFromWorldPosition,
+  type ServerCanonicalIntent,
+} from "../intents/ServerCanonicalIntent.js";
 import { npcQuestService } from "./NpcQuestService.js";
+import { npcQuestRuntime } from "./NpcQuestRuntime.js";
 
 const router = Router();
 router.use(express.json());
 
-// Parse helpers
-function parseQuestId(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!/^[a-zA-Z0-9_]{1,64}$/.test(trimmed)) return null;
-  return trimmed;
+interface RuntimeTickContext {
+  readonly tick: number;
+  readonly tickId: number | string;
 }
 
-function parseNpcId(value: unknown): string | null {
+interface QuestInteractPayload {
+  readonly [key: string]: unknown;
+  readonly targetId: string;
+  readonly interaction: "npc_talk" | "quest_accept" | "quest_complete";
+  readonly questId?: string;
+  readonly playerPosition: { readonly x: number; readonly y: number };
+}
+
+type CanonicalQuestIntent = ServerCanonicalIntent<"interact"> & {
+  readonly payload: QuestInteractPayload;
+};
+
+function parseId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  if (!/^[a-zA-Z0-9_]{1,64}$/.test(trimmed)) return null;
-  return trimmed;
+  return /^[a-zA-Z0-9:_-]{1,96}$/.test(trimmed) ? trimmed : null;
+}
+
+function parseRequestId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return /^[a-zA-Z0-9:_./-]{1,160}$/.test(trimmed) ? trimmed : undefined;
 }
 
 function parsePosition(value: unknown): { x: number; y: number } | null {
   if (!value || typeof value !== "object") return null;
-  const pos = value as { x?: unknown; y?: unknown };
-  const x = Number(pos.x);
-  const y = Number(pos.y);
+  const position = value as { x?: unknown; y?: unknown };
+  const x = Number(position.x);
+  const y = Number(position.y);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
   if (x < -100_000 || x > 100_000 || y < -100_000 || y > 100_000) return null;
-  return { x, y };
+  return { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };
 }
 
-function parsePlayerId(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (trimmed.length < 1 || trimmed.length > 64) return null;
-  return trimmed;
+function requireProductionAuth(identity: { authenticated: boolean }, res: Response): boolean {
+  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+    res.status(401).json({ ok: false, reason: "authenticated_player_required" });
+    return false;
+  }
+  return true;
 }
 
-/**
- * POST /api/npc/talk
- *
- * Player talks to NPC - updates quest progress and returns dialogue.
- * Required: playerId, npcId, playerPosition
- */
+function resolveRuntimeTick(): RuntimeTickContext | null {
+  const context = tickContextProvider.getContext();
+  const tick = Number(context.tickIndex);
+  const tickId = context.tickId;
+  const validTickId =
+    (typeof tickId === "number" && Number.isSafeInteger(tickId) && tickId >= 0) ||
+    (typeof tickId === "string" && /^[a-zA-Z0-9:_./-]{1,160}$/.test(tickId));
+  if (!Number.isSafeInteger(tick) || tick < 0 || !validTickId) return null;
+  return { tick, tickId };
+}
+
+function requireRuntimeTick(res: Response): RuntimeTickContext | null {
+  const runtime = resolveRuntimeTick();
+  if (!runtime) res.status(503).json({ ok: false, reason: "runtime_tick_unavailable" });
+  return runtime;
+}
+
+function canonicalizeQuestIntent(input: {
+  readonly actorId: string;
+  readonly runtime: RuntimeTickContext;
+  readonly requestId?: string;
+  readonly payload: QuestInteractPayload;
+}): CanonicalQuestIntent {
+  return canonicalizeClientIntent<"interact">(
+    { action: "interact", requestId: input.requestId, payload: input.payload },
+    {
+      actorId: input.actorId,
+      tickId: input.runtime.tickId,
+      logicalIndex: input.runtime.tick,
+      receivedOrder: 0,
+      chunkKey: chunkKeyFromWorldPosition(input.payload.playerPosition),
+    },
+  ) as CanonicalQuestIntent;
+}
+
+function validateNpcAndPosition(
+  npcId: string,
+  position: { x: number; y: number },
+  res: Response,
+): boolean {
+  if (!npcQuestService.getNpcDefinition(npcId)) {
+    res.status(404).json({ ok: false, reason: "missing_npc" });
+    return false;
+  }
+  if (!npcQuestService.isPlayerNearNpc(position.x, position.y, npcId)) {
+    res.status(403).json({ ok: false, reason: "npc_too_far" });
+    return false;
+  }
+  return true;
+}
+
+function validateQuestNpc(questId: string, npcId: string, res: Response): boolean {
+  const definition = npcQuestService.getQuestDefinition(questId);
+  if (!definition) {
+    res.status(404).json({ ok: false, reason: "missing_quest" });
+    return false;
+  }
+  if (definition.npcId !== npcId) {
+    res.status(400).json({ ok: false, reason: "quest_npc_mismatch" });
+    return false;
+  }
+  return true;
+}
+
 router.post("/talk", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  const playerId = req.body?.playerId ?? identity.playerId;
+  if (!requireProductionAuth(identity, res)) return;
+  const npcId = parseId(req.body?.npcId);
+  const position = parsePosition(req.body?.playerPosition);
+  if (!npcId) return void res.status(400).json({ ok: false, reason: "missing_npc" });
+  if (!position) return void res.status(400).json({ ok: false, reason: "invalid_player_position" });
+  if (!validateNpcAndPosition(npcId, position, res)) return;
+  const runtime = requireRuntimeTick(res);
+  if (!runtime) return;
 
-  if (!playerId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_player",
+  try {
+    await npcQuestRuntime.hydratePlayer(identity.playerId);
+    const intent = canonicalizeQuestIntent({
+      actorId: identity.playerId,
+      runtime,
+      requestId: parseRequestId(req.body?.requestId),
+      payload: { targetId: npcId, interaction: "npc_talk", playerPosition: position },
     });
-    return;
-  }
-
-  const npcId = parseNpcId(req.body?.npcId);
-  if (!npcId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_npc",
+    const talk = await npcQuestRuntime.updateTalkObjective(identity.playerId, npcId, {
+      intentHash: intent.intentHash,
+      tick: runtime.tick,
+      chunkKey: intent.chunkKey,
     });
-    return;
-  }
-
-  const playerPosition = parsePosition(req.body?.playerPosition);
-  if (!playerPosition) {
-    res.status(400).json({
-      ok: false,
-      reason: "invalid_player_position",
+    if (!talk.ok) {
+      res.status(talk.reason === "persistence_failed" ? 503 : 400).json({ ok: false, reason: talk.reason, canonicalIntent: intent });
+      return;
+    }
+    res.json({
+      ok: true,
+      canonicalIntent: intent,
+      result: {
+        dialogue: npcQuestService.getNpcDialogue(identity.playerId, npcId),
+        activeQuests: npcQuestService.getActiveQuests(identity.playerId).filter(
+          (quest) => npcQuestService.getQuestDefinition(quest.questId)?.npcId === npcId,
+        ),
+        talkUpdated: true,
+      },
     });
-    return;
+  } catch (error) {
+    console.error("[npc-talk] Failed:", error);
+    res.status(500).json({ ok: false, reason: "internal_error" });
   }
-
-  // Check proximity
-  if (!npcQuestService.isPlayerNearNpc(playerPosition.x, playerPosition.y, npcId)) {
-    res.status(400).json({
-      ok: false,
-      reason: "npc_too_far",
-    });
-    return;
-  }
-
-  // Update talk objectives
-  const talkResult = npcQuestService.updateTalkObjective(playerId, npcId);
-
-  // Get dialogue
-  const dialogue = npcQuestService.getNpcDialogue(playerId, npcId);
-
-  // Get active quests for this NPC
-  const activeQuests = npcQuestService.getActiveQuests(playerId).filter(
-    (q) => npcQuestService.getQuestDefinition(q.questId)?.npcId === npcId,
-  );
-
-  res.json({
-    ok: true,
-    result: {
-      dialogue,
-      activeQuests,
-      talkUpdated: talkResult.ok,
-    },
-  });
 });
 
-/**
- * POST /api/quests/accept
- *
- * Accept a quest from an NPC.
- * Required: playerId, questId, npcId, playerPosition
- */
 router.post("/accept", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  const playerId = req.body?.playerId ?? identity.playerId;
+  if (!requireProductionAuth(identity, res)) return;
+  const questId = parseId(req.body?.questId);
+  const npcId = parseId(req.body?.npcId);
+  const position = parsePosition(req.body?.playerPosition);
+  if (!questId) return void res.status(400).json({ ok: false, reason: "missing_quest" });
+  if (!npcId) return void res.status(400).json({ ok: false, reason: "missing_npc" });
+  if (!position) return void res.status(400).json({ ok: false, reason: "invalid_player_position" });
+  if (!validateNpcAndPosition(npcId, position, res) || !validateQuestNpc(questId, npcId, res)) return;
+  const runtime = requireRuntimeTick(res);
+  if (!runtime) return;
 
-  if (!playerId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_player",
+  try {
+    const intent = canonicalizeQuestIntent({
+      actorId: identity.playerId,
+      runtime,
+      requestId: parseRequestId(req.body?.requestId),
+      payload: { targetId: npcId, interaction: "quest_accept", questId, playerPosition: position },
     });
-    return;
-  }
-
-  const questId = parseQuestId(req.body?.questId);
-  if (!questId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_quest",
+    const result = await npcQuestRuntime.acceptQuest(identity.playerId, questId, {
+      intentHash: intent.intentHash,
+      tick: runtime.tick,
+      chunkKey: intent.chunkKey,
     });
-    return;
-  }
-
-  const npcId = parseNpcId(req.body?.npcId);
-  if (!npcId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_npc",
+    res.status(result.ok ? 200 : result.reason === "persistence_failed" ? 503 : 400).json({
+      ok: result.ok,
+      ...(result.ok ? { result: result.result } : { reason: result.reason }),
+      canonicalIntent: intent,
     });
-    return;
+  } catch (error) {
+    console.error("[quest-accept] Failed:", error);
+    res.status(500).json({ ok: false, reason: "internal_error" });
   }
-
-  const playerPosition = parsePosition(req.body?.playerPosition);
-  if (!playerPosition) {
-    res.status(400).json({
-      ok: false,
-      reason: "invalid_player_position",
-    });
-    return;
-  }
-
-  // Check proximity
-  if (!npcQuestService.isPlayerNearNpc(playerPosition.x, playerPosition.y, npcId)) {
-    res.status(400).json({
-      ok: false,
-      reason: "npc_too_far",
-    });
-    return;
-  }
-
-  // Accept quest
-  const result = npcQuestService.acceptQuest(playerId, questId);
-
-  const statusCode = result.ok ? 200 : 400;
-  res.status(statusCode).json({
-    ok: result.ok,
-    reason: result.ok ? undefined : (result as { ok: false; reason: string }).reason,
-    result: result.ok ? (result as { ok: true; result: typeof result.result }).result : undefined,
-  });
 });
 
-/**
- * POST /api/quests/complete
- *
- * Complete a quest and claim rewards.
- * Required: playerId, questId, npcId, playerPosition
- */
 router.post("/complete", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  const playerId = req.body?.playerId ?? identity.playerId;
+  if (!requireProductionAuth(identity, res)) return;
+  const questId = parseId(req.body?.questId);
+  const npcId = parseId(req.body?.npcId);
+  const position = parsePosition(req.body?.playerPosition);
+  if (!questId) return void res.status(400).json({ ok: false, reason: "missing_quest" });
+  if (!npcId) return void res.status(400).json({ ok: false, reason: "missing_npc" });
+  if (!position) return void res.status(400).json({ ok: false, reason: "invalid_player_position" });
+  if (!validateNpcAndPosition(npcId, position, res) || !validateQuestNpc(questId, npcId, res)) return;
+  const runtime = requireRuntimeTick(res);
+  if (!runtime) return;
 
-  if (!playerId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_player",
+  try {
+    const intent = canonicalizeQuestIntent({
+      actorId: identity.playerId,
+      runtime,
+      requestId: parseRequestId(req.body?.requestId),
+      payload: { targetId: npcId, interaction: "quest_complete", questId, playerPosition: position },
     });
-    return;
-  }
-
-  const questId = parseQuestId(req.body?.questId);
-  if (!questId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_quest",
+    const result = await npcQuestRuntime.completeQuestWithRewards(identity.playerId, questId, {
+      intentHash: intent.intentHash,
+      tick: runtime.tick,
+      chunkKey: intent.chunkKey,
     });
-    return;
-  }
-
-  const npcId = parseNpcId(req.body?.npcId);
-  if (!npcId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_npc",
+    res.status(result.ok ? 200 : result.reason === "reward_commit_failed" ? 503 : 400).json({
+      ok: result.ok,
+      ...(result.ok ? { result: result.result } : { reason: result.reason, details: result.details }),
+      canonicalIntent: intent,
     });
-    return;
+  } catch (error) {
+    console.error("[quest-complete] Failed:", error);
+    res.status(500).json({ ok: false, reason: "internal_error" });
   }
-
-  const playerPosition = parsePosition(req.body?.playerPosition);
-  if (!playerPosition) {
-    res.status(400).json({
-      ok: false,
-      reason: "invalid_player_position",
-    });
-    return;
-  }
-
-  // Check proximity
-  if (!npcQuestService.isPlayerNearNpc(playerPosition.x, playerPosition.y, npcId)) {
-    res.status(400).json({
-      ok: false,
-      reason: "npc_too_far",
-    });
-    return;
-  }
-
-  // Complete quest
-  const result = npcQuestService.completeQuest(playerId, questId);
-
-  const statusCode = result.ok ? 200 : 400;
-  res.status(statusCode).json({
-    ok: result.ok,
-    reason: result.ok ? undefined : (result as { ok: false; reason: string }).reason,
-    result: result.ok ? (result as { ok: true; result: typeof result.result }).result : undefined,
-  });
 });
 
-/**
- * GET /api/quests/active
- *
- * Get all active quests for a player.
- * Required: playerId (query param)
- */
 router.get("/active", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  const playerId = (req.query?.playerId as string) ?? identity.playerId;
-
-  if (!playerId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_player",
-    });
-    return;
-  }
-
-  const activeQuests = npcQuestService.getActiveQuests(playerId);
-
-  res.json({
-    ok: true,
-    result: {
-      activeQuests,
-    },
-  });
+  if (!requireProductionAuth(identity, res)) return;
+  await npcQuestRuntime.hydratePlayer(identity.playerId);
+  res.json({ ok: true, result: { activeQuests: npcQuestService.getActiveQuests(identity.playerId) } });
 });
 
-/**
- * GET /api/quests/available
- *
- * Get all available quests for a player.
- * Required: playerId (query param)
- */
 router.get("/available", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  const playerId = (req.query?.playerId as string) ?? identity.playerId;
-
-  if (!playerId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_player",
-    });
-    return;
-  }
-
-  const availableQuests = npcQuestService.getAvailableQuests(playerId);
-
-  res.json({
-    ok: true,
-    result: {
-      availableQuests,
-    },
-  });
+  if (!requireProductionAuth(identity, res)) return;
+  await npcQuestRuntime.hydratePlayer(identity.playerId);
+  res.json({ ok: true, result: { availableQuests: npcQuestService.getAvailableQuests(identity.playerId) } });
 });
 
-/**
- * GET /api/npc/dialogue
- *
- * Get NPC dialogue for player.
- * Required: playerId, npcId (query params)
- */
 router.get("/dialogue", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  const playerId = (req.query?.playerId as string) ?? identity.playerId;
-
-  if (!playerId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_player",
-    });
-    return;
+  if (!requireProductionAuth(identity, res)) return;
+  const npcId = parseId(req.query?.npcId);
+  if (!npcId || !npcQuestService.getNpcDefinition(npcId)) {
+    return void res.status(404).json({ ok: false, reason: "missing_npc" });
   }
-
-  const npcId = parseNpcId(req.query?.npcId);
-  if (!npcId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_npc",
-    });
-    return;
-  }
-
-  const dialogue = npcQuestService.getNpcDialogue(playerId, npcId);
-
-  res.json({
-    ok: true,
-    result: {
-      dialogue,
-    },
-  });
+  await npcQuestRuntime.hydratePlayer(identity.playerId);
+  res.json({ ok: true, result: { dialogue: npcQuestService.getNpcDialogue(identity.playerId, npcId) } });
 });
 
-/**
- * GET /api/npc/reputation
- *
- * Get NPC reputation for player.
- * Required: playerId, npcId (query params)
- */
 router.get("/reputation", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  const playerId = (req.query?.playerId as string) ?? identity.playerId;
-
-  if (!playerId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_player",
-    });
-    return;
+  if (!requireProductionAuth(identity, res)) return;
+  const npcId = parseId(req.query?.npcId);
+  if (!npcId || !npcQuestService.getNpcDefinition(npcId)) {
+    return void res.status(404).json({ ok: false, reason: "missing_npc" });
   }
-
-  const npcId = parseNpcId(req.query?.npcId);
-  if (!npcId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_npc",
-    });
-    return;
-  }
-
-  const reputation = npcQuestService.getNpcReputation(playerId, npcId);
-
-  if (!reputation) {
-    res.status(404).json({
-      ok: false,
-      reason: "missing_npc",
-    });
-    return;
-  }
-
-  res.json({
-    ok: true,
-    result: {
-      reputation,
-    },
-  });
+  await npcQuestRuntime.hydratePlayer(identity.playerId);
+  res.json({ ok: true, result: { reputation: npcQuestService.getNpcReputation(identity.playerId, npcId) } });
 });
 
-/**
- * GET /api/quests/progress/:questId
- *
- * Get quest progress for a specific quest.
- * Required: playerId (query), questId (param)
- */
 router.get("/progress/:questId", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  const playerId = (req.query?.playerId as string) ?? identity.playerId;
-
-  if (!playerId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_player",
-    });
-    return;
-  }
-
-  const questId = parseQuestId(req.params?.questId);
-  if (!questId) {
-    res.status(400).json({
-      ok: false,
-      reason: "missing_quest",
-    });
-    return;
-  }
-
-  const progress = npcQuestService.getQuestProgress(playerId, questId);
-
-  if (!progress) {
-    res.status(404).json({
-      ok: false,
-      reason: "missing_quest",
-    });
-    return;
-  }
-
-  res.json({
-    ok: true,
-    result: {
-      progress,
-    },
-  });
+  if (!requireProductionAuth(identity, res)) return;
+  const questId = parseId(req.params?.questId);
+  if (!questId) return void res.status(400).json({ ok: false, reason: "missing_quest" });
+  await npcQuestRuntime.hydratePlayer(identity.playerId);
+  const progress = npcQuestService.getQuestProgress(identity.playerId, questId);
+  if (!progress) return void res.status(404).json({ ok: false, reason: "missing_quest" });
+  res.json({ ok: true, result: { progress } });
 });
 
 export default router;

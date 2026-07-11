@@ -86,7 +86,7 @@ function normalizeRecipe(raw: unknown, file: string, index: number): CraftingRec
     title: readString(record, "title", file),
     requiredLevel: readInteger(record, "requiredLevel", file, 1),
     craftingXpReward: readInteger(record, "craftingXpReward", file, 0),
-    craftTicks: readInteger(record, "craftTicks", file, 1),
+    craftTicks: readInteger(record, "craftTicks", file, 0),
     stationType: normalizeStationType(record.stationType, file),
     ingredients: normalizedIngredients,
     outputs: normalizedOutputs,

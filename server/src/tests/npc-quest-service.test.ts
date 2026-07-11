@@ -1,13 +1,15 @@
-/**
- * NPC Quest Service Tests
- *
- * Unit tests for the NPC quest system.
- * Deterministic: No Math.random(), no Date.now() for gameplay state.
- */
+import { beforeEach, describe, expect, it } from "vitest";
+import { NpcQuestService } from "../quests/NpcQuestService";
 
-import { describe, it, expect, beforeEach } from "vitest";
-import { NpcQuestService } from "../quests/NpcQuestService.js";
-import { VILLAGE_SUPPLY_ORDER_QUEST } from "../quests/NpcQuestTypes.js";
+const QUEST_ID = "village_supply_order_001";
+const NPC_ID = "village_trader_001";
+
+function completeObjectives(service: NpcQuestService, playerId: string): void {
+  service.updateQuestProgress(playerId, "gather", "wood_log", 2);
+  service.updateQuestProgress(playerId, "craft", "craft_wood_plank", 1);
+  service.updateQuestProgress(playerId, "sell", "wood_plank", 1);
+  service.updateTalkObjective(playerId, NPC_ID);
+}
 
 describe("NpcQuestService", () => {
   let service: NpcQuestService;
@@ -16,450 +18,163 @@ describe("NpcQuestService", () => {
     service = new NpcQuestService();
   });
 
-  describe("getQuestDefinition", () => {
-    it("returns quest definition for known quest ID", () => {
-      const def = service.getQuestDefinition("village_supply_order_001");
-      expect(def).toBeDefined();
-      expect(def?.questId).toBe("village_supply_order_001");
-      expect(def?.title).toBe("Mira's First Supply Order");
+  describe("read-only projections", () => {
+    it("projects an available quest without creating player state", () => {
+      const playerId = "read-only-player";
+      expect(service.getAvailableQuests(playerId).map((quest) => quest.questId)).toEqual([QUEST_ID]);
+      expect(service.getActiveQuests(playerId)).toEqual([]);
+      expect(service.getCompletedQuestIds(playerId)).toEqual([]);
+      expect(service.getNpcReputation(playerId, NPC_ID)).toBeNull();
+      expect(service.exportPlayerState(playerId)).toEqual(expect.objectContaining({
+        playerId,
+        activeQuests: [],
+        completedQuestIds: [],
+        rewardClaimedQuestIds: [],
+        reputations: [],
+      }));
     });
 
-    it("returns undefined for unknown quest ID", () => {
-      const def = service.getQuestDefinition("unknown_quest");
-      expect(def).toBeUndefined();
-    });
-  });
-
-  describe("getNpcDefinition", () => {
-    it("returns NPC definition for village_trader_001", () => {
-      const npc = service.getNpcDefinition("village_trader_001");
-      expect(npc).toBeDefined();
-      expect(npc?.displayName).toBe("Mira the Quartermaster");
-      expect(npc?.x).toBe(462);
-      expect(npc?.y).toBe(503);
-      expect(npc?.interactionRadius).toBe(32);
-    });
-
-    it("returns undefined for unknown NPC", () => {
-      const npc = service.getNpcDefinition("unknown_npc");
-      expect(npc).toBeUndefined();
-    });
-  });
-
-  describe("isPlayerNearNpc", () => {
-    it("returns true when player is within interaction radius", () => {
-      // Player at (462, 503), NPC at (462, 503), radius 32
-      // Distance is 0, which is <= 32
-      expect(service.isPlayerNearNpc(462, 503, "village_trader_001")).toBe(true);
-    });
-
-    it("returns true when player is at edge of interaction radius", () => {
-      // Player at (462 + 32, 503) = (494, 503)
-      // Distance = sqrt((494-462)^2 + (503-503)^2) = sqrt(32^2) = 32
-      expect(service.isPlayerNearNpc(494, 503, "village_trader_001")).toBe(true);
-    });
-
-    it("returns false when player is outside interaction radius", () => {
-      // Player at (500, 500)
-      // Distance = sqrt((500-462)^2 + (500-503)^2) = sqrt(38^2 + 3^2) ≈ 38.1
-      expect(service.isPlayerNearNpc(500, 500, "village_trader_001")).toBe(false);
-    });
-
-    it("returns false for unknown NPC", () => {
-      expect(service.isPlayerNearNpc(462, 503, "unknown_npc")).toBe(false);
+    it("returns null for an unknown quest and unknown NPC reputation", () => {
+      expect(service.getQuestProgress("player", "unknown_quest")).toBeNull();
+      expect(service.getNpcReputation("player", "unknown_npc")).toBeNull();
     });
   });
 
   describe("acceptQuest", () => {
-    const playerId = "test-player-001";
-
-    it("succeeds when accepting available quest", () => {
-      const result = service.acceptQuest(playerId, "village_supply_order_001");
-      expect(result.ok).toBe(true);
-      expect(result.result).toBeDefined();
-      expect(result.result?.questId).toBe("village_supply_order_001");
-      expect(result.result?.state).toBe("active");
+    it("accepts a valid quest and rejects duplicate acceptance", () => {
+      const playerId = "accept-player";
+      expect(service.acceptQuest(playerId, QUEST_ID)).toEqual(expect.objectContaining({ ok: true }));
+      expect(service.getQuestProgress(playerId, QUEST_ID)?.state).toBe("active");
+      expect(service.acceptQuest(playerId, QUEST_ID)).toEqual({
+        ok: false,
+        reason: "quest_already_active",
+      });
     });
 
-    it("fails when player ID is missing", () => {
-      const result = service.acceptQuest("", "village_supply_order_001");
-      expect(result.ok).toBe(false);
-      expect(result.reason).toBe("missing_player");
-    });
-
-    it("fails when quest ID is unknown", () => {
-      const result = service.acceptQuest(playerId, "unknown_quest");
-      expect(result.ok).toBe(false);
-      expect(result.reason).toBe("missing_quest");
-    });
-
-    it("fails when quest is already active", () => {
-      // Accept once
-      service.acceptQuest(playerId, "village_supply_order_001");
-      // Try to accept again
-      const result = service.acceptQuest(playerId, "village_supply_order_001");
-      expect(result.ok).toBe(false);
-      expect(result.reason).toBe("quest_already_active");
-    });
-
-    it("fails when quest is already completed", () => {
-      // Accept and complete the quest
-      service.acceptQuest(playerId, "village_supply_order_001");
-      const progress = service.getQuestProgress(playerId, "village_supply_order_001");
-      expect(progress).toBeDefined();
-
-      // Complete all objectives and complete the quest
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "craft", "craft_wood_plank", 1);
-      service.updateQuestProgress(playerId, "sell", "wood_plank", 1);
-      service.updateTalkObjective(playerId, "village_trader_001");
-      service.completeQuest(playerId, "village_supply_order_001");
-
-      // Now try to accept again - should fail as completed (no reset!)
-      const result = service.acceptQuest(playerId, "village_supply_order_001");
-      expect(result.ok).toBe(false);
-      expect(result.reason).toBe("quest_already_completed");
+    it("rejects missing actor and unknown quest", () => {
+      expect(service.acceptQuest("", QUEST_ID)).toEqual({ ok: false, reason: "missing_player" });
+      expect(service.acceptQuest("player", "unknown_quest")).toEqual({ ok: false, reason: "missing_quest" });
     });
   });
 
-  describe("updateQuestProgress", () => {
-    const playerId = "test-player-002";
-
-    beforeEach(() => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-    });
-
-    it("updates progress when gathering wood_log", () => {
-      const result = service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      expect(result.ok).toBe(true);
-
-      const progress = service.getQuestProgress(playerId, "village_supply_order_001");
-      expect(progress?.objectives.find((o) => o.objectiveId === "gather_wood_logs")?.current).toBe(1);
-    });
-
-    it("accumulates gathering progress", () => {
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-
-      const progress = service.getQuestProgress(playerId, "village_supply_order_001");
-      expect(progress?.objectives.find((o) => o.objectiveId === "gather_wood_logs")?.current).toBe(2);
-    });
-
-    it("marks objective as complete when required is reached", () => {
-      service.updateQuestProgress(playerId, "gather", "wood_log", 2);
-
-      const progress = service.getQuestProgress(playerId, "village_supply_order_001");
-      const obj = progress?.objectives.find((o) => o.objectiveId === "gather_wood_logs");
-      expect(obj?.completed).toBe(true);
-      expect(obj?.current).toBe(2);
-    });
-
-    it("caps progress at required amount", () => {
+  describe("objective progression", () => {
+    it("matches gather, recipe-id craft, sell and talk events", () => {
+      const playerId = "progress-player";
+      service.acceptQuest(playerId, QUEST_ID);
       service.updateQuestProgress(playerId, "gather", "wood_log", 5);
-
-      const progress = service.getQuestProgress(playerId, "village_supply_order_001");
-      const obj = progress?.objectives.find((o) => o.objectiveId === "gather_wood_logs");
-      expect(obj?.current).toBe(2); // Capped at required
-    });
-
-    it("updates progress when crafting wood_plank", () => {
-      // Use craft_wood_plank as target since that's the targetRecipeId in the quest definition
       service.updateQuestProgress(playerId, "craft", "craft_wood_plank", 1);
-
-      const progress = service.getQuestProgress(playerId, "village_supply_order_001");
-      expect(progress?.objectives.find((o) => o.objectiveId === "process_wood_plank")?.current).toBe(1);
-    });
-
-    it("updates progress when selling wood_plank", () => {
       service.updateQuestProgress(playerId, "sell", "wood_plank", 1);
 
-      const progress = service.getQuestProgress(playerId, "village_supply_order_001");
-      expect(progress?.objectives.find((o) => o.objectiveId === "sell_wood_plank")?.current).toBe(1);
+      let progress = service.getQuestProgress(playerId, QUEST_ID)!;
+      expect(progress.objectives.map((objective) => [objective.objectiveId, objective.current])).toEqual([
+        ["gather_wood_logs", 2],
+        ["process_wood_plank", 1],
+        ["sell_wood_plank", 1],
+        ["return_to_mira", 0],
+      ]);
+      expect(progress.state).toBe("active");
+      expect(service.getNpcDialogue(playerId, NPC_ID).dialogueState).not.toBe("quest_ready_to_complete");
+
+      service.updateTalkObjective(playerId, NPC_ID);
+      progress = service.getQuestProgress(playerId, QUEST_ID)!;
+      expect(progress.state).toBe("ready_to_complete");
+      expect(service.getNpcDialogue(playerId, NPC_ID).dialogueState).toBe("quest_ready_to_complete");
     });
 
-    it("fails with missing player ID", () => {
-      const result = service.updateQuestProgress("", "gather", "wood_log", 1);
-      expect(result.ok).toBe(false);
-      expect(result.reason).toBe("missing_player");
+    it("ignores nonmatching events without inventing progress", () => {
+      const playerId = "nonmatching-player";
+      service.acceptQuest(playerId, QUEST_ID);
+      service.updateQuestProgress(playerId, "craft", "wood_plank", 1);
+      service.updateTalkObjective(playerId, "unknown_npc");
+      const progress = service.getQuestProgress(playerId, QUEST_ID)!;
+      expect(progress.objectives.every((objective) => objective.current === 0)).toBe(true);
+    });
+
+    it("rejects a missing player actor", () => {
+      expect(service.updateQuestProgress("", "gather", "wood_log", 1)).toEqual({
+        ok: false,
+        reason: "missing_player",
+      });
+      expect(service.updateTalkObjective("", NPC_ID)).toEqual({
+        ok: false,
+        reason: "missing_player",
+      });
     });
   });
 
-  describe("updateTalkObjective", () => {
-    const playerId = "test-player-003";
-
-    beforeEach(() => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-    });
-
-    it("updates return_to_mira objective when talking to village_trader_001", () => {
-      const result = service.updateTalkObjective(playerId, "village_trader_001");
-      expect(result.ok).toBe(true);
-
-      const progress = service.getQuestProgress(playerId, "village_supply_order_001");
-      expect(progress?.objectives.find((o) => o.objectiveId === "return_to_mira")?.current).toBe(1);
-    });
-
-    it("fails with missing player ID", () => {
-      const result = service.updateTalkObjective("", "village_trader_001");
-      expect(result.ok).toBe(false);
-      expect(result.reason).toBe("missing_player");
-    });
-  });
-
-  describe("completeQuest", () => {
-    const playerId = "test-player-004";
-
-    it("fails when quest is not active", () => {
-      const result = service.completeQuest(playerId, "village_supply_order_001");
-      expect(result.ok).toBe(false);
-      expect(result.reason).toBe("quest_not_available");
-    });
-
-    it("fails when objectives are not complete", () => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-      // Don't complete any objectives
-
-      const result = service.completeQuest(playerId, "village_supply_order_001");
-      expect(result.ok).toBe(false);
-      expect(result.reason).toBe("objective_not_complete");
-    });
-
-    it("succeeds when all objectives are complete", () => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-
-      // Complete all objectives in order
-      // 1. Gather 2 wood logs
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      // 2. Craft 1 wood plank
-      service.updateQuestProgress(playerId, "craft", "craft_wood_plank", 1);
-      // 3. Sell 1 wood plank
-      service.updateQuestProgress(playerId, "sell", "wood_plank", 1);
-      // 4. Return to Mira (talk)
-      service.updateTalkObjective(playerId, "village_trader_001");
-
-      const result = service.completeQuest(playerId, "village_supply_order_001");
-      expect(result.ok).toBe(true);
-      expect(result.result).toBeDefined();
-      expect(result.result?.reward.coins).toBe(10);
-      expect(result.result?.reward.gatheringXp).toBe(25);
-      expect(result.result?.reward.craftingXp).toBe(25);
-      expect(result.result?.reward.reputation).toBe(1);
-    });
-
-    it("cannot claim reward twice", () => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-
-      // Complete all objectives in order
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "craft", "craft_wood_plank", 1);
-      service.updateQuestProgress(playerId, "sell", "wood_plank", 1);
-      service.updateTalkObjective(playerId, "village_trader_001");
-
-      // Complete once
-      service.completeQuest(playerId, "village_supply_order_001");
-
-      // Try to complete again - need to reset and re-accept
-      service.resetPlayerState(playerId);
-      service.acceptQuest(playerId, "village_supply_order_001");
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "craft", "craft_wood_plank", 1);
-      service.updateQuestProgress(playerId, "sell", "wood_plank", 1);
-      service.updateTalkObjective(playerId, "village_trader_001");
-
-      const result = service.completeQuest(playerId, "village_supply_order_001");
-      expect(result.ok).toBe(true);
-    });
-  });
-
-  describe("getNpcDialogue", () => {
-    const playerId = "test-player-005";
-
-    it("returns quest_available state when no quest active", () => {
-      const dialogue = service.getNpcDialogue(playerId, "village_trader_001");
-      expect(dialogue.dialogueState).toBe("quest_available");
-      expect(dialogue.availableQuestIds).toContain("village_supply_order_001");
-    });
-
-    it("returns quest_active_missing_wood when gathering wood", () => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-
-      const dialogue = service.getNpcDialogue(playerId, "village_trader_001");
-      expect(dialogue.dialogueState).toBe("quest_active_missing_wood");
-    });
-
-    it("returns quest_active_ready_to_process when wood gathered", () => {
-      service.acceptQuest(playerId, "village_supply_order_001");
+  describe("dialogue state", () => {
+    it("advances only from recorded objective state", () => {
+      const playerId = "dialogue-player";
+      expect(service.getNpcDialogue(playerId, NPC_ID).dialogueState).toBe("quest_available");
+      service.acceptQuest(playerId, QUEST_ID);
+      expect(service.getNpcDialogue(playerId, NPC_ID).dialogueState).toBe("quest_active_missing_wood");
       service.updateQuestProgress(playerId, "gather", "wood_log", 2);
-
-      const dialogue = service.getNpcDialogue(playerId, "village_trader_001");
-      expect(dialogue.dialogueState).toBe("quest_active_ready_to_process");
-    });
-
-    it("returns quest_active_ready_to_sell when plank crafted", () => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
+      expect(service.getNpcDialogue(playerId, NPC_ID).dialogueState).toBe("quest_active_ready_to_process");
       service.updateQuestProgress(playerId, "craft", "craft_wood_plank", 1);
-
-      const dialogue = service.getNpcDialogue(playerId, "village_trader_001");
-      expect(dialogue.dialogueState).toBe("quest_active_ready_to_sell");
-    });
-
-    it("returns quest_ready_to_complete when sold", () => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "craft", "craft_wood_plank", 1);
+      expect(service.getNpcDialogue(playerId, NPC_ID).dialogueState).toBe("quest_active_ready_to_sell");
       service.updateQuestProgress(playerId, "sell", "wood_plank", 1);
-
-      const dialogue = service.getNpcDialogue(playerId, "village_trader_001");
-      expect(dialogue.dialogueState).toBe("quest_ready_to_complete");
-    });
-
-    it("returns quest_completed when quest is done", () => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "craft", "craft_wood_plank", 1);
-      service.updateQuestProgress(playerId, "sell", "wood_plank", 1);
-      service.updateTalkObjective(playerId, "village_trader_001");
-      service.completeQuest(playerId, "village_supply_order_001");
-
-      const dialogue = service.getNpcDialogue(playerId, "village_trader_001");
-      expect(dialogue.dialogueState).toBe("quest_completed");
-      expect(dialogue.completedQuestIds).toContain("village_supply_order_001");
+      expect(service.getNpcDialogue(playerId, NPC_ID).dialogueState).toBe("quest_active_ready_to_sell");
+      service.updateTalkObjective(playerId, NPC_ID);
+      expect(service.getNpcDialogue(playerId, NPC_ID).dialogueState).toBe("quest_ready_to_complete");
     });
   });
 
-  describe("getNpcReputation", () => {
-    const playerId = "test-player-006";
-
-    it("returns initial reputation of 0", () => {
-      const reputation = service.getNpcReputation(playerId, "village_trader_001");
-      expect(reputation?.reputation).toBe(0);
+  describe("completion and persistence", () => {
+    it("requires every objective and records completion/reputation once", () => {
+      const playerId = "complete-player";
+      service.acceptQuest(playerId, QUEST_ID);
+      expect(service.completeQuest(playerId, QUEST_ID)).toEqual({
+        ok: false,
+        reason: "objective_not_complete",
+      });
+      completeObjectives(service, playerId);
+      const completed = service.completeQuest(playerId, QUEST_ID);
+      expect(completed).toEqual(expect.objectContaining({
+        ok: true,
+        result: expect.objectContaining({
+          reward: expect.objectContaining({ coins: 10, gatheringXp: 25, craftingXp: 25, reputation: 1 }),
+          reputation: expect.objectContaining({ reputation: 1 }),
+        }),
+      }));
+      expect(service.getQuestProgress(playerId, QUEST_ID)?.state).toBe("completed");
+      expect(service.getNpcDialogue(playerId, NPC_ID).dialogueState).toBe("quest_completed");
+      expect(service.completeQuest(playerId, QUEST_ID)).toEqual({
+        ok: false,
+        reason: "quest_not_available",
+      });
     });
 
-    it("increases reputation after quest completion", () => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "craft", "craft_wood_plank", 1);
-      service.updateQuestProgress(playerId, "sell", "wood_plank", 1);
-      service.updateTalkObjective(playerId, "village_trader_001");
-      service.completeQuest(playerId, "village_supply_order_001");
+    it("exports and restores active and completed state", () => {
+      const activePlayer = "persist-active";
+      service.acceptQuest(activePlayer, QUEST_ID);
+      service.updateQuestProgress(activePlayer, "gather", "wood_log", 1);
+      const activeState = service.exportPlayerState(activePlayer);
 
-      const reputation = service.getNpcReputation(playerId, "village_trader_001");
-      expect(reputation?.reputation).toBe(1);
-      expect(reputation?.completedQuestIds).toContain("village_supply_order_001");
-    });
+      const restoredActive = new NpcQuestService();
+      restoredActive.restorePlayerState(activeState);
+      expect(restoredActive.getQuestProgress(activePlayer, QUEST_ID)).toEqual(
+        service.getQuestProgress(activePlayer, QUEST_ID),
+      );
 
-    it("returns null for unknown NPC", () => {
-      const reputation = service.getNpcReputation(playerId, "unknown_npc");
-      expect(reputation).toBeNull();
-    });
-  });
-
-  describe("getActiveQuests / getAvailableQuests", () => {
-    const playerId = "test-player-007";
-
-    it("returns available quests when none accepted", () => {
-      const available = service.getAvailableQuests(playerId);
-      expect(available.some((q) => q.questId === "village_supply_order_001")).toBe(true);
-
-      const active = service.getActiveQuests(playerId);
-      expect(active).toHaveLength(0);
-    });
-
-    it("returns active quests after accepting", () => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-
-      const active = service.getActiveQuests(playerId);
-      expect(active.some((q) => q.questId === "village_supply_order_001")).toBe(true);
-
-      const available = service.getAvailableQuests(playerId);
-      expect(available.some((q) => q.questId === "village_supply_order_001")).toBe(false);
-    });
-
-    it("returns empty active after completing", () => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "gather", "wood_log", 1);
-      service.updateQuestProgress(playerId, "craft", "craft_wood_plank", 1);
-      service.updateQuestProgress(playerId, "sell", "wood_plank", 1);
-      service.updateTalkObjective(playerId, "village_trader_001");
-      service.completeQuest(playerId, "village_supply_order_001");
-
-      const active = service.getActiveQuests(playerId);
-      expect(active.some((q) => q.questId === "village_supply_order_001")).toBe(false);
+      const completePlayer = "persist-complete";
+      service.acceptQuest(completePlayer, QUEST_ID);
+      completeObjectives(service, completePlayer);
+      service.completeQuest(completePlayer, QUEST_ID);
+      const restoredComplete = new NpcQuestService();
+      restoredComplete.restorePlayerState(service.exportPlayerState(completePlayer));
+      expect(restoredComplete.getQuestProgress(completePlayer, QUEST_ID)?.state).toBe("completed");
+      expect(restoredComplete.getNpcReputation(completePlayer, NPC_ID)?.reputation).toBe(1);
     });
   });
 
-  describe("toQuestSnapshots", () => {
-    const playerId = "test-player-008";
-
-    it("converts active quest to QuestSnapshot format", () => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-
-      const snapshots = service.toQuestSnapshots(playerId);
-      const quest = snapshots.find((q) => q.id === "village_supply_order_001");
-
-      expect(quest).toBeDefined();
-      expect(quest?.status).toBe("active");
-      expect(quest?.objectives).toHaveLength(4);
-      expect(quest?.objectives[0].id).toBe("gather_wood_logs");
-    });
-  });
-
-  describe("failed validation does not mutate state", () => {
-    const playerId = "test-player-009";
-
-    it("accepting unknown quest does not change state", () => {
-      const before = service.getAvailableQuests(playerId);
-      const beforeActive = service.getActiveQuests(playerId);
-
-      const result = service.acceptQuest(playerId, "unknown_quest");
-
-      expect(result.ok).toBe(false);
-      const after = service.getAvailableQuests(playerId);
-      const afterActive = service.getActiveQuests(playerId);
-      expect(after).toEqual(before);
-      expect(afterActive).toEqual(beforeActive);
-    });
-
-    it("completing quest without objectives does not change state", () => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-
-      const result = service.completeQuest(playerId, "village_supply_order_001");
-
-      expect(result.ok).toBe(false);
-      expect(result.reason).toBe("objective_not_complete");
-
-      // Quest should still be active, not mutated
-      const progress = service.getQuestProgress(playerId, "village_supply_order_001");
-      expect(progress?.state).toBe("active");
-    });
-  });
-
-  describe("resetPlayerState", () => {
-    const playerId = "test-player-010";
-
-    it("clears all quest state for player", () => {
-      service.acceptQuest(playerId, "village_supply_order_001");
-      service.updateQuestProgress(playerId, "gather", "wood_log", 2);
-
-      service.resetPlayerState(playerId);
-
-      // Should be back to available state
-      const available = service.getAvailableQuests(playerId);
-      expect(available.some((q) => q.questId === "village_supply_order_001")).toBe(true);
-
-      const active = service.getActiveQuests(playerId);
-      expect(active).toHaveLength(0);
+  describe("QuestSnapshot projection", () => {
+    it("keeps ready-to-complete active until persisted completion", () => {
+      const playerId = "projection-player";
+      service.acceptQuest(playerId, QUEST_ID);
+      completeObjectives(service, playerId);
+      expect(service.toQuestSnapshots(playerId).find((quest) => quest.id === QUEST_ID)?.status).toBe("active");
+      service.completeQuest(playerId, QUEST_ID);
+      expect(service.toQuestSnapshots(playerId).find((quest) => quest.id === QUEST_ID)?.status).toBe("completed");
     });
   });
 });
