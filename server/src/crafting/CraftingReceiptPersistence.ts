@@ -41,19 +41,21 @@ export function craftingReceiptHash(input: Omit<PersistedCraftingReceipt, "recei
 export function createCraftingReceipt(
   input: Omit<PersistedCraftingReceipt, "schemaVersion" | "receiptHash">,
 ): PersistedCraftingReceipt {
-  const base = Object.freeze({
-    schemaVersion: 1 as const,
+  const inventoryBefore: PlayerInventoryState = {
+    ...input.inventoryBefore,
+    slots: input.inventoryBefore.slots.map((slot) => ({ ...slot })),
+  };
+  const skillsBefore: PlayerSkillState = {
+    ...input.skillsBefore,
+    skills: input.skillsBefore.skills.map((skill) => ({ ...skill })),
+  };
+  const base: Omit<PersistedCraftingReceipt, "receiptHash"> = {
+    schemaVersion: 1,
     ...input,
     originUids: Object.freeze([...input.originUids]),
     appliedOriginUidsBefore: Object.freeze([...input.appliedOriginUidsBefore]),
-    inventoryBefore: Object.freeze({
-      ...input.inventoryBefore,
-      slots: Object.freeze(input.inventoryBefore.slots.map((slot) => Object.freeze({ ...slot }))),
-    }),
-    skillsBefore: Object.freeze({
-      ...input.skillsBefore,
-      skills: Object.freeze(input.skillsBefore.skills.map((skill) => Object.freeze({ ...skill }))),
-    }),
-  });
+    inventoryBefore,
+    skillsBefore,
+  };
   return Object.freeze({ ...base, receiptHash: craftingReceiptHash(base) });
 }
