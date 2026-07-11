@@ -101,11 +101,11 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
       const next = await fetchGameplaySnapshot(actorId);
       if (!next) {
         liveGameplayStore.markStale();
-        toast("error", "Craft committed, but the newer server revision could not be loaded");
+        toast("error", "Craft committed, but the server revision could not be loaded");
         return;
       }
       const applied = liveGameplayStore.setSnapshot(next, actorId, {
-        after: beforeEvidence,
+        ...(response.result.replayed ? {} : { after: beforeEvidence }),
         expectedMutationHash: questHistoryHash,
       });
       if (!applied) {
@@ -116,7 +116,7 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
       toast(
         "success",
         response.result.replayed
-          ? "Craft receipt and follow-up revision confirmed"
+          ? "Craft receipt and existing follow-up revision confirmed"
           : `Crafted ${response.result.outputs?.[0]?.itemId ?? "item"}`,
       );
     } finally {
@@ -131,12 +131,7 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
       <div className="wow-inventory-header">
         <h2>CRAFTING</h2>
         {onClose && (
-          <button
-            className="wow-close-btn"
-            onClick={onClose}
-            aria-label="Close [ESC]"
-            aria-keyshortcuts="Escape"
-          >
+          <button className="wow-close-btn" onClick={onClose} aria-label="Close [ESC]" aria-keyshortcuts="Escape">
             <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
             ✕
           </button>
@@ -149,9 +144,7 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
             Crafting {snapshot.status}. Actions remain blocked until a newer server revision arrives.
           </div>
         ) : recipes.length === 0 ? (
-          <div className="crafting-empty">
-            <p>No server crafting recipes available.</p>
-          </div>
+          <div className="crafting-empty"><p>No server crafting recipes available.</p></div>
         ) : (
           <div className="crafting-list">
             {recipes.map((recipe) => {
