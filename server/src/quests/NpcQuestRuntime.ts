@@ -8,6 +8,7 @@ import { JsonNpcQuestPersistenceAdapter } from "./JsonNpcQuestPersistenceAdapter
 import type {
   NpcQuestPersistenceAdapter,
   PersistedNpcQuestPlayerState,
+  PersistedNpcQuestSourceMutation,
 } from "./NpcQuestPersistence.js";
 import { npcQuestService, type NpcQuestService } from "./NpcQuestService.js";
 import type { ActionResult, QuestProgressSnapshot } from "./NpcQuestTypes.js";
@@ -16,6 +17,20 @@ export interface NpcQuestMutationEvidence {
   readonly intentHash: string;
   readonly tick: number;
   readonly chunkKey: string;
+}
+
+export interface NpcQuestSourceMutationEvidence extends NpcQuestMutationEvidence {
+  readonly eventType: "gather" | "craft" | "sell";
+  readonly targetId: string;
+  readonly quantity: number;
+}
+
+export interface NpcQuestProgressCommitResult {
+  readonly progress: readonly QuestProgressSnapshot[];
+  readonly intentHash: string;
+  readonly historyHash: string;
+  readonly tick: number;
+  readonly replayed: boolean;
 }
 
 export interface NpcQuestCompletionResult {
@@ -38,9 +53,19 @@ function stableState(value: PersistedNpcQuestPlayerState): string {
   return JSON.stringify(value);
 }
 
+function sameSourceMutation(a: PersistedNpcQuestSourceMutation, b: NpcQuestSourceMutationEvidence): boolean {
+  return a.intentHash === b.intentHash &&
+    a.eventType === b.eventType &&
+    a.targetId === b.targetId &&
+    a.quantity === b.quantity &&
+    a.tick === b.tick &&
+    a.chunkKey === b.chunkKey;
+}
+
 export class NpcQuestRuntime {
   private readonly hydratedPlayers = new Set<string>();
   private readonly locks = new Map<string, Promise<void>>();
+  private readonly sourceMutationsByPlayer = new Map<string, Map<string, PersistedNpcQuestSourceMutation>>();
 
   public constructor(
     private readonly service: NpcQuestService = npcQuestService,
@@ -50,7 +75,13 @@ export class NpcQuestRuntime {
   public async hydratePlayer(playerId: string): Promise<void> {
     if (this.hydratedPlayers.has(playerId)) return;
     const persisted = await this.persistence.loadPlayerState(playerId);
-    if (persisted) this.service.restorePlayerState(persisted);
+    if (persisted) {
+      this.service.restorePlayerState(persisted);
+      this.sourceMutationsByPlayer.set(
+        playerId,
+        new Map((persisted.appliedSourceMutations ?? []).map((entry) => [entry.intentHash, entry])),
+      );
+    }
     this.hydratedPlayers.add(playerId);
   }
 
@@ -62,58 +93,115 @@ export class NpcQuestRuntime {
     return this.runExclusive(playerId, async () => {
       await this.hydratePlayer(playerId);
       const before = this.service.clonePlayerState(playerId);
+      const historyLength = runtimeHistoryLog.captureLength();
       const result = this.service.acceptQuest(playerId, questId);
       if (!result.ok) return result;
       try {
+        const history = runtimeHistoryLog.write({
+          tick: evidence.tick,
+          source: "quest_delta",
+          actorId: playerId,
+          subjectId: questId,
+          chunkKey: evidence.chunkKey,
+          payload: { kind: "quest_accept", intentHash: evidence.intentHash, progress: result.result },
+        });
         await this.persist(playerId);
+        const npcId = this.service.getQuestDefinition(questId)?.npcId;
+        if (npcId) {
+          void npcMemoryService.recordQuestAccepted(playerId, npcId, questId)
+            .catch((error) => console.warn("[npc-quest-runtime] Accept memory side-channel failed:", error));
+        }
+        return {
+          ok: true,
+          result: Object.freeze({
+            ...result.result,
+            intentHash: evidence.intentHash,
+            historyHash: history.entryHash,
+            tick: evidence.tick,
+          }),
+        };
       } catch {
         this.service.restorePlayerState(before);
+        runtimeHistoryLog.truncate(historyLength);
         return { ok: false, reason: "persistence_failed" };
       }
-
-      const history = runtimeHistoryLog.write({
-        tick: evidence.tick,
-        source: "quest_delta",
-        actorId: playerId,
-        subjectId: questId,
-        chunkKey: evidence.chunkKey,
-        payload: { kind: "quest_accept", intentHash: evidence.intentHash, progress: result.result },
-      });
-      const npcId = this.service.getQuestDefinition(questId)?.npcId;
-      if (npcId) {
-        void npcMemoryService.recordQuestAccepted(playerId, npcId, questId)
-          .catch((error) => console.warn("[npc-quest-runtime] Accept memory side-channel failed:", error));
-      }
-      return {
-        ok: true,
-        result: Object.freeze({
-          ...result.result,
-          intentHash: evidence.intentHash,
-          historyHash: history.entryHash,
-          tick: evidence.tick,
-        }),
-      };
     });
   }
 
   public async updateQuestProgress(
     playerId: string,
-    eventType: "gather" | "craft" | "sell",
-    targetId: string,
-    quantity: number,
-  ): Promise<ActionResult<readonly QuestProgressSnapshot[]>> {
+    evidence: NpcQuestSourceMutationEvidence,
+  ): Promise<ActionResult<NpcQuestProgressCommitResult>> {
     return this.runExclusive(playerId, async () => {
       await this.hydratePlayer(playerId);
+      const playerReceipts = this.getSourceMutationMap(playerId);
+      const existing = playerReceipts.get(evidence.intentHash);
+      if (existing) {
+        if (!sameSourceMutation(existing, evidence)) {
+          return { ok: false, reason: "source_intent_conflict" };
+        }
+        return {
+          ok: true,
+          result: Object.freeze({
+            progress: this.service.getActiveQuests(playerId),
+            intentHash: existing.intentHash,
+            historyHash: existing.historyHash,
+            tick: existing.tick,
+            replayed: true,
+          }),
+        };
+      }
+
       const before = this.service.clonePlayerState(playerId);
-      const result = this.service.updateQuestProgress(playerId, eventType, targetId, quantity);
+      const historyLength = runtimeHistoryLog.captureLength();
+      const result = this.service.updateQuestProgress(
+        playerId,
+        evidence.eventType,
+        evidence.targetId,
+        evidence.quantity,
+      );
       if (!result.ok) return result;
-      const after = this.service.clonePlayerState(playerId);
-      if (stableState(before) === stableState(after)) return result;
+
       try {
-        await this.persistence.savePlayerState(after);
-        return result;
+        const history = runtimeHistoryLog.write({
+          tick: evidence.tick,
+          source: "quest_delta",
+          actorId: playerId,
+          subjectId: evidence.targetId,
+          chunkKey: evidence.chunkKey,
+          payload: {
+            kind: "quest_progress",
+            intentHash: evidence.intentHash,
+            eventType: evidence.eventType,
+            quantity: evidence.quantity,
+            progress: result.result,
+          },
+        });
+        const receipt: PersistedNpcQuestSourceMutation = Object.freeze({
+          intentHash: evidence.intentHash,
+          eventType: evidence.eventType,
+          targetId: evidence.targetId,
+          quantity: evidence.quantity,
+          tick: evidence.tick,
+          chunkKey: evidence.chunkKey,
+          historyHash: history.entryHash,
+        });
+        playerReceipts.set(receipt.intentHash, receipt);
+        await this.persist(playerId);
+        return {
+          ok: true,
+          result: Object.freeze({
+            progress: result.result,
+            intentHash: receipt.intentHash,
+            historyHash: receipt.historyHash,
+            tick: receipt.tick,
+            replayed: false,
+          }),
+        };
       } catch {
         this.service.restorePlayerState(before);
+        playerReceipts.delete(evidence.intentHash);
+        runtimeHistoryLog.truncate(historyLength);
         return { ok: false, reason: "persistence_failed" };
       }
     });
@@ -127,26 +215,25 @@ export class NpcQuestRuntime {
     return this.runExclusive(playerId, async () => {
       await this.hydratePlayer(playerId);
       const before = this.service.clonePlayerState(playerId);
+      const historyLength = runtimeHistoryLog.captureLength();
       const result = this.service.updateTalkObjective(playerId, npcId);
       if (!result.ok) return result;
-      const after = this.service.clonePlayerState(playerId);
-      if (stableState(before) !== stableState(after)) {
-        try {
-          await this.persistence.savePlayerState(after);
-        } catch {
-          this.service.restorePlayerState(before);
-          return { ok: false, reason: "persistence_failed" };
-        }
+      try {
+        runtimeHistoryLog.write({
+          tick: evidence.tick,
+          source: "quest_delta",
+          actorId: playerId,
+          subjectId: npcId,
+          chunkKey: evidence.chunkKey,
+          payload: { kind: "npc_talk", intentHash: evidence.intentHash, updated: result.result },
+        });
+        await this.persist(playerId);
+        return result;
+      } catch {
+        this.service.restorePlayerState(before);
+        runtimeHistoryLog.truncate(historyLength);
+        return { ok: false, reason: "persistence_failed" };
       }
-      runtimeHistoryLog.write({
-        tick: evidence.tick,
-        source: "quest_delta",
-        actorId: playerId,
-        subjectId: npcId,
-        chunkKey: evidence.chunkKey,
-        payload: { kind: "npc_talk", intentHash: evidence.intentHash, updated: result.result },
-      });
-      return result;
     });
   }
 
@@ -169,6 +256,7 @@ export class NpcQuestRuntime {
       const beforeQuest = this.service.clonePlayerState(playerId);
       const beforeWallet = await walletService.getWallet(playerId);
       const beforeSkills = await skillService.getPlayerSkillState(playerId);
+      const historyLength = runtimeHistoryLog.captureLength();
 
       try {
         await walletService.addCoins({ playerId, amount: definition.reward.coins });
@@ -189,8 +277,6 @@ export class NpcQuestRuntime {
 
         const completed = this.service.completeQuest(playerId, questId);
         if (!completed.ok) throw new Error(completed.reason);
-        await this.persist(playerId);
-
         const wallet = await walletService.getWallet(playerId);
         const skills = await skillService.getPlayerSkillState(playerId);
         const persistedReputation = completed.result.reputation.reputation;
@@ -208,6 +294,7 @@ export class NpcQuestRuntime {
             reputation: persistedReputation,
           },
         });
+        await this.persist(playerId);
 
         this.recordCompletionSideChannels(
           playerId,
@@ -231,10 +318,11 @@ export class NpcQuestRuntime {
         };
       } catch (error) {
         this.service.restorePlayerState(beforeQuest);
+        runtimeHistoryLog.truncate(historyLength);
         const recovery = await Promise.allSettled([
           walletService.restoreWallet(playerId, beforeWallet),
           skillService.restorePlayerSkillState(playerId, beforeSkills),
-          this.persistence.savePlayerState(beforeQuest),
+          this.persistence.savePlayerState(this.withSourceMutations(playerId, beforeQuest)),
         ]);
         return {
           ok: false,
@@ -255,8 +343,34 @@ export class NpcQuestRuntime {
   }
 
   public resetHydrationForTests(playerId?: string): void {
-    if (playerId) this.hydratedPlayers.delete(playerId);
-    else this.hydratedPlayers.clear();
+    if (playerId) {
+      this.hydratedPlayers.delete(playerId);
+      this.sourceMutationsByPlayer.delete(playerId);
+    } else {
+      this.hydratedPlayers.clear();
+      this.sourceMutationsByPlayer.clear();
+    }
+  }
+
+  private getSourceMutationMap(playerId: string): Map<string, PersistedNpcQuestSourceMutation> {
+    let map = this.sourceMutationsByPlayer.get(playerId);
+    if (!map) {
+      map = new Map();
+      this.sourceMutationsByPlayer.set(playerId, map);
+    }
+    return map;
+  }
+
+  private withSourceMutations(
+    playerId: string,
+    state: PersistedNpcQuestPlayerState,
+  ): PersistedNpcQuestPlayerState {
+    return Object.freeze({
+      ...state,
+      appliedSourceMutations: Object.freeze(
+        [...this.getSourceMutationMap(playerId).values()].sort((a, b) => a.intentHash.localeCompare(b.intentHash)),
+      ),
+    });
   }
 
   private recordCompletionSideChannels(
@@ -288,7 +402,7 @@ export class NpcQuestRuntime {
   }
 
   private async persist(playerId: string): Promise<void> {
-    await this.persistence.savePlayerState(this.service.exportPlayerState(playerId));
+    await this.persistence.savePlayerState(this.withSourceMutations(playerId, this.service.exportPlayerState(playerId)));
   }
 
   private async runExclusive<T>(playerId: string, work: () => Promise<T>): Promise<T> {
