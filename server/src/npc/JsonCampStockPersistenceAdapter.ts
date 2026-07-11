@@ -21,12 +21,14 @@ function resolveFilePath(): string {
 }
 
 function normalizeState(state: CampStockStateSnapshot): CampStockStateSnapshot {
-  const items = Object.fromEntries(
-    Object.entries(state.items)
-      .map(([itemId, quantity]) => [String(itemId), Math.max(0, Math.floor(Number(quantity)))])
-      .filter(([, quantity]) => quantity > 0)
-      .sort(([a], [b]) => a.localeCompare(b)),
-  );
+  const entries: Array<readonly [string, number]> = Object.entries(state.items)
+    .map(([itemId, quantity]): readonly [string, number] => [
+      String(itemId),
+      Math.max(0, Math.floor(Number(quantity))),
+    ])
+    .filter((entry) => entry[1] > 0)
+    .sort((a, b) => a[0].localeCompare(b[0]));
+  const items: Record<string, number> = Object.fromEntries(entries);
   return Object.freeze({
     items: Object.freeze(items),
     lastProcessedCycle: Number.isSafeInteger(state.lastProcessedCycle)
