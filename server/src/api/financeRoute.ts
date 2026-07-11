@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { paypalAdapter } from "../finance/PayPalAdapter.js";
 import { authRequestHandler } from "../middleware/authRequestHandler.js";
+import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
 
 function resolveAuthenticatedPlayerId(req: unknown): string | null {
   const playerId = (req as { playerId?: unknown })?.playerId;
@@ -10,7 +11,7 @@ function resolveAuthenticatedPlayerId(req: unknown): string | null {
 export function financeRouter(): Router {
   const router = Router();
 
-  router.get("/status", (_req, res) => {
+  router.get("/status", adminAuthMiddleware, (_req, res) => {
     res.json({
       ok: true,
       paypal: {

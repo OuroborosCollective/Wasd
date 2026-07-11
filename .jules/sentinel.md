@@ -17,3 +17,8 @@
 **Vulnerability:** The Agora Monitor API (mounted at `/agora/api/live`, `/agora/api/config`, etc.) was publicly accessible, exposing system uptime, port configuration, build hashes, and persistence/ARE guard statistics.
 **Learning:** Monitoring endpoints are often overlooked because they seem like "read-only status," but they leak internal system architecture details that can be used to plan further attacks.
 **Prevention:** Apply `adminAuthMiddleware` and `adminRateLimiter` to all monitoring and diagnostic API routers, even if they only provide "live status" information.
+
+## 2025-07-10 - [Medium] Partially Protected Diagnostic Routers
+**Vulnerability:** The `/api/manifest` and `/api/finance` routers were mounted with `adminRateLimiter` but missing `adminAuthMiddleware` at the mount point, leaving sub-routes like `/status` publicly accessible.
+**Learning:** Adding rate limiting to a router mount point can give a false sense of security; it does not substitute for authentication. Diagnostic `/status` endpoints often leak internal hashes and configuration state.
+**Prevention:** Audit all routers mounted in `ServerBootstrap.ts` to ensure that those serving administrative or diagnostic data have `adminAuthMiddleware` applied either at the mount point or to all sensitive sub-routes.
