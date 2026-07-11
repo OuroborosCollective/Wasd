@@ -16,6 +16,7 @@ import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import { generateVisibleChunkPois, getStarterVillagePois } from "../world/WorldPoiGenerator.js";
 import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
 import { campNpcService } from "./CampNpcService.js";
+import { campStockRuntime } from "./CampStockRuntime.js";
 
 const router = Router();
 router.use(express.json());
@@ -130,69 +131,82 @@ async function runExclusive<T>(key: string, work: () => Promise<T>): Promise<T> 
   }
 }
 
-router.get("/camp/:npcId", async (req, res) => {
+async function resolveRequestContext(req: express.Request, res: Response) {
   const identity = resolveHttpPlayerIdentity(req);
-  if (!requireProductionAuth(identity, res)) return;
+  if (!requireProductionAuth(identity, res)) return null;
   const npcId = parseId(req.params.npcId);
   const tick = runtimeTick();
   const position = runtimePosition(identity.playerId);
-  if (!npcId) return void res.status(404).json({ ok: false, error: "npc_not_found" });
-  if (!tick) return void res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
-  if (!position) return void res.status(409).json({ ok: false, error: "runtime_player_position_unavailable" });
+  if (!npcId) {
+    res.status(404).json({ ok: false, error: "npc_not_found" });
+    return null;
+  }
+  if (!tick) {
+    res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
+    return null;
+  }
+  if (!position) {
+    res.status(409).json({ ok: false, error: "runtime_player_position_unavailable" });
+    return null;
+  }
   const actor = resolveCampActor(npcId, position);
-  if (!actor) return void res.status(404).json({ ok: false, error: "npc_not_found" });
-  const dialogue = campNpcService.getNpcDialogue(npcId, tick.tick);
+  if (!actor) {
+    res.status(404).json({ ok: false, error: "npc_not_found" });
+    return null;
+  }
+  await campStockRuntime.hydratePoi(actor.poiId);
+  return { identity, npcId, tick, position, actor };
+}
+
+router.get("/camp/:npcId", async (req, res) => {
+  const context = await resolveRequestContext(req, res);
+  if (!context) return;
+  const dialogue = campNpcService.getNpcDialogue(context.npcId, context.tick.tick);
   if (!dialogue) return void res.status(404).json({ ok: false, error: "npc_not_found" });
   res.json({
     ok: true,
-    runtimeEvidence: { tick: tick.tick, tickId: tick.tickId },
-    result: { npcId, poiId: actor.poiId, message: dialogue.message, activity: dialogue.activity },
+    runtimeEvidence: { tick: context.tick.tick, tickId: context.tick.tickId },
+    result: { npcId: context.npcId, poiId: context.actor.poiId, message: dialogue.message, activity: dialogue.activity },
   });
 });
 
 router.post("/camp/:npcId/interact", async (req, res) => {
-  const identity = resolveHttpPlayerIdentity(req);
-  if (!requireProductionAuth(identity, res)) return;
-  const npcId = parseId(req.params.npcId);
-  const tick = runtimeTick();
-  const position = runtimePosition(identity.playerId);
-  if (!npcId) return void res.status(404).json({ ok: false, error: "npc_not_found" });
-  if (!tick) return void res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
-  if (!position) return void res.status(409).json({ ok: false, error: "runtime_player_position_unavailable" });
-  const actor = resolveCampActor(npcId, position);
-  if (!actor) return void res.status(404).json({ ok: false, error: "npc_not_found" });
-  await worldDiscoveryService.hydratePlayer(identity.playerId);
-  if (!worldDiscoveryService.isPoiDiscovered(identity.playerId, actor.poiId)) {
+  const context = await resolveRequestContext(req, res);
+  if (!context) return;
+  await worldDiscoveryService.hydratePlayer(context.identity.playerId);
+  if (!worldDiscoveryService.isPoiDiscovered(context.identity.playerId, context.actor.poiId)) {
     return void res.status(403).json({ ok: false, error: "poi_not_discovered" });
   }
-  if (!nearPoi(position, actor.poi)) return void res.status(403).json({ ok: false, error: "camp_too_far" });
-  const dialogue = campNpcService.getNpcDialogue(npcId, tick.tick);
+  if (!nearPoi(context.position, context.actor.poi)) {
+    return void res.status(403).json({ ok: false, error: "camp_too_far" });
+  }
+  const dialogue = campNpcService.getNpcDialogue(context.npcId, context.tick.tick);
   if (!dialogue) return void res.status(404).json({ ok: false, error: "npc_not_found" });
   const intent = canonicalizeClientIntent<"interact">(
     {
       action: "interact",
       requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
       payload: {
-        targetId: npcId,
+        targetId: context.npcId,
         interaction: "camp_talk",
-        poiId: actor.poiId,
-        playerPosition: position,
+        poiId: context.actor.poiId,
+        playerPosition: context.position,
       },
     },
     {
-      actorId: identity.playerId,
-      tickId: tick.tickId,
-      logicalIndex: tick.tick,
+      actorId: context.identity.playerId,
+      tickId: context.tick.tickId,
+      logicalIndex: context.tick.tick,
       receivedOrder: 0,
-      chunkKey: chunkKeyFromWorldPosition(position),
+      chunkKey: chunkKeyFromWorldPosition(context.position),
     },
   ) as CanonicalCampIntent;
   res.json({
     ok: true,
     canonicalIntent: intent,
     result: {
-      npcId,
-      poiId: actor.poiId,
+      npcId: context.npcId,
+      poiId: context.actor.poiId,
       message: dialogue.message,
       activity: dialogue.activity,
       interactionType: "talk",
@@ -201,126 +215,124 @@ router.post("/camp/:npcId/interact", async (req, res) => {
 });
 
 router.get("/camp/:npcId/stock", async (req, res) => {
-  const identity = resolveHttpPlayerIdentity(req);
-  if (!requireProductionAuth(identity, res)) return;
-  const npcId = parseId(req.params.npcId);
-  const tick = runtimeTick();
-  const position = runtimePosition(identity.playerId);
-  if (!npcId) return void res.status(404).json({ ok: false, error: "npc_not_found" });
-  if (!tick) return void res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
-  if (!position) return void res.status(409).json({ ok: false, error: "runtime_player_position_unavailable" });
-  const actor = resolveCampActor(npcId, position);
-  if (!actor) return void res.status(404).json({ ok: false, error: "npc_not_found" });
-  await worldDiscoveryService.hydratePlayer(identity.playerId);
-  if (!worldDiscoveryService.isPoiDiscovered(identity.playerId, actor.poiId)) {
+  const context = await resolveRequestContext(req, res);
+  if (!context) return;
+  await worldDiscoveryService.hydratePlayer(context.identity.playerId);
+  if (!worldDiscoveryService.isPoiDiscovered(context.identity.playerId, context.actor.poiId)) {
     return void res.status(403).json({ ok: false, error: "poi_not_discovered" });
   }
-  const stock = campNpcService.getCampStockSnapshots([actor.poi], tick.tick)[0];
-  if (!stock) return void res.status(404).json({ ok: false, error: "stock_actor_unavailable" });
-  res.json({ ok: true, result: { npcId, ...stock } });
+  const stock = campNpcService.getCampStockSnapshots([context.actor.poi], context.tick.tick)[0];
+  if (!stock?.revisionHash) return void res.status(503).json({ ok: false, error: "stock_evidence_unavailable" });
+  res.json({
+    ok: true,
+    runtimeEvidence: { tick: context.tick.tick, tickId: context.tick.tickId, revisionHash: stock.revisionHash },
+    result: { npcId: context.npcId, ...stock },
+  });
 });
 
 router.post("/camp/:npcId/buy-stock", async (req, res) => {
-  const identity = resolveHttpPlayerIdentity(req);
-  if (!requireProductionAuth(identity, res)) return;
-  const npcId = parseId(req.params.npcId);
+  const context = await resolveRequestContext(req, res);
+  if (!context) return;
   const itemId = parseInventoryItemId(req.body?.itemId);
   const quantity = parseQuantity(req.body?.quantity);
-  const tick = runtimeTick();
-  const position = runtimePosition(identity.playerId);
-  if (!npcId) return void res.status(404).json({ ok: false, error: "invalid_npc" });
   if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item" });
   if (!quantity) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
-  if (!tick) return void res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
-  if (!position) return void res.status(409).json({ ok: false, error: "runtime_player_position_unavailable" });
-  const actor = resolveCampActor(npcId, position);
-  if (!actor) return void res.status(404).json({ ok: false, error: "invalid_npc" });
-  await worldDiscoveryService.hydratePlayer(identity.playerId);
-  if (!worldDiscoveryService.isPoiDiscovered(identity.playerId, actor.poiId)) {
+  await worldDiscoveryService.hydratePlayer(context.identity.playerId);
+  if (!worldDiscoveryService.isPoiDiscovered(context.identity.playerId, context.actor.poiId)) {
     return void res.status(403).json({ ok: false, error: "undiscovered_camp" });
   }
-  if (!nearPoi(position, actor.poi)) return void res.status(403).json({ ok: false, error: "camp_too_far" });
+  if (!nearPoi(context.position, context.actor.poi)) {
+    return void res.status(403).json({ ok: false, error: "camp_too_far" });
+  }
 
   const intent = canonicalizeClientIntent<"interact">(
     {
       action: "interact",
       requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
       payload: {
-        targetId: npcId,
+        targetId: context.npcId,
         interaction: "camp_buy_stock",
-        poiId: actor.poiId,
-        playerPosition: position,
+        poiId: context.actor.poiId,
+        playerPosition: context.position,
         itemId,
         quantity,
       },
     },
     {
-      actorId: identity.playerId,
-      tickId: tick.tickId,
-      logicalIndex: tick.tick,
+      actorId: context.identity.playerId,
+      tickId: context.tick.tickId,
+      logicalIndex: context.tick.tick,
       receivedOrder: 0,
-      chunkKey: chunkKeyFromWorldPosition(position),
+      chunkKey: chunkKeyFromWorldPosition(context.position),
     },
   ) as CanonicalCampIntent;
 
-  const outcome = await runExclusive(`${identity.playerId}:${actor.poiId}`, async () => {
+  const outcome = await runExclusive(`${context.identity.playerId}:${context.actor.poiId}`, async () => {
     const inventoryService = await getInventoryService();
     const walletService = await getWalletService();
     const originUid = `camp-buy:${intent.intentHash}`;
-    if (inventoryService.getAppliedOriginUids(identity.playerId).includes(originUid)) {
-      const wallet = await walletService.getWallet(identity.playerId);
-      const stock = campNpcService.getCampStockSnapshots([actor.poi], tick.tick)[0];
+    if (inventoryService.getAppliedOriginUids(context.identity.playerId).includes(originUid)) {
+      const wallet = await walletService.getWallet(context.identity.playerId);
+      const stock = campNpcService.getCampStockSnapshots([context.actor.poi], context.tick.tick)[0];
+      if (!stock?.revisionHash) {
+        return { status: 503, body: { ok: false, error: "stock_evidence_unavailable", canonicalIntent: intent } };
+      }
       return {
         status: 200,
         body: {
           ok: true,
           canonicalIntent: intent,
           result: {
-            npcId,
-            poiId: actor.poiId,
+            npcId: context.npcId,
+            poiId: context.actor.poiId,
             itemId,
             quantityBought: quantity,
             replayed: true,
             newCoinBalance: wallet.balances.coin,
-            remainingCampStock: stock?.items.find((entry) => entry.itemId === itemId)?.quantity ?? 0,
-            stockRevisionHash: stock?.revisionHash ?? null,
+            remainingCampStock: stock.items.find((entry) => entry.itemId === itemId)?.quantity ?? 0,
+            stockRevisionHash: stock.revisionHash,
           },
         },
       };
     }
 
-    const plan = campNpcService.planBuyStock({ poi: actor.poi, currentTick: tick.tick, itemId, quantity });
+    const plan = campNpcService.planBuyStock({
+      poi: context.actor.poi,
+      currentTick: context.tick.tick,
+      itemId,
+      quantity,
+    });
     if (!plan.ok) return { status: 409, body: { ok: false, error: plan.error, canonicalIntent: intent } };
-    const walletBefore = await walletService.getWallet(identity.playerId);
+    const walletBefore = await walletService.getWallet(context.identity.playerId);
     if (walletBefore.balances.coin < plan.totalCost) {
       return { status: 409, body: { ok: false, error: "insufficient_coins", canonicalIntent: intent } };
     }
-    const inventoryBefore = await inventoryService.getPlayerInventory(identity.playerId);
-    const originsBefore = inventoryService.getAppliedOriginUids(identity.playerId);
+    const inventoryBefore = await inventoryService.getPlayerInventory(context.identity.playerId);
+    const originsBefore = inventoryService.getAppliedOriginUids(context.identity.playerId);
     const movementCountBefore = inventoryService.getMovementEventCount();
-    const stockBefore = campNpcService.getStockState(actor.poiId);
+    const stockBefore = campNpcService.getStockState(context.actor.poiId);
 
     try {
-      campNpcService.commitStockState(actor.poiId, plan.nextState);
-      await walletService.subtractCoins({ playerId: identity.playerId, amount: plan.totalCost });
+      await campStockRuntime.commitStockState(context.actor.poiId, plan.nextState);
+      await walletService.subtractCoins({ playerId: context.identity.playerId, amount: plan.totalCost });
       const added = await inventoryService.addItem({
-        playerId: identity.playerId,
+        playerId: context.identity.playerId,
         itemId,
         quantity,
         origin: {
           uid: originUid,
-          tick: tick.tick,
+          tick: context.tick.tick,
           source: "trade_delta",
           sourceHash: intent.intentHash,
         },
       });
       if (!added.ok) throw new Error(added.reason ?? "inventory_add_failed");
-      const wallet = await walletService.getWallet(identity.playerId);
+      const wallet = await walletService.getWallet(context.identity.playerId);
       const history = runtimeHistoryLog.write({
-        tick: tick.tick,
+        tick: context.tick.tick,
         source: "market_snapshot",
-        actorId: identity.playerId,
-        subjectId: `${actor.poiId}:${itemId}`,
+        actorId: context.identity.playerId,
+        subjectId: `${context.actor.poiId}:${itemId}`,
         chunkKey: intent.chunkKey,
         payload: {
           kind: "camp_buy",
@@ -336,8 +348,8 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
           ok: true,
           canonicalIntent: intent,
           result: {
-            npcId,
-            poiId: actor.poiId,
+            npcId: context.npcId,
+            poiId: context.actor.poiId,
             itemId,
             quantityBought: quantity,
             unitPrice: plan.unitPrice,
@@ -351,11 +363,11 @@ router.post("/camp/:npcId/buy-stock", async (req, res) => {
         },
       };
     } catch (error) {
-      campNpcService.restoreStockState(actor.poiId, stockBefore);
       const recovery = await Promise.allSettled([
-        walletService.restoreWallet(identity.playerId, walletBefore),
+        campStockRuntime.restoreStockState(context.actor.poiId, stockBefore),
+        walletService.restoreWallet(context.identity.playerId, walletBefore),
         inventoryService.restorePlayerInventory(
-          identity.playerId,
+          context.identity.playerId,
           inventoryBefore,
           originsBefore,
           movementCountBefore,
