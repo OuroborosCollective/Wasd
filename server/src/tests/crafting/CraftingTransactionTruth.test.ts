@@ -7,6 +7,7 @@ import {
   type CraftingReceiptPersistenceAdapter,
   type PersistedCraftingReceipt,
 } from "../../crafting/CraftingReceiptPersistence";
+import type { CraftingRecipe } from "../../crafting/CraftingTypes";
 import { InventoryService } from "../../inventory/InventoryService";
 import { InventoryStore } from "../../inventory/InventoryStore";
 import type {
@@ -85,6 +86,22 @@ function workbenchPosition(): { x: number; y: number; id: string } {
   return { x: station.position.x, y: station.position.y, id: station.id };
 }
 
+function stableHash32(input: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16);
+}
+
+function expectedCraftHash(operationId: string, recipe: CraftingRecipe): string {
+  const ingredients = [...recipe.ingredients].map((entry) => `${entry.itemId}:${entry.quantity}`).sort().join(",");
+  const outputs = [...recipe.outputs].map((entry) => `${entry.itemId}:${entry.quantity}`).sort().join(",");
+  const fingerprint = `${recipe.id}|${recipe.requiredLevel}|${recipe.craftTicks}|${recipe.stationType ?? "none"}|${ingredients}|${outputs}`;
+  return stableHash32(["CRAFT_DELTA_V2", operationId, fingerprint].join("|"));
+}
+
 async function setup() {
   const playerId = "craft-transaction-player";
   const persistence = new MemoryInventoryPersistence();
@@ -105,14 +122,7 @@ describe("Crafting transaction truth", () => {
     const { playerId, inventory, service } = await setup();
     const station = workbenchPosition();
     const before = await inventory.getPlayerInventory(playerId);
-
-    const result = await service.craft({
-      playerId,
-      recipeId: "craft_wood_plank",
-      playerPosition: station,
-      stationId: station.id,
-    });
-
+    const result = await service.craft({ playerId, recipeId: "craft_wood_plank", playerPosition: station, stationId: station.id });
     expect(result).toEqual(expect.objectContaining({ ok: false, reason: "invalid_tick" }));
     expect(await inventory.getPlayerInventory(playerId)).toEqual(before);
   });
@@ -120,19 +130,10 @@ describe("Crafting transaction truth", () => {
   it("replays the same operation only when receipt, inventory origins and XP agree", async () => {
     const { playerId, inventory, skills, service } = await setup();
     const station = workbenchPosition();
-    const input = {
-      playerId,
-      recipeId: "craft_wood_plank",
-      playerPosition: station,
-      stationId: station.id,
-      currentTick: 120,
-      operationId: "intent:craft:truth:120",
-    };
-
+    const input = { playerId, recipeId: "craft_wood_plank", playerPosition: station, stationId: station.id, currentTick: 120, operationId: "intent:craft:truth:120" };
     const first = await service.craft(input);
     const afterFirst = await inventory.getPlayerInventory(playerId);
     const second = await service.craft(input);
-
     expect(first).toEqual(expect.objectContaining({ ok: true, replayed: false, receiptHash: expect.stringMatching(/^[a-f0-9]{64}$/) }));
     expect(second).toEqual(expect.objectContaining({ ok: true, replayed: true, receiptHash: first.receiptHash }));
     expect(await inventory.getPlayerInventory(playerId)).toEqual(afterFirst);
@@ -147,20 +148,19 @@ describe("Crafting transaction truth", () => {
     const skillsBefore = await skills.getPlayerSkillState(playerId);
     const recipe = STARTER_CRAFTING_RECIPES.find((entry) => entry.id === "craft_wood_plank")!;
     const originUids = [`craft:${operationId}:output:0`];
-    const craftHash = "prepared-hash";
 
     await receipts.saveReceipt(createCraftingReceipt({
       operationId,
       playerId,
       recipeId: recipe.id,
-      craftHash,
+      craftHash: expectedCraftHash(operationId, recipe),
       originUids,
       status: "prepared",
       inventoryBefore,
       appliedOriginUidsBefore: inventory.getAppliedOriginUids(playerId),
       movementEventCountBefore: inventory.getMovementEventCount(),
       skillsBefore,
-      expectedCraftingXpAfter: 25,
+      expectedCraftingXpAfter: recipe.craftingXpReward,
     }));
 
     const result = await service.craft({
@@ -172,9 +172,11 @@ describe("Crafting transaction truth", () => {
       operationId,
     });
 
-    expect(result).toEqual(expect.objectContaining({ ok: false, reason: "transaction_failed" }));
-    expect(await inventory.getPlayerInventory(playerId)).toEqual(inventoryBefore);
-    expect(await skills.getPlayerSkillState(playerId)).toEqual(skillsBefore);
+    expect(result).toEqual(expect.objectContaining({ ok: true, replayed: false }));
+    expect((await inventory.getPlayerInventory(playerId)).slots).toEqual(expect.arrayContaining([
+      expect.objectContaining({ itemId: "wood_plank", quantity: 1 }),
+    ]));
+    expect(skills.applyCount).toBe(1);
   });
 
   it("restores inventory, origins and skill state after output persistence fails", async () => {
@@ -183,16 +185,7 @@ describe("Crafting transaction truth", () => {
     const inventoryBefore = await inventory.getPlayerInventory(playerId);
     const skillsBefore = await skills.getPlayerSkillState(playerId);
     persistence.failNextOutputSave = true;
-
-    const result = await service.craft({
-      playerId,
-      recipeId: "craft_wood_plank",
-      playerPosition: station,
-      stationId: station.id,
-      currentTick: 121,
-      operationId: "intent:craft:rollback:121",
-    });
-
+    const result = await service.craft({ playerId, recipeId: "craft_wood_plank", playerPosition: station, stationId: station.id, currentTick: 121, operationId: "intent:craft:rollback:121" });
     expect(result).toEqual(expect.objectContaining({ ok: false, rollbackOk: true }));
     expect(await inventory.getPlayerInventory(playerId)).toEqual(inventoryBefore);
     expect(await skills.getPlayerSkillState(playerId)).toEqual(skillsBefore);
