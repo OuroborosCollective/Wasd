@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { CraftingService } from "../../crafting/CraftingService";
 import { STARTER_CRAFTING_RECIPES } from "../../crafting/StarterRecipes";
 import { STARTER_PROCESSING_STATIONS } from "../../crafting/ProcessingStations";
+import {
+  createCraftingReceipt,
+  type CraftingReceiptPersistenceAdapter,
+  type PersistedCraftingReceipt,
+} from "../../crafting/CraftingReceiptPersistence";
 import { InventoryService } from "../../inventory/InventoryService";
 import { InventoryStore } from "../../inventory/InventoryStore";
 import type {
@@ -44,10 +49,7 @@ class MemorySkillRuntime {
     return structuredClone(this.states.get(playerId)!);
   }
 
-  public async applyEvent(event: {
-    playerId: string;
-    amount: number;
-  }): Promise<void> {
+  public async applyEvent(event: { playerId: string; amount: number }): Promise<void> {
     const current = await this.getPlayerSkillState(event.playerId);
     const crafting = current.skills.find((skill) => skill.id === "crafting");
     if (crafting) crafting.xp += event.amount;
@@ -57,6 +59,23 @@ class MemorySkillRuntime {
 
   public async restorePlayerSkillState(playerId: string, state: PlayerSkillState): Promise<void> {
     this.states.set(playerId, structuredClone(state));
+  }
+}
+
+class MemoryCraftingReceiptPersistence implements CraftingReceiptPersistenceAdapter {
+  private readonly receipts = new Map<string, PersistedCraftingReceipt>();
+
+  public async loadReceipt(operationId: string): Promise<PersistedCraftingReceipt | null> {
+    const receipt = this.receipts.get(operationId);
+    return receipt ? structuredClone(receipt) : null;
+  }
+
+  public async saveReceipt(receipt: PersistedCraftingReceipt): Promise<void> {
+    this.receipts.set(receipt.operationId, structuredClone(receipt));
+  }
+
+  public async deleteReceipt(operationId: string): Promise<void> {
+    this.receipts.delete(operationId);
   }
 }
 
@@ -71,12 +90,14 @@ async function setup() {
   const persistence = new MemoryInventoryPersistence();
   const inventory = new InventoryService(new InventoryStore(), persistence);
   const skills = new MemorySkillRuntime();
+  const receipts = new MemoryCraftingReceiptPersistence();
   await inventory.addItem({ playerId, itemId: "wood_log", quantity: 4 });
   const service = new CraftingService(STARTER_CRAFTING_RECIPES, {
     inventoryService: inventory,
     skillService: skills,
+    receiptPersistence: receipts,
   });
-  return { playerId, persistence, inventory, skills, service };
+  return { playerId, persistence, inventory, skills, receipts, service };
 }
 
 describe("Crafting transaction truth", () => {
@@ -96,7 +117,7 @@ describe("Crafting transaction truth", () => {
     expect(await inventory.getPlayerInventory(playerId)).toEqual(before);
   });
 
-  it("replays the same operation without consuming ingredients or granting XP twice", async () => {
+  it("replays the same operation only when receipt, inventory origins and XP agree", async () => {
     const { playerId, inventory, skills, service } = await setup();
     const station = workbenchPosition();
     const input = {
@@ -112,10 +133,48 @@ describe("Crafting transaction truth", () => {
     const afterFirst = await inventory.getPlayerInventory(playerId);
     const second = await service.craft(input);
 
-    expect(first).toEqual(expect.objectContaining({ ok: true, replayed: false }));
-    expect(second).toEqual(expect.objectContaining({ ok: true, replayed: true }));
+    expect(first).toEqual(expect.objectContaining({ ok: true, replayed: false, receiptHash: expect.stringMatching(/^[a-f0-9]{64}$/) }));
+    expect(second).toEqual(expect.objectContaining({ ok: true, replayed: true, receiptHash: first.receiptHash }));
     expect(await inventory.getPlayerInventory(playerId)).toEqual(afterFirst);
     expect(skills.applyCount).toBe(1);
+  });
+
+  it("restores an interrupted prepared receipt before retrying the operation", async () => {
+    const { playerId, inventory, skills, receipts, service } = await setup();
+    const station = workbenchPosition();
+    const operationId = "intent:craft:prepared-recovery:122";
+    const inventoryBefore = await inventory.getPlayerInventory(playerId);
+    const skillsBefore = await skills.getPlayerSkillState(playerId);
+    const recipe = STARTER_CRAFTING_RECIPES.find((entry) => entry.id === "craft_wood_plank")!;
+    const originUids = [`craft:${operationId}:output:0`];
+    const craftHash = "prepared-hash";
+
+    await receipts.saveReceipt(createCraftingReceipt({
+      operationId,
+      playerId,
+      recipeId: recipe.id,
+      craftHash,
+      originUids,
+      status: "prepared",
+      inventoryBefore,
+      appliedOriginUidsBefore: inventory.getAppliedOriginUids(playerId),
+      movementEventCountBefore: inventory.getMovementEventCount(),
+      skillsBefore,
+      expectedCraftingXpAfter: 25,
+    }));
+
+    const result = await service.craft({
+      playerId,
+      recipeId: recipe.id,
+      playerPosition: station,
+      stationId: station.id,
+      currentTick: 122,
+      operationId,
+    });
+
+    expect(result).toEqual(expect.objectContaining({ ok: false, reason: "transaction_failed" }));
+    expect(await inventory.getPlayerInventory(playerId)).toEqual(inventoryBefore);
+    expect(await skills.getPlayerSkillState(playerId)).toEqual(skillsBefore);
   });
 
   it("restores inventory, origins and skill state after output persistence fails", async () => {
