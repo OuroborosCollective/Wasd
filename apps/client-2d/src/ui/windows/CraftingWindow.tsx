@@ -1,8 +1,8 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { craftRecipe } from "../../game/crafting";
 import {
-  DEFAULT_GAMEPLAY_PLAYER_ID,
   fetchGameplaySnapshot,
+  getDefaultGameplayPlayerId,
   liveGameplayStore,
 } from "../../game/liveGameplayStore";
 import type { CraftingSnapshot } from "../../game/liveGameplaySnapshot";
@@ -49,40 +49,80 @@ function toast(type: "success" | "error", message: string): void {
 
 export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) {
   const snapshot = useLiveGameplaySnapshot();
+  const [pendingRecipeId, setPendingRecipeId] = useState<string | null>(null);
   const crafting: CraftingSnapshot = snapshot.crafting ?? { recipes: [] };
   const recipes = crafting.recipes ?? [];
 
   const handleCraft = useCallback(async (recipeId: string) => {
-    const result = await craftRecipe(recipeId);
-    if (!result.ok || !result.result?.ok) {
-      const reason = result.result?.reason;
-      toast(
-        "error",
-        reason === "station_too_far"
-          ? "Move near the required station"
-          : reason === "missing_player_position"
-            ? "Server player position is unavailable"
-            : reason === "missing_ingredients"
-              ? "Missing required items"
-              : `Craft failed${reason ? `: ${reason}` : ""}`,
-      );
+    const actorId = getDefaultGameplayPlayerId();
+    const beforeEvidence = liveGameplayStore.getEvidence();
+    if (snapshot.status !== "live" || !beforeEvidence || beforeEvidence.playerId !== actorId) {
+      liveGameplayStore.markStale();
+      toast("error", "Craft blocked: current actor revision is unavailable");
       return;
     }
 
-    const next = await fetchGameplaySnapshot(DEFAULT_GAMEPLAY_PLAYER_ID);
-    if (!next) {
-      liveGameplayStore.markStale();
-      toast("error", "Craft committed, but the newer server revision could not be loaded");
-      return;
+    setPendingRecipeId(recipeId);
+    try {
+      const response = await craftRecipe(recipeId);
+      if (!response.ok || !response.result?.ok) {
+        if (response.craftCommitted) {
+          liveGameplayStore.markStale();
+          toast("error", "Craft committed, but its quest/history follow-up is not confirmed");
+          return;
+        }
+        const reason = response.result?.reason ?? response.error;
+        toast(
+          "error",
+          reason === "station_too_far"
+            ? "Move near the required station"
+            : reason === "missing_player_position"
+              ? "Server player position is unavailable"
+              : reason === "missing_ingredients"
+                ? "Missing required items"
+                : `Craft failed${reason ? `: ${reason}` : ""}`,
+        );
+        return;
+      }
+
+      const receiptHash = response.result.receiptHash;
+      const questHistoryHash = response.questProgressHistoryHash;
+      if (
+        response.craftCommitted !== true ||
+        response.questProgressCommitted !== true ||
+        !receiptHash ||
+        !questHistoryHash
+      ) {
+        liveGameplayStore.markStale();
+        toast("error", "Craft response lacks persisted receipt or quest-history evidence");
+        return;
+      }
+
+      const next = await fetchGameplaySnapshot(actorId);
+      if (!next) {
+        liveGameplayStore.markStale();
+        toast("error", "Craft committed, but the newer server revision could not be loaded");
+        return;
+      }
+      const applied = liveGameplayStore.setSnapshot(next, actorId, {
+        after: beforeEvidence,
+        expectedMutationHash: questHistoryHash,
+      });
+      if (!applied) {
+        toast("error", "Craft committed, but the returned revision does not prove this mutation");
+        return;
+      }
+
+      toast(
+        "success",
+        response.result.replayed
+          ? "Craft receipt and follow-up revision confirmed"
+          : `Crafted ${response.result.outputs?.[0]?.itemId ?? "item"}`,
+      );
+    } finally {
+      setPendingRecipeId((current) => current === recipeId ? null : current);
     }
-    liveGameplayStore.setSnapshot(next, DEFAULT_GAMEPLAY_PLAYER_ID);
-    toast(
-      "success",
-      result.result.replayed
-        ? "Craft intent was already committed"
-        : `Crafted ${result.result.outputs?.[0]?.itemId ?? "item"}`,
-    );
-  }, []);
+  }, [snapshot.status]);
 
   if (!isOpen) return null;
 
@@ -90,7 +130,17 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
     <div className="wow-inventory-overlay" role="dialog" aria-label="Crafting">
       <div className="wow-inventory-header">
         <h2>CRAFTING</h2>
-        {onClose && <button className="wow-close-btn" onClick={onClose} aria-label="Close">✕</button>}
+        {onClose && (
+          <button
+            className="wow-close-btn"
+            onClick={onClose}
+            aria-label="Close [ESC]"
+            aria-keyshortcuts="Escape"
+          >
+            <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
+            ✕
+          </button>
+        )}
       </div>
 
       <div className="char-content">
@@ -106,6 +156,7 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
           <div className="crafting-list">
             {recipes.map((recipe) => {
               const station = stationRequirement(recipe);
+              const requestPending = pendingRecipeId === recipe.id;
               return (
                 <article key={recipe.id} className="crafting-row">
                   <div className="crafting-row__header">
@@ -132,11 +183,13 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
                   <button
                     type="button"
                     className="crafting-row__button"
-                    disabled={!recipe.craftable}
+                    disabled={!recipe.craftable || pendingRecipeId !== null}
                     onClick={() => handleCraft(recipe.id)}
                     data-testid={`process-${recipe.id}`}
+                    aria-busy={requestPending}
+                    aria-label={requestPending ? `Craft request pending for ${recipe.title}` : `Craft ${recipe.title}`}
                   >
-                    {buttonLabel(recipe.craftable, recipe.blockedReason)}
+                    {requestPending ? "REQUEST PENDING" : buttonLabel(recipe.craftable, recipe.blockedReason)}
                   </button>
                 </article>
               );
