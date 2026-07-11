@@ -4,6 +4,12 @@ import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { worldTickAdapter } from "../core/are/WorldTickThinShellAdapter.js";
 import { craftingService } from "../crafting/CraftingService.js";
 import {
+  findNearestProcessingStation,
+  getProcessingStationById,
+  isWithinProcessingStationRadius,
+  type ProcessingStation,
+} from "../crafting/ProcessingStations.js";
+import {
   canonicalizeClientIntent,
   chunkKeyFromWorldPosition,
   type ServerCanonicalIntent,
@@ -68,6 +74,28 @@ function runtimePosition(playerId: string): { x: number; y: number } | null {
   return { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };
 }
 
+function resolveCraftStation(input: {
+  readonly recipeId: string;
+  readonly requestedStationId?: string;
+  readonly position: { readonly x: number; readonly y: number };
+}): { station?: ProcessingStation; error?: string } {
+  const recipe = craftingService.listRecipes().find((candidate) => candidate.id === input.recipeId);
+  if (!recipe) return { error: "recipe_not_found" };
+  if (!recipe.stationType) {
+    return input.requestedStationId ? { error: "unexpected_station_id" } : {};
+  }
+
+  const station = input.requestedStationId
+    ? getProcessingStationById(input.requestedStationId)
+    : findNearestProcessingStation(input.position, recipe.stationType);
+  if (!station) return { error: "station_not_found" };
+  if (station.type !== recipe.stationType) return { error: "station_type_mismatch" };
+  if (!isWithinProcessingStationRadius(input.position, station).withinRange) {
+    return { error: "station_too_far" };
+  }
+  return { station };
+}
+
 router.get("/recipes", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
   if (!requireProductionAuth(identity, res)) return;
@@ -98,7 +126,9 @@ router.post("/craft", async (req, res) => {
   if (!requireProductionAuth(identity, res)) return;
   const recipeId = parseId(req.body?.recipeId);
   const stationId = req.body?.stationId === undefined ? undefined : parseId(req.body.stationId);
+  const requestId = parseRequestId(req.body?.requestId ?? req.body?.intentId);
   if (!recipeId) return void res.status(400).json({ ok: false, error: "invalid_recipe_id" });
+  if (!requestId) return void res.status(400).json({ ok: false, error: "request_id_required" });
   if (req.body?.stationId !== undefined && !stationId) {
     return void res.status(400).json({ ok: false, error: "invalid_station_id" });
   }
@@ -106,16 +136,22 @@ router.post("/craft", async (req, res) => {
   if (!tick) return void res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
   const position = runtimePosition(identity.playerId);
   if (!position) return void res.status(409).json({ ok: false, error: "runtime_player_position_unavailable" });
+  const stationResolution = resolveCraftStation({ recipeId, requestedStationId: stationId, position });
+  if (stationResolution.error) {
+    const status = stationResolution.error === "recipe_not_found" ? 404 : 409;
+    return void res.status(status).json({ ok: false, error: stationResolution.error });
+  }
+  const actualStationId = stationResolution.station?.id;
 
   const canonicalIntent = canonicalizeClientIntent<"interact">(
     {
       action: "interact",
-      requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
+      requestId,
       payload: {
-        targetId: stationId ?? recipeId,
+        targetId: actualStationId ?? `recipe:${recipeId}`,
         interaction: "craft_recipe",
         recipeId,
-        ...(stationId ? { stationId } : {}),
+        ...(actualStationId ? { stationId: actualStationId } : {}),
         playerPosition: position,
       },
     },
@@ -138,25 +174,43 @@ router.post("/craft", async (req, res) => {
       operationId: canonicalIntent.intentHash,
     });
 
-    let questProgressCommitted: boolean | null = null;
-    let questProgressError: string | undefined;
-    if (result.ok && !result.replayed) {
-      const questProgress = await npcQuestRuntime.updateQuestProgress(
-        canonicalIntent.actorId,
-        "craft",
-        canonicalIntent.payload.recipeId,
-        1,
-      );
-      questProgressCommitted = questProgress.ok;
-      if (!questProgress.ok) questProgressError = questProgress.reason;
+    if (!result.ok) {
+      res.status(409).json({ ok: false, result, canonicalIntent, questProgressCommitted: null });
+      return;
     }
 
-    res.status(result.ok ? 200 : 409).json({
-      ok: result.ok,
+    const questProgress = await npcQuestRuntime.updateQuestProgress(
+      canonicalIntent.actorId,
+      {
+        intentHash: canonicalIntent.intentHash,
+        tick: canonicalIntent.logicalIndex,
+        chunkKey: canonicalIntent.chunkKey,
+        eventType: "craft",
+        targetId: canonicalIntent.payload.recipeId,
+        quantity: 1,
+      },
+    );
+
+    if (!questProgress.ok) {
+      res.status(503).json({
+        ok: false,
+        error: "quest_progress_commit_failed",
+        craftCommitted: true,
+        result,
+        canonicalIntent,
+        questProgressCommitted: false,
+        questProgressError: questProgress.reason,
+      });
+      return;
+    }
+
+    res.status(200).json({
+      ok: true,
+      craftCommitted: true,
       result,
       canonicalIntent,
-      questProgressCommitted,
-      ...(questProgressError ? { questProgressError } : {}),
+      questProgressCommitted: true,
+      questProgressHistoryHash: questProgress.result.historyHash,
     });
   } catch (error) {
     console.error("[crafting-craft] Failed to craft:", error);
