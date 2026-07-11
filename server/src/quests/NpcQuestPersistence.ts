@@ -20,6 +20,16 @@ export interface PersistedNpcReputationState {
   readonly completedQuestIds: readonly string[];
 }
 
+export interface PersistedNpcQuestSourceMutation {
+  readonly intentHash: string;
+  readonly eventType: "gather" | "craft" | "sell";
+  readonly targetId: string;
+  readonly quantity: number;
+  readonly tick: number;
+  readonly chunkKey: string;
+  readonly historyHash: string;
+}
+
 export interface PersistedNpcQuestPlayerState {
   readonly schemaVersion: 1;
   readonly playerId: string;
@@ -27,6 +37,7 @@ export interface PersistedNpcQuestPlayerState {
   readonly completedQuestIds: readonly string[];
   readonly rewardClaimedQuestIds: readonly string[];
   readonly reputations: readonly PersistedNpcReputationState[];
+  readonly appliedSourceMutations: readonly PersistedNpcQuestSourceMutation[];
   readonly lastDialogueState?: NpcDialogueState;
 }
 
@@ -38,7 +49,7 @@ export interface NpcQuestPersistenceAdapter {
 function safeId(value: unknown, fallback: string): string {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
-  return /^[a-zA-Z0-9:_./-]{1,160}$/.test(trimmed) ? trimmed : fallback;
+  return /^[a-zA-Z0-9:_./-]{1,192}$/.test(trimmed) ? trimmed : fallback;
 }
 
 function safeIdList(value: unknown): string[] {
@@ -54,6 +65,21 @@ function safeIdList(value: unknown): string[] {
 function safeCount(value: unknown, minimum = 0): number {
   const count = Math.floor(Number(value));
   return Number.isSafeInteger(count) && count >= minimum ? count : minimum;
+}
+
+function safeSourceMutation(value: unknown): PersistedNpcQuestSourceMutation | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Partial<PersistedNpcQuestSourceMutation>;
+  const intentHash = safeId(record.intentHash, "");
+  const targetId = safeId(record.targetId, "");
+  const chunkKey = safeId(record.chunkKey, "");
+  const historyHash = safeId(record.historyHash, "");
+  const eventType = record.eventType;
+  const tick = safeCount(record.tick);
+  const quantity = safeCount(record.quantity, 1);
+  if (!intentHash || !targetId || !chunkKey || !historyHash) return null;
+  if (eventType !== "gather" && eventType !== "craft" && eventType !== "sell") return null;
+  return Object.freeze({ intentHash, eventType, targetId, quantity, tick, chunkKey, historyHash });
 }
 
 export function normalizeNpcQuestPlayerState(
@@ -98,6 +124,13 @@ export function normalizeNpcQuestPlayerState(
         .filter((entry) => entry.npcId !== "unknown_npc")
         .sort((a, b) => a.npcId.localeCompare(b.npcId))
     : [];
+  const appliedSourceMutations = Array.isArray(input?.appliedSourceMutations)
+    ? input.appliedSourceMutations
+        .map(safeSourceMutation)
+        .filter((entry): entry is PersistedNpcQuestSourceMutation => entry !== null)
+        .filter((entry, index, entries) => entries.findIndex((candidate) => candidate.intentHash === entry.intentHash) === index)
+        .sort((a, b) => a.intentHash.localeCompare(b.intentHash))
+    : [];
 
   return Object.freeze({
     schemaVersion: 1 as const,
@@ -112,6 +145,7 @@ export function normalizeNpcQuestPlayerState(
       ...entry,
       completedQuestIds: Object.freeze([...entry.completedQuestIds]),
     }))),
+    appliedSourceMutations: Object.freeze(appliedSourceMutations),
     ...(input?.lastDialogueState ? { lastDialogueState: input.lastDialogueState } : {}),
   });
 }
