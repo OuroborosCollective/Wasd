@@ -20,3 +20,7 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+
+## 2025-07-12 - Visual Keyboard Discoverability in Gameplay Windows
+**Learning:** Secondary gameplay windows (Inventory, Skills, Guild) often share the same closure patterns as primary windows but lack the same visual cues. Standardizing visual <kbd>ESC</kbd> hints across all persistent UI panels reinforces the app's navigation language and improves accessibility for keyboard-first users.
+**Action:** When creating or auditing "wow-style" gameplay panels, ensure the close button includes both a visual keyboard hint (.cz-kbd) and appropriate ARIA attributes (aria-keyshortcuts) to match the global interaction pattern.
