@@ -8,15 +8,33 @@ import {
 
 type Listener = () => void;
 
-type SnapshotEvidence = {
+type ModuleEvidence = {
+  readonly status: "live";
+  readonly hash: string;
+};
+
+type SourceEvidence = Readonly<Record<string, ModuleEvidence>>;
+
+export type SnapshotEvidence = {
   readonly playerId: string;
   readonly serverTick: number;
   readonly revisionHash: string;
+  readonly revisionSequence: number;
+  readonly lastMutationHash: string | null;
+  readonly sourceEvidence: SourceEvidence;
+};
+
+export type SnapshotApplyRequirements = {
+  readonly after?: SnapshotEvidence | null;
+  readonly expectedMutationHash?: string;
 };
 
 type EvidencedSnapshot = LiveGameplaySnapshot & {
   readonly runtimePlayerId?: string;
   readonly revisionHash?: string;
+  readonly revisionSequence?: number;
+  readonly lastMutationHash?: string | null;
+  readonly sourceEvidence?: SourceEvidence;
 };
 
 type ComposerQuestObjective = {
@@ -39,6 +57,24 @@ type ComposerQuestProgress = {
 const GAMEPLAY_PLAYER_ID_KEY = "wasd:2d:playerId";
 const PUBLIC_KEY_KEY = "wasd:2d:publicKey";
 const ANON_ID_SEED_KEY = "wasd:2d:anonSeed";
+const REQUIRED_SOURCE_KEYS = Object.freeze([
+  "character",
+  "quests",
+  "dialogues",
+  "skills",
+  "resources",
+  "inventory",
+  "crafting",
+  "equipment",
+  "wallet",
+  "vendorEconomy",
+  "camp",
+  "discovery",
+  "guild",
+  "factions",
+  "map",
+  "workOrders",
+] as const);
 
 function stableHash32(input: string): number {
   let hash = 0x811c9dc5;
@@ -95,8 +131,30 @@ function validTick(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) >= 0;
 }
 
+function validSequence(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= -1;
+}
+
 function validRevision(value: unknown): value is string {
-  return typeof value === "string" && /^[a-fA-F0-9]{6,128}$/.test(value);
+  return typeof value === "string" && /^[a-fA-F0-9]{64}$/.test(value);
+}
+
+function validEvidenceHash(value: unknown): value is string {
+  return typeof value === "string" && /^[a-fA-F0-9]{8,128}$/.test(value);
+}
+
+function normalizeSourceEvidence(value: unknown): SourceEvidence | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const normalized: Record<string, ModuleEvidence> = {};
+  for (const key of REQUIRED_SOURCE_KEYS) {
+    const candidate = record[key];
+    if (!candidate || typeof candidate !== "object") return null;
+    const module = candidate as Record<string, unknown>;
+    if (module.status !== "live" || !validEvidenceHash(module.hash)) return null;
+    normalized[key] = Object.freeze({ status: "live", hash: module.hash });
+  }
+  return Object.freeze(normalized);
 }
 
 function questStatusFromComposerState(state: unknown): LiveGameplaySnapshot["quests"][number]["status"] {
@@ -122,7 +180,7 @@ function normalizeComposerObjective(
     label: String(input.title ?? prettifyId(objectiveId)),
     current,
     required,
-    completed: input.completed === true,
+    completed: input.completed === true && current >= required,
   };
 }
 
@@ -188,8 +246,20 @@ function evidenceFromRecord(input: Record<string, unknown>): SnapshotEvidence | 
   const playerId = input.playerId ?? input.runtimePlayerId;
   const serverTick = input.logicalIndex ?? input.serverTick;
   const revisionHash = input.revisionHash;
+  const revisionSequence = input.revisionSequence;
+  const lastMutationHash = input.lastMutationHash;
+  const sourceEvidence = normalizeSourceEvidence(input.sourceEvidence);
   if (!validPlayerId(playerId) || !validTick(serverTick) || !validRevision(revisionHash)) return null;
-  return { playerId, serverTick, revisionHash };
+  if (!validSequence(revisionSequence) || !sourceEvidence) return null;
+  if (lastMutationHash !== null && lastMutationHash !== undefined && !validEvidenceHash(lastMutationHash)) return null;
+  return {
+    playerId,
+    serverTick,
+    revisionHash,
+    revisionSequence,
+    lastMutationHash: typeof lastMutationHash === "string" ? lastMutationHash : null,
+    sourceEvidence,
+  };
 }
 
 function hasCompleteComposerCore(input: Record<string, unknown>): boolean {
@@ -197,7 +267,22 @@ function hasCompleteComposerCore(input: Record<string, unknown>): boolean {
     Array.isArray(input.equipment) &&
     Array.isArray(input.skills) &&
     Array.isArray(input.resourceNodes) &&
-    Boolean(input.wallet && typeof input.wallet === "object");
+    Array.isArray(input.activeQuests) &&
+    Array.isArray(input.availableQuests) &&
+    Array.isArray(input.completedQuestIds) &&
+    Array.isArray(input.npcDialogues) &&
+    Array.isArray(input.npcReputations) &&
+    Array.isArray(input.npcMemories) &&
+    Array.isArray(input.npcRumors) &&
+    Array.isArray(input.campNpcs) &&
+    Array.isArray(input.campStocks) &&
+    Array.isArray(input.worldPois) &&
+    Array.isArray(input.processingStations) &&
+    Boolean(input.wallet && typeof input.wallet === "object") &&
+    Boolean(input.vendorEconomy && typeof input.vendorEconomy === "object") &&
+    Boolean(input.discoveryStats && typeof input.discoveryStats === "object") &&
+    Boolean(input.worldSurface && typeof input.worldSurface === "object") &&
+    normalizeSourceEvidence(input.sourceEvidence) !== null;
 }
 
 function projectComposerSnapshot(input: Record<string, unknown>): Partial<LiveGameplaySnapshot> & Record<string, unknown> {
@@ -215,6 +300,9 @@ function projectComposerSnapshot(input: Record<string, unknown>): Partial<LiveGa
     serverTick: evidence?.serverTick ?? null,
     runtimePlayerId: evidence?.playerId,
     revisionHash: evidence?.revisionHash,
+    revisionSequence: evidence?.revisionSequence,
+    lastMutationHash: evidence?.lastMutationHash,
+    sourceEvidence: evidence?.sourceEvidence,
     quests: projectComposerQuests(input),
     activeQuests: copyArrayField(input.activeQuests) as LiveGameplaySnapshot["activeQuests"],
     availableQuests: copyArrayField(input.availableQuests) as LiveGameplaySnapshot["availableQuests"],
@@ -315,6 +403,9 @@ function pickSnapshotPayload(data: unknown): Record<string, unknown> {
     playerId: raw.playerId,
     serverTick: raw.serverTick,
     revisionHash: raw.revisionHash,
+    revisionSequence: raw.revisionSequence,
+    lastMutationHash: raw.lastMutationHash,
+    sourceEvidence: raw.sourceEvidence,
   };
   let selected: Record<string, unknown>;
   if (raw.snapshot && typeof raw.snapshot === "object" && raw.liveGameplaySnapshot && typeof raw.liveGameplaySnapshot === "object") {
@@ -336,6 +427,9 @@ function pickSnapshotPayload(data: unknown): Record<string, unknown> {
     runtimePlayerId: selected.runtimePlayerId ?? selected.playerId ?? envelopeEvidence.playerId,
     serverTick: selected.serverTick ?? selected.logicalIndex ?? envelopeEvidence.serverTick,
     revisionHash: selected.revisionHash ?? envelopeEvidence.revisionHash,
+    revisionSequence: selected.revisionSequence ?? envelopeEvidence.revisionSequence,
+    lastMutationHash: selected.lastMutationHash ?? envelopeEvidence.lastMutationHash,
+    sourceEvidence: selected.sourceEvidence ?? envelopeEvidence.sourceEvidence,
   };
 }
 
@@ -345,14 +439,26 @@ function normalizeCandidate(data: unknown): { snapshot: EvidencedSnapshot; evide
     playerId: picked.runtimePlayerId ?? picked.playerId,
     serverTick: picked.serverTick,
     revisionHash: picked.revisionHash,
+    revisionSequence: picked.revisionSequence,
+    lastMutationHash: picked.lastMutationHash,
+    sourceEvidence: picked.sourceEvidence,
   });
   const normalized = normalizeLiveGameplaySnapshot(picked as Partial<LiveGameplaySnapshot>) as EvidencedSnapshot;
   const snapshot = Object.assign({}, normalized, {
     status: evidence && picked.status === "live" ? "live" : picked.status === "waiting" ? "waiting" : "stale",
     runtimePlayerId: evidence?.playerId,
     revisionHash: evidence?.revisionHash,
+    revisionSequence: evidence?.revisionSequence,
+    lastMutationHash: evidence?.lastMutationHash,
+    sourceEvidence: evidence?.sourceEvidence,
   }) as EvidencedSnapshot;
   return { snapshot, evidence };
+}
+
+function evidenceIsNewer(candidate: SnapshotEvidence, baseline: SnapshotEvidence): boolean {
+  if (candidate.serverTick > baseline.serverTick) return true;
+  if (candidate.serverTick < baseline.serverTick) return false;
+  return candidate.revisionSequence > baseline.revisionSequence;
 }
 
 export class LiveGameplayStore {
@@ -364,27 +470,54 @@ export class LiveGameplayStore {
     return this.snapshot;
   }
 
-  public setSnapshot(next: unknown, expectedPlayerId: string = getDefaultGameplayPlayerId()): void {
+  public getEvidence(): SnapshotEvidence | null {
+    return this.evidence ? Object.freeze({ ...this.evidence }) : null;
+  }
+
+  public setSnapshot(
+    next: unknown,
+    expectedPlayerId: string = getDefaultGameplayPlayerId(),
+    requirements: SnapshotApplyRequirements = {},
+  ): boolean {
     const candidate = normalizeCandidate(next);
-    if (!candidate.evidence || candidate.evidence.playerId !== expectedPlayerId) {
+    if (!candidate.evidence || candidate.evidence.playerId !== expectedPlayerId || candidate.snapshot.status !== "live") {
       this.markStale();
-      return;
+      return false;
     }
-    if (this.evidence && candidate.evidence.serverTick < this.evidence.serverTick) {
+    if (this.evidence) {
+      if (candidate.evidence.serverTick < this.evidence.serverTick) {
+        this.markStale();
+        return false;
+      }
+      if (candidate.evidence.serverTick === this.evidence.serverTick) {
+        if (candidate.evidence.revisionSequence < this.evidence.revisionSequence) {
+          this.markStale();
+          return false;
+        }
+        if (
+          candidate.evidence.revisionSequence === this.evidence.revisionSequence &&
+          candidate.evidence.revisionHash !== this.evidence.revisionHash
+        ) {
+          this.markStale();
+          return false;
+        }
+      }
+    }
+    if (requirements.after && !evidenceIsNewer(candidate.evidence, requirements.after)) {
       this.markStale();
-      return;
+      return false;
     }
     if (
-      this.evidence &&
-      candidate.evidence.serverTick === this.evidence.serverTick &&
-      candidate.evidence.revisionHash !== this.evidence.revisionHash
+      requirements.expectedMutationHash &&
+      candidate.evidence.lastMutationHash !== requirements.expectedMutationHash
     ) {
       this.markStale();
-      return;
+      return false;
     }
     this.evidence = candidate.evidence;
     this.snapshot = candidate.snapshot;
     this.emit();
+    return true;
   }
 
   public markStale(): void {
@@ -419,6 +552,7 @@ export class LiveGameplayStore {
 }
 
 export const liveGameplayStore = new LiveGameplayStore();
+/** Compatibility export only. Runtime actions must resolve the actor at action time. */
 export const DEFAULT_GAMEPLAY_PLAYER_ID = getDefaultGameplayPlayerId();
 
 export async function fetchGameplaySnapshot(
