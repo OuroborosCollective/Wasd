@@ -14,9 +14,9 @@
     "clean": "rimraf dist node_modules"
   },
   "dependencies": {
-    "@nestjs/common": "^11.1.27",
-    "@nestjs/core": "^11.1.27",
-    "@nestjs/platform-express": "^11.1.27",
+    "@nestjs/common": "^11.1.28",
+    "@nestjs/core": "^11.1.28",
+    "@nestjs/platform-express": "^11.1.28",
     "@wasd/core": "workspace:*",
     "@wasd/database": "workspace:*",
     "@wasd/redis": "workspace:*",
@@ -30,10 +30,10 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
-    "@types/node": "^22.20.0",
-    "@types/three": "0.184.1",
-    "@typescript-eslint/eslint-plugin": "^8.62.1",
-    "@typescript-eslint/parser": "^8.62.1",
+    "@types/node": "^22.20.1",
+    "@types/three": "0.185.1",
+    "@typescript-eslint/eslint-plugin": "^8.63.0",
+    "@typescript-eslint/parser": "^8.63.0",
     "eslint": "^10.4.1",
     "prisma": "^7.8.0",
     "rimraf": "^6.1.3",
