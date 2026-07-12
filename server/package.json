@@ -11,7 +11,8 @@
     "start": "node dist/index.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "guard:worldtick": "tsx src/core/WorldTickPolicy.guard.ts"
+    "guard:worldtick": "tsx src/core/WorldTickPolicy.guard.ts",
+    "verify:postgres-contract": "tsx src/scripts/verifyPostgresRuntimeContract.ts"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.28.0",
