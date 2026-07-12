@@ -24,7 +24,7 @@ jobs:
           set -euo pipefail
           git init -q .
           git remote add origin "https://github.com/${{ github.repository }}"
-          git -c protocol.version=2 fetch -q --no-tags origin "${{ github.sha }}"
+          git -c protocol.version=2 fetch -q --no-tags --depth=1 origin "${{ github.sha }}"
           git checkout -q --force FETCH_HEAD
           git config --global --add safe.directory "$PWD"
 
@@ -32,7 +32,7 @@ jobs:
         id: changes
         run: |
           set -euo pipefail
-          git -c protocol.version=2 fetch -q --no-tags origin "${{ github.base_ref }}"
+          git -c protocol.version=2 fetch -q --no-tags --depth=1 origin "${{ github.base_ref }}"
           changed="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD || true)"
           printf '%s\n' "$changed"
           if printf '%s\n' "$changed" | grep -E '^(server/|packages/shared/|packages/core-logic/|package\.json$|pnpm-lock\.yaml$|tsconfig\.base\.json$)' >/dev/null; then
