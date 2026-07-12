@@ -55,11 +55,14 @@
 }
 
 .wow-close-btn {
-  width: 36px;
+  min-width: 36px;
+  width: auto;
   height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  padding: 0 8px;
   border: 1px solid rgba(200, 180, 120, 0.4);
   background: rgba(40, 50, 65, 0.8);
   color: #c8b878;
