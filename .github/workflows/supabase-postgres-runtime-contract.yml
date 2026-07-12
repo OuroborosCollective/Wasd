@@ -8,6 +8,8 @@ on:
       - 'server/package.json'
       - 'server/src/api/healthRoutes.ts'
       - 'server/src/config/databaseRuntimeContract.ts'
+      - 'server/src/lib/supabaseAdmin.ts'
+      - 'server/src/services/adminService.ts'
       - 'server/src/modules/persistence/**'
       - 'server/src/quests/**'
       - 'server/src/skills/**'
@@ -19,6 +21,7 @@ on:
       - 'server/src/tests/HealthObservability.test.ts'
       - 'server/src/tests/PersistencePolicy.test.ts'
       - 'server/src/tests/postgres-persistence-init.test.ts'
+      - 'server/src/tests/supabase-admin-lazy.test.ts'
       - '.github/workflows/supabase-postgres-runtime-contract.yml'
   push:
     branches:
@@ -29,6 +32,8 @@ on:
       - 'server/package.json'
       - 'server/src/api/healthRoutes.ts'
       - 'server/src/config/databaseRuntimeContract.ts'
+      - 'server/src/lib/supabaseAdmin.ts'
+      - 'server/src/services/adminService.ts'
       - 'server/src/modules/persistence/**'
       - 'server/src/quests/**'
       - 'server/src/skills/**'
@@ -40,6 +45,7 @@ on:
       - 'server/src/tests/HealthObservability.test.ts'
       - 'server/src/tests/PersistencePolicy.test.ts'
       - 'server/src/tests/postgres-persistence-init.test.ts'
+      - 'server/src/tests/supabase-admin-lazy.test.ts'
       - '.github/workflows/supabase-postgres-runtime-contract.yml'
 
 permissions:
@@ -124,6 +130,7 @@ jobs:
           server/src/tests/HealthObservability.test.ts
           server/src/tests/PersistencePolicy.test.ts
           server/src/tests/postgres-persistence-init.test.ts
+          server/src/tests/supabase-admin-lazy.test.ts
 
       - name: Run real PostgreSQL profile and runtime roundtrip
         run: pnpm --filter @wasd/server verify:postgres-contract
