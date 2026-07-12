@@ -16,13 +16,19 @@ describe("PostgresPersistenceBackend.init", () => {
     vi.restoreAllMocks();
   });
 
-  it("creates player_snapshots, world_object_snapshots, and questline_progress", async () => {
+  it("creates isolated runtime snapshots, world objects, and questline progress", async () => {
     const backend = new PostgresPersistenceBackend();
     await backend.init();
-    const calls = querySpy.mock.calls.map((c: unknown[]) => String(c[0]));
-    expect(calls.some((sql: string) => sql.includes("player_snapshots"))).toBe(
-      true,
-    );
+    const calls = querySpy.mock.calls.map((call: unknown[]) => String(call[0]));
+
+    expect(
+      calls.some((sql: string) => sql.includes("runtime_player_snapshots")),
+    ).toBe(true);
+    expect(
+      calls.some((sql: string) =>
+        /CREATE TABLE IF NOT EXISTS\s+player_snapshots\s*\(/i.test(sql),
+      ),
+    ).toBe(false);
     expect(
       calls.some((sql: string) => sql.includes("world_object_snapshots")),
     ).toBe(true);
@@ -34,5 +40,12 @@ describe("PostgresPersistenceBackend.init", () => {
         sql.includes("questline_progress_player_idx"),
       ),
     ).toBe(true);
+  });
+
+  it("propagates initialization failures", async () => {
+    querySpy.mockRejectedValueOnce(new Error("schema conflict"));
+    const backend = new PostgresPersistenceBackend();
+
+    await expect(backend.init()).rejects.toThrow("schema conflict");
   });
 });
