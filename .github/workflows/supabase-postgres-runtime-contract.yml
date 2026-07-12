@@ -3,6 +3,7 @@ name: Supabase Postgres Runtime Contract
 on:
   pull_request:
     paths:
+      - 'docker-compose.yml'
       - 'migrations/**'
       - 'server/package.json'
       - 'server/src/api/healthRoutes.ts'
@@ -23,6 +24,7 @@ on:
     branches:
       - main
     paths:
+      - 'docker-compose.yml'
       - 'migrations/**'
       - 'server/package.json'
       - 'server/src/api/healthRoutes.ts'
@@ -60,6 +62,7 @@ env:
   CHARACTER_PERSISTENCE_DRIVER: postgres
   PERSISTENCE_FAIL_CLOSED: '1'
   SUPABASE_REQUIRE_RLS: '1'
+  WASD_WORLD_SEED: ci-postgres-contract-seed
 
 jobs:
   postgres-contract:
@@ -102,6 +105,14 @@ jobs:
 
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Validate Docker runtime contract
+        run: |
+          set -euo pipefail
+          POSTGRES_PASSWORD=postgres docker compose config > /tmp/areloria-compose.yml
+          grep -q '/health/ready' /tmp/areloria-compose.yml
+          grep -q 'PERSISTENCE_FAIL_CLOSED' /tmp/areloria-compose.yml
+          grep -q 'DATABASE_RUNTIME_REQUIRED' /tmp/areloria-compose.yml
 
       - name: Run server typecheck
         run: pnpm --filter @wasd/server typecheck
