@@ -7,7 +7,7 @@ function envTrim(key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function resolveConnectionString(): string | undefined {
+export function resolveConnectionString(): string | undefined {
   const direct = envTrim("DATABASE_URL") || envTrim("SUPABASE_DB_URL");
   if (direct) return direct;
 
@@ -31,7 +31,19 @@ function resolveConnectionString(): string | undefined {
   return `postgresql://${userEnc}:${passEnc}@${host}:${port}/${database}`;
 }
 
-function resolveSslMode(): false | { rejectUnauthorized: boolean } {
+export function isDockerInternalPostgresHost(host: string): boolean {
+  const normalized = host.trim().toLowerCase();
+  return (
+    normalized === "localhost" ||
+    normalized === "127.0.0.1" ||
+    normalized === "db" ||
+    normalized === "postgres" ||
+    normalized === "supabase-db" ||
+    normalized.endsWith(".internal")
+  );
+}
+
+export function resolveSslMode(connectionString?: string): false | { rejectUnauthorized: boolean } {
   const sslEnv = envTrim("PGSSL").toLowerCase();
   const disableSsl =
     envTrim("DATABASE_SSL_DISABLED") === "1" ||
@@ -46,15 +58,16 @@ function resolveSslMode(): false | { rejectUnauthorized: boolean } {
   if (sslEnv === "0" || sslEnv === "false" || sslEnv === "no" || sslEnv === "disable") {
     return false;
   }
-  /** Remote Postgres (e.g. Supabase pooler on VPS) usually needs TLS; Docker service `db` does not. */
-  const host = envTrim("PGHOST") || envTrim("POSTGRES_HOST");
-  const looksLocal =
-    !host ||
-    host === "localhost" ||
-    host === "127.0.0.1" ||
-    host === "db" ||
-    host.endsWith(".internal");
-  if (looksLocal) {
+  /** Remote Postgres (for example a Supabase pooler) usually needs TLS; Docker-internal Postgres does not. */
+  let host = envTrim("PGHOST") || envTrim("POSTGRES_HOST");
+  if (!host && connectionString) {
+    try {
+      host = new URL(connectionString).hostname;
+    } catch {
+      // The pg client will report malformed connection strings when it connects.
+    }
+  }
+  if (!host || isDockerInternalPostgresHost(host)) {
     return false;
   }
   return { rejectUnauthorized: false };
@@ -64,7 +77,7 @@ const connectionString = resolveConnectionString();
 
 const pool = new Pool({
   connectionString,
-  ssl: resolveSslMode()
+  ssl: resolveSslMode(connectionString)
 });
 
 export class Database {
@@ -90,15 +103,28 @@ export class DatabaseService extends Database {}
 
 export const dbService = new DatabaseService();
 
-export async function testConnection(): Promise<boolean> {
-  try {
-    const client = await pool.connect();
-    client.release();
-    return true;
-  } catch (err) {
-    console.error("Database connection test failed:", err);
-    return false;
+export type DatabaseHealth = {
+  configured: boolean;
+  ok: boolean;
+  error?: string;
+};
+
+export async function checkDatabaseHealth(): Promise<DatabaseHealth> {
+  if (!connectionString) {
+    return { configured: false, ok: false, error: "database_not_configured" };
   }
+  try {
+    await pool.query("SELECT 1 AS ok");
+    return { configured: true, ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Database health check failed:", message);
+    return { configured: true, ok: false, error: "database_query_failed" };
+  }
+}
+
+export async function testConnection(): Promise<boolean> {
+  return (await checkDatabaseHealth()).ok;
 }
 
 export function isDatabaseConfigured(): boolean {
