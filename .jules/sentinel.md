@@ -17,3 +17,8 @@
 **Vulnerability:** The Agora Monitor API (mounted at `/agora/api/live`, `/agora/api/config`, etc.) was publicly accessible, exposing system uptime, port configuration, build hashes, and persistence/ARE guard statistics.
 **Learning:** Monitoring endpoints are often overlooked because they seem like "read-only status," but they leak internal system architecture details that can be used to plan further attacks.
 **Prevention:** Apply `adminAuthMiddleware` and `adminRateLimiter` to all monitoring and diagnostic API routers, even if they only provide "live status" information.
+
+## 2025-06-28 - [Medium] Sensitive Status Leakage
+**Vulnerability:** The /status endpoints in financeRoute and manifestResyncRoute were publicly accessible, leaking PayPal configuration (client IDs, environment) and internal world state hashes/ticks.
+**Learning:** Hybrid routers that serve both public/player-facing and administrative/diagnostic endpoints must apply security middleware selectively to avoid blocking players while protecting diagnostics.
+**Prevention:** Apply adminAuthMiddleware specifically to any diagnostic or status GET routes within hybrid routers.
