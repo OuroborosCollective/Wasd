@@ -50,7 +50,7 @@ jobs:
         run: |
           set +e
           {
-            pnpm clean --lockfile
+            rm -f pnpm-lock.yaml
             pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts
           } > /tmp/pnpm-lockfile-sync.log 2>&1
           status=$?
