@@ -2,13 +2,12 @@
  * POSTGRES PERSISTENCE ADAPTER
  *
  * DB-backed quest persistence for production deployments.
- * Falls back to JSON adapter if DB is unavailable.
  *
  * Rules:
  * - No Math.random() for gameplay values
  * - No Date.now() for gameplay state
  * - Deterministic serialization
- * - Graceful degradation on DB failure
+ * - Database failures remain observable to the caller
  */
 
 import { Pool } from "pg";
@@ -59,8 +58,8 @@ export class PgQuestPersistenceAdapter implements QuestPersistenceAdapter {
         playerId,
       );
     } catch (error) {
-      console.error("[pg-quest-persist] load failed:", error);
-      return null;
+      console.error("[pg-quest-persist] load failed");
+      throw error;
     }
   }
 
@@ -82,7 +81,7 @@ export class PgQuestPersistenceAdapter implements QuestPersistenceAdapter {
         [normalized.playerId, normalized.schemaVersion, JSON.stringify(normalized.quests)],
       );
     } catch (error) {
-      console.error("[pg-quest-persist] save failed:", error);
+      console.error("[pg-quest-persist] save failed");
       throw error;
     }
   }
@@ -109,10 +108,6 @@ export class PgQuestPersistenceAdapter implements QuestPersistenceAdapter {
   }
 }
 
-/**
- * Create the player_quest_state table if it doesn't exist.
- * Safe to call multiple times - uses IF NOT EXISTS.
- */
 export async function ensurePlayerQuestStateTable(
   connectionString: string,
 ): Promise<void> {
