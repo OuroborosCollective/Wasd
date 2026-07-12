@@ -1,0 +1,118 @@
+name: Supabase Postgres Runtime Contract
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/**'
+      - 'server/package.json'
+      - 'server/src/api/healthRoutes.ts'
+      - 'server/src/config/databaseRuntimeContract.ts'
+      - 'server/src/modules/persistence/**'
+      - 'server/src/quests/**'
+      - 'server/src/skills/**'
+      - 'server/src/inventory/**'
+      - 'server/src/equipment/**'
+      - 'server/src/character/**'
+      - 'server/src/scripts/verifyPostgresRuntimeContract.ts'
+      - 'server/src/tests/DatabaseRuntimeContract.test.ts'
+      - 'server/src/tests/HealthObservability.test.ts'
+      - 'server/src/tests/PersistencePolicy.test.ts'
+      - 'server/src/tests/postgres-persistence-init.test.ts'
+      - '.github/workflows/supabase-postgres-runtime-contract.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'migrations/**'
+      - 'server/package.json'
+      - 'server/src/api/healthRoutes.ts'
+      - 'server/src/config/databaseRuntimeContract.ts'
+      - 'server/src/modules/persistence/**'
+      - 'server/src/quests/**'
+      - 'server/src/skills/**'
+      - 'server/src/inventory/**'
+      - 'server/src/equipment/**'
+      - 'server/src/character/**'
+      - 'server/src/scripts/verifyPostgresRuntimeContract.ts'
+      - 'server/src/tests/DatabaseRuntimeContract.test.ts'
+      - 'server/src/tests/HealthObservability.test.ts'
+      - 'server/src/tests/PersistencePolicy.test.ts'
+      - 'server/src/tests/postgres-persistence-init.test.ts'
+      - '.github/workflows/supabase-postgres-runtime-contract.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-postgres-runtime-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/areloria_contract
+  DATABASE_SSL_DISABLED: '1'
+  DATABASE_CONTRACT_ALLOW_DDL: '1'
+  DATABASE_RUNTIME_REQUIRED: '1'
+  PERSISTENCE_DRIVER: postgres
+  QUEST_PERSISTENCE_DRIVER: postgres
+  SKILL_PERSISTENCE_DRIVER: postgres
+  INVENTORY_PERSISTENCE_DRIVER: postgres
+  EQUIPMENT_PERSISTENCE_DRIVER: postgres
+  CHARACTER_PERSISTENCE_DRIVER: postgres
+  PERSISTENCE_FAIL_CLOSED: '1'
+  SUPABASE_REQUIRE_RLS: '1'
+
+jobs:
+  postgres-contract:
+    name: PostgreSQL schema, RLS and runtime roundtrip
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: areloria_contract
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d areloria_contract"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+          run_install: false
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run server typecheck
+        run: pnpm --filter @wasd/server typecheck
+
+      - name: Run database contract regression tests
+        run: >-
+          pnpm exec vitest run
+          server/src/tests/DatabaseRuntimeContract.test.ts
+          server/src/tests/HealthObservability.test.ts
+          server/src/tests/PersistencePolicy.test.ts
+          server/src/tests/postgres-persistence-init.test.ts
+
+      - name: Run real PostgreSQL profile and runtime roundtrip
+        run: pnpm --filter @wasd/server verify:postgres-contract
