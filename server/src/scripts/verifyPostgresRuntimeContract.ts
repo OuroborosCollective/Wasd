@@ -67,12 +67,16 @@ async function main(): Promise<void> {
       $$;
     `);
 
-    await db.query(await readRepoFile("migrations/001_create_players.sql"));
+    const profileMigration = await readRepoFile("migrations/001_create_players.sql");
+    await db.query(profileMigration);
+    await db.query(profileMigration);
+
     const rlsMigration = await readRepoFile("migrations/006_player_rls.sql");
     await db.query(rlsMigration);
     await db.query(rlsMigration);
 
     const backend = new PostgresPersistenceBackend();
+    await backend.init();
     await backend.init();
 
     await db.query(
