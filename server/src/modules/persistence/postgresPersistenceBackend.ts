@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS world_object_snapshots (
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );`;
 
-/** Same as repo `migrations/005_questline_supabase.sql` — ensures Supabase Postgres works without a separate SQL run. */
+/** Same as repo `migrations/005_questline_supabase.sql` â ensures Supabase Postgres works without a separate SQL run. */
 const CREATE_QUESTLINE_PROGRESS_SQL = `
 CREATE TABLE IF NOT EXISTS questline_progress (
   player_id     TEXT NOT NULL,
@@ -38,8 +38,7 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
 
   async init(): Promise<void> {
     if (!isDatabaseConfigured()) {
-      console.warn("[Persistence] Postgres backend selected but no database connection is configured.");
-      return;
+      throw new Error("[Persistence] Postgres backend selected but no database connection is configured.");
     }
     try {
       await db.query(CREATE_PLAYER_TABLE_SQL);
