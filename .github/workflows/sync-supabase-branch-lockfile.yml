@@ -43,6 +43,7 @@ jobs:
           node-version: '22'
 
       - name: Regenerate lockfile only
+        id: generate
         shell: bash
         run: |
           set +e
@@ -50,6 +51,15 @@ jobs:
           status=$?
           cat /tmp/pnpm-lockfile-sync.log
           exit "$status"
+
+      - name: Upload pnpm diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pnpm-lockfile-sync-log
+          path: /tmp/pnpm-lockfile-sync.log
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Guard changed files
         id: diff
