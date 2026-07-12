@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { craftRecipe } from "../../game/crafting";
+import "../inventoryGrid.css";
 import {
   fetchGameplaySnapshot,
   getDefaultGameplayPlayerId,
