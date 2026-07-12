@@ -1,4 +1,5 @@
 -- Migration 001: player_snapshots base table for PostgreSQL/Supabase persistence.
+-- Safe to apply repeatedly.
 
 CREATE TABLE IF NOT EXISTS player_snapshots (
   player_id         TEXT PRIMARY KEY,
@@ -66,6 +67,7 @@ RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_player_snapshots_updated_at ON player_snapshots;
 CREATE TRIGGER trg_player_snapshots_updated_at
   BEFORE UPDATE ON player_snapshots
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
