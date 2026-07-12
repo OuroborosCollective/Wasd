@@ -2,8 +2,10 @@ import { db, isDatabaseConfigured, testConnection as testPostgresConnection } fr
 import { serializePlayerForPersistence } from "./playerSnapshot.js";
 import type { IPersistenceBackend } from "./persistenceBackend.js";
 
-const CREATE_PLAYER_TABLE_SQL = `
-CREATE TABLE IF NOT EXISTS player_snapshots (
+export const RUNTIME_PLAYER_SNAPSHOT_TABLE = "runtime_player_snapshots";
+
+const CREATE_RUNTIME_PLAYER_TABLE_SQL = `
+CREATE TABLE IF NOT EXISTS ${RUNTIME_PLAYER_SNAPSHOT_TABLE} (
   id TEXT PRIMARY KEY,
   snapshot JSONB NOT NULL,
   last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -33,64 +35,65 @@ const CREATE_QUESTLINE_PROGRESS_INDEXES_SQL = [
   `CREATE INDEX IF NOT EXISTS questline_progress_updated_idx ON questline_progress (updated_at DESC);`,
 ];
 
+function requireDatabaseConfiguration(operation: string): void {
+  if (!isDatabaseConfigured()) {
+    throw new Error(`[Persistence] Cannot ${operation}: PostgreSQL is selected but DATABASE_URL/SUPABASE_DB_URL is not configured.`);
+  }
+}
+
 export class PostgresPersistenceBackend implements IPersistenceBackend {
   readonly name = "postgres";
 
   async init(): Promise<void> {
-    if (!isDatabaseConfigured()) {
-      console.warn("[Persistence] Postgres backend selected but no database connection is configured.");
-      return;
-    }
+    requireDatabaseConfiguration("initialize");
     try {
-      await db.query(CREATE_PLAYER_TABLE_SQL);
+      await db.query(CREATE_RUNTIME_PLAYER_TABLE_SQL);
       await db.query(CREATE_WORLD_OBJECTS_TABLE_SQL);
       await db.query(CREATE_QUESTLINE_PROGRESS_SQL);
       for (const sql of CREATE_QUESTLINE_PROGRESS_INDEXES_SQL) {
         await db.query(sql);
       }
-    } catch (err) {
-      console.error("[Persistence] Failed to initialize Postgres persistence tables:", err);
+    } catch (error) {
+      console.error("[Persistence] Failed to initialize PostgreSQL persistence tables.");
+      throw error;
     }
   }
 
   async testConnection(): Promise<boolean> {
-    if (!isDatabaseConfigured()) {
-      return false;
-    }
+    if (!isDatabaseConfigured()) return false;
     return testPostgresConnection();
   }
 
   async save(data: Readonly<Record<string, unknown>>): Promise<void> {
-    if (!isDatabaseConfigured()) {
-      console.warn("[Persistence] Postgres save skipped (database not configured).");
-      return;
-    }
+    requireDatabaseConfiguration("save player snapshots");
 
     try {
-      for (const id of Object.keys(data)) {
+      for (const id of Object.keys(data).sort((a, b) => a.localeCompare(b))) {
         const payload = {
           ...serializePlayerForPersistence(data[id]),
-          lastUpdated: "1970-01-01T00:00:00.000Z" /* ARE-DETERMINISM-ALLOW: determinism placeholder */,
+          lastUpdated: "1970-01-01T00:00:00.000Z" /* ARE-DETERMINISM-ALLOW: persistence metadata placeholder */,
         };
         await db.query(
-          `INSERT INTO player_snapshots (id, snapshot, last_updated)
+          `INSERT INTO ${RUNTIME_PLAYER_SNAPSHOT_TABLE} (id, snapshot, last_updated)
            VALUES ($1, $2::jsonb, NOW())
            ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()`,
-          [id, JSON.stringify(payload)]
+          [id, JSON.stringify(payload)],
         );
       }
-      console.log(`Saved ${Object.keys(data).length} players to Postgres.`);
-    } catch (err) {
-      console.error("[Persistence] Failed to save players to Postgres:", err);
+      console.log(`Saved ${Object.keys(data).length} players to PostgreSQL runtime snapshots.`);
+    } catch (error) {
+      console.error("[Persistence] Failed to save player snapshots to PostgreSQL.");
+      throw error;
     }
   }
 
   async load(): Promise<Record<string, unknown>> {
-    if (!isDatabaseConfigured()) {
-      return {};
-    }
+    requireDatabaseConfiguration("load player snapshots");
+
     try {
-      const result = await db.query("SELECT id, snapshot FROM player_snapshots");
+      const result = await db.query(
+        `SELECT id, snapshot FROM ${RUNTIME_PLAYER_SNAPSHOT_TABLE} ORDER BY id`,
+      );
       const out: Record<string, unknown> = {};
       for (const row of result.rows ?? []) {
         const id = typeof row.id === "string" ? row.id : "";
@@ -98,51 +101,51 @@ export class PostgresPersistenceBackend implements IPersistenceBackend {
         const snapshot = row.snapshot && typeof row.snapshot === "object" ? row.snapshot : {};
         out[id] = snapshot;
       }
-      console.log(`Loaded ${Object.keys(out).length} players from Postgres.`);
+      console.log(`Loaded ${Object.keys(out).length} players from PostgreSQL runtime snapshots.`);
       return out;
-    } catch (err) {
-      console.error("[Persistence] Failed to load players from Postgres:", err);
-      return {};
+    } catch (error) {
+      console.error("[Persistence] Failed to load player snapshots from PostgreSQL.");
+      throw error;
     }
   }
 
   async saveWorldObjects(
     objects: readonly Readonly<Record<string, unknown>>[],
   ): Promise<void> {
-    if (!isDatabaseConfigured()) {
-      console.warn("[Persistence] Postgres saveWorldObjects skipped (database not configured).");
-      return;
-    }
+    requireDatabaseConfiguration("save world objects");
+
     try {
-      for (const obj of objects) {
+      const ordered = [...objects].sort((a, b) => String(a?.id ?? "").localeCompare(String(b?.id ?? "")));
+      for (const obj of ordered) {
         const id = typeof obj?.id === "string" ? obj.id : "";
         if (!id) continue;
         await db.query(
           `INSERT INTO world_object_snapshots (id, snapshot, last_updated)
            VALUES ($1, $2::jsonb, NOW())
            ON CONFLICT (id) DO UPDATE SET snapshot = EXCLUDED.snapshot, last_updated = NOW()`,
-          [id, JSON.stringify(obj)]
+          [id, JSON.stringify(obj)],
         );
       }
-      console.log(`Saved ${objects.length} world objects to Postgres.`);
-    } catch (err) {
-      console.error("[Persistence] Failed to save world objects to Postgres:", err);
+      console.log(`Saved ${ordered.length} world objects to PostgreSQL.`);
+    } catch (error) {
+      console.error("[Persistence] Failed to save world objects to PostgreSQL.");
+      throw error;
     }
   }
 
   async loadWorldObjects(): Promise<Record<string, unknown>[]> {
-    if (!isDatabaseConfigured()) {
-      return [];
-    }
+    requireDatabaseConfiguration("load world objects");
+
     try {
-      const result = await db.query("SELECT snapshot FROM world_object_snapshots");
-      const rows = result.rows ?? [];
-      return rows
-        .map((r) => (r?.snapshot && typeof r.snapshot === "object" ? r.snapshot : null))
+      const result = await db.query(
+        "SELECT snapshot FROM world_object_snapshots ORDER BY id",
+      );
+      return (result.rows ?? [])
+        .map((row) => (row?.snapshot && typeof row.snapshot === "object" ? row.snapshot : null))
         .filter(Boolean) as Record<string, unknown>[];
-    } catch (err) {
-      console.error("[Persistence] Failed to load world objects from Postgres:", err);
-      return [];
+    } catch (error) {
+      console.error("[Persistence] Failed to load world objects from PostgreSQL.");
+      throw error;
     }
   }
 }
