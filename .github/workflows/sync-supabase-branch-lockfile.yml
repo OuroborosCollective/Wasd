@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/sync-supabase-branch-lockfile.yml'
       - 'package.json'
+      - 'client/package.json'
+      - 'portal/package.json'
       - 'server/package.json'
       - 'pnpm-lock.yaml'
 
@@ -21,7 +23,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.head_ref == 'fix/supabase-db-runtime-truth'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout PR branch
@@ -42,12 +44,15 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Regenerate lockfile only
+      - name: Rebuild lockfile only
         id: generate
         shell: bash
         run: |
           set +e
-          pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts > /tmp/pnpm-lockfile-sync.log 2>&1
+          {
+            pnpm clean --lockfile
+            pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts
+          } > /tmp/pnpm-lockfile-sync.log 2>&1
           status=$?
           cat /tmp/pnpm-lockfile-sync.log
           exit "$status"
