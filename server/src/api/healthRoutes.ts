@@ -1,18 +1,23 @@
-import { Router, type Request, type Response } from 'express';
-import path from 'node:path';
-import type { WorldTick } from '../core/are/index.js';
-import { getDeterministicWatchdogStatus } from '../core/installDeterministicWatchdog.js';
-import { checkQuestPersistenceWritable } from './questPersistenceHealth.js';
-import { checkSkillPersistenceWritable } from './skillPersistenceHealth.js';
-import { checkInventoryPersistenceWritable } from './inventoryPersistenceHealth.js';
-import { buildClientEntrypointHealth } from '../core/ClientEntrypointHealth.js';
-import { getActiveGameWebSocketServer } from '../networking/WebSocketServer.js';
-import { getSafePlaytesterConfigForLogs } from '../config/PlaytesterConfig.js';
+import { Router, type Request, type Response } from "express";
+import path from "node:path";
+import type { WorldTick } from "../core/are/index.js";
+import { getDeterministicWatchdogStatus } from "../core/installDeterministicWatchdog.js";
+import { checkQuestPersistenceWritable } from "./questPersistenceHealth.js";
+import { checkSkillPersistenceWritable } from "./skillPersistenceHealth.js";
+import { checkInventoryPersistenceWritable } from "./inventoryPersistenceHealth.js";
+import { buildClientEntrypointHealth } from "../core/ClientEntrypointHealth.js";
+import { getActiveGameWebSocketServer } from "../networking/WebSocketServer.js";
+import { getSafePlaytesterConfigForLogs } from "../config/PlaytesterConfig.js";
+import {
+  checkDatabaseRuntimeContract,
+  type DatabaseRuntimeEvidence,
+} from "../config/databaseRuntimeContract.js";
 
 export type HealthRouteOptions = {
   getTick: () => WorldTick | undefined;
   isInitializing: () => boolean;
   getPort: () => number;
+  checkDatabaseRuntime?: () => Promise<DatabaseRuntimeEvidence>;
 };
 
 function safe<T>(fn: () => T, fallback: T): T {
@@ -24,13 +29,13 @@ function safe<T>(fn: () => T, fallback: T): T {
 }
 
 function noStore(res: Response): void {
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader("Cache-Control", "no-store");
 }
 
 function resolveClientRoot(): string {
   const fromEnv = process.env.CLIENT_ROOT_DIR?.trim();
   if (fromEnv) return path.isAbsolute(fromEnv) ? fromEnv : path.resolve(process.cwd(), fromEnv);
-  return path.resolve(process.cwd(), 'client');
+  return path.resolve(process.cwd(), "client");
 }
 
 function flattenPersistenceFailures(results: ReadonlyArray<{ name: string; result: any }>): readonly string[] {
@@ -54,45 +59,67 @@ function countUnavailableEntrypoints(available: Record<string, boolean>): readon
 function buildManifestStatus(tick: WorldTick | undefined): Record<string, unknown> {
   return safe(() => {
     const manager = tick?.getManifestManager?.();
-    if (!manager) return { status: 'unavailable' };
+    if (!manager) return { status: "unavailable" };
     return {
-      status: 'available',
+      status: "available",
       lastStateHash: manager.getLastStateHash(),
       lastSnapshotTick: manager.getLastSnapshotTick(),
       highestTick: manager.getReplayGuard().getHighestTick(),
       replayGuardNonces: manager.getReplayGuard().getNonceCount(),
-      divergenceCheck: typeof tick?.handleClientDivergence === 'function' ? 'available' : 'unavailable',
+      divergenceCheck: typeof tick?.handleClientDivergence === "function" ? "available" : "unavailable",
     };
-  }, { status: 'unavailable' });
+  }, { status: "unavailable" });
 }
 
 export function healthRoutes(options: HealthRouteOptions): Router {
   const router = Router();
+  const checkDatabaseRuntime = options.checkDatabaseRuntime ?? checkDatabaseRuntimeContract;
 
-  router.get('/live', (_req: Request, res: Response) => {
+  router.get("/live", (_req: Request, res: Response) => {
     noStore(res);
-    res.status(200).json({ ok: true, status: 'live', uptimeSeconds: Math.round(process.uptime()), port: options.getPort() });
+    res.status(200).json({
+      ok: true,
+      status: "live",
+      uptimeSeconds: Math.round(process.uptime()),
+      port: options.getPort(),
+    });
   });
 
-  router.get('/ready', (_req: Request, res: Response) => {
+  router.get("/ready", async (_req: Request, res: Response) => {
     noStore(res);
     const initializing = options.isInitializing();
     const tick = options.getTick();
-    const watchdog = safe(() => (tick as any)?.getWatchdogLedgerStatus?.() ?? getDeterministicWatchdogStatus(), getDeterministicWatchdogStatus());
-    res.status(initializing ? 503 : 200).json({
-      ok: !initializing,
-      status: initializing ? 'initializing' : 'ready',
-      tickReady: Boolean(tick),
+    const database = await checkDatabaseRuntime();
+    const tickReady = Boolean(tick);
+    const databaseReady = !database.required || database.ok;
+    const ok = !initializing && tickReady && databaseReady;
+    const status = initializing
+      ? "initializing"
+      : !tickReady
+        ? "tick_unavailable"
+        : !databaseReady
+          ? "database_degraded"
+          : "ready";
+    const watchdog = safe(
+      () => (tick as any)?.getWatchdogLedgerStatus?.() ?? getDeterministicWatchdogStatus(),
+      getDeterministicWatchdogStatus(),
+    );
+
+    res.status(ok ? 200 : 503).json({
+      ok,
+      status,
+      tickReady,
+      database,
       uptimeSeconds: Math.round(process.uptime()),
       port: options.getPort(),
       watchdog,
     });
   });
 
-  router.get('/client-entrypoints', (_req: Request, res: Response) => {
+  router.get("/client-entrypoints", (_req: Request, res: Response) => {
     noStore(res);
     const clientRoot = resolveClientRoot();
-    const clientDistPath = path.join(clientRoot, 'dist');
+    const clientDistPath = path.join(clientRoot, "dist");
     res.status(200).json({
       ok: true,
       clientEntrypoints: buildClientEntrypointHealth({
@@ -102,42 +129,61 @@ export function healthRoutes(options: HealthRouteOptions): Router {
     });
   });
 
-  router.get('/determinism', (_req: Request, res: Response) => {
+  router.get("/determinism", (_req: Request, res: Response) => {
     noStore(res);
     const tick = options.getTick();
     const guard = safe(() => tick?.getAREGuardStatus?.() ?? null, null);
     const replay = safe(() => tick?.getReplayRecorderStats?.() ?? null, null);
-    const watchdog = safe(() => (tick as any)?.getWatchdogLedgerStatus?.() ?? getDeterministicWatchdogStatus(), getDeterministicWatchdogStatus());
+    const watchdog = safe(
+      () => (tick as any)?.getWatchdogLedgerStatus?.() ?? getDeterministicWatchdogStatus(),
+      getDeterministicWatchdogStatus(),
+    );
     const ok = Boolean(tick) && !options.isInitializing();
-    res.status(ok ? 200 : 503).json({ ok, status: ok ? 'deterministic' : 'unready', guard, replay, watchdog });
+    res.status(ok ? 200 : 503).json({ ok, status: ok ? "deterministic" : "unready", guard, replay, watchdog });
   });
 
-  router.get('/watchdog', (_req: Request, res: Response) => {
+  router.get("/watchdog", (_req: Request, res: Response) => {
     noStore(res);
     const tick = options.getTick();
-    const watchdog = safe(() => (tick as any)?.getWatchdogLedgerStatus?.() ?? getDeterministicWatchdogStatus(), getDeterministicWatchdogStatus());
+    const watchdog = safe(
+      () => (tick as any)?.getWatchdogLedgerStatus?.() ?? getDeterministicWatchdogStatus(),
+      getDeterministicWatchdogStatus(),
+    );
     const ok = Boolean(watchdog?.installed);
-    res.status(ok ? 200 : 503).json({ ok, status: ok ? 'watchdog' : 'unavailable', watchdog });
+    res.status(ok ? 200 : 503).json({ ok, status: ok ? "watchdog" : "unavailable", watchdog });
   });
 
-  router.get('/worldhash', (_req: Request, res: Response) => {
+  router.get("/worldhash", (_req: Request, res: Response) => {
     noStore(res);
     const tick = options.getTick();
     const snapshot = safe(() => tick?.getWorldHashSnapshot?.() ?? null, null);
     const ok = Boolean(snapshot);
-    res.status(ok ? 200 : 503).json({ ok, status: ok ? 'hashed' : 'unavailable', snapshot });
+    res.status(ok ? 200 : 503).json({ ok, status: ok ? "hashed" : "unavailable", snapshot });
   });
 
-  router.get('/observability', async (_req: Request, res: Response) => {
+  router.get("/database-runtime", async (_req: Request, res: Response) => {
+    noStore(res);
+    const database = await checkDatabaseRuntime();
+    const healthy = database.ok || (!database.required && !database.configured);
+    res.status(healthy ? 200 : 503).json({
+      ok: healthy,
+      database,
+    });
+  });
+
+  router.get("/observability", async (_req: Request, res: Response) => {
     noStore(res);
     const tick = options.getTick();
     const clientRoot = resolveClientRoot();
-    const clientDistPath = path.join(clientRoot, 'dist');
+    const clientDistPath = path.join(clientRoot, "dist");
     const clientEntrypoints = buildClientEntrypointHealth({ clientRoot, clientDistPath });
-    const persistenceChecks = await Promise.all([
-      checkQuestPersistenceWritable().then((result) => ({ name: 'quest', result })),
-      checkSkillPersistenceWritable().then((result) => ({ name: 'skill', result })),
-      checkInventoryPersistenceWritable().then((result) => ({ name: 'inventory', result })),
+    const [database, persistenceChecks] = await Promise.all([
+      checkDatabaseRuntime(),
+      Promise.all([
+        checkQuestPersistenceWritable().then((result) => ({ name: "quest", result })),
+        checkSkillPersistenceWritable().then((result) => ({ name: "skill", result })),
+        checkInventoryPersistenceWritable().then((result) => ({ name: "inventory", result })),
+      ]),
     ]);
     const assetAuditFailures = countUnavailableEntrypoints(clientEntrypoints.available);
     const persistenceFailures = flattenPersistenceFailures(persistenceChecks);
@@ -154,11 +200,17 @@ export function healthRoutes(options: HealthRouteOptions): Router {
       invalidMessages: 0,
     };
     const playtesterConfig = getSafePlaytesterConfigForLogs();
-    const ok = !options.isInitializing() && Boolean(tick) && persistenceFailures.length === 0 && assetAuditFailures.length === 0;
+    const databaseReady = !database.required || database.ok;
+    const ok =
+      !options.isInitializing() &&
+      Boolean(tick) &&
+      databaseReady &&
+      persistenceFailures.length === 0 &&
+      assetAuditFailures.length === 0;
 
     res.status(ok ? 200 : 503).json({
       ok,
-      status: ok ? 'observable' : 'degraded',
+      status: ok ? "observable" : "degraded",
       tick: {
         current: safe(() => tick?.tickCount ?? null, null),
         durationMs: 100,
@@ -167,6 +219,7 @@ export function healthRoutes(options: HealthRouteOptions): Router {
         worldHash: safe(() => tick?.getWorldHashSnapshot?.() ?? null, null),
         replay: safe(() => tick?.getReplayRecorderStats?.() ?? null, null),
       },
+      database,
       websocket: wsLoad,
       manifest: buildManifestStatus(tick),
       persistence: {
@@ -190,7 +243,7 @@ export function healthRoutes(options: HealthRouteOptions): Router {
     });
   });
 
-  router.get('/quest-persistence', async (_req: Request, res: Response) => {
+  router.get("/quest-persistence", async (_req: Request, res: Response) => {
     noStore(res);
     const result = await checkQuestPersistenceWritable();
     res.status(result.ok ? 200 : 503).json({
@@ -199,7 +252,7 @@ export function healthRoutes(options: HealthRouteOptions): Router {
     });
   });
 
-  router.get('/skill-persistence', async (_req: Request, res: Response) => {
+  router.get("/skill-persistence", async (_req: Request, res: Response) => {
     noStore(res);
     const result = await checkSkillPersistenceWritable();
     res.status(result.ok ? 200 : 503).json({
@@ -208,7 +261,7 @@ export function healthRoutes(options: HealthRouteOptions): Router {
     });
   });
 
-  router.get('/inventory-persistence', async (_req: Request, res: Response) => {
+  router.get("/inventory-persistence", async (_req: Request, res: Response) => {
     noStore(res);
     const result = await checkInventoryPersistenceWritable();
     res.status(result.ok ? 200 : 503).json({
