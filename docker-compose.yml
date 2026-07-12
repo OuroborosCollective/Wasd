@@ -46,10 +46,17 @@ services:
       ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-https://arelorian.de,https://www.arelorian.de}"
       CORS_ORIGINS: "${CORS_ORIGINS:-https://arelorian.de,https://www.arelorian.de}"
 
+      PERSISTENCE_DRIVER: "${PERSISTENCE_DRIVER:-postgres}"
+      PERSISTENCE_FAIL_CLOSED: "${PERSISTENCE_FAIL_CLOSED:-true}"
+      DATABASE_RUNTIME_REQUIRED: "${DATABASE_RUNTIME_REQUIRED:-true}"
+      SUPABASE_REQUIRE_RLS: "${SUPABASE_REQUIRE_RLS:-true}"
+      PGVECTOR_REQUIRED: "${PGVECTOR_REQUIRED:-false}"
       DATABASE_URL: "${DATABASE_URL:-}"
       DIRECT_URL: "${DIRECT_URL:-}"
       POSTGRES_HOST: "${POSTGRES_HOST:-supabase-db}"
       POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
+      POSTGRES_DB: "${POSTGRES_DB:-postgres}"
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-}"
       SUPABASE_HOST: "${SUPABASE_HOST:-supabase-kong}"
       SUPABASE_PORT: "${SUPABASE_PORT:-8000}"
@@ -84,7 +91,7 @@ services:
       PUSHER_APP_SECRET: "${PUSHER_APP_SECRET:-${SOKETI_APP_SECRET:-}}"
       NEXT_PUBLIC_WEBSOCKET_URL: "${NEXT_PUBLIC_WEBSOCKET_URL:-wss://arelorian.de/ws}"
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r => (r.ok || r.status === 503) ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health/ready').then(async r => { const body = await r.json().catch(() => ({})); process.exit(r.status === 200 && body.ok === true ? 0 : 1); }).catch(() => process.exit(1))"]
       interval: 15s
       timeout: 10s
       retries: 20
@@ -108,10 +115,10 @@ services:
       ENGINE_URL: "http://arelorian-engine:3001"
       CHECK_INTERVAL: "60"
       STARTUP_GRACE_SECONDS: "360"
-      READINESS_PATHS: "/health,/client-config.json,/portal/"
+      READINESS_PATHS: "/health/ready,/client-config.json,/portal/"
     depends_on:
       arelorian-engine:
-        condition: service_started
+        condition: service_healthy
     logging:
       driver: json-file
       options:
