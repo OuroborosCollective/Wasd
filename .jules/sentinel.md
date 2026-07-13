@@ -17,3 +17,8 @@
 **Vulnerability:** The Agora Monitor API (mounted at `/agora/api/live`, `/agora/api/config`, etc.) was publicly accessible, exposing system uptime, port configuration, build hashes, and persistence/ARE guard statistics.
 **Learning:** Monitoring endpoints are often overlooked because they seem like "read-only status," but they leak internal system architecture details that can be used to plan further attacks.
 **Prevention:** Apply `adminAuthMiddleware` and `adminRateLimiter` to all monitoring and diagnostic API routers, even if they only provide "live status" information.
+
+## 2025-07-04 - [Medium] Public System Status Endpoints
+**Vulnerability:** Several diagnostic and status endpoints (/api/manifest/status, /api/finance/status, /api/are/replay/*) were publicly accessible without authentication.
+**Learning:** "Status" endpoints are often perceived as harmless because they are read-only, but they leak world state hashes, billing configurations, and governance details.
+**Prevention:** Explicitly apply `adminAuthMiddleware` to all status and diagnostic routes, even those that appear to be "read-only metadata."
