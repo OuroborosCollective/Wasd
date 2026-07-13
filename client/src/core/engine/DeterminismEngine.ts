@@ -86,7 +86,17 @@ export class DeterminismEngine {
         return hash.toString(16);
     }
 
-    private clone<T>(obj: T): T {
-        return JSON.parse(JSON.stringify(obj));
+    /**
+     * Bolt Optimization: Manual property cloning is significantly faster than JSON.parse(JSON.stringify()).
+     * This is critical for the DeterminismEngine which clones the state at the beginning
+     * of each input stack reduction. We use object spread for deep cloning stable Vector types.
+     */
+    private clone(state: AREState): AREState {
+        return {
+            ...state,
+            position: { ...state.position },
+            velocity: { ...state.velocity },
+            acceleration: { ...state.acceleration },
+        };
     }
 }
