@@ -35,7 +35,7 @@ function manifestError(error: string): ManifestErrorResponse {
 export function createManifestResyncRouter(worldTick: WorldTick): Router {
   const router = Router();
 
-  router.get('/status', adminAuthMiddleware, (_req: Request, res: Response) => {
+  router.get('/status', adminRateLimiter, adminAuthMiddleware, (_req: Request, res: Response) => {
     try {
       const manager = worldTick.getManifestManager();
       res.json({

@@ -32,15 +32,15 @@ export function areReplayRouter(tick: WorldTick) {
   attachSovereignBillingBridge(tick as any, (tick as any).ws ?? { broadcast: () => undefined });
   sovereignGovernance.attachToTick(tick as any);
 
-  router.get("/stats", adminAuthMiddleware, (_req, res) => {
+  router.get("/stats", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
     res.json({ ok: true, stats: tick.getReplayRecorderStats?.() ?? null });
   });
 
-  router.get("/repair/status", adminAuthMiddleware, (_req, res) => {
+  router.get("/repair/status", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
     res.json({ ok: true, autoRepair: tick.getAutoRepairStatus?.() ?? null });
   });
 
-  router.get("/billing/status", adminAuthMiddleware, (_req, res) => {
+  router.get("/billing/status", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
     const usage = tick.getDeterministicUsageStats?.() ?? null;
     res.json({
       ok: true,
@@ -96,7 +96,7 @@ export function areReplayRouter(tick: WorldTick) {
     }
   });
 
-  router.get("/governance/status", adminAuthMiddleware, (_req, res) => {
+  router.get("/governance/status", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
     const report = sovereignGovernance.getReport(Number(tickContextProvider.getContext().tickId));
     res.json(report);
   });
@@ -137,12 +137,12 @@ export function areReplayRouter(tick: WorldTick) {
     }
   });
 
-  router.get("/oracle/prophecy", adminAuthMiddleware, (_req, res) => {
+  router.get("/oracle/prophecy", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
     const oracle = tick.getOracleReport?.() ?? null;
     res.json({ ok: true, oracle });
   });
 
-  router.get("/oracle/status", adminAuthMiddleware, (_req, res) => {
+  router.get("/oracle/status", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
     const oracle = tick.getOracleReport?.() ?? null;
     const active = oracle?.prophecies?.some((prophecy: any) => prophecy.active) ?? false;
     res.json({ ok: true, active, generatedAtTick: oracle?.generatedAtTick ?? null, prophecyCount: oracle?.prophecies?.length ?? 0 });
