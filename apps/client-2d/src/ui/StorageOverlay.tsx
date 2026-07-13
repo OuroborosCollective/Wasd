@@ -357,7 +357,13 @@ export function StorageOverlay({ isOpen = true, onClose }: StorageOverlayProps) 
       {/* Header */}
       <div className="storage-header">
         <h2>Storage Transfer</h2>
-        <button className="close-btn" onClick={handleClose} aria-label="Close storage">
+        <button
+          className="wow-close-btn"
+          onClick={handleClose}
+          aria-label="Close [ESC]"
+          aria-keyshortcuts="Escape"
+        >
+          <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
           ✕
         </button>
         <div className="storage-type">{storageTypeLabel}</div>
