@@ -9,3 +9,7 @@
 ## 2028-02-14 - [Quest Tracker Accessibility]
 **Learning:** Progress bars in objective trackers are often purely visual. Implementing the WAI-ARIA `progressbar` pattern with `aria-valuetext` for percentage-based progress ensures that screen reader users can track mission objectives with the same precision as sighted players.
 **Action:** Always wrap visual progress indicators in Quest or Objective trackers with `role="progressbar"` and provide both raw (`aria-valuenow`) and human-readable (`aria-valuetext`) progress values.
+
+## 2026-07-14 - [Pulsing Visual Alerts for Vitals]
+**Learning:** Visual-only pulsing animations for low health/stamina (<20%) can be distracting for users with vestibular sensitivities. Combining these animations with `prefers-reduced-motion` fallbacks (e.g., static high-contrast filters) and matching `aria-valuetext` updates ensures the alert is inclusive and accessible.
+**Action:** When implementing "danger" states via animation, always include a `@media (prefers-reduced-motion: reduce)` block that provides a static visual alternative.
