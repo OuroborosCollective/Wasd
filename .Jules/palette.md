@@ -9,3 +9,7 @@
 ## 2028-02-14 - [Quest Tracker Accessibility]
 **Learning:** Progress bars in objective trackers are often purely visual. Implementing the WAI-ARIA `progressbar` pattern with `aria-valuetext` for percentage-based progress ensures that screen reader users can track mission objectives with the same precision as sighted players.
 **Action:** Always wrap visual progress indicators in Quest or Objective trackers with `role="progressbar"` and provide both raw (`aria-valuenow`) and human-readable (`aria-valuetext`) progress values.
+
+## 2028-02-14 - [Standardizing Keyboard Shortcut Discoverability]
+**Learning:** Visual keyboard hints (e.g., `<kbd>ESC</kbd>`) in close buttons significantly reduce cognitive load for new users, especially in complex MMO-style interfaces. Using a shared CSS class (`.wow-close-btn`) ensures these buttons maintain a consistent hit area and styling across disparate UI panels.
+**Action:** Implement `<kbd>` tags for all primary window dismissal buttons and standardize their layout via a global CSS class to avoid "fragmented" UX across different feature windows.

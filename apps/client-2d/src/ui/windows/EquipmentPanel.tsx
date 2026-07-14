@@ -334,7 +334,20 @@ export function EquipmentPanel({
     <div className="equipment-panel wow-panel" data-player-id={resolvedPlayerId} data-testid="equipment-panel-live">
       <div className="equipment-header">
         <h2>Equipment</h2>
-        {onClose && <button type="button" onClick={onClose} className="close-btn">×</button>}
+        {onClose && (
+          <button
+            type="button"
+            className="wow-close-btn"
+            onClick={onClose}
+            aria-label="Close [ESC]"
+            aria-keyshortcuts="Escape"
+          >
+            <kbd className="cz-kbd" aria-hidden="true">
+              ESC
+            </kbd>
+            ✕
+          </button>
+        )}
       </div>
 
       {rejection && (
