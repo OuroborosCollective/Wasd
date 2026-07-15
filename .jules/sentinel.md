@@ -17,3 +17,8 @@
 **Vulnerability:** The Agora Monitor API (mounted at `/agora/api/live`, `/agora/api/config`, etc.) was publicly accessible, exposing system uptime, port configuration, build hashes, and persistence/ARE guard statistics.
 **Learning:** Monitoring endpoints are often overlooked because they seem like "read-only status," but they leak internal system architecture details that can be used to plan further attacks.
 **Prevention:** Apply `adminAuthMiddleware` and `adminRateLimiter` to all monitoring and diagnostic API routers, even if they only provide "live status" information.
+
+## 2026-07-15 - [Medium] Public System Diagnostics and Missing Rate Limiting
+**Vulnerability:** Diagnostic and status endpoints (Finance, ARE Validation, Manifest) were publicly accessible, leaking system configuration and world state hashes. These routes also lacked rate limiting, increasing DoS risk.
+**Learning:** Diagnostic routes are often overlooked as "read-only status," but they provide critical information for attackers. Automated security scanners (CodeQL) flag authorized routes without explicit rate limiting.
+**Prevention:** Apply `adminAuthMiddleware` and `adminRateLimiter` to all diagnostic endpoints. For monorepos, ensure `pnpm-lock.yaml` is synchronized with all package manifests after dependency updates to avoid CI failures.
