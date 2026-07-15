@@ -89,18 +89,29 @@ export class DeterminismEngine {
     private clone<T>(obj: T): T {
         // Bolt: Optimization - Manual property spreading for AREState is ~35x faster than JSON.parse(JSON.stringify())
         // for this specific object schema (14ms vs 502ms in 100k iterations).
+        // This is safe because AREState only contains primitive numbers and flat Vector objects.
         if (this.isAREState(obj)) {
+            const state = obj as unknown as AREState;
             return {
-                ...obj,
-                position: { ...obj.position },
-                velocity: { ...obj.velocity },
-                acceleration: { ...obj.acceleration }
+                tick: state.tick,
+                checksum: state.checksum,
+                position: { x: state.position.x, y: state.position.y, z: state.position.z },
+                velocity: { x: state.velocity.x, y: state.velocity.y, z: state.velocity.z },
+                acceleration: { x: state.acceleration.x, y: state.acceleration.y, z: state.acceleration.z }
             } as unknown as T;
         }
         return JSON.parse(JSON.stringify(obj));
     }
 
     private isAREState(obj: any): obj is AREState {
-        return obj && typeof obj === 'object' && 'position' in obj && 'velocity' in obj && 'tick' in obj;
+        return (
+            obj &&
+            typeof obj === "object" &&
+            typeof obj.tick === "number" &&
+            typeof obj.checksum === "string" &&
+            obj.position &&
+            obj.velocity &&
+            obj.acceleration
+        );
     }
 }
