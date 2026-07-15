@@ -208,9 +208,9 @@ export class ServerBootstrap {
     await initializeLivingLanguageSystem();
     
     this.initializing = false;
-    app.use("/api/v1/warfront", warfrontRouter(tick));
-    app.use("/api/are/validation", areValidationRouter(tick));
-    app.use("/api/are/replay", areReplayRouter(tick));
+    app.use("/api/v1/warfront", adminRateLimiter, warfrontRouter(tick));
+    app.use("/api/are/validation", adminRateLimiter, areValidationRouter(tick));
+    app.use("/api/are/replay", adminRateLimiter, areReplayRouter(tick));
     app.use("/api/are", createAREHeartbeatRouter(tick, ws));
     app.use("/api/gameplay", createGameplaySnapshotRouter());
     app.use("/api/quest", questEventRouter);
