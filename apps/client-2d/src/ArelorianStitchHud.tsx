@@ -448,10 +448,21 @@ export function ArelorianStitchHud({
 }
 
 function Gauge({ label, value, tone }: { label: string; value: number; tone: string }) {
+  const isLow = value < 20;
   return (
-    <div className={`stitch-gauge ${tone}`} role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
-      <div><b>{label}</b><span>{value}%</span></div>
-      <i style={{ width: `${value}%` }} />
+    <div
+      className={`stitch-gauge ${tone} ${isLow ? "low-vital-pulse" : ""}`}
+      role="progressbar"
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={label}
+    >
+      <div aria-hidden="true">
+        <b>{label}</b>
+        <span>{value}%</span>
+      </div>
+      <i style={{ width: `${value}%` }} aria-hidden="true" />
     </div>
   );
 }

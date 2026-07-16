@@ -173,6 +173,25 @@ canvas { display: block; filter: saturate(1.16) contrast(1.08); touch-action: no
 .stitch-gauge.aether i { background: linear-gradient(90deg, #0d4e66, var(--st-aether)); }
 .stitch-gauge.emerald i { background: linear-gradient(90deg, #156b22, var(--st-emerald)); }
 .stitch-gauge.gold i { background: linear-gradient(90deg, #725310, var(--st-gold)); }
+
+@keyframes low-vital-pulse {
+  0% { opacity: 1; filter: brightness(1); }
+  50% { opacity: 0.6; filter: brightness(1.4); }
+  100% { opacity: 1; filter: brightness(1); }
+}
+
+.low-vital-pulse i {
+  animation: low-vital-pulse 1.2s infinite ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .low-vital-pulse i {
+    animation: none;
+    filter: saturate(1.8) brightness(1.5);
+    box-shadow: 0 0 8px #fff;
+  }
+}
+
 .stitch-side-menu { position: absolute; top: 94px; right: 14px; display: grid; gap: 8px; pointer-events: auto; }
 .stitch-side-menu button { width: 96px; min-height: 56px; border: 1px solid rgba(0,229,255,.2); border-radius: 18px; color: rgba(244,247,255,.82); background: rgba(4,8,14,.62); box-shadow: inset 0 1px 0 rgba(255,255,255,.08); backdrop-filter: blur(10px); }
 .stitch-side-menu button.active, .stitch-side-menu button:hover { border-color: var(--st-gold); color: white; background: rgba(255,215,106,.12); }
