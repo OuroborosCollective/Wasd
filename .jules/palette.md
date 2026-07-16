@@ -20,3 +20,7 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+
+## 2026-07-16 - Standardizing close button visual hints and accessibility across all WoW-Style gameplay panels
+**Learning:** Standardizing keyboard shortcut cues (like the <kbd>ESC</kbd> hint) on all panel exit buttons ensures high learnability and consistency. Adding `aria-keyshortcuts="Escape"` and descriptive `aria-label="Close [ESC]"` tags guarantees screen reader users have the same contextual shortcuts discoverable as visual users.
+**Action:** Always include complete visual keyboard cues paired with appropriate ARIA accessibility attributes when introducing or modifying interface controls with physical key shortcuts.
