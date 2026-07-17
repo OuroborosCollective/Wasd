@@ -20,3 +20,7 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+
+## 2026-07-17 - Centralizing Close Button Hints Globally
+**Learning:** Storing layout constraints for key-hint close buttons (e.g. `min-width: 36px`, `width: auto`, `padding: 0 8px`, `gap: 8px`) in global `theme.css` allows them to automatically adapt to visual keyboard badges (like `<kbd>ESC</kbd>`) without clipping, while preserving theme-specific custom color overrides in distinct modal stylesheets (like `storageOverlay.css`).
+**Action:** Centralize core dimensional constraints of standardized button patterns in global themes and restrict custom stylesheets to pure chromatic/aesthetic overrides.
