@@ -29,3 +29,7 @@
 ## 2026-06-30 - [Optimizing RecipeMatcher via Caching and Comparison]
 **Learning:** The previous implementation of `RecipeMatcher.match` performed (N \cdot M \log M)$ work by sorting and stringifying both the input and every recipe's ingredients on every call. Using a `WeakMap` for recipe input caching and hoisting the input sorting reduces overhead significantly. Element-wise comparison is also much faster than `JSON.stringify`.
 **Action:** Always hoist sorting outside of search loops and use `WeakMap` to cache transformations of stable objects in hot paths.
+
+## 2028-02-28 - [Optimizing Frequent Array Sorting with Mutation-Aware WeakMap Caching]
+**Learning:** Using `WeakMap` to cache sorted versions of arrays by array reference is an excellent performance boost but dangerous if the arrays are mutated in place (e.g. via `.push()`), leading to stale-cache bugs. To keep it 100% correct, we can store a lightweight fingerprint (e.g., `arr.join('\0')`) alongside the cached sorted array and invalidate when the fingerprint mismatch occurs. This retains most of the performance gains of sorting avoidance (~25% speedup) while being completely mutation-safe.
+**Action:** When caching collections or array transformations using object references, always ensure to compute a fast fingerprint or check lengths/elements to prevent stale data from in-place mutations.

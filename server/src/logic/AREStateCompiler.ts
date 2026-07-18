@@ -37,6 +37,26 @@ function compareStableString(a: string, b: string): number {
     return 0;
 }
 
+// Bolt Optimization: Use WeakMap cache to cache the sorted array result of lineages and mutations.
+// To handle in-place mutations (like .push), we store a fingerprint of the array's elements.
+// This completely avoids allocating and sorting arrays on every tick for unchanged arrays.
+interface CacheEntry {
+    sorted: string[];
+    fingerprint: string;
+}
+const sortedArrayCache = new WeakMap<string[], CacheEntry>();
+
+function getSortedArray(arr: string[]): string[] {
+    const fingerprint = arr.join('\0');
+    const cached = sortedArrayCache.get(arr);
+    if (cached !== undefined && cached.fingerprint === fingerprint) {
+        return cached.sorted;
+    }
+    const sorted = [...arr].sort(compareStableString);
+    sortedArrayCache.set(arr, { sorted, fingerprint });
+    return sorted;
+}
+
 function stableNpcProjection(npc: NPC): Record<string, unknown> {
     // Note: If fields are added here, you MUST update isNpcMatchingProjected accordingly.
     return {
@@ -44,8 +64,8 @@ function stableNpcProjection(npc: NPC): Record<string, unknown> {
         profile: npc.profile,
         genealogy: {
             generation: npc.genealogy.generation,
-            lineage: [...npc.genealogy.lineage].sort(compareStableString),
-            mutations: [...npc.genealogy.mutations].sort(compareStableString),
+            lineage: getSortedArray(npc.genealogy.lineage),
+            mutations: getSortedArray(npc.genealogy.mutations),
         },
         stats: {
             integrity: npc.stats.integrity,
@@ -70,14 +90,13 @@ function isNpcMatchingProjected(npc: NPC, projected: Record<string, any>): boole
     if (npc.genealogy.lineage.length !== genealogy.lineage.length) return false;
     if (npc.genealogy.mutations.length !== genealogy.mutations.length) return false;
 
-    // For simplicity and correctness (since lineage/mutations can be mutated),
-    // if lengths match, we do a shallow check of sorted arrays.
-    const sortedLineage = [...npc.genealogy.lineage].sort(compareStableString);
+    // Bolt Optimization: Compare cached/sorted arrays directly without re-sorting.
+    const sortedLineage = getSortedArray(npc.genealogy.lineage);
     for (let i = 0; i < sortedLineage.length; i++) {
         if (sortedLineage[i] !== genealogy.lineage[i]) return false;
     }
 
-    const sortedMutations = [...npc.genealogy.mutations].sort(compareStableString);
+    const sortedMutations = getSortedArray(npc.genealogy.mutations);
     for (let i = 0; i < sortedMutations.length; i++) {
         if (sortedMutations[i] !== genealogy.mutations[i]) return false;
     }
