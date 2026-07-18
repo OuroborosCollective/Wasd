@@ -9,11 +9,10 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
-    "vite": "^6.4.2",
-    "typescript": "^5.8.0",
+    "@wasd/core-logic": "workspace:*",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "@wasd/core-logic": "workspace:*"
-  },
-  "devDependencies": {}
+    "typescript": "^5.8.0",
+    "vite": "^6.4.3"
+  }
 }
