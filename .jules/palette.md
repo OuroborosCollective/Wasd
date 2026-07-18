@@ -20,3 +20,7 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+
+## 2028-02-28 - Semantic <kbd> Elements for NPC Interactions
+**Learning:** NPC menus and navigation hints that use generic text cues or raw brackets (e.g., "[1]") are less readable, fail to leverage built-in user agent stylesheet aesthetics, and miss screen-reader shortcut associations.
+**Action:** Utilize the standardized `.cz-kbd` class wrapping semantic `<kbd>` tags for all inline keyboard shortcut indicators and helper instructions to ensure a consistent, brutalist/cyber-zen feel.

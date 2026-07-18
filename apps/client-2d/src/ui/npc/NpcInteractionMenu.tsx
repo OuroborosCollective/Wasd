@@ -236,20 +236,25 @@ export function NpcInteractionMenu({
             </div>
 
             {/* Right: Shortcut */}
-            <div
+            <kbd
+              className="cz-kbd"
               style={{
                 fontFamily: "Epilogue, sans-serif",
                 fontSize: "11px",
-                fontWeight: "600",
+                fontWeight: "700",
                 letterSpacing: "0.1em",
-                color: "#3b494c",
+                color: isDisabled ? "#3b494c" : isSelected || isHovered ? "#05060b" : colors.text,
+                backgroundColor: isDisabled ? "transparent" : isSelected || isHovered ? colors.border : `${colors.glow}`,
+                borderColor: isDisabled ? "rgba(132, 147, 150, 0.3)" : colors.border,
+                boxShadow: isSelected || isHovered ? `0 0 10px ${colors.border}` : "none",
                 padding: "2px 6px",
-                border: "1px solid #3b494c",
                 borderRadius: "0px",
+                margin: 0,
+                transition: "all 0.2s ease",
               }}
             >
-              [{item.shortcut}]
-            </div>
+              {item.shortcut}
+            </kbd>
 
             {/* Selected Indicator */}
             {isSelected && (
@@ -275,9 +280,28 @@ export function NpcInteractionMenu({
           letterSpacing: "0.1em",
           color: "#3b494c",
           textTransform: "uppercase",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          flexWrap: "wrap",
         }}
       >
-        ↑↓ Navigate • Enter Select • Esc Close
+        <span>
+          <kbd className="cz-kbd" style={{ margin: "0 2px 0 0", fontSize: "9px", padding: "1px 4px", borderRadius: "0px", color: "inherit", borderColor: "currentColor" }}>↑</kbd>
+          <kbd className="cz-kbd" style={{ margin: "0 4px 0 0", fontSize: "9px", padding: "1px 4px", borderRadius: "0px", color: "inherit", borderColor: "currentColor" }}>↓</kbd>
+          Navigate
+        </span>
+        •
+        <span>
+          <kbd className="cz-kbd" style={{ margin: "0 4px 0 0", fontSize: "9px", padding: "1px 4px", borderRadius: "0px", color: "inherit", borderColor: "currentColor" }}>Enter</kbd>
+          Select
+        </span>
+        •
+        <span>
+          <kbd className="cz-kbd" style={{ margin: "0 4px 0 0", fontSize: "9px", padding: "1px 4px", borderRadius: "0px", color: "inherit", borderColor: "currentColor" }}>Esc</kbd>
+          Close
+        </span>
       </div>
     </div>
   );
