@@ -236,20 +236,21 @@ export function NpcInteractionMenu({
             </div>
 
             {/* Right: Shortcut */}
-            <div
+            <kbd
               style={{
                 fontFamily: "Epilogue, sans-serif",
                 fontSize: "11px",
                 fontWeight: "600",
                 letterSpacing: "0.1em",
-                color: "#3b494c",
+                color: isDisabled ? "#3b494c" : isSelected || isHovered ? colors.text : "#849396",
                 padding: "2px 6px",
-                border: "1px solid #3b494c",
+                border: `1px solid ${isDisabled ? "#3b494c" : isSelected || isHovered ? colors.border : "#3b494c"}`,
                 borderRadius: "0px",
+                backgroundColor: isSelected || isHovered ? "rgba(0, 0, 0, 0.3)" : "rgba(21, 29, 30, 0.4)",
               }}
             >
-              [{item.shortcut}]
-            </div>
+              {item.shortcut}
+            </kbd>
 
             {/* Selected Indicator */}
             {isSelected && (
@@ -273,11 +274,24 @@ export function NpcInteractionMenu({
           fontSize: "10px",
           fontWeight: "400",
           letterSpacing: "0.1em",
-          color: "#3b494c",
+          color: "#849396",
           textTransform: "uppercase",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "4px",
+          flexWrap: "wrap",
         }}
       >
-        ↑↓ Navigate • Enter Select • Esc Close
+        <kbd style={{ fontFamily: "Epilogue, sans-serif", border: "1px solid #3b494c", padding: "1px 4px", borderRadius: "0px", backgroundColor: "rgba(21, 29, 30, 0.4)", color: "#bac9cc" }}>↑</kbd>
+        <kbd style={{ fontFamily: "Epilogue, sans-serif", border: "1px solid #3b494c", padding: "1px 4px", borderRadius: "0px", backgroundColor: "rgba(21, 29, 30, 0.4)", color: "#bac9cc" }}>↓</kbd>
+        <span style={{ color: "#3b494c", marginLeft: "2px", marginRight: "6px" }}>NAVIGATE</span>
+        <span style={{ color: "#3b494c" }}>•</span>
+        <kbd style={{ fontFamily: "Epilogue, sans-serif", border: "1px solid #3b494c", padding: "1px 4px", borderRadius: "0px", backgroundColor: "rgba(21, 29, 30, 0.4)", color: "#bac9cc", marginLeft: "6px" }}>ENTER</kbd>
+        <span style={{ color: "#3b494c", marginLeft: "2px", marginRight: "6px" }}>SELECT</span>
+        <span style={{ color: "#3b494c" }}>•</span>
+        <kbd style={{ fontFamily: "Epilogue, sans-serif", border: "1px solid #3b494c", padding: "1px 4px", borderRadius: "0px", backgroundColor: "rgba(21, 29, 30, 0.4)", color: "#bac9cc", marginLeft: "6px" }}>ESC</kbd>
+        <span style={{ color: "#3b494c", marginLeft: "2px" }}>CLOSE</span>
       </div>
     </div>
   );
