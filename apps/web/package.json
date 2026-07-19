@@ -14,14 +14,14 @@
     "test:coverage": "vitest --passWithNoTests run --coverage"
   },
   "dependencies": {
-    "@babylonjs/core": "^9.16.1",
-    "@babylonjs/loaders": "^9.16.1",
-    "@babylonjs/materials": "^9.16.1",
+    "@babylonjs/core": "^9.17.0",
+    "@babylonjs/loaders": "^9.17.0",
+    "@babylonjs/materials": "^9.17.0",
     "@wasd/database": "workspace:*",
     "@wasd/shared": "workspace:*",
     "@wasd/types": "workspace:*",
     "framer-motion": "^12.42.2",
-    "lucide-react": "^1.24.0",
+    "lucide-react": "^1.25.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "three": "0.185.1",
