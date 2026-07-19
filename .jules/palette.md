@@ -20,3 +20,7 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+
+## 2028-02-15 - Standardizing Dual-Pane Storage Windows with Cyan Theme Overrides
+**Learning:** Dual-pane interfaces (like StorageOverlay) that have a distinct theme color (such as cyan) should still inherit global layout and spacing rules (such as `min-width: 36px`, `width: auto`, `padding: 0 8px`, and `gap: 8px`) for their `.wow-close-btn` classes, ensuring that the visual `<kbd>` hints render without layout clipping or overlap.
+**Action:** Apply the standardized `.wow-close-btn` layout rules globally and specify theme-specific override colors in localized module sheets rather than duplicating layout logic.
