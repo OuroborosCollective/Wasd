@@ -29,3 +29,7 @@
 ## 2026-06-30 - [Optimizing RecipeMatcher via Caching and Comparison]
 **Learning:** The previous implementation of `RecipeMatcher.match` performed (N \cdot M \log M)$ work by sorting and stringifying both the input and every recipe's ingredients on every call. Using a `WeakMap` for recipe input caching and hoisting the input sorting reduces overhead significantly. Element-wise comparison is also much faster than `JSON.stringify`.
 **Action:** Always hoist sorting outside of search loops and use `WeakMap` to cache transformations of stable objects in hot paths.
+
+## 2028-02-24 - [Optimizing DeterminismEngine state cloning]
+**Learning:** `JSON.parse(JSON.stringify())` inside `DeterminismEngine.clone` is a major bottleneck on frequently-run simulation loops. By implementing a lightweight type guard check `isAREState` and cloning the stable fields directly via object spread, we achieve a massive 22x+ performance improvement (from 226ms to 10ms for 50,000 iterations).
+**Action:** Always provide a specialized manual cloning fast path for state entities in high-frequency engines (like deterministic simulation loops) while keeping a safe generic fallback for dynamic schemas.

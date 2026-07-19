@@ -86,7 +86,29 @@ export class DeterminismEngine {
         return hash.toString(16);
     }
 
+    private isAREState(obj: any): obj is AREState {
+        return (
+            obj &&
+            typeof obj === "object" &&
+            "position" in obj &&
+            "velocity" in obj &&
+            "acceleration" in obj &&
+            "tick" in obj &&
+            "checksum" in obj
+        );
+    }
+
     private clone<T>(obj: T): T {
+        if (this.isAREState(obj)) {
+            // Bolt: Optimization - Type-guarded fast path for AREState avoiding slow JSON.parse(JSON.stringify())
+            return {
+                position: { ...obj.position },
+                velocity: { ...obj.velocity },
+                acceleration: { ...obj.acceleration },
+                tick: obj.tick,
+                checksum: obj.checksum
+            } as unknown as T;
+        }
         return JSON.parse(JSON.stringify(obj));
     }
 }
