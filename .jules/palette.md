@@ -20,3 +20,7 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+
+## 2025-05-16 - Binding Visual Keyboard Hints to Global Listeners
+**Learning:** Displaying a keyboard hint (e.g., `<kbd>1</kbd>`, `<kbd>E</kbd>`) without an active listener in the React lifecycle is a major UX gap. Using React refs to store the latest callback props ensures that the global event listener stays synchronized without requiring frequent event registration or running into stale closures.
+**Action:** When adding or verifying visual keyboard hints for buttons or actions, implement a `useRef` closure pattern to register safe global keydown handlers that always invoke the latest callbacks.

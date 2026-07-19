@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, useRef } from "react";
 import { InventoryPanel, type InventoryItem } from "./ui/InventoryPanel";
 import { InventoryPanel as InventorySnapshotPanel } from "./ui/windows/InventoryPanel";
 import { EquipmentPanel } from "./ui/windows/EquipmentPanel";
@@ -142,6 +142,10 @@ export function ArelorianStitchHud({
   // Live gameplay snapshot from server (display-only, no game logic)
   const liveGameplay = useLiveGameplaySnapshot();
 
+  // Stable ref for skill callbacks to avoid re-binding global event listeners
+  const skillCallbacksRef = useRef({ onSkill, onInteract, onStrike });
+  skillCallbacksRef.current = { onSkill, onInteract, onStrike };
+
   // Publish player position to PlayerPositionBridge so ResourceNodeMarkerLayer can read it
   useEffect(() => {
     publishPlayerPositionBridge(debugPlayerPos);
@@ -185,6 +189,24 @@ export function ArelorianStitchHud({
       }
       if (event.key.toLowerCase() === "enter") {
         setOpenOverlays((current) => ({ ...current, chat: true }));
+        return;
+      }
+      if (event.key === "1") {
+        if (skillCallbacksRef.current.onStrike) {
+          skillCallbacksRef.current.onStrike();
+        }
+        return;
+      }
+      if (event.key === "2") {
+        skillCallbacksRef.current.onSkill("def");
+        return;
+      }
+      if (event.key === "3") {
+        skillCallbacksRef.current.onSkill("mag");
+        return;
+      }
+      if (event.key.toLowerCase() === "e") {
+        skillCallbacksRef.current.onInteract();
         return;
       }
       const panel = panels.find((p) => p.shortcut === event.key.toLowerCase());
