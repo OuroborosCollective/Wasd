@@ -1,9 +1,15 @@
 import express from "express";
 import { areValidationState } from "../are/AREValidationState.js";
 import type { WorldTick } from "../core/are/index.js";
+import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
+import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 
 export function areValidationRouter(tick: WorldTick) {
   const router = express.Router();
+
+  // Protect diagnostic validation endpoints from information leakage and resource exhaustion
+  router.use(adminRateLimiter);
+  router.use(adminAuthMiddleware);
 
   router.get("/status", (_req, res) => {
     const snapshot = areValidationState.getSnapshot();

@@ -7,6 +7,7 @@ import { areShadowLogRouter } from "../api/areShadowLogRoute.js";
 import { createSelfHealWorkshopRouter } from "../routes/selfHealWorkshopRoute.js";
 import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
 import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
+import { areValidationRouter } from "../api/areValidationRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -108,6 +109,23 @@ describe("Sentinel Endpoint Protection", () => {
 
       const r2 = await request(app)
         .get("/api/self-healing")
+        .set("X-Admin-Token", "secret");
+      expect(r2.status).toBe(200);
+    });
+  });
+
+  describe("/api/are/validation", () => {
+    it("is protected by adminAuthMiddleware", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      const app = express();
+      const mockTick = {} as any;
+      app.use("/api/are/validation", areValidationRouter(mockTick));
+
+      const r = await request(app).get("/api/are/validation/status");
+      expect(r.status).toBe(401);
+
+      const r2 = await request(app)
+        .get("/api/are/validation/status")
         .set("X-Admin-Token", "secret");
       expect(r2.status).toBe(200);
     });

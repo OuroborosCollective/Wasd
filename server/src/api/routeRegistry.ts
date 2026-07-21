@@ -257,7 +257,7 @@ export const MOUNTED_ROUTES: RouteEntry[] = [
     mountStatus: "mounted",
     gameplayAffecting: false,
     requiresTickContext: false,
-    hasAuth: false,
+    hasAuth: true,
     notes: "ARE validation endpoint"
   },
   {
