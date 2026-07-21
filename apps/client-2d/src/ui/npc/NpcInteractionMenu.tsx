@@ -236,20 +236,22 @@ export function NpcInteractionMenu({
             </div>
 
             {/* Right: Shortcut */}
-            <div
+            <kbd
+              aria-hidden="true"
               style={{
                 fontFamily: "Epilogue, sans-serif",
                 fontSize: "11px",
                 fontWeight: "600",
                 letterSpacing: "0.1em",
-                color: "#3b494c",
+                color: isDisabled ? "#3b494c" : isSelected || isHovered ? colors.text : "#849396",
                 padding: "2px 6px",
-                border: "1px solid #3b494c",
+                border: `1px solid ${isDisabled ? "rgba(132, 147, 150, 0.3)" : isSelected || isHovered ? colors.border : "rgba(132, 147, 150, 0.5)"}`,
                 borderRadius: "0px",
+                background: isDisabled ? "transparent" : isSelected || isHovered ? `${colors.glow}` : "rgba(21, 29, 30, 0.3)",
               }}
             >
-              [{item.shortcut}]
-            </div>
+              {item.shortcut}
+            </kbd>
 
             {/* Selected Indicator */}
             {isSelected && (

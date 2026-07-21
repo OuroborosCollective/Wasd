@@ -9,3 +9,7 @@
 ## 2028-02-14 - [Quest Tracker Accessibility]
 **Learning:** Progress bars in objective trackers are often purely visual. Implementing the WAI-ARIA `progressbar` pattern with `aria-valuetext` for percentage-based progress ensures that screen reader users can track mission objectives with the same precision as sighted players.
 **Action:** Always wrap visual progress indicators in Quest or Objective trackers with `role="progressbar"` and provide both raw (`aria-valuenow`) and human-readable (`aria-valuetext`) progress values.
+
+## 2028-02-21 - [NPC Interaction Menu Shortcuts]
+**Learning:** Keyboard shortcut hints inside highly interactive menus (e.g. `NpcInteractionMenu`) benefit greatly from using semantic `<kbd>` tags with dynamic color-adaptation on hover/selection rather than static generic `div` tags. Using dynamic borders/text matching the active item's color scheme increases visibility while maintaining sharp brutalist boundaries.
+**Action:** Utilize dynamically-styled `<kbd>` tags (with `aria-hidden="true"` when redundant with `aria-keyshortcuts`) in brutalist menu list items to preserve the high-tech, diamond-glass aesthetic without losing document-level structural semantics.
