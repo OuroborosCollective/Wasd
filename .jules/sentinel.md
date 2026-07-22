@@ -17,3 +17,8 @@
 **Vulnerability:** The Agora Monitor API (mounted at `/agora/api/live`, `/agora/api/config`, etc.) was publicly accessible, exposing system uptime, port configuration, build hashes, and persistence/ARE guard statistics.
 **Learning:** Monitoring endpoints are often overlooked because they seem like "read-only status," but they leak internal system architecture details that can be used to plan further attacks.
 **Prevention:** Apply `adminAuthMiddleware` and `adminRateLimiter` to all monitoring and diagnostic API routers, even if they only provide "live status" information.
+
+## 2026-08-15 - [High] Public Diagnostic Endpoints in Hybrid Routers
+**Vulnerability:** Diagnostic status/hash/stats endpoints (such as `/api/finance/status`, `/api/manifest/status`, `/api/are/validation/status`, and all replay/oracle diagnostics in `/api/are/replay`) were completely unprotected by auth middleware, leaking sensitive system diagnostics, transaction stats, block states, and world hashes to anonymous callers.
+**Learning:** Hybrid routers serving both player gameplay syncing (e.g., `/api/manifest/resync`) and diagnostics often mount without top-level `adminAuthMiddleware`. Consequently, any route inside that router not specifically protected by middleware is silently left fully public.
+**Prevention:** Never assume a diagnostic status/stats route inside a hybrid router is protected. Individually apply `adminAuthMiddleware` to all diagnostics, stats, prophecy, and snapshot endpoints within hybrid/specialized routers.

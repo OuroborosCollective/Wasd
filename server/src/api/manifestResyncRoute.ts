@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import type { WorldTick } from '../core/are/index.js';
 import { tickContextProvider } from '../core/are/TickSystemContextProvider.js';
 import { authRequestHandler } from '../middleware/authRequestHandler.js';
+import { adminAuthMiddleware } from '../middleware/adminAuthMiddleware.js';
 import { adminRateLimiter } from '../middleware/rateLimitMiddleware.js';
 
 export interface ResyncRequest {
@@ -34,7 +35,7 @@ function manifestError(error: string): ManifestErrorResponse {
 export function createManifestResyncRouter(worldTick: WorldTick): Router {
   const router = Router();
 
-  router.get('/status', (_req: Request, res: Response) => {
+  router.get('/status', adminAuthMiddleware, (_req: Request, res: Response) => {
     try {
       const manager = worldTick.getManifestManager();
       res.json({

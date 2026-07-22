@@ -7,6 +7,10 @@ import { areShadowLogRouter } from "../api/areShadowLogRoute.js";
 import { createSelfHealWorkshopRouter } from "../routes/selfHealWorkshopRoute.js";
 import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
 import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
+import { financeRouter } from "../api/financeRoute.js";
+import { createManifestResyncRouter } from "../api/manifestResyncRoute.js";
+import { areValidationRouter } from "../api/areValidationRoute.js";
+import { areReplayRouter } from "../api/areReplayRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -110,6 +114,138 @@ describe("Sentinel Endpoint Protection", () => {
         .get("/api/self-healing")
         .set("X-Admin-Token", "secret");
       expect(r2.status).toBe(200);
+    });
+  });
+
+  describe("/api/finance/status", () => {
+    it("is protected by adminAuthMiddleware", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      const app = express();
+      app.use("/api/finance", adminRateLimiter, financeRouter());
+
+      const r = await request(app).get("/api/finance/status");
+      expect(r.status).toBe(401);
+
+      const r2 = await request(app)
+        .get("/api/finance/status")
+        .set("X-Admin-Token", "secret");
+      expect(r2.status).toBe(200);
+    });
+  });
+
+  describe("/api/manifest/status", () => {
+    it("is protected by adminAuthMiddleware", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      const app = express();
+      const mockTick = {
+        getManifestManager: () => ({
+          getLastStateHash: () => "hash",
+          getLastSnapshotTick: () => 0,
+          getReplayGuard: () => ({
+            getHighestTick: () => 0,
+            getNonceCount: () => 0,
+          }),
+        }),
+      } as any;
+      app.use("/api/manifest", adminRateLimiter, createManifestResyncRouter(mockTick));
+
+      const r = await request(app).get("/api/manifest/status");
+      expect(r.status).toBe(401);
+
+      const r2 = await request(app)
+        .get("/api/manifest/status")
+        .set("X-Admin-Token", "secret");
+      expect(r2.status).toBe(200);
+    });
+  });
+
+  describe("/api/are/validation", () => {
+    it("all diagnostic and compare endpoints are protected by adminAuthMiddleware", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      const app = express();
+      const mockTick = {
+        getWorldHashSnapshot: () => ({}),
+        comparePortalWorldHash: () => ({ ok: true }),
+        getAREGuardStatus: () => ({}),
+      } as any;
+      app.use("/api/are/validation", areValidationRouter(mockTick));
+
+      // 1. /status
+      const rStatus = await request(app).get("/api/are/validation/status");
+      expect(rStatus.status).toBe(401);
+
+      const rStatusAuth = await request(app)
+        .get("/api/are/validation/status")
+        .set("X-Admin-Token", "secret");
+      expect(rStatusAuth.status).toBe(200);
+
+      // 2. /world-hash
+      const rHash = await request(app).get("/api/are/validation/world-hash");
+      expect(rHash.status).toBe(401);
+
+      const rHashAuth = await request(app)
+        .get("/api/are/validation/world-hash")
+        .set("X-Admin-Token", "secret");
+      expect(rHashAuth.status).toBe(200);
+
+      // 3. /compare
+      const rCompare = await request(app).post("/api/are/validation/compare").send({});
+      expect(rCompare.status).toBe(401);
+
+      const rCompareAuth = await request(app)
+        .post("/api/are/validation/compare")
+        .set("X-Admin-Token", "secret")
+        .send({});
+      expect(rCompareAuth.status).toBe(200);
+    });
+  });
+
+  describe("/api/are/replay", () => {
+    it("all stats, status, prophecy, and snapshot endpoints are protected by adminAuthMiddleware", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      const app = express();
+      const mockTick = {
+        getReplayRecorderStats: () => ({}),
+        getAutoRepairStatus: () => ({}),
+        getDeterministicUsageStats: () => ({}),
+        getSdkBillingStatus: () => ({}),
+        getOracleReport: () => ({ prophecies: [] }),
+        getReplaySnapshot: () => ({}),
+      } as any;
+      app.use("/api/are/replay", areReplayRouter(mockTick));
+
+      const endpoints = [
+        ["/stats", "GET"],
+        ["/repair/status", "GET"],
+        ["/billing/status", "GET"],
+        ["/governance/status", "GET"],
+        ["/oracle/prophecy", "GET"],
+        ["/oracle/status", "GET"],
+        ["/snapshot/0", "GET"],
+      ];
+
+      for (const [endpoint, method] of endpoints) {
+        let r;
+        if (method === "GET") {
+          r = await request(app).get(`/api/are/replay${endpoint}`);
+        } else {
+          r = await request(app).post(`/api/are/replay${endpoint}`).send({});
+        }
+        expect(r.status).toBe(401);
+
+        let rAuth;
+        if (method === "GET") {
+          rAuth = await request(app)
+            .get(`/api/are/replay${endpoint}`)
+            .set("X-Admin-Token", "secret");
+        } else {
+          rAuth = await request(app)
+            .post(`/api/are/replay${endpoint}`)
+            .set("X-Admin-Token", "secret")
+            .send({});
+        }
+        expect(rAuth.status).not.toBe(401);
+      }
     });
   });
 });
