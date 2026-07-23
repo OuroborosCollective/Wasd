@@ -26,12 +26,30 @@ import type { ChunkCoord, ChunkKey } from '../are/types';
  * @param z - Z coordinate (e.g., chunk Z)
  * @returns Morton code (32-bit integer)
  */
+// Bolt: Fast bit-wise dilation/spreading for lower 16 bits to 32 bits (interleaving with 0)
+// Uses binary magic splits: spreads x to even bits (0, 2, 4, ..., 30)
+function dilate16(x: number): number {
+  x &= 0xffff;
+  x = (x | (x << 8)) & 0x00ff00ff;
+  x = (x | (x << 4)) & 0x0f0f0f0f;
+  x = (x | (x << 2)) & 0x33333333;
+  x = (x | (x << 1)) & 0x55555555;
+  return x;
+}
+
+// Bolt: Fast bit-wise undilation/compaction for interleaved bits back to 16 bits
+function undilate16(x: number): number {
+  x &= 0x55555555;
+  x = (x | (x >>> 1)) & 0x33333333;
+  x = (x | (x >>> 2)) & 0x0f0f0f0f;
+  x = (x | (x >>> 4)) & 0x00ff00ff;
+  x = (x | (x >>> 8)) & 0x0000ffff;
+  return x;
+}
+
 export function encodeMorton(x: number, z: number): number {
-  let morton = 0;
-  for (let i = 0; i < 16; i++) {
-    morton |= ((x & (1 << i)) << i) | ((z & (1 << i)) << (i + 1));
-  }
-  return morton >>> 0; // Ensure unsigned
+  // Bolt: O(1) loop-free interleaving. Spreads x to even bits, z to odd bits.
+  return ((dilate16(x) | (dilate16(z) << 1)) >>> 0);
 }
 
 /**
@@ -41,13 +59,14 @@ export function encodeMorton(x: number, z: number): number {
  * @returns Object with x and z coordinates
  */
 export function decodeMorton(morton: number): { x: number; z: number } {
-  let x = 0;
-  let z = 0;
-  for (let i = 0; i < 16; i++) {
-    x |= (morton >>> (i * 2)) & (1 << i);
-    z |= (morton >>> (i * 2 + 1)) & (1 << i);
-  }
-  return { x, z };
+  // Bolt: O(1) loop-free bit undilation. Compacts even and odd bits back to 16-bit coordinates.
+  const x = undilate16(morton);
+  const z = undilate16(morton >>> 1);
+  // Bolt: Sign-extend from 16-bit to 32-bit signed integer to support negative coordinates
+  return {
+    x: (x << 16) >> 16,
+    z: (z << 16) >> 16
+  };
 }
 
 /**
