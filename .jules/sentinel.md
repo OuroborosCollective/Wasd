@@ -17,3 +17,8 @@
 **Vulnerability:** The Agora Monitor API (mounted at `/agora/api/live`, `/agora/api/config`, etc.) was publicly accessible, exposing system uptime, port configuration, build hashes, and persistence/ARE guard statistics.
 **Learning:** Monitoring endpoints are often overlooked because they seem like "read-only status," but they leak internal system architecture details that can be used to plan further attacks.
 **Prevention:** Apply `adminAuthMiddleware` and `adminRateLimiter` to all monitoring and diagnostic API routers, even if they only provide "live status" information.
+
+## 2026-07-24 - [Medium] Unprotected Voting System Administration Endpoints
+**Vulnerability:** Administrative vote configurations and system diagnostics on the `/api/vote` sub-paths `/admin/banners` and `/admin/diagnostics` were not protected by `adminRateLimiter`, risking DoS or brute-forcing.
+**Learning:** Scoping rate limiters at the global router mount level can cause severe functional regressions for public user paths (like standard voting). Scoping must be precise and localized.
+**Prevention:** For hybrid routers serving both public endpoints and sensitive administrative routes, selectively apply `adminRateLimiter` to specific administrative routes within the router instead of globally at the mount point.
