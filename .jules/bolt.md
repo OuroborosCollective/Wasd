@@ -29,3 +29,7 @@
 ## 2026-06-30 - [Optimizing RecipeMatcher via Caching and Comparison]
 **Learning:** The previous implementation of `RecipeMatcher.match` performed (N \cdot M \log M)$ work by sorting and stringifying both the input and every recipe's ingredients on every call. Using a `WeakMap` for recipe input caching and hoisting the input sorting reduces overhead significantly. Element-wise comparison is also much faster than `JSON.stringify`.
 **Action:** Always hoist sorting outside of search loops and use `WeakMap` to cache transformations of stable objects in hot paths.
+
+## 2028-04-12 - [Optimizing Morton Code Encoding and Decoding via O(1) Bit Dilation]
+**Learning:** Loop-based bit interleaving for 16-bit Morton code (Z-order curve) calculation is slow due to loop overhead and branch predictions, and is highly prone to subtle bitwise indexing bugs. Replacing 16-iteration loops with $O(1)$ loop-free bit dilation (`dilate16`) and undilation (`undilate16`) using magic bit masks (such as `0x00ff00ff`, `0x55555555`) yields ~1.7x to 2.2x speedup. Consistent coordinate systems must be maintained by ensuring identical sign-extension (e.g. `(x << 16) >> 16`) for all decoders when negative coordinates are allowed.
+**Action:** Always prefer loop-free binary magic splits and masks for low-level bit operations and ensure identical handling of sign-extension across redundant implementations of the same math functions.

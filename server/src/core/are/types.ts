@@ -118,13 +118,30 @@ function encodeMortonInput(value: number, label: string): number {
   return value;
 }
 
+// Bolt: Fast bit-wise dilation/spreading for lower 16 bits to 32 bits (interleaving with 0)
+// Uses binary magic splits: spreads x to even bits (0, 2, 4, ..., 30)
+function dilate16(x: number): number {
+  x &= 0xffff;
+  x = (x | (x << 8)) & 0x00ff00ff;
+  x = (x | (x << 4)) & 0x0f0f0f0f;
+  x = (x | (x << 2)) & 0x33333333;
+  x = (x | (x << 1)) & 0x55555555;
+  return x;
+}
+
+// Bolt: Fast bit-wise undilation/compaction for interleaved bits back to 16 bits
+function undilate16(x: number): number {
+  x &= 0x55555555;
+  x = (x | (x >>> 1)) & 0x33333333;
+  x = (x | (x >>> 2)) & 0x0f0f0f0f;
+  x = (x | (x >>> 4)) & 0x00ff00ff;
+  x = (x | (x >>> 8)) & 0x0000ffff;
+  return x;
+}
+
 function encodeMorton16(x: number, z: number): number {
-  let morton = 0;
-  for (let bit = 0; bit < 16; bit += 1) {
-    morton |= ((x >>> bit) & 1) << (bit * 2);
-    morton |= ((z >>> bit) & 1) << (bit * 2 + 1);
-  }
-  return morton;
+  // Bolt: O(1) loop-free bit dilation/interleaving
+  return ((dilate16(x) | (dilate16(z) << 1)) >>> 0);
 }
 
 export function createMortonCode(cx: number, cz: number): MortonCode {
@@ -134,13 +151,14 @@ export function createMortonCode(cx: number, cz: number): MortonCode {
 export function decodeMorton(morton: number): { readonly x: number; readonly z: number } {
   assertInteger(morton, "MortonCode.decode.input");
   assertSafeInteger(morton, "MortonCode.decode.input");
-  let x = 0;
-  let z = 0;
-  for (let bit = 0; bit < 16; bit += 1) {
-    x |= ((morton >>> (bit * 2)) & 1) << bit;
-    z |= ((morton >>> (bit * 2 + 1)) & 1) << bit;
-  }
-  return Object.freeze({ x, z });
+  // Bolt: O(1) loop-free bit undilation/compaction
+  const x = undilate16(morton);
+  const z = undilate16(morton >>> 1);
+  // Bolt: Sign-extend from 16-bit to 32-bit signed integer to support negative coordinates
+  return Object.freeze({
+    x: (x << 16) >> 16,
+    z: (z << 16) >> 16
+  });
 }
 
 export type EntityId = string & { readonly __brand: "EntityId" };
