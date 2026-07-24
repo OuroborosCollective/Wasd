@@ -236,20 +236,26 @@ export function NpcInteractionMenu({
             </div>
 
             {/* Right: Shortcut */}
-            <div
+            <kbd
+              className="cz-kbd"
+              aria-hidden="true"
               style={{
                 fontFamily: "Epilogue, sans-serif",
                 fontSize: "11px",
-                fontWeight: "600",
+                fontWeight: "700",
                 letterSpacing: "0.1em",
-                color: "#3b494c",
-                padding: "2px 6px",
-                border: "1px solid #3b494c",
+                color: isDisabled ? "#3b494c" : colors.text,
+                backgroundColor: isSelected || isHovered ? colors.glow : "transparent",
+                border: `1px solid ${isDisabled ? "rgba(132, 147, 150, 0.3)" : colors.border}`,
                 borderRadius: "0px",
+                padding: "2px 6px",
+                boxShadow: isSelected ? `0 0 8px ${colors.glow}` : "none",
+                margin: 0,
+                lineHeight: 1,
               }}
             >
-              [{item.shortcut}]
-            </div>
+              {item.shortcut}
+            </kbd>
 
             {/* Selected Indicator */}
             {isSelected && (
@@ -273,11 +279,30 @@ export function NpcInteractionMenu({
           fontSize: "10px",
           fontWeight: "400",
           letterSpacing: "0.1em",
-          color: "#3b494c",
+          color: "#849396",
           textTransform: "uppercase",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          flexWrap: "wrap",
         }}
       >
-        ↑↓ Navigate • Enter Select • Esc Close
+        <span>
+          <kbd className="cz-kbd" style={{ borderRadius: "0px", margin: "0 4px 0 0", border: "1px solid #3b494c", color: "#849396", background: "transparent", minWidth: "1.8em", height: "1.6em" }}>↑</kbd>
+          <kbd className="cz-kbd" style={{ borderRadius: "0px", margin: "0 4px 0 0", border: "1px solid #3b494c", color: "#849396", background: "transparent", minWidth: "1.8em", height: "1.6em" }}>↓</kbd>
+          Navigate
+        </span>
+        <span style={{ color: "#3b494c" }}>•</span>
+        <span>
+          <kbd className="cz-kbd" style={{ borderRadius: "0px", margin: "0 4px 0 0", border: "1px solid #3b494c", color: "#849396", background: "transparent", minWidth: "3.2em", height: "1.6em" }}>Enter</kbd>
+          Select
+        </span>
+        <span style={{ color: "#3b494c" }}>•</span>
+        <span>
+          <kbd className="cz-kbd" style={{ borderRadius: "0px", margin: "0 4px 0 0", border: "1px solid #3b494c", color: "#849396", background: "transparent", minWidth: "2.5em", height: "1.6em" }}>Esc</kbd>
+          Close
+        </span>
       </div>
     </div>
   );

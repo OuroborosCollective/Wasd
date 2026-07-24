@@ -20,3 +20,7 @@
 ## 2025-05-15 - Standardizing Gameplay Window Close Patterns
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
+
+## 2025-10-14 - Semantic Keyboard Shortcuts in Brutalist Diamond-Glass Menus
+**Learning:** Refactoring raw, non-semantic shortcut labels into custom-styled `<kbd>` components significantly enhances document accessibility and readability for screen readers while retaining high-fidelity visual styling. Dynamic styling of key-caps according to element-level colors maintains theme integrity in highly stylized brutalist/diamond-glass overlays.
+**Action:** Always replace generic shortcut text wrappers with accessible semantic `<kbd>` tags, explicitly hiding purely decorative parent characters/borders and utilizing responsive flex layouts to prevent layout clipping.
