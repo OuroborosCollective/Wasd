@@ -35,6 +35,35 @@ export function NpcContextWindow({
 }: NpcContextWindowProps) {
   const [styleInjected, setStyleInjected] = React.useState(false);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
+  const [isContinueFocused, setIsContinueFocused] = React.useState(false);
+  const [isContinueHovered, setIsContinueHovered] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isOpen || !dialogue.canContinue) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const target = e.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        Boolean((target as HTMLElement | null)?.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.key === " " || e.key === "Enter" || e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        e.stopPropagation();
+        onContinue?.();
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown, true);
+    };
+  }, [isOpen, dialogue.canContinue, onContinue]);
 
   React.useEffect(() => {
     if (!styleInjected && !document.getElementById("npc-context-styles")) {
@@ -235,7 +264,37 @@ export function NpcContextWindow({
                   </p>
 
                   {dialogue.canContinue && (
-                    <div className="mt-3 flex items-center gap-2" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={onContinue}>
+                    <button
+                      type="button"
+                      onClick={onContinue}
+                      onMouseEnter={() => setIsContinueHovered(true)}
+                      onMouseLeave={() => setIsContinueHovered(false)}
+                      onFocus={() => setIsContinueFocused(true)}
+                      onBlur={() => setIsContinueFocused(false)}
+                      aria-label="Continue dialogue [Space/Enter/E]"
+                      className="mt-3 flex items-center gap-2"
+                      style={{
+                        marginTop: 12,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        cursor: "pointer",
+                        backgroundColor: "transparent",
+                        border: "1px solid transparent",
+                        borderRadius: "0px",
+                        padding: "4px 8px",
+                        outline: "none",
+                        transition: "all 0.2s ease",
+                        ...(isContinueFocused || isContinueHovered
+                          ? {
+                              borderColor: "rgba(0, 229, 255, 0.6)",
+                              backgroundColor: "rgba(0, 229, 255, 0.1)",
+                              boxShadow: "0 0 12px rgba(0, 229, 255, 0.3)",
+                              filter: "brightness(1.2)",
+                            }
+                          : {}),
+                      }}
+                    >
                       <span style={{ display: "inline-block", width: "8px", height: "8px", backgroundColor: "#00e5ff", animation: "dialogue-cursor 1s ease-in-out infinite" }} />
                       <span
                         style={{
@@ -249,7 +308,8 @@ export function NpcContextWindow({
                       >
                         Continue
                       </span>
-                    </div>
+                      <kbd className="cz-kbd" aria-hidden="true" style={{ margin: 0, padding: "2px 4px", fontSize: "9px" }}>SPACE</kbd>
+                    </button>
                   )}
 
                   {dialogue.isFinished && (

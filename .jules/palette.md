@@ -24,3 +24,7 @@
 ## 2026-03-20 - Semantic Keyboard Shortcut Indicators for Dialog Options
 **Learning:** Replaced plain, bracketed text shortcut markers (e.g., "[1]") inside generic containers with semantic, dynamically styled `<kbd>` elements. This guarantees assistive technologies correctly announce shortcut keys to screen readers while keeping keyboard visual indicators fully harmonized with hover, active, and selected styles within a brutalist, sharp-cornered design language.
 **Action:** Always wrap interactive button keyboard shortcuts in semantic, themed `<kbd>` tags to maintain accessibility and high contrast visual hierarchy.
+
+## 2026-06-15 - Focusable Semantic NPC Dialogue Advancement
+**Learning:** Replacing plain click handlers on decorative containers with semantic, focusable buttons is key to both keyboard accessibility and screen reader interaction. Moreover, using high-contrast hover and active outline glows, inline keyboard indicators, and capture-phase event interceptors guarantees a highly polished, responsive dialogue navigation flow without triggering background game logic.
+**Action:** Always design dialogue and confirmation prompts with fully focusable semantic elements, clear shortcut hints, and robust event interception handlers.
