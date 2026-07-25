@@ -17,3 +17,8 @@
 **Vulnerability:** The Agora Monitor API (mounted at `/agora/api/live`, `/agora/api/config`, etc.) was publicly accessible, exposing system uptime, port configuration, build hashes, and persistence/ARE guard statistics.
 **Learning:** Monitoring endpoints are often overlooked because they seem like "read-only status," but they leak internal system architecture details that can be used to plan further attacks.
 **Prevention:** Apply `adminAuthMiddleware` and `adminRateLimiter` to all monitoring and diagnostic API routers, even if they only provide "live status" information.
+
+## 2026-07-24 - [High] Unprotected Diagnostic and Validation Endpoints
+**Vulnerability:** Diagnostic routes in `areReplayRouter` and `areValidationRouter` (such as `/stats`, `/repair/status`, `/billing/status`, `/world-hash`, etc.) were completely public, exposing system information and critical state details. Additionally, the sensitive snapshot downloading endpoint was accessible using standard player credentials instead of admin credentials.
+**Learning:** Diagnostic and state validation routers are often missed when applying global middlewares, or are mistakenly thought of as non-sensitive because they are "read-only status" tools, but they leak key system metadata.
+**Prevention:** Always restrict all diagnostic, repair, and snapshot-generation endpoints to authorized administrative access using both `adminAuthMiddleware` and `adminRateLimiter`.
