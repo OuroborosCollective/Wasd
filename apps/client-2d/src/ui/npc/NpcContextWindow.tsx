@@ -35,6 +35,7 @@ export function NpcContextWindow({
 }: NpcContextWindowProps) {
   const [styleInjected, setStyleInjected] = React.useState(false);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
+  const [isContinueHoveredOrFocused, setIsContinueHoveredOrFocused] = React.useState(false);
 
   React.useEffect(() => {
     if (!styleInjected && !document.getElementById("npc-context-styles")) {
@@ -235,7 +236,29 @@ export function NpcContextWindow({
                   </p>
 
                   {dialogue.canContinue && (
-                    <div className="mt-3 flex items-center gap-2" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={onContinue}>
+                    <button
+                      type="button"
+                      onClick={onContinue}
+                      onFocus={() => setIsContinueHoveredOrFocused(true)}
+                      onBlur={() => setIsContinueHoveredOrFocused(false)}
+                      onMouseEnter={() => setIsContinueHoveredOrFocused(true)}
+                      onMouseLeave={() => setIsContinueHoveredOrFocused(false)}
+                      aria-label="Continue dialogue [SPACE]"
+                      style={{
+                        marginTop: 12,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        cursor: "pointer",
+                        background: "none",
+                        border: "none",
+                        outline: "none",
+                        padding: 0,
+                        transition: "all 0.2s ease",
+                        filter: isContinueHoveredOrFocused ? "brightness(1.2)" : "none",
+                        textShadow: isContinueHoveredOrFocused ? "0 0 8px rgba(0, 229, 255, 0.6)" : "none",
+                      }}
+                    >
                       <span style={{ display: "inline-block", width: "8px", height: "8px", backgroundColor: "#00e5ff", animation: "dialogue-cursor 1s ease-in-out infinite" }} />
                       <span
                         style={{
@@ -249,7 +272,8 @@ export function NpcContextWindow({
                       >
                         Continue
                       </span>
-                    </div>
+                      <kbd className="cz-kbd" aria-hidden="true" style={{ marginLeft: 8, fontSize: "9px", padding: "1px 4px", border: "1px solid rgba(0, 229, 255, 0.4)", color: "#00e5ff", backgroundColor: "rgba(0, 229, 255, 0.1)" }}>SPACE</kbd>
+                    </button>
                   )}
 
                   {dialogue.isFinished && (
