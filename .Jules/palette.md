@@ -9,3 +9,7 @@
 ## 2028-02-14 - [Quest Tracker Accessibility]
 **Learning:** Progress bars in objective trackers are often purely visual. Implementing the WAI-ARIA `progressbar` pattern with `aria-valuetext` for percentage-based progress ensures that screen reader users can track mission objectives with the same precision as sighted players.
 **Action:** Always wrap visual progress indicators in Quest or Objective trackers with `role="progressbar"` and provide both raw (`aria-valuenow`) and human-readable (`aria-valuetext`) progress values.
+
+## 2028-02-15 - [NPC Dialogue Navigation & Interception Pattern]
+**Learning:** Dialogues and interactions in fast-paced or retro MMO interfaces are highly prone to accidental action triggers or double-clicks when menu navigation maps to global select inputs (like Space/Enter). Intercepting global interaction keys (Space, Enter, E) with capture-phase event listeners only when a dialogue is in a "can continue" state ensures players don't accidentally select menu options, while still maintaining frictionless single-key dialog progression.
+**Action:** When creating conversational or sequential UIs with keyboard shortcuts, register a high-priority capture listener that isolates dialogue navigation keys from structural menu selection listeners during multi-stage text progression.

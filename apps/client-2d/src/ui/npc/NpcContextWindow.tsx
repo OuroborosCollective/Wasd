@@ -46,6 +46,33 @@ export function NpcContextWindow({
     }
   }, [styleInjected]);
 
+  React.useEffect(() => {
+    if (!isOpen || !dialogue.canContinue || !onContinue) return;
+
+    const handleWindowKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        Boolean(target?.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.key === " " || e.key === "Enter" || e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        e.stopPropagation();
+        onContinue();
+      }
+    };
+
+    window.addEventListener("keydown", handleWindowKeyDown, { capture: true });
+    return () => {
+      window.removeEventListener("keydown", handleWindowKeyDown, { capture: true });
+    };
+  }, [isOpen, dialogue.canContinue, onContinue]);
+
   const handleAction = (action: MenuAction) => {
     onAction(action);
   };
@@ -235,7 +262,25 @@ export function NpcContextWindow({
                   </p>
 
                   {dialogue.canContinue && (
-                    <div className="mt-3 flex items-center gap-2" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={onContinue}>
+                    <button
+                      type="button"
+                      onClick={onContinue}
+                      aria-label="Continue dialogue"
+                      className="dialogue-continue-btn hover:brightness-125 focus-visible:ring-1 focus-visible:ring-[#00e5ff] focus-visible:border-[#00e5ff] focus-visible:outline-none"
+                      style={{
+                        marginTop: 12,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        cursor: "pointer",
+                        background: "none",
+                        border: "1px solid transparent",
+                        padding: "4px 8px",
+                        borderRadius: "0px",
+                        outline: "none",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
                       <span style={{ display: "inline-block", width: "8px", height: "8px", backgroundColor: "#00e5ff", animation: "dialogue-cursor 1s ease-in-out infinite" }} />
                       <span
                         style={{
@@ -249,7 +294,8 @@ export function NpcContextWindow({
                       >
                         Continue
                       </span>
-                    </div>
+                      <kbd className="cz-kbd" style={{ marginLeft: 6, fontSize: "9px" }}>SPACE</kbd>
+                    </button>
                   )}
 
                   {dialogue.isFinished && (
