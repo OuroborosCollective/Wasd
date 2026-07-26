@@ -21,8 +21,8 @@
     "@wasd/shared": "workspace:*",
     "pixi-filters": "^6.1.5",
     "pixi.js": "^8.18.1",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
