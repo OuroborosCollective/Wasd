@@ -20,6 +20,7 @@ allowBuilds:
   "sharp": true
   "ssh2": true
 minimumReleaseAgeExclude:
+  - 'lucide-react'
   - '@types/node'
   - 'nanoid'
   - 'uuid'
