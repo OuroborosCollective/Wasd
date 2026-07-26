@@ -9,6 +9,7 @@ import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
 import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { financeRouter } from "../api/financeRoute.js";
 import { createManifestResyncRouter } from "../api/manifestResyncRoute.js";
+import { areReplayRouter } from "../api/areReplayRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -155,6 +156,40 @@ describe("Sentinel Endpoint Protection", () => {
         .set("X-Admin-Token", "secret");
       expect(r2.status).toBe(200);
       expect(r2.body.lastStateHash).toBe("hash123");
+    });
+  });
+
+  describe("/api/are/replay diagnostic endpoints", () => {
+    const endpoints = [
+      "/api/are/replay/stats",
+      "/api/are/replay/repair/status",
+      "/api/are/replay/billing/status",
+      "/api/are/replay/governance/status",
+      "/api/are/replay/oracle/prophecy",
+      "/api/are/replay/oracle/status",
+    ];
+
+    endpoints.forEach((endpoint) => {
+      it(`${endpoint} is protected by adminAuthMiddleware`, async () => {
+        process.env.ADMIN_PANEL_TOKEN = "secret";
+        const app = express();
+        const mockTick = {
+          getReplayRecorderStats: () => ({ stats: "mocked" }),
+          getAutoRepairStatus: () => ({ status: "mocked" }),
+          getDeterministicUsageStats: () => ({ usage: "mocked" }),
+          getSdkBillingStatus: () => ({ billing: "mocked" }),
+          getOracleReport: () => ({ oracle: "mocked" }),
+        } as any;
+        app.use("/api/are/replay", areReplayRouter(mockTick));
+
+        const r = await request(app).get(endpoint);
+        expect(r.status).toBe(401);
+
+        const r2 = await request(app)
+          .get(endpoint)
+          .set("X-Admin-Token", "secret");
+        expect(r2.status).toBe(200);
+      });
     });
   });
 });

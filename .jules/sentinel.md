@@ -17,3 +17,8 @@
 **Vulnerability:** The Agora Monitor API (mounted at `/agora/api/live`, `/agora/api/config`, etc.) was publicly accessible, exposing system uptime, port configuration, build hashes, and persistence/ARE guard statistics.
 **Learning:** Monitoring endpoints are often overlooked because they seem like "read-only status," but they leak internal system architecture details that can be used to plan further attacks.
 **Prevention:** Apply `adminAuthMiddleware` and `adminRateLimiter` to all monitoring and diagnostic API routers, even if they only provide "live status" information.
+
+## 2025-06-28 - [High] Public ARE Replay and Diagnostic Endpoints
+**Vulnerability:** Multiple sensitive diagnostic endpoints inside the `areReplayRouter` (such as `/stats`, `/repair/status`, `/billing/status`, `/governance/status`, `/oracle/prophecy`, and `/oracle/status`) were completely public, leaking server-side auto-repair configs, billing states, governance details, and active prophecies.
+**Learning:** Hybrid routers serving both administrative statistics/diagnostics and standard user interactions (like PayPal callbacks or billing cost previews) must have their administrative routes protected selectively inside the router, since applying top-level middleware at the mount point in `ServerBootstrap.ts` would block legitimate player actions.
+**Prevention:** Explicitly apply both `adminRateLimiter` and `adminAuthMiddleware` to all internal diagnostic routes inside hybrid routers to prevent configuration and system state leakage.
