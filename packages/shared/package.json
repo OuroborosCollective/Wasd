@@ -36,7 +36,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@babylonjs/core": "^9.17.0",
+    "@babylonjs/core": "^9.18.0",
     "@types/node": "^22.20.1",
     "typescript": "^5.8.0",
     "vitest": "^4.1.8"
