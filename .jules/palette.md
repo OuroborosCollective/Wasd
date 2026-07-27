@@ -24,3 +24,7 @@
 ## 2026-03-20 - Semantic Keyboard Shortcut Indicators for Dialog Options
 **Learning:** Replaced plain, bracketed text shortcut markers (e.g., "[1]") inside generic containers with semantic, dynamically styled `<kbd>` elements. This guarantees assistive technologies correctly announce shortcut keys to screen readers while keeping keyboard visual indicators fully harmonized with hover, active, and selected styles within a brutalist, sharp-cornered design language.
 **Action:** Always wrap interactive button keyboard shortcuts in semantic, themed `<kbd>` tags to maintain accessibility and high contrast visual hierarchy.
+
+## 2026-03-21 - Dialog Interception with Capture-Phase Keyboard Event Listeners
+**Learning:** Advancing critical modal contexts like dialogues using global key presses (e.g. 'Space', 'Enter', 'E') can lead to unintended behaviors if background panels or overlay elements also capture those inputs. Attaching a capture-phase window keydown listener (`addEventListener("keydown", handler, true)`) while dialogue is active intercepts the input at the top level, allowing the dialogue state to safely advance while preventing propagation to underlying systems.
+**Action:** Use capture-phase listeners to isolate high-priority modal hotkeys and safeguard gameplay state transitions.
