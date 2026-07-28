@@ -9,3 +9,7 @@
 ## 2028-02-14 - [Quest Tracker Accessibility]
 **Learning:** Progress bars in objective trackers are often purely visual. Implementing the WAI-ARIA `progressbar` pattern with `aria-valuetext` for percentage-based progress ensures that screen reader users can track mission objectives with the same precision as sighted players.
 **Action:** Always wrap visual progress indicators in Quest or Objective trackers with `role="progressbar"` and provide both raw (`aria-valuenow`) and human-readable (`aria-valuetext`) progress values.
+
+## 2028-02-15 - [Standardizing Quest Journal Panels with Accessibility and Close Button Patterns]
+**Learning:** Standardizing Quest Journal elements to align with the rest of the application's close button and accessibility patterns ensures keyboard discoverability and screen-reader compatibility. Custom inline list elements for objective lists can be transformed into semantic progressive nodes using `role="progressbar"`, while standardizing the header close buttons using the global `.wow-close-btn` class maintains UI cohesion.
+**Action:** Always verify if Quest Journal or tracker panels have a standardized close button pattern (`.wow-close-btn` class with `<kbd className="cz-kbd">ESC</kbd>`) and use semantic ARIA attributes for progress tracking components.
