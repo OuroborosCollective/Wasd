@@ -46,6 +46,31 @@ export function NpcContextWindow({
     }
   }, [styleInjected]);
 
+  React.useEffect(() => {
+    if (!isOpen || !dialogue.canContinue || !onContinue) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const active = document.activeElement;
+      if (
+        active &&
+        (active.tagName === "INPUT" ||
+          active.tagName === "TEXTAREA" ||
+          active.getAttribute("contenteditable") === "true")
+      ) {
+        return;
+      }
+
+      if (e.key === " " || e.key === "Enter" || e.key === "e" || e.key === "E") {
+        e.preventDefault();
+        e.stopPropagation();
+        onContinue();
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown, true);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown, true);
+  }, [isOpen, dialogue.canContinue, onContinue]);
+
   const handleAction = (action: MenuAction) => {
     onAction(action);
   };
@@ -235,7 +260,23 @@ export function NpcContextWindow({
                   </p>
 
                   {dialogue.canContinue && (
-                    <div className="mt-3 flex items-center gap-2" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={onContinue}>
+                    <button
+                      type="button"
+                      aria-label="Continue dialogue [Space, Enter, or E]"
+                      className="mt-3 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#00e5ff]"
+                      style={{
+                        marginTop: 12,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        cursor: "pointer",
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        transition: "all 0.2s ease",
+                      }}
+                      onClick={onContinue}
+                    >
                       <span style={{ display: "inline-block", width: "8px", height: "8px", backgroundColor: "#00e5ff", animation: "dialogue-cursor 1s ease-in-out infinite" }} />
                       <span
                         style={{
@@ -249,7 +290,8 @@ export function NpcContextWindow({
                       >
                         Continue
                       </span>
-                    </div>
+                      <kbd className="cz-kbd" style={{ marginLeft: 4, fontSize: "10px", padding: "1px 4px" }}>E</kbd>
+                    </button>
                   )}
 
                   {dialogue.isFinished && (
