@@ -11,6 +11,7 @@ import { financeRouter } from "../api/financeRoute.js";
 import { createManifestResyncRouter } from "../api/manifestResyncRoute.js";
 import { areReplayRouter } from "../api/areReplayRoute.js";
 import { areValidationRouter } from "../api/areValidationRoute.js";
+import { voteRouter } from "../api/voteRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -244,6 +245,26 @@ describe("Sentinel Endpoint Protection", () => {
       expect(r.status).toBe(401);
       r2 = await request(app).post("/api/are/validation/compare").set("X-Admin-Token", "secret").send({});
       expect(r2.status).toBe(200);
+    });
+  });
+
+  describe("/api/vote admin endpoints", () => {
+    it("protects admin endpoints with adminAuthMiddleware and applies rate-limiting", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      const app = express();
+      const mockTick = {
+        getAdminVoteBanners: () => [],
+      } as any;
+      app.use("/api/vote", voteRouter(mockTick));
+
+      const r = await request(app).get("/api/vote/admin/banners");
+      expect(r.status).toBe(401);
+
+      const r2 = await request(app)
+        .get("/api/vote/admin/banners")
+        .set("X-Admin-Token", "secret");
+      expect(r2.status).toBe(200);
+      expect(r2.body.banners).toEqual([]);
     });
   });
 });

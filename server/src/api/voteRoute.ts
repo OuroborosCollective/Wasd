@@ -1,6 +1,7 @@
 import express, { Router, type Request, type Response } from "express";
 import { type AdminRequest } from "../middleware/adminAuthMiddleware.js";
 import { adminAuthRequestHandler, adminWriteBlockedHandler } from "../middleware/adminRequestHandlers.js";
+import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import type { WorldTick } from "../core/are/index.js";
 
 function asString(value: unknown): string {
@@ -24,6 +25,8 @@ function asAdminRequest(req: Request): AdminRequest {
 export function voteRouter(tick: WorldTick): Router {
   const router = Router();
   router.use(express.json({ limit: "256kb" }));
+
+  router.use("/admin", adminRateLimiter);
 
   router.get("/banners", (_req, res: Response) => {
     res.json({ banners: tick.listActiveVoteBanners() });
