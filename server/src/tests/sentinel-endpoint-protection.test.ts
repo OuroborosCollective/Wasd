@@ -11,6 +11,7 @@ import { financeRouter } from "../api/financeRoute.js";
 import { createManifestResyncRouter } from "../api/manifestResyncRoute.js";
 import { areReplayRouter } from "../api/areReplayRoute.js";
 import { areValidationRouter } from "../api/areValidationRoute.js";
+import { voteRouter } from "../api/voteRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -243,6 +244,36 @@ describe("Sentinel Endpoint Protection", () => {
       r = await request(app).post("/api/are/validation/compare").send({});
       expect(r.status).toBe(401);
       r2 = await request(app).post("/api/are/validation/compare").set("X-Admin-Token", "secret").send({});
+      expect(r2.status).toBe(200);
+    });
+  });
+
+  describe("/api/vote/admin sub-routes", () => {
+    it("is protected by adminAuthRequestHandler and adminRateLimiter", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      const app = express();
+      const mockTick = {
+        getAdminVoteBanners: () => [],
+        getVoteAdminDiagnostics: () => ({}),
+      } as any;
+      app.use("/api/vote", voteRouter(mockTick));
+
+      // 1. Diagnostics endpoint
+      let r = await request(app).get("/api/vote/admin/diagnostics");
+      expect(r.status).toBe(401);
+
+      let r2 = await request(app)
+        .get("/api/vote/admin/diagnostics")
+        .set("X-Admin-Token", "secret");
+      expect(r2.status).toBe(200);
+
+      // 2. Banners endpoint
+      r = await request(app).get("/api/vote/admin/banners");
+      expect(r.status).toBe(401);
+
+      r2 = await request(app)
+        .get("/api/vote/admin/banners")
+        .set("X-Admin-Token", "secret");
       expect(r2.status).toBe(200);
     });
   });
