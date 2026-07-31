@@ -28,3 +28,7 @@
 ## 2026-03-21 - Focusable Dialogue Progression and Key Capture
 **Learning:** Transitioning NPC dialog 'Continue' click handlers from generic divs to semantic, focusable buttons significantly improves accessibility and keyboard discoverability. Using a capture-phase keydown listener on the window specifically prevents keys like 'Space', 'Enter', and 'E' from triggering background/underlying actions, ensuring a clean and focused monologue flow.
 **Action:** Implement dialogue progression using semantic buttons with explicit aria-labels and window-level capture listeners for 'Space', 'Enter', and 'E', while checking activeElement to prevent input field conflicts.
+
+## 2026-03-22 - State-Aware ARIA Attributes and Feedback for Server-Authoritative UI Actions
+**Learning:** Adding explicit ARIA attributes (`aria-label`, `aria-busy`, `aria-live`) and informative alert roles on panels that trigger asynchronous server-authoritative actions significantly improves the experience for assistive technologies. Providing descriptive fallback hints (e.g. explain when player positioning is unavailable via `title` and status text) bridges the gap between client constraints and server operations.
+**Action:** Ensure that all buttons performing server mutations include state-aware `aria-label` and `aria-busy` tags, and explicitly explain any disabled state contexts to the user.
