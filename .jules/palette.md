@@ -28,3 +28,7 @@
 ## 2026-03-21 - Focusable Dialogue Progression and Key Capture
 **Learning:** Transitioning NPC dialog 'Continue' click handlers from generic divs to semantic, focusable buttons significantly improves accessibility and keyboard discoverability. Using a capture-phase keydown listener on the window specifically prevents keys like 'Space', 'Enter', and 'E' from triggering background/underlying actions, ensuring a clean and focused monologue flow.
 **Action:** Implement dialogue progression using semantic buttons with explicit aria-labels and window-level capture listeners for 'Space', 'Enter', and 'E', while checking activeElement to prevent input field conflicts.
+
+## 2026-07-31 - Localized and Accessible Async Feedback for Interaction Cards
+**Learning:** Rendering asynchronous request states (such as claiming a reward) inside a generic, global top-level banner causes disorientation and is easily missed when scrolled. Instead, displaying the active (`aria-busy`), success, or error status message inline directly within the interactive item's card under the triggering button creates a clear, contextually linked micro-UX. Utilizing `role="status"` and `aria-live="polite"` ensures standard screen readers correctly announce these state transitions.
+**Action:** Always localize async operation status messages to the specific card or container where the user performed the interaction, and use proper ARIA live regions for accessibility.
