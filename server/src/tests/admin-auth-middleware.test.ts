@@ -46,4 +46,25 @@ describe("adminAuthMiddleware", () => {
 
     delete process.env.SUPABASE_JWT_SECRET;
   });
+
+  it("timing-safely validates sovereign launch credentials", async () => {
+    process.env.SOVEREIGN_LAUNCH_KEY = "sovereign-launch-token-123";
+    const app = express();
+    // Simulate mount point and path matching sovereign deploy
+    app.use("/api/sovereign/deploy", adminAuthMiddleware, (_req, res) => res.json({ ok: true }));
+
+    // Valid credential
+    let r = await request(app)
+      .post("/api/sovereign/deploy/launch")
+      .set("x-sovereign-launch-key", "sovereign-launch-token-123");
+    expect(r.status).toBe(200);
+
+    // Invalid credential
+    r = await request(app)
+      .post("/api/sovereign/deploy/launch")
+      .set("x-sovereign-launch-key", "wrong-token-abc");
+    expect(r.status).toBe(401);
+
+    delete process.env.SOVEREIGN_LAUNCH_KEY;
+  });
 });
