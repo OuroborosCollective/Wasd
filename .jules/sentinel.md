@@ -22,3 +22,8 @@
 **Vulnerability:** The `/api/asset-brain/specs/:id` and `/api/asset-brain/variants/:id` routes checked specification ownership against `req.playerId` but lacked authentication middleware, rendering private specs completely inaccessible to their owners. Additionally, internal database schema and query details were leaked to the client upon route errors.
 **Learning:** Endpoints designed with "ownership checking" logic will silently fail/block authorized owners if authentication middleware is completely omitted from those endpoints. Error handlers that forward raw error messages (like `error.message`) are high-risk for database detail disclosure.
 **Prevention:** Implement and use an `optionalAuthRequestHandler` for endpoints requiring guest-or-authenticated hybrid access, and always sanitize error catch blocks to return standardized database-generic error messages.
+
+## 2026-03-20 - [High] Production JWT Secret Fallback Enforcement in Auth Route
+**Vulnerability:** The standard authRoute used a fallback development JWT secret (`areloria_local_development_secret_change_me`) when `JWT_SECRET` was not set, which could silently persist in production environments.
+**Learning:** Hardcoded dev credentials and secrets can easily bypass operational security checks if they are allowed to persist when `process.env.NODE_ENV === "production"`.
+**Prevention:** Enforce mandatory environment variable validation on server startup or handler invocation for any cryptographic route by throwing fatal initialization/runtime errors when secrets are missing in production.
