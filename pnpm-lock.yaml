@@ -967,7 +967,7 @@ importers:
     dependencies:
       '@genkit-ai/googleai':
         specifier: ^1.28.0
-        version: 1.28.0(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0))
+        version: 1.28.0(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0))
       '@google/generative-ai':
         specifier: ^0.24.1
         version: 0.24.1
@@ -984,8 +984,8 @@ importers:
         specifier: ^0.221.0
         version: 0.221.0(@opentelemetry/api@1.9.1)(supports-color@5.5.0)
       '@posthog/ai':
-        specifier: ^7.20.1
-        version: 7.21.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(posthog-node@5.46.1(rxjs@7.8.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(ws@8.21.1)(zod-to-json-schema@3.25.2(zod@4.4.3))
+        specifier: ^8.4.3
+        version: 8.4.3(@google/genai@1.52.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)))(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(posthog-node@5.46.1(rxjs@7.8.2))
       '@traceloop/instrumentation-google-generativeai':
         specifier: ^0.27.0
         version: 0.27.0
@@ -1015,7 +1015,7 @@ importers:
         version: 8.6.0(express@5.2.1)
       genkit:
         specifier: ^1.40.1
-        version: 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0)
+        version: 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0)
       google-auth-library:
         specifier: ^10.9.1
         version: 10.9.1
@@ -1132,15 +1132,6 @@ packages:
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
 
-  '@anthropic-ai/sdk@0.78.0':
-    resolution: {integrity: sha512-PzQhR715td/m1UaaN5hHXjYB8Gl2lF9UVhrrGrZeysiF6Rb74Wc9GCB8hzLdzmQtBd1qe89F9OptgB9Za1Ib5w==}
-    hasBin: true
-    peerDependencies:
-      zod: ^3.25.0 || ^4.0.0
-    peerDependenciesMeta:
-      zod:
-        optional: true
-
   '@asamuzakjp/css-color@5.1.11':
     resolution: {integrity: sha512-KVw6qIiCTUQhByfTd78h2yD1/00waTmm9uy/R7Ck/ctUyAPj+AEDLkQIdJW0T8+qGgj3j5bpNKK7Q3G+LedJWg==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
@@ -1215,6 +1206,11 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
+  '@babel/parser@7.29.8':
+    resolution: {integrity: sha512-E8lTAYNB1KW+FH+VGJuZM1ioAx2E6oVlvQFRrf5P8ZZmsiJXYAD9vTFV7yyEURNzgh1dFqMZuO6tUwcARbqFCA==}
+    engines: {node: '>=6.0.0'}
+    hasBin: true
+
   '@babel/plugin-transform-react-jsx-self@7.29.7':
     resolution: {integrity: sha512-TL0hMc9xzy86VD31nUiwzd5otRAcyEPcsegCxolO0PvcXuH1v0kECe/UIznYFihpkvU5wg/jk4v0TTEFfm53fw==}
     engines: {node: '>=6.9.0'}
@@ -1241,6 +1237,10 @@ packages:
 
   '@babel/types@7.29.7':
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/types@7.29.8':
+    resolution: {integrity: sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg==}
     engines: {node: '>=6.9.0'}
 
   '@babylonjs/core@9.10.1':
@@ -2125,6 +2125,10 @@ packages:
     resolution: {integrity: sha512-wFofIaa2879ogD/WvkjYXJxRmfnL0scen6ORgaC3na1FNOR9ASIUANQdhqQcmWu/h77/pVHY7ch5flewa5Bcew==}
     engines: {node: '>=20.0.0'}
 
+  '@firebase/component@0.7.4':
+    resolution: {integrity: sha512-tLpOaaCol9ugUIYp2R3CbWPPA8Ajg/papX/XHEy8U52b/QXH3BbX8tTJX9aShDCjp+9sMAxMLD94i7lresdugQ==}
+    engines: {node: '>=20.0.0'}
+
   '@firebase/data-connect@0.7.1':
     resolution: {integrity: sha512-2LbUU8mmSA63HknxQMmWHjpzuNLBKflvVwQc2tpoVKg0biWleNEJX031ELks0vzFs+dDjOUkCJR72RP6mQHFOg==}
     peerDependencies:
@@ -2134,11 +2138,30 @@ packages:
     resolution: {integrity: sha512-3pK35F1MAgmqFJQlf2nhQl44vtAXQO1uaCaQOEUI9kCRtLFqi7N+QRKR7lFZPg+xIZIyubgxQaxY69YgfZRZWg==}
     engines: {node: '>=20.0.0'}
 
+  '@firebase/database-compat@2.1.5':
+    resolution: {integrity: sha512-m2KZDNXrg8DBzXWQNbbrjOhsJnM+ctsSFaDYKrqj1gEetQ8BSAwRuMUdeWLM9a6qPBgOvOA+o09j1BSEzdFqOg==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      '@firebase/app': 0.x
+      '@firebase/app-compat': 0.x
+    peerDependenciesMeta:
+      '@firebase/app':
+        optional: true
+      '@firebase/app-compat':
+        optional: true
+
   '@firebase/database-types@1.0.20':
     resolution: {integrity: sha512-kegbOk/w8iU64pr0q6k2ItyNGjnQBMHFhwS7ohdWI4W+pc0/zhhdGXTdFj6X1oxItRjPoYOsSQmERgBkn/ihxw==}
 
+  '@firebase/database-types@1.0.21':
+    resolution: {integrity: sha512-SX1jUqhttKgg/m9dYRTvqU9QvucBooziWfA986r4cpsbi4zlsvewe424j3Vpduwd6DG1MSAMfBVT2VqA61FnkA==}
+
   '@firebase/database@1.1.3':
     resolution: {integrity: sha512-XwWCa+E4TvNGpGwXrycLRNfdogADwFcvuhyow6wDWma9W54roaQIhe+4PM0KiLsIftBdSCGI7OKCXrdSRHbIhw==}
+    engines: {node: '>=20.0.0'}
+
+  '@firebase/database@1.1.4':
+    resolution: {integrity: sha512-D+j4+8uhGtNd1tVD+X+c8JrC4ppStGJKyujSQt2NPwdN26QcCk0BeIxue+UqspHkHiFHyQOimwlzjLewGq6S+A==}
     engines: {node: '>=20.0.0'}
 
   '@firebase/firestore-compat@0.4.11':
@@ -2252,6 +2275,10 @@ packages:
 
   '@firebase/util@1.15.1':
     resolution: {integrity: sha512-LUdM4Wg7YM9Pq/49nGYySJA0CSQEKnGffFzWV8+6gXN7mGxn+FL1IqvFbuZUtAQcfZgHYDwCE1wwlK7rB7gl2g==}
+    engines: {node: '>=20.0.0'}
+
+  '@firebase/util@1.15.2':
+    resolution: {integrity: sha512-974pWIZVLDMc5GW5YAsj8y0XxULxIy/sPUy7tsxmWbF93KRIyh9xpuHlh0zDL+shUcf5nHDjFOg9YLiQ763eiA==}
     engines: {node: '>=20.0.0'}
 
   '@firebase/webchannel-wrapper@1.0.6':
@@ -2640,48 +2667,6 @@ packages:
   '@js-sdsl/ordered-map@4.4.2':
     resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
 
-  '@langchain/core@1.1.48':
-    resolution: {integrity: sha512-fQU6Guyb1pwc2fEplmA8FPbKfOMAofjnyJzExevro0FxEiuGHE18Ov/ZHmT9trWCDTZRI9eW1VIc6aChxV8pAQ==}
-    engines: {node: '>=20'}
-
-  '@langchain/langgraph-checkpoint@1.1.0':
-    resolution: {integrity: sha512-okFt51NDyJ9J5Ey0dIfqbbdBDx+5/pXlvv9PIfdDJjAQD5bVSLuA5A9Ap7NV6Bip7qg7WCn7VdiGwv8QPq1qTw==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@langchain/core': ^1.1.44
-
-  '@langchain/langgraph-sdk@1.9.21':
-    resolution: {integrity: sha512-XE4DL12BkVTjTRUWi9CJN8s/hZ/mn4k2VcIsC5mWVHIepWZLmuW7T1NhVmRRZ7Kv4HpZ4O1plZkVtLpl6YLsoQ==}
-    peerDependencies:
-      '@langchain/core': ^1.1.48
-      react: ^18 || ^19
-      react-dom: ^18 || ^19
-      svelte: ^4.0.0 || ^5.0.0
-      vue: ^3.0.0
-    peerDependenciesMeta:
-      react:
-        optional: true
-      react-dom:
-        optional: true
-      svelte:
-        optional: true
-      vue:
-        optional: true
-
-  '@langchain/langgraph@1.4.1':
-    resolution: {integrity: sha512-rrDIeSYUqKKNASZgB5BqAFZ5y1zjrh/qc/pP/W0J7zV5+2HxrqgdMdTV6zy3RtNgDnrWShaI4EZnqObw1blWqQ==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@langchain/core': ^1.1.48
-      zod: ^3.25.32 || ^4.2.0
-      zod-to-json-schema: ^3.x
-    peerDependenciesMeta:
-      zod-to-json-schema:
-        optional: true
-
-  '@langchain/protocol@0.0.16':
-    resolution: {integrity: sha512-ws+J7MaHyhO5dG7f0vdyHQiUn9hoCnki0f3crJPa4MCTGzcRC39jYSCghyrGtBPYQnZbUQiGyRVpW3z3M8IpJg==}
-
   '@lukeed/csprng@1.1.0':
     resolution: {integrity: sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA==}
     engines: {node: '>=8'}
@@ -2701,6 +2686,13 @@ packages:
     peerDependencies:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
+
+  '@napi-rs/wasm-runtime@1.2.2':
+    resolution: {integrity: sha512-JfB4kuJQjaoHuCTseIINHtHWeJnvgEcxjwA5t/Y00ZgaOO1Crz3fjT/p8kT28zA/Caz7oiUMn3d6H2yOVCVwuw==}
+    engines: {node: ^20.19.0 || ^22.13.0 || >=23.5.0}
+    peerDependencies:
+      '@emnapi/core': ^1.7.1 || ^2.0.0-alpha.3
+      '@emnapi/runtime': ^1.7.1 || ^2.0.0-alpha.3
 
   '@nestjs/common@11.1.28':
     resolution: {integrity: sha512-bRImsxibie+AM7xjdwcrm/gr5YeacI65kSBNzTufa1Ib5iwziaY/lqMtRh9THq6pbV4e1HP9aI2ZxGUumnmaoQ==}
@@ -3456,18 +3448,28 @@ packages:
     peerDependencies:
       three: '*'
 
-  '@posthog/ai@7.21.0':
-    resolution: {integrity: sha512-a5sKl5uxmih9dzeNf8ND0BKgCAWymVQ1ub6DjfPdldEbvAOpGIl28QRZZqrG5VAuTAnzGyCUHxeydJZB2fPhuA==}
+  '@posthog/ai@8.4.3':
+    resolution: {integrity: sha512-KHU7gVQNfg/Tc/EBJC8km9Swm628yhjIqPM4m5DH7XMmflzThgTeL4UsXgua+37clhOVw/KUzbm3f7UzTy/lSg==}
     engines: {node: ^20.20.0 || >=22.22.0}
     peerDependencies:
       '@ai-sdk/provider': ^2.0.0 || ^3.0.0
+      '@anthropic-ai/sdk': ^0.112.3
+      '@google/genai': ^1.52.0
+      '@langchain/core': ^1.2.3
       '@openai/agents': ^0.8.0
       '@opentelemetry/api': ^1.9.0
       '@opentelemetry/exporter-trace-otlp-http': '>=0.200.0 <1.0.0'
       '@opentelemetry/sdk-trace-base': ^2.0.0
+      openai: ^6.48.0
       posthog-node: ^5.0.0
     peerDependenciesMeta:
       '@ai-sdk/provider':
+        optional: true
+      '@anthropic-ai/sdk':
+        optional: true
+      '@google/genai':
+        optional: true
+      '@langchain/core':
         optional: true
       '@openai/agents':
         optional: true
@@ -3477,18 +3479,20 @@ packages:
         optional: true
       '@opentelemetry/sdk-trace-base':
         optional: true
-
-  '@posthog/core@1.30.10':
-    resolution: {integrity: sha512-R7Z5jDB3ugwfSujMmRd5osPPR6L6BqfcaSNcYOekzRMZ4Jklq74p05xByP09EnUvKXb5czI+RQVCITTWRWuFXw==}
+      openai:
+        optional: true
 
   '@posthog/core@1.45.1':
     resolution: {integrity: sha512-tLtvzomavb2PPWdGYKsusyIzIeL2Px47v348Smibkay7sMy/83TyPk+Ptsp2NdeOgJsbuwSxWkR2+XA0aSCAaA==}
 
-  '@posthog/types@1.382.0':
-    resolution: {integrity: sha512-iK4OcSgvtmS9FZ9EUpvwlRZmHCLXaZ3+6dbRjkE7q9LL0zHLewxJH84H6uGvCw8aGzxs5rIliZqPHgimTcQEaw==}
+  '@posthog/core@1.46.1':
+    resolution: {integrity: sha512-EoCFduRkvrg9E5ylMi4QnZCjlAdRJCq6tJouWfngBVR79XSI4iPvIWYA+CdzokAjk+TfSVBFVJ++4Im3r+T0Dg==}
 
   '@posthog/types@1.398.0':
     resolution: {integrity: sha512-sJMkl4k+u8yS/0fjHsKqE9xTdsAh30a2WvgChiptellnVoE0e8QJKFgqOMD2sk8FaEArPdeFklAhXvmENAt3Sg==}
+
+  '@posthog/types@1.399.0':
+    resolution: {integrity: sha512-/WDwBzqIPko8VJ1B+0rlso2XQEz9+2sqtsY9Tqy3p1GhgTqsFakcz/PmMpAnA321LTEZVRcO6x5hAwABV4yrDw==}
 
   '@preact/signals-core@1.14.4':
     resolution: {integrity: sha512-HNB6HYeYKhQbJ1aKl+YRjrS4+QWHLKX6qKoUsfS/m0vqzsVaEBiZiaKbG/e+NKk2ch5ALQr/ihWaMHxiCuuWHA==}
@@ -3568,17 +3572,11 @@ packages:
   '@protobufjs/float@1.0.2':
     resolution: {integrity: sha512-Ddb+kVXlXst9d+R9PfTIxh1EdNkgoRe5tOX6t01f1lYWOvJnSPDBlG241QLzcyPdoNTsblLUdujGSE4RzrTZGQ==}
 
-  '@protobufjs/inquire@1.1.2':
-    resolution: {integrity: sha512-pa0vFRuws4wkvaXKK1uXZMAwAX4/t8ANaJo45iw/oQHNQ9q5xUzwgFmVJGXiga2BeN+zpX7Vf9vmsiIa2J+MUw==}
-
   '@protobufjs/path@1.1.2':
     resolution: {integrity: sha512-6JOcJ5Tm08dOHAbdR3GrvP+yUUfkjG5ePsHYczMFLq3ZmMkAD98cDgcT2iA1lJ9NVwFd4tH/iSSoe44YWkltEA==}
 
   '@protobufjs/pool@1.1.0':
     resolution: {integrity: sha512-0kELaGSIDBKvcgS4zkjz1PeddatrjYcmMWOlAuAPwAeccUrPHdUqo/J6LiymHHEiJT5NrF1UVwxY14f+fy4WQw==}
-
-  '@protobufjs/utf8@1.1.1':
-    resolution: {integrity: sha512-oOAWABowe8EAbMyWKM0tYDKi8Yaox52D+HWZhAIJqQXbqe0xI/GV7FhLWqlEKreMkfDjshR5FKgi3mnle0h6Eg==}
 
   '@protobufjs/utf8@1.1.2':
     resolution: {integrity: sha512-b1UQwcEZ4yCnMCD8DAL1VlbvBJE9/IX4FTIp7BG1xYpf29SLazLSrqUkj4w7Y5y7cCVP6E5tcqqcI0xemPkHug==}
@@ -4890,8 +4888,8 @@ packages:
   brace-expansion@1.1.15:
     resolution: {integrity: sha512-EwOCDEex4quD37XhqM3omwtMoJjr//isUZz1JopUNWms+4Z2ViyM/k1YIRePpoVNnQhENnxtFjLaxNHrT7xIUg==}
 
-  brace-expansion@2.1.2:
-    resolution: {integrity: sha512-w5JZcKgdhDOgOwm8H+KgbosopHMuGcl6qbulwjtz3SM7I7P3yW1eAjzMPLrIE+NQ9vjgANKHWeMHnrT0OXW1oA==}
+  brace-expansion@2.1.4:
+    resolution: {integrity: sha512-hGfVzPxthbf3+2yjg/RBs60cB0FhqBS/zvdV/4wn4/BmN0bNMMHPc4V/BbFieqf1TKAGGAHnY4eSjajCl0f2Xg==}
 
   brace-expansion@5.0.6:
     resolution: {integrity: sha512-kLpxurY4Z4r9sgMsyG0Z9uzsBlgiU/EFKhj/h91/8yHu0edo7XuixOIH3VcJ8kkxs6/jPzoI6U9Vj3WqbMQ94g==}
@@ -6171,8 +6169,8 @@ packages:
   jose@6.2.3:
     resolution: {integrity: sha512-YYVDInQKFJfR/xa3ojUTl8c2KoTwiL1R5Wg9YCydwH0x0B9grbzlg5HC7mMjCtUJjbQ/YnGEZIhI5tCgfTb4Hw==}
 
-  jose@6.2.4:
-    resolution: {integrity: sha512-N8acGzVsQy6M/fjFcxtysNc4Q379TcM5dM/qKkNtsHFji88yANnXTr7BLeP75iPnFwBfQzM/jg2BZ9+HZrHCZA==}
+  jose@6.2.6:
+    resolution: {integrity: sha512-HwMtbJjMw8rC8dUTwCNilHJD+fxTeKM3JV1eprSmTjS41qwXSSt6exJXgyPK1QOu0jB9eDYLESRDkB3qaT3jnw==}
 
   joycon@3.1.1:
     resolution: {integrity: sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==}
@@ -6180,9 +6178,6 @@ packages:
 
   js-binary-schema-parser@2.0.3:
     resolution: {integrity: sha512-xezGJmOb4lk/M1ZZLTR/jaBHQ4gG/lqQnJqdIv4721DMggsa1bDVlHXNeHYogaIEHD9vCRv0fcL4hMA+Coarkg==}
-
-  js-tiktoken@1.0.21:
-    resolution: {integrity: sha512-biOj/6M5qdgx5TKjDnFT1ymSpM5tbd3ylwDtrQvFQSu0Z7bBYko2dF+W/aUkXUPuk6IVpRxk/3Q2sHOzGlS36g==}
 
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
@@ -6213,10 +6208,6 @@ packages:
 
   json-buffer@3.0.1:
     resolution: {integrity: sha512-4bV5BfR2mqfQTJm+V5tPPdf+ZpuhiIvTuAB5g8kcrXOZpTT/QwwVRWBywX1ozr6lEuPdbHxwaJlm9G6mI2sfSQ==}
-
-  json-schema-to-ts@3.1.1:
-    resolution: {integrity: sha512-+DWg8jCJG2TEnpy7kOm/7/AxaYoaRbjVB4LFZLySZlWn8exGs3A4OLJR966cVvU26N7X9TWxl+Jsw7dzAqKT6g==}
-    engines: {node: '>=16'}
 
   json-schema-traverse@0.4.1:
     resolution: {integrity: sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg==}
@@ -6257,32 +6248,6 @@ packages:
 
   kuler@2.0.0:
     resolution: {integrity: sha512-Xq9nH7KlWZmXAtodXDDRE7vs6DU1gTU8zYDHDiWLSip45Egwq3plLHzPn27NgvzL2r1LMPC1vdqh98sQxtqj4A==}
-
-  langchain@1.4.4:
-    resolution: {integrity: sha512-tepOCwUDaIZOYJ9Eo0O6o5dXEN/0KJheiFDnHHFL8Tx8rfkDLL4cOTSTln4Vpn9LpWzXYkjQ8lkHnnNDQWZPeg==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      '@langchain/core': ^1.1.48
-
-  langsmith@0.7.6:
-    resolution: {integrity: sha512-6IRm+sAxHT2n5GAZbqEnUzkhOu3Q8vqQtMiOpYfGiI+pxUe/fYQSzV0Pr7q5x9JD8bnZ8xK2/P9dhPHs4zO/Nw==}
-    peerDependencies:
-      '@opentelemetry/api': '*'
-      '@opentelemetry/exporter-trace-otlp-proto': '*'
-      '@opentelemetry/sdk-trace-base': '*'
-      openai: '*'
-      ws: '>=7'
-    peerDependenciesMeta:
-      '@opentelemetry/api':
-        optional: true
-      '@opentelemetry/exporter-trace-otlp-proto':
-        optional: true
-      '@opentelemetry/sdk-trace-base':
-        optional: true
-      openai:
-        optional: true
-      ws:
-        optional: true
 
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
@@ -6706,10 +6671,6 @@ packages:
     resolution: {integrity: sha512-6rdyFg2kLrMh9Jee7/BMPuV9lEAd7lLW2YUpF9/YxR7njyoUwwQ0ZPh3TaIY50Sw6vlyD2HW3wGOkTS4P79xrQ==}
     engines: {node: '>= 10.16.0'}
 
-  mustache@4.2.0:
-    resolution: {integrity: sha512-71ippSywq5Yb7/tVYyGbkBggbU8H3u5Rz56fH60jGFgr8uHwxs+aSKeqmluIVzM0m0kB7xQjKS6qPfd0b2ZoqQ==}
-    hasBin: true
-
   mysql2@3.15.3:
     resolution: {integrity: sha512-FBrGau0IXmuqg4haEZRBfHNWB5mUARw6hNwPDXXGg0XzVJ50mr/9hb267lvpVMnhZ1FON3qNd4Xfcez1rbFwSg==}
     engines: {node: '>= 8.0'}
@@ -6844,10 +6805,6 @@ packages:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
     engines: {node: '>= 0.8.0'}
 
-  p-finally@1.0.0:
-    resolution: {integrity: sha512-LICb2p9CB7FS+0eR1oqWnHhp0FljGLZCWBE9aix0Uye9W8LTQPwMTYVGWQWIw9RdQiDg4+epXQODwIYJtSJaow==}
-    engines: {node: '>=4'}
-
   p-limit@3.1.0:
     resolution: {integrity: sha512-TYOanM3wGwNGsZN2cVTYPArw454xnXj5qmWF1bEoAc4+cU/ol7GVh7odevjp1FNHduHc3KZMcFduxU5Xc6uJRQ==}
     engines: {node: '>=10'}
@@ -6856,33 +6813,13 @@ packages:
     resolution: {integrity: sha512-LaNjtRWUBY++zB5nE/NwcaoMylSPk+S+ZHNB1TzdbMJMny6dynpAGt7X/tl/QYq3TIeE6nxHppbo2LGymrG5Pw==}
     engines: {node: '>=10'}
 
-  p-queue@6.6.2:
-    resolution: {integrity: sha512-RwFpb72c/BhQLEXIZ5K2e+AhgNVmIejGlTgiB9MzZ0e93GRvqZ7uSi0dvRF7/XIXDeNkra2fNHBxTyPDGySpjQ==}
-    engines: {node: '>=8'}
-
-  p-queue@9.3.0:
-    resolution: {integrity: sha512-7NED7xhQ74Ngp4JP/2e0VZHp7vSWfJfqeiR92jPgxsz6m0Se4P03YoTKa9dDXyZ3r6P616gUXttrB6nnHYKang==}
-    engines: {node: '>=20'}
-
   p-retry@4.6.2:
     resolution: {integrity: sha512-312Id396EbJdvRONlngUx0NydfrIQ5lsYu0znKVUzVvArzEIt08V1qhtyESbGVd1FGX7UKtiFp5uwKZdM8wIuQ==}
     engines: {node: '>=8'}
 
-  p-retry@7.1.1:
-    resolution: {integrity: sha512-J5ApzjyRkkf601HpEeykoiCvzHQjWxPAHhyjFcEUP2SWq0+35NKh8TLhpLw+Dkq5TZBFvUM6UigdE9hIVYTl5w==}
-    engines: {node: '>=20'}
-
   p-retry@8.0.0:
     resolution: {integrity: sha512-kFVqH1HxOHp8LupNsOys7bSV09VYTRLxarH/mokO4Rqhk6wGi70E0jh4VzvVGXfEVNggHoHLAMWsQqHyU1Ey9A==}
     engines: {node: '>=22'}
-
-  p-timeout@3.2.0:
-    resolution: {integrity: sha512-rhIwUycgwwKcP9yTOOFK/AKsAopjjCakVqLHePO3CC6Mir1Z99xT+R63jZxAT5lFZLa2inS5h+ZS2GvR99/FBg==}
-    engines: {node: '>=8'}
-
-  p-timeout@7.0.1:
-    resolution: {integrity: sha512-AxTM2wDGORHGEkPCt8yqxOTMgpfbEHqF51f/5fJCmwFC3C/zNcGT63SymH2ttOAaiIws2zVg4+izQCjrakcwHg==}
-    engines: {node: '>=20'}
 
   package-json-from-dist@1.0.1:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
@@ -7099,6 +7036,10 @@ packages:
     resolution: {integrity: sha512-g50586zr4bZmwFiTlflMu8E0bDTb5I5gertgwAKmsdUlTQIhZtunzUlD1WSzwcVWPoAVpsrA6vlfCD7oXvRwgg==}
     engines: {node: ^10 || ^12 || >=14}
 
+  postcss@8.5.25:
+    resolution: {integrity: sha512-DTPx3RWSSnWyzLxQnlH0rJP+EW5ekl16ZU4/psbIhA0e53kJfdgaN5vKM+xP7yJtXVu+nfdVFmlgFDEKAe4Pyw==}
+    engines: {node: ^10 || ^12 || >=14}
+
   postgres-array@2.0.0:
     resolution: {integrity: sha512-VpZrUqU5A69eQyW2c5CA1jtLecCsN2U/bD6VilrFDWq5+5UIEVO7nazS3TEcHf1zuPYO/sqGvUvW62g86RXZuA==}
     engines: {node: '>=4'}
@@ -7162,10 +7103,6 @@ packages:
   proto3-json-serializer@3.0.4:
     resolution: {integrity: sha512-E1sbAYg3aEbXrq0n1ojJkRHQJGE1kaE/O6GLA94y8rnJBfgvOPTOd1b9hOceQK1FFZI9qMh1vBERCyO2ifubcw==}
     engines: {node: '>=18'}
-
-  protobufjs@7.6.3:
-    resolution: {integrity: sha512-+k0vdJKNdW+Vu+dYe8tZA/VvQb6XKNWexC6URwBFXxNnjLJz9nQJCemGyNgRAWD+B7+nGNc9qMPGwcD7s4nzUw==}
-    engines: {node: '>=12.0.0'}
 
   protobufjs@7.6.5:
     resolution: {integrity: sha512-/FPD0nUc9jH6rfFjji9IBqOz4pcSE3CsT1m7Ep6Mdb0LxSUMj8hgl6GomOvZzpNpAqqGaXA0P3VSrZLFzIhQrw==}
@@ -7776,15 +7713,19 @@ packages:
     resolution: {integrity: sha512-Bf+ILmBgretUrdJxzXM0SgXLZ3XfiaUuOj/IKQHuTXip+05Xn+uyEYdVg0kYDipTBcLrCVyUzAPz7QmArb0mmw==}
     engines: {node: '>=14.0.0'}
 
+  tinyrainbow@3.1.1:
+    resolution: {integrity: sha512-yau8yJdTt989Mm0Bd/236QnzEiPf2xLLTqUZRUJOo/3CB078LSwzei343DgtJVmfJKJE3TMINY1u42SQsP6mXw==}
+    engines: {node: '>=14.0.0'}
+
   tinyspy@3.0.2:
     resolution: {integrity: sha512-n1cw8k1k0x4pgA2+9XrOkFydTerNcJ1zWCO5Nn9scWHTD+5tp8dghT2x1uduQePZTZgd3Tupf+x9BxJjeJi77Q==}
     engines: {node: '>=14.0.0'}
 
-  tldts-core@7.4.9:
-    resolution: {integrity: sha512-DxKfPBI52p2msTEu7MPhdpdDTBhhVQg1a/8PjQckeyAvO13eMYElX545grIp6nnTGIMZlRvFZPvFhvI/WIz2Vg==}
+  tldts-core@7.4.10:
+    resolution: {integrity: sha512-KnQjp53ZekKgm/r3l+u8kJGGzYgrWdP8+Mql7a4vijh2WE0IrZWspQj/TpTxDho/YxO+AnOZnIjQcCD+q6iJsw==}
 
-  tldts@7.4.9:
-    resolution: {integrity: sha512-3kZ8wQQ/k5DrChD4X4FVvr2D7E5uoRgAqkPyLpSCGUvqOvqu+JEdr3mwMUaVWb+vMHZaKhF5fp2PBigKsui7hA==}
+  tldts@7.4.10:
+    resolution: {integrity: sha512-GgouD1B+sWwvkaEq8vXC15DjQitxbvs12oIXELpconwm+Tg3zfcEv4jgzq3vtKverDXsg3VI8aRgNL2Nra0Iog==}
     hasBin: true
 
   to-regex-range@5.0.1:
@@ -7821,9 +7762,6 @@ packages:
   triple-beam@1.4.1:
     resolution: {integrity: sha512-aZbgViZrg1QNcG+LULa7nhZpJTZSLm/mXnHXnbAbjmN5aSa0y7V+wvv6+4WaBtpISJzThKy+PIPxc1Nq1EJ9mg==}
     engines: {node: '>= 14.0.0'}
-
-  ts-algebra@2.0.0:
-    resolution: {integrity: sha512-FPAhNPFMrkwz76P7cdjdmiShwMynZYN6SgOujD1urY4oNm80Ou9oMdmbR45LotcKOXoy7wSmHkRFE6Mxbrhefw==}
 
   ts-api-utils@2.5.0:
     resolution: {integrity: sha512-OJ/ibxhPlqrMM0UiNHJ/0CKQkoKF243/AEmplt3qpRgkW8VG7IfOS41h7V8TjITqdByHzrjcS/2si+y4lIh8NA==}
@@ -8535,12 +8473,6 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
-  '@anthropic-ai/sdk@0.78.0(zod@4.4.3)':
-    dependencies:
-      json-schema-to-ts: 3.1.1
-    optionalDependencies:
-      zod: 4.4.3
-
   '@asamuzakjp/css-color@5.1.11':
     dependencies:
       '@asamuzakjp/generational-cache': 1.0.1
@@ -8669,6 +8601,10 @@ snapshots:
     dependencies:
       '@babel/types': 7.29.7
 
+  '@babel/parser@7.29.8':
+    dependencies:
+      '@babel/types': 7.29.8
+
   '@babel/plugin-transform-react-jsx-self@7.29.7(@babel/core@7.29.7(supports-color@5.5.0))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@5.5.0)
@@ -8714,6 +8650,11 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
+  '@babel/types@7.29.8':
+    dependencies:
+      '@babel/helper-string-parser': 7.29.7
+      '@babel/helper-validator-identifier': 7.29.7
+
   '@babylonjs/core@9.10.1': {}
 
   '@babylonjs/core@9.18.0': {}
@@ -8745,7 +8686,8 @@ snapshots:
 
   '@bufbuild/protobuf@2.12.0': {}
 
-  '@cfworker/json-schema@4.1.1': {}
+  '@cfworker/json-schema@4.1.1':
+    optional: true
 
   '@colors/colors@1.6.0':
     optional: true
@@ -9337,6 +9279,12 @@ snapshots:
       '@firebase/util': 1.15.1
       tslib: 2.8.1
 
+  '@firebase/component@0.7.4':
+    dependencies:
+      '@firebase/util': 1.15.2
+      tslib: 2.8.1
+    optional: true
+
   '@firebase/data-connect@0.7.1(@firebase/app@0.15.1)':
     dependencies:
       '@firebase/app': 0.15.1
@@ -9355,10 +9303,29 @@ snapshots:
       '@firebase/util': 1.15.1
       tslib: 2.8.1
 
+  '@firebase/database-compat@2.1.5(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1)':
+    dependencies:
+      '@firebase/component': 0.7.4
+      '@firebase/database': 1.1.4
+      '@firebase/database-types': 1.0.21
+      '@firebase/logger': 0.5.1
+      '@firebase/util': 1.15.2
+      tslib: 2.8.1
+    optionalDependencies:
+      '@firebase/app': 0.15.1
+      '@firebase/app-compat': 0.5.15
+    optional: true
+
   '@firebase/database-types@1.0.20':
     dependencies:
       '@firebase/app-types': 0.9.5
       '@firebase/util': 1.15.1
+
+  '@firebase/database-types@1.0.21':
+    dependencies:
+      '@firebase/app-types': 0.9.5
+      '@firebase/util': 1.15.2
+    optional: true
 
   '@firebase/database@1.1.3':
     dependencies:
@@ -9369,6 +9336,17 @@ snapshots:
       '@firebase/util': 1.15.1
       faye-websocket: 0.11.4
       tslib: 2.8.1
+
+  '@firebase/database@1.1.4':
+    dependencies:
+      '@firebase/app-check-interop-types': 0.3.4
+      '@firebase/auth-interop-types': 0.2.5
+      '@firebase/component': 0.7.4
+      '@firebase/logger': 0.5.1
+      '@firebase/util': 1.15.2
+      faye-websocket: 0.11.4
+      tslib: 2.8.1
+    optional: true
 
   '@firebase/firestore-compat@0.4.11(@firebase/app-compat@0.5.15)(@firebase/app-types@0.9.5)(@firebase/app@0.15.1)':
     dependencies:
@@ -9547,6 +9525,11 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
+  '@firebase/util@1.15.2':
+    dependencies:
+      tslib: 2.8.1
+    optional: true
+
   '@firebase/webchannel-wrapper@1.0.6': {}
 
   '@fortawesome/fontawesome-common-types@6.6.0': {}
@@ -9565,9 +9548,9 @@ snapshots:
       prop-types: 15.8.1
       react: 19.2.8
 
-  '@genkit-ai/ai@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0)(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0))':
+  '@genkit-ai/ai@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0)(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0))':
     dependencies:
-      '@genkit-ai/core': 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0)(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0))
+      '@genkit-ai/core': 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0)(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0))
       '@opentelemetry/api': 1.9.1
       '@types/node': 20.19.43
       colorette: 2.0.20
@@ -9588,7 +9571,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@genkit-ai/core@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0)(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0))':
+  '@genkit-ai/core@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0)(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0))':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/api-logs': 0.52.1
@@ -9612,7 +9595,7 @@ snapshots:
       zod-to-json-schema: 3.25.2(zod@3.25.76)
     optionalDependencies:
       '@cfworker/json-schema': 4.1.1
-      '@genkit-ai/firebase': 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0)(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0))
+      '@genkit-ai/firebase': 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0)(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0))
     transitivePeerDependencies:
       - '@google-cloud/firestore'
       - bufferutil
@@ -9623,12 +9606,12 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@genkit-ai/firebase@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0)(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0))':
+  '@genkit-ai/firebase@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0)(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0))':
     dependencies:
-      '@genkit-ai/google-cloud': 1.40.1(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0))
+      '@genkit-ai/google-cloud': 1.40.1(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0))
       '@google-cloud/firestore': 8.6.0
-      firebase-admin: 14.0.0
-      genkit: 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0)
+      firebase-admin: 14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1)
+      genkit: 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0)
     optionalDependencies:
       firebase: 12.16.0
     transitivePeerDependencies:
@@ -9636,7 +9619,7 @@ snapshots:
       - supports-color
     optional: true
 
-  '@genkit-ai/google-cloud@1.40.1(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0))':
+  '@genkit-ai/google-cloud@1.40.1(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0))':
     dependencies:
       '@google-cloud/firestore': 7.11.6
       '@google-cloud/logging-winston': 6.0.2(winston@3.19.0)
@@ -9654,7 +9637,7 @@ snapshots:
       '@opentelemetry/sdk-metrics': 1.25.1(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-node': 0.52.1(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-base': 1.25.1(@opentelemetry/api@1.9.1)
-      genkit: 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0)
+      genkit: 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0)
       google-auth-library: 9.15.1
       node-fetch: 3.3.2
       winston: 3.19.0
@@ -9663,10 +9646,10 @@ snapshots:
       - supports-color
     optional: true
 
-  '@genkit-ai/googleai@1.28.0(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0))':
+  '@genkit-ai/googleai@1.28.0(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0))':
     dependencies:
       '@google/generative-ai': 0.24.1
-      genkit: 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0)
+      genkit: 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0)
       google-auth-library: 9.15.1
       node-fetch: 3.3.2
     transitivePeerDependencies:
@@ -9833,7 +9816,7 @@ snapshots:
     dependencies:
       google-auth-library: 10.9.1
       p-retry: 4.6.2
-      protobufjs: 7.6.3
+      protobufjs: 7.6.5
       ws: 8.21.1
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
@@ -9841,6 +9824,7 @@ snapshots:
       - bufferutil
       - supports-color
       - utf-8-validate
+    optional: true
 
   '@google/generative-ai@0.24.1': {}
 
@@ -10067,58 +10051,6 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
-  '@langchain/core@1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1)':
-    dependencies:
-      '@cfworker/json-schema': 4.1.1
-      '@standard-schema/spec': 1.1.0
-      js-tiktoken: 1.0.21
-      langsmith: 0.7.6(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1)
-      mustache: 4.2.0
-      p-queue: 6.6.2
-      zod: 4.4.3
-    transitivePeerDependencies:
-      - '@opentelemetry/api'
-      - '@opentelemetry/exporter-trace-otlp-proto'
-      - '@opentelemetry/sdk-trace-base'
-      - openai
-      - ws
-
-  '@langchain/langgraph-checkpoint@1.1.0(@langchain/core@1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))':
-    dependencies:
-      '@langchain/core': 1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1)
-      uuid: 14.0.1
-
-  '@langchain/langgraph-sdk@1.9.21(@langchain/core@1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
-    dependencies:
-      '@langchain/core': 1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1)
-      '@langchain/protocol': 0.0.16
-      '@types/json-schema': 7.0.15
-      p-queue: 9.3.0
-      p-retry: 7.1.1
-      uuid: 14.0.1
-    optionalDependencies:
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
-
-  '@langchain/langgraph@1.4.1(@langchain/core@1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
-    dependencies:
-      '@langchain/core': 1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1)
-      '@langchain/langgraph-checkpoint': 1.1.0(@langchain/core@1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))
-      '@langchain/langgraph-sdk': 1.9.21(@langchain/core@1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@langchain/protocol': 0.0.16
-      '@standard-schema/spec': 1.1.0
-      uuid: 14.0.1
-      zod: 4.4.3
-    optionalDependencies:
-      zod-to-json-schema: 3.25.2(zod@4.4.3)
-    transitivePeerDependencies:
-      - react
-      - react-dom
-      - svelte
-      - vue
-
-  '@langchain/protocol@0.0.16': {}
-
   '@lukeed/csprng@1.1.0': {}
 
   '@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)':
@@ -10146,6 +10078,13 @@ snapshots:
       - supports-color
 
   '@napi-rs/wasm-runtime@1.1.6(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
+    dependencies:
+      '@emnapi/core': 1.10.0
+      '@emnapi/runtime': 1.10.0
+      '@tybys/wasm-util': 0.10.3
+    optional: true
+
+  '@napi-rs/wasm-runtime@1.2.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
     dependencies:
       '@emnapi/core': 1.10.0
       '@emnapi/runtime': 1.10.0
@@ -11218,48 +11157,30 @@ snapshots:
       - react
       - react-native
 
-  '@posthog/ai@7.21.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(posthog-node@5.46.1(rxjs@7.8.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(ws@8.21.1)(zod-to-json-schema@3.25.2(zod@4.4.3))':
+  '@posthog/ai@8.4.3(@google/genai@1.52.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)))(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(posthog-node@5.46.1(rxjs@7.8.2))':
     dependencies:
-      '@anthropic-ai/sdk': 0.78.0(zod@4.4.3)
-      '@google/genai': 1.52.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))
-      '@langchain/core': 1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1)
-      '@posthog/core': 1.30.10
-      langchain: 1.4.4(@langchain/core@1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(ws@8.21.1)(zod-to-json-schema@3.25.2(zod@4.4.3))
-      openai: 6.49.0(ws@8.21.1)(zod@4.4.3)
+      '@posthog/core': 1.46.1
       posthog-node: 5.46.1(rxjs@7.8.2)
       uuid: 11.1.1
       zod: 4.4.3
     optionalDependencies:
+      '@google/genai': 1.52.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/exporter-trace-otlp-http': 0.221.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-base': 1.25.1(@opentelemetry/api@1.9.1)
-    transitivePeerDependencies:
-      - '@aws-sdk/credential-provider-node'
-      - '@modelcontextprotocol/sdk'
-      - '@opentelemetry/exporter-trace-otlp-proto'
-      - '@smithy/hash-node'
-      - '@smithy/signature-v4'
-      - bufferutil
-      - react
-      - react-dom
-      - supports-color
-      - svelte
-      - utf-8-validate
-      - vue
-      - ws
-      - zod-to-json-schema
-
-  '@posthog/core@1.30.10':
-    dependencies:
-      '@posthog/types': 1.382.0
+      openai: 6.49.0(ws@8.21.1)(zod@4.4.3)
 
   '@posthog/core@1.45.1':
     dependencies:
       '@posthog/types': 1.398.0
 
-  '@posthog/types@1.382.0': {}
+  '@posthog/core@1.46.1':
+    dependencies:
+      '@posthog/types': 1.399.0
 
   '@posthog/types@1.398.0': {}
+
+  '@posthog/types@1.399.0': {}
 
   '@preact/signals-core@1.14.4': {}
 
@@ -11370,13 +11291,9 @@ snapshots:
 
   '@protobufjs/float@1.0.2': {}
 
-  '@protobufjs/inquire@1.1.2': {}
-
   '@protobufjs/path@1.1.2': {}
 
   '@protobufjs/pool@1.1.0': {}
-
-  '@protobufjs/utf8@1.1.1': {}
 
   '@protobufjs/utf8@1.1.2': {}
 
@@ -11558,7 +11475,7 @@ snapshots:
     dependencies:
       '@emnapi/core': 1.10.0
       '@emnapi/runtime': 1.10.0
-      '@napi-rs/wasm-runtime': 1.1.6(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+      '@napi-rs/wasm-runtime': 1.2.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
     optional: true
 
   '@rolldown/binding-win32-arm64-msvc@1.0.2':
@@ -12065,7 +11982,8 @@ snapshots:
       form-data: 2.5.6
     optional: true
 
-  '@types/retry@0.12.0': {}
+  '@types/retry@0.12.0':
+    optional: true
 
   '@types/semver@7.7.1': {}
 
@@ -12477,7 +12395,7 @@ snapshots:
       magicast: 0.5.3
       obug: 2.1.4
       std-env: 4.2.0
-      tinyrainbow: 3.1.0
+      tinyrainbow: 3.1.1
       vitest: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.8)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
     optional: true
 
@@ -12602,7 +12520,7 @@ snapshots:
     dependencies:
       '@vitest/pretty-format': 4.1.8
       convert-source-map: 2.0.0
-      tinyrainbow: 3.1.0
+      tinyrainbow: 3.1.1
 
   '@webgpu/types@0.1.70': {}
 
@@ -12830,7 +12748,7 @@ snapshots:
       balanced-match: 1.0.2
       concat-map: 0.0.1
 
-  brace-expansion@2.1.2:
+  brace-expansion@2.1.4:
     dependencies:
       balanced-match: 1.0.2
 
@@ -13836,11 +13754,11 @@ snapshots:
       locate-path: 6.0.0
       path-exists: 4.0.0
 
-  firebase-admin@14.0.0:
+  firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1):
     dependencies:
       '@fastify/busboy': 3.2.0
-      '@firebase/database-compat': 2.1.4
-      '@firebase/database-types': 1.0.20
+      '@firebase/database-compat': 2.1.5(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1)
+      '@firebase/database-types': 1.0.21
       farmhash-modern: 1.1.0
       fast-deep-equal: 3.1.3
       google-auth-library: 10.9.1
@@ -13850,6 +13768,8 @@ snapshots:
       '@google-cloud/firestore': 8.6.0
       '@google-cloud/storage': 7.21.0
     transitivePeerDependencies:
+      - '@firebase/app'
+      - '@firebase/app-compat'
       - encoding
       - supports-color
     optional: true
@@ -14023,10 +13943,10 @@ snapshots:
     dependencies:
       is-property: 1.0.2
 
-  genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0):
+  genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0):
     dependencies:
-      '@genkit-ai/ai': 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0)(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0))
-      '@genkit-ai/core': 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0)(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0)(firebase@12.16.0))
+      '@genkit-ai/ai': 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0)(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0))
+      '@genkit-ai/core': 1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0)(genkit@1.40.1(@google-cloud/firestore@8.6.0)(firebase-admin@14.0.0(@firebase/app-compat@0.5.15)(@firebase/app@0.15.1))(firebase@12.16.0))
       uuid: 10.0.0
     transitivePeerDependencies:
       - '@google-cloud/firestore'
@@ -14484,16 +14404,12 @@ snapshots:
 
   jose@6.2.3: {}
 
-  jose@6.2.4:
+  jose@6.2.6:
     optional: true
 
   joycon@3.1.1: {}
 
   js-binary-schema-parser@2.0.3: {}
-
-  js-tiktoken@1.0.21:
-    dependencies:
-      base64-js: 1.5.1
 
   js-tokens@10.0.0: {}
 
@@ -14537,11 +14453,6 @@ snapshots:
 
   json-buffer@3.0.1: {}
 
-  json-schema-to-ts@3.1.1:
-    dependencies:
-      '@babel/runtime': 7.29.7
-      ts-algebra: 2.0.0
-
   json-schema-traverse@0.4.1: {}
 
   json-schema-traverse@1.0.0: {}
@@ -14577,7 +14488,7 @@ snapshots:
     dependencies:
       '@types/jsonwebtoken': 9.0.10
       debug: 4.4.3(supports-color@5.5.0)
-      jose: 6.2.4
+      jose: 6.2.6
       limiter: 1.1.5
       lru-cache: 11.5.2
       lru-memoizer: 3.0.0
@@ -14596,35 +14507,6 @@ snapshots:
 
   kuler@2.0.0:
     optional: true
-
-  langchain@1.4.4(@langchain/core@1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(ws@8.21.1)(zod-to-json-schema@3.25.2(zod@4.4.3)):
-    dependencies:
-      '@langchain/core': 1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1)
-      '@langchain/langgraph': 1.4.1(@langchain/core@1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
-      '@langchain/langgraph-checkpoint': 1.1.0(@langchain/core@1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))
-      langsmith: 0.7.6(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1)
-      zod: 4.4.3
-    transitivePeerDependencies:
-      - '@opentelemetry/api'
-      - '@opentelemetry/exporter-trace-otlp-proto'
-      - '@opentelemetry/sdk-trace-base'
-      - openai
-      - react
-      - react-dom
-      - svelte
-      - vue
-      - ws
-      - zod-to-json-schema
-
-  langsmith@0.7.6(@opentelemetry/api@1.9.1)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.25.1(@opentelemetry/api@1.9.1))(openai@6.49.0(ws@8.21.1)(zod@4.4.3))(ws@8.21.1):
-    dependencies:
-      p-queue: 6.6.2
-    optionalDependencies:
-      '@opentelemetry/api': 1.9.1
-      '@opentelemetry/exporter-trace-otlp-proto': 0.221.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-trace-base': 1.25.1(@opentelemetry/api@1.9.1)
-      openai: 6.49.0(ws@8.21.1)(zod@4.4.3)
-      ws: 8.21.1
 
   levn@0.4.1:
     dependencies:
@@ -14822,8 +14704,8 @@ snapshots:
 
   magicast@0.5.3:
     dependencies:
-      '@babel/parser': 7.29.7
-      '@babel/types': 7.29.7
+      '@babel/parser': 7.29.8
+      '@babel/types': 7.29.8
       source-map-js: 1.2.1
 
   make-dir@3.1.0:
@@ -14906,7 +14788,7 @@ snapshots:
 
   minimatch@9.0.9:
     dependencies:
-      brace-expansion: 2.1.2
+      brace-expansion: 2.1.4
 
   minimist@1.2.8: {}
 
@@ -14949,8 +14831,6 @@ snapshots:
       busboy: 1.6.0
       concat-stream: 2.0.0
       type-is: 1.6.18
-
-  mustache@4.2.0: {}
 
   mysql2@3.15.3:
     dependencies:
@@ -15069,8 +14949,6 @@ snapshots:
       type-check: 0.4.0
       word-wrap: 1.2.5
 
-  p-finally@1.0.0: {}
-
   p-limit@3.1.0:
     dependencies:
       yocto-queue: 0.1.0
@@ -15079,34 +14957,15 @@ snapshots:
     dependencies:
       p-limit: 3.1.0
 
-  p-queue@6.6.2:
-    dependencies:
-      eventemitter3: 4.0.7
-      p-timeout: 3.2.0
-
-  p-queue@9.3.0:
-    dependencies:
-      eventemitter3: 5.0.4
-      p-timeout: 7.0.1
-
   p-retry@4.6.2:
     dependencies:
       '@types/retry': 0.12.0
       retry: 0.13.1
-
-  p-retry@7.1.1:
-    dependencies:
-      is-network-error: 1.3.2
+    optional: true
 
   p-retry@8.0.0:
     dependencies:
       is-network-error: 1.3.2
-
-  p-timeout@3.2.0:
-    dependencies:
-      p-finally: 1.0.0
-
-  p-timeout@7.0.1: {}
 
   package-json-from-dist@1.0.1: {}
 
@@ -15295,6 +15154,12 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
+  postcss@8.5.25:
+    dependencies:
+      nanoid: 3.3.16
+      picocolors: 1.1.1
+      source-map-js: 1.2.1
+
   postgres-array@2.0.0: {}
 
   postgres-bytea@1.0.1: {}
@@ -15359,21 +15224,6 @@ snapshots:
     dependencies:
       protobufjs: 7.6.5
     optional: true
-
-  protobufjs@7.6.3:
-    dependencies:
-      '@protobufjs/aspromise': 1.1.2
-      '@protobufjs/base64': 1.1.2
-      '@protobufjs/codegen': 2.0.5
-      '@protobufjs/eventemitter': 1.1.1
-      '@protobufjs/fetch': 1.1.1
-      '@protobufjs/float': 1.0.2
-      '@protobufjs/inquire': 1.1.2
-      '@protobufjs/path': 1.1.2
-      '@protobufjs/pool': 1.1.0
-      '@protobufjs/utf8': 1.1.1
-      '@types/node': 22.20.1
-      long: 5.3.2
 
   protobufjs@7.6.5:
     dependencies:
@@ -15562,7 +15412,8 @@ snapshots:
 
   retry@0.12.0: {}
 
-  retry@0.13.1: {}
+  retry@0.13.1:
+    optional: true
 
   reusify@1.1.0: {}
 
@@ -16137,13 +15988,15 @@ snapshots:
 
   tinyrainbow@3.1.0: {}
 
+  tinyrainbow@3.1.1: {}
+
   tinyspy@3.0.2: {}
 
-  tldts-core@7.4.9: {}
+  tldts-core@7.4.10: {}
 
-  tldts@7.4.9:
+  tldts@7.4.10:
     dependencies:
-      tldts-core: 7.4.9
+      tldts-core: 7.4.10
 
   to-regex-range@5.0.1:
     dependencies:
@@ -16161,7 +16014,7 @@ snapshots:
 
   tough-cookie@6.0.2:
     dependencies:
-      tldts: 7.4.9
+      tldts: 7.4.10
 
   tr46@0.0.3: {}
 
@@ -16173,8 +16026,6 @@ snapshots:
 
   triple-beam@1.4.1:
     optional: true
-
-  ts-algebra@2.0.0: {}
 
   ts-api-utils@2.5.0(typescript@5.9.3):
     dependencies:
@@ -16505,7 +16356,7 @@ snapshots:
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.5
-      postcss: 8.5.23
+      postcss: 8.5.25
       rolldown: 1.0.3
       tinyglobby: 0.2.17
     optionalDependencies:
@@ -16520,7 +16371,7 @@ snapshots:
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.5
-      postcss: 8.5.23
+      postcss: 8.5.25
       rolldown: 1.0.3
       tinyglobby: 0.2.17
     optionalDependencies:
