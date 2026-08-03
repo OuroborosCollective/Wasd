@@ -128,21 +128,26 @@ export class SpatialBroadcastGrid {
   /**
    * Get all entities visible in the chunk grid around the given tile position.
    * Uses broadcastRadiusChunks from UnifiedChunkContract.
+   * ⚡ Bolt Optimization: Avoids getChunkKeysForRadius overhead (allocations, splits, parsing).
    */
   getVisibleEntities(centerTileX: number, centerTileZ: number): SpatialEntity[] {
-    const centerChunkKey = computeChunkKey(centerTileX, centerTileZ);
-    const chunkKeys = getChunkKeysForRadius(centerChunkKey, UNIFIED_CHUNK_CONTRACT.broadcastRadiusChunks);
+    const cx = Math.floor(centerTileX / SPATIAL_CHUNK_SIZE);
+    const cz = Math.floor(centerTileZ / SPATIAL_CHUNK_SIZE);
+    const radius = UNIFIED_CHUNK_CONTRACT.broadcastRadiusChunks;
     
     const visibleEntities: SpatialEntity[] = [];
     
-    for (const chunkKey of chunkKeys) {
-      const entityIds = this.chunkToEntities.get(chunkKey);
-      if (!entityIds) continue;
-      
-      for (const id of entityIds) {
-        const entity = this.entities.get(id);
-        if (entity) {
-          visibleEntities.push(entity);
+    for (let dx = -radius; dx <= radius; dx++) {
+      for (let dz = -radius; dz <= radius; dz++) {
+        const chunkKey = createChunkKey(cx + dx, cz + dz);
+        const entityIds = this.chunkToEntities.get(chunkKey);
+        if (!entityIds) continue;
+
+        for (const id of entityIds) {
+          const entity = this.entities.get(id);
+          if (entity) {
+            visibleEntities.push(entity);
+          }
         }
       }
     }
