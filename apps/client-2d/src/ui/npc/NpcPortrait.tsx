@@ -290,8 +290,10 @@ export function generatePortraitSVG(traits: NpcVisualTraits, npcName: string): s
   const earModification = race === "elf" ? `<path d="M28,40 L20,30" stroke="${skinTone}" stroke-width="4"/>` :
                           race === "dwarf" ? `<ellipse cx="30" cy="48" rx="5" ry="8" fill="${skinTone}"/>` : "";
 
+  const categoryLabel = category.replace(/_/g, " ");
   return `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="180" height="180">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="180" height="180" role="img" aria-label="Portrait of ${npcName}, a ${gender} ${race} ${categoryLabel}">
+  <title>Portrait of ${npcName}</title>
   <defs>
     <radialGradient id="bgGrad" cx="50%" cy="30%" r="70%">
       <stop offset="0%" stop-color="${backgroundColor}"/>

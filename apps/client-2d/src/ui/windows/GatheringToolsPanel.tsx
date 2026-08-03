@@ -223,6 +223,7 @@ export function GatheringToolsPanel({ equipment, inventory, onEquip }: Props) {
                 className="tool-button"
                 onClick={() => handleEquip(slot.itemId)}
                 title={`Equip ${slot.name}`}
+                aria-label={`Equip ${slot.name} to tool slot`}
               >
                 <span className="tool-icon">
                   {(() => {
@@ -251,18 +252,28 @@ export function GatheringToolsPanel({ equipment, inventory, onEquip }: Props) {
           <p className="claim-description">
             Gather resources outside the starter village requires proper tools.
           </p>
-          <button
-            type="button"
-            className="claim-starter-tools-button"
-            data-testid="claim-starter-tools-button"
-            onClick={handleClaimStarterTools}
-            disabled={isClaiming}
-          >
-            {isClaiming ? "Claiming..." : "Claim Starter Tools"}
-          </button>
-          {claimError && (
-            <p className="claim-error">{claimError}</p>
-          )}
+          <div aria-live="polite" aria-busy={isClaiming}>
+            <button
+              type="button"
+              className="claim-starter-tools-button"
+              data-testid="claim-starter-tools-button"
+              onClick={handleClaimStarterTools}
+              disabled={isClaiming}
+              aria-busy={isClaiming}
+              aria-label={isClaiming ? "Claiming starter tools from server" : "Claim free starter gathering tools"}
+              style={isClaiming ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+            >
+              {isClaiming ? "Claiming..." : "Claim Starter Tools"}
+            </button>
+            {claimError && (
+              <p className="claim-error" role="alert">{claimError}</p>
+            )}
+            {claimSuccess && (
+              <p className="claim-success" role="status" style={{ color: "var(--ouro-green)", fontSize: "0.8rem", marginTop: "4px" }}>
+                Starter tools successfully claimed and equipped!
+              </p>
+            )}
+          </div>
         </div>
       )}
     </section>
