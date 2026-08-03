@@ -17,8 +17,13 @@ class Node {
   }
 }
 
-function nodeKey(x: number, y: number): string {
-  return `${x},${y}`;
+/**
+ * Encodes x and y coordinates into a single 32-bit integer key.
+ * This avoids string allocations and reduces GC pressure in hot pathfinding loops.
+ * Supports coordinates within the range of [-32768, 32767].
+ */
+function nodeKey(x: number, y: number): number {
+  return ((x & 0xffff) | ((y & 0xffff) << 16));
 }
 
 export class Pathfinding {
@@ -32,8 +37,8 @@ export class Pathfinding {
     const endNode = new Node(Math.round(end.x), Math.round(end.y));
 
     const openList: Node[] = [startNode];
-    const openMap: Map<string, Node> = new Map([[nodeKey(startNode.x, startNode.y), startNode]]);
-    const closedList: Set<string> = new Set();
+    const openMap: Map<number, Node> = new Map([[nodeKey(startNode.x, startNode.y), startNode]]);
+    const closedList: Set<number> = new Set();
 
     const maxIterations = 200; // Prevent infinite loops
     let iterations = 0;
@@ -50,9 +55,17 @@ export class Pathfinding {
       }
 
       const currentNode = openList[currentIndex];
-      openList.splice(currentIndex, 1);
-      openMap.delete(nodeKey(currentNode.x, currentNode.y));
-      closedList.add(nodeKey(currentNode.x, currentNode.y));
+
+      // O(1) swap-and-pop technique instead of slow O(N) array splice
+      const lastElement = openList[openList.length - 1];
+      if (currentIndex !== openList.length - 1) {
+        openList[currentIndex] = lastElement;
+      }
+      openList.pop();
+
+      const currKey = nodeKey(currentNode.x, currentNode.y);
+      openMap.delete(currKey);
+      closedList.add(currKey);
 
       // Reached destination
       if (Math.abs(currentNode.x - endNode.x) < 1 && Math.abs(currentNode.y - endNode.y) < 1) {
@@ -72,15 +85,16 @@ export class Pathfinding {
 
           const nx = currentNode.x + dx;
           const ny = currentNode.y + dy;
+          const neighborKey = nodeKey(nx, ny);
 
-          if (closedList.has(nodeKey(nx, ny))) continue;
+          if (closedList.has(neighborKey)) continue;
           if (isObstacle(nx, ny)) continue;
 
           // Diagonal movement cost is sqrt(2), straight is 1
           const g = currentNode.g + (dx !== 0 && dy !== 0 ? 1.414 : 1);
           const h = Math.abs(nx - endNode.x) + Math.abs(ny - endNode.y); // Manhattan distance
           
-          const existingNode = openMap.get(nodeKey(nx, ny));
+          const existingNode = openMap.get(neighborKey);
           if (existingNode) {
             if (g < existingNode.g) {
               existingNode.g = g;
@@ -89,7 +103,7 @@ export class Pathfinding {
           } else {
             const newNode = new Node(nx, ny, g, h, currentNode);
             openList.push(newNode);
-            openMap.set(nodeKey(nx, ny), newNode);
+            openMap.set(neighborKey, newNode);
           }
         }
       }
