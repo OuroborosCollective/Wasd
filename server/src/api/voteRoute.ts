@@ -1,6 +1,7 @@
 import express, { Router, type Request, type Response } from "express";
 import { type AdminRequest } from "../middleware/adminAuthMiddleware.js";
 import { adminAuthRequestHandler, adminWriteBlockedHandler } from "../middleware/adminRequestHandlers.js";
+import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import type { WorldTick } from "../core/are/index.js";
 
 function asString(value: unknown): string {
@@ -43,12 +44,12 @@ export function voteRouter(tick: WorldTick): Router {
     return res.json({ ok: true, reason: result.reason, sessionId: result.sessionId, playerId: result.playerId, bannerId: result.bannerId });
   });
 
-  router.get("/admin/banners", adminAuthRequestHandler, (req: Request, res: Response) => {
+  router.get("/admin/banners", adminRateLimiter, adminAuthRequestHandler, (req: Request, res: Response) => {
     void asAdminRequest(req);
     res.json({ banners: tick.getAdminVoteBanners() });
   });
 
-  router.post("/admin/banners", adminAuthRequestHandler, adminWriteBlockedHandler, (req: Request, res: Response) => {
+  router.post("/admin/banners", adminRateLimiter, adminAuthRequestHandler, adminWriteBlockedHandler, (req: Request, res: Response) => {
     try {
       const body = asAdminRequest(req).body;
       const result = tick.upsertVoteBanner({
@@ -75,7 +76,7 @@ export function voteRouter(tick: WorldTick): Router {
     }
   });
 
-  router.delete("/admin/banners/:internalId", adminAuthRequestHandler, adminWriteBlockedHandler, (req: Request, res: Response) => {
+  router.delete("/admin/banners/:internalId", adminRateLimiter, adminAuthRequestHandler, adminWriteBlockedHandler, (req: Request, res: Response) => {
     const internalId = asString(req.params.internalId);
     if (!internalId) return res.status(400).json({ ok: false, reason: "internalId is required." });
     const result = tick.deleteVoteBanner(internalId);
@@ -83,13 +84,13 @@ export function voteRouter(tick: WorldTick): Router {
     return res.json({ ok: true, banners: tick.getAdminVoteBanners() });
   });
 
-  router.post("/admin/banners/reorder", adminAuthRequestHandler, adminWriteBlockedHandler, (req: Request, res: Response) => {
+  router.post("/admin/banners/reorder", adminRateLimiter, adminAuthRequestHandler, adminWriteBlockedHandler, (req: Request, res: Response) => {
     const ids: unknown[] = Array.isArray(req.body?.ids) ? req.body.ids : [];
     const ordered = tick.setVoteBannerOrder(ids.map((value: unknown) => asString(value)).filter((value: string) => value.length > 0));
     return res.json({ ok: true, banners: ordered });
   });
 
-  router.get("/admin/diagnostics", adminAuthRequestHandler, (_req: Request, res: Response) => {
+  router.get("/admin/diagnostics", adminRateLimiter, adminAuthRequestHandler, (_req: Request, res: Response) => {
     res.json({ diagnostics: tick.getVoteAdminDiagnostics() });
   });
 
