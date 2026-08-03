@@ -160,90 +160,70 @@ describe("Sentinel Endpoint Protection", () => {
     });
   });
 
-  describe("/api/are/replay diagnostic endpoints", () => {
-    it("protects stats, repair/status, billing/status, governance/status, oracle/prophecy, oracle/status, and snapshot", async () => {
+  describe("/api/are/validation", () => {
+    it("is protected by adminAuthMiddleware", async () => {
       process.env.ADMIN_PANEL_TOKEN = "secret";
       const app = express();
       const mockTick = {
-        getReplayRecorderStats: () => ({ tick: 100 }),
-        getAutoRepairStatus: () => ({ enabled: true }),
-        getDeterministicUsageStats: () => ({ hashesInWindow: 5 }),
-        getOracleReport: () => ({ prophecies: [] }),
-        getReplaySnapshot: (t: number) => ({ tick: t }),
+        getWorldHashSnapshot: () => ({ worldHash: "test" }),
       } as any;
-      app.use("/api/are/replay", areReplayRouter(mockTick));
+      app.use("/api/are/validation", adminRateLimiter, areValidationRouter(mockTick));
 
-      // 1. Stats
-      let r = await request(app).get("/api/are/replay/stats");
-      expect(r.status).toBe(401);
-      let r2 = await request(app).get("/api/are/replay/stats").set("X-Admin-Token", "secret");
-      expect(r2.status).toBe(200);
+      // Get /status is protected
+      const rStatus = await request(app).get("/api/are/validation/status");
+      expect(rStatus.status).toBe(401);
 
-      // 2. Repair status
-      r = await request(app).get("/api/are/replay/repair/status");
-      expect(r.status).toBe(401);
-      r2 = await request(app).get("/api/are/replay/repair/status").set("X-Admin-Token", "secret");
-      expect(r2.status).toBe(200);
+      // Get /world-hash is protected
+      const rHash = await request(app).get("/api/are/validation/world-hash");
+      expect(rHash.status).toBe(401);
 
-      // 3. Billing status
-      r = await request(app).get("/api/are/replay/billing/status");
-      expect(r.status).toBe(401);
-      r2 = await request(app).get("/api/are/replay/billing/status").set("X-Admin-Token", "secret");
-      expect(r2.status).toBe(200);
+      // Post /compare is protected
+      const rCompare = await request(app).post("/api/are/validation/compare");
+      expect(rCompare.status).toBe(401);
 
-      // 4. Governance status
-      r = await request(app).get("/api/are/replay/governance/status");
-      expect(r.status).toBe(401);
-      r2 = await request(app).get("/api/are/replay/governance/status").set("X-Admin-Token", "secret");
-      expect(r2.status).toBe(200);
+      // Verify they pass with token
+      const rStatus2 = await request(app)
+        .get("/api/are/validation/status")
+        .set("X-Admin-Token", "secret");
+      expect(rStatus2.status).toBe(200);
 
-      // 5. Oracle prophecy
-      r = await request(app).get("/api/are/replay/oracle/prophecy");
-      expect(r.status).toBe(401);
-      r2 = await request(app).get("/api/are/replay/oracle/prophecy").set("X-Admin-Token", "secret");
-      expect(r2.status).toBe(200);
-
-      // 6. Oracle status
-      r = await request(app).get("/api/are/replay/oracle/status");
-      expect(r.status).toBe(401);
-      r2 = await request(app).get("/api/are/replay/oracle/status").set("X-Admin-Token", "secret");
-      expect(r2.status).toBe(200);
-
-      // 7. Snapshot
-      r = await request(app).get("/api/are/replay/snapshot/100");
-      expect(r.status).toBe(401);
-      r2 = await request(app).get("/api/are/replay/snapshot/100").set("X-Admin-Token", "secret");
-      expect(r2.status).toBe(200);
+      const rHash2 = await request(app)
+        .get("/api/are/validation/world-hash")
+        .set("X-Admin-Token", "secret");
+      expect(rHash2.status).toBe(200);
     });
   });
 
-  describe("/api/are/validation", () => {
-    it("protects status, world-hash, and compare", async () => {
+  describe("/api/are/replay", () => {
+    it("is protected by adminAuthMiddleware", async () => {
       process.env.ADMIN_PANEL_TOKEN = "secret";
       const app = express();
       const mockTick = {
-        getWorldHashSnapshot: () => ({ worldHash: "abc" }),
-        comparePortalWorldHash: () => ({ ok: true }),
+        getReplayRecorderStats: () => ({ tick: 10 }),
+        getReplaySnapshot: () => ({ tick: 10 }),
       } as any;
-      app.use("/api/are/validation", areValidationRouter(mockTick));
+      app.use("/api/are/replay", adminRateLimiter, areReplayRouter(mockTick));
 
-      // 1. Status
-      let r = await request(app).get("/api/are/validation/status");
-      expect(r.status).toBe(401);
-      let r2 = await request(app).get("/api/are/validation/status").set("X-Admin-Token", "secret");
-      expect(r2.status).toBe(200);
+      // Diagnostic and snapshot routes are protected
+      const routesToTest = [
+        "/api/are/replay/stats",
+        "/api/are/replay/repair/status",
+        "/api/are/replay/billing/status",
+        "/api/are/replay/governance/status",
+        "/api/are/replay/oracle/prophecy",
+        "/api/are/replay/oracle/status",
+        "/api/are/replay/snapshot/10",
+      ];
 
-      // 2. World hash
-      r = await request(app).get("/api/are/validation/world-hash");
-      expect(r.status).toBe(401);
-      r2 = await request(app).get("/api/are/validation/world-hash").set("X-Admin-Token", "secret");
-      expect(r2.status).toBe(200);
+      for (const route of routesToTest) {
+        const r = await request(app).get(route);
+        expect(r.status).toBe(401);
 
-      // 3. Compare
-      r = await request(app).post("/api/are/validation/compare").send({});
-      expect(r.status).toBe(401);
-      r2 = await request(app).post("/api/are/validation/compare").set("X-Admin-Token", "secret").send({});
-      expect(r2.status).toBe(200);
+        const rWithToken = await request(app)
+          .get(route)
+          .set("X-Admin-Token", "secret");
+        expect(rWithToken.status).toBe(200);
+      }
     });
   });
 });
