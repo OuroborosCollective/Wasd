@@ -22,3 +22,8 @@
 **Vulnerability:** The `/api/asset-brain/specs/:id` and `/api/asset-brain/variants/:id` routes checked specification ownership against `req.playerId` but lacked authentication middleware, rendering private specs completely inaccessible to their owners. Additionally, internal database schema and query details were leaked to the client upon route errors.
 **Learning:** Endpoints designed with "ownership checking" logic will silently fail/block authorized owners if authentication middleware is completely omitted from those endpoints. Error handlers that forward raw error messages (like `error.message`) are high-risk for database detail disclosure.
 **Prevention:** Implement and use an `optionalAuthRequestHandler` for endpoints requiring guest-or-authenticated hybrid access, and always sanitize error catch blocks to return standardized database-generic error messages.
+
+## 2025-08-01 - [High] Admin Credential Verification Timing Attack Vulnerabilities
+**Vulnerability:** Administrative credentials, including `ADMIN_PANEL_TOKEN` and `SOVEREIGN_LAUNCH_KEY`, were validated using non-constant-time string comparison methods like `Array.prototype.includes` and standard equality (`===`). This timing leak allowed remote attackers to infer characters of the secrets one-by-one by measuring subtle response timing differences.
+**Learning:** Comparing administrative secrets or tokens using traditional string matching is highly susceptible to side-channel timing attacks, leaking secret content incrementally.
+**Prevention:** Always verify security-sensitive strings, API tokens, and credentials in constant-time. Use double HMAC hashing or SHA-256 pre-hashing coupled with a crypto `timingSafeEqual` comparison to hide both candidate content and length differences.
