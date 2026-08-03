@@ -1,5 +1,6 @@
 import express from "express";
 import { authRequestHandler } from "../middleware/authRequestHandler.js";
+import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
 import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
 import type { WorldTick } from "../core/are/index.js";
