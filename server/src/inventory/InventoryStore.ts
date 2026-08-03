@@ -98,7 +98,15 @@ export class InventoryStore {
 
   getPlayerInventory(playerId: string): PlayerInventoryState {
     const existing = this.inventories.get(playerId);
-    if (existing) return normalizePlayerInventoryState(existing, playerId);
+    if (existing) {
+      // ⚡ Bolt Optimization: Since all states written to 'this.inventories' are already fully normalized,
+      // we can return a fast shallow copy of the state and slots to prevent mutation without the overhead
+      // of repeating the entire normalize process and sorting elements on every read.
+      return {
+        ...existing,
+        slots: existing.slots.map((s) => ({ ...s })),
+      };
+    }
 
     const created = createDefaultInventoryState(playerId);
     this.inventories.set(playerId, created);
