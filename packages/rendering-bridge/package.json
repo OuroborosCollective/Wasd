@@ -15,11 +15,11 @@
     "clean": "rimraf dist"
   },
   "peerDependencies": {
-    "@babylonjs/core": "^9.18.0",
+    "@babylonjs/core": "^9.18.2",
     "three": "^0.185.1"
   },
   "devDependencies": {
-    "@babylonjs/core": "^9.18.0",
+    "@babylonjs/core": "^9.18.2",
     "@types/three": "0.185.1",
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.65.0",
