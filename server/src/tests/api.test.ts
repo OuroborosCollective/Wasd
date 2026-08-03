@@ -18,16 +18,25 @@ describe("API Route Configurations", () => {
       expect(config.path).toBe("/players");
     });
 
-    it("handler calls res.json with placeholder status", () => {
+    it("handler calls res.json with players envelope", () => {
       const config = playerRoutes();
-      const mockReq = {};
+      const mockReq = {
+        headers: {}
+      };
       const mockRes = {
+        setHeader: vi.fn(),
+        status: vi.fn().mockReturnThis(),
         json: vi.fn()
       };
 
-      config.handler(mockReq as any, mockRes as any);
+      config.handler(mockReq as any, mockRes as any, () => {});
 
-      expect(mockRes.json).toHaveBeenCalledWith({ status: "player routes placeholder" });
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ok: true,
+          route: "players"
+        })
+      );
     });
   });
 });

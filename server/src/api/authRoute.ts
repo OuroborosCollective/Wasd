@@ -24,7 +24,14 @@ export interface AuthRouteOptions {
 const DEV_SECRET = "areloria_local_development_secret_change_me";
 
 function getJwtSecret(options: AuthRouteOptions): string {
-  return options.jwtSecret ?? process.env.JWT_SECRET ?? DEV_SECRET;
+  const secret = options.jwtSecret ?? process.env.JWT_SECRET;
+  if (secret) {
+    return secret;
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("FATAL: JWT_SECRET is not set in production environment.");
+  }
+  return DEV_SECRET;
 }
 
 function base64UrlJson(value: unknown): string {

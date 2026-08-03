@@ -484,9 +484,15 @@ function StitchPanel({
             <small>ARELORIAN SCIENCE MODULE</small>
             <h2 id="stitch-modal-title">{title}</h2>
           </div>
-          <button onClick={onClose} aria-label="Close panel [ESC]">
+          <button
+            type="button"
+            className="wow-close-btn"
+            onClick={onClose}
+            aria-label="Close [ESC]"
+            aria-keyshortcuts="Escape"
+          >
             <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
-            ×
+            ✕
           </button>
         </header>
         {panel === "inventory" && (

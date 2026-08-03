@@ -94,6 +94,7 @@ function readStoredDisplayName(): string {
 export function CharacterSelectPanel({ onCreated }: Props) {
   const [displayName, setDisplayName] = useState(() => readStoredDisplayName());
   const [startPath, setStartPath] = useState<StartPath>("wanderer");
+  const [isCreating, setIsCreating] = useState(false);
   const [status, setStatus] = useState<string>("");
   const selectedPath = START_PATH_INFO[startPath];
 
@@ -105,9 +106,10 @@ export function CharacterSelectPanel({ onCreated }: Props) {
         not through a fixed class.
       </p>
 
-      <label className="character-form-label">
+      <label htmlFor="char-name-input" className="character-form-label">
         Name
         <input
+          id="char-name-input"
           type="text"
           value={displayName}
           onChange={(event) => setDisplayName(event.target.value)}
@@ -119,9 +121,10 @@ export function CharacterSelectPanel({ onCreated }: Props) {
         />
       </label>
 
-      <label className="character-form-label">
+      <label htmlFor="char-start-path-select" className="character-form-label">
         Start Path
         <select
+          id="char-start-path-select"
           value={startPath}
           onChange={(event) => setStartPath(event.target.value as StartPath)}
           className="character-form-select"
@@ -167,12 +170,16 @@ export function CharacterSelectPanel({ onCreated }: Props) {
       <button
         type="button"
         className="character-form-button"
+        disabled={isCreating}
+        aria-busy={isCreating}
+        aria-label={isCreating ? "Creating character on server" : "Create new character"}
         onClick={async () => {
           if (displayName.trim().length < 3) {
             setStatus("Name must be at least 3 characters.");
             return;
           }
 
+          setIsCreating(true);
           setStatus("Creating character...");
 
           try {
@@ -224,10 +231,12 @@ export function CharacterSelectPanel({ onCreated }: Props) {
             }
           } catch (err) {
             setStatus(`Error: ${err instanceof Error ? err.message : "unknown"}`);
+          } finally {
+            setIsCreating(false);
           }
         }}
       >
-        Create Character
+        {isCreating ? "Creating..." : "Create Character"}
       </button>
 
       {status && <p className="character-form-status">{status}</p>}
