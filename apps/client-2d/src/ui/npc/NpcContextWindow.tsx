@@ -47,7 +47,7 @@ export function NpcContextWindow({
   }, [styleInjected]);
 
   React.useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !dialogue.canContinue || !onContinue) return;
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       const active = document.activeElement;
@@ -59,15 +59,7 @@ export function NpcContextWindow({
       ) {
         return;
       }
-
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-        return;
-      }
-
-      if (dialogue.canContinue && onContinue && (e.key === " " || e.key === "Enter" || e.key === "e" || e.key === "E")) {
+      if (e.key === " " || e.key === "Enter" || e.key.toLowerCase() === "e") {
         e.preventDefault();
         e.stopPropagation();
         onContinue();
@@ -75,8 +67,10 @@ export function NpcContextWindow({
     };
 
     window.addEventListener("keydown", handleGlobalKeyDown, true);
-    return () => window.removeEventListener("keydown", handleGlobalKeyDown, true);
-  }, [isOpen, dialogue.canContinue, onContinue, onClose]);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown, true);
+    };
+  }, [isOpen, dialogue.canContinue, onContinue]);
 
   const handleAction = (action: MenuAction) => {
     onAction(action);
@@ -268,28 +262,46 @@ export function NpcContextWindow({
 
                   {dialogue.canContinue && (
                     <button
-                      type="button"
-                      aria-label="Continue dialogue [Space, Enter, or E]"
-                      className="mt-3 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#00e5ff]"
+                      className="mt-3 flex items-center gap-2"
                       style={{
                         marginTop: 12,
                         display: "flex",
                         alignItems: "center",
                         gap: 8,
                         cursor: "pointer",
-                        background: "none",
-                        border: "none",
-                        padding: 0,
+                        backgroundColor: "rgba(0, 229, 255, 0.1)",
+                        border: "1px solid rgba(0, 229, 255, 0.3)",
+                        borderRadius: "0px",
+                        padding: "6px 12px",
+                        color: "#00e5ff",
                         transition: "all 0.2s ease",
+                        outline: "none",
                       }}
                       onClick={onContinue}
+                      aria-label="Continue dialogue [Space/Enter/E]"
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "rgba(0, 229, 255, 0.2)";
+                        e.currentTarget.style.borderColor = "#00e5ff";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "rgba(0, 229, 255, 0.1)";
+                        e.currentTarget.style.borderColor = "rgba(0, 229, 255, 0.3)";
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.backgroundColor = "rgba(0, 229, 255, 0.2)";
+                        e.currentTarget.style.borderColor = "#00e5ff";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.backgroundColor = "rgba(0, 229, 255, 0.1)";
+                        e.currentTarget.style.borderColor = "rgba(0, 229, 255, 0.3)";
+                      }}
                     >
                       <span style={{ display: "inline-block", width: "8px", height: "8px", backgroundColor: "#00e5ff", animation: "dialogue-cursor 1s ease-in-out infinite" }} />
                       <span
                         style={{
                           fontFamily: "Epilogue, sans-serif",
                           fontSize: "11px",
-                          fontWeight: "600",
+                          fontWeight: "700",
                           letterSpacing: "0.15em",
                           color: "#00e5ff",
                           textTransform: "uppercase",
@@ -297,7 +309,7 @@ export function NpcContextWindow({
                       >
                         Continue
                       </span>
-                      <kbd className="cz-kbd" style={{ marginLeft: 4, fontSize: "10px", padding: "1px 4px" }}>E</kbd>
+                      <kbd className="cz-kbd" aria-hidden="true" style={{ margin: 0, padding: "2px 6px", fontSize: "10px" }}>SPACE</kbd>
                     </button>
                   )}
 
