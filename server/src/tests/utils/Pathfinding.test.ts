@@ -93,4 +93,27 @@ describe("Pathfinding utils", () => {
     // Fallback is [start, end]
     expect(path).toEqual([start, end]);
   });
+
+  it("A* Pathfinding Benchmark", () => {
+    const start: Point = { x: 0, y: 0 };
+    const end: Point = { x: 20, y: 20 };
+
+    // Some obstacles to make the path search work a bit
+    const obstacles = new Set<string>();
+    for (let i = 0; i < 15; i++) {
+      obstacles.add(`5,${i}`);
+      obstacles.add(`15,${20 - i}`);
+    }
+
+    const isObstacle = (x: number, y: number) => obstacles.has(`${x},${y}`);
+
+    const iterations = 5000;
+    const startTime = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      Pathfinding.findPath(start, end, isObstacle);
+    }
+    const duration = performance.now() - startTime;
+    console.log(`[BENCHMARK] A* Pathfinding run of ${iterations} iterations completed in: ${duration.toFixed(2)}ms`);
+    expect(true).toBe(true);
+  });
 });
