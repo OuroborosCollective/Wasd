@@ -134,9 +134,25 @@ export class WorldStateRegistry {
   }
 
   private cloneState(state: WorldState): WorldState {
+    // Bolt: Optimized cloning via safe hybrid approach (object spread/direct copying + conditional JSON cloning for metadata)
+    const clonedEntities = new Map<string, Entity>();
+    for (const [key, entity] of state.entities.entries()) {
+      const clonedEntity: Entity = {
+        id: entity.id,
+        x: entity.x,
+        y: entity.y,
+        z: entity.z,
+        hp: entity.hp,
+        metadata: undefined as any
+      };
+      if (entity.metadata !== undefined) {
+        clonedEntity.metadata = JSON.parse(JSON.stringify(entity.metadata));
+      }
+      clonedEntities.set(key, clonedEntity);
+    }
     return {
       tick: state.tick,
-      entities: new Map(JSON.parse(JSON.stringify(Array.from(state.entities)))),
+      entities: clonedEntities,
     };
   }
 }
