@@ -29,6 +29,6 @@
 **Learning:** Transitioning NPC dialog 'Continue' click handlers from generic divs to semantic, focusable buttons significantly improves accessibility and keyboard discoverability. Using a capture-phase keydown listener on the window specifically prevents keys like 'Space', 'Enter', and 'E' from triggering background/underlying actions, ensuring a clean and focused monologue flow.
 **Action:** Implement dialogue progression using semantic buttons with explicit aria-labels and window-level capture listeners for 'Space', 'Enter', and 'E', while checking activeElement to prevent input field conflicts.
 
-## 2026-03-22 - Stateful Async Buttons with Failsafe Timeouts
-**Learning:** Introducing temporary local state (such as `isGathering`) with proper `aria-busy` and disabled states protects network-sensitive actions (like harvesting resources) from rapid double-clicks while providing clear screen-reader feedback. To prevent the UI from locking up if network synchronizations or state updates fail, a robust local fallback timeout should automatically clear the busy state after a set period.
-**Action:** Pair all async UI interactions with localized pending states, aria-busy flags, and a failsafe timer (e.g., 1500ms) to ensure smooth recovery and deterministic controls.
+## 2026-03-22 - Global Modal Close Capture and Broken Keyboard Promises
+**Learning:** Adding close buttons with `<kbd>ESC</kbd>` visual hints without registering a corresponding window-level ESC handler creates a broken keyboard experience for power users. Furthermore, binding keyboard events too restrictively (such as only when `dialogue.canContinue` is true) prevents users from closing standard dialogue monologues via keyboard.
+**Action:** Always register global ESC key handlers on dialogue/window context roots whenever they are visible, ensuring the close action is accessible in all states while checking focused inputs to prevent typing conflicts.
