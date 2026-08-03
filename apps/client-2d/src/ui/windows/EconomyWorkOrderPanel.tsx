@@ -441,20 +441,41 @@ export function EconomyWorkOrderPanel() {
             className="character-form-button"
             disabled={!playerPosition || state.actionStatus === "submitting"}
             onClick={() => void supplyOne(order)}
+            aria-busy={state.actionStatus === "submitting"}
+            aria-label={
+              state.actionStatus === "submitting"
+                ? `Committing supply for ${itemLabel(order.itemId)}`
+                : !playerPosition
+                ? `Cannot supply ${itemLabel(order.itemId)}: player position unavailable`
+                : `Supply 1 ${itemLabel(order.itemId)}`
+            }
+            title={
+              state.actionStatus === "submitting"
+                ? "Supply action in progress"
+                : !playerPosition
+                ? "Cannot supply: player position is currently unavailable"
+                : `Supply 1 ${itemLabel(order.itemId)}`
+            }
           >
             {state.actionStatus === "submitting" ? "Committing…" : `Supply 1 ${itemLabel(order.itemId)}`}
           </button>
-          {!playerPosition && <small>Player position input unavailable; no mutation can be sent.</small>}
+          {!playerPosition && (
+            <small style={{ color: "var(--st-ruby, #ff4d4d)", marginTop: "4px", display: "block" }}>
+              ⚠️ Player position input unavailable; supply actions disabled.
+            </small>
+          )}
         </article>
       ))}
 
-      {state.actionStatus === "error" && (
-        <article className="stitch-info" data-testid="economy-work-order-action-error">
-          <small>Supply not committed</small>
-          <b>{state.actionError ?? "unknown_error"}</b>
-        </article>
-      )}
-      {state.storedMutation && <StoredEvidence evidence={state.storedMutation} />}
+      <div aria-live="polite" className="economy-action-status-region">
+        {state.actionStatus === "error" && (
+          <article className="stitch-info" data-testid="economy-work-order-action-error">
+            <small>Supply not committed</small>
+            <b>{state.actionError ?? "unknown_error"}</b>
+          </article>
+        )}
+        {state.storedMutation && <StoredEvidence evidence={state.storedMutation} />}
+      </div>
 
       <button type="button" className="character-form-button" onClick={() => void loadWorkOrders()} disabled={state.refreshing}>
         {state.refreshing ? "Verifying…" : "Refresh Server Evidence"}
