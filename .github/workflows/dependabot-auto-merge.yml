@@ -130,6 +130,9 @@ jobs:
   cleanup-dependabot-prs:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Close all remaining Dependabot PRs
         run: |
           echo "=== Cleaning up all open Dependabot PRs ==="

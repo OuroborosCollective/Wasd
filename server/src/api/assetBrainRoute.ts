@@ -11,7 +11,7 @@
  */
 import { Router, type Request, type Response } from 'express';
 import express from 'express';
-import { authRequestHandler } from '../middleware/authRequestHandler.js';
+import { authRequestHandler, optionalAuthRequestHandler } from '../middleware/authRequestHandler.js';
 import { adminRateLimiter, sensitiveWriteRateLimiter } from '../middleware/rateLimitMiddleware.js';
 import { db as dbInstance } from '../core/Database.js';
 import { AssetBrainDatabase } from '../modules/asset-brain/AssetBrainDatabase.js';
@@ -85,7 +85,7 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
       });
     } catch (error: any) {
       console.error('Asset generation error:', error);
-      res.status(500).json({ error: error.message || 'Failed to generate asset specification' });
+      res.status(500).json({ error: 'Failed to generate asset specification' });
     }
   });
 
@@ -99,11 +99,12 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
       const specs = await assetBrainDb.getUserSpecifications(userId);
       res.json({ specifications: specs });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Error fetching user specifications:', error);
+      res.status(500).json({ error: 'Failed to retrieve specifications' });
     }
   });
 
-  router.get('/specs/:id', adminRateLimiter, async (req: Request, res: Response): Promise<void> => {
+  router.get('/specs/:id', adminRateLimiter, optionalAuthRequestHandler, async (req: Request, res: Response): Promise<void> => {
     try {
       const id = String(req.params['id']);
       const spec = await assetBrainDb.getSpecification(id);
@@ -118,11 +119,12 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
       }
       res.json({ specification: spec });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Error fetching specification:', error);
+      res.status(500).json({ error: 'Failed to retrieve specification' });
     }
   });
 
-  router.get('/variants/:id', adminRateLimiter, async (req: Request, res: Response): Promise<void> => {
+  router.get('/variants/:id', adminRateLimiter, optionalAuthRequestHandler, async (req: Request, res: Response): Promise<void> => {
     try {
       const id = String(req.params['id']);
       const userId = (req as any).userId || (req as any).playerId;
@@ -138,7 +140,8 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
       const variants = await assetBrainDb.getVariants(id);
       res.json({ variants });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Error fetching variants:', error);
+      res.status(500).json({ error: 'Failed to retrieve variants' });
     }
   });
 
@@ -149,7 +152,8 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
       const specs = await assetBrainDb.searchSpecifications(assetClass, style);
       res.json({ specifications: specs });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Error searching specifications:', error);
+      res.status(500).json({ error: 'Failed to search specifications' });
     }
   });
 
@@ -160,7 +164,8 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
       const entries = await assetBrainDb.searchLibrary(assetClass, style);
       res.json({ library: entries });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Error searching library:', error);
+      res.status(500).json({ error: 'Failed to search library' });
     }
   });
 
@@ -186,7 +191,8 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
       });
       res.json({ success: true, jobId: job.id });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Error creating batch job:', error);
+      res.status(500).json({ error: 'Failed to create batch job' });
     }
   });
 
@@ -195,7 +201,8 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
       const id = String(req.params['id'] ?? '');
       res.json({ jobId: id, status: 'pending', assetsGenerated: 0 });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Error getting batch job status:', error);
+      res.status(500).json({ error: 'Failed to retrieve batch job status' });
     }
   });
 
