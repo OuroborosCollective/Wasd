@@ -6,6 +6,7 @@ import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 
 export function areValidationRouter(tick: WorldTick) {
   const router = express.Router();
+  router.use(adminRateLimiter, adminAuthMiddleware);
 
   router.get("/status", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
     const snapshot = areValidationState.getSnapshot();

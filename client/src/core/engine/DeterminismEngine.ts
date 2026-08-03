@@ -87,6 +87,19 @@ export class DeterminismEngine {
     }
 
     private clone<T>(obj: T): T {
+        if (obj && typeof obj === "object") {
+            if ("position" in obj && "velocity" in obj && "acceleration" in obj) {
+                const state = obj as unknown as AREState;
+                const cloned: AREState = {
+                    position: { x: state.position.x, y: state.position.y, z: state.position.z },
+                    velocity: { x: state.velocity.x, y: state.velocity.y, z: state.velocity.z },
+                    acceleration: { x: state.acceleration.x, y: state.acceleration.y, z: state.acceleration.z },
+                    tick: state.tick,
+                    checksum: state.checksum
+                };
+                return cloned as unknown as T;
+            }
+        }
         return JSON.parse(JSON.stringify(obj));
     }
 }
