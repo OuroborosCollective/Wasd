@@ -25,10 +25,6 @@
 **Learning:** Replaced plain, bracketed text shortcut markers (e.g., "[1]") inside generic containers with semantic, dynamically styled `<kbd>` elements. This guarantees assistive technologies correctly announce shortcut keys to screen readers while keeping keyboard visual indicators fully harmonized with hover, active, and selected styles within a brutalist, sharp-cornered design language.
 **Action:** Always wrap interactive button keyboard shortcuts in semantic, themed `<kbd>` tags to maintain accessibility and high contrast visual hierarchy.
 
-## 2026-03-21 - Focusable Dialogue Progression and Key Capture
-**Learning:** Transitioning NPC dialog 'Continue' click handlers from generic divs to semantic, focusable buttons significantly improves accessibility and keyboard discoverability. Using a capture-phase keydown listener on the window specifically prevents keys like 'Space', 'Enter', and 'E' from triggering background/underlying actions, ensuring a clean and focused monologue flow.
-**Action:** Implement dialogue progression using semantic buttons with explicit aria-labels and window-level capture listeners for 'Space', 'Enter', and 'E', while checking activeElement to prevent input field conflicts.
-
-## 2026-03-22 - Global Modal Close Capture and Broken Keyboard Promises
-**Learning:** Adding close buttons with `<kbd>ESC</kbd>` visual hints without registering a corresponding window-level ESC handler creates a broken keyboard experience for power users. Furthermore, binding keyboard events too restrictively (such as only when `dialogue.canContinue` is true) prevents users from closing standard dialogue monologues via keyboard.
-**Action:** Always register global ESC key handlers on dialogue/window context roots whenever they are visible, ensuring the close action is accessible in all states while checking focused inputs to prevent typing conflicts.
+## 2028-02-15 - [Standardizing Quest Journal Panels with Accessibility and Close Button Patterns]
+**Learning:** Standardizing Quest Journal elements to align with the rest of the application's close button and accessibility patterns ensures keyboard discoverability and screen-reader compatibility. Custom inline list elements for objective lists can be transformed into semantic progressive nodes using `role="progressbar"`, while standardizing the header close buttons using the global `.wow-close-btn` class maintains UI cohesion.
+**Action:** Always verify if Quest Journal or tracker panels have a standardized close button pattern (`.wow-close-btn` class with `<kbd className="cz-kbd">ESC</kbd>`) and use semantic ARIA attributes for progress tracking components.
