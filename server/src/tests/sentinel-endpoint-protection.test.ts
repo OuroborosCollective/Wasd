@@ -9,8 +9,7 @@ import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
 import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { financeRouter } from "../api/financeRoute.js";
 import { createManifestResyncRouter } from "../api/manifestResyncRoute.js";
-import { areReplayRouter } from "../api/areReplayRoute.js";
-import { areValidationRouter } from "../api/areValidationRoute.js";
+import { voteRouter } from "../api/voteRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -160,70 +159,35 @@ describe("Sentinel Endpoint Protection", () => {
     });
   });
 
-  describe("/api/are/validation", () => {
-    it("is protected by adminAuthMiddleware", async () => {
+  describe("/api/vote admin routes", () => {
+    it("admin/banners and admin/diagnostics are protected by adminAuthMiddleware", async () => {
       process.env.ADMIN_PANEL_TOKEN = "secret";
       const app = express();
       const mockTick = {
-        getWorldHashSnapshot: () => ({ worldHash: "test" }),
+        getAdminVoteBanners: () => [],
+        getVoteAdminDiagnostics: () => ({ status: "good" }),
       } as any;
-      app.use("/api/are/validation", adminRateLimiter, areValidationRouter(mockTick));
+      app.use("/api/vote", voteRouter(mockTick));
 
-      // Get /status is protected
-      const rStatus = await request(app).get("/api/are/validation/status");
-      expect(rStatus.status).toBe(401);
+      // 1. Get banners without token -> 401
+      const r1 = await request(app).get("/api/vote/admin/banners");
+      expect(r1.status).toBe(401);
 
-      // Get /world-hash is protected
-      const rHash = await request(app).get("/api/are/validation/world-hash");
-      expect(rHash.status).toBe(401);
-
-      // Post /compare is protected
-      const rCompare = await request(app).post("/api/are/validation/compare");
-      expect(rCompare.status).toBe(401);
-
-      // Verify they pass with token
-      const rStatus2 = await request(app)
-        .get("/api/are/validation/status")
+      // 2. Get banners with correct token -> 200
+      const r2 = await request(app)
+        .get("/api/vote/admin/banners")
         .set("X-Admin-Token", "secret");
-      expect(rStatus2.status).toBe(200);
+      expect(r2.status).toBe(200);
 
-      const rHash2 = await request(app)
-        .get("/api/are/validation/world-hash")
+      // 3. Get diagnostics without token -> 401
+      const r3 = await request(app).get("/api/vote/admin/diagnostics");
+      expect(r3.status).toBe(401);
+
+      // 4. Get diagnostics with correct token -> 200
+      const r4 = await request(app)
+        .get("/api/vote/admin/diagnostics")
         .set("X-Admin-Token", "secret");
-      expect(rHash2.status).toBe(200);
-    });
-  });
-
-  describe("/api/are/replay", () => {
-    it("is protected by adminAuthMiddleware", async () => {
-      process.env.ADMIN_PANEL_TOKEN = "secret";
-      const app = express();
-      const mockTick = {
-        getReplayRecorderStats: () => ({ tick: 10 }),
-        getReplaySnapshot: () => ({ tick: 10 }),
-      } as any;
-      app.use("/api/are/replay", adminRateLimiter, areReplayRouter(mockTick));
-
-      // Diagnostic and snapshot routes are protected
-      const routesToTest = [
-        "/api/are/replay/stats",
-        "/api/are/replay/repair/status",
-        "/api/are/replay/billing/status",
-        "/api/are/replay/governance/status",
-        "/api/are/replay/oracle/prophecy",
-        "/api/are/replay/oracle/status",
-        "/api/are/replay/snapshot/10",
-      ];
-
-      for (const route of routesToTest) {
-        const r = await request(app).get(route);
-        expect(r.status).toBe(401);
-
-        const rWithToken = await request(app)
-          .get(route)
-          .set("X-Admin-Token", "secret");
-        expect(rWithToken.status).toBe(200);
-      }
+      expect(r4.status).toBe(200);
     });
   });
 });
