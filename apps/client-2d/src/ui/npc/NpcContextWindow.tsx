@@ -47,7 +47,7 @@ export function NpcContextWindow({
   }, [styleInjected]);
 
   React.useEffect(() => {
-    if (!isOpen || !dialogue.canContinue || !onContinue) return;
+    if (!isOpen) return;
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       const active = document.activeElement;
@@ -60,7 +60,14 @@ export function NpcContextWindow({
         return;
       }
 
-      if (e.key === " " || e.key === "Enter" || e.key === "e" || e.key === "E") {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+
+      if (dialogue.canContinue && onContinue && (e.key === " " || e.key === "Enter" || e.key === "e" || e.key === "E")) {
         e.preventDefault();
         e.stopPropagation();
         onContinue();
@@ -69,7 +76,7 @@ export function NpcContextWindow({
 
     window.addEventListener("keydown", handleGlobalKeyDown, true);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown, true);
-  }, [isOpen, dialogue.canContinue, onContinue]);
+  }, [isOpen, dialogue.canContinue, onContinue, onClose]);
 
   const handleAction = (action: MenuAction) => {
     onAction(action);

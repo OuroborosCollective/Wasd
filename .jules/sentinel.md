@@ -23,7 +23,7 @@
 **Learning:** Endpoints designed with "ownership checking" logic will silently fail/block authorized owners if authentication middleware is completely omitted from those endpoints. Error handlers that forward raw error messages (like `error.message`) are high-risk for database detail disclosure.
 **Prevention:** Implement and use an `optionalAuthRequestHandler` for endpoints requiring guest-or-authenticated hybrid access, and always sanitize error catch blocks to return standardized database-generic error messages.
 
-## 2025-08-01 - [High] Admin Credential Verification Timing Attack Vulnerabilities
-**Vulnerability:** Administrative credentials, including `ADMIN_PANEL_TOKEN` and `SOVEREIGN_LAUNCH_KEY`, were validated using non-constant-time string comparison methods like `Array.prototype.includes` and standard equality (`===`). This timing leak allowed remote attackers to infer characters of the secrets one-by-one by measuring subtle response timing differences.
-**Learning:** Comparing administrative secrets or tokens using traditional string matching is highly susceptible to side-channel timing attacks, leaking secret content incrementally.
-**Prevention:** Always verify security-sensitive strings, API tokens, and credentials in constant-time. Use double HMAC hashing or SHA-256 pre-hashing coupled with a crypto `timingSafeEqual` comparison to hide both candidate content and length differences.
+## 2026-03-20 - [High] Production JWT Secret Fallback Enforcement in Auth Route
+**Vulnerability:** The standard authRoute used a fallback development JWT secret (`areloria_local_development_secret_change_me`) when `JWT_SECRET` was not set, which could silently persist in production environments.
+**Learning:** Hardcoded dev credentials and secrets can easily bypass operational security checks if they are allowed to persist when `process.env.NODE_ENV === "production"`.
+**Prevention:** Enforce mandatory environment variable validation on server startup or handler invocation for any cryptographic route by throwing fatal initialization/runtime errors when secrets are missing in production.
