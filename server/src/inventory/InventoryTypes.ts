@@ -152,5 +152,15 @@ export function normalizePlayerInventoryState(input: Partial<PlayerInventoryStat
       slots.set(slot.itemId, slot);
     }
   }
-  return { playerId, schemaVersion: 1, capacity: INVENTORY_CAPACITY, slots: [...slots.values()].sort((a, b) => a.itemId.localeCompare(b.itemId)) };
+  return {
+    playerId,
+    schemaVersion: 1,
+    capacity: INVENTORY_CAPACITY,
+    slots: [...slots.values()].sort((a, b) => {
+      // ⚡ Bolt Optimization: Replace slow localeCompare with direct string comparison for technical IDs
+      const aid = a.itemId;
+      const bid = b.itemId;
+      return aid < bid ? -1 : aid > bid ? 1 : 0;
+    }),
+  };
 }

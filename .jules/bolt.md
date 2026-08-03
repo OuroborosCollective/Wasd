@@ -37,3 +37,7 @@
 ## 2028-05-18 - [Optimizing DeterminismEngine Simulation Cloning]
 **Learning:** In hot client simulation paths, frequently cloning structured state snapshots like `AREState` using `JSON.parse(JSON.stringify())` introduces massive CPU serialization overhead. Replacing this with an explicitly-typed, key-checked manual property cloner produces a ~18x-22x performance speedup.
 **Action:** Always check for target coordinate schemas in simulation helper cloning utilities to skip serialization-based fallback pathways.
+
+## 2028-06-25 - [Optimizing Inventory Operations via Redundant Normalization Removal and Direct Sorting]
+**Learning:** In the `InventoryStore`, calling `normalizePlayerInventoryState` on every `getPlayerInventory` read was a major performance drag because it recreated Maps and repeatedly resorted items, which was entirely redundant since all inventory states are normalized upon write/update. Furthermore, using V8's native `localeCompare` to sort alphanumeric item IDs is incredibly slow because of international locale rules.
+**Action:** Always return a fast shallow-copied clone of already-normalized state structures on read pathways, and replace standard `localeCompare` with direct `<` and `>` lexicographical comparison when sorting stable alphanumeric IDs.
