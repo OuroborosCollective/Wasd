@@ -9,3 +9,7 @@
 ## 2028-02-14 - [Quest Tracker Accessibility]
 **Learning:** Progress bars in objective trackers are often purely visual. Implementing the WAI-ARIA `progressbar` pattern with `aria-valuetext` for percentage-based progress ensures that screen reader users can track mission objectives with the same precision as sighted players.
 **Action:** Always wrap visual progress indicators in Quest or Objective trackers with `role="progressbar"` and provide both raw (`aria-valuenow`) and human-readable (`aria-valuetext`) progress values.
+
+## 2028-02-14 - [RPG Faction Standing Visuals and Accessibility]
+**Learning:** Translating raw faction standing numbers into interactive, color-coded visual progress bars mapping directly to reputation tiers (hostile, neutral, trusted, allied) with theme CSS variables (`--st-ruby`, `--st-gold`, `--st-aether`, `--st-emerald`) elevates standard text displays into high-fidelity RPG components. Wrapping these with WAI-ARIA `role="progressbar"` and appropriate scaled `aria-valuemin`/`max`/`now`/`text` attributes ensures seamless accessibility.
+**Action:** Always map reputation or faction labels to thematic brand colors and include a progress bar with a full WAI-ARIA description of the current standing and scale bounds.

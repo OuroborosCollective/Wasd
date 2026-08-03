@@ -47,21 +47,13 @@
   color: #00ccff;
 }
 
-.storage-header .close-btn {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.storage-header .wow-close-btn {
   border: 1px solid rgba(0, 204, 255, 0.4);
   background: rgba(0, 60, 80, 0.8);
   color: #00ccff;
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: background 0.15s;
 }
 
-.storage-header .close-btn:hover {
+.storage-header .wow-close-btn:hover {
   background: rgba(0, 120, 160, 0.9);
 }
 
