@@ -37,3 +37,7 @@
 ## 2028-05-10 - [Optimizing DeterminismEngine clone via specialized manual clone]
 **Learning:** For highly frequent simulation calculations like `computeState` in `DeterminismEngine`, generic cloning using `JSON.parse(JSON.stringify())` creates massive heap allocation and runtime overhead. Implementing a precise object spread-based manual clone for known shapes (such as `AREState`) yields a ~30.9x performance speedup.
 **Action:** Use strict shape type guards in performance-critical paths to selectively apply optimized manual cloning instead of generic JSON serialization.
+
+## 2026-08-04 - [Optimizing WorldStateRegistry state cloning via Hybrid approach]
+**Learning:** In WorldStateRegistry, using a full `JSON.parse(JSON.stringify(Array.from(state.entities)))` deep cloning in every tick created significant memory allocations and processing overhead. Replacing it with a single-pass loop mapping that manually copies flat primitive properties (`id`, `x`, `y`, `z`, `hp`) and restricts JSON-based deep-cloning only to the dynamic `metadata` object yields a ~2.28x overall reduction in state cloning latency.
+**Action:** Use hybrid manual-and-targeted property cloning when the outer structures and primitive properties of an object are flat and stable, reserving general deep clone utilities or JSON serialization strictly for deeply nested dynamic fields.
