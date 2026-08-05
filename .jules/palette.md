@@ -25,10 +25,6 @@
 **Learning:** Replaced plain, bracketed text shortcut markers (e.g., "[1]") inside generic containers with semantic, dynamically styled `<kbd>` elements. This guarantees assistive technologies correctly announce shortcut keys to screen readers while keeping keyboard visual indicators fully harmonized with hover, active, and selected styles within a brutalist, sharp-cornered design language.
 **Action:** Always wrap interactive button keyboard shortcuts in semantic, themed `<kbd>` tags to maintain accessibility and high contrast visual hierarchy.
 
-## 2026-03-21 - Focusable Dialogue Progression and Key Capture
-**Learning:** Transitioning NPC dialog 'Continue' click handlers from generic divs to semantic, focusable buttons significantly improves accessibility and keyboard discoverability. Using a capture-phase keydown listener on the window specifically prevents keys like 'Space', 'Enter', and 'E' from triggering background/underlying actions, ensuring a clean and focused monologue flow.
-**Action:** Implement dialogue progression using semantic buttons with explicit aria-labels and window-level capture listeners for 'Space', 'Enter', and 'E', while checking activeElement to prevent input field conflicts.
-
-## 2026-03-22 - State-Aware ARIA Attributes and Feedback for Server-Authoritative UI Actions
-**Learning:** Adding explicit ARIA attributes (`aria-label`, `aria-busy`, `aria-live`) and informative alert roles on panels that trigger asynchronous server-authoritative actions significantly improves the experience for assistive technologies. Providing descriptive fallback hints (e.g. explain when player positioning is unavailable via `title` and status text) bridges the gap between client constraints and server operations.
-**Action:** Ensure that all buttons performing server mutations include state-aware `aria-label` and `aria-busy` tags, and explicitly explain any disabled state contexts to the user.
+## 2026-07-27 - Semantic Accessible NPC Dialogue Dialogue Continuation
+**Learning:** NPC Dialogue continuation triggers (like a 'Continue' button) must be fully focusable semantic `<button>` elements with clear keyboard cues (like a `<kbd>SPACE</kbd>` hint) and screen-reader `aria-label`s. Pairing this with a capture-phase keyboard listener (which checks if the user is typing in a textarea/input before intercepting keys) ensures high usability and zero input interference.
+**Action:** Replace any mouse-only or generic `div` onClick interaction prompts with accessible `<button>` triggers accompanied by a safe, input-guarded global capture-phase event listener.
