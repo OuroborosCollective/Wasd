@@ -28,11 +28,13 @@ function canClaimReward(quest: QuestSnapshot): boolean {
 
 export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
   const [claimingQuestId, setClaimingQuestId] = useState<string | null>(null);
+  const [lastInteractedQuestId, setLastInteractedQuestId] = useState<string | null>(null);
   const [claimStatus, setClaimStatus] = useState<string>("");
 
   async function claimReward(questId: string): Promise<void> {
     const playerId = getDefaultGameplayPlayerId();
     setClaimingQuestId(questId);
+    setLastInteractedQuestId(questId);
     setClaimStatus("Claiming reward...");
 
     try {
@@ -100,13 +102,6 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
 
   return (
     <div className="quest-journal-panel" data-testid="quest-panel-live">
-      {claimStatus && (
-        <article className="stitch-info" data-testid="quest-claim-status">
-          <small>Reward</small>
-          <b>{claimStatus}</b>
-        </article>
-      )}
-
       {snapshot.quests.map((quest) => {
         const rewardClaimable = canClaimReward(quest);
         const rewardClaimed = hasRewardClaimed(quest);
@@ -151,11 +146,50 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
                 className="quest-journal-claim-button"
                 data-testid={`quest-claim-${quest.id}`}
                 aria-label={`Claim reward for ${quest.title}`}
+                aria-busy={claimingQuestId === quest.id}
                 disabled={claimingQuestId === quest.id}
                 onClick={() => void claimReward(quest.id)}
               >
                 {claimingQuestId === quest.id ? "Claiming…" : "Claim Reward"}
               </button>
+            )}
+
+            {lastInteractedQuestId === quest.id && claimStatus && (
+              <div
+                role="status"
+                aria-live="polite"
+                data-testid="quest-claim-status"
+                style={{
+                  marginTop: "8px",
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  background: claimStatus.includes("failed") || claimStatus.includes("error")
+                    ? "rgba(224, 86, 86, 0.12)"
+                    : claimStatus.includes("Claiming")
+                    ? "rgba(255, 215, 106, 0.12)"
+                    : "rgba(57, 255, 20, 0.12)",
+                  border: `1px solid ${
+                    claimStatus.includes("failed") || claimStatus.includes("error")
+                      ? "rgba(224, 86, 86, 0.3)"
+                      : claimStatus.includes("Claiming")
+                      ? "rgba(255, 215, 106, 0.3)"
+                      : "rgba(57, 255, 20, 0.3)"
+                  }`,
+                  fontSize: "12px",
+                  color: claimStatus.includes("failed") || claimStatus.includes("error")
+                    ? "#ff4a4a"
+                    : claimStatus.includes("Claiming")
+                    ? "#ffd76a"
+                    : "#39ff14",
+                  fontWeight: "bold",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}
+              >
+                <span>{claimStatus.includes("Claiming") ? "⏳" : claimStatus.includes("failed") || claimStatus.includes("error") ? "❌" : "✅"}</span>
+                <span>{claimStatus}</span>
+              </div>
             )}
           </article>
         );

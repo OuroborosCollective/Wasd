@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { readPlayerPositionBridge } from "../../game/PlayerPositionBridge";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { readPlayerPositionBridge } from '../../game/PlayerPositionBridge';
 
-type EconomyWorkOrderKind = "resource_supply";
+type EconomyWorkOrderKind = 'resource_supply';
 
 type VendorActorEvidence = {
   readonly schemaVersion: 1;
   readonly actorId: string;
-  readonly actorType: "npc";
-  readonly role: "vendor";
-  readonly vendorType: "resource_trader";
+  readonly actorType: 'npc';
+  readonly role: 'vendor';
+  readonly vendorType: 'resource_trader';
   readonly position: { readonly x: number; readonly y: number };
   readonly chunkKey: string;
   readonly definitionHash: string;
@@ -46,42 +46,42 @@ type StoredMutationEvidence = {
 };
 
 type PanelState = {
-  readonly status: "loading" | "ready" | "error";
+  readonly status: 'loading' | 'ready' | 'error';
   readonly refreshing: boolean;
   readonly data: VerifiedWorkOrderResponse | null;
   readonly error: string | null;
-  readonly actionStatus: "idle" | "submitting" | "stored" | "error";
+  readonly actionStatus: 'idle' | 'submitting' | 'stored' | 'error';
   readonly actionError: string | null;
   readonly storedMutation: StoredMutationEvidence | null;
 };
 
-const ECONOMY_MUTATION_EVENT = "are:economy-state-mutated";
-const PANEL_SOURCE = "economy-work-order-panel";
+const ECONOMY_MUTATION_EVENT = 'are:economy-state-mutated';
+const PANEL_SOURCE = 'economy-work-order-panel';
 
 const INITIAL_STATE: PanelState = {
-  status: "loading",
+  status: 'loading',
   refreshing: false,
   data: null,
   error: null,
-  actionStatus: "idle",
+  actionStatus: 'idle',
   actionError: null,
   storedMutation: null,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isSafeTick(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
 function isSafeIdentifier(value: unknown): value is string {
-  return typeof value === "string" && /^[a-zA-Z0-9:_./-]{1,200}$/.test(value);
+  return typeof value === 'string' && /^[a-zA-Z0-9:_./-]{1,200}$/.test(value);
 }
 
 function isHash(value: unknown): value is string {
-  return typeof value === "string" && /^[a-f0-9]{1,128}$/.test(value);
+  return typeof value === 'string' && /^[a-f0-9]{1,128}$/.test(value);
 }
 
 function isTickId(value: unknown): value is number | string {
@@ -89,29 +89,29 @@ function isTickId(value: unknown): value is number | string {
 }
 
 function parseActorEvidence(value: unknown, vendorId: string): VendorActorEvidence {
-  if (!isRecord(value)) throw new Error("missing_vendor_actor_evidence");
+  if (!isRecord(value)) throw new Error('missing_vendor_actor_evidence');
   const position = value.position;
   if (!isRecord(position) || !Number.isFinite(position.x) || !Number.isFinite(position.y)) {
-    throw new Error("invalid_vendor_actor_position");
+    throw new Error('invalid_vendor_actor_position');
   }
   if (
     value.schemaVersion !== 1 ||
     value.actorId !== vendorId ||
-    value.actorType !== "npc" ||
-    value.role !== "vendor" ||
-    value.vendorType !== "resource_trader" ||
+    value.actorType !== 'npc' ||
+    value.role !== 'vendor' ||
+    value.vendorType !== 'resource_trader' ||
     !isSafeIdentifier(value.chunkKey) ||
     !isHash(value.definitionHash)
   ) {
-    throw new Error("invalid_vendor_actor_evidence");
+    throw new Error('invalid_vendor_actor_evidence');
   }
 
   return Object.freeze({
     schemaVersion: 1,
     actorId: vendorId,
-    actorType: "npc",
-    role: "vendor",
-    vendorType: "resource_trader",
+    actorType: 'npc',
+    role: 'vendor',
+    vendorType: 'resource_trader',
     position: Object.freeze({ x: Number(position.x), y: Number(position.y) }),
     chunkKey: value.chunkKey,
     definitionHash: value.definitionHash,
@@ -122,15 +122,15 @@ function parseOrder(
   value: unknown,
   responseTick: number,
   vendorId: string,
-  actor: VendorActorEvidence,
+  actor: VendorActorEvidence
 ): EconomyWorkOrderSnapshot {
-  if (!isRecord(value)) throw new Error("invalid_work_order");
+  if (!isRecord(value)) throw new Error('invalid_work_order');
   if (
     value.schemaVersion !== 1 ||
-    value.kind !== "resource_supply" ||
+    value.kind !== 'resource_supply' ||
     !isSafeIdentifier(value.orderId) ||
     !isSafeIdentifier(value.itemId) ||
-    typeof value.title !== "string" ||
+    typeof value.title !== 'string' ||
     value.title.trim().length === 0 ||
     value.vendorId !== vendorId ||
     value.npcId !== actor.actorId ||
@@ -141,13 +141,13 @@ function parseOrder(
     value.requiredQuantity <= 0 ||
     !isHash(value.stateHash)
   ) {
-    throw new Error("invalid_work_order_evidence");
+    throw new Error('invalid_work_order_evidence');
   }
 
   return Object.freeze({
     schemaVersion: 1,
     orderId: value.orderId,
-    kind: "resource_supply",
+    kind: 'resource_supply',
     npcId: value.npcId,
     npcActorHash: value.npcActorHash,
     vendorId,
@@ -161,12 +161,13 @@ function parseOrder(
 }
 
 export function parseVerifiedWorkOrderResponse(value: unknown): VerifiedWorkOrderResponse {
-  if (!isRecord(value) || value.ok !== true) throw new Error("work_order_runtime_not_ok");
-  if (!isSafeTick(value.tick) || !isTickId(value.tickId)) throw new Error("missing_work_order_tick_evidence");
+  if (!isRecord(value) || value.ok !== true) throw new Error('work_order_runtime_not_ok');
+  if (!isSafeTick(value.tick) || !isTickId(value.tickId))
+    throw new Error('missing_work_order_tick_evidence');
   if (!isSafeIdentifier(value.vendorId) || !isHash(value.revisionHash)) {
-    throw new Error("missing_work_order_revision_evidence");
+    throw new Error('missing_work_order_revision_evidence');
   }
-  if (!Array.isArray(value.orders)) throw new Error("missing_work_order_list_evidence");
+  if (!Array.isArray(value.orders)) throw new Error('missing_work_order_list_evidence');
 
   const actorEvidence = parseActorEvidence(value.actorEvidence, value.vendorId);
   const orders = value.orders
@@ -186,35 +187,41 @@ export function parseVerifiedWorkOrderResponse(value: unknown): VerifiedWorkOrde
 function parseStoredMutationEvidence(
   value: unknown,
   expectedVendorId: string,
-  expectedItemId: string,
+  expectedItemId: string
 ): StoredMutationEvidence {
-  if (!isRecord(value) || value.ok !== true || !isRecord(value.result) || value.result.ok !== true) {
-    const reason = isRecord(value) && isRecord(value.result) && typeof value.result.reason === "string"
-      ? value.result.reason
-      : isRecord(value) && typeof value.error === "string"
-        ? value.error
-        : "supply_not_committed";
+  if (
+    !isRecord(value) ||
+    value.ok !== true ||
+    !isRecord(value.result) ||
+    value.result.ok !== true
+  ) {
+    const reason =
+      isRecord(value) && isRecord(value.result) && typeof value.result.reason === 'string'
+        ? value.result.reason
+        : isRecord(value) && typeof value.error === 'string'
+          ? value.error
+          : 'supply_not_committed';
     throw new Error(reason);
   }
   const canonicalIntent = value.canonicalIntent;
   if (!isRecord(canonicalIntent) || !isRecord(canonicalIntent.payload)) {
-    throw new Error("missing_supply_intent_evidence");
+    throw new Error('missing_supply_intent_evidence');
   }
   if (
-    canonicalIntent.action !== "interact" ||
-    canonicalIntent.payload.interaction !== "sell_resource" ||
+    canonicalIntent.action !== 'interact' ||
+    canonicalIntent.payload.interaction !== 'sell_resource' ||
     canonicalIntent.payload.targetId !== expectedVendorId ||
     canonicalIntent.payload.itemId !== expectedItemId ||
     canonicalIntent.payload.quantity !== 1 ||
     !isSafeTick(canonicalIntent.logicalIndex) ||
-    typeof canonicalIntent.intentHash !== "string" ||
+    typeof canonicalIntent.intentHash !== 'string' ||
     !/^[a-f0-9]{64}$/.test(canonicalIntent.intentHash) ||
     value.result.itemId !== expectedItemId ||
     value.result.quantitySold !== 1 ||
-    value.result.reason !== "sold" ||
+    value.result.reason !== 'sold' ||
     !isHash(value.result.historyHash)
   ) {
-    throw new Error("invalid_supply_commit_evidence");
+    throw new Error('invalid_supply_commit_evidence');
   }
 
   return Object.freeze({
@@ -226,27 +233,28 @@ function parseStoredMutationEvidence(
 }
 
 function itemLabel(itemId: string): string {
-  return itemId.replace(/[_-]/g, " ");
+  return itemId.replace(/[_-]/g, ' ');
 }
 
 async function readJsonResponse(response: Response): Promise<unknown> {
-  const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.includes("application/json")) {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
     throw new Error(`server_returned_non_json_${response.status}`);
   }
   return response.json();
 }
 
 async function fetchServerWorkOrders(signal?: AbortSignal): Promise<VerifiedWorkOrderResponse> {
-  const response = await fetch("/api/economy/work-orders", {
-    cache: "no-store",
+  const response = await fetch('/api/economy/work-orders', {
+    cache: 'no-store',
     signal,
   });
   const payload = await readJsonResponse(response);
   if (!response.ok) {
-    const error = isRecord(payload) && typeof payload.error === "string"
-      ? payload.error
-      : `work_order_fetch_failed_${response.status}`;
+    const error =
+      isRecord(payload) && typeof payload.error === 'string'
+        ? payload.error
+        : `work_order_fetch_failed_${response.status}`;
     throw new Error(error);
   }
   return parseVerifiedWorkOrderResponse(payload);
@@ -259,7 +267,7 @@ export function EconomyWorkOrderPanel() {
   const loadWorkOrders = useCallback(async (signal?: AbortSignal) => {
     setState((current) => ({
       ...current,
-      status: current.data ? current.status : "loading",
+      status: current.data ? current.status : 'loading',
       refreshing: Boolean(current.data),
       error: null,
     }));
@@ -267,19 +275,19 @@ export function EconomyWorkOrderPanel() {
       const data = await fetchServerWorkOrders(signal);
       setState((current) => ({
         ...current,
-        status: "ready",
+        status: 'ready',
         refreshing: false,
         data,
         error: null,
       }));
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
+      if (error instanceof DOMException && error.name === 'AbortError') return;
       setState((current) => ({
         ...current,
-        status: "error",
+        status: 'error',
         refreshing: false,
         data: null,
-        error: error instanceof Error ? error.message : "work_order_fetch_failed",
+        error: error instanceof Error ? error.message : 'work_order_fetch_failed',
       }));
     }
   }, []);
@@ -301,67 +309,77 @@ export function EconomyWorkOrderPanel() {
     };
   }, [loadWorkOrders]);
 
-  const supplyOne = useCallback(async (order: EconomyWorkOrderSnapshot) => {
-    const data = state.data;
-    const position = readPlayerPositionBridge();
-    if (!data || !position) {
-      setState((current) => ({
-        ...current,
-        actionStatus: "error",
-        actionError: "player_position_input_unavailable",
-      }));
-      return;
-    }
-
-    setState((current) => ({
-      ...current,
-      actionStatus: "submitting",
-      actionError: null,
-    }));
-
-    try {
-      const response = await fetch("/api/economy/sell-resource", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          itemId: order.itemId,
-          quantity: 1,
-          vendorId: data.vendorId,
-          playerPosition: position,
-          requestId: `work-order:${order.stateHash}:supply:${data.tick}`,
-        }),
-      });
-      const payload = await readJsonResponse(response);
-      const storedMutation = parseStoredMutationEvidence(payload, data.vendorId, order.itemId);
-      if (!response.ok) throw new Error("supply_not_committed");
+  const supplyOne = useCallback(
+    async (order: EconomyWorkOrderSnapshot) => {
+      const data = state.data;
+      const position = readPlayerPositionBridge();
+      if (!data || !position) {
+        setState((current) => ({
+          ...current,
+          actionStatus: 'error',
+          actionError: 'player_position_input_unavailable',
+        }));
+        return;
+      }
 
       setState((current) => ({
         ...current,
-        actionStatus: "stored",
+        actionStatus: 'submitting',
         actionError: null,
-        storedMutation,
       }));
-      window.dispatchEvent(new CustomEvent(ECONOMY_MUTATION_EVENT, {
-        detail: {
-          source: PANEL_SOURCE,
-          intentHash: storedMutation.intentHash,
-          historyHash: storedMutation.historyHash,
-          tick: storedMutation.tick,
-        },
-      }));
-      await loadWorkOrders();
-    } catch (error) {
-      setState((current) => ({
-        ...current,
-        actionStatus: "error",
-        actionError: error instanceof Error ? error.message : "supply_not_committed",
-      }));
-    }
-  }, [loadWorkOrders, state.data]);
 
-  if (state.status === "loading" && !state.data) {
+      try {
+        const response = await fetch('/api/economy/sell-resource', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            itemId: order.itemId,
+            quantity: 1,
+            vendorId: data.vendorId,
+            playerPosition: position,
+            requestId: `work-order:${order.stateHash}:supply:${data.tick}`,
+          }),
+        });
+        const payload = await readJsonResponse(response);
+        const storedMutation = parseStoredMutationEvidence(payload, data.vendorId, order.itemId);
+        if (!response.ok) throw new Error('supply_not_committed');
+
+        setState((current) => ({
+          ...current,
+          actionStatus: 'stored',
+          actionError: null,
+          storedMutation,
+        }));
+        window.dispatchEvent(
+          new CustomEvent(ECONOMY_MUTATION_EVENT, {
+            detail: {
+              source: PANEL_SOURCE,
+              intentHash: storedMutation.intentHash,
+              historyHash: storedMutation.historyHash,
+              tick: storedMutation.tick,
+            },
+          })
+        );
+        await loadWorkOrders();
+      } catch (error) {
+        setState((current) => ({
+          ...current,
+          actionStatus: 'error',
+          actionError: error instanceof Error ? error.message : 'supply_not_committed',
+        }));
+      }
+    },
+    [loadWorkOrders, state.data]
+  );
+
+  if (state.status === 'loading' && !state.data) {
     return (
-      <div className="stitch-grid-panel" data-testid="economy-work-orders-loading">
+      <div
+        className="stitch-grid-panel"
+        data-testid="economy-work-orders-loading"
+        aria-live="polite"
+        aria-busy="true"
+      >
         <article className="stitch-info">
           <small>NPC Work Orders</small>
           <b>waiting for verified server economy state</b>
@@ -370,14 +388,19 @@ export function EconomyWorkOrderPanel() {
     );
   }
 
-  if (state.status === "error" || !state.data) {
+  if (state.status === 'error' || !state.data) {
     return (
-      <div className="stitch-grid-panel" data-testid="economy-work-orders-error">
+      <div className="stitch-grid-panel" data-testid="economy-work-orders-error" role="alert">
         <article className="stitch-info">
           <small>NPC Work Orders unavailable</small>
-          <b>{state.error ?? "missing_runtime_evidence"}</b>
+          <b>{state.error ?? 'missing_runtime_evidence'}</b>
         </article>
-        <button type="button" className="character-form-button" onClick={() => void loadWorkOrders()}>
+        <button
+          type="button"
+          className="character-form-button"
+          onClick={() => void loadWorkOrders()}
+          aria-label="Retry loading work orders from the server"
+        >
           Retry Server Evidence
         </button>
       </div>
@@ -389,7 +412,12 @@ export function EconomyWorkOrderPanel() {
 
   if (data.orders.length === 0) {
     return (
-      <div className="stitch-grid-panel" data-testid="economy-work-orders-empty">
+      <div
+        className="stitch-grid-panel"
+        data-testid="economy-work-orders-empty"
+        role="region"
+        aria-label="NPC Work Orders"
+      >
         <article className="stitch-info">
           <small>NPC Work Orders</small>
           <b>verified empty at tick {data.tick}</b>
@@ -399,18 +427,37 @@ export function EconomyWorkOrderPanel() {
           <b>{evidenceSummary}</b>
         </article>
         {state.storedMutation && <StoredEvidence evidence={state.storedMutation} />}
-        <button type="button" className="character-form-button" onClick={() => void loadWorkOrders()} disabled={state.refreshing}>
-          {state.refreshing ? "Verifying…" : "Refresh Server Evidence"}
+        <button
+          type="button"
+          className="character-form-button"
+          onClick={() => void loadWorkOrders()}
+          disabled={state.refreshing}
+          aria-label={
+            state.refreshing
+              ? 'Verifying and updating server work orders'
+              : 'Refresh server work orders'
+          }
+          aria-busy={state.refreshing}
+        >
+          {state.refreshing ? 'Verifying…' : 'Refresh Server Evidence'}
         </button>
       </div>
     );
   }
 
   return (
-    <div className="quest-journal-panel" data-testid="economy-work-orders-live">
+    <div
+      className="quest-journal-panel"
+      data-testid="economy-work-orders-live"
+      role="region"
+      aria-label="Verified Server Work Orders"
+    >
       <article className="stitch-info">
         <small>Verified Server Work Orders</small>
-        <b>{data.orders.length} active · tick {data.tick}{state.refreshing ? " · verifying" : ""}</b>
+        <b>
+          {data.orders.length} active · tick {data.tick}
+          {state.refreshing ? ' · verifying' : ''}
+        </b>
       </article>
       <article className="stitch-info">
         <small>Actor / Revision</small>
@@ -420,11 +467,14 @@ export function EconomyWorkOrderPanel() {
       {data.orders.map((order) => (
         <article key={order.orderId} className="quest-journal-card quest-journal-card--active">
           <header>
-            <small>{order.kind} · {order.vendorId}</small>
+            <small>
+              {order.kind} · {order.vendorId}
+            </small>
             <b>{order.title}</b>
           </header>
           <p>
-            {itemLabel(order.itemId)} stock is {order.currentStock}. Server state needs {order.requiredQuantity} more.
+            {itemLabel(order.itemId)} stock is {order.currentStock}. Server state needs{' '}
+            {order.requiredQuantity} more.
           </p>
           <div className="stitch-grid-panel">
             <article className="stitch-info">
@@ -439,25 +489,51 @@ export function EconomyWorkOrderPanel() {
           <button
             type="button"
             className="character-form-button"
-            disabled={!playerPosition || state.actionStatus === "submitting"}
+            disabled={!playerPosition || state.actionStatus === 'submitting'}
             onClick={() => void supplyOne(order)}
+            aria-label={
+              state.actionStatus === 'submitting'
+                ? `Committing supply of ${itemLabel(order.itemId)}`
+                : `Supply 1 ${itemLabel(order.itemId)} to vendor`
+            }
+            aria-busy={state.actionStatus === 'submitting'}
+            title={
+              !playerPosition ? 'Player position is unavailable. Cannot submit supply.' : undefined
+            }
           >
-            {state.actionStatus === "submitting" ? "Committing…" : `Supply 1 ${itemLabel(order.itemId)}`}
+            {state.actionStatus === 'submitting'
+              ? 'Committing…'
+              : `Supply 1 ${itemLabel(order.itemId)}`}
           </button>
-          {!playerPosition && <small>Player position input unavailable; no mutation can be sent.</small>}
+          {!playerPosition && (
+            <small className="are-text-muted" style={{ display: 'block', marginTop: '4px' }}>
+              Player position input unavailable; no mutation can be sent.
+            </small>
+          )}
         </article>
       ))}
 
-      {state.actionStatus === "error" && (
-        <article className="stitch-info" data-testid="economy-work-order-action-error">
+      {state.actionStatus === 'error' && (
+        <article className="stitch-info" data-testid="economy-work-order-action-error" role="alert">
           <small>Supply not committed</small>
-          <b>{state.actionError ?? "unknown_error"}</b>
+          <b>{state.actionError ?? 'unknown_error'}</b>
         </article>
       )}
       {state.storedMutation && <StoredEvidence evidence={state.storedMutation} />}
 
-      <button type="button" className="character-form-button" onClick={() => void loadWorkOrders()} disabled={state.refreshing}>
-        {state.refreshing ? "Verifying…" : "Refresh Server Evidence"}
+      <button
+        type="button"
+        className="character-form-button"
+        onClick={() => void loadWorkOrders()}
+        disabled={state.refreshing}
+        aria-label={
+          state.refreshing
+            ? 'Verifying and updating server work orders'
+            : 'Refresh server work orders'
+        }
+        aria-busy={state.refreshing}
+      >
+        {state.refreshing ? 'Verifying…' : 'Refresh Server Evidence'}
       </button>
     </div>
   );
@@ -467,7 +543,9 @@ function StoredEvidence({ evidence }: { evidence: StoredMutationEvidence }) {
   return (
     <article className="stitch-info" data-testid="economy-work-order-stored-evidence">
       <small>Stored mutation · tick {evidence.tick}</small>
-      <b>intent {evidence.intentHash.slice(0, 10)} · history {evidence.historyHash.slice(0, 10)}</b>
+      <b>
+        intent {evidence.intentHash.slice(0, 10)} · history {evidence.historyHash.slice(0, 10)}
+      </b>
     </article>
   );
 }

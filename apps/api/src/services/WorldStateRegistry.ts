@@ -133,10 +133,25 @@ export class WorldStateRegistry {
     }
   }
 
+  /**
+   * Bolt: Performance Optimization
+   * Replacing slow, full-state serialization with a hybrid clone.
+   * Maps through entities to clone them individually: shallow copies all existing fields using
+   * object spread (`...entity`) and performs a targeted deep clone of `metadata` via JSON serialization
+   * only if defined, preserving its original value (e.g. undefined/null) otherwise.
+   * This handles any future property additions to the Entity interface and prevents state-loss bugs.
+   */
   private cloneState(state: WorldState): WorldState {
+    const clonedEntities = new Map<string, Entity>();
+    for (const [id, entity] of state.entities) {
+      clonedEntities.set(id, {
+        ...entity,
+        metadata: entity.metadata ? JSON.parse(JSON.stringify(entity.metadata)) : entity.metadata,
+      });
+    }
     return {
       tick: state.tick,
-      entities: new Map(JSON.parse(JSON.stringify(Array.from(state.entities)))),
+      entities: clonedEntities,
     };
   }
 }
