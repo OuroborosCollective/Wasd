@@ -28,3 +28,7 @@
 ## 2026-07-27 - Semantic Accessible NPC Dialogue Dialogue Continuation
 **Learning:** NPC Dialogue continuation triggers (like a 'Continue' button) must be fully focusable semantic `<button>` elements with clear keyboard cues (like a `<kbd>SPACE</kbd>` hint) and screen-reader `aria-label`s. Pairing this with a capture-phase keyboard listener (which checks if the user is typing in a textarea/input before intercepting keys) ensures high usability and zero input interference.
 **Action:** Replace any mouse-only or generic `div` onClick interaction prompts with accessible `<button>` triggers accompanied by a safe, input-guarded global capture-phase event listener.
+
+## 2026-08-05 - Stateful Asynchronous Action Disabling and ARIA busy Indicators
+**Learning:** For asynchronous multi-item and individual interactions (like selling resources in an inventory panel), disabling interaction-related actions while an operation is in progress prevents race conditions, multi-submit bugs, and double-clicks. Pairing this disabling state with dynamic text, `aria-busy` indicators, and state-aware `aria-label` / `title` attributes provides clear and accessible feedback to both standard and assistive technology users.
+**Action:** For all async action buttons, track pending operation states to disable clicks and provide dynamic ARIA attributes indicating the ongoing background process.
