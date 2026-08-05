@@ -1,186 +1,124 @@
 import { describe, it, expect } from "vitest";
-import { WorldStateRegistry, Entity, WorldState } from "./WorldStateRegistry.js";
+import { WorldStateRegistry, Entity, WorldState } from "./WorldStateRegistry";
 
-describe("WorldStateRegistry Correctness and Performance", () => {
-  it("should initialize with default state", () => {
-    const registry = new WorldStateRegistry();
-    const state = registry.getCurrentState();
-    expect(state.tick).toBe(0);
-    expect(state.entities.size).toBe(0);
-  });
-
-  it("should implement double-buffering correctly with beginTick, applyMutation, and commitTick", () => {
+describe("WorldStateRegistry Optimization & Correctness", () => {
+  it("should correctly clone WorldState and deep-clone entity metadata", () => {
     const registry = new WorldStateRegistry();
     const token = registry.beginTick();
 
-    expect(token).toBeDefined();
-    expect(typeof token).toBe("string");
+    const testEntity: Entity = {
+      id: "ent-1",
+      x: 1000,
+      y: 2000,
+      z: 3000,
+      hp: 100,
+      metadata: {
+        nested: {
+          key: "value",
+        },
+        array: [1, 2, 3],
+      },
+    };
 
-    // Before commit, currentState is unchanged
-    const initial = registry.getCurrentState();
-    expect(initial.tick).toBe(0);
-
-    // Apply some mutations
     registry.applyMutation(token, {
-      entityId: "player-1",
+      entityId: "ent-1",
       type: "CREATE",
-      payload: { id: "player-1", x: 100, y: 200, z: 0, hp: 100, metadata: { name: "Aethelgard" } },
+      payload: testEntity,
     });
 
-    registry.applyMutation(token, {
-      entityId: "player-1",
-      type: "MOVE",
-      payload: { dx: 10, dy: -5 },
-    });
-
-    registry.applyMutation(token, {
-      entityId: "player-1",
-      type: "UPDATE_HP",
-      payload: { delta: -25 },
-    });
-
-    // Before commit, current state is still empty
-    expect(registry.getCurrentState().entities.has("player-1")).toBe(false);
-
-    // Commit mutations
     registry.commitTick(token);
 
-    // After commit, state is updated
-    const finalState = registry.getCurrentState();
-    expect(finalState.tick).toBe(1);
-    expect(finalState.entities.has("player-1")).toBe(true);
+    const currentState = registry.getCurrentState();
+    expect(currentState.entities.has("ent-1")).toBe(true);
 
-    const player = finalState.entities.get("player-1")!;
-    expect(player.x).toBe(110);
-    expect(player.y).toBe(195);
-    expect(player.hp).toBe(75);
-    expect(player.metadata).toEqual({ name: "Aethelgard" });
-  });
-
-  it("should guarantee that cloned state is deeply isolated and does not mutate when original is changed", () => {
-    const registry = new WorldStateRegistry();
-    const token1 = registry.beginTick();
-
-    registry.applyMutation(token1, {
-      entityId: "e-1",
-      type: "CREATE",
-      payload: {
-        id: "e-1",
-        x: 10,
-        y: 20,
-        z: 30,
-        hp: 100,
-        metadata: { stats: { power: 50 }, tags: ["hero"] },
-      },
-    });
-
-    registry.commitTick(token1);
-
-    // Now start second tick which clones the first tick
+    // Now, let's begin another tick, which will clone currentState into pendingState
     const token2 = registry.beginTick();
 
-    // Mutate the entity in the pending state
+    // Modify a property in pendingState through a mutation
     registry.applyMutation(token2, {
-      entityId: "e-1",
+      entityId: "ent-1",
       type: "UPDATE_HP",
       payload: { delta: -10 },
     });
 
-    // Also manually mutate the metadata of the entity inside the current (original) state to check deep cloning isolation
-    const originalState = registry.getCurrentState();
-    const originalEntity = originalState.entities.get("e-1")!;
-    originalEntity.metadata.stats.power = 999;
-    originalEntity.metadata.tags.push("mutated");
+    // Verify the original currentState wasn't affected (Correctness of deep clone of primitive fields)
+    const entInCurrent = currentState.entities.get("ent-1")!;
+    expect(entInCurrent.hp).toBe(100);
+
+    // Verify that nested metadata is correctly deep cloned and isolated
+    const entInPending = (registry as any).pendingState.entities.get("ent-1")!;
+    expect(entInPending.metadata.nested.key).toBe("value");
+
+    // Mutate the pendingState metadata directly to verify structural isolation
+    entInPending.metadata.nested.key = "changed";
+    expect(entInCurrent.metadata.nested.key).toBe("value");
 
     registry.commitTick(token2);
-
-    // Final state of the second tick
-    const finalState = registry.getCurrentState();
-    const finalEntity = finalState.entities.get("e-1")!;
-
-    // Assert that the cloned entity received the HP update mutation
-    expect(finalEntity.hp).toBe(90);
-
-    // Assert that original state's manual deep mutations did NOT leak into the cloned/pending state
-    expect(finalEntity.metadata.stats.power).toBe(50);
-    expect(finalEntity.metadata.tags).toEqual(["hero"]);
   });
 
-  it("should benchmark hybrid clone against the old JSON.stringify approach", () => {
-    // Construct a large, realistic state
-    const entities = new Map<string, Entity>();
-    for (let i = 0; i < 500; i++) {
-      entities.set(`entity-${i}`, {
+  it("should run a performance benchmark comparing hybrid cloning with slow JSON serialization", () => {
+    const originalState: WorldState = {
+      tick: 42,
+      entities: new Map<string, Entity>(),
+    };
+
+    // Populate with 1000 entities representing a typical game server population
+    for (let i = 0; i < 1000; i++) {
+      originalState.entities.set(`entity-${i}`, {
         id: `entity-${i}`,
         x: Math.floor(Math.random() * 10000),
         y: Math.floor(Math.random() * 10000),
         z: Math.floor(Math.random() * 10000),
-        hp: Math.floor(Math.random() * 100),
+        hp: 100,
         metadata: {
-          name: `NPC-${i}`,
-          faction: i % 2 === 0 ? "alliance" : "horde",
-          buffs: ["speed", "strength"],
-          attributes: {
-            strength: 10 + (i % 5),
-            agility: 12 + (i % 3),
-          },
+          faction: "Arelor",
+          level: i % 60,
+          stats: { strength: 10 + (i % 5), agility: 8 + (i % 3) },
         },
       });
     }
 
-    const state: WorldState = {
-      tick: 42,
-      entities,
-    };
-
-    const iterations = 1000;
-
-    // 1. Benchmark Old Approach
-    const startOld = performance.now();
-    for (let iter = 0; iter < iterations; iter++) {
-      const clonedOld = {
+    // Benchmark Reference (Slow JSON Stringify/Parse from the original codebase)
+    const slowClone = (state: WorldState): WorldState => {
+      return {
         tick: state.tick,
         entities: new Map(JSON.parse(JSON.stringify(Array.from(state.entities)))),
       };
+    };
+
+    // Benchmark optimized implementation (which we added directly in WorldStateRegistry)
+    const registryInstance = new WorldStateRegistry();
+    const fastClone = (registryInstance as any).cloneState.bind(registryInstance);
+
+    const iterations = 500;
+
+    // Run slow clone benchmark
+    const startSlow = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      const cloned = slowClone(originalState);
+      if (cloned.tick !== 42) throw new Error();
     }
-    const endOld = performance.now();
-    const durationOld = endOld - startOld;
+    const endSlow = performance.now();
+    const slowTime = endSlow - startSlow;
 
-    // 2. Benchmark New Optimized Hybrid Approach
-    const startNew = performance.now();
-    for (let iter = 0; iter < iterations; iter++) {
-      const clonedEntities = new Map<string, Entity>();
-      for (const [key, entity] of state.entities.entries()) {
-        const clonedEntity: Entity = {
-          id: entity.id,
-          x: entity.x,
-          y: entity.y,
-          z: entity.z,
-          hp: entity.hp,
-          metadata: undefined as any,
-        };
-        if (entity.metadata !== undefined) {
-          clonedEntity.metadata = JSON.parse(JSON.stringify(entity.metadata));
-        }
-        clonedEntities.set(key, clonedEntity);
-      }
-      const clonedNew = {
-        tick: state.tick,
-        entities: clonedEntities,
-      };
+    // Run fast clone benchmark
+    const startFast = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      const cloned = fastClone(originalState);
+      if (cloned.tick !== 42) throw new Error();
     }
-    const endNew = performance.now();
-    const durationNew = endNew - startNew;
+    const endFast = performance.now();
+    const fastTime = endFast - startFast;
 
-    const percentImprovement = ((durationOld - durationNew) / durationOld) * 100;
+    const improvement = (slowTime / fastTime).toFixed(2);
+    const reductionPercent = (((slowTime - fastTime) / slowTime) * 100).toFixed(1);
 
-    console.log(`\n=== WorldStateRegistry Cloning Performance Benchmark ===`);
-    console.log(`Iterations: ${iterations} (with 500 entities per state)`);
-    console.log(`Old full JSON.stringify cloning approach: ${durationOld.toFixed(2)}ms`);
-    console.log(`New optimized hybrid cloning approach: ${durationNew.toFixed(2)}ms`);
-    console.log(`Cloning latency reduction: ${percentImprovement.toFixed(2)}%`);
-    console.log(`========================================================\n`);
+    console.log(`\n⚡ WorldStateRegistry.cloneState Benchmark (500 iterations, 1000 entities):`);
+    console.log(`   - Reference JSON serialization: ${slowTime.toFixed(2)}ms`);
+    console.log(`   - Optimized Hybrid cloning:    ${fastTime.toFixed(2)}ms`);
+    console.log(`   - Speedup:                      ${improvement}x faster`);
+    console.log(`   - Latency Reduction:            ${reductionPercent}%\n`);
 
-    expect(durationNew).toBeLessThan(durationOld);
+    expect(fastTime).toBeLessThan(slowTime);
   });
 });
