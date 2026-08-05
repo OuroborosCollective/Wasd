@@ -9,6 +9,7 @@ import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
 import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { financeRouter } from "../api/financeRoute.js";
 import { createManifestResyncRouter } from "../api/manifestResyncRoute.js";
+import { voteRouter } from "../api/voteRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -155,6 +156,38 @@ describe("Sentinel Endpoint Protection", () => {
         .set("X-Admin-Token", "secret");
       expect(r2.status).toBe(200);
       expect(r2.body.lastStateHash).toBe("hash123");
+    });
+  });
+
+  describe("/api/vote admin routes", () => {
+    it("admin/banners and admin/diagnostics are protected by adminAuthMiddleware", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      const app = express();
+      const mockTick = {
+        getAdminVoteBanners: () => [],
+        getVoteAdminDiagnostics: () => ({ status: "good" }),
+      } as any;
+      app.use("/api/vote", voteRouter(mockTick));
+
+      // 1. Get banners without token -> 401
+      const r1 = await request(app).get("/api/vote/admin/banners");
+      expect(r1.status).toBe(401);
+
+      // 2. Get banners with correct token -> 200
+      const r2 = await request(app)
+        .get("/api/vote/admin/banners")
+        .set("X-Admin-Token", "secret");
+      expect(r2.status).toBe(200);
+
+      // 3. Get diagnostics without token -> 401
+      const r3 = await request(app).get("/api/vote/admin/diagnostics");
+      expect(r3.status).toBe(401);
+
+      // 4. Get diagnostics with correct token -> 200
+      const r4 = await request(app)
+        .get("/api/vote/admin/diagnostics")
+        .set("X-Admin-Token", "secret");
+      expect(r4.status).toBe(200);
     });
   });
 });

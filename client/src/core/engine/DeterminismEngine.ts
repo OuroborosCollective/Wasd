@@ -88,30 +88,26 @@ export class DeterminismEngine {
 
     private isAREState(obj: any): obj is AREState {
         return (
-            obj &&
+            obj !== null &&
             typeof obj === "object" &&
-            "position" in obj &&
-            "velocity" in obj &&
-            "acceleration" in obj
+            typeof obj.tick === "number" &&
+            typeof obj.checksum === "string" &&
+            obj.position !== undefined &&
+            obj.velocity !== undefined &&
+            obj.acceleration !== undefined
         );
     }
 
-    /**
-     * Clones the given object. Uses a high-performance manual clone path for AREState
-     * to avoid the significant overhead of JSON.parse(JSON.stringify(obj)), while
-     * falling back to JSON serialization for generic objects to preserve type safety.
-     */
     private clone<T>(obj: T): T {
+        // Bolt: Optimize with manual fast spread cloning path for AREState to bypass slow JSON.parse/stringify
         if (this.isAREState(obj)) {
-            const state = obj as AREState;
-            const cloned: AREState = {
-                position: { ...state.position },
-                velocity: { ...state.velocity },
-                acceleration: { ...state.acceleration },
-                tick: state.tick,
-                checksum: state.checksum
-            };
-            return cloned as unknown as T;
+            return {
+                position: { ...obj.position },
+                velocity: { ...obj.velocity },
+                acceleration: { ...obj.acceleration },
+                tick: obj.tick,
+                checksum: obj.checksum,
+            } as unknown as T;
         }
         return JSON.parse(JSON.stringify(obj));
     }
