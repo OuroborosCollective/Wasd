@@ -228,6 +228,13 @@ function InventorySlot({ index, item, isBlocked, onEquip, onMove, onDrop }: Inve
     onEquip?.(index);
   }, [isBlocked, item, index, onEquip]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleClick();
+    }
+  }, [handleClick]);
+
   const classNames = [
     "wow-slot",
     item ? "has-item" : "empty",
@@ -242,6 +249,7 @@ function InventorySlot({ index, item, isBlocked, onEquip, onMove, onDrop }: Inve
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       role="button"
       aria-label={item ? `Slot ${index + 1}: ${item.name}` : `Slot ${index + 1}: Empty`}
       tabIndex={0}
@@ -301,6 +309,13 @@ function EquipSlotDisplay({ slot, item, isBlocked, onUnequip }: EquipSlotDisplay
     onUnequip?.(slot);
   }, [isBlocked, item, slot, onUnequip]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleClick();
+    }
+  }, [handleClick]);
+
   const classNames = [
     "wow-equip-slot",
     item ? "has-item" : "empty",
@@ -315,6 +330,7 @@ function EquipSlotDisplay({ slot, item, isBlocked, onUnequip }: EquipSlotDisplay
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       role="button"
       aria-label={item ? `${EQUIP_SLOT_LABELS[slot]}: ${item.name}` : `${EQUIP_SLOT_LABELS[slot]}: Empty`}
       tabIndex={0}
