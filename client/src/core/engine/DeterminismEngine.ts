@@ -86,19 +86,28 @@ export class DeterminismEngine {
         return hash.toString(16);
     }
 
+    private isAREState(obj: any): obj is AREState {
+        return (
+            obj !== null &&
+            typeof obj === "object" &&
+            typeof obj.tick === "number" &&
+            typeof obj.checksum === "string" &&
+            obj.position !== undefined &&
+            obj.velocity !== undefined &&
+            obj.acceleration !== undefined
+        );
+    }
+
     private clone<T>(obj: T): T {
-        if (obj && typeof obj === "object") {
-            if ("position" in obj && "velocity" in obj && "acceleration" in obj) {
-                const state = obj as unknown as AREState;
-                const cloned: AREState = {
-                    position: { x: state.position.x, y: state.position.y, z: state.position.z },
-                    velocity: { x: state.velocity.x, y: state.velocity.y, z: state.velocity.z },
-                    acceleration: { x: state.acceleration.x, y: state.acceleration.y, z: state.acceleration.z },
-                    tick: state.tick,
-                    checksum: state.checksum
-                };
-                return cloned as unknown as T;
-            }
+        // Bolt: Optimize with manual fast spread cloning path for AREState to bypass slow JSON.parse/stringify
+        if (this.isAREState(obj)) {
+            return {
+                position: { ...obj.position },
+                velocity: { ...obj.velocity },
+                acceleration: { ...obj.acceleration },
+                tick: obj.tick,
+                checksum: obj.checksum,
+            } as unknown as T;
         }
         return JSON.parse(JSON.stringify(obj));
     }
