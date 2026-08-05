@@ -10,7 +10,7 @@ import {
   getEntryById,
   getStatusCounts,
   type UiRuntimeStatus,
-} from "../src/ui/uiRuntimeManifest";
+} from "./uiRuntimeManifest";
 
 describe("uiRuntimeManifest", () => {
   describe("structural integrity", () => {
