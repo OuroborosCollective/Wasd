@@ -82,6 +82,9 @@ export class PersistenceManager {
   private lastError: string | null = null;
   private lastHash: string | null = null;
   private lastSuccessfulSaveAt: number | null = null;
+  private lastConnectionCheck: boolean | null = null;
+  private lastConnectionCheckAt = 0;
+  private lastErrorFromConnection = false;
 
   constructor(
     backend: IPersistenceBackend = createPersistenceBackend(),
@@ -120,13 +123,30 @@ export class PersistenceManager {
   }
 
   public async testConnection(): Promise<boolean> {
+    const now = Date.now(); // @ARE-DETERMINISM-ALLOW connection cache
+    const isTest = process.env.NODE_ENV === "test";
+    if (!isTest && this.lastConnectionCheck !== null && now - this.lastConnectionCheckAt < 5000) {
+      return this.lastConnectionCheck;
+    }
+
     try {
       await this.ensureInitialized();
       const ok = await this.withTimeout(this.backend.testConnection(), "testConnection");
-      this.lastError = ok ? null : "Connection test returned false";
+      this.lastConnectionCheck = ok;
+      this.lastConnectionCheckAt = now;
+      if (!ok) {
+        this.lastError = "Connection test returned false";
+        this.lastErrorFromConnection = true;
+      } else if (this.lastErrorFromConnection) {
+        this.lastError = null;
+        this.lastErrorFromConnection = false;
+      }
       return ok;
     } catch (error) {
       this.lastError = this.stringifyError(error);
+      this.lastErrorFromConnection = true;
+      this.lastConnectionCheck = false;
+      this.lastConnectionCheckAt = now;
       return false;
     }
   }
@@ -271,6 +291,7 @@ export class PersistenceManager {
   public persistWorldObjectsAsync<T extends Record<string, unknown>>(objects: readonly T[], logicalIndex: number): void {
     void this.saveWorldObjects(objects, logicalIndex).catch((error) => {
       this.lastError = this.stringifyError(error);
+      this.lastErrorFromConnection = false;
     });
   }
 
@@ -286,6 +307,9 @@ export class PersistenceManager {
     this.lastError = null;
     this.lastHash = null;
     this.lastSuccessfulSaveAt = null;
+    this.lastConnectionCheck = null;
+    this.lastConnectionCheckAt = 0;
+    this.lastErrorFromConnection = false;
   }
 
   private async ensureInitialized(): Promise<void> {
@@ -312,10 +336,12 @@ export class PersistenceManager {
       try {
         const result = await fn();
         this.lastError = null;
+        this.lastErrorFromConnection = false;
         return result;
       } catch (error) {
         lastCaught = error;
         this.lastError = this.stringifyError(error);
+        this.lastErrorFromConnection = false;
         if (attempt < this.maxRetries) await this.sleep(PersistenceManager.retryDelayMs(attempt));
       }
     }
