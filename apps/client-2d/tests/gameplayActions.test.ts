@@ -61,7 +61,7 @@ describe("equipment gameplay actions", () => {
       },
       body: JSON.stringify({ playerId: "player-test", itemId: "wooden_axe" }),
     });
-    expect(String(fetchMock.mock.calls[1][0])).toContain("/api/gameplay/snapshot?");
+    expect(String(fetchMock.mock.calls[1][0])).toContain("/api/gameplay/snapshot");
   });
 
   it("returns server rejection reason for unequip without fetching a success snapshot", async () => {

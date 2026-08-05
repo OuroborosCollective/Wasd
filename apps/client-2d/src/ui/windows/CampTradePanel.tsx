@@ -18,7 +18,7 @@
  * - After buy, refetches snapshot to update inventory, wallet, and camp stock
  */
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import type { CampStockSnapshot, CampNpcSnapshot } from "../../game/liveGameplaySnapshot";
 import { dispatchBuyCampStock } from "../../game/gameplayActions";
 import { useLiveGameplaySnapshot } from "../../game/useLiveGameplaySnapshot";
@@ -101,6 +101,18 @@ export function CampTradePanel({ npc, campStock, onClose }: CampTradePanelProps)
   const [buying, setBuying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
 
   const sellItemId = NPC_SELL_ITEM[npc.type] ?? "";
   const stockItem = campStock?.items.find((i) => i.itemId === sellItemId);
@@ -226,9 +238,22 @@ export function CampTradePanel({ npc, campStock, onClose }: CampTradePanelProps)
                 cursor: "pointer",
                 fontSize: "20px",
                 padding: "4px 8px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
               }}
-              aria-label="Close"
+              aria-label="Close [ESC]"
+              aria-keyshortcuts="Escape"
             >
+              <kbd className="cz-kbd" aria-hidden="true" style={{
+                background: "rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                borderRadius: "3px",
+                padding: "2px 6px",
+                fontSize: "10px",
+                fontFamily: "monospace",
+                color: COLORS.onSurfaceVariant,
+              }}>ESC</kbd>
               ✕
             </button>
           )}
@@ -434,27 +459,41 @@ export function CampTradePanel({ npc, campStock, onClose }: CampTradePanelProps)
           </div>
 
           {/* Buy Button - Hexagonal */}
-          <button
-            data-testid="camp-trade-buy-button"
-            onClick={handleBuy}
-            disabled={!hasStock || !canAfford || buying}
-            style={{
-              padding: "12px 24px",
-              background: hasStock && canAfford ? COLORS.energyAmber : COLORS.surfaceContainerHighest,
-              color: hasStock && canAfford ? "#2f1500" : COLORS.outline,
-              border: `2px solid ${hasStock && canAfford ? accent.primary : "transparent"}33`,
-              fontFamily: "'Epilogue', sans-serif",
-              fontSize: "14px",
-              fontWeight: 600,
-              clipPath: "polygon(15% 0%, 85% 0%, 100% 50%, 85% 100%, 15% 100%, 0% 50%)",
-              cursor: hasStock && canAfford && !buying ? "pointer" : "not-allowed",
-              transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-              boxShadow: hasStock && canAfford ? `0 0 20px ${COLORS.energyAmber}66` : "none",
-              opacity: buying ? 0.7 : 1,
-            }}
-          >
-            {buying ? "..." : "BUY"}
-          </button>
+          {(() => {
+            const getDisabledReason = () => {
+              if (buying) return "Purchase in progress";
+              if (!hasStock) return "Camp stock is empty";
+              if (!canAfford) return "Not enough coins";
+              return undefined;
+            };
+            const disabledReason = getDisabledReason();
+            return (
+              <button
+                data-testid="camp-trade-buy-button"
+                onClick={handleBuy}
+                disabled={!hasStock || !canAfford || buying}
+                aria-busy={buying}
+                aria-label={disabledReason ? `Buy disabled: ${disabledReason}` : `Buy 1 ${itemName} for ${buyPrice} coins`}
+                title={disabledReason}
+                style={{
+                  padding: "12px 24px",
+                  background: hasStock && canAfford ? COLORS.energyAmber : COLORS.surfaceContainerHighest,
+                  color: hasStock && canAfford ? "#2f1500" : COLORS.outline,
+                  border: `2px solid ${hasStock && canAfford ? accent.primary : "transparent"}33`,
+                  fontFamily: "'Epilogue', sans-serif",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  clipPath: "polygon(15% 0%, 85% 0%, 100% 50%, 85% 100%, 15% 100%, 0% 50%)",
+                  cursor: hasStock && canAfford && !buying ? "pointer" : "not-allowed",
+                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  boxShadow: hasStock && canAfford ? `0 0 20px ${COLORS.energyAmber}66` : "none",
+                  opacity: buying ? 0.7 : 1,
+                }}
+              >
+                {buying ? "BUYING..." : "BUY"}
+              </button>
+            );
+          })()}
         </div>
 
         {/* Status Text */}

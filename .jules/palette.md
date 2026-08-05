@@ -28,3 +28,7 @@
 ## 2026-07-27 - Semantic Accessible NPC Dialogue Dialogue Continuation
 **Learning:** NPC Dialogue continuation triggers (like a 'Continue' button) must be fully focusable semantic `<button>` elements with clear keyboard cues (like a `<kbd>SPACE</kbd>` hint) and screen-reader `aria-label`s. Pairing this with a capture-phase keyboard listener (which checks if the user is typing in a textarea/input before intercepting keys) ensures high usability and zero input interference.
 **Action:** Replace any mouse-only or generic `div` onClick interaction prompts with accessible `<button>` triggers accompanied by a safe, input-guarded global capture-phase event listener.
+
+## 2026-03-21 - Accessible Diamond Glass Action Triggers and Escape Close Hook
+**Learning:** For interactive overlay panels, adding an automatic `keydown` listener on mount to intercept 'Escape' ensures power-users can quickly dismiss overlays. Furthermore, buttons like BUY must have explicit `aria-busy` states and dynamic `title` tooltips detailing disabled reasons (like "Not enough coins") rather than silent disablement, turning confusing mouse blockades into helpful visual and screen-reader guidance.
+**Action:** Always map overlay close buttons with an ESC key listener, and provide descriptive, dynamically calculated title and aria-label attributes for complex action buttons.
