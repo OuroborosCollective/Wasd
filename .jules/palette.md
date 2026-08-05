@@ -32,3 +32,7 @@
 ## 2026-03-21 - Accessible Diamond Glass Action Triggers and Escape Close Hook
 **Learning:** For interactive overlay panels, adding an automatic `keydown` listener on mount to intercept 'Escape' ensures power-users can quickly dismiss overlays. Furthermore, buttons like BUY must have explicit `aria-busy` states and dynamic `title` tooltips detailing disabled reasons (like "Not enough coins") rather than silent disablement, turning confusing mouse blockades into helpful visual and screen-reader guidance.
 **Action:** Always map overlay close buttons with an ESC key listener, and provide descriptive, dynamically calculated title and aria-label attributes for complex action buttons.
+
+## 2026-08-05 - Synchronizing Keyboard Listeners with Window Header Close Prompts
+**Learning:** Displaying stylized ESC close indicators on standard gameplay windows (like Character, Inventory, and Quests) without implementing an active global ESC keydown listener to clear those open windows violates the UX principle of "what you see is what you can press". Synchronizing these indicators with a safe, input-guarded keydown event handler ensures consistency and avoids frustrating keyboard-centric users.
+**Action:** When standard UI windows/overlays include visual close hints like ESC, ensure there is an active keydown event listener in the state hook or manager component to fulfill that promise.
