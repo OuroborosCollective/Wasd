@@ -17,7 +17,7 @@
  * - After unequip, refetches snapshot to update inventory and equipment
  */
 
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import type {
   PlayerInventorySnapshot,
   PlayerEquipmentSnapshot,
@@ -101,6 +101,9 @@ const DEFAULT_SELL_PRICES: Record<string, number> = {
 const VENDOR_ID = "village_trader_001";
 
 export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, equipmentStats }: Props) {
+  const [sellingItemId, setSellingItemId] = useState<string | null>(null);
+  const [isSellingAll, setIsSellingAll] = useState<boolean>(false);
+
   const slots = inventory?.slots ?? [];
   const equipped = equipment?.slots ?? [];
   const tools = slots.filter((slot) => GATHERING_TOOL_IDS.has(slot.itemId));
@@ -229,34 +232,39 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
 
   const handleSell = useCallback(
     async (itemId: string, quantity: number) => {
-      const result = await dispatchSellResource({ itemId, quantity });
+      setSellingItemId(itemId);
+      try {
+        const result = await dispatchSellResource({ itemId, quantity });
 
-      if (result.ok && result.result) {
-        const price = getEffectivePrice(itemId);
-        window.dispatchEvent(
-          new CustomEvent("wasd:toast", {
-            detail: {
-              type: "success",
-              message: `Sold ${quantity} for ${result.result.totalCoins} coins`,
-            },
-          }),
-        );
-      } else {
-        // Provide user-friendly error message for vendor proximity issues
-        let errorMessage = result.error ?? "Sell failed";
-        if (result.error === "vendor_too_far") {
-          errorMessage = "Return to village trader to sell resources";
-        } else if (result.error === "missing_player_position") {
-          errorMessage = "Cannot determine position - try moving slightly";
+        if (result.ok && result.result) {
+          const price = getEffectivePrice(itemId);
+          window.dispatchEvent(
+            new CustomEvent("wasd:toast", {
+              detail: {
+                type: "success",
+                message: `Sold ${quantity} for ${result.result.totalCoins} coins`,
+              },
+            }),
+          );
+        } else {
+          // Provide user-friendly error message for vendor proximity issues
+          let errorMessage = result.error ?? "Sell failed";
+          if (result.error === "vendor_too_far") {
+            errorMessage = "Return to village trader to sell resources";
+          } else if (result.error === "missing_player_position") {
+            errorMessage = "Cannot determine position - try moving slightly";
+          }
+          window.dispatchEvent(
+            new CustomEvent("wasd:toast", {
+              detail: {
+                type: "error",
+                message: errorMessage,
+              },
+            }),
+          );
         }
-        window.dispatchEvent(
-          new CustomEvent("wasd:toast", {
-            detail: {
-              type: "error",
-              message: errorMessage,
-            },
-          }),
-        );
+      } finally {
+        setSellingItemId(null);
       }
     },
     [getEffectivePrice],
@@ -264,33 +272,38 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
 
   const handleSellAll = useCallback(
     async () => {
-      const result = await dispatchSellAllResources();
+      setIsSellingAll(true);
+      try {
+        const result = await dispatchSellAllResources();
 
-      if (result.ok && result.result) {
-        window.dispatchEvent(
-          new CustomEvent("wasd:toast", {
-            detail: {
-              type: "success",
-              message: `Sold all resources for ${result.result.totalCoins} coins`,
-            },
-          }),
-        );
-      } else {
-        // Provide user-friendly error message for vendor proximity issues
-        let errorMessage = result.error ?? "Nothing to sell";
-        if (result.error === "vendor_too_far") {
-          errorMessage = "Return to village trader to sell resources";
-        } else if (result.error === "missing_player_position") {
-          errorMessage = "Cannot determine position - try moving slightly";
+        if (result.ok && result.result) {
+          window.dispatchEvent(
+            new CustomEvent("wasd:toast", {
+              detail: {
+                type: "success",
+                message: `Sold all resources for ${result.result.totalCoins} coins`,
+              },
+            }),
+          );
+        } else {
+          // Provide user-friendly error message for vendor proximity issues
+          let errorMessage = result.error ?? "Nothing to sell";
+          if (result.error === "vendor_too_far") {
+            errorMessage = "Return to village trader to sell resources";
+          } else if (result.error === "missing_player_position") {
+            errorMessage = "Cannot determine position - try moving slightly";
+          }
+          window.dispatchEvent(
+            new CustomEvent("wasd:toast", {
+              detail: {
+                type: "error",
+                message: errorMessage,
+              },
+            }),
+          );
         }
-        window.dispatchEvent(
-          new CustomEvent("wasd:toast", {
-            detail: {
-              type: "error",
-              message: errorMessage,
-            },
-          }),
-        );
+      } finally {
+        setIsSellingAll(false);
       }
     },
     [],
@@ -436,10 +449,12 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
           className="sell-all-button"
           onClick={handleSellAll}
           data-testid="sell-all-resources-button"
-          title="Sell all collectable resources in inventory"
-          aria-label="Sell all collectable resources in inventory"
+          title={isSellingAll ? "Selling resources..." : "Sell all collectable resources in inventory"}
+          aria-label={isSellingAll ? "Selling resources..." : "Sell all collectable resources in inventory"}
+          disabled={isSellingAll || sellingItemId !== null}
+          aria-busy={isSellingAll}
         >
-          Sell All Resources
+          {isSellingAll ? "Selling..." : "Sell All Resources"}
         </button>
       )}
 
@@ -480,10 +495,12 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
                   className="sell-button"
                   onClick={() => handleSell(slot.itemId, slot.quantity)}
                   data-testid={`vendor-sell-${slot.itemId}`}
-                  title={`Sell ${slot.name} for ${totalValue} coins`}
-                  aria-label={`Sell ${slot.name} for ${totalValue} coins`}
+                  title={sellingItemId === slot.itemId ? `Selling ${slot.name}...` : `Sell ${slot.name} for ${totalValue} coins`}
+                  aria-label={sellingItemId === slot.itemId ? `Selling ${slot.name}...` : `Sell ${slot.name} for ${totalValue} coins`}
+                  disabled={isSellingAll || sellingItemId !== null}
+                  aria-busy={sellingItemId === slot.itemId}
                 >
-                  SELL {totalValue}c
+                  {sellingItemId === slot.itemId ? "SELLING..." : `SELL ${totalValue}c`}
                 </button>
               )}
             </article>
