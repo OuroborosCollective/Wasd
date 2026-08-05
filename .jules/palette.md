@@ -21,6 +21,10 @@
 **Learning:** Gameplay windows that lack a visible close button frustrate mouse-centric users, even if keyboard shortcuts exist. Standardizing the close button with a visual `<kbd>ESC</kbd>` hint and `aria-keyshortcuts` provides a consistent "way out" across all UI modules.
 **Action:** Implement a unified `WindowFrame` header pattern that includes a standardized `.gameplay-window__close` button with integrated keyboard hints for all gameplay panels.
 
-## 2025-10-14 - Semantic Keyboard Shortcuts in Brutalist Diamond-Glass Menus
-**Learning:** Refactoring raw, non-semantic shortcut labels into custom-styled `<kbd>` components significantly enhances document accessibility and readability for screen readers while retaining high-fidelity visual styling. Dynamic styling of key-caps according to element-level colors maintains theme integrity in highly stylized brutalist/diamond-glass overlays.
-**Action:** Always replace generic shortcut text wrappers with accessible semantic `<kbd>` tags, explicitly hiding purely decorative parent characters/borders and utilizing responsive flex layouts to prevent layout clipping.
+## 2026-03-20 - Semantic Keyboard Shortcut Indicators for Dialog Options
+**Learning:** Replaced plain, bracketed text shortcut markers (e.g., "[1]") inside generic containers with semantic, dynamically styled `<kbd>` elements. This guarantees assistive technologies correctly announce shortcut keys to screen readers while keeping keyboard visual indicators fully harmonized with hover, active, and selected styles within a brutalist, sharp-cornered design language.
+**Action:** Always wrap interactive button keyboard shortcuts in semantic, themed `<kbd>` tags to maintain accessibility and high contrast visual hierarchy.
+
+## 2026-07-27 - Semantic Accessible NPC Dialogue Dialogue Continuation
+**Learning:** NPC Dialogue continuation triggers (like a 'Continue' button) must be fully focusable semantic `<button>` elements with clear keyboard cues (like a `<kbd>SPACE</kbd>` hint) and screen-reader `aria-label`s. Pairing this with a capture-phase keyboard listener (which checks if the user is typing in a textarea/input before intercepting keys) ensures high usability and zero input interference.
+**Action:** Replace any mouse-only or generic `div` onClick interaction prompts with accessible `<button>` triggers accompanied by a safe, input-guarded global capture-phase event listener.
