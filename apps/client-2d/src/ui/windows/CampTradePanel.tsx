@@ -113,6 +113,18 @@ export function CampTradePanel({ npc, campStock, onClose }: CampTradePanelProps)
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
   const sellItemId = NPC_SELL_ITEM[npc.type] ?? "";
   const stockItem = campStock?.items.find((i) => i.itemId === sellItemId);
   const hasStock = stockItem && stockItem.quantity > 0 && stockItem.buyPrice != null;
