@@ -18,7 +18,7 @@
  * - After buy, refetches snapshot to update inventory, wallet, and camp stock
  */
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import type { CampStockSnapshot, CampNpcSnapshot } from "../../game/liveGameplaySnapshot";
 import { dispatchBuyCampStock } from "../../game/gameplayActions";
 import { useLiveGameplaySnapshot } from "../../game/useLiveGameplaySnapshot";
@@ -99,6 +99,17 @@ const diamondGlassStyle: React.CSSProperties = {
 export function CampTradePanel({ npc, campStock, onClose }: CampTradePanelProps) {
   const snapshot = useLiveGameplaySnapshot();
   const [buying, setBuying] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && onClose) {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
 
@@ -219,16 +230,22 @@ export function CampTradePanel({ npc, campStock, onClose }: CampTradePanelProps)
             <button
               data-testid="camp-trade-close"
               onClick={onClose}
+              className="wow-close-btn"
               style={{
                 background: "transparent",
                 border: "none",
                 color: COLORS.onSurfaceVariant,
                 cursor: "pointer",
-                fontSize: "20px",
+                fontSize: "14px",
                 padding: "4px 8px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
               }}
-              aria-label="Close"
+              aria-label="Close [ESC]"
+              aria-keyshortcuts="Escape"
             >
+              <kbd className="cz-kbd" aria-hidden="true" style={{ fontSize: "10px", pointerEvents: "none" }}>ESC</kbd>
               ✕
             </button>
           )}
@@ -438,6 +455,17 @@ export function CampTradePanel({ npc, campStock, onClose }: CampTradePanelProps)
             data-testid="camp-trade-buy-button"
             onClick={handleBuy}
             disabled={!hasStock || !canAfford || buying}
+            aria-label={buying ? "Processing purchase" : `Buy 1 ${itemName} for ${buyPrice} coins`}
+            aria-busy={buying}
+            title={
+              buying
+                ? "Processing purchase..."
+                : !hasStock
+                ? "Camp stock empty"
+                : !canAfford
+                ? "Not enough coins (insufficient balance)"
+                : `Buy 1 ${itemName} for ${buyPrice} coins`
+            }
             style={{
               padding: "12px 24px",
               background: hasStock && canAfford ? COLORS.energyAmber : COLORS.surfaceContainerHighest,
