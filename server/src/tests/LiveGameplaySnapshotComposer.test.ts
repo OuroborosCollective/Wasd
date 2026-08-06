@@ -250,4 +250,40 @@ describe("LiveGameplaySnapshotComposer", () => {
 
     expect(replay).toEqual(first);
   });
+
+  it("benchmarks direct string comparison against localeCompare", async () => {
+    const items = Array.from({ length: 100 }, (_, i) => ({
+      itemId: `item_${Math.floor(Math.sin(i) * 1000)}`,
+      quantity: i,
+    }));
+
+    // Warmup
+    const warmData = [...items];
+    warmData.sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0));
+
+    const iterations = 50000;
+
+    const startDirect = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      const copy = [...items];
+      copy.sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0));
+    }
+    const endDirect = performance.now();
+    const directTime = endDirect - startDirect;
+
+    const startLocale = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      const copy = [...items];
+      copy.sort((a, b) => a.itemId.localeCompare(b.itemId));
+    }
+    const endLocale = performance.now();
+    const localeTime = endLocale - startLocale;
+
+    console.log(`\n=== LiveGameplaySnapshotComposer Sort Benchmark (50,000 iterations) ===`);
+    console.log(`Direct String comparison (<, >): ${directTime.toFixed(2)}ms`);
+    console.log(`localeCompare string comparison: ${localeTime.toFixed(2)}ms`);
+    console.log(`Speedup factor: ${(localeTime / directTime).toFixed(2)}x\n`);
+
+    expect(directTime).toBeLessThan(localeTime);
+  });
 });
