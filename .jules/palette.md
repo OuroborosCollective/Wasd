@@ -32,3 +32,7 @@
 ## 2026-03-21 - Accessible Diamond Glass Action Triggers and Escape Close Hook
 **Learning:** For interactive overlay panels, adding an automatic `keydown` listener on mount to intercept 'Escape' ensures power-users can quickly dismiss overlays. Furthermore, buttons like BUY must have explicit `aria-busy` states and dynamic `title` tooltips detailing disabled reasons (like "Not enough coins") rather than silent disablement, turning confusing mouse blockades into helpful visual and screen-reader guidance.
 **Action:** Always map overlay close buttons with an ESC key listener, and provide descriptive, dynamically calculated title and aria-label attributes for complex action buttons.
+
+## 2028-02-17 - Accessible Toast System Alerts
+**Learning:** System toasts and notifications must have proper ARIA containers and individual item roles (`role="log"`, `role="status"`, `role="alert"`) along with matched `aria-live` levels to guarantee that the messages are immediately and correctly announced to screen-reader users.
+**Action:** Standardize HUD notification stacks with explicit container and item roles so system logs and urgent warning/error alerts are fully audible.

@@ -27,6 +27,9 @@ function colorForSeverity(severity: ClientToast["severity"]): string {
 export function ToastStack({ toasts }: Props) {
   return (
     <div
+      role="log"
+      aria-live="polite"
+      aria-label="System notifications"
       style={{
         position: "fixed",
         right: 12,
@@ -38,23 +41,28 @@ export function ToastStack({ toasts }: Props) {
         pointerEvents: "none"
       }}
     >
-      {toasts.map((toast) => (
-        <div
-          key={toast.id}
-          style={{
-            padding: "10px 12px",
-            borderRadius: 14,
-            border: "1px solid rgba(255,255,255,.12)",
-            background: colorForSeverity(toast.severity),
-            color: "#f5f7ff",
-            font: "13px/1.4 system-ui, sans-serif",
-            backdropFilter: "blur(10px)",
-            boxShadow: "0 10px 30px rgba(0,0,0,.28)"
-          }}
-        >
-          {toast.message}
-        </div>
-      ))}
+      {toasts.map((toast) => {
+        const isError = toast.severity === "error";
+        return (
+          <div
+            key={toast.id}
+            role={isError ? "alert" : "status"}
+            aria-live={isError ? "assertive" : "polite"}
+            style={{
+              padding: "10px 12px",
+              borderRadius: 14,
+              border: "1px solid rgba(255,255,255,.12)",
+              background: colorForSeverity(toast.severity),
+              color: "#f5f7ff",
+              font: "13px/1.4 system-ui, sans-serif",
+              backdropFilter: "blur(10px)",
+              boxShadow: "0 10px 30px rgba(0,0,0,.28)"
+            }}
+          >
+            {toast.message}
+          </div>
+        );
+      })}
     </div>
   );
 }
