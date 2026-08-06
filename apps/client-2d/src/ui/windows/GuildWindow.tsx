@@ -1,13 +1,13 @@
 /**
  * Ouroboros GuildWindow — WoW-Style Guild Panel
- * 
+ *
  * Displays guild information, member list, and guild level.
  * Follows the Panzerschrank brutalist design aesthetic.
  */
 
-import { useState, useEffect } from "react";
-import { useSyncExternalStore } from "react";
-import "../inventoryGrid.css";
+import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
+import '../inventoryGrid.css';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -36,7 +36,9 @@ class GuildWindowStore {
   private snapshot: GuildSnapshot | null = null;
   private listeners = new Set<() => void>();
 
-  getSnapshot() { return this.snapshot; }
+  getSnapshot() {
+    return this.snapshot;
+  }
 
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
@@ -49,7 +51,7 @@ class GuildWindowStore {
   }
 
   private notify(): void {
-    this.listeners.forEach(l => l());
+    this.listeners.forEach((l) => l());
   }
 }
 
@@ -66,17 +68,17 @@ export function useGuildWindow(): GuildSnapshot | null {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const RANK_COLORS: Record<string, string> = {
-  leader: "#ffd700",      // Gold
-  officer: "#a335ee",    // Purple
-  member: "#9d9d9d",     // Gray
-  recruit: "#6a7a8a",     // Dark gray
+  leader: '#ffd700', // Gold
+  officer: '#a335ee', // Purple
+  member: '#9d9d9d', // Gray
+  recruit: '#6a7a8a', // Dark gray
 };
 
 const RANK_DISPLAY: Record<string, string> = {
-  leader: "Guild Master",
-  officer: "Officer",
-  member: "Member",
-  recruit: "Recruit",
+  leader: 'Guild Master',
+  officer: 'Officer',
+  member: 'Member',
+  recruit: 'Recruit',
 };
 
 // ─── Components ───────────────────────────────────────────────────────────────
@@ -87,12 +89,15 @@ interface MemberRowProps {
 
 function MemberRow({ member }: MemberRowProps) {
   const rankColor = RANK_COLORS[member.rank] || RANK_COLORS.member;
-  
+
   return (
     <div className="guild-member-row">
-      <div className="guild-member-status" style={{ 
-        backgroundColor: member.online ? "#1eff00" : "#4a5a6a" 
-      }} />
+      <div
+        className="guild-member-status"
+        style={{
+          backgroundColor: member.online ? '#1eff00' : '#4a5a6a',
+        }}
+      />
       <div className="guild-member-info">
         <span className="guild-member-name" style={{ color: rankColor }}>
           {member.name}
@@ -119,27 +124,34 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
   useEffect(() => {
     const handleNetworkPacket = (event: Event) => {
       const detail = (event as CustomEvent).detail;
-      if (detail?.event === "guild_snapshot") {
+      if (detail?.event === 'guild_snapshot') {
         guildWindowStore.receiveSnapshot(detail.payload);
       }
     };
 
-    window.addEventListener("wasd:network-packet", handleNetworkPacket);
-    return () => window.removeEventListener("wasd:network-packet", handleNetworkPacket);
+    window.addEventListener('wasd:network-packet', handleNetworkPacket);
+    return () => window.removeEventListener('wasd:network-packet', handleNetworkPacket);
   }, []);
 
   if (!isOpen) return null;
 
   const members = snapshot?.members ?? [];
-  const onlineCount = members.filter(m => m.online).length;
+  const onlineCount = members.filter((m) => m.online).length;
 
   return (
     <div className="wow-inventory-overlay" role="dialog" aria-label="Guild">
       <div className="wow-inventory-header">
         <h2>GUILD</h2>
         {onClose && (
-          <button className="wow-close-btn" onClick={onClose} aria-label="Close [ESC]" aria-keyshortcuts="Escape">
-            <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
+          <button
+            className="wow-close-btn"
+            onClick={onClose}
+            aria-label="Close [ESC]"
+            aria-keyshortcuts="Escape"
+          >
+            <kbd className="cz-kbd" aria-hidden="true">
+              ESC
+            </kbd>
             ✕
           </button>
         )}
@@ -150,11 +162,13 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
         <section className="guild-section guild-header-section">
           <div className="guild-emblem">🏰</div>
           <div className="guild-info">
-            <h3 className="guild-name">{snapshot?.guildName ?? "No Guild"}</h3>
+            <h3 className="guild-name">{snapshot?.guildName ?? 'No Guild'}</h3>
             <div className="guild-meta">
               <span>Level {snapshot?.guildLevel ?? 1}</span>
               <span className="guild-separator">|</span>
-              <span>{onlineCount}/{members.length} Online</span>
+              <span>
+                {onlineCount}/{members.length} Online
+              </span>
               <span className="guild-separator">|</span>
               <span>Max {snapshot?.maxMembers ?? 50}</span>
             </div>
@@ -162,7 +176,7 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
           <div className="guild-total-contribution">
             <span className="guild-contrib-label">Total Contribution</span>
             <span className="guild-contrib-value">
-              {snapshot?.totalContribution.toLocaleString() ?? "0"}
+              {snapshot?.totalContribution.toLocaleString() ?? '0'}
             </span>
           </div>
         </section>
@@ -182,9 +196,7 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
                   if (rankDiff !== 0) return rankDiff;
                   return b.level - a.level;
                 })
-                .map(member => (
-                  <MemberRow key={member.id} member={member} />
-                ))
+                .map((member) => <MemberRow key={member.id} member={member} />)
             )}
           </div>
         </section>
@@ -193,16 +205,36 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
         <section className="guild-section guild-actions-section">
           <h3>Actions</h3>
           <div className="guild-actions-grid">
-            <button className="guild-action-btn" disabled>
+            <button
+              className="guild-action-btn"
+              disabled
+              title="Invite players to guild (Coming Soon)"
+              aria-label="Invite players to guild (Coming Soon)"
+            >
               📢 Invite
             </button>
-            <button className="guild-action-btn" disabled>
+            <button
+              className="guild-action-btn"
+              disabled
+              title="View guild details and history (Coming Soon)"
+              aria-label="View guild details and history (Coming Soon)"
+            >
               📜 Guild Info
             </button>
-            <button className="guild-action-btn" disabled>
+            <button
+              className="guild-action-btn"
+              disabled
+              title="Access guild storage and vault (Coming Soon)"
+              aria-label="Access guild storage and vault (Coming Soon)"
+            >
               💰 Treasury
             </button>
-            <button className="guild-action-btn" disabled>
+            <button
+              className="guild-action-btn"
+              disabled
+              title="Declare guild wars or siege battles (Coming Soon)"
+              aria-label="Declare guild wars or siege battles (Coming Soon)"
+            >
               ⚔️ War
             </button>
           </div>
@@ -214,14 +246,14 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
 
 // ─── Mount Function ──────────────────────────────────────────────────────────
 
-export function mountGuildWindow(containerId = "guild-mount"): void {
+export function mountGuildWindow(containerId = 'guild-mount'): void {
   const container = document.getElementById(containerId);
   if (!container) {
     console.warn(`Guild mount point #${containerId} not found`);
     return;
   }
 
-  import("react").then(({ createRoot }) => {
+  import('react').then(({ createRoot }) => {
     const root = createRoot(container);
     root.render(<GuildWindow />);
   });
