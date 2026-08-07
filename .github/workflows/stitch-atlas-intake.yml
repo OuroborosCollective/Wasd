@@ -383,7 +383,7 @@ print("All sourcePaths are stable, relative, and clean")
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.2'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
@@ -473,7 +473,7 @@ print("All sourcePaths are stable, relative, and clean")
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.2'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
