@@ -17,3 +17,7 @@
 ## 2028-02-16 - [Keyboard Navigation in Overlay Modal Views]
 **Learning:** Custom HUD overlay panels (like camp trade exchange modals) often bypass the standard window wrapper controls, leading to isolated components that trap keyboard-only users. Attaching an ESC-keypress event listener directly within the component and styling the inline close element to display the semantic `<kbd className="cz-kbd">ESC</kbd>` hint provides visual and functional cohesion without disrupting the custom Diamond Glass aesthetics.
 **Action:** Always implement local `keydown` window event listeners for Escape key actions in customized overlays, and decorate the close button with a `<kbd className="cz-kbd">ESC</kbd>` hint and matching `aria-keyshortcuts`.
+
+## 2028-02-17 - [Enhancing Custom RPG HUD Skill Bars with Detailed Aria Values and Tooltips]
+**Learning:** Progress bars in RPG skill progression displays are often visually detailed but lacking for both screen readers and desktop pointer hover interactions. Adding `aria-valuetext` with localized raw progress status (e.g. current/required XP) along with a matching `title` tooltip provides parallel accessible tracks that make the UI intuitive and informative across all input modalities.
+**Action:** Always complement visual HUD progress bars with a precise `aria-valuetext` and a matching hover `title` tooltip detailing raw progression metrics.
