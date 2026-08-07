@@ -10,16 +10,32 @@
  * - Shows server-provided values only
  */
 
-import React from "react";
+import React, { useState, useCallback } from "react";
 import type { CraftingSnapshot } from "../../game/liveGameplaySnapshot";
 
 interface Props {
   crafting: CraftingSnapshot;
-  onCraft?: (recipeId: string) => void;
+  onCraft?: (recipeId: string) => void | Promise<void>;
 }
 
 export function CraftingPanel({ crafting, onCraft }: Props) {
   const recipes = crafting?.recipes ?? [];
+  const [isCrafting, setIsCrafting] = useState(false);
+  const [craftingRecipeId, setCraftingRecipeId] = useState<string | null>(null);
+
+  const handleCraft = useCallback(async (recipeId: string) => {
+    if (isCrafting || !onCraft) return;
+    setIsCrafting(true);
+    setCraftingRecipeId(recipeId);
+    try {
+      await Promise.resolve(onCraft(recipeId));
+    } catch (error) {
+      console.error("[CraftingPanel] error executing onCraft", error);
+    } finally {
+      setIsCrafting(false);
+      setCraftingRecipeId(null);
+    }
+  }, [isCrafting, onCraft]);
 
   if (!recipes.length) {
     return (
@@ -35,45 +51,76 @@ export function CraftingPanel({ crafting, onCraft }: Props) {
       <h2>Crafting</h2>
 
       <div className="crafting-list">
-        {recipes.map((recipe) => (
-          <article key={recipe.id} className="crafting-row">
-            <div className="crafting-row__header">
-              <strong>{recipe.title}</strong>
-              <span>+{recipe.craftingXpReward} XP</span>
-            </div>
+        {recipes.map((recipe) => {
+          const isRecipeCrafting = isCrafting && craftingRecipeId === recipe.id;
+          const isButtonDisabled = !recipe.craftable || isCrafting;
 
-            <div className="crafting-row__meta">
-              Requires Crafting Lv. {recipe.requiredLevel}
-            </div>
+          let buttonLabelText = "Craft";
+          let buttonTitleText = `Craft ${recipe.title}`;
 
-            <div className="crafting-row__items">
-              <span>
-                Input:{" "}
-                {recipe.ingredients
-                  .map((item) => `${item.quantity}× ${item.itemId}`)
-                  .join(", ")}
-              </span>
-              <span>
-                Output:{" "}
-                {recipe.outputs
-                  .map((item) => `${item.quantity}× ${item.itemId}`)
-                  .join(", ")}
-              </span>
-            </div>
+          if (isRecipeCrafting) {
+            buttonLabelText = "Crafting...";
+            buttonTitleText = `Crafting ${recipe.title} in progress`;
+          } else if (!recipe.craftable) {
+            if (recipe.blockedReason === "missing_ingredients") {
+              buttonLabelText = "Missing Items";
+              buttonTitleText = `Missing required items to craft ${recipe.title}`;
+            } else if (recipe.blockedReason === "level_too_low" || recipe.blockedReason === "locked") {
+              buttonLabelText = "Locked";
+              buttonTitleText = `Required Crafting Lv. ${recipe.requiredLevel} is too high`;
+            } else {
+              buttonLabelText = "Locked";
+              buttonTitleText = `Recipe locked: ${recipe.blockedReason ?? "unmet requirements"}`;
+            }
+          } else if (isCrafting) {
+            buttonTitleText = "Another crafting action is already in progress";
+          }
 
-            <button
-              type="button"
-              disabled={!recipe.craftable}
-              onClick={() => onCraft?.(recipe.id)}
-            >
-              {recipe.craftable
-                ? "Craft"
-                : recipe.blockedReason === "missing_ingredients"
-                  ? "Missing Items"
-                  : "Locked"}
-            </button>
-          </article>
-        ))}
+          return (
+            <article key={recipe.id} className="crafting-row">
+              <div className="crafting-row__header">
+                <strong>{recipe.title}</strong>
+                <span>+{recipe.craftingXpReward} XP</span>
+              </div>
+
+              <div className="crafting-row__meta">
+                Requires Crafting Lv. {recipe.requiredLevel}
+              </div>
+
+              <div className="crafting-row__items">
+                <span>
+                  Input:{" "}
+                  {recipe.ingredients
+                    .map((item) => `${item.quantity}× ${item.itemId}`)
+                    .join(", ")}
+                </span>
+                <span>
+                  Output:{" "}
+                  {recipe.outputs
+                    .map((item) => `${item.quantity}× ${item.itemId}`)
+                    .join(", ")}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                disabled={isButtonDisabled}
+                onClick={() => handleCraft(recipe.id)}
+                aria-busy={isRecipeCrafting}
+                aria-label={
+                  isRecipeCrafting
+                    ? `Crafting ${recipe.title} in progress`
+                    : !recipe.craftable
+                      ? `Cannot craft ${recipe.title}: ${buttonTitleText}`
+                      : `Craft ${recipe.title}`
+                }
+                title={buttonTitleText}
+              >
+                {buttonLabelText}
+              </button>
+            </article>
+          );
+        })}
       </div>
     </section>
   );

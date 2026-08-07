@@ -32,3 +32,7 @@
 ## 2026-03-21 - Accessible Diamond Glass Action Triggers and Escape Close Hook
 **Learning:** For interactive overlay panels, adding an automatic `keydown` listener on mount to intercept 'Escape' ensures power-users can quickly dismiss overlays. Furthermore, buttons like BUY must have explicit `aria-busy` states and dynamic `title` tooltips detailing disabled reasons (like "Not enough coins") rather than silent disablement, turning confusing mouse blockades into helpful visual and screen-reader guidance.
 **Action:** Always map overlay close buttons with an ESC key listener, and provide descriptive, dynamically calculated title and aria-label attributes for complex action buttons.
+
+## 2026-03-22 - State-Aware Async Crafting Action Feedback and Prevention of Rapid-Clicks
+**Learning:** Interactive panel triggers for server-authoritative actions like "Craft" must provide immediate feedback when clicked and be disabled during ongoing operations. Specifically, mapping states to dynamic button text (e.g., "Crafting..."), setting `aria-busy` and explicit `aria-label`s, and adding custom `title` tooltips explaining unmet requirements (e.g., "Missing required items" or "Required Level is too high") prevents confusing UI locks and duplicate server submission.
+**Action:** Always wrap crafting or transaction action buttons with async-state loading locks and provide descriptive, dynamically calculated accessible labels and explanatory title tooltips.
