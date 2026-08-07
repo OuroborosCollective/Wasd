@@ -26,3 +26,7 @@
 {"ts":0,"tick":0,"playtesterId":"playtester_001","action":"collect_required_item","result":"collect_turnin_interaction","goal":"boot","questId":"collect_ready","step":0,"position":{"x":0,"y":0,"z":0},"targetId":"npc_near"}
 {"ts":0,"tick":0,"playtesterId":"playtester_001","action":"return_to_quest_target","result":"quest_npc_interaction","goal":"boot","questId":"quest_near","step":0,"position":{"x":0,"y":0,"z":0},"targetId":"npc_near"}
 {"ts":0,"tick":0,"playtesterId":"playtester_001","action":"collect_required_item","result":"collect_turnin_interaction","goal":"boot","questId":"collect_ready","step":0,"position":{"x":0,"y":0,"z":0},"targetId":"npc_near"}
+{"ts":0,"tick":0,"playtesterId":"playtester_001","action":"return_to_quest_target","result":"quest_npc_interaction","goal":"boot","questId":"quest_near","step":0,"position":{"x":0,"y":0,"z":0},"targetId":"npc_near"}
+{"ts":0,"tick":0,"playtesterId":"playtester_001","action":"collect_required_item","result":"collect_turnin_interaction","goal":"boot","questId":"collect_ready","step":0,"position":{"x":0,"y":0,"z":0},"targetId":"npc_near"}
+{"ts":0,"tick":0,"playtesterId":"playtester_001","action":"return_to_quest_target","result":"quest_npc_interaction","goal":"boot","questId":"quest_near","step":0,"position":{"x":0,"y":0,"z":0},"targetId":"npc_near"}
+{"ts":0,"tick":0,"playtesterId":"playtester_001","action":"collect_required_item","result":"collect_turnin_interaction","goal":"boot","questId":"collect_ready","step":0,"position":{"x":0,"y":0,"z":0},"targetId":"npc_near"}
