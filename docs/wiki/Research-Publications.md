@@ -52,6 +52,41 @@ This keeps Areloria scientifically ambitious without confusing theory with produ
 
 ---
 
+## IETF DetNet (Research Lane P3)
+
+### Draft: `draft-ietf-detnet-stateless-fair-queuing-00`
+
+| Attribute | Value |
+|-----------|-------|
+| Status | Internet-Draft (expires October 19, 2026) |
+| WG Adoption | Completed |
+| Related Work | N-SCORE work also in progress |
+
+### Relevance to Areloria
+
+DetNet (Deterministic Networking) provides bounded latency and ultra-low packet loss for sensitive networks. While interesting for future networking optimizations, **DetNet is outside the ARE truth path**.
+
+### ARE Boundary Reminder
+
+**FORBIDDEN:** Network timing inputs must never determine:
+
+```text
+Kappa1000 → Tick number → State hash
+```
+
+Even if DetNet provides deterministic packet delivery, the following are **never** inputs to the canonical tick system:
+
+- Finish Time
+- Eligible Time  
+- Packet Arrival Time
+- Network Latency Bounds
+
+### Status: `research` (not planned for implementation)
+
+See: [IETF DetNet WG](https://datatracker.ietf.org/wg/detnet/documents/)
+
+---
+
 ## Suggested citation pattern inside wiki pages
 
 ```md

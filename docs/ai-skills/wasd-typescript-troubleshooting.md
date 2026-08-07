@@ -199,3 +199,60 @@ if (!noisyActions.has(action.type)) {
 
 - `wasd-monorepo-patterns` - Build commands
 - `wasd-github-actions-repair` - CI error patterns
+
+---
+
+## TypeScript 7 Preparation (Issue #2370)
+
+### Status: P2 - Isolated Comparison Lane
+
+**Current Version:** `^5.8.0` in both root and server  
+**TypeScript 7 Status:** Final release available
+
+### TypeScript 7 Key Features (Microsoft Claims)
+
+| Feature | Description |
+|---------|-------------|
+| Build Speed | 8-12× faster builds (Microsoft benchmark, not WASD verified) |
+| `stableTypeOrdering` | New deterministic flag for type ordering |
+| TS6 Defaults Inherited | `strict=true`, `module=esnext`, `noUncheckedSideEffectImports=true` |
+| No New Programmatic API | Microsoft provides `@typescript/typescript6` for parallel operation |
+
+### Important Notes
+
+1. **Microsoft Benchmark vs WASD Benchmark**: The 8-12× speedup claim is from Microsoft benchmarks, not verified on WASD codebase
+2. **No Forced Upgrade Path**: Microsoft provides `@microsoft/typescript@7` for parallel operation with TS5/TS6
+3. **Build Artifact Comparison Required**: Same commit + same lockfile + same inputs must produce identical or documented-different artifacts
+
+### Comparison Workflow (Isolated Branch)
+
+```bash
+# Branch: feat/ts7-comparison-2370
+# DO NOT MERGE until semantic differences are explained
+
+# Baseline with current TS
+git stash
+pnpm install
+pnpm run build
+sha256sum **/*.js > ts5-hashes.txt
+
+# Switch to TS7
+pnpm add -D typescript@7
+pnpm run build
+sha256sum **/*.js > ts7-hashes.txt
+
+# Compare artifacts
+diff ts5-hashes.txt ts7-hashes.txt
+```
+
+### Risks to Validate
+
+- [ ] Semantic differences in compiled output
+- [ ] Breaking changes in type inference
+- [ ] Module resolution behavior changes
+- [ ] Declaration file (.d.ts) differences
+
+### References
+
+- [TypeScript 7 Release Notes](https://devblogs.microsoft.com/typescript/announcing-typescript-7/)
+- Branch: `feat/ts7-comparison-2370`

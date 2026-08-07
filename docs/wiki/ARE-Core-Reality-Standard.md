@@ -60,9 +60,12 @@ performance.now()
 randomUUID()
 external API timing
 client-authored gameplay mutation
+network timing (Finish Time, Eligible Time, Packet Arrival)
 ```
 
 Use TickId, KappaInt, StateHash, DeterministicPrng, stable sorted traversal and explicit replay input instead.
+
+> **DetNet Boundary Note:** Even deterministic networking (IETF DetNet) must never input timing values into Kappa, Tick, or Hash. See [[Research Publications|Research-Publications#ietf-detnet-research-lane-p3]].
 
 ---
 
