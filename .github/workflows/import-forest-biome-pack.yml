@@ -41,7 +41,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.2'
 
       - name: Verify importer exists
         run: test -f scripts/import-forest-biome-pack.mjs
