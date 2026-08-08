@@ -70,7 +70,8 @@ export class BoundedMemoryEventStore {
   }
 
   hydrate(events: ActivityMemoryEvent[]): void {
-    this.events = [...events].sort((a, b) => a.tick - b.tick || a.id.localeCompare(b.id));
+    // Bolt: Optimized sort comparator replacing expensive localeCompare with fast direct relational comparison
+    this.events = [...events].sort((a, b) => a.tick - b.tick || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     this.lastTick = this.events.at(-1)?.tick ?? 0;
     this.eventsThisTick = 0;
   }
@@ -81,10 +82,11 @@ export class BoundedMemoryEventStore {
     const keepCount = Math.max(Math.floor(this.config.maxEventsPerNPC * 0.5), targetSize);
     this.events = this.events
       .map((event, index) => ({ event, score: this.calculateEventScore(event, index) }))
-      .sort((a, b) => b.score - a.score || b.event.tick - a.event.tick || a.event.id.localeCompare(b.event.id))
+      // Bolt: Optimized sort comparator replacing slow localeCompare with direct relational string comparisons
+      .sort((a, b) => b.score - a.score || b.event.tick - a.event.tick || (a.event.id < b.event.id ? -1 : a.event.id > b.event.id ? 1 : 0))
       .slice(0, keepCount)
       .map((item) => item.event)
-      .sort((a, b) => a.tick - b.tick || a.id.localeCompare(b.id));
+      .sort((a, b) => a.tick - b.tick || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   private calculateEventScore(event: ActivityMemoryEvent, index: number): number {
@@ -136,19 +138,22 @@ export class MemoryEventManager {
       if (!store) continue;
       events.push(...(fromTick !== undefined && toTick !== undefined ? store.getEventsInRange(fromTick, toTick) : [...store.getEvents()]));
     }
-    return events.sort((a, b) => a.tick - b.tick || a.id.localeCompare(b.id));
+    // Bolt: Optimized sort comparator replacing slow localeCompare with direct relational comparisons
+    return events.sort((a, b) => a.tick - b.tick || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   getEventsForTick(tick: number): ActivityMemoryEvent[] {
     const events: ActivityMemoryEvent[] = [];
     for (const store of this.stores.values()) events.push(...store.getEventsInRange(tick, tick));
-    return events.sort((a, b) => a.id.localeCompare(b.id));
+    // Bolt: Optimized sort comparator replacing slow localeCompare with direct relational comparisons
+    return events.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   getRecentEvents(tickCount: number): ActivityMemoryEvent[] {
     const events: ActivityMemoryEvent[] = [];
     for (const store of this.stores.values()) events.push(...store.getRecentEvents(tickCount));
-    return events.sort((a, b) => a.tick - b.tick || a.id.localeCompare(b.id));
+    // Bolt: Optimized sort comparator replacing slow localeCompare with direct relational comparisons
+    return events.sort((a, b) => a.tick - b.tick || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   getEntityCount(): number {
