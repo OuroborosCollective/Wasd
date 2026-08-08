@@ -161,18 +161,39 @@ export function resolveBiomeId(input: {
   return BIOME_LADDER.find((entry) => score < entry.ceiling)?.id ?? "forest_village";
 }
 
+// Thread-safe and leak-free cache mapping "chunkX,chunkZ,viewRadiusChunks" to their stable frozen visible chunk keys.
+// This O(1) cache avoids string allocations, template concatenations, and maintains reference-equality
+// across UI renders, preventing downstream React components and hooks from re-evaluating unnecessarily.
+const visibleKeysCache = new Map<string, readonly string[]>();
+
 export function resolveVisibleChunkKeys(input: {
   readonly chunkX: number;
   readonly chunkZ: number;
   readonly viewRadiusChunks: number;
 }): readonly string[] {
+  const cacheKey = `${input.chunkX},${input.chunkZ},${input.viewRadiusChunks}`;
+  const cached = visibleKeysCache.get(cacheKey);
+  if (cached) return cached;
+
   const keys: string[] = [];
   for (let z = -input.viewRadiusChunks; z <= input.viewRadiusChunks; z += 1) {
     for (let x = -input.viewRadiusChunks; x <= input.viewRadiusChunks; x += 1) {
       keys.push(`${input.chunkX + x}_${input.chunkZ + z}`);
     }
   }
-  return keys;
+
+  const frozenKeys = Object.freeze(keys);
+
+  // Evict the oldest entry if cache exceeds maximum size of 1000 to prevent memory leaks
+  if (visibleKeysCache.size >= 1000) {
+    const firstKey = visibleKeysCache.keys().next().value;
+    if (firstKey !== undefined) {
+      visibleKeysCache.delete(firstKey);
+    }
+  }
+
+  visibleKeysCache.set(cacheKey, frozenKeys);
+  return frozenKeys;
 }
 
 export function resolveStatelessWorldRuntime(
