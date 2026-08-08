@@ -17,3 +17,7 @@
 ## 2028-02-16 - [Keyboard Navigation in Overlay Modal Views]
 **Learning:** Custom HUD overlay panels (like camp trade exchange modals) often bypass the standard window wrapper controls, leading to isolated components that trap keyboard-only users. Attaching an ESC-keypress event listener directly within the component and styling the inline close element to display the semantic `<kbd className="cz-kbd">ESC</kbd>` hint provides visual and functional cohesion without disrupting the custom Diamond Glass aesthetics.
 **Action:** Always implement local `keydown` window event listeners for Escape key actions in customized overlays, and decorate the close button with a `<kbd className="cz-kbd">ESC</kbd>` hint and matching `aria-keyshortcuts`.
+
+## 2028-02-17 - [Interactive Shortcut Mapping & High-Situational Vitals Feedback]
+**Learning:** Exposing programmatic mappings using `aria-keyshortcuts` on interactive HUD widgets (like menu tabs or skill bars) allows modern screen readers to dynamically map hotkeys to actions. Additionally, pairing these accessible markers with lightweight, non-blocking CSS pulse animations for critical states (such as low health/stamina) ensures high-fidelity situational awareness for both keyboard-only/sighted players and screen-reader users alike.
+**Action:** Always complement visual hotkey indicators with structural `aria-keyshortcuts` attributes, and implement smooth pulsing visual transitions for status bars during low-vital conditions.
