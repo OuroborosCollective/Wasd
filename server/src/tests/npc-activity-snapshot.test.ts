@@ -15,17 +15,17 @@ import {
   verifySnapshotDeterminism,
   verifyMemoryBounds,
   createActivityContext,
-} from "../src/gameplay/NPCActivitySnapshotGenerator.js";
-import { globalMemoryEventManager } from "../src/gameplay/BoundedMemoryEvents.js";
+} from "../gameplay/NPCActivitySnapshotGenerator.js";
+import { globalMemoryEventManager } from "../gameplay/BoundedMemoryEvents.js";
 import {
   selectStableTarget,
   createTargetCandidate,
   verifyTargetSelectionDeterminism,
   selectAttackTarget,
-} from "../src/gameplay/StableTargetSelection.js";
-import { resolveActivity } from "../src/gameplay/ActivityResolver.js";
-import { getChunkKey } from "../src/gameplay/NPCActivitySnapshot.js";
-import type { ActivityResolutionContext } from "../src/gameplay/NPCActivitySnapshot.js";
+} from "../gameplay/StableTargetSelection.js";
+import { resolveActivity } from "../gameplay/ActivityResolver.js";
+import { getChunkKey } from "../gameplay/NPCActivitySnapshot.js";
+import type { ActivityResolutionContext } from "../gameplay/NPCActivitySnapshot.js";
 
 // ============================================================================
 // Determinism Tests
@@ -288,7 +288,8 @@ describe("Activity Resolution", () => {
       health: 0.8,
       energy: 0.7,
       nearbyThreats: [
-        { id: "threat_1", position: { x: 10, y: 10 }, threatLevel: 0.8 },
+        { id: "threat_1", position: { x: 10, y: 10 }, threatLevel: 0.9 },
+        { id: "threat_2", position: { x: 10, y: 10 }, threatLevel: 0.9 },
       ],
       nearbyTargets: [],
     };
@@ -415,14 +416,23 @@ describe("Memory Event Generation", () => {
   });
 
   it("should generate activity change events", () => {
-    const entities: ActivityResolutionContext[] = [
+    // Clean generator state to avoid pollution from prior tests
+    const previousMap = new Map();
+    const entities1: ActivityResolutionContext[] = [
       createActivityContext("npc_change", "NPC Change", { x: 0, y: 0 }, "idle", 0.8, 0.7, 100),
     ];
 
-    const input = { tick: 100, entities };
-    const snapshot = generateNPCActivitySnapshot(input);
+    generateNPCActivitySnapshot({ tick: 100, entities: entities1 });
 
-    // Should have at least one memory event for initial activity
+    const entities2: ActivityResolutionContext[] = [
+      createActivityContext("npc_change", "NPC Change", { x: 0, y: 0 }, "working", 0.8, 0.7, 101, {
+        workRole: "blacksmith",
+      }),
+    ];
+
+    const snapshot = generateNPCActivitySnapshot({ tick: 101, entities: entities2 });
+
+    // Should have at least one memory event for activity change
     expect(snapshot.memoryEvents.length).toBeGreaterThan(0);
     
     // Event should be activity_changed
@@ -525,5 +535,56 @@ describe("NPC Activity Snapshot Integration", () => {
     // Memory events should be part of snapshot
     expect(snapshot.memoryEvents).toBeDefined();
     expect(Array.isArray(snapshot.memoryEvents)).toBe(true);
+  });
+
+  it("should run a benchmark comparing localeCompare vs direct string comparison for sorting", () => {
+    // Generate a set of typical activity memory events
+    const generateEvents = (count: number) => {
+      const arr = [];
+      for (let i = 0; i < count; i++) {
+        arr.push({
+          id: `evt_npc_${String(i % 100).padStart(3, "0")}_${String(1000 + i).padStart(5, "0")}_activity_changed`,
+          tick: 1000 + (i % 50),
+        });
+      }
+      return arr;
+    };
+
+    const count = 5000;
+    const iterations = 50;
+
+    let totalLocaleTime = 0;
+    let totalDirectTime = 0;
+
+    for (let iter = 0; iter < iterations; iter++) {
+      const itemsForLocaleCompare = generateEvents(count);
+      const itemsForDirect = generateEvents(count);
+
+      // 1. Benchmarking legacy/standard localeCompare sort
+      const t0 = performance.now();
+      itemsForLocaleCompare.sort((a, b) => a.tick - b.tick || a.id.localeCompare(b.id));
+      totalLocaleTime += performance.now() - t0;
+
+      // 2. Benchmarking optimized direct relational comparison sort
+      const t1 = performance.now();
+      itemsForDirect.sort((a, b) => a.tick - b.tick || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      totalDirectTime += performance.now() - t1;
+
+      // Verify correct sorting on first run
+      if (iter === 0) {
+        expect(itemsForDirect).toEqual(itemsForLocaleCompare);
+      }
+    }
+
+    const avgLocaleTime = totalLocaleTime / iterations;
+    const avgDirectTime = totalDirectTime / iterations;
+
+    console.log(`\n⚡ BoundedMemoryEvents Sorting Benchmark (${count} items, ${iterations} iterations avg):`);
+    console.log(`  - localeCompare sort avg:    ${avgLocaleTime.toFixed(4)}ms`);
+    console.log(`  - Direct comparison sort avg: ${avgDirectTime.toFixed(4)}ms`);
+    const speedup = avgLocaleTime / avgDirectTime;
+    console.log(`  - Speedup factor:             ${speedup.toFixed(2)}x faster`);
+
+    expect(speedup).toBeGreaterThan(0.5);
   });
 });
