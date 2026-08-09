@@ -31,7 +31,7 @@
   "dependencies": {
     "cannon-es": "^0.20.0",
     "eventemitter3": "^5.0.4",
-    "ioredis": "^5.11.0",
+    "ioredis": "^6.0.0",
     "nanoid": "^5.1.16",
     "zod": "^4.4.3"
   },
