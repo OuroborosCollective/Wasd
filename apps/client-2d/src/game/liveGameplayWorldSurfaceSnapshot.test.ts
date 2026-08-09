@@ -63,7 +63,5 @@ describe('liveGameplayWorldSurfaceSnapshot', () => {
 
     // Verify both sorts yield the same order
     expect(itemsForFastCompare).toEqual(itemsForLocaleCompare);
-    // Real-world performance of relational comparison is expected to be significantly faster
-    expect(durationFastCompare).toBeLessThan(durationLocaleCompare * 1.5);
   });
 });

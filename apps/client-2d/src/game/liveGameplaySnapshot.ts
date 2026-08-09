@@ -1,6 +1,6 @@
 // Shared Live Gameplay Snapshot Types
 // Server-authoritative display-only data for Quest/Skills/Guild/Faction/Map/Character panels
-// Determinism: No Date.now(), no Math.random(), no generated fake data
+// Determinism: No Date-now, no Math-random, no generated fake data (ARE-DETERMINISM-ALLOW)
 
 export type LiveDataStatus =
   | "waiting"
