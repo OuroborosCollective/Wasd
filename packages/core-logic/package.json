@@ -58,7 +58,7 @@
   },
   "dependencies": {
     "events": "^3.3.0",
-    "nanoid": "^5.1.16",
+    "nanoid": "^6.0.1",
     "rxjs": "^7.8.2",
     "zod": "^4.4.3"
   },
