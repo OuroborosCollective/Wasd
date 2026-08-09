@@ -631,7 +631,7 @@ export function normalizeWorldPois(input: unknown): WorldPoiSnapshot[] {
       chunkZ: Number(poi.chunkZ ?? 0),
       discovered: poi.discovered ?? true, // Preserve discovery state, default to true for backward compat
     }))
-    .sort((a, b) => a.poiId.localeCompare(b.poiId));
+    .sort((a, b) => (a.poiId < b.poiId ? -1 : a.poiId > b.poiId ? 1 : 0));
 }
 
 /**
@@ -660,7 +660,7 @@ export function normalizeSkills(input: unknown): SkillSnapshot[] {
       xpForNextLevel: Math.max(1, Math.floor(Number(skill.xpForNextLevel ?? 100))),
       progressRatio: Math.max(0, Math.min(1, Number(skill.progressRatio ?? 0))),
     }))
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 /**
@@ -700,7 +700,7 @@ export function normalizeResources(input: unknown): ResourceNodeSnapshot[] {
         typeof node.depletedUntilTick === "number" ? node.depletedUntilTick : null,
       remainingTicks: Math.max(0, Math.floor(Number(node.remainingTicks ?? 0))),
     }))
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 /**
@@ -737,7 +737,7 @@ export function normalizeInventory(input: unknown): PlayerInventorySnapshot {
           stackable: Boolean(slot.stackable ?? true),
           maxStack: Math.max(1, Math.floor(Number(slot.maxStack ?? 999))),
         }))
-        .sort((a, b) => a.itemId.localeCompare(b.itemId))
+        .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0))
     : [];
 
   return {
@@ -785,7 +785,7 @@ export function normalizeCrafting(input: unknown): CraftingSnapshot {
             }))
           : [],
       }))
-      .sort((a, b) => a.id.localeCompare(b.id)),
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
   };
 }
 
@@ -810,7 +810,11 @@ export function normalizeEquipment(input: unknown): PlayerEquipmentSnapshot | nu
             title: String(slot.title ?? slot.itemId ?? "Unknown Tool"),
             tier: Math.max(1, Math.floor(Number(slot.tier ?? 1))),
           }))
-          .sort((a, b) => String(a.slotId).localeCompare(String(b.slotId)))
+          .sort((a, b) => {
+            const sA = String(a.slotId);
+            const sB = String(b.slotId);
+            return sA < sB ? -1 : sA > sB ? 1 : 0;
+          })
       : [],
   };
 }
@@ -850,7 +854,7 @@ export function normalizePaperdoll(input: unknown): PaperdollSnapshot {
             ? null
             : String(slot.itemId),
           title: String(slot.title ?? "Empty"),
-        })).sort((a, b) => a.slotId.localeCompare(b.slotId))
+        })).sort((a, b) => (a.slotId < b.slotId ? -1 : a.slotId > b.slotId ? 1 : 0))
       : [],
   };
 }
@@ -910,16 +914,16 @@ function normalizeVendorEconomy(input: unknown): VendorEconomyContainerSnapshot 
           ? v.stock
               .map(normalizeVendorStockItem)
               .filter((s): s is VendorStockItemSnapshot => s !== null)
-              .sort((a, b) => a.itemId.localeCompare(b.itemId))
+              .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0))
           : [],
         prices: Array.isArray(v.prices)
           ? v.prices
               .map(normalizeVendorPriceItem)
               .filter((p): p is VendorPriceItemSnapshot => p !== null)
-              .sort((a, b) => a.itemId.localeCompare(b.itemId))
+              .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0))
           : [],
       }))
-      .sort((a, b) => a.id.localeCompare(b.id)),
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
   };
 }
 
@@ -975,7 +979,7 @@ function normalizeCampNpcs(input: unknown): CampNpcSnapshot[] {
   return input
     .map(normalizeCampNpc)
     .filter((npc): npc is CampNpcSnapshot => npc !== null && npc.id !== "")
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 /**
@@ -1007,7 +1011,7 @@ function normalizeCampStock(input: unknown): CampStockSnapshot | null {
       ? raw.items
           .map(normalizeCampStockItem)
           .filter((item): item is CampStockItemSnapshot => item !== null && item.quantity > 0)
-          .sort((a, b) => a.itemId.localeCompare(b.itemId))
+          .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0))
       : [],
     lastUpdatedTick: Math.max(0, Math.floor(Number(raw.lastUpdatedTick ?? 0))),
   };
@@ -1023,7 +1027,7 @@ function normalizeCampStocks(input: unknown): CampStockSnapshot[] {
   return input
     .map(normalizeCampStock)
     .filter((stock): stock is CampStockSnapshot => stock !== null && stock.poiId !== "")
-    .sort((a, b) => a.poiId.localeCompare(b.poiId));
+    .sort((a, b) => (a.poiId < b.poiId ? -1 : a.poiId > b.poiId ? 1 : 0));
 }
 
 /**
@@ -1079,5 +1083,5 @@ export function normalizeProcessingStations(input: unknown): ProcessingStationSn
   return input
     .map(normalizeProcessingStation)
     .filter((station): station is ProcessingStationSnapshot => station !== null && station.id !== "")
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
