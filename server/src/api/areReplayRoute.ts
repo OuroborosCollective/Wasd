@@ -21,7 +21,14 @@ function parseTick(raw: unknown): number | null {
 }
 
 function replayStatsAvailable(stats: any): boolean {
-  return Boolean(stats && stats.available !== false);
+  return Boolean(
+    stats
+    && stats.available !== false
+    && Number.isInteger(Number(stats.recordedTicks))
+    && Number(stats.recordedTicks) > 0
+    && Number.isInteger(Number(stats.replayBufferSize))
+    && Number(stats.replayBufferSize) > 0,
+  );
 }
 
 function broadcastCouncil(tick: WorldTick, payload: unknown): void {
@@ -193,7 +200,7 @@ export function areReplayRouter(tick: WorldTick) {
       return;
     }
 
-    res.status(200).json({ ok: true, replay });
+    res.status(200).json(replay);
   });
 
   return router;
