@@ -21,3 +21,7 @@
 ## 2028-02-17 - [Interactive Shortcut Mapping & High-Situational Vitals Feedback]
 **Learning:** Exposing programmatic mappings using `aria-keyshortcuts` on interactive HUD widgets (like menu tabs or skill bars) allows modern screen readers to dynamically map hotkeys to actions. Additionally, pairing these accessible markers with lightweight, non-blocking CSS pulse animations for critical states (such as low health/stamina) ensures high-fidelity situational awareness for both keyboard-only/sighted players and screen-reader users alike.
 **Action:** Always complement visual hotkey indicators with structural `aria-keyshortcuts` attributes, and implement smooth pulsing visual transitions for status bars during low-vital conditions.
+
+## 2028-02-18 - [Accessibility & Micro-UX Tooltips on Faction Standing Bars]
+**Learning:** Sighted and non-sighted players alike find progress meters much easier to comprehend when detailed textual context is immediately discoverable. Adding both a standard hover `title` attribute for native tooltip discoverability and a semantic `aria-valuetext` representation ensures that the status, label, and exact progress of faction standings are fully accessible to screen reader users and mouse users without altering the graphical UI design.
+**Action:** Always verify if custom faction standing or progress bar overlays implement the standard `title` and `aria-valuetext` combination, ensuring high usability and assistive compatibility.
