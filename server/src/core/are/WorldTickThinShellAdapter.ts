@@ -12,10 +12,10 @@ import { loadGameDataNpcsIntoSystem, type NpcGameDataLoadReport } from '../../mo
 import type { LootEntity } from '../../modules/world/LootDirector.js';
 import { lootDirector as deterministicLootDirector } from '../../modules/world/LootDirector.js';
 
-type AutoRepairStatus = { ok: boolean; status: string };
-type DeterministicRecorderStats = { recordedTicks: number; replayBufferSize: number };
+type AutoRepairStatus = { ok: boolean; status: string; reason?: string };
+type DeterministicRecorderStats = { available: boolean; recordedTicks: number; replayBufferSize: number; reason?: string };
 type DeterministicReplaySnapshot = { tick: number; snapshot: unknown };
-type AREInvariantGuardStatus = { ok: boolean; invariant: string };
+type AREInvariantGuardStatus = { ok: boolean; invariant: string; available?: boolean; reason?: string };
 type NetworkBridge = { broadcast(data: unknown): void; sendToPlayer(id: string, data: unknown): void };
 type WorldHashSnapshot = {
   tick: number;
@@ -23,6 +23,13 @@ type WorldHashSnapshot = {
   chunkCount: number;
   entityCount: number;
   timestamp: number;
+};
+type WorldHashComparison = {
+  ok: boolean;
+  portalHash: string | null;
+  worldHash: string | null;
+  matches: boolean;
+  reason?: string;
 };
 
 type RuntimePortStatus = {
@@ -32,12 +39,21 @@ type RuntimePortStatus = {
   authority: 'runtime' | 'transport_side_channel' | 'unavailable';
 };
 
-const validationState = { getSnapshot: () => ({ guard: { ok: true, invariant: 'WorldThinShell' } as AREInvariantGuardStatus }) };
-const tickRecorder = {
-  stats: (): DeterministicRecorderStats => ({ recordedTicks: 0, replayBufferSize: 0 }),
-  replay: (tick: number): DeterministicReplaySnapshot | null => ({ tick, snapshot: null }),
-};
-const autoRepairService = { getStatus: (): AutoRepairStatus => ({ ok: true, status: 'available' }) };
+const ZERO_WORLD_HASH = '0'.repeat(64);
+const REPLAY_UNAVAILABLE_REASON = 'No canonical replay recorder is registered on WorldTickThinShell.';
+const AUTO_REPAIR_UNAVAILABLE_REASON = 'No canonical auto-repair runtime is registered on WorldTickThinShell.';
+
+function isCanonicalStateHash(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/i.test(value);
+}
+
+function normalizePortalHash(value: unknown): string | null {
+  if (isCanonicalStateHash(value)) return value.toLowerCase();
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  const nested = record.worldHash ?? record.world_hash ?? record.hash;
+  return isCanonicalStateHash(nested) ? nested.toLowerCase() : null;
+}
 
 class UnavailableRuntimePort {
   constructor(readonly id: string, readonly reason: string) {}
@@ -73,7 +89,7 @@ function unavailablePort(id: string, reason: string): UnavailableRuntimePort {
 function createManifestManager(adapter: WorldTickAdapter) {
   const replayGuard = { getHighestTick: () => adapter.tickCount, getNonceCount: () => 0 };
   return {
-    getLastStateHash: () => adapter.getWorldHashSnapshot()?.worldHash ?? '0'.repeat(64),
+    getLastStateHash: () => adapter.getWorldHashSnapshot()?.worldHash ?? ZERO_WORLD_HASH,
     getLastSnapshotTick: () => adapter.tickCount,
     getReplayGuard: () => replayGuard,
   };
@@ -149,7 +165,23 @@ export class WorldTickAdapter {
   };
 
   readonly liveHeal = {
-    getStatus: () => ({ tickCount: this.tickCount, autoRepair: autoRepairService.getStatus(), usage: { prompt_tokens: 0, completion_tokens: 0 }, areShadow: { replayBufferSize: 0, lastSnapshot: null }, electroweakPruning: { ttlTicks: 1200, stats: {} }, emergence: { events: [] }, npcGameData: this.npcGameDataReport, runtimePorts: this.getRuntimePortDiagnostics(), playerRuntime: this.playerSystem.getDiagnostics(), appliedMoveIntentTotal: this.appliedMoveIntentTotal }),
+    getStatus: () => ({
+      tickCount: this.tickCount,
+      autoRepair: this.getAutoRepairStatus(),
+      usage: { prompt_tokens: 0, completion_tokens: 0 },
+      areShadow: {
+        available: false,
+        replayBufferSize: 0,
+        lastSnapshot: null,
+        reason: REPLAY_UNAVAILABLE_REASON,
+      },
+      electroweakPruning: { ttlTicks: 1200, stats: {} },
+      emergence: { events: [] },
+      npcGameData: this.npcGameDataReport,
+      runtimePorts: this.getRuntimePortDiagnostics(),
+      playerRuntime: this.playerSystem.getDiagnostics(),
+      appliedMoveIntentTotal: this.appliedMoveIntentTotal,
+    }),
     flush: () => {},
   };
   readonly assetHealthService = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
@@ -267,22 +299,82 @@ export class WorldTickAdapter {
     return { chunkCount: snapshot?.active_chunks?.length ?? 0, entityCount: this.npcSystem.getAllNPCs().length + this.deterministicLootDirector.getAllLoot().length };
   }
 
-  getAREGuardStatus(): AREInvariantGuardStatus | null { return validationState.getSnapshot().guard; }
+  getAREGuardStatus(): AREInvariantGuardStatus | null {
+    return null;
+  }
+
   getWorldHashSnapshot(): WorldHashSnapshot | null {
     const snapshot = this.thinShell.getWorldBrainSnapshot();
     if (!snapshot) return null;
-    return { tick: this.tickCount, worldHash: snapshot.world_hash ?? '0'.repeat(64), chunkCount: snapshot.active_chunks?.length ?? 0, entityCount: this.npcSystem.getAllNPCs().length + this.deterministicLootDirector.getAllLoot().length, timestamp: this.tickCount };
+
+    const activeChunks = Array.isArray(snapshot.active_chunks) ? snapshot.active_chunks : [];
+    const worldHash = isCanonicalStateHash(snapshot.world_hash) ? snapshot.world_hash.toLowerCase() : null;
+    if (activeChunks.length === 0 || !worldHash || worldHash === ZERO_WORLD_HASH) return null;
+
+    return {
+      tick: this.tickCount,
+      worldHash,
+      chunkCount: activeChunks.length,
+      entityCount: this.npcSystem.getAllNPCs().length + this.deterministicLootDirector.getAllLoot().length,
+      timestamp: this.tickCount,
+    };
   }
-  getReplayRecorderStats(): DeterministicRecorderStats { return tickRecorder.stats(); }
-  getReplaySnapshot(tick: number): DeterministicReplaySnapshot | null { return tickRecorder.replay(tick); }
-  getAutoRepairStatus(): AutoRepairStatus { return autoRepairService.getStatus(); }
+
+  getReplayRecorderStats(): DeterministicRecorderStats {
+    return {
+      available: false,
+      recordedTicks: 0,
+      replayBufferSize: 0,
+      reason: REPLAY_UNAVAILABLE_REASON,
+    };
+  }
+
+  getReplaySnapshot(_tick: number): DeterministicReplaySnapshot | null {
+    return null;
+  }
+
+  getAutoRepairStatus(): AutoRepairStatus {
+    return { ok: false, status: 'unavailable', reason: AUTO_REPAIR_UNAVAILABLE_REASON };
+  }
+
   getOracleReport(): any { return this.thinShell.getWorldBrainSnapshot() ?? null; }
   getSnapshotStats(): { chunkCount: number } { return this.thinShell.getSnapshotStats(); }
-  getDeterministicUsageStats(): { hashesInWindow: number } { return { hashesInWindow: this.getReplayRecorderStats().recordedTicks }; }
-  comparePortalWorldHash(portalHash: string): { ok: boolean; portalHash: string; worldHash: string; matches: boolean } {
-    const worldHash = this.getWorldHashSnapshot()?.worldHash ?? '0'.repeat(64);
-    return { ok: true, portalHash, worldHash, matches: portalHash === worldHash };
+  getDeterministicUsageStats(): { hashesInWindow: number } { return { hashesInWindow: 0 }; }
+
+  comparePortalWorldHash(portalHashInput: unknown): WorldHashComparison {
+    const portalHash = normalizePortalHash(portalHashInput);
+    const world = this.getWorldHashSnapshot();
+
+    if (!portalHash) {
+      return {
+        ok: false,
+        portalHash: null,
+        worldHash: world?.worldHash ?? null,
+        matches: false,
+        reason: 'invalid_portal_hash',
+      };
+    }
+
+    if (!world) {
+      return {
+        ok: false,
+        portalHash,
+        worldHash: null,
+        matches: false,
+        reason: 'world_hash_unavailable',
+      };
+    }
+
+    const matches = portalHash === world.worldHash;
+    return {
+      ok: matches,
+      portalHash,
+      worldHash: world.worldHash,
+      matches,
+      ...(matches ? {} : { reason: 'world_hash_mismatch' }),
+    };
   }
+
   getManifestManager(): ReturnType<typeof createManifestManager> { return createManifestManager(this); }
   handleClientDivergence(clientTick: number, clientStateHash: string) {
     const serverHash = this.getManifestManager().getLastStateHash();
