@@ -10,6 +10,7 @@ import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { financeRouter } from "../api/financeRoute.js";
 import { createManifestResyncRouter } from "../api/manifestResyncRoute.js";
 import { voteRouter } from "../api/voteRoute.js";
+import { leaderboardRouter } from "../api/leaderboardRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -188,6 +189,65 @@ describe("Sentinel Endpoint Protection", () => {
         .get("/api/vote/admin/diagnostics")
         .set("X-Admin-Token", "secret");
       expect(r4.status).toBe(200);
+    });
+  });
+
+  describe("/api/leaderboard/refresh", () => {
+    it("allows refresh without token if no ADMIN_PANEL_TOKEN is configured", async () => {
+      delete process.env.ADMIN_PANEL_TOKEN;
+      delete process.env.AUTH_FALLBACK_PANEL_TOKEN;
+      const app = express();
+      app.use("/api/leaderboard", leaderboardRouter());
+
+      const r = await request(app).post("/api/leaderboard/refresh");
+      expect(r.status).toBe(200);
+      expect(r.body.ok).toBe(true);
+    });
+
+    it("denies refresh without token if ADMIN_PANEL_TOKEN is configured", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret-token-123";
+      const app = express();
+      app.use("/api/leaderboard", leaderboardRouter());
+
+      const r = await request(app).post("/api/leaderboard/refresh");
+      expect(r.status).toBe(403);
+      expect(r.body.error).toBe("forbidden");
+    });
+
+    it("allows refresh with correct token in X-Admin-Token header", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret-token-123";
+      const app = express();
+      app.use("/api/leaderboard", leaderboardRouter());
+
+      const r = await request(app)
+        .post("/api/leaderboard/refresh")
+        .set("X-Admin-Token", "secret-token-123");
+      expect(r.status).toBe(200);
+      expect(r.body.ok).toBe(true);
+    });
+
+    it("allows refresh with correct token in Authorization Bearer header", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret-token-123";
+      const app = express();
+      app.use("/api/leaderboard", leaderboardRouter());
+
+      const r = await request(app)
+        .post("/api/leaderboard/refresh")
+        .set("Authorization", "Bearer secret-token-123");
+      expect(r.status).toBe(200);
+      expect(r.body.ok).toBe(true);
+    });
+
+    it("denies refresh with incorrect token", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret-token-123";
+      const app = express();
+      app.use("/api/leaderboard", leaderboardRouter());
+
+      const r = await request(app)
+        .post("/api/leaderboard/refresh")
+        .set("X-Admin-Token", "wrong-token");
+      expect(r.status).toBe(403);
+      expect(r.body.error).toBe("forbidden");
     });
   });
 });
