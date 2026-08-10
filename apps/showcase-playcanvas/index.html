@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#07111d" />
+  <title>Areloria — Live World Showcase</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "playcanvas": "https://cdn.jsdelivr.net/npm/playcanvas@2.21.3/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="application" aria-label="Areloria live world projection"></canvas>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <span class="eyebrow">ARELORIA · LIVE REALITY PROJECTION</span>
+        <h1>One world. Another window.</h1>
+      </div>
+      <nav aria-label="Play Areloria">
+        <a class="button primary" href="/2d/">Play 2D</a>
+        <a class="button" href="/3d/">Open 3D</a>
+      </nav>
+    </header>
+
+    <section class="telemetry" aria-live="polite">
+      <div><small>RUNTIME</small><strong id="connection">SYNCING</strong></div>
+      <div><small>TICK</small><strong id="tick">—</strong></div>
+      <div><small>PLAYERS</small><strong id="players">0</strong></div>
+      <div><small>NPCS</small><strong id="npcs">0</strong></div>
+      <div><small>LOOT</small><strong id="loot">0</strong></div>
+    </section>
+
+    <aside class="truth-card">
+      <span>SHOWCASE MODE</span>
+      <p>This view observes canonical WASD runtime packets. It owns no combat, loot, inventory, quest, NPC or persistence truth.</p>
+      <code>server → tick → world packet → projection</code>
+    </aside>
+
+    <footer>
+      <span id="feed">Waiting for a real world packet…</span>
+      <span>Presentation side-channel · no client authority</span>
+    </footer>
+  </main>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
