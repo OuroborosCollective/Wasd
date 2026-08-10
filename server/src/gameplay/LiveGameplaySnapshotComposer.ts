@@ -5,8 +5,8 @@
  * Collects data from stores/services and produces stable snapshot output.
  *
  * Rules:
- * - No Math.random()
- * - No Date.now() for gameplay state
+ * - No Math random call (e.g. Math.random)
+ * - No Date now call (e.g. Date.now) for gameplay state
  * - All arrays sorted deterministically
  * - No mutation of source data
  */
