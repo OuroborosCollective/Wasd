@@ -1,7 +1,7 @@
 import express, { Router } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash, timingSafeEqual } from "node:crypto";
 import fs from "fs/promises";
 import path from "path";
 import { z } from "zod";
@@ -13,6 +13,16 @@ const transports = new Map<string, { transport: SSEServerTransport }>();
 function getAdminToken(): string | undefined {
   const raw = process.env.MCP_ADMIN_TOKEN?.trim();
   return raw && raw.length > 0 ? raw : undefined;
+}
+
+function hashBuffer(value: string): Buffer {
+  return createHash("sha256").update(value, "utf8").digest();
+}
+
+function safeEqualText(a: string, b: string): boolean {
+  const left = hashBuffer(a);
+  const right = hashBuffer(b);
+  return left.length === right.length && timingSafeEqual(left, right);
 }
 
 /**
@@ -192,7 +202,7 @@ export function mcpRoute() {
     }
 
     const token = authHeader.split(" ")[1];
-    if (token !== adminToken) {
+    if (!safeEqualText(token, adminToken)) {
       console.warn("[MCP] Unauthorized attempt: Invalid Bearer Token");
       res.status(403).json({ error: "Forbidden: Invalid Admin Token" });
       return;
