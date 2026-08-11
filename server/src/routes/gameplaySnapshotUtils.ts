@@ -118,21 +118,22 @@ function normalizeEquipment(equipment: PlayerEquipmentSnapshot | null | undefine
   };
 }
 
+// Bolt: Optimized hot-path snapshot composition sorting using fast relational string comparisons instead of slow localeCompare
 export function createGameplaySnapshot(input: GameplaySnapshotInput): LiveGameplaySnapshot {
-  const sortedWorldPois: WorldPoiSnapshot[] = [...(input.map?.worldPois ?? [])].sort((a, b) => a.id.localeCompare(b.id)).map((poi) => ({ ...poi, tags: [...poi.tags] as readonly string[] }));
+  const sortedWorldPois: WorldPoiSnapshot[] = [...(input.map?.worldPois ?? [])].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map((poi) => ({ ...poi, tags: [...poi.tags] as readonly string[] }));
   return {
     status: "live",
     serverTick: input.serverTick,
     character: input.character ?? null,
     paperdoll: normalizePaperdoll(input.paperdoll, input.character),
-    quests: [...(input.quests ?? [])].sort((a, b) => a.id.localeCompare(b.id)),
-    skills: [...(input.skills ?? [])].sort((a, b) => a.id.localeCompare(b.id)),
-    resources: [...(input.resources ?? [])].sort((a, b) => a.id.localeCompare(b.id)),
-    inventory: input.inventory ? { ...input.inventory, slots: [...input.inventory.slots].sort((a, b) => a.itemId.localeCompare(b.itemId)) } : { playerId: "unknown", schemaVersion: 1, slots: [], capacity: 32 },
-    crafting: { recipes: [...(input.crafting?.recipes ?? [])].sort((a, b) => a.id.localeCompare(b.id)) },
+    quests: [...(input.quests ?? [])].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    skills: [...(input.skills ?? [])].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    resources: [...(input.resources ?? [])].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    inventory: input.inventory ? { ...input.inventory, slots: [...input.inventory.slots].sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0)) } : { playerId: "unknown", schemaVersion: 1, slots: [], capacity: 32 },
+    crafting: { recipes: [...(input.crafting?.recipes ?? [])].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)) },
     equipment: normalizeEquipment(input.equipment),
     guild: input.guild ?? { id: null, name: null, memberCount: 0, rank: null, villageEligible: false, treasury: null },
-    factions: [...(input.factions ?? [])].sort((a, b) => a.id.localeCompare(b.id)),
+    factions: [...(input.factions ?? [])].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
     map: { regionName: input.map?.regionName ?? "unknown", chunkX: input.map?.chunkX ?? null, chunkZ: input.map?.chunkZ ?? null, visibleChunks: input.map?.visibleChunks ?? null, biome: input.map?.biome ?? null, worldPois: sortedWorldPois },
     npcActivity: input.npcActivity ?? undefined,
   };

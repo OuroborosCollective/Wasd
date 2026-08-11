@@ -20,6 +20,17 @@ function parseTick(raw: unknown): number | null {
   return tick;
 }
 
+function replayStatsAvailable(stats: any): boolean {
+  return Boolean(
+    stats
+    && stats.available !== false
+    && Number.isInteger(Number(stats.recordedTicks))
+    && Number(stats.recordedTicks) > 0
+    && Number.isInteger(Number(stats.replayBufferSize))
+    && Number(stats.replayBufferSize) > 0,
+  );
+}
+
 function broadcastCouncil(tick: WorldTick, payload: unknown): void {
   const ws = (tick as any).ws;
   if (ws && typeof ws.broadcast === "function") {
@@ -33,11 +44,23 @@ export function areReplayRouter(tick: WorldTick) {
   sovereignGovernance.attachToTick(tick as any);
 
   router.get("/stats", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
-    res.json({ ok: true, stats: tick.getReplayRecorderStats?.() ?? null });
+    const stats = tick.getReplayRecorderStats?.() ?? null;
+    const ok = replayStatsAvailable(stats);
+    res.status(ok ? 200 : 503).json({
+      ok,
+      status: ok ? "available" : "unavailable",
+      stats,
+    });
   });
 
   router.get("/repair/status", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
-    res.json({ ok: true, autoRepair: tick.getAutoRepairStatus?.() ?? null });
+    const autoRepair = tick.getAutoRepairStatus?.() ?? null;
+    const ok = autoRepair?.ok === true;
+    res.status(ok ? 200 : 503).json({
+      ok,
+      status: ok ? "available" : "unavailable",
+      autoRepair,
+    });
   });
 
   router.get("/billing/status", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
@@ -155,18 +178,29 @@ export function areReplayRouter(tick: WorldTick) {
       return;
     }
 
-    const replay = tick.getReplaySnapshot?.(requestedTick);
-    if (!replay) {
-      res.status(404).json({
+    const stats = tick.getReplayRecorderStats?.() ?? null;
+    if (!replayStatsAvailable(stats)) {
+      res.status(503).json({
         ok: false,
-        error: "replay_tick_not_found",
-        message: "Requested tick is outside the in-memory replay ring buffer.",
-        stats: tick.getReplayRecorderStats?.() ?? null,
+        error: "replay_unavailable",
+        message: "No canonical replay recorder is available for this runtime.",
+        stats,
       });
       return;
     }
 
-    res.json(replay);
+    const replay = tick.getReplaySnapshot?.(requestedTick);
+    if (!replay || (replay as any).snapshot == null) {
+      res.status(404).json({
+        ok: false,
+        error: "replay_tick_not_found",
+        message: "Requested tick is outside the canonical replay buffer.",
+        stats,
+      });
+      return;
+    }
+
+    res.status(200).json(replay);
   });
 
   return router;
