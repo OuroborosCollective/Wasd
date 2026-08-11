@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { db, isDatabaseConfigured } from "../core/Database.js";
 
 export type LeaderboardSort = "xp" | "gold" | "kills";
@@ -83,13 +84,23 @@ function providedRefreshToken(req: Request): string {
   return "";
 }
 
+function hashBuffer(value: string): Buffer {
+  return createHash("sha256").update(value, "utf8").digest();
+}
+
+function safeEqualText(a: string, b: string): boolean {
+  const left = hashBuffer(a);
+  const right = hashBuffer(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
 function isRefreshAuthorized(req: Request): boolean {
   const expected = expectedRefreshToken();
   if (!expected) {
     return true;
   }
   const provided = providedRefreshToken(req);
-  return provided.length > 0 && provided === expected;
+  return provided.length > 0 && safeEqualText(provided, expected);
 }
 
 export function leaderboardRouter(): Router {
