@@ -17,6 +17,10 @@ import {
   type CanonicalLayerSeedResult,
 } from './CanonicalLayerSeed.js';
 import { deriveCanonicalWorldgenSeedSignals } from './CanonicalLayerSeedSignals.js';
+import {
+  canonicalArrayToLayers,
+  type PersistedLayerState,
+} from './LayerPersistencePort.js';
 import type {
   WorldBrainCanonicalStatePort,
   WorldBrainDelta,
@@ -138,6 +142,12 @@ function createStableOmega(tick: TickId): OmegaAttractorState {
 
 export interface RuntimeWorldBrainStatePortOptions {
   readonly worldSeed?: string | number | null;
+  /**
+   * Optional readback provider for rehydrate-on-register. When set, the port
+   * asks it for persisted layer state; if present, that real persisted state
+   * overrides the canonical seed (issue #2457 rehydrate truth path).
+   */
+  readonly readback?: ((chunkKey: ChunkKey) => Promise<PersistedLayerState | null>) | null;
 }
 
 /**
@@ -155,8 +165,21 @@ export class RuntimeWorldBrainStatePort implements WorldBrainCanonicalStatePort 
   private worldHash: StateHash = ZERO_STATE_HASH;
   private omegaE: OmegaAttractorState = createStableOmega(0 as TickId);
   private actorStateProvider: (() => readonly ActorHashEntry[]) | null = null;
+  private readbackProvider: ((chunkKey: ChunkKey) => Promise<PersistedLayerState | null>) | null;
 
-  constructor(private readonly options: RuntimeWorldBrainStatePortOptions = {}) {}
+  constructor(private readonly options: RuntimeWorldBrainStatePortOptions = {}) {
+    this.readbackProvider = options.readback ?? null;
+  }
+
+  /**
+   * Wire a readback provider so registerChunk can rehydrate from real
+   * persisted layer state (issue #2457). Passing null disables rehydrate.
+   */
+  setReadbackProvider(
+    provider: ((chunkKey: ChunkKey) => Promise<PersistedLayerState | null>) | null,
+  ): void {
+    this.readbackProvider = provider;
+  }
 
   /**
    * Wire the authoritative actor (player) state source so the canonical world
@@ -215,8 +238,56 @@ export class RuntimeWorldBrainStatePort implements WorldBrainCanonicalStatePort 
       });
       this.seedRecords.set(chunkKey, seed);
       this.layerStates.set(chunkKey, iareLayersToChunkLayerState(seed.layers));
+
+      // Trigger async rehydrate from real persisted state (issue #2457). The
+      // canonical seed is a placeholder until a real persisted state arrives,
+      // then it is overwritten with the rehydrated truth.
+      if (this.readbackProvider) {
+        this.rehydrateChunk(chunkKey).catch((error) => {
+          console.error('[RuntimeWorldBrainStatePort] rehydrate failed:', error);
+        });
+      }
     }
     this.recomputeHash(this.currentTick);
+  }
+
+  /**
+   * Rehydrate a chunk's layer state from real persisted data (issue #2457).
+   * Only overwrites when persisted state exists; otherwise the canonical seed
+   * stays. Returns true when rehydrate was applied.
+   */
+  async rehydrateChunk(chunkKey: ChunkKey): Promise<boolean> {
+    if (!this.readbackProvider) return false;
+    const persisted = await this.readbackProvider(chunkKey);
+    if (!persisted) return false;
+
+    const layers = canonicalArrayToLayers(persisted.layers);
+    this.layerStates.set(chunkKey, iareLayersToChunkLayerState(layers));
+    this.activeChunks.add(chunkKey);
+    this.currentTick = Number(persisted.tick) > Number(this.currentTick)
+      ? persisted.tick
+      : this.currentTick;
+    this.recomputeHash(this.currentTick);
+    return true;
+  }
+
+  /**
+   * Rehydrate all chunks at once (e.g. on restart). Returns the count of chunks
+   * whose layer state was restored from real persisted data.
+   */
+  async rehydrateAll(
+    loadAll: () => Promise<PersistedLayerState[]>,
+  ): Promise<number> {
+    let count = 0;
+    const all = await loadAll();
+    for (const persisted of all) {
+      const layers = canonicalArrayToLayers(persisted.layers);
+      this.layerStates.set(persisted.chunkKey, iareLayersToChunkLayerState(layers));
+      this.activeChunks.add(persisted.chunkKey);
+      count++;
+    }
+    this.recomputeHash(this.currentTick);
+    return count;
   }
 
   unregisterChunk(chunkKey: ChunkKey): void {
