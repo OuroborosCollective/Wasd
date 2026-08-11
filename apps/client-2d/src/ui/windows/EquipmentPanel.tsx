@@ -141,6 +141,26 @@ function PaperdollSlotCard({
     canReceiveInventoryDrop ? "can-drop" : "",
   ].filter(Boolean).join(" ");
 
+  const handleAction = useCallback(() => {
+    if (slot.itemId && !isPending) {
+      onUnequip(slot.slotId);
+    }
+  }, [slot.itemId, slot.slotId, isPending, onUnequip]);
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        handleAction();
+      }
+    },
+    [handleAction]
+  );
+
+  const ariaLabel = slot.itemId
+    ? `Unequip ${slot.title} from ${formatSlotLabel(slot.slotId)}`
+    : `Empty ${formatSlotLabel(slot.slotId)} slot`;
+
   return (
     <article
       className={className}
@@ -153,9 +173,11 @@ function PaperdollSlotCard({
       onPointerLeave={() => {
         if (dragState.hoveredTarget === slot.slotId) setHoveredTarget(null);
       }}
+      onClick={handleAction}
+      onKeyDown={handleKeyDown}
       role="button"
       tabIndex={0}
-      aria-label={`${formatSlotLabel(slot.slotId)}: ${slot.title}`}
+      aria-label={ariaLabel}
     >
       <div className="equip-slot-silhouette">{slotIcon(slot.slotId)}</div>
       {iconPath ? (
@@ -171,7 +193,10 @@ function PaperdollSlotCard({
         <button
           type="button"
           className="unequip-button"
-          onClick={() => onUnequip(slot.slotId)}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleAction();
+          }}
           disabled={isPending}
           data-testid={`unequip-slot-${slot.slotId}`}
         >
