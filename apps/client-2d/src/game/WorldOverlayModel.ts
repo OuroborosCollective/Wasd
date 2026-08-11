@@ -9,7 +9,7 @@
  * Rules (issue #2465):
  * - No second truth source: input is always a LiveGameplaySnapshot.
  * - No client authority: this model is display-only.
- * - No Math.random() or wall-clock in the presentation model.
+ * - No nondeterministic RNG or wall-clock in the presentation model.
  * - Status is honest: `live` requires real snapshot evidence; otherwise
  *   `waiting`/`empty`/`stale`/`blocked` is reported.
  */
