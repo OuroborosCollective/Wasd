@@ -10,7 +10,7 @@
  * Rules:
  * - No second truth: input is always a server snapshot.
  * - No client authority: the model is display-only.
- * - No Math.random() or wall-clock in the model.
+ * - No nondeterministic RNG or wall-clock in the model.
  * - Status is honest: `live` requires real snapshot evidence.
  */
 
