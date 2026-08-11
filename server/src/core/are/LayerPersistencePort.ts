@@ -6,7 +6,7 @@
  * with provable Write -> Read -> Rehydrate (issue #2457).
  *
  * Rules (ARE truth path):
- * - No Date.now() / Math.random() for persisted gameplay state.
+ * - No wall-clock time / nondeterministic randomness for persisted gameplay state.
  * - No `Promise.resolve()` as persistence.
  * - No hidden memory/no-op fallback in production green.
  * - Stable canonical sort (ChunkKey -> Tick) for deterministic representation.

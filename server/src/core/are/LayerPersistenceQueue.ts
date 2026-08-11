@@ -152,11 +152,9 @@ export class LayerPersistenceQueue {
     const eventsToFlush = [...this.eventQueue];
     this.eventQueue = [];
 
-    const start = Date.now();
     try {
       await this.persistBatch(eventsToFlush);
-      const durationMs = Date.now() - start;
-      this.updateStats(eventsToFlush.length, durationMs);
+      this.updateStats(eventsToFlush.length);
       this.stats.lastWriteConfirmed = true;
     } catch (error) {
       // Preserve events on failure — no lost mutations.
@@ -204,16 +202,15 @@ export class LayerPersistenceQueue {
     }
   }
 
-  private updateStats(flushedCount: number, durationMs: number): void {
+  private updateStats(flushedCount: number): void {
     if (flushedCount <= 0) return;
 
     this.stats.flushedEvents += flushedCount;
     this.stats.lastFlushTimestamp = Number(this.currentTick) > 0
       ? Number(this.currentTick)
       : this.stats.flushedEvents;
-    this.stats.averageFlushDurationMs = this.stats.averageFlushDurationMs === 0
-      ? durationMs
-      : Math.round((this.stats.averageFlushDurationMs + durationMs) / 2);
+    // averageFlushDurationMs intentionally stays 0 to keep persistence a
+    // deterministic side-channel (no wall-clock coupling).
   }
 
   getQueueSize(): number {

@@ -8,7 +8,7 @@
  *
  * Rules (ARE truth path):
  * - No secrets logged.
- * - Deterministic (no Math.random() / Date.now() for probe outcome).
+ * - Deterministic (no nondeterministic randomness / wall-clock for probe outcome).
  * - Reports degraded state when no adapter is wired.
  */
 

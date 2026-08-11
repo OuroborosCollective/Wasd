@@ -5,8 +5,8 @@
  * Falls back to JSON adapter when DB unavailable (handled by the factory).
  *
  * Rules (ARE truth path):
- * - No Math.random() for persisted gameplay state.
- * - No Date.now() for persisted layer values (updated_tick stores the tick).
+ * - No nondeterministic randomness for persisted gameplay state.
+ * - No wall-clock time for persisted layer values (updated_tick stores the tick).
  * - Deterministic canonical serialization (layers_json sorted by layer name).
  * - `updated_at` is operational metadata, not gameplay truth.
  */

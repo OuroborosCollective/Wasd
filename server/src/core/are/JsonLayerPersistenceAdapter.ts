@@ -6,7 +6,7 @@
  * Write -> Read -> Rehydrate.
  *
  * Rules (ARE truth path):
- * - No Date.now() / Math.random() for persisted gameplay state.
+ * - No wall-clock time / nondeterministic randomness for persisted gameplay state.
  * - Atomic writes via temp file + rename.
  * - Canonical sort by chunkKey for deterministic on-disk representation.
  * - Corrupt JSON must not crash the server; rehydrate stays fail-closed
