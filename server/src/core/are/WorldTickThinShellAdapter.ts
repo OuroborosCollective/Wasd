@@ -11,6 +11,7 @@ import { NPCSystem as RealNPCSystem } from '../../modules/npc/NPCSystem.js';
 import { loadGameDataNpcsIntoSystem, type NpcGameDataLoadReport } from '../../modules/npc/NPCGameDataStore.js';
 import type { LootEntity } from '../../modules/world/LootDirector.js';
 import { lootDirector as deterministicLootDirector } from '../../modules/world/LootDirector.js';
+import { canonicalIntentIntake } from '../../intents/CanonicalIntentIntake.js';
 
 type AutoRepairStatus = { ok: boolean; status: string; reason?: string };
 type DeterministicRecorderStats = { available: boolean; recordedTicks: number; replayBufferSize: number; reason?: string };
@@ -182,6 +183,7 @@ export class WorldTickAdapter {
       runtimePorts: this.getRuntimePortDiagnostics(),
       playerRuntime: this.playerSystem.getDiagnostics(),
       appliedMoveIntentTotal: this.appliedMoveIntentTotal,
+      canonicalIntents: canonicalIntentIntake.getDiagnostics(),
     }),
     flush: () => {},
   };
