@@ -51,13 +51,44 @@ function countUnavailableEntrypoints(available: Record<string, boolean>): readon
   );
 }
 
+function isCanonicalNonZeroHash(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/i.test(value) && !/^0{64}$/i.test(value);
+}
+
+export function isUsableWorldHashSnapshot(snapshot: any): boolean {
+  return Boolean(
+    snapshot
+    && isCanonicalNonZeroHash(snapshot.worldHash)
+    && Number.isInteger(Number(snapshot.chunkCount))
+    && Number(snapshot.chunkCount) > 0,
+  );
+}
+
+export function isUsableGuardEvidence(guard: any): boolean {
+  return Boolean(guard && guard.ok === true && guard.available !== false);
+}
+
+export function isUsableReplayEvidence(replay: any): boolean {
+  return Boolean(
+    replay
+    && replay.available !== false
+    && Number.isInteger(Number(replay.recordedTicks))
+    && Number(replay.recordedTicks) > 0
+    && Number.isInteger(Number(replay.replayBufferSize))
+    && Number(replay.replayBufferSize) > 0,
+  );
+}
+
 function buildManifestStatus(tick: WorldTick | undefined): Record<string, unknown> {
   return safe(() => {
     const manager = tick?.getManifestManager?.();
     if (!manager) return { status: 'unavailable' };
+
+    const lastStateHash = manager.getLastStateHash();
+    const hashReady = isCanonicalNonZeroHash(lastStateHash);
     return {
-      status: 'available',
-      lastStateHash: manager.getLastStateHash(),
+      status: hashReady ? 'available' : 'uninitialized',
+      lastStateHash: hashReady ? lastStateHash : null,
       lastSnapshotTick: manager.getLastSnapshotTick(),
       highestTick: manager.getReplayGuard().getHighestTick(),
       replayGuardNonces: manager.getReplayGuard().getNonceCount(),
@@ -105,11 +136,34 @@ export function healthRoutes(options: HealthRouteOptions): Router {
   router.get('/determinism', (_req: Request, res: Response) => {
     noStore(res);
     const tick = options.getTick();
+    const initializing = options.isInitializing();
     const guard = safe(() => tick?.getAREGuardStatus?.() ?? null, null);
     const replay = safe(() => tick?.getReplayRecorderStats?.() ?? null, null);
     const watchdog = safe(() => (tick as any)?.getWatchdogLedgerStatus?.() ?? getDeterministicWatchdogStatus(), getDeterministicWatchdogStatus());
-    const ok = Boolean(tick) && !options.isInitializing();
-    res.status(ok ? 200 : 503).json({ ok, status: ok ? 'deterministic' : 'unready', guard, replay, watchdog });
+
+    const tickReady = Boolean(tick) && !initializing;
+    const guardReady = isUsableGuardEvidence(guard);
+    const replayReady = isUsableReplayEvidence(replay);
+    const ok = tickReady && guardReady && replayReady;
+
+    let status = 'unavailable';
+    if (initializing) status = 'initializing';
+    else if (!tick) status = 'unavailable';
+    else if (guard?.ok === false && guard?.available !== false) status = 'degraded';
+    else if (ok) status = 'deterministic';
+
+    res.status(ok ? 200 : 503).json({
+      ok,
+      status,
+      evidence: {
+        tickReady,
+        guardReady,
+        replayReady,
+      },
+      guard,
+      replay,
+      watchdog,
+    });
   });
 
   router.get('/watchdog', (_req: Request, res: Response) => {
@@ -124,8 +178,13 @@ export function healthRoutes(options: HealthRouteOptions): Router {
     noStore(res);
     const tick = options.getTick();
     const snapshot = safe(() => tick?.getWorldHashSnapshot?.() ?? null, null);
-    const ok = Boolean(snapshot);
-    res.status(ok ? 200 : 503).json({ ok, status: ok ? 'hashed' : 'unavailable', snapshot });
+    const ok = isUsableWorldHashSnapshot(snapshot);
+    const zeroOrEmpty = Boolean(snapshot && (!isCanonicalNonZeroHash(snapshot.worldHash) || Number(snapshot.chunkCount) <= 0));
+    res.status(ok ? 200 : 503).json({
+      ok,
+      status: ok ? 'hashed' : zeroOrEmpty ? 'uninitialized' : 'unavailable',
+      snapshot: ok ? snapshot : null,
+    });
   });
 
   router.get('/observability', async (_req: Request, res: Response) => {
