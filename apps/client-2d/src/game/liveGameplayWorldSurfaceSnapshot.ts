@@ -31,7 +31,7 @@ function normalizeStringArray(input: unknown): string[] {
   return input
     .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
     .map((value) => value.trim())
-    .sort((a, b) => a.localeCompare(b));
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 function normalizeNpcQuestObjective(input: unknown): NpcQuestObjectiveSnapshot | null {
@@ -59,7 +59,7 @@ function normalizeNpcQuestProgress(input: unknown): NpcQuestProgressSnapshot | n
       ? input.objectives
           .map(normalizeNpcQuestObjective)
           .filter((objective): objective is NpcQuestObjectiveSnapshot => objective !== null)
-          .sort((a, b) => a.objectiveId.localeCompare(b.objectiveId))
+          .sort((a, b) => (a.objectiveId < b.objectiveId ? -1 : a.objectiveId > b.objectiveId ? 1 : 0))
       : [],
   };
 }
@@ -69,7 +69,7 @@ function normalizeNpcQuestProgressList(input: unknown): NpcQuestProgressSnapshot
   return input
     .map(normalizeNpcQuestProgress)
     .filter((quest): quest is NpcQuestProgressSnapshot => quest !== null)
-    .sort((a, b) => a.questId.localeCompare(b.questId));
+    .sort((a, b) => (a.questId < b.questId ? -1 : a.questId > b.questId ? 1 : 0));
 }
 
 function normalizeNpcDialogues(input: unknown): NpcDialogueSnapshot[] {
@@ -99,7 +99,7 @@ function normalizeNpcDialogues(input: unknown): NpcDialogueSnapshot[] {
       activeQuestIds: normalizeStringArray(dialogue.activeQuestIds),
       completedQuestIds: normalizeStringArray(dialogue.completedQuestIds),
     }))
-    .sort((a, b) => a.npcId.localeCompare(b.npcId));
+    .sort((a, b) => (a.npcId < b.npcId ? -1 : a.npcId > b.npcId ? 1 : 0));
 }
 
 function normalizeNpcReputations(input: unknown): NpcReputationSnapshot[] {
@@ -117,7 +117,7 @@ function normalizeNpcReputations(input: unknown): NpcReputationSnapshot[] {
       reputation: Math.trunc(Number(rep.reputation)),
       completedQuestIds: normalizeStringArray(rep.completedQuestIds),
     }))
-    .sort((a, b) => a.npcId.localeCompare(b.npcId));
+    .sort((a, b) => (a.npcId < b.npcId ? -1 : a.npcId > b.npcId ? 1 : 0));
 }
 
 function normalizeNpcMemories(input: unknown): NpcMemorySnapshot[] {
@@ -141,7 +141,7 @@ function normalizeNpcMemories(input: unknown): NpcMemorySnapshot[] {
       recentMemoryNotes: normalizeStringArray(memory.recentMemoryNotes),
       knownRumorCount: Math.max(0, Math.floor(Number(memory.knownRumorCount))),
     }))
-    .sort((a, b) => a.npcId.localeCompare(b.npcId));
+    .sort((a, b) => (a.npcId < b.npcId ? -1 : a.npcId > b.npcId ? 1 : 0));
 }
 
 function normalizeNpcRumors(input: unknown): NpcRumorSnapshot[] {
@@ -166,7 +166,7 @@ function normalizeNpcRumors(input: unknown): NpcRumorSnapshot[] {
       note: typeof rumor.note === "string" ? rumor.note : "",
       sourceNpcId: typeof rumor.sourceNpcId === "string" ? rumor.sourceNpcId : "",
     }))
-    .sort((a, b) => a.rumorId.localeCompare(b.rumorId));
+    .sort((a, b) => (a.rumorId < b.rumorId ? -1 : a.rumorId > b.rumorId ? 1 : 0));
 }
 
 export function normalizeLiveGameplaySnapshotWithWorldSurface(

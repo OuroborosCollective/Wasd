@@ -42,6 +42,8 @@ export function FactionStandingPanel({ snapshot }: { snapshot: LiveGameplaySnaps
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={progress}
+              aria-valuetext={`${progress}% (${faction.label})`}
+              title={`${faction.name} Standing: ${progress}% (${faction.label})`}
               style={{ width: "100%", marginTop: "4px" }}
             >
               <div

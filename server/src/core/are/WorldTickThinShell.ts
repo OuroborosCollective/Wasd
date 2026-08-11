@@ -327,6 +327,14 @@ export class WorldTickThinShell {
     this.worldBrainState.unregisterChunk(coerceChunkKey(chunkKey));
   }
 
+  /**
+   * Wire the authoritative actor (player) state into the canonical world hash
+   * (AIM-104). The provider must return the live, tick-mutated players.
+   */
+  setActorStateProvider(provider: (() => readonly import('./WorldBrainRuntimePort.js').ActorHashEntry[]) | null): void {
+    this.worldBrainState.setActorStateProvider(provider);
+  }
+
   getWorldBrainSeedRecord(chunkKey: string): CanonicalLayerSeedResult | null {
     return this.worldBrainState.getCanonicalSeedRecord(coerceChunkKey(chunkKey));
   }

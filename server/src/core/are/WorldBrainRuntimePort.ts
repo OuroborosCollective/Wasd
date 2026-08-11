@@ -25,6 +25,59 @@ import type {
 
 const ZERO_STATE_HASH = createStateHash('0'.repeat(64));
 
+/**
+ * Actor (player) hash entry. Only the fields that are deterministically
+ * mutated inside the authoritative tick are folded into the canonical world
+ * hash (AIM-104): id + quantized position + movement state. Inventory,
+ * equipment and other volatile fields are intentionally excluded to keep the
+ * hash stable and focused on the spatial/movement truth path.
+ */
+export interface ActorHashEntry {
+  readonly id: string;
+  readonly position: { readonly x: number; readonly y: number; readonly z: number };
+  readonly state: string;
+}
+
+/** Quantize a position component to millitiles so float drift can't split hashes. */
+function quantizeTile(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 1000);
+}
+
+function buildActorSegment(actors: readonly ActorHashEntry[] | null): string {
+  if (!actors || actors.length === 0) return '';
+  return [...actors]
+    .map((a) => ({ id: String(a?.id ?? ''), qx: quantizeTile(a?.position?.x), qy: quantizeTile(a?.position?.y), qz: quantizeTile(a?.position?.z), state: String(a?.state ?? '') }))
+    .filter((a) => a.id.length > 0)
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .map((a) => `${a.id}:${a.qx},${a.qy},${a.qz}:${a.state}`)
+    .join(';');
+}
+
+function fnv1aStateHash(input: string): StateHash {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  const hex = hash.toString(16).padStart(8, '0');
+  return createStateHash(hex.repeat(8).slice(0, 64));
+}
+
+function hashRuntimeSnapshot(tick: TickId, layerStates: Map<ChunkKey, ChunkLayerState>, actorSegment = ''): StateHash {
+  const parts = [...layerStates.entries()]
+    .sort(([a], [b]) => String(a).localeCompare(String(b)))
+    .map(([chunkKey, state]) => `${String(chunkKey)}:${Object.values(chunkLayerStateToIARELayers(state)).join(',')}`)
+    .join('|');
+
+  const input = actorSegment
+    ? `tick:${Number(tick)}|${parts}|actors:${actorSegment}`
+    : `tick:${Number(tick)}|${parts}`;
+
+  return fnv1aStateHash(input);
+}
+
 function toKappa(value: KappaInt): Kappa {
   return createKappa(Number(value));
 }
@@ -73,23 +126,6 @@ function cloneChunkLayerState(state: ChunkLayerState): ChunkLayerState {
   return iareLayersToChunkLayerState(chunkLayerStateToIARELayers(state));
 }
 
-function hashRuntimeSnapshot(tick: TickId, layerStates: Map<ChunkKey, ChunkLayerState>): StateHash {
-  const parts = [...layerStates.entries()]
-    .sort(([a], [b]) => String(a).localeCompare(String(b)))
-    .map(([chunkKey, state]) => `${String(chunkKey)}:${Object.values(chunkLayerStateToIARELayers(state)).join(',')}`)
-    .join('|');
-
-  let hash = 0x811c9dc5;
-  const input = `tick:${Number(tick)}|${parts}`;
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= input.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-
-  const hex = hash.toString(16).padStart(8, '0');
-  return createStateHash(hex.repeat(8).slice(0, 64));
-}
-
 function createStableOmega(tick: TickId): OmegaAttractorState {
   return Object.freeze({
     attractor_type: ATTRACTOR_TYPES.STABLE,
@@ -118,8 +154,27 @@ export class RuntimeWorldBrainStatePort implements WorldBrainCanonicalStatePort 
   private currentTick = 0 as TickId;
   private worldHash: StateHash = ZERO_STATE_HASH;
   private omegaE: OmegaAttractorState = createStableOmega(0 as TickId);
+  private actorStateProvider: (() => readonly ActorHashEntry[]) | null = null;
 
   constructor(private readonly options: RuntimeWorldBrainStatePortOptions = {}) {}
+
+  /**
+   * Wire the authoritative actor (player) state source so the canonical world
+   * hash folds in actor positions/movement (AIM-104). Must return a
+   * deterministically-mutable snapshot; the port quantizes + sorts before
+   * hashing, so provider order does not matter.
+   */
+  setActorStateProvider(provider: (() => readonly ActorHashEntry[]) | null): void {
+    this.actorStateProvider = provider;
+  }
+
+  private computeActorSegment(): string {
+    return buildActorSegment(this.actorStateProvider ? this.actorStateProvider() : null);
+  }
+
+  private recomputeHash(tick: TickId): void {
+    this.worldHash = hashRuntimeSnapshot(tick, this.layerStates, this.computeActorSegment());
+  }
 
   listActiveChunkKeys(): readonly ChunkKey[] {
     return Object.freeze([...this.activeChunks].sort((a, b) => String(a).localeCompare(String(b))));
@@ -134,7 +189,7 @@ export class RuntimeWorldBrainStatePort implements WorldBrainCanonicalStatePort 
     this.currentTick = delta.tick;
     this.activeChunks.add(delta.chunkKey);
     this.layerStates.set(delta.chunkKey, iareLayersToChunkLayerState(delta.nextLayers));
-    this.worldHash = hashRuntimeSnapshot(delta.tick, this.layerStates);
+    this.recomputeHash(delta.tick);
     this.omegaE = Object.freeze({
       attractor_type: delta.attractor.type,
       strength: createKappa(Number(delta.attractor.strength)),
@@ -161,14 +216,14 @@ export class RuntimeWorldBrainStatePort implements WorldBrainCanonicalStatePort 
       this.seedRecords.set(chunkKey, seed);
       this.layerStates.set(chunkKey, iareLayersToChunkLayerState(seed.layers));
     }
-    this.worldHash = hashRuntimeSnapshot(this.currentTick, this.layerStates);
+    this.recomputeHash(this.currentTick);
   }
 
   unregisterChunk(chunkKey: ChunkKey): void {
     this.activeChunks.delete(chunkKey);
     this.layerStates.delete(chunkKey);
     this.seedRecords.delete(chunkKey);
-    this.worldHash = hashRuntimeSnapshot(this.currentTick, this.layerStates);
+    this.recomputeHash(this.currentTick);
   }
 
   getCanonicalSeedRecord(chunkKey: ChunkKey): CanonicalLayerSeedResult | null {
