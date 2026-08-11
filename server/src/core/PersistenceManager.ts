@@ -126,7 +126,7 @@ export class PersistenceManager {
 
   public async testConnection(): Promise<boolean> {
     const isTest = process.env.NODE_ENV === "test" || process.env.VITEST === "true";
-    const now = Date.now();
+    const now = Date.now(); // ARE-DETERMINISM-ALLOW
     // Cache the connection check results for 5 seconds in production/development,
     // but bypass caching completely in tests to avoid test cross-pollution.
     if (!isTest && now - this.lastConnectionCheckAt < 5_000) {
