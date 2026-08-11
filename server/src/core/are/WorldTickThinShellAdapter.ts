@@ -217,6 +217,12 @@ export class WorldTickAdapter {
       },
     });
 
+    // AIM-104: fold authoritative actor (player) state into the canonical world
+    // hash so it can detect actor-state divergence. Players are deterministically
+    // mutated inside the tick (AIM-103 movement + hydration), so the provider
+    // reads live RuntimePlayerSystem state that the tick has already advanced.
+    this.thinShell.setActorStateProvider(() => this.playerSystem.getAllPlayers());
+
     console.log(`[WorldTickAdapter] Initialized with RealNPCSystem, game-data NPCs=${this.npcGameDataReport.npcsLoaded}, NPCTickSystem, deterministicLootDirector, and explicit unavailable runtime ports`);
   }
 
