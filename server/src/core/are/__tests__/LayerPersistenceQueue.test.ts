@@ -1,18 +1,29 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { 
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import {
   LayerPersistenceQueue,
   layerPersistenceQueue,
   createLayerPersistenceEvent,
   PERSISTENCE_CONSTANTS
 } from '../LayerPersistenceQueue.js';
+import { JsonLayerPersistenceAdapter } from '../JsonLayerPersistenceAdapter.js';
 import { createChunkKey, createStateHash } from '../types.js';
 import { createEmptyIARELogicLayers } from '../IARELogicLayers.js';
 
 describe('LayerPersistenceQueue', () => {
   let queue: LayerPersistenceQueue;
+  let dir: string;
 
-  beforeEach(() => {
-    queue = new LayerPersistenceQueue();
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'layer-persist-legacy-'));
+    const adapter = new JsonLayerPersistenceAdapter(path.join(dir, 'data', 'layer-state.json'));
+    queue = new LayerPersistenceQueue(adapter);
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
   });
 
   describe('enqueue', () => {
