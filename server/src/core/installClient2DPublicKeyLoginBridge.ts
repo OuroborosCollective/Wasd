@@ -1,6 +1,8 @@
 import type { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import type { WorldTick } from "./are/index.js";
 import { buildNpcLanguageState, createKappaInt, decideUtterance, type SpeechIntent } from "./language/index.js";
+import { canonicalizeActorMoveIntent } from "../intents/ServerCanonicalIntent.js";
+import { canonicalIntentIntake } from "../intents/CanonicalIntentIntake.js";
 
 type Pos3 = { x: number; y: number; z: number };
 type Move2 = { dx: number; dy: number; sequenceId: number };
@@ -269,6 +271,7 @@ export function installClient2DPublicKeyLoginBridge(ws: GameWebSocketServer, tic
         // up on the following heartbeat after the tick has applied it.
         const playerSystem = (tick as any).playerSystem;
         const acceptedAtTick = tickNumber(tick);
+        const speed = Number((tick as any).client2DMoveSpeed ?? 5);
         const enqueued = typeof playerSystem?.enqueueMoveIntent === "function"
           ? playerSystem.enqueueMoveIntent({
               playerId: uid,
@@ -279,6 +282,27 @@ export function installClient2DPublicKeyLoginBridge(ws: GameWebSocketServer, tic
               acceptedAtTick,
             })
           : false;
+        // AIM-77: stamp the move as a ServerCanonicalIntent so player movement
+        // shares the same canonical path as routes (gather/interact/inventory)
+        // and as NPC movement — unified, hashed, context-stamped (actorId,
+        // tickId, chunkKey). Purely an integrity record; movement still applies
+        // via the deterministic tick above.
+        if (enqueued) {
+          try {
+            const canonical = canonicalizeActorMoveIntent({
+              actorId: uid,
+              fromPosition: { x: player.position.x, y: player.position.y },
+              delta: { dx: move.dx * speed, dy: move.dy * speed },
+              tickId: acceptedAtTick,
+              logicalIndex: acceptedAtTick,
+              receivedOrder: Math.max(0, move.sequenceId | 0),
+              requestId: msg?.seq != null ? String(msg.seq) : undefined,
+            });
+            canonicalIntentIntake.record(canonical);
+          } catch {
+            // Canonical stamping must never break the movement truth path.
+          }
+        }
         player.isOffline = false;
         tick.observerEngine.updatePosition(socketId, { x: player.position.x, y: player.position.y });
         ws.sendToPlayer(socketId, {
