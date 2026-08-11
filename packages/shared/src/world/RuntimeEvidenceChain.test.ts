@@ -155,4 +155,25 @@ describe("verifyParity", () => {
     const result = verifyParity(a, b);
     expect(result.parity).toBe(true);
   });
+
+  it("requires both renderers to reject local-invented truth", () => {
+    const contracts = [
+      EXPECTED_PARITY_CONTRACTS["client-2d"],
+      EXPECTED_PARITY_CONTRACTS["client-3d"],
+    ];
+    for (const c of contracts) {
+      expect(c.truthSource).toBe("server-snapshot");
+      expect(c.consumesWorldOverlayModel).toBe(true);
+      expect(c.derivesFromDerivation).toBe(true);
+    }
+  });
+
+  it("runtime evidence layers are disjoint from build-only layers", () => {
+    const buildOnly: EvidenceLayer[] = ["unit", "guard", "build"];
+    const runtime: EvidenceLayer[] = [...RUNTIME_EVIDENCE_LAYERS];
+    for (const b of buildOnly) {
+      expect(runtime).not.toContain(b);
+    }
+    expect(runtime.length).toBe(2);
+  });
 });
