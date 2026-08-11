@@ -296,6 +296,16 @@ export class WorldTickAdapter {
   setVoteBannerOrder(_data: any): any { return { ok: false, error: 'vote_banner_runtime_unavailable' }; }
   getVoteAdminDiagnostics(): any { return { available: false, reason: 'vote banner runtime not registered' }; }
   getPersistenceStats(): any { return this.thinShell.getPersistenceStats(); }
+  setPersistenceAdapter(adapter: import('./LayerPersistencePort.js').LayerPersistenceAdapter): void {
+    this.thinShell.setPersistenceAdapter(adapter);
+  }
+  async ensurePersistenceAdapter(): Promise<void> {
+    const { createLayerPersistenceAdapter } = await import('./createLayerPersistenceAdapter.js');
+    await this.thinShell.ensurePersistenceAdapter(createLayerPersistenceAdapter);
+  }
+  async rehydrateAllChunkStates(): Promise<number> {
+    return this.thinShell.rehydrateAllChunkStates();
+  }
   debouncedSave(): void {}
   createNPC(id: string, name: string, x: number, y: number): void { this.npcSystem.createNPC(id, name, x, y); }
   updateLootCache(): void {}

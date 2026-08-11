@@ -5,6 +5,7 @@ import { getDeterministicWatchdogStatus } from '../core/installDeterministicWatc
 import { checkQuestPersistenceWritable } from './questPersistenceHealth.js';
 import { checkSkillPersistenceWritable } from './skillPersistenceHealth.js';
 import { checkInventoryPersistenceWritable } from './inventoryPersistenceHealth.js';
+import { checkLayerPersistenceWritable } from './layerPersistenceHealth.js';
 import { buildClientEntrypointHealth } from '../core/ClientEntrypointHealth.js';
 import { getActiveGameWebSocketServer } from '../networking/WebSocketServer.js';
 import { getSafePlaytesterConfigForLogs } from '../config/PlaytesterConfig.js';
@@ -197,6 +198,7 @@ export function healthRoutes(options: HealthRouteOptions): Router {
       checkQuestPersistenceWritable().then((result) => ({ name: 'quest', result })),
       checkSkillPersistenceWritable().then((result) => ({ name: 'skill', result })),
       checkInventoryPersistenceWritable().then((result) => ({ name: 'inventory', result })),
+      checkLayerPersistenceWritable().then((result) => ({ name: 'layer', result })),
     ]);
     const assetAuditFailures = countUnavailableEntrypoints(clientEntrypoints.available);
     const persistenceFailures = flattenPersistenceFailures(persistenceChecks);
@@ -273,6 +275,18 @@ export function healthRoutes(options: HealthRouteOptions): Router {
     res.status(result.ok ? 200 : 503).json({
       ok: result.ok,
       persistence: result,
+    });
+  });
+
+  router.get('/layer-persistence', async (_req: Request, res: Response) => {
+    noStore(res);
+    const tick = options.getTick();
+    const result = await checkLayerPersistenceWritable();
+    const stats = safe(() => tick?.getPersistenceStats?.() ?? null, null);
+    res.status(result.ok ? 200 : 503).json({
+      ok: result.ok,
+      persistence: result,
+      queueStats: stats,
     });
   });
 

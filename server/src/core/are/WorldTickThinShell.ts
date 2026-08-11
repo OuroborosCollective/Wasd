@@ -159,6 +159,12 @@ export class WorldTickThinShell {
     this.persistenceQueue = layerPersistenceQueue;
     this.worldBrainState = new RuntimeWorldBrainStatePort({ worldSeed: options.worldSeed });
 
+    // Wire readback/rehydrate into the runtime world brain state (issue #2457):
+    // the persistence queue's real adapter is the readback source. This only
+    // takes effect once an adapter is set (via setAdapter / ensureAdapter),
+    // so rehydrate stays fail-closed until a real backend is wired.
+    this.worldBrainState.setReadbackProvider((chunkKey) => this.persistenceQueue.loadChunkState(chunkKey));
+
     registerCoreTickSystems();
     this.registerWorldBrainRuntimeSystem();
   }
@@ -349,6 +355,34 @@ export class WorldTickThinShell {
 
   getPersistenceStats() {
     return this.persistenceQueue.getStats();
+  }
+
+  /**
+   * Wire a real persistence adapter into the queue (issue #2457). Required for
+   * the queue to count as non-degraded and for rehydrate to work.
+   */
+  setPersistenceAdapter(adapter: import('./LayerPersistencePort.js').LayerPersistenceAdapter): void {
+    this.persistenceQueue.setAdapter(adapter);
+  }
+
+  /**
+   * Lazily build the production persistence adapter via the async factory and
+   * wire it into the queue. Safe to await during bootstrap.
+   */
+  async ensurePersistenceAdapter(
+    factory: () => Promise<import('./LayerPersistencePort.js').LayerPersistenceAdapter>,
+  ): Promise<void> {
+    await this.persistenceQueue.ensureAdapter(factory);
+  }
+
+  /**
+   * Rehydrate all chunk layer states from real persisted data (issue #2457).
+   * Returns the number of chunks restored. No-op (0) when no adapter is wired.
+   */
+  async rehydrateAllChunkStates(): Promise<number> {
+    const adapter = this.persistenceQueue.getAdapter();
+    if (!adapter || !adapter.loadAllChunkStates) return 0;
+    return this.worldBrainState.rehydrateAll(() => adapter.loadAllChunkStates!());
   }
 
   getSnapshotStats() {
