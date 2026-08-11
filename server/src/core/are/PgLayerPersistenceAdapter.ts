@@ -169,13 +169,15 @@ export class PgLayerPersistenceAdapter implements LayerPersistenceAdapter {
 }
 
 function rowToState(row: LayerStateRow): PersistedLayerState | null {
+  // Cast to the partial input shape: normalizePersistedLayerState performs
+  // defensive parsing and brands the canonical output itself.
   return normalizePersistedLayerState({
-    chunkKey: row.chunk_key,
-    tick: row.tick,
-    deltaHash: row.delta_hash,
-    schemaVersion: row.schema_version,
+    chunkKey: row.chunk_key as unknown as PersistedLayerState['chunkKey'],
+    tick: row.tick as unknown as PersistedLayerState['tick'],
+    deltaHash: row.delta_hash as unknown as PersistedLayerState['deltaHash'],
+    schemaVersion: row.schema_version as unknown as PersistedLayerState['schemaVersion'],
     layers: Array.isArray(row.layers_json)
-      ? row.layers_json.map((entry) => [entry.name, entry.value])
+      ? row.layers_json.map((entry) => [entry.name, entry.value] as const)
       : [],
-  });
+  } as Partial<PersistedLayerState>);
 }
