@@ -181,21 +181,21 @@ export const uiRuntimeManifest: UiRuntimeManifestEntry[] = [
     path: "apps/client-2d/src/ui/ResourceNodeMarkerLayer.tsx",
     status: "LIVE",
     realRenderPath: true,
-    notes: "Resource node markers on world.",
+    notes: "Resource node markers on world. Mounted in UIOverlayLayer (main.tsx); driven by WorldOverlayModel + canonical iso projection.",
   },
   {
     id: "world-poi-marker-layer",
     path: "apps/client-2d/src/ui/WorldPoiMarkerLayer.tsx",
     status: "LIVE",
     realRenderPath: true,
-    notes: "World POI markers on world.",
+    notes: "World POI markers on world. Mounted in UIOverlayLayer (main.tsx); driven by WorldOverlayModel + canonical iso projection.",
   },
   {
     id: "camp-npc-marker-layer",
     path: "apps/client-2d/src/ui/CampNpcMarkerLayer.tsx",
     status: "LIVE",
     realRenderPath: true,
-    notes: "Camp NPC markers on world.",
+    notes: "Camp NPC markers on world. Mounted in UIOverlayLayer (main.tsx); driven by live snapshot + canonical iso projection.",
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
