@@ -5,8 +5,8 @@
  * Collects data from stores/services and produces stable snapshot output.
  *
  * Rules:
- * - No Math.random()
- * - No Date.now() for gameplay state
+ * - No Math random call (e.g. Math.random)
+ * - No Date now call (e.g. Date.now) for gameplay state
  * - All arrays sorted deterministically
  * - No mutation of source data
  */
@@ -135,33 +135,34 @@ export class LiveGameplaySnapshotComposer {
     const civicState = buildCivicStateFromWorldSurface(safeLogicalIndex, worldSurface);
     const marketState = buildMarketStateFromRuntimeInputs(safeLogicalIndex, resourceNodes, campStocks);
 
+    // Bolt: Optimized hot-path snapshot composition sorting using fast relational string comparisons instead of slow localeCompare
     return Object.freeze({
       schemaVersion: "live-gameplay-snapshot.v1" as const,
       playerId,
       logicalIndex: safeLogicalIndex,
       tickRateHz: 10 as const,
       tickMs: 100 as const,
-      inventory: Object.freeze([...inventory].sort((a, b) => a.itemId.localeCompare(b.itemId))),
-      equipment: Object.freeze([...equipment].sort((a, b) => a.slot.localeCompare(b.slot))),
-      skills: Object.freeze([...skills].sort((a, b) => a.skillId.localeCompare(b.skillId))),
-      resourceNodes: Object.freeze([...resourceNodes].sort((a, b) => a.nodeId.localeCompare(b.nodeId))),
+      inventory: Object.freeze([...inventory].sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0))),
+      equipment: Object.freeze([...equipment].sort((a, b) => (a.slot < b.slot ? -1 : a.slot > b.slot ? 1 : 0))),
+      skills: Object.freeze([...skills].sort((a, b) => (a.skillId < b.skillId ? -1 : a.skillId > b.skillId ? 1 : 0))),
+      resourceNodes: Object.freeze([...resourceNodes].sort((a, b) => (a.nodeId < b.nodeId ? -1 : a.nodeId > b.nodeId ? 1 : 0))),
       wallet: Object.freeze(wallet),
-      worldPois: Object.freeze([...worldPois].sort((a, b) => a.poiId.localeCompare(b.poiId))),
+      worldPois: Object.freeze([...worldPois].sort((a, b) => (a.poiId < b.poiId ? -1 : a.poiId > b.poiId ? 1 : 0))),
       vendorEconomy: Object.freeze(vendorEconomy),
       marketState: Object.freeze(marketState),
       discoveryStats: Object.freeze(discoveryStats),
       recentDiscoveries: Object.freeze([...recentDiscoveries]),
-      campNpcs: Object.freeze([...campNpcs].sort((a, b) => a.id.localeCompare(b.id))),
-      campStocks: Object.freeze([...campStocks].sort((a, b) => a.poiId.localeCompare(b.poiId))),
+      campNpcs: Object.freeze([...campNpcs].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))),
+      campStocks: Object.freeze([...campStocks].sort((a, b) => (a.poiId < b.poiId ? -1 : a.poiId > b.poiId ? 1 : 0))),
       equipmentStats,
-      processingStations: Object.freeze([...processingStations].sort((a, b) => a.id.localeCompare(b.id))),
-      activeQuests: Object.freeze([...activeQuests].sort((a, b) => a.questId.localeCompare(b.questId))),
-      availableQuests: Object.freeze([...availableQuests].sort((a, b) => a.questId.localeCompare(b.questId))),
-      completedQuestIds: Object.freeze([...completedQuestIds].sort()),
-      npcDialogues: Object.freeze([...npcDialogues].sort((a, b) => a.npcId.localeCompare(b.npcId))),
-      npcReputations: Object.freeze([...npcReputations].sort((a, b) => a.npcId.localeCompare(b.npcId))),
-      npcMemories: Object.freeze([...npcMemories].sort((a, b) => a.npcId.localeCompare(b.npcId))),
-      npcRumors: Object.freeze([...npcRumors].sort((a, b) => a.rumorId.localeCompare(b.rumorId))),
+      processingStations: Object.freeze([...processingStations].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))),
+      activeQuests: Object.freeze([...activeQuests].sort((a, b) => (a.questId < b.questId ? -1 : a.questId > b.questId ? 1 : 0))),
+      availableQuests: Object.freeze([...availableQuests].sort((a, b) => (a.questId < b.questId ? -1 : a.questId > b.questId ? 1 : 0))),
+      completedQuestIds: Object.freeze([...completedQuestIds].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))),
+      npcDialogues: Object.freeze([...npcDialogues].sort((a, b) => (a.npcId < b.npcId ? -1 : a.npcId > b.npcId ? 1 : 0))),
+      npcReputations: Object.freeze([...npcReputations].sort((a, b) => (a.npcId < b.npcId ? -1 : a.npcId > b.npcId ? 1 : 0))),
+      npcMemories: Object.freeze([...npcMemories].sort((a, b) => (a.npcId < b.npcId ? -1 : a.npcId > b.npcId ? 1 : 0))),
+      npcRumors: Object.freeze([...npcRumors].sort((a, b) => (a.rumorId < b.rumorId ? -1 : a.rumorId > b.rumorId ? 1 : 0))),
       worldSurface: Object.freeze(worldSurface),
       civicState: Object.freeze(civicState),
     });
@@ -191,7 +192,7 @@ export function buildVendorEconomySnapshot(
       itemId: entry.itemId,
       quantity: entry.quantity,
     }))
-    .sort((a, b) => a.itemId.localeCompare(b.itemId));
+    .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0));
 
   const prices = sellableItemIds
     .map((itemId) => {
@@ -204,7 +205,7 @@ export function buildVendorEconomySnapshot(
         demandBand: priceInfo.demandBand,
       };
     })
-    .sort((a, b) => a.itemId.localeCompare(b.itemId));
+    .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0));
 
   return Object.freeze({
     vendors: Object.freeze([
