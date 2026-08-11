@@ -12,9 +12,14 @@
  */
 
 import React, { useCallback, useRef, useState } from "react";
+import { useWorldOverlayModel } from "../game/useWorldOverlayModel";
+import { markOverlayReachable } from "../game/OverlayReachabilityGuard";
+import { projectWorldToScreen, type ViewportInput } from "../game/WorldOverlayProjection";
 import { useLiveGameplaySnapshot } from "../game/useLiveGameplaySnapshot";
 import type { CampNpcSnapshot, CampStockSnapshot } from "../game/liveGameplaySnapshot";
 import { CampTradePanel } from "./windows/CampTradePanel";
+
+markOverlayReachable("camp-npc-marker-layer");
 
 const NPC_EMOJI: Record<string, string> = {
   camp_woodcutter: "🪓",
@@ -100,13 +105,13 @@ function CampNpcMarker({ npc, campStock, x, y, onTradeClick }: CampNpcMarkerProp
 }
 
 export function CampNpcMarkerLayer() {
+  const overlay = useWorldOverlayModel();
   const snapshot = useLiveGameplaySnapshot();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [activeTradeNpc, setActiveTradeNpc] = useState<CampNpcSnapshot | null>(null);
   const [activeTradeStock, setActiveTradeStock] = useState<CampStockSnapshot | undefined>(undefined);
 
-  // Track container size for coordinate mapping
   React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -126,38 +131,20 @@ export function CampNpcMarkerLayer() {
 
   const campNpcs = snapshot.campNpcs ?? [];
   const campStocks = snapshot.campStocks ?? [];
+  const viewport: ViewportInput = {
+    screenWidth: containerSize.width,
+    screenHeight: containerSize.height,
+  };
 
-  // Handle NPC click to open trade panel
   const handleTradeClick = useCallback((npc: CampNpcSnapshot, campStock: CampStockSnapshot | undefined) => {
     setActiveTradeNpc(npc);
     setActiveTradeStock(campStock);
   }, []);
 
-  // Close trade panel
   const handleCloseTrade = useCallback(() => {
     setActiveTradeNpc(null);
     setActiveTradeStock(undefined);
   }, []);
-
-  // Map world coordinates to screen coordinates
-  // Uses same projection as WorldPoiMarkerLayer
-  function worldToScreen(worldX: number, worldY: number): { screenX: number; screenY: number } {
-    const { width, height } = containerSize;
-    if (width === 0 || height === 0) return { screenX: worldX, screenY: worldY };
-
-    // Approximate isometric projection
-    const worldOriginX = 460;
-    const worldOriginY = 500;
-    const scale = 1.2;
-
-    const isoX = (worldX - worldY) * scale * 0.5;
-    const isoY = (worldX + worldY) * scale * 0.25;
-
-    const screenX = width / 2 + isoX - (worldOriginX - worldOriginY) * scale * 0.5;
-    const screenY = height / 2 + isoY - (worldOriginX + worldOriginY) * scale * 0.25;
-
-    return { screenX, screenY };
-  }
 
   if (campNpcs.length === 0 && !activeTradeNpc) {
     return null;
@@ -168,6 +155,7 @@ export function CampNpcMarkerLayer() {
       <div
         ref={containerRef}
         data-testid="camp-npc-marker-layer"
+        data-overlay-status={overlay.status}
         style={{
           position: "absolute",
           inset: 0,
@@ -176,7 +164,7 @@ export function CampNpcMarkerLayer() {
         }}
       >
         {campNpcs.map((npc) => {
-          const { screenX, screenY } = worldToScreen(npc.position.x, npc.position.y);
+          const { screenX, screenY } = projectWorldToScreen({ x: npc.position.x, y: npc.position.y }, viewport);
           const campStock = campStocks.find((s) => s.poiId === npc.poiId);
           return (
             <div key={npc.id} style={{ pointerEvents: "auto" }}>
