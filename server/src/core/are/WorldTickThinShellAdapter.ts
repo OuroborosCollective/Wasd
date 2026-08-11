@@ -145,6 +145,7 @@ export class WorldTickAdapter {
   readonly skillSystem = unavailablePort('SkillRuntimePort', 'Skill runtime must be wired from the canonical skill progression service before use.');
   worldState: any = { customDialogues: {} };
   playerToSocket = new Map<string, string>();
+  socketToPlayer = new Map<string, string>();
   readonly npcRespawnTimers = new Map<string, any>();
   resourceSystem: any = { nodes: new Map(), getDiagnostics: () => ({ id: 'ResourceRuntimePort', available: false, reason: 'Resource runtime provider not registered', authority: 'unavailable' }) };
   readonly chatSystem = {
