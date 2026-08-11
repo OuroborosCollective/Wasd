@@ -11,7 +11,7 @@ import {
   canonicalArrayToLayers,
   normalizePersistedLayerState,
 } from '../LayerPersistencePort.js';
-import { createChunkKey, createStateHash } from '../types.js';
+import { createChunkKey, createStateHash, createTickId } from '../types.js';
 import { createEmptyIARELogicLayers } from '../IARELogicLayers.js';
 
 const ZERO_HASH = '0'.repeat(64);
@@ -43,15 +43,16 @@ describe('LayerPersistencePort helpers', () => {
 
   it('normalizePersistedLayerState returns null for corrupt input', () => {
     expect(normalizePersistedLayerState(null)).toBeNull();
-    expect(normalizePersistedLayerState({ chunkKey: '1:1', tick: 1, deltaHash: 'bad' })).toBeNull();
-    expect(normalizePersistedLayerState({ tick: 1, deltaHash: ZERO_HASH })).toBeNull();
+    expect(normalizePersistedLayerState({ chunkKey: '1:1', tick: 1, deltaHash: 'bad' } as any)).toBeNull();
+    expect(normalizePersistedLayerState({ tick: 1, deltaHash: ZERO_HASH } as any)).toBeNull();
   });
 
   it('normalizePersistedLayerState accepts valid records', () => {
     const normalized = normalizePersistedLayerState({
-      chunkKey: '1:1',
-      tick: 5,
-      deltaHash: 'a'.repeat(64),
+      chunkKey: createChunkKey(1, 1),
+      tick: createTickId(5),
+      deltaHash: createStateHash('a'.repeat(64)),
+      schemaVersion: 1 as const,
       layers: [['ecology', 7 as any]],
     });
     expect(normalized).not.toBeNull();
