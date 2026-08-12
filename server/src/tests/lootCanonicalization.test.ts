@@ -482,7 +482,7 @@ describe('Integration: Combat -> LootRollContext -> loot_delta', () => {
         quantity: item.amount || 1,
         position: { x: 0, y: 0, z: 0 },
         rollHash: LootAxioms.shortHash(`${context.sourceTick}|${context.defeatedEntityId}|${index}|${item.uid}`)
-      })),
+      })).sort((a, b) => a.rollHash.localeCompare(b.rollHash) || a.uid.localeCompare(b.uid)),
       createdAtTick: context.sourceTick,
       playerId: context.sourceEntityId
     };

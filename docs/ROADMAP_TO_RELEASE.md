@@ -55,7 +55,7 @@ Recent release-relevant progress:
 - Snapshot-time lineage birth bridge exists and can consume real runtime state.
 - Visible POI/Camp NPC data can feed lineage runtime state without fake NPCs.
 - Deterministic hardcode cleanup removed several runtime `Date.now()` / `Math.random()` violations.
-- Legacy loot table generation is quarantined; production loot truth remains `LootDirector -> ProceduralLootMachine -> loot_delta`.
+- Legacy loot table generation is quarantined; production loot truth remains `LootDirector -> ProceduralLootMachine -> loot_delta`. Inventory-Consumer verwenden persistente Loot-Origin-Deduplizierung; vollständig abgelehnte Inventar-Deltas fallen ausschließlich an den serverseitigen WorldDrop-Consumer zurück.
 - PR #2036 is open to remove the public legacy-loot boolean bypass after Codex review.
 - The #2042 mobile/browser performance budget now has explicit 2D and 3D release measurements in `docs/RELEASE_CHECKLIST.md`.
 
