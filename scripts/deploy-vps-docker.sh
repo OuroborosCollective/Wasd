@@ -310,6 +310,10 @@ client_2d_shell_ready() {
   docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/2d/').then(async r=>{const body=await r.text();process.exit(r.ok&&body.includes(process.env.CLIENT_2D_MARKER||'REAL_PIXI_CLIENT')?0:1)}).catch(()=>process.exit(1))" >/dev/null 2>&1
 }
 
+client_3d_shell_ready() {
+  docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/3d/').then(async r=>{const body=await r.text();process.exit(r.ok&&body.includes('<script')&&body.includes('assets/')&&!body.includes('Areloria 3D unavailable')?0:1)}).catch(()=>process.exit(1))" >/dev/null 2>&1
+}
+
 client_2d_build_stamp_ready() {
   [ -n "$CLIENT_2D_BUILD_SHA" ] || return 0
   docker exec arelorian-engine sh -lc "test -f /app/server/client/dist/2d/build-stamp.json && grep -q '$CLIENT_2D_BUILD_SHA' /app/server/client/dist/2d/build-stamp.json" >/dev/null 2>&1 && return 0
@@ -415,9 +419,10 @@ ok=0
 for i in $(seq 1 36); do
   if container_http_ready; then
     echo "  container HTTP ready ($i/36)"
-    if client_shell_ready && client_2d_shell_ready && client_2d_build_stamp_ready && portal_shell_ready; then
+    if client_shell_ready && client_2d_shell_ready && client_3d_shell_ready && client_2d_build_stamp_ready && portal_shell_ready; then
       echo "  client shell ready"
       echo "  client-2d shell ready (${CLIENT_2D_MARKER})"
+      echo "  client-3d shell ready"
       echo "  client-2d build stamp ready (${CLIENT_2D_BUILD_SHA:-not-required})"
       echo "  portal shell ready"
       if host_http_ready; then echo "  host HTTP mapping ready"; else echo "  WARN: host mapping not responding yet"; fi
@@ -425,20 +430,21 @@ for i in $(seq 1 36); do
       ok=1
       break
     fi
-    echo "  waiting for client/2d/portal shell/build stamp... ($i/36)"
+    echo "  waiting for client/2d/3d/portal shell/build stamp... ($i/36)"
   fi
   if [ "$i" -ge 12 ] && runtime_activity_ready; then
     echo "  runtime activity ready ($i/36): node process and world events detected"
-    if client_shell_ready && client_2d_shell_ready && client_2d_build_stamp_ready && portal_shell_ready; then
+    if client_shell_ready && client_2d_shell_ready && client_3d_shell_ready && client_2d_build_stamp_ready && portal_shell_ready; then
       echo "  client shell ready"
       echo "  client-2d shell ready (${CLIENT_2D_MARKER})"
+      echo "  client-3d shell ready"
       echo "  client-2d build stamp ready (${CLIENT_2D_BUILD_SHA:-not-required})"
       echo "  portal shell ready"
       if ingress_http_ready; then echo "  ingress HTTP ready"; else echo "  WARN: ingress HTTP not responding yet"; fi
       ok=1
       break
     fi
-    echo "  waiting for client/2d/portal shell/build stamp... ($i/36)"
+    echo "  waiting for client/2d/3d/portal shell/build stamp... ($i/36)"
   fi
   echo "  waiting... ($i/36)"
   sleep 5
@@ -451,8 +457,9 @@ if [[ "$ok" != "1" ]]; then
   if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
     docker inspect arelorian-ingress-router --format 'Ingress={{.State.Status}} Health={{if .State.Health}}{{else}}n/a{{end}} ExitCode={{.State.ExitCode}} Ports={{json .NetworkSettings.Ports}}' || true
   fi
-  docker exec arelorian-engine sh -lc "node -v; printenv PORT GAME_PORT HOST NODE_ENV NODE_OPTIONS CLIENT_2D_MARKER CLIENT_2D_BUILD_SHA; ps aux | head -20; ls -lah /app/server/client/dist/2d; cat /app/server/client/dist/2d/build-stamp.json 2>/dev/null || true; test -f /app/server/client/dist/2d/assets/cozy-spring/manifest.json && echo COZY_IN_CONTAINER || echo COZY_MISSING_IN_CONTAINER" || true
+  docker exec arelorian-engine sh -lc "node -v; printenv PORT GAME_PORT HOST NODE_ENV NODE_OPTIONS CLIENT_2D_MARKER CLIENT_2D_BUILD_SHA; ps aux | head -20; ls -lah /app/server/client/dist/2d /app/server/client/dist/3d; cat /app/server/client/dist/2d/build-stamp.json 2>/dev/null || true; test -f /app/server/client/dist/2d/assets/cozy-spring/manifest.json && echo COZY_IN_CONTAINER || echo COZY_MISSING_IN_CONTAINER" || true
   docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/2d/').then(async r=>{console.log('2d status',r.status); console.log((await r.text()).slice(0,800));}).catch(e=>{console.error(e); process.exit(1)})" || true
+  docker exec arelorian-engine node -e "fetch('http://127.0.0.1:${CONTAINER_PORT}/3d/').then(async r=>{console.log('3d status',r.status); console.log((await r.text()).slice(0,800));}).catch(e=>{console.error(e); process.exit(1)})" || true
   ss -ltnp "sport = :${ARELORIAN_PORT}" || true
   compose_cmd logs --tail=160 arelorian-engine || true
   if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
