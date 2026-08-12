@@ -22,3 +22,8 @@
 **Vulnerability:** Administrative vote configurations and system diagnostics on the `/api/vote` sub-paths `/admin/banners` and `/admin/diagnostics` were not protected by `adminRateLimiter`, risking DoS or brute-forcing.
 **Learning:** Scoping rate limiters at the global router mount level can cause severe functional regressions for public user paths (like standard voting). Scoping must be precise and localized.
 **Prevention:** For hybrid routers serving both public endpoints and sensitive administrative routes, selectively apply `adminRateLimiter` to specific administrative routes within the router instead of globally at the mount point.
+
+## 2026-08-10 - [Medium] Leaderboard Refresh Timing Attack Vulnerability
+**Vulnerability:** The `/api/leaderboard/refresh` administrative cache purging endpoint used standard `===` string equality of provided and expected admin tokens, exposing the `ADMIN_PANEL_TOKEN` or fallback tokens to potential timing attacks.
+**Learning:** Admin token checks on hybrid or utility endpoints are often implemented using simple string comparison, leaving them open to remote timing analysis of administrative tokens.
+**Prevention:** Always use constant-time string comparison algorithms (e.g., hashing inputs via SHA-256 and utilizing `crypto.timingSafeEqual`) for all sensitive credentials or administrative keys, regardless of the router's scope or function.

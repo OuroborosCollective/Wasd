@@ -77,7 +77,7 @@ function assertSafeTickId(value: number | string): number | string {
   return assertSafeIdentifier(value, "tickId");
 }
 
-function stableNormalize(value: unknown, path = "payload"): unknown {
+function stableNormalize(value: unknown, path = "payload", allowServerAuthorityKeys = false): unknown {
   if (value === null || typeof value === "string" || typeof value === "boolean") {
     return value;
   }
@@ -90,7 +90,7 @@ function stableNormalize(value: unknown, path = "payload"): unknown {
   }
 
   if (Array.isArray(value)) {
-    return value.map((entry, index) => stableNormalize(entry, `${path}[${index}]`));
+    return value.map((entry, index) => stableNormalize(entry, `${path}[${index}]`, allowServerAuthorityKeys));
   }
 
   if (typeof value === "object") {
@@ -99,10 +99,10 @@ function stableNormalize(value: unknown, path = "payload"): unknown {
     const keys = Object.keys(objectValue).sort(binaryCompare);
 
     for (const key of keys) {
-      if (FORBIDDEN_CLIENT_AUTHORITY_KEYS.has(key)) {
+      if (!allowServerAuthorityKeys && FORBIDDEN_CLIENT_AUTHORITY_KEYS.has(key)) {
         throw new Error(`${path}.${key} is server-authoritative and cannot be supplied by the client intent`);
       }
-      normalized[key] = stableNormalize(objectValue[key], `${path}.${key}`);
+      normalized[key] = stableNormalize(objectValue[key], `${path}.${key}`, allowServerAuthorityKeys);
     }
 
     return normalized;
@@ -111,11 +111,14 @@ function stableNormalize(value: unknown, path = "payload"): unknown {
   throw new Error(`${path} contains unsupported value type`);
 }
 
-function stableStringify(value: unknown): string {
-  return JSON.stringify(stableNormalize(value));
+function stableStringify(value: unknown, allowServerAuthorityKeys = false): string {
+  return JSON.stringify(stableNormalize(value, "payload", allowServerAuthorityKeys));
 }
 
 function deriveIntentHash<TAction extends ClientIntentAction>(parts: CanonicalIntentWithoutHash<TAction>): CanonicalIntentHash {
+  // The hash input is server-assembled and legitimately contains
+  // authority fields (actorId/chunkKey/tickId/...). They must NOT be
+  // rejected by the client-payload forbidden-key check.
   const hashInput = stableStringify({
     action: parts.action,
     actorId: parts.actorId,
@@ -125,7 +128,7 @@ function deriveIntentHash<TAction extends ClientIntentAction>(parts: CanonicalIn
     receivedOrder: parts.receivedOrder,
     requestId: parts.requestId ?? "",
     tickId: String(parts.tickId),
-  });
+  }, true);
 
   return createHash("sha256").update(hashInput).digest("hex");
 }
@@ -204,4 +207,46 @@ export function compareCanonicalIntents(a: ServerCanonicalIntent, b: ServerCanon
 
 export function sortCanonicalIntents(intents: readonly ServerCanonicalIntent[]): ServerCanonicalIntent[] {
   return [...intents].sort(compareCanonicalIntents);
+}
+
+/**
+ * Canonical move intent input. `fromPosition` is the actor's authoritative
+ * position before the move; `delta` is the bounded movement vector (already
+ * normalized for players, or a single-axis wander step for NPCs). The factory
+ * translates this into the existing target-based `ClientIntent<"move">` so
+ * that NPC and player movement share the exact same ServerCanonicalIntent
+ * path (AIM-77) — no parallel intent type, no separate hash.
+ */
+export interface CanonicalActorMoveInput {
+  readonly actorId: string;
+  readonly fromPosition: WorldPosition2D;
+  readonly delta: { readonly dx: number; readonly dy: number };
+  readonly tickId: number | string;
+  readonly logicalIndex: number;
+  readonly receivedOrder: number;
+  readonly requestId?: string;
+  readonly chunkSize?: number;
+}
+
+export function canonicalizeActorMoveIntent(input: CanonicalActorMoveInput): ServerCanonicalIntent<"move"> {
+  const dx = Number(input.delta?.dx);
+  const dy = Number(input.delta?.dy);
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) {
+    throw new Error("move delta must be finite");
+  }
+  const target = {
+    x: Number(input.fromPosition.x) + dx,
+    y: Number(input.fromPosition.y) + dy,
+  };
+  const chunkKey = chunkKeyFromWorldPosition(input.fromPosition, input.chunkSize);
+  return canonicalizeClientIntent<"move">(
+    { action: "move", payload: { target }, requestId: input.requestId },
+    {
+      actorId: input.actorId,
+      tickId: input.tickId,
+      logicalIndex: input.logicalIndex,
+      receivedOrder: input.receivedOrder,
+      chunkKey,
+    },
+  );
 }

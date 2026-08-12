@@ -1,9 +1,11 @@
 import type { GameWebSocketServer } from "../networking/WebSocketServer.js";
 import type { WorldTick } from "./are/index.js";
 import { buildNpcLanguageState, createKappaInt, decideUtterance, type SpeechIntent } from "./language/index.js";
+import { canonicalizeActorMoveIntent } from "../intents/ServerCanonicalIntent.js";
+import { canonicalIntentIntake } from "../intents/CanonicalIntentIntake.js";
 
 type Pos3 = { x: number; y: number; z: number };
-type Move2 = { dx: number; dy: number };
+type Move2 = { dx: number; dy: number; sequenceId: number };
 
 function str(value: unknown, fallback = ""): string {
   const text = String(value ?? fallback).trim();
@@ -52,7 +54,9 @@ function readMove(msg: any): Move2 | null {
     dx /= mag;
     dy /= mag;
   }
-  return { dx, dy };
+  const sequenceId = Number.isSafeInteger(Number(msg?.sequenceId)) ? Math.trunc(Number(msg?.sequenceId))
+    : Number.isSafeInteger(Number(msg?.seq)) ? Math.trunc(Number(msg?.seq)) : 0;
+  return { dx, dy, sequenceId };
 }
 
 function stableHash(input: string): number {
@@ -259,13 +263,52 @@ export function installClient2DPublicKeyLoginBridge(ws: GameWebSocketServer, tic
       const player = uid ? (tick as any).playerSystem?.getPlayer(uid) : null;
       const move = readMove(msg);
       if (player && move) {
+        // AIM-103: Movement is server-authoritative via the deterministic tick.
+        // Enqueue a move intent instead of mutating player.position directly
+        // from the WebSocket handler. The tick's applyQueuedMoveIntents applies
+        // the movement deterministically on the next tick. The heartbeat sent
+        // here reflects the current (truthful) position; the queued move shows
+        // up on the following heartbeat after the tick has applied it.
+        const playerSystem = (tick as any).playerSystem;
+        const acceptedAtTick = tickNumber(tick);
         const speed = Number((tick as any).client2DMoveSpeed ?? 5);
-        player.position.x += move.dx * speed;
-        player.position.y += move.dy * speed;
-        player.position.z = Number(player.position.z ?? 0);
+        const enqueued = typeof playerSystem?.enqueueMoveIntent === "function"
+          ? playerSystem.enqueueMoveIntent({
+              playerId: uid,
+              socketId,
+              dx: move.dx,
+              dy: move.dy,
+              sequenceId: move.sequenceId,
+              acceptedAtTick,
+            })
+          : false;
+        // AIM-77: stamp the move as a ServerCanonicalIntent so player movement
+        // shares the same canonical path as routes (gather/interact/inventory)
+        // and as NPC movement — unified, hashed, context-stamped (actorId,
+        // tickId, chunkKey). Purely an integrity record; movement still applies
+        // via the deterministic tick above.
+        if (enqueued) {
+          try {
+            const canonical = canonicalizeActorMoveIntent({
+              actorId: uid,
+              fromPosition: { x: player.position.x, y: player.position.y },
+              delta: { dx: move.dx * speed, dy: move.dy * speed },
+              tickId: acceptedAtTick,
+              logicalIndex: acceptedAtTick,
+              receivedOrder: Math.max(0, move.sequenceId | 0),
+              requestId: msg?.seq != null ? String(msg.seq) : undefined,
+            });
+            canonicalIntentIntake.record(canonical);
+          } catch {
+            // Canonical stamping must never break the movement truth path.
+          }
+        }
         player.isOffline = false;
-        player.state = "walking";
         tick.observerEngine.updatePosition(socketId, { x: player.position.x, y: player.position.y });
+        ws.sendToPlayer(socketId, {
+          type: "move_intent_ack",
+          payload: { ok: enqueued, seq: msg?.seq, acceptedAtTick, sequenceId: move.sequenceId, pending: typeof playerSystem?.getPendingMoveIntentCount === "function" ? playerSystem.getPendingMoveIntentCount() : 0 },
+        });
         broadcastServerPresence(ws, socketId, player, tick, "client2d_move", msg?.seq);
         sendWorldHeartbeat(ws, socketId, tick, uid, player);
       }
