@@ -55,7 +55,7 @@ Valid runtime truth must come from tick/logicalIndex, kappa, chunk/position, has
 |--------|-------------|
 | Players/combat | Movement, target selection, attack handling, skill usage, cooldown/mana flow, death/respawn are wired. Balance/UI hardening remains open. |
 | Inventory/equipment/loot | Inventory stacks, equip/unequip, loot drop + pickup and sync are active. |
-| Canonical loot truth | Production path is `LootDirector -> ProceduralLootMachine -> loot_delta`. Legacy `LootSystem` is quarantined; PR #2036 restricts its constructor further. |
+| Canonical loot truth | Production path is `LootDirector -> ProceduralLootMachine -> loot_delta`. Inventory-Consumption trägt persistente Loot-Origins; bei vollständig abgelehntem Inventar-Delta übernimmt ausschließlich der serverseitige WorldDrop-Consumer. Ein Defeat→Delta→Inventory→Restart-Replay-Test deckt den Pfad ab. Legacy `LootSystem` ist quarantined. |
 | Player Stats Sync | Server-authoritative XP/level tracking via `PlayerStatsDirector`; `player_stats_snapshot` broadcast via WebSocket. |
 | Quest system | Quest start/progression/sync and talk/collect/combat updates are active. |
 | Questline system | Questline engine + bridge and unlock propagation are wired. |

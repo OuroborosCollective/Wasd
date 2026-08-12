@@ -167,7 +167,13 @@ class LootDirector {
         playerId: context.sourceEntityId
       });
 
-      await this.applyLootDelta(lootDelta);
+      const consumption = await this.applyLootDelta(lootDelta);
+      if (consumption === 'already_applied') {
+        this.telemetry.idempotencyHits++;
+        this.processedKeys.add(idempotencyKey);
+        this.trimProcessedKeys();
+        return null;
+      }
 
       this.processedKeys.add(idempotencyKey);
       this.trimProcessedKeys();
@@ -266,18 +272,81 @@ class LootDirector {
     return Object.freeze(deltaItems.map((item) => Object.freeze(item)));
   }
 
-  private async applyLootDelta(delta: LootDelta): Promise<void> {
-    let consumed = false;
+  private async applyLootDelta(delta: LootDelta): Promise<'applied' | 'already_applied'> {
+    if (delta.items.length === 0) {
+      return 'applied';
+    }
 
     if (this.inventoryService?.addItem) {
-      for (const item of delta.items) {
-        await this.inventoryService.addItem({
-          playerId: delta.playerId,
-          itemId: item.itemId,
-          quantity: item.quantity
-        });
+      const beforeState = this.inventoryService.getPlayerInventory
+        ? await this.inventoryService.getPlayerInventory(delta.playerId)
+        : null;
+      const beforeOrigins = this.inventoryService.getAppliedOriginUids
+        ? this.inventoryService.getAppliedOriginUids(delta.playerId)
+        : [];
+      const beforeMovementCount = this.inventoryService.getMovementEventCount
+        ? this.inventoryService.getMovementEventCount()
+        : undefined;
+      let appliedCount = 0;
+      let duplicateCount = 0;
+      let worldDropFallbackAllowed = false;
+
+      try {
+        for (const item of delta.items) {
+          const result = await this.inventoryService.addItem({
+            playerId: delta.playerId,
+            itemId: item.itemId,
+            quantity: item.quantity,
+            origin: {
+              uid: item.uid,
+              tick: delta.createdAtTick,
+              source: 'loot_delta',
+              sourceHash: item.rollHash,
+            },
+          });
+
+          if (result?.ok) {
+            appliedCount++;
+            continue;
+          }
+          if (result?.reason === 'duplicate_origin') {
+            duplicateCount++;
+            continue;
+          }
+          const reason = String(result?.reason ?? 'unknown');
+          worldDropFallbackAllowed = appliedCount === 0 && (reason === 'invalid_item' || reason === 'inventory_full');
+          throw new Error(`loot_inventory_consumer_rejected:${reason}`);
+        }
+
+        if (duplicateCount === delta.items.length) {
+          return 'already_applied';
+        }
+        if (duplicateCount > 0) {
+          throw new Error('loot_inventory_consumer_partial_replay');
+        }
+        if (appliedCount !== delta.items.length) {
+          throw new Error('loot_inventory_consumer_incomplete');
+        }
+
+        this.telemetry.persistedDeltas++;
+        return 'applied';
+      } catch (error) {
+        if (beforeState && this.inventoryService.restorePlayerInventory) {
+          await this.inventoryService.restorePlayerInventory(
+            delta.playerId,
+            beforeState,
+            beforeOrigins,
+            beforeMovementCount,
+          );
+        }
+        if (worldDropFallbackAllowed && this.worldDropService?.spawnItem) {
+          // The inventory has accepted no item and was restored before this
+          // branch. A server-owned world-drop consumer may now own the full
+          // delta without creating split consumer truth.
+        } else {
+          throw error;
+        }
       }
-      consumed = true;
     }
 
     if (this.worldDropService?.spawnItem) {
@@ -290,15 +359,12 @@ class LootDirector {
           position: item.position
         });
       }
-      consumed = true;
+      this.telemetry.persistedDeltas++;
+      return 'applied';
     }
 
-    if (consumed) {
-      this.telemetry.persistedDeltas++;
-    } else {
-      this.telemetry.noConsumerDeltas++;
-      console.warn('[LootDirector] loot_delta generated without inventory/world-drop consumer:', delta.idempotencyKey);
-    }
+    this.telemetry.noConsumerDeltas++;
+    throw new Error(`loot_delta_consumer_unavailable:${delta.idempotencyKey}`);
   }
 
   async handleWorldTick({ tickIndex }: { tickIndex: number }): Promise<void> {
