@@ -1,5 +1,8 @@
 # Arelorian WASD – Issue-Arbeitsliste
 
+- [x] #2256: Den kanonischen LootDirector mit persistenter Inventory-Origin-Deduplizierung verbinden und den autoritativen Defeat→Delta→Inventory→Restart-Replay-Pfad mit einer echten In-Memory-Domain-Persistenz testen.
+- [x] Die bestehende LootCanonicalization-Integration so korrigieren, dass sie die im echten LootDirector fest definierte rollHash-/UID-Sortierung abbildet.
+- [x] Die Snapshot-Bridge-Testannahme auf den ehrlichen `empty`-Status für eine inhaltsleere, aber valide Serverantwort korrigieren.
 - [x] #2070: Den verbindlichen deterministischen Vertrag gegen den aktuellen Main-Callgraph mit Tick, kanonischen Inputs, Read-only-Projektion sowie Hash-/Evidence-Grenze dokumentieren.
 - [x] #2093: Einen SHA-gebundenen Current Index der offenen WASD/Areloria-Gates gegen den aktuellen Main-Callgraph erstellen.
 - [x] Die Snapshot-Bridge-Testannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit die Vertrags-PR keine Nicht-Live-Evidenz als live deklariert.
