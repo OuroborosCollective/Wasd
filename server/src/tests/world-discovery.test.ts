@@ -153,11 +153,19 @@ describe("WorldDiscoveryStore", () => {
       expect(store.isDiscovered("player1", "poi:c")).toBe(true);
     });
 
-    it("should not duplicate existing discoveries", () => {
+    it("should not duplicate existing discoveries while retaining the starter state", () => {
       store.discoverPois("player1", ["poi:a", "poi:b"]);
       store.discoverPois("player1", ["poi:b", "poi:c"]);
       const ids = store.getDiscoveredPoiIds("player1");
-      expect(ids).toEqual(["poi:a", "poi:b", "poi:c"]);
+      expect(ids).toEqual([
+        "campfire_001",
+        "furnace_001",
+        "poi:a",
+        "poi:b",
+        "poi:c",
+        "village_trader_001",
+        "workbench_001",
+      ]);
     });
   });
 
@@ -207,10 +215,10 @@ describe("WorldDiscoveryService", () => {
     it("should convert kappa position to chunk key", () => {
       // At kappa (0, 0), chunk should be (0, 0)
       expect(getChunkKeyFromPosition(0, 0)).toBe("0:0");
-      // At kappa (16000, 0) - one chunk over in X
-      expect(getChunkKeyFromPosition(16000, 0)).toBe("1:0");
-      // At kappa (0, 16000) - one chunk over in Z
-      expect(getChunkKeyFromPosition(0, 16000)).toBe("0:1");
+      // At kappa (64000, 0) - one authoritative 64-tile chunk over in X
+      expect(getChunkKeyFromPosition(64000, 0)).toBe("1:0");
+      // At kappa (0, 64000) - one authoritative 64-tile chunk over in Z
+      expect(getChunkKeyFromPosition(0, 64000)).toBe("0:1");
     });
   });
 
@@ -250,7 +258,7 @@ describe("WorldDiscoveryService", () => {
           id: "poi:far",
           type: "mining_camp",
           title: "Far Camp",
-          position: { x: 1000, y: 1000 }, // 1271 units away from player
+          position: { x: 96001, y: 0 }, // 96,001 kappa away from player
           chunk: { x: 0, z: 0 },
           interactionRadius: 32,
           tags: [],
@@ -261,6 +269,23 @@ describe("WorldDiscoveryService", () => {
       const newDiscoveries = service.processDiscovery("player1", { x: 0, y: 0 }, pois);
       expect(newDiscoveries).toHaveLength(0);
       expect(service.isPoiDiscovered("player1", "poi:far")).toBe(false);
+    });
+
+    it("uses a 96-tile discovery radius expressed in kappa", () => {
+      expect(DEFAULT_DISCOVERY_RADIUS).toBe(96000);
+      const pois: WorldPoiSnapshot[] = [
+        {
+          id: "poi:radius_boundary",
+          type: "logging_camp",
+          title: "Radius Boundary Camp",
+          position: { x: 96000, y: 0 },
+          chunk: { x: 1, z: 0 },
+          interactionRadius: 32,
+          tags: [],
+        },
+      ];
+
+      expect(service.processDiscovery("player1", { x: 0, y: 0 }, pois)).toEqual(["poi:radius_boundary"]);
     });
 
     it("should be idempotent - second scan no duplicates", () => {
