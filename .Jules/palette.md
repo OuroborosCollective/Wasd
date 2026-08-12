@@ -29,3 +29,7 @@
 ## 2028-02-19 - [A11y with Interaction Hotkey Buttons and aria-keyshortcuts]
 **Learning:** Floating interactive prompt elements (like the InteractionPrompt for triggering object interactions) display visual `<kbd>` hints (e.g., "E") but often lack the corresponding programmatic key-binding mapping for assistive technologies. Adding `aria-keyshortcuts="e"` guarantees screen-reader users are informed of the actual shortcut constraint natively.
 **Action:** When designing or standardizing visual keybind badges or prompt cues, always expose the appropriate lowercase `aria-keyshortcuts` attribute on the focusable container or trigger button.
+
+## 2028-02-20 - [A11y & Preventing Double-Clicks with State-Driven Button Feedback]
+**Learning:** Custom interactive item grid elements (like those in the GatheringToolsPanel) lack feedback when async state changes are active, allowing keyboard-only and screen-reader users to double-trigger network requests. Utilizing active state indicators (like `equippingItemId`), changing button copy to "Equipping...", applying explicit `aria-busy` and disabling sibling controls blocks additional requests while conveying real-time state progress.
+**Action:** Always manage active button operations with explicit disabling, matching `aria-busy` states, and contextual labels.
