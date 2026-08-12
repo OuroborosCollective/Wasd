@@ -29,3 +29,7 @@
 ## 2028-02-19 - [A11y with Interaction Hotkey Buttons and aria-keyshortcuts]
 **Learning:** Floating interactive prompt elements (like the InteractionPrompt for triggering object interactions) display visual `<kbd>` hints (e.g., "E") but often lack the corresponding programmatic key-binding mapping for assistive technologies. Adding `aria-keyshortcuts="e"` guarantees screen-reader users are informed of the actual shortcut constraint natively.
 **Action:** When designing or standardizing visual keybind badges or prompt cues, always expose the appropriate lowercase `aria-keyshortcuts` attribute on the focusable container or trigger button.
+
+## 2028-02-20 - [A11y on Window Dock Buttons & Navigation Controls]
+**Learning:** Buttons in window docks or navigation tabs that toggle major gameplay panels typically include nested `<kbd>` elements to indicate their keybinds visually. However, this causes screen readers to read visual text repetitively or incorrectly. Standardizing these buttons by providing an explicit `aria-label` specifying both the panel name and keyboard hint, adding `aria-keyshortcuts` for native keyboard mappings, and setting `aria-hidden="true"` on nested `<kbd>` elements ensures a high-fidelity screen-reader experience.
+**Action:** When designing dock or tab button controllers with keybind hints, always use `aria-label` and `aria-keyshortcuts` to natively represent keybind mappings, while using `aria-hidden="true"` on the nested `<kbd>` tags to prevent screen-reader noise.
