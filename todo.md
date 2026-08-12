@@ -1,5 +1,8 @@
 # Arelorian WASD – Issue-Arbeitsliste
 
+- [x] #2372: Den realen JSON-Crafting-Receipt-Pfad auf Hash-Integrität, Rehydrate und korrupten Persistenzinhalt prüfen, ohne einen zweiten Event- oder Replay-Pfad zu erzeugen.
+- [x] Den fehlenden `EvidenceLayer`-Typimport im Shared-Runtime-Evidence-Test ergänzen, damit der Crafting-Receipt-PR gegen den aktuellen Main-Ausgangszustand typgeprüft werden kann.
+- [x] Die Snapshot-Bridge-Testannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit der autonome Check keine Nicht-Live-Evidenz als live deklariert.
 - [ ] #2466 – Den gemeinsamen 64-Tile-/Kappa-Discovery-Vertrag in aktiven Server-, 2D- und 3D-Pfaden durchsetzen und Replay-/Persistenzgrenzen absichern.
 - [ ] #2465 – Das serverautoritativ abgeleitete `WorldOverlayModel` im realen 2D-Entrypoint verwenden und Reachability, Projektion sowie Browser-Smokes belegen.
 - [ ] #2464 – Den vorhandenen Overlay-Vertrag im Babylon-3D-Pfad für Minimap und `worldSurface` adapterbasiert integrieren.
