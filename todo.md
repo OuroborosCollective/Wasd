@@ -1,5 +1,9 @@
 # Arelorian WASD – Issue-Arbeitsliste
 
+- [x] #2070: Den verbindlichen deterministischen Vertrag gegen den aktuellen Main-Callgraph mit Tick, kanonischen Inputs, Read-only-Projektion sowie Hash-/Evidence-Grenze dokumentieren.
+- [x] #2093: Einen SHA-gebundenen Current Index der offenen WASD/Areloria-Gates gegen den aktuellen Main-Callgraph erstellen.
+- [x] Die Snapshot-Bridge-Testannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit die Vertrags-PR keine Nicht-Live-Evidenz als live deklariert.
+- [x] Den fehlenden `EvidenceLayer`-Typimport im Shared-Runtime-Evidence-Test ergänzen, damit der Vertrags-PR gegen den aktuellen Main-Ausgangszustand typgeprüft werden kann.
 - [ ] #2469: Für PR-Head `12ee850e7264c60d60c14bbf4a05af46e4003d2d` authentifizierte 2D- und 3D-Browser-Smokes sowie Snapshot-/Hash-Readbacks derselben Serverrevision erfassen.
 - [x] #2469: Minimale Unit→Guard→Build→Browser→Snapshot/Hash-Evidence-Kette, zulässige Screenshots und semantische Paritätskriterien ohne Fake-Truth festgelegt.
 - [ ] #2370: Nach Merge von PR #2484 die grüne TypeScript-5-Baseline erneut erfassen und erst danach TypeScript 6 sowie TypeScript 7 isoliert vergleichen.
