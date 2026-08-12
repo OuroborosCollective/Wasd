@@ -7,3 +7,5 @@ export * from "./ScenePlanTypes";
 export * from "./SeededARERng";
 export * from "./SettlementDirector";
 export * from "./WorldDirector";
+export * from "./WorldOverlayModel";
+export * from "./WorldOverlayDerivation";

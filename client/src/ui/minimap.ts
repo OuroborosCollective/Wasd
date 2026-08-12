@@ -7,6 +7,16 @@ type MinimapEntity = {
   yaw: number;
 };
 
+type OverlayMarker = {
+  id: string;
+  type: "poi" | "resource" | "camp_npc";
+  x: number;
+  z: number;
+  label: string;
+  color: string;
+  discovered: boolean;
+};
+
 type EntityLike = {
   id?: string;
   type?: string;
@@ -34,6 +44,8 @@ class Minimap {
   private readonly size: number;
   private readonly worldHalfExtent: number;
   private readonly entities = new Map<string, MinimapEntity>();
+  private readonly overlayMarkers = new Map<string, OverlayMarker>();
+  private overlayStatusLabel = "waiting";
   private localPlayerId: string | null = null;
   private timer: number | null = null;
   private zoom = 1;
@@ -215,6 +227,14 @@ class Minimap {
     }
   }
 
+  syncOverlayMarkers(markers: OverlayMarker[], statusLabel: string): void {
+    this.overlayMarkers.clear();
+    for (const marker of markers) {
+      this.overlayMarkers.set(marker.id, marker);
+    }
+    this.overlayStatusLabel = statusLabel;
+  }
+
   adjustZoom(delta: number): void {
     this.zoom = clampZoom(this.zoom + delta);
     this.persistZoom();
@@ -305,6 +325,38 @@ class Minimap {
       ctx.stroke();
     }
 
+    // Overlay discovery markers (POIs, resources, camp NPCs) — drawn below
+    // live entities so presence is always on top of persistent facts.
+    for (const marker of this.overlayMarkers.values()) {
+      const [ox, oy] = this.projectWorldOffset(
+        marker.x - centerWorld.x,
+        marker.z - centerWorld.z,
+        mapRotation
+      );
+      const cx = center + ox;
+      const cy = center + oy;
+      if (cx < -5 || cy < -5 || cx > size + 5 || cy > size + 5) continue;
+      if (marker.type === "poi") {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+        ctx.fillStyle = marker.color;
+        ctx.fill();
+        ctx.strokeStyle = "rgba(0,0,0,0.5)";
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      } else if (marker.type === "resource") {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+        ctx.fillStyle = marker.color;
+        ctx.fill();
+      } else if (marker.type === "camp_npc") {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = marker.color;
+        ctx.fill();
+      }
+    }
+
     for (const entity of this.entities.values()) {
       if (entity.id === this.localPlayerId) continue;
       const [ox, oy] = this.projectWorldOffset(
@@ -358,6 +410,12 @@ export function setMinimapLocalPlayer(playerId: string | null): void {
 export function updateMinimapEntities(entities: EntityLike[]): void {
   minimap?.sync(entities);
 }
+
+export function updateMinimapOverlayMarkers(markers: OverlayMarker[], statusLabel: string): void {
+  minimap?.syncOverlayMarkers(markers, statusLabel);
+}
+
+export type { OverlayMarker };
 
 export function adjustMinimapZoom(delta: number): void {
   minimap?.adjustZoom(delta);
