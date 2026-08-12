@@ -62,7 +62,7 @@ Valid runtime truth must come from tick/logicalIndex, kappa, chunk/position, has
 | NPC runtime | `NPCSystem`, memory cache/persistence, relationships, proactive chat and game-data loading are wired. |
 | Living Duden / NPC speech | Runtime language content loads from `game-data/language`; 2D NPC interaction emits runtime dialogue packets. |
 | Lineage runtime | FamilyHouseRegistry, birth journal, replay, LineageTickRunner, snapshot bridge and visible-POI runtime provider exist. |
-| Lineage worldSurface | Server projects houses/nodes into `liveGameplaySnapshot.worldSurface`; 2D renders markers; 3D rendering tracked by #2046. |
+| Lineage worldSurface | Server projects houses/nodes into `liveGameplaySnapshot.worldSurface`; 2D renders markers; PR #2484 verbindet dieselben read-only Fakten mit Babylon-Minimap und 3D-Objekten. Browser-Paritätsevidence bleibt als Abschluss von #2046 erforderlich. |
 | Ouroboros agents | `OuroborosEngine` is instantiated and ticked from `WorldTick`. |
 | World systems | Chunks, observers, world objects, weather/time and terrain adapters are wired. |
 | Resource entities | Deterministic resource nodes and chunk coordinates are wired; remaining deterministic audit cleanup tracked by #2041. |
@@ -87,7 +87,7 @@ Valid runtime truth must come from tick/logicalIndex, kappa, chunk/position, has
 | #2043 | Player-facing UI coverage for critical gameplay |
 | #2044 | Audited release content pack and asset license proof |
 | #2045 | Required full-loop E2E and release smoke gate |
-| #2046 | Render lineage worldSurface in the 3D client |
+| #2046 | Render lineage worldSurface in the 3D client; der aktuelle serverautoritativ abgeleitete Adapterpfad liegt in PR #2484, finale Browser-Paritätsevidence bleibt offen |
 | #2050 | Runtime civic state from tick and house data |
 | #2047 | Runtime market pricing from resource state |
 | #2048 | Item provenance, trading and anti-duplication audit |

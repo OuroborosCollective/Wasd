@@ -6,6 +6,7 @@ import {
   isRuntimeEvidenceLayer,
   verifyParity,
   type EvidenceEntry,
+  type EvidenceLayer,
   type OverlayRendererParityContract,
 } from "./RuntimeEvidenceChain";
 

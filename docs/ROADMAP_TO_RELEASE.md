@@ -86,7 +86,7 @@ The release focus is now:
 | Canonical loot truth | DONE / HARDENING | `LootDirector -> ProceduralLootMachine -> loot_delta`; PR #2036 restricts legacy construction further. |
 | Quest and questlines | DONE / CONTENT | Quest start, progression, sync, talk/collect/combat updates and questline unlock propagation are active. |
 | NPC runtime | DONE / EXPANDING | NPC memory, relationships, proactive chat, game-data loading, Living Duden speech, lineage journal/replay and POI-driven lineage runtime state exist. |
-| Lineage worldSurface | DONE / 3D OPEN | Server journal/replay projects lineage houses/nodes into `worldSurface`; 2D consumes it; 3D rendering is tracked by #2046. |
+| Lineage worldSurface | DONE / 3D IN PROGRESS | Server journal/replay projects lineage houses/nodes into `worldSurface`; 2D consumes es. PR #2484 bindet denselben read-only Vertrag in den Babylon-Pfad ein; #2046 bleibt offen, bis Browser-Paritätsevidence vorliegt. |
 | Chunk/world foundations | DONE / HARDENING | Chunks, observers, objects, weather/time, terrain adapters and deterministic resource nodes are wired. |
 | Crafting/storage | DONE / UI HARDENING | Crafting and storage handlers are wired; full player-facing flow remains part of #2043 and #2048. |
 | Admin content tools | DONE / HARDENING | `/api/admin/content/*`, content publish path and model-path audit exist; release content pack tracked by #2044. |
@@ -117,7 +117,7 @@ These block a public release tag.
 
 | Issue | Integration | Required direction |
 |---|---|---|
-| #2046 | 3D lineage worldSurface rendering | 3D client consumes the same server `worldSurface.groups/points` contract as 2D. |
+| #2046 | 3D lineage worldSurface rendering | 3D client consumes the same server `worldSurface.groups/points` contract as 2D. PR #2484 implementiert den Adapterpfad; Browser-Paritätsevidence steht noch aus. |
 | #2050 | Runtime civic state | Shared world state derives from tick, house data, population counters and server snapshot. |
 | #2047 | Runtime market pricing | Prices derive from live resource counters, tick and deterministic hash logic. |
 | #2048 | Item provenance / trading / anti-duplication | Item movement uses real uid, source delta, tick/hash audit and server-authoritative inventory. |
