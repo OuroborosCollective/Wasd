@@ -1,5 +1,7 @@
 # Arelorian WASD – Issue-Arbeitsliste
 
+- [x] #2043: Eine SHA-gebundene Coverage-Matrix für reale UI-Mutationsloops erstellen, vorhandene Snapshot-, Intent-, Domain-, Persistenz- und Folgesnapshotpfade belegen und nur nachgewiesene Lücken in bestehenden Truth-Pfaden schließen.
+- [x] Die Snapshot-Bridge-Evidenzannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit CI keinen Nicht-Live-Faktensatz als live ausgibt.
 - [ ] #2369: Produktionsrevision, tatsächliche Node-Version und unveränderlichen Container-Digest aus der laufenden Runtime erfassen; erst dann zielgenaue Image-Pins sowie Security-, Health-, WebSocket-, Auth-, Tick- und Replay-Evidence prüfen.
 - [x] #2369: Versionierte Docker-Pfade und offizielle Node-22.23.2-Sicherheitsfixes geprüft; lokale Runner-Evidence nicht als Produktionsnachweis ausgegeben.
 - [ ] #2372: Bestehende Events, Deltas, Receipts, RuntimeHistoryLog, Origins und Replay-Grenzen inventarisieren, den Economy-Receipt-Pfad als echten Pilotpfad prüfen und nur nachgewiesene Lücken ohne zweite Event-Wahrheit schließen.
