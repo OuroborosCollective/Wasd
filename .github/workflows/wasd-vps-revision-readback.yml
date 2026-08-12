@@ -1,0 +1,130 @@
+name: WASD Revision-Bound VPS Readback
+
+on:
+  workflow_run:
+    workflows: [VPS Docker Deploy (monorepo)]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      expected_revision:
+        description: Exact successfully deployed main revision to read back
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  deployments: write
+
+concurrency:
+  group: wasd-vps-revision-readback-${{ github.event.workflow_run.head_sha || inputs.expected_revision }}
+  cancel-in-progress: false
+
+jobs:
+  independent-vps-readback:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    name: Verify independent VPS runtime receipt
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPECTED_REVISION: ${{ inputs.expected_revision || github.event.workflow_run.head_sha }}
+      DEPLOY_PATH: /opt/areloria
+      SSHPASS: ${{ secrets.SSH_PASSWORD }}
+    steps:
+      - name: Checkout exact successful deploy revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_REVISION }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify revision and readback contracts
+        run: |
+          set -Eeuo pipefail
+          [[ "$EXPECTED_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_REVISION"
+          node --test scripts/revision-guardian.test.mjs scripts/revision-bound-vps-gates.contract.test.mjs
+
+      - name: Install SSH client dependency
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+
+      - name: Verify host pin and collect non-sensitive runtime receipt
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+        run: |
+          set -Eeuo pipefail
+          test -n "$SSH_HOST"
+          test -n "$SSH_USER"
+          test -n "$SSHPASS"
+          test "$SSH_HOST" = "46.202.154.25"
+          known_hosts="$GITHUB_WORKSPACE/.github/wasd-vps-runtime-readback-known_hosts"
+          test "$(ssh-keygen -lf "$known_hosts" | awk '{print $2}')" = 'SHA256:pskBohJoTx/V3iCPaD9m1sW1vchvhvGc89lKnX0RocQ'
+          sshpass -e ssh \
+            -p "$SSH_PORT" \
+            -o BatchMode=no \
+            -o ClearAllForwardings=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o IdentitiesOnly=yes \
+            -o ConnectTimeout=30 \
+            "$SSH_USER@$SSH_HOST" \
+            "cd '$DEPLOY_PATH' && node scripts/vps-runtime-readback.mjs --expected-revision '$EXPECTED_REVISION'" \
+            > .wasd-vps-runtime-receipt.json
+
+      - name: Verify receipt against exact revision
+        run: |
+          set -Eeuo pipefail
+          node scripts/verify-wasd-vps-runtime-receipt.mjs \
+            --expected-revision "$EXPECTED_REVISION" \
+            --receipt .wasd-vps-runtime-receipt.json
+
+      - name: Upload independent VPS evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasd-vps-runtime-receipt-${{ env.EXPECTED_REVISION }}
+          path: .wasd-vps-runtime-receipt.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish verified production deployment status
+        uses: actions/github-script@v7
+        env:
+          EXPECTED_REVISION: ${{ env.EXPECTED_REVISION }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const receipt = JSON.parse(fs.readFileSync('.wasd-vps-runtime-receipt.json', 'utf8'));
+            const expected = String(process.env.EXPECTED_REVISION || '').toLowerCase();
+            if (receipt.status !== 'WASD_RUNTIME_REVISION_VERIFIED' || receipt.expectedRevision !== expected) {
+              core.setFailed('VPS_RUNTIME_RECEIPT_NOT_VERIFIED');
+              return;
+            }
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: expected,
+              environment: 'Production',
+              description: `Revision-bound VPS receipt ${receipt.evidenceSha256}`,
+              required_contexts: [],
+              auto_merge: false,
+              transient_environment: false,
+              production_environment: true,
+            });
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deployment.data.id,
+              state: 'success',
+              environment: 'Production',
+              log_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              description: `VERIFIED ${expected} receipt ${receipt.evidenceSha256}`,
+            });

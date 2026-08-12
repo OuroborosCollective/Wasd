@@ -236,6 +236,7 @@ ARG BUILD_COMMIT_SHA=""
 ENV CLIENT_2D_BUILD_SHA=$CLIENT_2D_BUILD_SHA
 ENV CLIENT_2D_MARKER=$CLIENT_2D_MARKER
 ENV BUILD_COMMIT_SHA=$BUILD_COMMIT_SHA
+LABEL org.opencontainers.image.revision=$BUILD_COMMIT_SHA
 
 RUN apk add --no-cache dumb-init libc6-compat && \
     addgroup -S nodejs && \
