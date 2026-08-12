@@ -4,6 +4,7 @@ import {
   overlayPoisToMinimapMarkers,
   overlayResourcesToMinimapMarkers,
   overlayCampNpcsToMinimapMarkers,
+  overlaySurfaceGroupsTo3D,
   overlaySurfacePointsTo3D,
   overlayStatusLabel,
   projectWorldToMinimap,
@@ -84,6 +85,20 @@ describe("BabylonOverlayAdapter", () => {
     const points = overlaySurfacePointsTo3D(model);
     expect(points).toHaveLength(1);
     expect(points[0]).toEqual({ id: "sp_1", x: 7, z: 8, raw: {} });
+  });
+
+  it("anchors surface groups only to server-provided member coordinates", () => {
+    const model = makeModel({
+      surfaceGroups: [{ id: "house_a", title: "House A", raw: {} }],
+      surfacePoints: [
+        { id: "node_z", x: 20, y: 30, raw: { houseId: "house_a" } },
+        { id: "node_b", x: 10, y: 15, raw: { houseId: "house_a" } },
+      ],
+    });
+
+    expect(overlaySurfaceGroupsTo3D(model)).toEqual([
+      { id: "house_a", title: "House A", x: 20, z: 30, memberCount: 2 },
+    ]);
   });
 
   it("returns honest status labels", () => {

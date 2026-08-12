@@ -5,6 +5,7 @@ import { onChatMessage } from "../ui/chat";
 import { setMinimapLocalPlayer, updateMinimapEntities, updateMinimapOverlayMarkers } from "../ui/minimap";
 import { getWorldOverlaySnapshotBridge } from "../game/WorldOverlaySnapshotBridge";
 import { buildMinimapMarkersFromOverlay, overlayStatusLabel, type MinimapMarker } from "../game/BabylonOverlayAdapter";
+import { getWorldSurfaceBabylonRenderer } from "../game/WorldSurfaceBabylonRenderer";
 import { showDeathScreen, hideDeathScreen } from "../ui/deathScreen";
 import { showNotification, notifySuccess, notifyWarn } from "../ui/notifications";
 import { applyPartySync } from "../state/partyState";
@@ -590,6 +591,7 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
         overlayBridge.subscribe((state) => {
           const markers: MinimapMarker[] = buildMinimapMarkersFromOverlay(state.model);
           updateMinimapOverlayMarkers(markers, overlayStatusLabel(state.model));
+          getWorldSurfaceBabylonRenderer()?.apply(state.model);
         });
         overlayBridge.start();
       }

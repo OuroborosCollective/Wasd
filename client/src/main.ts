@@ -16,6 +16,7 @@ import { resolveGameAuthProvider } from "./config/gameAuth";
 import { initChat, focusChatInput } from "./ui/chat";
 import { initMinimap, toggleMinimapVisibility } from "./ui/minimap";
 import { worldService } from "./game/world/services";
+import { installWorldSurfaceBabylonRenderer } from "./game/WorldSurfaceBabylonRenderer";
 
 type AREPolicyConfig = {
   cooldownMs?: number;
@@ -94,6 +95,7 @@ try {
   showBootStatus("Booting renderer...", "info");
   // 1. Boot Engine + Adapter
   const adapter = bootEngineBridge(canvas);
+  installWorldSurfaceBabylonRenderer((window as any).babylonScene);
   showBootStatus("Renderer ready. Connecting to world...", "info");
 
   // Initialize world services (terrain, trees, physics, atmosphere, etc.)
