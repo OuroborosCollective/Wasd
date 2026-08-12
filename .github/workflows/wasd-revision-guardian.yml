@@ -1,0 +1,61 @@
+name: WASD Revision Guardian
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      expected_revision:
+        description: Exact 40-character revision to verify
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wasd-revision-guardian-${{ github.event.pull_request.head.sha || inputs.expected_revision || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  revision-guardian:
+    name: Revision Guardian Evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      EXPECTED_REVISION: ${{ inputs.expected_revision || github.event.pull_request.head.sha || github.sha }}
+      GUARDIAN_MODE: ${{ github.event_name == 'pull_request' && 'pr' || 'main' }}
+    steps:
+      - name: Checkout exact authoritative revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_REVISION }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify revision guardian contracts
+        run: node --test scripts/revision-guardian.test.mjs scripts/revision-bound-vps-gates.contract.test.mjs
+
+      - name: Fetch current main only
+        run: git fetch --no-tags origin main
+
+      - name: Fail closed on stale or mismatched revision
+        run: |
+          set -Eeuo pipefail
+          node scripts/revision-guardian.mjs \
+            --expected-revision "$EXPECTED_REVISION" \
+            --mode "$GUARDIAN_MODE" \
+            --event "${{ github.event_name }}" \
+            --evidence .wasd-evidence/revision-guardian-evidence.json
+
+      - name: Upload revision guardian evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasd-revision-guardian-${{ env.EXPECTED_REVISION }}
+          path: .wasd-evidence/revision-guardian-evidence.json
+          if-no-files-found: error
+          retention-days: 30

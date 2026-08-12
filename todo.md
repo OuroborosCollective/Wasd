@@ -42,3 +42,6 @@
 - [ ] #2038/#2369: Den tatsächlich deployten Git-Commit aus dem vorhandenen VPS-Deployskript als Build-Argument und Runtime-Metadatum binden, damit `client-config.json` keine ungebundene `dev`-Revision ausgibt.
 - [x] #2038/#2369: Release-SHA-Bindung statisch mit dem VPS-Build-Logikvalidator, der Compose-Konfiguration und der Deployskript-Syntax geprüft.
 - [x] #2038/#2369: Schreibgeschützten VPS-Audit ohne Secret-Ausgabe für Image-Digest, Port, Weltseed-Präsenz, Health, Snapshot, 3D-Entrypoint und WebSocket-Upgrade dokumentiert.
+- [ ] Sovereign-Studio-ato: Revisions-Guardian-, Evidence- und revisionsgebundene Deploy-/Readback-Workflows gegen die WASD-Truth-Pfade abgleichen und nur kompatible fail-closed Verträge mit realer Runtime-Evidence übernehmen.
+- [ ] Einen WASD-Revisions-Guardian für exakte 40-stellige PR-/Main-SHAs mit maschinenlesbarer Evidence einführen, den 3D-/2D-Deploy auf ein OCI-Revisionslabel binden und eine unabhängige, nicht sensitive VPS-Readback-Receipt-Validierung nach erfolgreichem Main-Deploy implementieren.
+- [x] Sovereign-Studio-ato-Vertragsabgleich dokumentiert sowie lokale fail-closed WASD-Portierung für Guardian, OCI-Revisionslabel, gepinnten VPS-Host und Receipt-Validator erfolgreich ausgeführt.
