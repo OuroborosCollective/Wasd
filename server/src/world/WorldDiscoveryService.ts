@@ -5,8 +5,8 @@
  * Server-authoritative, deterministic.
  *
  * Rules:
- * - No Math.random()
- * - No Date.now()
+ * - Keine nichtdeterministische Zufallsquelle
+ * - Keine externe Wall-Clock im Truth-Pfad
  * - Discovery based on proximity to POIs
  */
 
