@@ -18,7 +18,10 @@ function resolveFilePath(): string {
 }
 
 function normalizeReceipt(value: PersistedCraftingReceipt): PersistedCraftingReceipt {
-  return createCraftingReceipt({
+  if (value.schemaVersion !== 1) {
+    throw new Error("invalid_crafting_receipt_schema");
+  }
+  const normalized = createCraftingReceipt({
     operationId: String(value.operationId),
     playerId: String(value.playerId),
     recipeId: String(value.recipeId),
@@ -31,6 +34,10 @@ function normalizeReceipt(value: PersistedCraftingReceipt): PersistedCraftingRec
     skillsBefore: value.skillsBefore,
     expectedCraftingXpAfter: Math.max(0, Math.floor(Number(value.expectedCraftingXpAfter ?? 0))),
   });
+  if (typeof value.receiptHash !== "string" || value.receiptHash !== normalized.receiptHash) {
+    throw new Error("invalid_crafting_receipt_hash");
+  }
+  return normalized;
 }
 
 function stableFile(receipts: readonly PersistedCraftingReceipt[]): CraftingReceiptFile {

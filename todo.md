@@ -2,3 +2,22 @@
 
 - [ ] #2469: Für PR-Head `12ee850e7264c60d60c14bbf4a05af46e4003d2d` authentifizierte 2D- und 3D-Browser-Smokes sowie Snapshot-/Hash-Readbacks derselben Serverrevision erfassen.
 - [x] #2469: Minimale Unit→Guard→Build→Browser→Snapshot/Hash-Evidence-Kette, zulässige Screenshots und semantische Paritätskriterien ohne Fake-Truth festgelegt.
+- [ ] #2370: Nach Merge von PR #2484 die grüne TypeScript-5-Baseline erneut erfassen und erst danach TypeScript 6 sowie TypeScript 7 isoliert vergleichen.
+- [x] #2370 Phase 0: TS-5-Baseline auf `dad57978d07cd2745db8cc7624dd9baea73dc2af` ausgeführt und den bestehenden `EvidenceLayer`-Importblocker ohne Toolchain-Umgehung dokumentiert.
+- [x] #2372: Den realen JSON-Crafting-Receipt-Pfad auf Hash-Integrität, Rehydrate und korrupten Persistenzinhalt prüfen, ohne einen zweiten Event- oder Replay-Pfad zu erzeugen.
+- [x] Den fehlenden `EvidenceLayer`-Typimport im Shared-Runtime-Evidence-Test ergänzen, damit der Crafting-Receipt-PR gegen den aktuellen Main-Ausgangszustand typgeprüft werden kann.
+- [x] Die Snapshot-Bridge-Testannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit der autonome Check keine Nicht-Live-Evidenz als live deklariert.
+- [ ] #2466 – Den gemeinsamen 64-Tile-/Kappa-Discovery-Vertrag in aktiven Server-, 2D- und 3D-Pfaden durchsetzen und Replay-/Persistenzgrenzen absichern.
+- [ ] #2465 – Das serverautoritativ abgeleitete `WorldOverlayModel` im realen 2D-Entrypoint verwenden und Reachability, Projektion sowie Browser-Smokes belegen.
+- [ ] #2464 – Den vorhandenen Overlay-Vertrag im Babylon-3D-Pfad für Minimap und `worldSurface` adapterbasiert integrieren.
+- [ ] #2469 – Runtime-Evidence und semantische 2D-/3D-Parität für die integrierten Slices belegen.
+- [ ] Weitere offene Gates (#2480, #2372, #2370, #2369, #2256, #2046, #2045, #2044, #2043, #2038) nach ihren dokumentierten Abhängigkeiten analysieren und ohne Ersatzwahrheit bearbeiten.
+- [x] Gemeinsamen 64-Tile-/Kappa-Discovery-Vertrag im aktiven WorldDiscoveryService durchsetzen und mit Server-, Shared- sowie Build-Prüfungen belegen.
+- [x] Reale 2D-Overlay-Container dauerhaft mounten, damit der Viewport nach dem ersten Snapshot messbar bleibt.
+- [x] Servergelieferte `worldSurface`-Punkte und Gruppen über einen read-only Babylon-Adapter in den aktiven 3D-Pfad integrieren.
+- [x] #2046: Die tatsächliche Babylon-Projektion mit einer echten Headless-Scene gegen servergelieferte Gruppen, Punkte sowie empty/blocked-Zustände testen.
+- [x] #2046: Nichtleere serverautoritäre `worldSurface.groups` und `worldSurface.points` in die ehrliche Overlay-Statusableitung einbeziehen.
+- [ ] #2480 bleibt ausgesetzt, bis der im Issue referenzierte Sovereign-Frontend- und Backend-Quellbaum im Repository oder als zugänglicher Mirror bereitsteht.
+- [x] #2043: Eine SHA-gebundene Coverage-Matrix für reale UI-Mutationsloops erstellen, vorhandene Snapshot-, Intent-, Domain-, Persistenz- und Folgesnapshotpfade belegen und nur nachgewiesene Lücken in bestehenden Truth-Pfaden schließen.
+- [x] Die Snapshot-Bridge-Evidenzannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit CI keinen Nicht-Live-Faktensatz als live ausgibt.
+- [x] Den fehlenden `EvidenceLayer`-Typimport in den Runtime-Evidence-Tests beheben, damit der Shared-Truth-Vertrag auch im TypeScript-Gate geprüft wird.

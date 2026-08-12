@@ -158,6 +158,40 @@ export function overlaySurfacePointsTo3D(
   );
 }
 
+/** A lineage-house marker resolved from the group's real member point. */
+export interface SurfaceGroupMarker {
+  id: string;
+  title: string;
+  x: number;
+  z: number;
+  memberCount: number;
+}
+
+/**
+ * Resolve a worldSurface group to the first stable, server-provided member
+ * point. A group without an authoritative member coordinate is intentionally
+ * omitted instead of receiving an invented fallback location.
+ */
+export function overlaySurfaceGroupsTo3D(
+  model: WorldOverlayModel,
+): SurfaceGroupMarker[] {
+  if (model.status === "blocked" || model.status === "waiting") return [];
+
+  const points = overlaySurfacePointsTo3D(model);
+  return model.surfaceGroups.flatMap((group) => {
+    const members = points.filter((point) => point.raw.houseId === group.id);
+    const anchor = members[0];
+    if (!anchor) return [];
+    return [{
+      id: group.id,
+      title: group.title,
+      x: anchor.x,
+      z: anchor.z,
+      memberCount: members.length,
+    }];
+  });
+}
+
 /**
  * Build the full minimap marker set from a WorldOverlayModel.
  * Discovery facts (POIs, resources, camp NPCs) are merged deterministically
