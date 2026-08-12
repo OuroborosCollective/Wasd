@@ -1,8 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useWorldOverlayModel } from "../game/useWorldOverlayModel";
 import { useLiveGameplaySnapshot } from "../game/useLiveGameplaySnapshot";
+import { markOverlayReachable } from "../game/OverlayReachabilityGuard";
+import { projectWorldToScreen, type ViewportInput } from "../game/WorldOverlayProjection";
 import { dispatchGather, type GameplayWorldPosition } from "../game/gameplayActions";
 import { DEFAULT_GAMEPLAY_PLAYER_ID } from "../game/liveGameplayStore";
 import { readPlayerPositionBridge } from "../game/PlayerPositionBridge";
+
+markOverlayReachable("resource-node-marker-layer");
 
 interface ResourceMarkerProps {
   nodeId: string;
@@ -10,7 +15,7 @@ interface ResourceMarkerProps {
   kind: "tree" | "ore" | "fish_spot";
   x: number;
   y: number;
-  status: "available" | "depleted";
+  status: "available" | "depleted" | "locked";
   onGather: (nodeId: string) => Promise<void>;
 }
 
@@ -26,25 +31,12 @@ const KIND_COLORS: Record<string, string> = {
   fish_spot: "var(--st-aether, #00e5ff)",
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function surfaceText(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-function surfaceNumber(value: unknown): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
 function ResourceMarker({ nodeId, title, kind, x, y, status, onGather }: ResourceMarkerProps) {
   const [gathering, setGathering] = useState(false);
   const markerRef = useRef<HTMLButtonElement>(null);
 
   const handleClick = useCallback(async () => {
-    if (status === "depleted" || gathering) return;
+    if (status === "depleted" || status === "locked" || gathering) return;
     setGathering(true);
     try {
       await onGather(nodeId);
@@ -61,24 +53,24 @@ function ResourceMarker({ nodeId, title, kind, x, y, status, onGather }: Resourc
       ref={markerRef}
       type="button"
       data-testid="resource-node-marker"
-      className={`resource-node-marker ${status === "depleted" ? "resource-node-marker--depleted" : ""}`}
+      className={`resource-node-marker ${status === "depleted" || status === "locked" ? "resource-node-marker--depleted" : ""}`}
       style={{
         position: "absolute",
         left: `${x}px`,
         top: `${y}px`,
         transform: "translate(-50%, -100%)",
         background: "rgba(4, 8, 14, 0.82)",
-        border: `2px solid ${status === "depleted" ? "rgba(255,255,255,0.2)" : color}`,
+        border: `2px solid ${status === "depleted" || status === "locked" ? "rgba(255,255,255,0.2)" : color}`,
         borderRadius: "12px",
         padding: "4px 8px",
-        cursor: status === "depleted" || gathering ? "not-allowed" : "pointer",
-        color: status === "depleted" ? "rgba(255,255,255,0.4)" : "#fff",
+        cursor: status === "depleted" || status === "locked" || gathering ? "not-allowed" : "pointer",
+        color: status === "depleted" || status === "locked" ? "rgba(255,255,255,0.4)" : "#fff",
         fontSize: "11px",
         fontFamily: "ui-monospace, monospace",
         whiteSpace: "nowrap",
         backdropFilter: "blur(8px)",
         boxShadow: status === "available" ? `0 0 12px ${color}44` : "none",
-        opacity: status === "depleted" ? 0.5 : 1,
+        opacity: status === "depleted" || status === "locked" ? 0.5 : 1,
         zIndex: 50,
         display: "flex",
         flexDirection: "column",
@@ -87,8 +79,8 @@ function ResourceMarker({ nodeId, title, kind, x, y, status, onGather }: Resourc
         minWidth: "52px",
       }}
       onClick={handleClick}
-      disabled={status === "depleted" || gathering}
-      title={`${title} - ${status === "available" ? `Tap to gather` : `Respawning...`}`}
+      disabled={status === "depleted" || status === "locked" || gathering}
+      title={`${title} - ${status === "available" ? `Tap to gather` : `Locked/Respawning...`}`}
       aria-label={`${title} resource node, ${status}`}
     >
       <span style={{ fontSize: "18px", lineHeight: 1 }}>{icon}</span>
@@ -98,6 +90,9 @@ function ResourceMarker({ nodeId, title, kind, x, y, status, onGather }: Resourc
       )}
       {status === "depleted" && (
         <span style={{ fontSize: "8px", color: "rgba(255,255,255,0.4)" }}>depleted</span>
+      )}
+      {status === "locked" && (
+        <span style={{ fontSize: "8px", color: "rgba(255,255,255,0.4)" }}>locked</span>
       )}
     </button>
   );
@@ -135,6 +130,7 @@ function humanReadableGatherError(reason?: string, requiredTool?: string): strin
 }
 
 export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: Props) {
+  const overlay = useWorldOverlayModel();
   const snapshot = useLiveGameplaySnapshot();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -157,10 +153,13 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
     return () => observer.disconnect();
   }, []);
 
-  const resources = snapshot.resources ?? [];
-  const worldSurface = snapshot.worldSurface;
-  const surfaceGroups = Array.isArray(worldSurface?.groups) ? worldSurface.groups.filter(isRecord) : [];
-  const surfacePoints = Array.isArray(worldSurface?.points) ? worldSurface.points.filter(isRecord) : [];
+  const viewport: ViewportInput = {
+    screenWidth: containerSize.width,
+    screenHeight: containerSize.height,
+  };
+
+  const surfaceGroups = overlay.surfaceGroups;
+  const surfacePoints = overlay.surfacePoints;
 
   const handleGather = useCallback(async (nodeId: string) => {
     const playerPosition = getPlayerPosition?.() ?? readPlayerPositionBridge();
@@ -185,29 +184,14 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
     }
   }, [getPlayerPosition, snapshot.serverTick, onGatherSuccess]);
 
-  function lineageToScreen(surfaceX: number, surfaceY: number): { screenX: number; screenY: number } {
-    const { width, height } = containerSize;
-    const scale = 1.2;
-    const isoX = (surfaceX - surfaceY) * scale * 0.5;
-    const isoY = (surfaceX + surfaceY) * scale * 0.25;
-    return { screenX: width / 2 + isoX, screenY: height / 2 + isoY };
-  }
+  const resourceNodes = overlay.resourceNodes;
 
-  function worldToScreen(worldX: number, worldY: number): { screenX: number; screenY: number } {
-    const { width, height } = containerSize;
-    if (width === 0 || height === 0) return { screenX: worldX, screenY: worldY };
-
-    const worldOriginX = 460;
-    const worldOriginY = 500;
-    const scale = 1.2;
-    const isoX = (worldX - worldY) * scale * 0.5;
-    const isoY = (worldX + worldY) * scale * 0.25;
-    const screenX = width / 2 + isoX - (worldOriginX - worldOriginY) * scale * 0.5;
-    const screenY = height / 2 + isoY - (worldOriginX + worldOriginY) * scale * 0.25;
-    return { screenX, screenY };
-  }
-
-  if (resources.length === 0 && surfaceGroups.length === 0 && surfacePoints.length === 0 && !lastError) {
+  if (
+    resourceNodes.length === 0 &&
+    surfaceGroups.length === 0 &&
+    surfacePoints.length === 0 &&
+    !lastError
+  ) {
     return null;
   }
 
@@ -215,12 +199,12 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
     <div
       ref={containerRef}
       data-testid="resource-node-marker-layer"
+      data-overlay-status={overlay.status}
       style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 50 }}
     >
       {surfaceGroups.map((group, index) => {
-        const id = surfaceText(group.id);
-        if (!id) return null;
-        const title = surfaceText(group.title) || id;
+        const id = group.id;
+        const title = group.title || id;
         return (
           <div
             key={`surface-group:${id}`}
@@ -245,12 +229,10 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
       })}
 
       {surfacePoints.map((point) => {
-        const id = surfaceText(point.id);
-        if (!id) return null;
-        const { screenX, screenY } = lineageToScreen(surfaceNumber(point.x), surfaceNumber(point.y));
+        const { screenX, screenY } = projectWorldToScreen({ x: point.x, y: point.y }, viewport);
         return (
           <div
-            key={`surface-point:${id}`}
+            key={`surface-point:${point.id}`}
             data-testid="world-surface-node-marker"
             style={{
               position: "absolute",
@@ -266,24 +248,24 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
               boxShadow: "0 0 12px rgba(0, 229, 255, 0.18)",
               whiteSpace: "nowrap",
             }}
-            title={`Lineage node ${id}`}
+            title={`Lineage node ${point.id}`}
           >
             ✦ NPC
           </div>
         );
       })}
 
-      {resources.map((node) => {
-        const { screenX, screenY } = worldToScreen(node.position.x, node.position.y);
+      {resourceNodes.map((node) => {
+        const { screenX, screenY } = projectWorldToScreen({ x: node.x, y: node.y }, viewport);
         return (
           <div key={node.id} style={{ pointerEvents: "auto" }}>
             <ResourceMarker
               nodeId={node.id}
               title={node.title}
-              kind={node.kind as "tree" | "ore" | "fish_spot"}
+              kind={node.kind}
               x={screenX}
               y={screenY}
-              status={node.status as "available" | "depleted"}
+              status={node.status}
               onGather={handleGather}
             />
           </div>
