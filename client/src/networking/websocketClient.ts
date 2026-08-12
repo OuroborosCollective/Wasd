@@ -2,7 +2,9 @@ import { MMORPGClientCore } from "../core/MMORPGClientCore";
 import { wantsMobileNetworkHints } from "../ui/touchUi";
 import { applyStatsPayload } from "../state/playerState";
 import { onChatMessage } from "../ui/chat";
-import { setMinimapLocalPlayer, updateMinimapEntities } from "../ui/minimap";
+import { setMinimapLocalPlayer, updateMinimapEntities, updateMinimapOverlayMarkers } from "../ui/minimap";
+import { getWorldOverlaySnapshotBridge } from "../game/WorldOverlaySnapshotBridge";
+import { buildMinimapMarkersFromOverlay, overlayStatusLabel, type MinimapMarker } from "../game/BabylonOverlayAdapter";
 import { showDeathScreen, hideDeathScreen } from "../ui/deathScreen";
 import { showNotification, notifySuccess, notifyWarn } from "../ui/notifications";
 import { applyPartySync } from "../state/partyState";
@@ -581,6 +583,15 @@ export function connectSocket(core: MMORPGClientCore, options: ConnectionOptions
             spawnPosition: data.spawnPosition,
           });
         }
+        // Start the read-only overlay snapshot bridge so the 3D minimap
+        // receives the same server-authoritative WorldOverlayModel as the 2D
+        // client. The bridge degrades honestly if the endpoint is unavailable.
+        const overlayBridge = getWorldOverlaySnapshotBridge();
+        overlayBridge.subscribe((state) => {
+          const markers: MinimapMarker[] = buildMinimapMarkersFromOverlay(state.model);
+          updateMinimapOverlayMarkers(markers, overlayStatusLabel(state.model));
+        });
+        overlayBridge.start();
       }
       if (data.type === "stats_sync") {
         applyStatsPayload(data);
