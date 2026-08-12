@@ -8,6 +8,10 @@ import { PixiModuleInspector } from "./PixiModuleInspector";
 import { WorldHeartMonitor } from "./WorldHeartMonitor";
 import { KenneyUiLiveSkinBadge } from "./KenneyUiLiveSkinBadge";
 import { InteractionOverlayRoot } from "./ui/InteractionOverlayRoot";
+import { WorldPoiMarkerLayer } from "./ui/WorldPoiMarkerLayer";
+import { ResourceNodeMarkerLayer } from "./ui/ResourceNodeMarkerLayer";
+import { CampNpcMarkerLayer } from "./ui/CampNpcMarkerLayer";
+import { readPlayerPositionBridge } from "./game/PlayerPositionBridge";
 import { DnDProvider } from "./ui/dnd/DnDContext";
 import { LootFeed } from "./ui/LootFeed";
 import { ToastStack, type ClientToast } from "./ui/ToastStack";
@@ -342,6 +346,18 @@ function UIOverlayLayer() {
     <>
       <LootFeed entries={lootEntries} />
       <ToastStack toasts={toasts} />
+      {/* Server-authoritative overlay marker layers (issue #2465).
+          Positioned over the world canvas; driven by WorldOverlayModel
+          derived from the live gameplay snapshot. */}
+      <div
+        data-testid="world-overlay-marker-root"
+        style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 38 }}
+        aria-hidden="true"
+      >
+        <WorldPoiMarkerLayer />
+        <ResourceNodeMarkerLayer getPlayerPosition={readPlayerPositionBridge} />
+        <CampNpcMarkerLayer />
+      </div>
       {npcOverlay && (
         <div
           style={{
