@@ -35,3 +35,5 @@
 - [x] #2043: Eine SHA-gebundene Coverage-Matrix für reale UI-Mutationsloops erstellen, vorhandene Snapshot-, Intent-, Domain-, Persistenz- und Folgesnapshotpfade belegen und nur nachgewiesene Lücken in bestehenden Truth-Pfaden schließen.
 - [x] Die Snapshot-Bridge-Evidenzannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit CI keinen Nicht-Live-Faktensatz als live ausgibt.
 - [x] Den fehlenden `EvidenceLayer`-Typimport in den Runtime-Evidence-Tests beheben, damit der Shared-Truth-Vertrag auch im TypeScript-Gate geprüft wird.
+- [ ] #2038/#2369: Den tatsächlich deployten Git-Commit aus dem vorhandenen VPS-Deployskript als Build-Argument und Runtime-Metadatum binden, damit `client-config.json` keine ungebundene `dev`-Revision ausgibt.
+- [x] #2038/#2369: Release-SHA-Bindung statisch mit dem VPS-Build-Logikvalidator, der Compose-Konfiguration und der Deployskript-Syntax geprüft.

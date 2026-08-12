@@ -1,6 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 
 const requiredFiles = [
+  "Dockerfile.vps",
+  "docker-compose.yml",
+  "scripts/deploy-vps-docker.sh",
   "engine/src/determinism/tickPolicy.ts",
   "server/src/core/WorldTickPolicy.ts",
   "server/src/core/WorldTickPolicy.guard.ts",
@@ -11,6 +14,10 @@ const requiredFiles = [
 ];
 
 const requiredSnippets = [
+  ["Dockerfile.vps", "ARG BUILD_COMMIT_SHA=\"\""],
+  ["Dockerfile.vps", "ENV BUILD_COMMIT_SHA=$BUILD_COMMIT_SHA"],
+  ["docker-compose.yml", "BUILD_COMMIT_SHA: \"${BUILD_COMMIT_SHA:-}\""],
+  ["scripts/deploy-vps-docker.sh", "export BUILD_COMMIT_SHA=\"$(git rev-parse HEAD)\""],
   ["engine/src/determinism/tickPolicy.ts", "WORLD_TICK_HZ = 10 as const"],
   ["engine/src/determinism/tickPolicy.ts", "WORLD_TICK_MS = 100 as const"],
   ["engine/src/determinism/tickPolicy.ts", "WORLD_TICK_KAPPA = 1000 as const"],
