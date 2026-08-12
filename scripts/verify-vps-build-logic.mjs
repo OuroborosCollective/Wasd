@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 
 const requiredFiles = [
   "Dockerfile.vps",
+  "docker-compose.yml",
   "scripts/deploy-vps-docker.sh",
   "engine/src/determinism/tickPolicy.ts",
   "server/src/core/WorldTickPolicy.ts",
@@ -13,9 +14,13 @@ const requiredFiles = [
 ];
 
 const requiredSnippets = [
+  ["Dockerfile.vps", "ARG BUILD_COMMIT_SHA=\"\""],
+  ["Dockerfile.vps", "ENV BUILD_COMMIT_SHA=$BUILD_COMMIT_SHA"],
   ["Dockerfile.vps", "--filter @wasd/server... --filter @wasd/client... --filter @wasd/engine..."],
   ["Dockerfile.vps", "RUN pnpm --filter @wasd/client --if-present build &&"],
   ["Dockerfile.vps", "test -d client/dist/assets"],
+  ["docker-compose.yml", "BUILD_COMMIT_SHA: \"${BUILD_COMMIT_SHA:-}\""],
+  ["scripts/deploy-vps-docker.sh", "export BUILD_COMMIT_SHA=\"$(git rev-parse HEAD)\""],
   ["scripts/deploy-vps-docker.sh", "client_3d_shell_ready"],
   ["scripts/deploy-vps-docker.sh", "!body.includes('Areloria 3D unavailable')"],
   ["engine/src/determinism/tickPolicy.ts", "WORLD_TICK_HZ = 10 as const"],

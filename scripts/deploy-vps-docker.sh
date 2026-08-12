@@ -362,11 +362,12 @@ if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
 fi
 
 fetch_and_reset
+export BUILD_COMMIT_SHA="$(git rev-parse HEAD)"
 import_cozy_assets_after_reset
 validate_client_2d_dockerfile_gate
 validate_required_runtime_env
 
-echo "Deploy commit: $(git rev-parse --short HEAD)"
+echo "Deploy commit: ${BUILD_COMMIT_SHA}"
 export DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
 export COMPOSE_PARALLEL_LIMIT="${COMPOSE_PARALLEL_LIMIT:-1}"
 
