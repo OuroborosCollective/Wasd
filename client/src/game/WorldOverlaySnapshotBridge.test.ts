@@ -59,7 +59,7 @@ describe("WorldOverlaySnapshotBridge", () => {
     expect(state.lastError).toBe("network_error");
   });
 
-  it("notifies subscribers on state change", async () => {
+  it("notifies subscribers with empty for a valid but inhaltsleere server response", async () => {
     const body = {
       ok: true,
       serverTick: 5,
@@ -69,7 +69,7 @@ describe("WorldOverlaySnapshotBridge", () => {
     const states: string[] = [];
     bridge.subscribe((s) => states.push(s.model.status));
     await bridge.refresh();
-    expect(states).toContain("live");
+    expect(states).toContain("empty");
   });
 });
 
