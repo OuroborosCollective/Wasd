@@ -14,6 +14,7 @@ export function InteractionPrompt({ target, onInteract }: Props) {
       type="button"
       onClick={onInteract}
       aria-label={`Interact with ${target.label}`}
+      aria-keyshortcuts="e"
       style={{
         position: "fixed",
         left: "50%",
