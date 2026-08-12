@@ -59,7 +59,7 @@ describe("WorldOverlaySnapshotBridge", () => {
     expect(state.lastError).toBe("network_error");
   });
 
-  it("notifies subscribers about an honest empty overlay state", async () => {
+  it("notifies subscribers with empty for a valid but inhaltsleere server response", async () => {
     const body = {
       ok: true,
       serverTick: 5,
