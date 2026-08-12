@@ -209,7 +209,7 @@ export function deriveWorldOverlayModelFromSnapshot(
     surfacePointCount: surfacePoints.length,
   });
 
-  const totalEntries = pois.length + resourceNodes.length + campNpcs.length;
+  const totalEntries = pois.length + resourceNodes.length + campNpcs.length + surfaceGroups.length + surfacePoints.length;
   const status = deriveStatus(input.status, surfaceRaw !== null, totalEntries);
 
   return Object.freeze({
