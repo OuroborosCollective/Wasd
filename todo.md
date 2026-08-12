@@ -4,6 +4,13 @@
 - [x] #2093: Einen SHA-gebundenen Current Index der offenen WASD/Areloria-Gates gegen den aktuellen Main-Callgraph erstellen.
 - [x] Die Snapshot-Bridge-Testannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit die Vertrags-PR keine Nicht-Live-Evidenz als live deklariert.
 - [x] Den fehlenden `EvidenceLayer`-Typimport im Shared-Runtime-Evidence-Test ergänzen, damit der Vertrags-PR gegen den aktuellen Main-Ausgangszustand typgeprüft werden kann.
+- [ ] #2469: Für PR-Head `12ee850e7264c60d60c14bbf4a05af46e4003d2d` authentifizierte 2D- und 3D-Browser-Smokes sowie Snapshot-/Hash-Readbacks derselben Serverrevision erfassen.
+- [x] #2469: Minimale Unit→Guard→Build→Browser→Snapshot/Hash-Evidence-Kette, zulässige Screenshots und semantische Paritätskriterien ohne Fake-Truth festgelegt.
+- [ ] #2370: Nach Merge von PR #2484 die grüne TypeScript-5-Baseline erneut erfassen und erst danach TypeScript 6 sowie TypeScript 7 isoliert vergleichen.
+- [x] #2370 Phase 0: TS-5-Baseline auf `dad57978d07cd2745db8cc7624dd9baea73dc2af` ausgeführt und den bestehenden `EvidenceLayer`-Importblocker ohne Toolchain-Umgehung dokumentiert.
+- [x] #2372: Den realen JSON-Crafting-Receipt-Pfad auf Hash-Integrität, Rehydrate und korrupten Persistenzinhalt prüfen, ohne einen zweiten Event- oder Replay-Pfad zu erzeugen.
+- [x] Den fehlenden `EvidenceLayer`-Typimport im Shared-Runtime-Evidence-Test ergänzen, damit der Crafting-Receipt-PR gegen den aktuellen Main-Ausgangszustand typgeprüft werden kann.
+- [x] Die Snapshot-Bridge-Testannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit der autonome Check keine Nicht-Live-Evidenz als live deklariert.
 - [ ] #2466 – Den gemeinsamen 64-Tile-/Kappa-Discovery-Vertrag in aktiven Server-, 2D- und 3D-Pfaden durchsetzen und Replay-/Persistenzgrenzen absichern.
 - [ ] #2465 – Das serverautoritativ abgeleitete `WorldOverlayModel` im realen 2D-Entrypoint verwenden und Reachability, Projektion sowie Browser-Smokes belegen.
 - [ ] #2464 – Den vorhandenen Overlay-Vertrag im Babylon-3D-Pfad für Minimap und `worldSurface` adapterbasiert integrieren.
