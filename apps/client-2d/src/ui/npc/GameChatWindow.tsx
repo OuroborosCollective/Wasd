@@ -78,13 +78,27 @@ function createMessageId(parts: { readonly sequence: number; readonly channel: C
 
 function TabBar({ activeTab, unreadCounts, onTabChange }: { activeTab: ChatChannel; unreadCounts: Readonly<Record<ChatChannel, number>>; onTabChange: (tab: ChatChannel) => void }) {
   return (
-    <div style={{ display: "flex", borderBottom: "1px solid rgba(132,147,150,0.2)", backgroundColor: "rgba(9,14,17,0.86)" }}>
+    <div
+      role="tablist"
+      aria-label="Chat channels"
+      style={{ display: "flex", borderBottom: "1px solid rgba(132,147,150,0.2)", backgroundColor: "rgba(9,14,17,0.86)" }}
+    >
       {CHANNELS.map((channel) => {
         const active = channel === activeTab;
+        const unreadCount = unreadCounts[channel] ?? 0;
+        const ariaLabel = unreadCount > 0
+          ? `${LABELS[channel]} channel, ${unreadCount} unread message${unreadCount === 1 ? "" : "s"}`
+          : `${LABELS[channel]} channel`;
+
         return (
           <button
             key={channel}
             type="button"
+            role="tab"
+            aria-selected={active}
+            aria-controls={`chat-panel-${channel}`}
+            aria-label={ariaLabel}
+            title={unreadCount > 0 ? `${unreadCount} unread message${unreadCount === 1 ? "" : "s"}` : undefined}
             onClick={() => onTabChange(channel)}
             style={{
               flex: 1,
@@ -103,7 +117,12 @@ function TabBar({ activeTab, unreadCounts, onTabChange }: { activeTab: ChatChann
             }}
           >
             {LABELS[channel]}
-            {(unreadCounts[channel] ?? 0) > 0 ? <span style={{ position: "absolute", top: 6, right: 8, width: 7, height: 7, backgroundColor: "#50c878" }} /> : null}
+            {unreadCount > 0 ? (
+              <span
+                style={{ position: "absolute", top: 6, right: 8, width: 7, height: 7, backgroundColor: "#50c878" }}
+                aria-hidden="true"
+              />
+            ) : null}
           </button>
         );
       })}
@@ -120,11 +139,26 @@ function MessageList({ messages, activeTab, currentPlayerId }: { messages: Reado
   }, [visibleMessages]);
 
   if (visibleMessages.length === 0) {
-    return <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(132,147,150,0.58)", fontSize: 12 }}>No messages in {LABELS[activeTab]} chat</div>;
+    return (
+      <div
+        id={`chat-panel-${activeTab}`}
+        role="tabpanel"
+        aria-label={`${LABELS[activeTab]} chat panel`}
+        style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(132,147,150,0.58)", fontSize: 12 }}
+      >
+        No messages in {LABELS[activeTab]} chat
+      </div>
+    );
   }
 
   return (
-    <div ref={listRef} style={{ flex: 1, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+    <div
+      ref={listRef}
+      id={`chat-panel-${activeTab}`}
+      role="tabpanel"
+      aria-label={`${LABELS[activeTab]} chat panel`}
+      style={{ flex: 1, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}
+    >
       {visibleMessages.map((message) => {
         const own = message.senderId === currentPlayerId;
         return (
@@ -159,9 +193,18 @@ function ChatInput({ channel, onSend }: { channel: ChatChannel; onSend: (text: s
         value={text}
         onChange={(event) => setText(event.target.value)}
         placeholder={`Message ${LABELS[channel]}...`}
+        aria-label={`Message ${LABELS[channel]} channel`}
         style={{ flex: 1, padding: "10px 12px", backgroundColor: "rgba(21,29,30,0.66)", border: "none", borderBottom: `2px solid ${COLORS[channel]}`, color: "#dce4e5", outline: "none" }}
       />
-      <button type="submit" disabled={!text.trim()} style={{ width: 42, border: "1px solid rgba(0,229,255,0.35)", backgroundColor: text.trim() ? "rgba(0,229,255,0.14)" : "rgba(132,147,150,0.1)", color: text.trim() ? "#00e5ff" : "rgba(132,147,150,0.5)", cursor: text.trim() ? "pointer" : "not-allowed" }}>➤</button>
+      <button
+        type="submit"
+        disabled={!text.trim()}
+        aria-label="Send message"
+        title="Send message"
+        style={{ width: 42, border: "1px solid rgba(0,229,255,0.35)", backgroundColor: text.trim() ? "rgba(0,229,255,0.14)" : "rgba(132,147,150,0.1)", color: text.trim() ? "#00e5ff" : "rgba(132,147,150,0.5)", cursor: text.trim() ? "pointer" : "not-allowed" }}
+      >
+        ➤
+      </button>
     </form>
   );
 }
@@ -183,6 +226,7 @@ function DragHandle({ onDrag, onDoubleClick }: { onDrag: (dy: number) => void; o
       }}
       onTouchEnd={() => { startYRef.current = null; }}
       onDoubleClick={onDoubleClick}
+      title="Double-click to minimize/maximize. Drag up or down to resize."
       style={{ height: 4, backgroundColor: "rgba(132,147,150,0.3)", cursor: "ns-resize", flexShrink: 0 }}
     />
   );
@@ -206,7 +250,15 @@ export function GameChatWindow({ state, currentPlayerId, onSendMessage, onClose,
       <TabBar activeTab={state.activeTab} unreadCounts={state.unreadCounts} onTabChange={onTabChange} />
       {!state.isMinimized ? <MessageList messages={state.messages} activeTab={state.activeTab} currentPlayerId={currentPlayerId} /> : <div style={{ flex: 1, display: "flex", alignItems: "center", padding: "0 12px", gap: 12, color: COLORS[state.activeTab], fontWeight: 700, letterSpacing: "0.12em" }}>{LABELS[state.activeTab]} · {state.messages.filter((message) => message.channel === state.activeTab).length} messages</div>}
       {!state.isMinimized ? <ChatInput channel={state.activeTab} onSend={handleSend} /> : null}
-      <button type="button" onClick={onClose} style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, background: "transparent", border: "1px solid rgba(132,147,150,0.3)", color: "rgba(132,147,150,0.74)", cursor: "pointer" }}>✕</button>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close chat window"
+        title="Close chat window"
+        style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, background: "transparent", border: "1px solid rgba(132,147,150,0.3)", color: "rgba(132,147,150,0.74)", cursor: "pointer" }}
+      >
+        ✕
+      </button>
     </div>
   );
 }
