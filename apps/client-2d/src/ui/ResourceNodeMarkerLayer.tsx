@@ -185,15 +185,11 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
   }, [getPlayerPosition, snapshot.serverTick, onGatherSuccess]);
 
   const resourceNodes = overlay.resourceNodes;
-
-  if (
-    resourceNodes.length === 0 &&
-    surfaceGroups.length === 0 &&
-    surfacePoints.length === 0 &&
-    !lastError
-  ) {
-    return null;
-  }
+  const hasOverlayContent =
+    resourceNodes.length > 0 ||
+    surfaceGroups.length > 0 ||
+    surfacePoints.length > 0 ||
+    Boolean(lastError);
 
   return (
     <div
@@ -202,7 +198,7 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
       data-overlay-status={overlay.status}
       style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 50 }}
     >
-      {surfaceGroups.map((group, index) => {
+      {hasOverlayContent && surfaceGroups.map((group, index) => {
         const id = group.id;
         const title = group.title || id;
         return (
@@ -228,7 +224,7 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
         );
       })}
 
-      {surfacePoints.map((point) => {
+      {hasOverlayContent && surfacePoints.map((point) => {
         const { screenX, screenY } = projectWorldToScreen({ x: point.x, y: point.y }, viewport);
         return (
           <div
@@ -255,7 +251,7 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
         );
       })}
 
-      {resourceNodes.map((node) => {
+      {hasOverlayContent && resourceNodes.map((node) => {
         const { screenX, screenY } = projectWorldToScreen({ x: node.x, y: node.y }, viewport);
         return (
           <div key={node.id} style={{ pointerEvents: "auto" }}>
