@@ -27,3 +27,8 @@
 **Vulnerability:** The `/api/leaderboard/refresh` administrative cache purging endpoint used standard `===` string equality of provided and expected admin tokens, exposing the `ADMIN_PANEL_TOKEN` or fallback tokens to potential timing attacks.
 **Learning:** Admin token checks on hybrid or utility endpoints are often implemented using simple string comparison, leaving them open to remote timing analysis of administrative tokens.
 **Prevention:** Always use constant-time string comparison algorithms (e.g., hashing inputs via SHA-256 and utilizing `crypto.timingSafeEqual`) for all sensitive credentials or administrative keys, regardless of the router's scope or function.
+
+## 2026-08-15 - [Medium] MCP Administrative Bearer Token Timing Attack
+**Vulnerability:** The `/api/mcp` route used the standard `!==` relational string comparison to validate the incoming administrative bearer token against the configured `MCP_ADMIN_TOKEN`, exposing the token to potential timing analysis attacks.
+**Learning:** Custom administrative router middlewares often rely on standard non-constant-time comparison operators, creating easily exploitable leaks of sensitive platform keys.
+**Prevention:** Always implement timing-attack-resilient constant-time comparisons by hashing inputs (e.g., using SHA-256) and comparing them using `crypto.timingSafeEqual` in all custom middleware token checkers.

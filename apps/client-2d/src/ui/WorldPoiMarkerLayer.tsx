@@ -12,7 +12,12 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useWorldOverlayModel } from "../game/useWorldOverlayModel";
 import { useLiveGameplaySnapshot } from "../game/useLiveGameplaySnapshot";
+import { markOverlayReachable } from "../game/OverlayReachabilityGuard";
+import { projectWorldToScreen, type ViewportInput } from "../game/WorldOverlayProjection";
+
+markOverlayReachable("world-poi-marker-layer");
 
 const POI_EMOJI: Record<string, string> = {
   logging_camp: "🪓",
@@ -143,6 +148,7 @@ function getPoiDescription(type: string): string {
 }
 
 export function WorldPoiMarkerLayer() {
+  const overlay = useWorldOverlayModel();
   const snapshot = useLiveGameplaySnapshot();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -166,7 +172,7 @@ export function WorldPoiMarkerLayer() {
     return () => observer.disconnect();
   }, []);
 
-  // Handle discovery toasts - show notification when new POIs are discovered
+  // Handle discovery toasts — driven by the real snapshot, not the model
   useEffect(() => {
     const recentDiscoveries = snapshot.recentDiscoveries ?? [];
     if (recentDiscoveries.length === 0) return;
@@ -175,7 +181,6 @@ export function WorldPoiMarkerLayer() {
       if (previousDiscoveriesRef.current.has(discovery.poiId)) continue;
       previousDiscoveriesRef.current.add(discovery.poiId);
 
-      // Show toast notification for new discovery
       window.dispatchEvent(
         new CustomEvent("wasd:toast", {
           detail: {
@@ -187,30 +192,15 @@ export function WorldPoiMarkerLayer() {
     }
   }, [snapshot.recentDiscoveries]);
 
-  const worldPois = snapshot.worldPois ?? [];
+  const viewport: ViewportInput = {
+    screenWidth: containerSize.width,
+    screenHeight: containerSize.height,
+  };
 
-  // Map world coordinates to screen coordinates
-  // The world uses isometric projection, we approximate screen position
-  // based on the container size and a fixed world-to-screen scale
-  function worldToScreen(worldX: number, worldY: number): { screenX: number; screenY: number } {
-    const { width, height } = containerSize;
-    if (width === 0 || height === 0) return { screenX: worldX, screenY: worldY };
+  const worldPois = overlay.pois;
 
-    // Approximate isometric projection
-    // World origin at (460, 500) maps near the center of the screen
-    const worldOriginX = 460;
-    const worldOriginY = 500;
-    const scale = 1.2; // Adjust based on your world scale
-
-    // Isometric transform: screenX = (worldX - worldY) * scale + centerX
-    //                     screenY = (worldX + worldY) * scale * 0.5 + centerY
-    const isoX = (worldX - worldY) * scale * 0.5;
-    const isoY = (worldX + worldY) * scale * 0.25;
-
-    const screenX = width / 2 + isoX - (worldOriginX - worldOriginY) * scale * 0.5;
-    const screenY = height / 2 + isoY - (worldOriginX + worldOriginY) * scale * 0.25;
-
-    return { screenX, screenY };
+  if (overlay.status === "waiting" || overlay.status === "blocked") {
+    return null;
   }
 
   if (worldPois.length === 0) {
@@ -221,6 +211,7 @@ export function WorldPoiMarkerLayer() {
     <div
       ref={containerRef}
       data-testid="world-poi-marker-layer"
+      data-overlay-status={overlay.status}
       style={{
         position: "absolute",
         inset: 0,
@@ -229,7 +220,7 @@ export function WorldPoiMarkerLayer() {
       }}
     >
       {worldPois.map((poi) => {
-        const { screenX, screenY } = worldToScreen(poi.x, poi.y);
+        const { screenX, screenY } = projectWorldToScreen({ x: poi.x, y: poi.y }, viewport);
         return (
           <div key={poi.poiId} style={{ pointerEvents: "auto" }}>
             <PoiMarker
@@ -238,7 +229,7 @@ export function WorldPoiMarkerLayer() {
               title={poi.title}
               x={screenX}
               y={screenY}
-              discovered={poi.discovered ?? true}
+              discovered={poi.discovered}
             />
           </div>
         );
