@@ -35,5 +35,9 @@
 - [x] #2043: Eine SHA-gebundene Coverage-Matrix für reale UI-Mutationsloops erstellen, vorhandene Snapshot-, Intent-, Domain-, Persistenz- und Folgesnapshotpfade belegen und nur nachgewiesene Lücken in bestehenden Truth-Pfaden schließen.
 - [x] Die Snapshot-Bridge-Evidenzannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit CI keinen Nicht-Live-Faktensatz als live ausgibt.
 - [x] Den fehlenden `EvidenceLayer`-Typimport in den Runtime-Evidence-Tests beheben, damit der Shared-Truth-Vertrag auch im TypeScript-Gate geprüft wird.
+- [ ] VPS-Runtime für #2469, #2369 und #2038 ausschließlich lesend gegen die tatsächlich laufende Revision, Weltseed-Herkunft, Health-, Snapshot- und WebSocket-Endpunkte erfassen; keine Produktionswerte oder Dienste verändern.
+- [ ] Deterministische Snapshot-/Hash-Kausalität für den erhobenen VPS-Lauf zusätzlich unabhängig plausibilisieren; diese Nebenprüfung nicht als Ersatz für Server- oder Replay-Evidence werten.
+- [ ] #2046: Den VPS-Produktionsbuild fail-closed gegen den belegten `Areloria 3D unavailable`-Fallback absichern und die tatsächliche 3D-Buildauslieferung vor dem Kopieren nach `/3d` nachweisen.
+- [x] #2046: Lokalen realen 3D-Build sowie den erweiterten VPS-Build-Logikvalidator gegen den entfernten Platzhalter erfolgreich ausgeführt.
 - [ ] #2038/#2369: Den tatsächlich deployten Git-Commit aus dem vorhandenen VPS-Deployskript als Build-Argument und Runtime-Metadatum binden, damit `client-config.json` keine ungebundene `dev`-Revision ausgibt.
 - [x] #2038/#2369: Release-SHA-Bindung statisch mit dem VPS-Build-Logikvalidator, der Compose-Konfiguration und der Deployskript-Syntax geprüft.

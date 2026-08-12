@@ -16,8 +16,13 @@ const requiredFiles = [
 const requiredSnippets = [
   ["Dockerfile.vps", "ARG BUILD_COMMIT_SHA=\"\""],
   ["Dockerfile.vps", "ENV BUILD_COMMIT_SHA=$BUILD_COMMIT_SHA"],
+  ["Dockerfile.vps", "--filter @wasd/server... --filter @wasd/client... --filter @wasd/engine..."],
+  ["Dockerfile.vps", "RUN pnpm --filter @wasd/client --if-present build &&"],
+  ["Dockerfile.vps", "test -d client/dist/assets"],
   ["docker-compose.yml", "BUILD_COMMIT_SHA: \"${BUILD_COMMIT_SHA:-}\""],
   ["scripts/deploy-vps-docker.sh", "export BUILD_COMMIT_SHA=\"$(git rev-parse HEAD)\""],
+  ["scripts/deploy-vps-docker.sh", "client_3d_shell_ready"],
+  ["scripts/deploy-vps-docker.sh", "!body.includes('Areloria 3D unavailable')"],
   ["engine/src/determinism/tickPolicy.ts", "WORLD_TICK_HZ = 10 as const"],
   ["engine/src/determinism/tickPolicy.ts", "WORLD_TICK_MS = 100 as const"],
   ["engine/src/determinism/tickPolicy.ts", "WORLD_TICK_KAPPA = 1000 as const"],
@@ -45,6 +50,15 @@ for (const [file, snippet] of requiredSnippets) {
     failed = true;
     console.error(`[vps-build-logic] ${file} missing required logic marker: ${snippet}`);
   }
+}
+
+const vpsDockerfile = existsSync("Dockerfile.vps")
+  ? readFileSync("Dockerfile.vps", "utf8")
+  : "";
+
+if (vpsDockerfile.includes("mkdir -p client/dist && printf")) {
+  failed = true;
+  console.error("[vps-build-logic] Dockerfile.vps must fail closed instead of emitting a 3D-unavailable placeholder");
 }
 
 if (failed) {
