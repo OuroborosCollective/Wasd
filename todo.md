@@ -1,5 +1,7 @@
 # Arelorian WASD – Issue-Arbeitsliste
 
+- [ ] #2370: Nach Merge von PR #2484 die grüne TypeScript-5-Baseline erneut erfassen und erst danach TypeScript 6 sowie TypeScript 7 isoliert vergleichen.
+- [x] #2370 Phase 0: TS-5-Baseline auf `dad57978d07cd2745db8cc7624dd9baea73dc2af` ausgeführt und den bestehenden `EvidenceLayer`-Importblocker ohne Toolchain-Umgehung dokumentiert.
 - [x] #2372: Den realen JSON-Crafting-Receipt-Pfad auf Hash-Integrität, Rehydrate und korrupten Persistenzinhalt prüfen, ohne einen zweiten Event- oder Replay-Pfad zu erzeugen.
 - [x] Den fehlenden `EvidenceLayer`-Typimport im Shared-Runtime-Evidence-Test ergänzen, damit der Crafting-Receipt-PR gegen den aktuellen Main-Ausgangszustand typgeprüft werden kann.
 - [x] Die Snapshot-Bridge-Testannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit der autonome Check keine Nicht-Live-Evidenz als live deklariert.
