@@ -11,3 +11,6 @@
 - [x] #2046: Die tatsächliche Babylon-Projektion mit einer echten Headless-Scene gegen servergelieferte Gruppen, Punkte sowie empty/blocked-Zustände testen.
 - [x] #2046: Nichtleere serverautoritäre `worldSurface.groups` und `worldSurface.points` in die ehrliche Overlay-Statusableitung einbeziehen.
 - [ ] #2480 bleibt ausgesetzt, bis der im Issue referenzierte Sovereign-Frontend- und Backend-Quellbaum im Repository oder als zugänglicher Mirror bereitsteht.
+- [x] #2043: Eine SHA-gebundene Coverage-Matrix für reale UI-Mutationsloops erstellen, vorhandene Snapshot-, Intent-, Domain-, Persistenz- und Folgesnapshotpfade belegen und nur nachgewiesene Lücken in bestehenden Truth-Pfaden schließen.
+- [x] Die Snapshot-Bridge-Evidenzannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit CI keinen Nicht-Live-Faktensatz als live ausgibt.
+- [x] Den fehlenden `EvidenceLayer`-Typimport in den Runtime-Evidence-Tests beheben, damit der Shared-Truth-Vertrag auch im TypeScript-Gate geprüft wird.
