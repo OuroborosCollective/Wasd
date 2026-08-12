@@ -39,7 +39,13 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
 
   if (snapshot.status === "waiting") {
     return (
-      <aside className="quest-preview-panel" data-testid="quest-preview-waiting" aria-label="Quest preview">
+      <aside
+        className="quest-preview-panel"
+        data-testid="quest-preview-waiting"
+        aria-label="Quest preview"
+        aria-busy="true"
+        aria-live="polite"
+      >
         <small>Quest Sync</small>
         <strong>Waiting for server snapshot…</strong>
       </aside>
@@ -48,10 +54,20 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
 
   if (!quest) {
     return (
-      <aside className="quest-preview-panel" data-testid="quest-preview-empty" aria-label="Quest preview">
+      <aside
+        className="quest-preview-panel"
+        data-testid="quest-preview-empty"
+        aria-label="Quest preview"
+        aria-busy="false"
+      >
         <small>Quest Preview</small>
         <strong>No active quest</strong>
-        <button type="button" onClick={onOpenJournal} aria-label="Open Quest Journal [Q]">
+        <button
+          type="button"
+          onClick={onOpenJournal}
+          aria-label="Open Quest Journal [Q]"
+          aria-keyshortcuts="q"
+        >
           <kbd className="cz-kbd" aria-hidden="true">Q</kbd> Quest Journal
         </button>
       </aside>
@@ -59,7 +75,12 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
   }
 
   return (
-    <aside className="quest-preview-panel" data-testid="quest-preview-live" aria-label="Quest preview">
+    <aside
+      className="quest-preview-panel"
+      data-testid="quest-preview-live"
+      aria-label="Quest preview"
+      aria-busy="false"
+    >
       <header>
         <small>{quest.status}</small>
         <strong>{quest.title}</strong>
@@ -85,7 +106,12 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
         </div>
       )}
 
-      <button type="button" onClick={onOpenJournal} aria-label="Open Quest Journal [Q]">
+      <button
+        type="button"
+        onClick={onOpenJournal}
+        aria-label="Open Quest Journal [Q]"
+        aria-keyshortcuts="q"
+      >
         <kbd className="cz-kbd" aria-hidden="true">Q</kbd> Quest Journal
       </button>
     </aside>
