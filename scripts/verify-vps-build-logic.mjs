@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 
 const requiredFiles = [
+  "Dockerfile.vps",
   "engine/src/determinism/tickPolicy.ts",
   "server/src/core/WorldTickPolicy.ts",
   "server/src/core/WorldTickPolicy.guard.ts",
@@ -11,6 +12,9 @@ const requiredFiles = [
 ];
 
 const requiredSnippets = [
+  ["Dockerfile.vps", "--filter @wasd/server... --filter @wasd/client... --filter @wasd/engine..."],
+  ["Dockerfile.vps", "RUN pnpm --filter @wasd/client --if-present build &&"],
+  ["Dockerfile.vps", "test -d client/dist/assets"],
   ["engine/src/determinism/tickPolicy.ts", "WORLD_TICK_HZ = 10 as const"],
   ["engine/src/determinism/tickPolicy.ts", "WORLD_TICK_MS = 100 as const"],
   ["engine/src/determinism/tickPolicy.ts", "WORLD_TICK_KAPPA = 1000 as const"],
@@ -38,6 +42,15 @@ for (const [file, snippet] of requiredSnippets) {
     failed = true;
     console.error(`[vps-build-logic] ${file} missing required logic marker: ${snippet}`);
   }
+}
+
+const vpsDockerfile = existsSync("Dockerfile.vps")
+  ? readFileSync("Dockerfile.vps", "utf8")
+  : "";
+
+if (vpsDockerfile.includes("mkdir -p client/dist && printf")) {
+  failed = true;
+  console.error("[vps-build-logic] Dockerfile.vps must fail closed instead of emitting a 3D-unavailable placeholder");
 }
 
 if (failed) {

@@ -86,9 +86,10 @@ RUN --mount=type=cache,id=wasd-vps-pnpm-store,target=/pnpm/store \
       "  - '@opentelemetry/sdk-trace-node'" \
       > pnpm-workspace.yaml && \
     python3 scripts/sync-pnpm-lockfile-for-docker.py && \
-    # Exclude client-2d - it's prebuilt on GitHub Actions
-    pnpm --filter @wasd/server... --filter @wasd/engine... --filter @wasd/core-logic... --filter @wasd/shared... --filter @wasd/portal... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only && \
-    pnpm --filter @wasd/server... --filter @wasd/engine... --filter @wasd/core-logic... --filter @wasd/shared... --filter @wasd/portal... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
+    # Exclude client-2d - it is prebuilt on GitHub Actions. The active 3D client
+    # is built inside this image and must never be replaced by a placeholder.
+    pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/engine... --filter @wasd/core-logic... --filter @wasd/shared... --filter @wasd/portal... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only && \
+    pnpm --filter @wasd/server... --filter @wasd/client... --filter @wasd/engine... --filter @wasd/core-logic... --filter @wasd/shared... --filter @wasd/portal... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
 
 COPY . .
 RUN rm -rf packages/sdk-examples || true && \
@@ -173,8 +174,10 @@ RUN test -f server/dist/core/watchdog-determinism.js && \
 
 RUN node scripts/sync-world-assets.mjs || true
 
-RUN pnpm --filter @wasd/client --if-present build || \
-    (mkdir -p client/dist && printf '%s\n' '<!doctype html><html><body><main id="application-canvas">Areloria 3D unavailable</main></body></html>' > client/dist/index.html)
+RUN pnpm --filter @wasd/client --if-present build && \
+    test -f client/dist/index.html && \
+    test -d client/dist/assets && \
+    ! grep -q 'Areloria 3D unavailable' client/dist/index.html
 
 RUN rm -rf /tmp/wasd-3d-dist && mkdir -p /tmp/wasd-3d-dist && cp -a client/dist/. /tmp/wasd-3d-dist/
 
