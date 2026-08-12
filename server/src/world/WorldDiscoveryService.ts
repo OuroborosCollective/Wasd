@@ -5,8 +5,8 @@
  * Server-authoritative, deterministic.
  *
  * Rules:
- * - No Math.random()
- * - No Date.now()
+ * - Keine nichtdeterministische Zufallsquelle
+ * - Keine externe Wall-Clock im Truth-Pfad
  * - Discovery based on proximity to POIs
  */
 
@@ -15,31 +15,37 @@ import type { ChunkKey } from "./WorldDiscoveryTypes.js";
 import { createChunkKey } from "./WorldDiscoveryTypes.js";
 import { WorldDiscoveryStore, worldDiscoveryStore } from "./WorldDiscoveryStore.js";
 import { JsonWorldDiscoveryPersistenceAdapter } from "./JsonWorldDiscoveryPersistenceAdapter.js";
+import {
+  DISCOVERY_RADIUS_KAPPA,
+  kappaToChunkIndex,
+} from "@wasd/shared";
 
 /**
  * Default discovery radius in kappa units.
  * Players discover POIs when within this distance.
  */
-export const DEFAULT_DISCOVERY_RADIUS = 96;
+export const DEFAULT_DISCOVERY_RADIUS = DISCOVERY_RADIUS_KAPPA;
 
 /**
  * Get chunk key from world position (in kappa units).
  */
 export function getChunkKeyFromPosition(kappaX: number, kappaY: number): ChunkKey {
-  const TILES_PER_CHUNK = 16;
-  const KAPPA_PER_TILE = 1000;
-  const chunkX = Math.floor(kappaX / (TILES_PER_CHUNK * KAPPA_PER_TILE));
-  const chunkZ = Math.floor(kappaY / (TILES_PER_CHUNK * KAPPA_PER_TILE));
-  return createChunkKey(chunkX, chunkZ);
+  return createChunkKey(kappaToChunkIndex(kappaX), kappaToChunkIndex(kappaY));
 }
 
 /**
- * Calculate Euclidean distance between two positions (in kappa units).
+ * Check proximity in kappa units without a floating-point square root.
+ * Inputs arrive as fixed-point integers; squared comparison preserves the
+ * authoritative result while avoiding an approximate presentation transform.
  */
-function distance(a: { x: number; y: number }, b: { x: number; y: number }): number {
+function isWithinDiscoveryRadius(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  radiusKappa: number,
+): boolean {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
-  return Math.sqrt(dx * dx + dy * dy);
+  return dx * dx + dy * dy <= radiusKappa * radiusKappa;
 }
 
 /**
@@ -47,10 +53,8 @@ function distance(a: { x: number; y: number }, b: { x: number; y: number }): num
  * Returns 3x3 grid centered on the player's chunk.
  */
 export function getVisibleChunkKeys(kappaX: number, kappaY: number): ChunkKey[] {
-  const TILES_PER_CHUNK = 16;
-  const KAPPA_PER_TILE = 1000;
-  const chunkX = Math.floor(kappaX / (TILES_PER_CHUNK * KAPPA_PER_TILE));
-  const chunkZ = Math.floor(kappaY / (TILES_PER_CHUNK * KAPPA_PER_TILE));
+  const chunkX = kappaToChunkIndex(kappaX);
+  const chunkZ = kappaToChunkIndex(kappaY);
 
   const keys: ChunkKey[] = [];
   for (let dx = -1; dx <= 1; dx++) {
@@ -108,8 +112,7 @@ export class WorldDiscoveryService {
   ): readonly string[] {
     // Find POIs within discovery radius
     const nearbyPois = visiblePois.filter((poi) => {
-      const dist = distance(playerPosition, poi.position);
-      return dist <= discoveryRadius;
+      return isWithinDiscoveryRadius(playerPosition, poi.position, discoveryRadius);
     });
 
     // Get currently discovered POIs
@@ -118,7 +121,8 @@ export class WorldDiscoveryService {
     // Find new discoveries
     const newPoiIds = nearbyPois
       .map((poi) => poi.id)
-      .filter((id) => !currentlyDiscovered.includes(id));
+      .filter((id) => !currentlyDiscovered.includes(id))
+      .sort((left, right) => left.localeCompare(right));
 
     if (newPoiIds.length > 0) {
       // Update store with new discoveries
@@ -128,7 +132,7 @@ export class WorldDiscoveryService {
       const newChunkKeys = nearbyPois
         .filter((poi) => !currentlyDiscovered.includes(poi.id))
         .map((poi) => createChunkKey(poi.chunk.x, poi.chunk.z));
-      this.store.discoverChunks(playerId, newChunkKeys);
+      this.store.discoverChunks(playerId, [...new Set(newChunkKeys)].sort((left, right) => left.localeCompare(right)));
     }
 
     return newPoiIds;
