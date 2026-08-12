@@ -132,6 +132,44 @@ describe("PersistenceManager", () => {
     });
   });
 
+  describe("testConnection cache and error isolation", () => {
+    it("should cache connection check result in production environment", async () => {
+      // Simulate production environment
+      const originalEnv = process.env.NODE_ENV;
+      const originalVitest = process.env.VITEST;
+      delete (process.env as any).NODE_ENV;
+      delete (process.env as any).VITEST;
+
+      try {
+        await persistence.init();
+
+        const spy = vi.spyOn(mockBackend, "testConnection");
+
+        // First check
+        await persistence.testConnection();
+        expect(spy).toHaveBeenCalledTimes(1);
+
+        // Second check - should be cached
+        await persistence.testConnection();
+        expect(spy).toHaveBeenCalledTimes(1);
+      } finally {
+        process.env.NODE_ENV = originalEnv;
+        process.env.VITEST = originalVitest;
+      }
+    });
+
+    it("should bypass caching in test environment", async () => {
+      await persistence.init();
+      const spy = vi.spyOn(mockBackend, "testConnection");
+
+      await persistence.testConnection();
+      await persistence.testConnection();
+
+      // Since we are in test/vitest environment, it should bypass and call twice
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("getDriverName()", () => {
     it("should return backend name", () => {
       expect(persistence.getDriverName()).toBe("mock");

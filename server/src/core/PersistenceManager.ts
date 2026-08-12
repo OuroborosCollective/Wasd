@@ -83,6 +83,11 @@ export class PersistenceManager {
   private lastHash: string | null = null;
   private lastSuccessfulSaveAt: number | null = null;
 
+  // Connection check cache & connection error states
+  private lastErrorFromConnection: string | null = null;
+  private lastConnectionCheckAt = 0;
+  private lastConnectionCheckResult = false;
+
   constructor(
     backend: IPersistenceBackend = createPersistenceBackend(),
     options: PersistenceManagerOptions = {},
@@ -120,13 +125,26 @@ export class PersistenceManager {
   }
 
   public async testConnection(): Promise<boolean> {
+    const isTest = process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+    const now = Date.now(); // ARE-DETERMINISM-ALLOW
+    // Cache the connection check results for 5 seconds in production/development,
+    // but bypass caching completely in tests to avoid test cross-pollution.
+    if (!isTest && now - this.lastConnectionCheckAt < 5_000) {
+      return this.lastConnectionCheckResult;
+    }
+
     try {
       await this.ensureInitialized();
       const ok = await this.withTimeout(this.backend.testConnection(), "testConnection");
-      this.lastError = ok ? null : "Connection test returned false";
+      this.lastErrorFromConnection = ok ? null : "Connection test returned false";
+      this.lastConnectionCheckAt = now;
+      this.lastConnectionCheckResult = ok;
       return ok;
     } catch (error) {
-      this.lastError = this.stringifyError(error);
+      const errMsg = this.stringifyError(error);
+      this.lastErrorFromConnection = errMsg;
+      this.lastConnectionCheckAt = now;
+      this.lastConnectionCheckResult = false;
       return false;
     }
   }
@@ -139,7 +157,7 @@ export class PersistenceManager {
       connected,
       queueDepth: this.queueDepth,
       lastSuccessfulSaveAt: this.lastSuccessfulSaveAt,
-      lastError: this.lastError,
+      lastError: this.lastError ?? this.lastErrorFromConnection,
       lastHash: this.lastHash,
     });
   }
@@ -286,6 +304,9 @@ export class PersistenceManager {
     this.lastError = null;
     this.lastHash = null;
     this.lastSuccessfulSaveAt = null;
+    this.lastErrorFromConnection = null;
+    this.lastConnectionCheckAt = 0;
+    this.lastConnectionCheckResult = false;
   }
 
   private async ensureInitialized(): Promise<void> {
