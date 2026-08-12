@@ -41,3 +41,4 @@
 - [x] #2046: Lokalen realen 3D-Build sowie den erweiterten VPS-Build-Logikvalidator gegen den entfernten Platzhalter erfolgreich ausgeführt.
 - [ ] #2038/#2369: Den tatsächlich deployten Git-Commit aus dem vorhandenen VPS-Deployskript als Build-Argument und Runtime-Metadatum binden, damit `client-config.json` keine ungebundene `dev`-Revision ausgibt.
 - [x] #2038/#2369: Release-SHA-Bindung statisch mit dem VPS-Build-Logikvalidator, der Compose-Konfiguration und der Deployskript-Syntax geprüft.
+- [x] #2038/#2369: Schreibgeschützten VPS-Audit ohne Secret-Ausgabe für Image-Digest, Port, Weltseed-Präsenz, Health, Snapshot, 3D-Entrypoint und WebSocket-Upgrade dokumentiert.
