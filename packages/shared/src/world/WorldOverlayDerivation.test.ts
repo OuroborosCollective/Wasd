@@ -39,6 +39,21 @@ describe("WorldOverlayDerivation", () => {
     expect(model.worldSurfaceTick).toBe(7);
   });
 
+  it("reports live when the authoritative snapshot contains only worldSurface facts", () => {
+    const model = deriveWorldOverlayModelFromSnapshot({
+      status: "live",
+      serverTick: 84,
+      worldSurface: {
+        tick: 84,
+        groups: [{ id: "house:ember", title: "Ember House" }],
+        points: [{ id: "lineage:ember:elder", x: 12, y: 17, houseId: "house:ember" }],
+      },
+    });
+    expect(model.status).toBe("live");
+    expect(model.evidence.surfaceGroupCount).toBe(1);
+    expect(model.evidence.surfacePointCount).toBe(1);
+  });
+
   it("filters out invalid resource kinds and camp NPC types", () => {
     const model = deriveWorldOverlayModelFromSnapshot({
       status: "live",

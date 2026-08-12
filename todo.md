@@ -8,4 +8,6 @@
 - [x] Gemeinsamen 64-Tile-/Kappa-Discovery-Vertrag im aktiven WorldDiscoveryService durchsetzen und mit Server-, Shared- sowie Build-Prüfungen belegen.
 - [x] Reale 2D-Overlay-Container dauerhaft mounten, damit der Viewport nach dem ersten Snapshot messbar bleibt.
 - [x] Servergelieferte `worldSurface`-Punkte und Gruppen über einen read-only Babylon-Adapter in den aktiven 3D-Pfad integrieren.
+- [x] #2046: Die tatsächliche Babylon-Projektion mit einer echten Headless-Scene gegen servergelieferte Gruppen, Punkte sowie empty/blocked-Zustände testen.
+- [x] #2046: Nichtleere serverautoritäre `worldSurface.groups` und `worldSurface.points` in die ehrliche Overlay-Statusableitung einbeziehen.
 - [ ] #2480 bleibt ausgesetzt, bis der im Issue referenzierte Sovereign-Frontend- und Backend-Quellbaum im Repository oder als zugänglicher Mirror bereitsteht.
