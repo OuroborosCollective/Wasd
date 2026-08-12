@@ -198,14 +198,10 @@ export function WorldPoiMarkerLayer() {
   };
 
   const worldPois = overlay.pois;
-
-  if (overlay.status === "waiting" || overlay.status === "blocked") {
-    return null;
-  }
-
-  if (worldPois.length === 0) {
-    return null;
-  }
+  const canRenderMarkers =
+    overlay.status !== "waiting" &&
+    overlay.status !== "blocked" &&
+    worldPois.length > 0;
 
   return (
     <div
@@ -219,7 +215,7 @@ export function WorldPoiMarkerLayer() {
         zIndex: 40,
       }}
     >
-      {worldPois.map((poi) => {
+      {canRenderMarkers && worldPois.map((poi) => {
         const { screenX, screenY } = projectWorldToScreen({ x: poi.x, y: poi.y }, viewport);
         return (
           <div key={poi.poiId} style={{ pointerEvents: "auto" }}>
