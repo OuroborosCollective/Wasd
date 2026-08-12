@@ -203,6 +203,19 @@ export class ServerBootstrap {
     installClient2DPublicKeyLoginBridge(ws, tick);
     (this as any)._tick = tick;
     await tick.init();
+
+    // Wire the real layer persistence adapter into the write-behind queue and
+    // rehydrate chunk layer states from real persisted data (issue #2457).
+    // This is fail-closed: errors here degrade the queue but never crash boot.
+    try {
+      await tick.ensurePersistenceAdapter();
+      const rehydrated = await tick.rehydrateAllChunkStates();
+      if (rehydrated > 0) {
+        console.log(`[ServerBootstrap] Rehydrated ${rehydrated} chunk layer states from persistence.`);
+      }
+    } catch (error) {
+      console.error('[ServerBootstrap] Layer persistence adapter init/rehydrate failed (degraded):', error);
+    }
     
     // Initialize Living Language System (NPC dialogue + speech generation)
     await initializeLivingLanguageSystem();

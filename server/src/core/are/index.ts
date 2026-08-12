@@ -180,6 +180,24 @@ export {
   type LayerPersistenceEvent
 } from './LayerPersistenceQueue.js';
 
+// Phase 9b: Real Layer Persistence Port + Adapters (issue #2457)
+export {
+  type LayerPersistenceAdapter,
+  type PersistedLayerState,
+  PERSISTED_LAYER_ORDER,
+  layersToCanonicalArray,
+  canonicalArrayToLayers,
+  normalizePersistedLayerState,
+} from './LayerPersistencePort.js';
+export { JsonLayerPersistenceAdapter, resolveLayerStateFilePath } from './JsonLayerPersistenceAdapter.js';
+export { PgLayerPersistenceAdapter } from './PgLayerPersistenceAdapter.js';
+export {
+  createLayerPersistenceAdapter,
+  getLayerPersistenceDriverName,
+  resolveLayerPersistenceFilePath,
+  type LayerPersistenceDriver,
+} from './createLayerPersistenceAdapter.js';
+
 // Phase 10: WorldTick Thin Shell
 export {
   WorldTickThinShell,
