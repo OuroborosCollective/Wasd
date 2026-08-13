@@ -29,3 +29,7 @@
 ## 2028-02-19 - [A11y with Interaction Hotkey Buttons and aria-keyshortcuts]
 **Learning:** Floating interactive prompt elements (like the InteractionPrompt for triggering object interactions) display visual `<kbd>` hints (e.g., "E") but often lack the corresponding programmatic key-binding mapping for assistive technologies. Adding `aria-keyshortcuts="e"` guarantees screen-reader users are informed of the actual shortcut constraint natively.
 **Action:** When designing or standardizing visual keybind badges or prompt cues, always expose the appropriate lowercase `aria-keyshortcuts` attribute on the focusable container or trigger button.
+
+## 2028-02-20 - [Standardizing Skill Window with ESC Navigation, ARIA Attributes, and Low-Vitals Pulse Animations]
+**Learning:** Standing HUD containers such as the SkillWindow can have purely visual progressbars and close buttons that aren't natively accessible. Wrapping visual progress bars in `role="progressbar"` with exact ARIA bounds and values ensures screen readers can parse player vital states correctly. Additionally, pairing this with a conditional, self-contained pulse animation class for HP/Stamina levels below 20% dramatically enhances situational awareness for sighted users without performance overhead.
+**Action:** Always implement a dedicated Escape-key event listener on overlay modal panels to support keyboard dismissal, and accompany vital state progress bars with semantic progressbar attributes, dynamic tooltips, and non-blocking pulse animations for low thresholds.
