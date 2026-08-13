@@ -32,3 +32,8 @@
 **Vulnerability:** The `/api/mcp` route used the standard `!==` relational string comparison to validate the incoming administrative bearer token against the configured `MCP_ADMIN_TOKEN`, exposing the token to potential timing analysis attacks.
 **Learning:** Custom administrative router middlewares often rely on standard non-constant-time comparison operators, creating easily exploitable leaks of sensitive platform keys.
 **Prevention:** Always implement timing-attack-resilient constant-time comparisons by hashing inputs (e.g., using SHA-256) and comparing them using `crypto.timingSafeEqual` in all custom middleware token checkers.
+
+## 2026-08-20 - [Medium] Launch and Billing Key Timing Attacks
+**Vulnerability:** The `/api/are/replay/billing/credit`, `/api/are/replay/governance/directives/:id/enact`, and `/api/sovereign/deploy/launch` endpoints used standard `!==` or `===` relational string comparisons to validate sensitive keys (like `SOVEREIGN_LAUNCH_KEY` or `ARE_MARKET_ADMIN_KEY`), exposing them to timing analysis.
+**Learning:** Standard security checkers (like `adminAuthMiddleware`) might timing-safely protect headers, but inner route handlers checking request bodies or specific parameters often fallback to unsafe comparison operators.
+**Prevention:** Always define and use hashing-based constant-time string comparison helpers (`safeEqualText` via `crypto.timingSafeEqual`) whenever verifying high-privilege keys, tokens, or passwords, regardless of where they are parsed or mapped.

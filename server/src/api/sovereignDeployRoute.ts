@@ -1,4 +1,5 @@
 import express from "express";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { adminWriteBlockedHandler } from "../middleware/adminRequestHandlers.js";
 import { sensitiveWriteRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { execFile, execFileSync } from "node:child_process";
@@ -63,11 +64,17 @@ function resolveSupabaseTcpTarget(): TcpTarget {
   return { host: "supabase-kong", port: explicitPort ?? 8000, source: "docker-default" };
 }
 
+function safeEqualText(a: string, b: string): boolean {
+  const left = createHash("sha256").update(a, "utf8").digest();
+  const right = createHash("sha256").update(b, "utf8").digest();
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
 function requireLaunchKey(req: express.Request): boolean {
   const expected = process.env.SOVEREIGN_LAUNCH_KEY || process.env.ADMIN_DEPLOY_TOKEN || "";
   if (!expected) return false;
   const provided = String(req.headers["x-sovereign-launch-key"] || req.body?.launchKey || "");
-  return provided.length > 0 && provided === expected;
+  return provided.length > 0 && safeEqualText(provided, expected);
 }
 
 async function tcpProbe(host: string, port: number, timeoutMs = 850): Promise<boolean> {

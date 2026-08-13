@@ -83,6 +83,31 @@ describe("Sentinel Endpoint Protection", () => {
       expect(r.status).toBe(403);
       expect(r.body.error).toContain("read-only");
     });
+
+    it("POST /launch validates the launch key timing-safely", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      process.env.SOVEREIGN_LAUNCH_KEY = "launch-secret-123";
+      const app = express();
+      const mockTick = {} as any;
+      const mockRunWorkflow = vi.fn().mockResolvedValue({ status: 202, body: { ok: true } });
+      app.use("/api/sovereign/deploy", adminRateLimiter, adminAuthMiddleware, sovereignDeployRouter(mockTick, { runWorkflow: mockRunWorkflow }));
+
+      // 1. Invalid key -> 403
+      const r1 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("X-Admin-Token", "secret")
+        .send({ launchKey: "wrong-launch-key" });
+      expect(r1.status).toBe(403);
+      expect(r1.body.error).toBe("launch_key_required");
+
+      // 2. Valid key -> 202
+      const r2 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("X-Admin-Token", "secret")
+        .send({ launchKey: "launch-secret-123" });
+      expect(r2.status).toBe(202);
+      expect(mockRunWorkflow).toHaveBeenCalled();
+    });
   });
 
   describe("/api/are-shadow", () => {
