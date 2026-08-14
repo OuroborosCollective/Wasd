@@ -37,13 +37,15 @@ export async function createLocalMarketSnapshot(input: {
     if (price) prices.push(price);
   }
 
+  // Bolt: Performance optimization - prices populated in resolver.listSellableItemIds() order
+  // are already pre-sorted by itemId, making redundant .sort() unnecessary.
   const base = {
     marketId: market.marketId,
     title: market.title,
     regionId: market.regionId,
     vendorId: market.vendorId,
     chunkKey: market.chunkKey,
-    prices: Object.freeze(prices.sort((a, b) => a.itemId.localeCompare(b.itemId))),
+    prices: Object.freeze(prices),
   } satisfies Omit<LocalMarketSnapshot, "snapshotHash">;
 
   return Object.freeze({ ...base, snapshotHash: snapshotHash(base) });

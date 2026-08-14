@@ -62,4 +62,23 @@ describe("A5 local market price resolver", () => {
     expect(graph.resolveRoute(market.marketId, market.marketId)?.routeRiskPerMille).toBe(1000);
     expect(resolveSupplyPressurePerMille(25)).toBe(800);
   });
+
+  it("benchmarks performance of cached listSellableItemIds and snapshot creation", () => {
+    const resolver = new LocalPriceResolver(loadEconomyBasePricesFromGameData());
+    const [market] = loadLocalMarketsFromGameData();
+    const orderBook = new MarketOrderBookService(resolver);
+    const supply = [{ itemId: "wood_log" as const, quantity: 25 }];
+
+    const start = performance.now();
+    const iterations = 10_000;
+    for (let i = 0; i < iterations; i++) {
+      resolver.listSellableItemIds();
+      orderBook.createSnapshot({ market, supply });
+    }
+    const duration = performance.now() - start;
+
+    expect(duration).toBeGreaterThan(0);
+    // 10,000 iterations of listing and snapshot creation should take under 100ms
+    expect(duration).toBeLessThan(1000);
+  });
 });
