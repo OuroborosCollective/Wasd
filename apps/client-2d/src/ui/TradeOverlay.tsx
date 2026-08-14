@@ -34,7 +34,7 @@ export function TradeOverlay({ payload }: Props) {
   };
 
   return (
-    <div className="trade-overlay">
+    <div className="trade-overlay" role="region" aria-label="Trade Offer">
       <p className="interaction-muted">
         Offer based on <code>{payload.vendorManifest}</code>
       </p>
@@ -44,12 +44,23 @@ export function TradeOverlay({ payload }: Props) {
           <strong>Starter Rations</strong>
           <span>5x supplies for the first paths around Millbrook.</span>
         </div>
-        <button type="button" disabled={isProcessing} onClick={() => handleBuy('item_ration_5', 1)}>
-          10 Silver
+        <button
+          type="button"
+          disabled={isProcessing}
+          aria-busy={isProcessing}
+          aria-label={isProcessing ? "Purchasing Starter Rations..." : "Buy Starter Rations for 10 Silver"}
+          title={isProcessing ? "Purchasing Starter Rations..." : "Buy Starter Rations for 10 Silver"}
+          onClick={() => handleBuy('item_ration_5', 1)}
+        >
+          {isProcessing ? "Buying..." : "10 Silver"}
         </button>
       </div>
 
-      {isProcessing && <div className="trade-processing">Validating transaction …</div>}
+      {isProcessing && (
+        <div className="trade-processing" role="status" aria-live="polite">
+          Validating transaction …
+        </div>
+      )}
     </div>
   );
 }
