@@ -29,3 +29,7 @@
 ## 2028-02-19 - [A11y with Interaction Hotkey Buttons and aria-keyshortcuts]
 **Learning:** Floating interactive prompt elements (like the InteractionPrompt for triggering object interactions) display visual `<kbd>` hints (e.g., "E") but often lack the corresponding programmatic key-binding mapping for assistive technologies. Adding `aria-keyshortcuts="e"` guarantees screen-reader users are informed of the actual shortcut constraint natively.
 **Action:** When designing or standardizing visual keybind badges or prompt cues, always expose the appropriate lowercase `aria-keyshortcuts` attribute on the focusable container or trigger button.
+
+## 2028-02-20 - [Landmark Accessibility Roles for Live Status Panels]
+**Learning:** Display-only HUD status grid panels (such as MapStatusPanel) often present live game metrics without landmarks, making them hard for screen-reader users to locate during navigation. Wrapping these container panels with `role="region"` and descriptive `aria-label` attributes exposes them as navigable landmarks to assistive technologies.
+**Action:** Always add `role="region"` and an explicit `aria-label` to HUD status display panels that present live game or map state.
