@@ -29,3 +29,7 @@
 ## 2028-02-19 - [A11y with Interaction Hotkey Buttons and aria-keyshortcuts]
 **Learning:** Floating interactive prompt elements (like the InteractionPrompt for triggering object interactions) display visual `<kbd>` hints (e.g., "E") but often lack the corresponding programmatic key-binding mapping for assistive technologies. Adding `aria-keyshortcuts="e"` guarantees screen-reader users are informed of the actual shortcut constraint natively.
 **Action:** When designing or standardizing visual keybind badges or prompt cues, always expose the appropriate lowercase `aria-keyshortcuts` attribute on the focusable container or trigger button.
+
+## 2028-02-20 - [HUD Notification Feeds Accessibility and Live Announcements]
+**Learning:** Floating overlay feeds (such as `LootFeed`) that dynamically insert items into the viewport are often purely visual and ignored by screen readers. Wrapping the feed container with `role="log"`, `aria-label`, `aria-live="polite"`, and `aria-relevant="additions"`, while giving individual entries `role="status"` with rich descriptive `aria-label` and `title` properties (e.g. including quantity, item name, rarity, and item description) ensures assistive technologies automatically announce new loot acquisitions as they occur.
+**Action:** Always structure real-time overlay event feeds with `role="log"` and `aria-live="polite"`, and provide informative screen-reader labels and hover tooltips for each feed item.
