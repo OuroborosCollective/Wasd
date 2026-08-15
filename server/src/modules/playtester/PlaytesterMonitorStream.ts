@@ -2,6 +2,7 @@ import type { Server as HttpServer } from "node:http";
 import { URL } from "node:url";
 import { WebSocketServer, WebSocket } from "ws";
 import { PlaytesterConfig } from "../../config/PlaytesterConfig.js";
+import { safeEqualText } from "../../utils/security.js";
 import type { PlaytesterMonitorUpdatePayload } from "./playtesterTypes.js";
 
 type ClientOptions = {
@@ -126,7 +127,10 @@ export class PlaytesterMonitorStream {
         : "");
 
     if (token.length > 0) {
-      return queryToken === token || headerToken.trim() === token;
+      return (
+        (queryToken.length > 0 && safeEqualText(queryToken, token)) ||
+        (headerToken.trim().length > 0 && safeEqualText(headerToken.trim(), token))
+      );
     }
 
     if (process.env.NODE_ENV !== "production") {
