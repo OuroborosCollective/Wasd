@@ -156,7 +156,7 @@ export const storageStateStore = new StorageStateStore();
 
 export function useStoragePlayerSnapshot(): StorageInventoryState | null {
   return useSyncExternalStore(
-    storageStateStore.subscribe,
+    (l) => storageStateStore.subscribe(l),
     () => storageStateStore.getPlayerSnapshot(),
     () => null
   );
@@ -164,7 +164,7 @@ export function useStoragePlayerSnapshot(): StorageInventoryState | null {
 
 export function useStorageSnapshot(): StorageSnapshot | null {
   return useSyncExternalStore(
-    storageStateStore.subscribe,
+    (l) => storageStateStore.subscribe(l),
     () => storageStateStore.getStorageSnapshot(),
     () => null
   );
@@ -211,6 +211,14 @@ function StorageSlot({ slotIndex, item, isBlocked, isStorageSide, onTransfer }: 
     if (!isBlocked) onTransfer(slotIndex);
   }, [isBlocked, slotIndex, onTransfer]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (isBlocked) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onTransfer(slotIndex);
+    }
+  }, [isBlocked, slotIndex, onTransfer]);
+
   return (
     <div
       className={[
@@ -220,6 +228,7 @@ function StorageSlot({ slotIndex, item, isBlocked, isStorageSide, onTransfer }: 
         item ? `rarity-${item.rarity}` : "",
       ].filter(Boolean).join(" ")}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       role="button"
       tabIndex={item && !isBlocked ? 0 : -1}
       aria-label={item ? `Item in slot ${slotIndex + 1}, ${item.name}` : `Empty slot ${slotIndex + 1}`}
@@ -340,6 +349,20 @@ export function StorageOverlay({ isOpen = true, onClose }: StorageOverlayProps) 
     storageStateStore.closeStorage();
     onClose?.();
   }, [storageSnapshot, onClose]);
+
+  // Listen for Escape key to close the storage overlay
+  useEffect(() => {
+    if (!isOpen || !storageSnapshot) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        handleClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, storageSnapshot, handleClose]);
 
   // ─── Render ───────────────────────────────────────────────────
 

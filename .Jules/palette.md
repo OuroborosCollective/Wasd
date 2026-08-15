@@ -29,3 +29,7 @@
 ## 2028-02-19 - [A11y with Interaction Hotkey Buttons and aria-keyshortcuts]
 **Learning:** Floating interactive prompt elements (like the InteractionPrompt for triggering object interactions) display visual `<kbd>` hints (e.g., "E") but often lack the corresponding programmatic key-binding mapping for assistive technologies. Adding `aria-keyshortcuts="e"` guarantees screen-reader users are informed of the actual shortcut constraint natively.
 **Action:** When designing or standardizing visual keybind badges or prompt cues, always expose the appropriate lowercase `aria-keyshortcuts` attribute on the focusable container or trigger button.
+
+## 2028-02-20 - [Keyboard Accessibility & ESC Dismissal in Storage Overlay]
+**Learning:** Storage overlay containers and interactive item slots with `role="button"` can trap keyboard-only users if they rely solely on mouse click events. Adding an `Escape` key listener to dismiss the overlay, along with `Enter` and `Space` `onKeyDown` handlers on grid slot buttons (calling `e.preventDefault()`), enables seamless keyboard navigation and overlay dismissal.
+**Action:** Always pair `role="button"` elements in custom UI grids with explicit `Enter`/`Space` key event listeners, and ensure overlay panels attach global `Escape` key event listeners for keyboard dismissal.
