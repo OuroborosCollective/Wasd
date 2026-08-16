@@ -1,8 +1,20 @@
-import { Router } from "express";
+import { createHash, timingSafeEqual } from "node:crypto";
+import express, { Router } from "express";
 import { calculateUsageCost, sovereignMarket } from "../market/SovereignMarket.js";
+
+function hashBuffer(value: string): Buffer {
+  return createHash("sha256").update(value, "utf8").digest();
+}
+
+function safeEqualText(a: string, b: string): boolean {
+  const left = hashBuffer(a);
+  const right = hashBuffer(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
 
 export function sdkBillingRouter(tick?: any): Router {
   const router = Router();
+  router.use(express.json({ limit: "64kb" }));
 
   router.get("/status", (_req, res) => {
     const usage = tick?.getDeterministicUsageStats?.() ?? null;
@@ -24,7 +36,7 @@ export function sdkBillingRouter(tick?: any): Router {
   router.post("/credit", (req, res) => {
     const adminKey = process.env.SOVEREIGN_LAUNCH_KEY || process.env.ARE_MARKET_ADMIN_KEY || "";
     const provided = String(req.headers["x-sovereign-key"] || req.body?.key || "");
-    if (!adminKey || provided !== adminKey) return res.status(403).json({ ok: false, error: "forbidden" });
+    if (!adminKey || provided.length === 0 || !safeEqualText(provided, adminKey)) return res.status(403).json({ ok: false, error: "forbidden" });
     const source = String(req.body?.source || process.env.ARE_SDK_CLIENT_ID || "local-engine");
     const displayName = String(req.body?.displayName || source);
     const credits = Number(req.body?.credits ?? 0);

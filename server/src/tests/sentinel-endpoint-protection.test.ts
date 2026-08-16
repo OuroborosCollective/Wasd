@@ -11,16 +11,24 @@ import { financeRouter } from "../api/financeRoute.js";
 import { createManifestResyncRouter } from "../api/manifestResyncRoute.js";
 import { voteRouter } from "../api/voteRoute.js";
 import { leaderboardRouter } from "../api/leaderboardRoute.js";
+import { sdkBillingRouter } from "../api/sdkBillingRoute.js";
+import { areReplayRouter } from "../api/areReplayRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
     delete process.env.ADMIN_PANEL_TOKEN;
     delete process.env.CONTENT_ADMIN_READONLY;
+    delete process.env.SOVEREIGN_LAUNCH_KEY;
+    delete process.env.ARE_MARKET_ADMIN_KEY;
+    delete process.env.ARE_GOVERNANCE_ADMIN_KEY;
   });
 
   afterEach(() => {
     delete process.env.ADMIN_PANEL_TOKEN;
     delete process.env.CONTENT_ADMIN_READONLY;
+    delete process.env.SOVEREIGN_LAUNCH_KEY;
+    delete process.env.ARE_MARKET_ADMIN_KEY;
+    delete process.env.ARE_GOVERNANCE_ADMIN_KEY;
     vi.restoreAllMocks();
   });
 
@@ -50,6 +58,63 @@ describe("Sentinel Endpoint Protection", () => {
         .set("X-Admin-Token", "secret");
       expect(r.status).toBe(403);
       expect(r.body.error).toContain("read-only");
+    });
+
+    it("POST /launch requires valid SOVEREIGN_LAUNCH_KEY", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      process.env.SOVEREIGN_LAUNCH_KEY = "sovereign-secret-key-123";
+      const mockRunner = vi.fn().mockResolvedValue({ status: 202, body: { ok: true } });
+      const app = express();
+      const mockTick = {} as any;
+      app.use("/api/sovereign/deploy", adminRateLimiter, adminAuthMiddleware, sovereignDeployRouter(mockTick, { runWorkflow: mockRunner }));
+
+      const rDenied = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("Authorization", "Bearer secret")
+        .send({ launchKey: "wrong-key" });
+      expect(rDenied.status).toBe(403);
+      expect(rDenied.body.error).toBe("launch_key_required");
+
+      const rAllowed = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("Authorization", "Bearer secret")
+        .send({ launchKey: "sovereign-secret-key-123" });
+      expect(rAllowed.status).toBe(202);
+      expect(rAllowed.body.ok).toBe(true);
+    });
+  });
+
+  describe("Sovereign billing and governance admin key checks", () => {
+    it("validates admin key on /sdk/billing/credit and /are/billing/credit", async () => {
+      process.env.SOVEREIGN_LAUNCH_KEY = "market-admin-key-999";
+      const sdkApp = express();
+      sdkApp.use("/sdk/billing", sdkBillingRouter());
+
+      const rSdkWrong = await request(sdkApp)
+        .post("/sdk/billing/credit")
+        .send({ key: "wrong", credits: 50 });
+      expect(rSdkWrong.status).toBe(403);
+
+      const rSdkRight = await request(sdkApp)
+        .post("/sdk/billing/credit")
+        .send({ key: "market-admin-key-999", credits: 50 });
+      expect(rSdkRight.status).toBe(200);
+      expect(rSdkRight.body.ok).toBe(true);
+
+      const mockTick = {} as any;
+      const replayApp = express();
+      replayApp.use("/are", areReplayRouter(mockTick));
+
+      const rReplayWrong = await request(replayApp)
+        .post("/are/billing/credit")
+        .send({ key: "wrong", credits: 50 });
+      expect(rReplayWrong.status).toBe(403);
+
+      const rReplayRight = await request(replayApp)
+        .post("/are/billing/credit")
+        .send({ key: "market-admin-key-999", credits: 50 });
+      expect(rReplayRight.status).toBe(200);
+      expect(rReplayRight.body.ok).toBe(true);
     });
   });
 
