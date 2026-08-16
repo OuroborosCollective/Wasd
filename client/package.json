@@ -31,7 +31,7 @@
     "framer-motion": "^12.43.0",
     "lucide-react": "^1.28.0",
     "mobx": "^6.15.4",
-    "mobx-react-lite": "^4.1.1",
+    "mobx-react-lite": "^5.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "socket.io-client": "^4.8.3",
