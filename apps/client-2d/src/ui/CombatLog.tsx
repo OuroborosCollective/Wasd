@@ -10,6 +10,10 @@ export function CombatLog({ entries }: Props) {
 
   return (
     <div
+      role="log"
+      aria-label="Combat Log"
+      aria-live="polite"
+      aria-relevant="additions"
       style={{
         position: "fixed",
         right: 12,
@@ -26,6 +30,9 @@ export function CombatLog({ entries }: Props) {
       {entries.slice(0, 8).map((entry) => (
         <div
           key={entry.id}
+          role="status"
+          aria-label={`Combat event: ${entry.text}`}
+          title={entry.text}
           style={{
             padding: "7px 9px",
             borderRadius: 10,
