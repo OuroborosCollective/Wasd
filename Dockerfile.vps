@@ -57,6 +57,7 @@ RUN --mount=type=cache,id=wasd-vps-pnpm-store,target=/pnpm/store \
       '  - packages/shared' \
       'allowBuilds: true' \
       'minimumReleaseAgeExclude:' \
+      "  - 'electron-to-chromium'" \
       "  - '@nodable/entities'" \
       "  - 'acorn'" \
       "  - '@opentelemetry/api-logs'" \
@@ -106,6 +107,7 @@ RUN rm -rf packages/sdk-examples || true && \
       '  - packages/shared' \
       'allowBuilds: true' \
       'minimumReleaseAgeExclude:' \
+      "  - 'electron-to-chromium'" \
       "  - '@nodable/entities'" \
       "  - 'acorn'" \
       "  - '@opentelemetry/api-logs'" \
