@@ -16,11 +16,13 @@ describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
     delete process.env.ADMIN_PANEL_TOKEN;
     delete process.env.CONTENT_ADMIN_READONLY;
+    delete process.env.SOVEREIGN_LAUNCH_KEY;
   });
 
   afterEach(() => {
     delete process.env.ADMIN_PANEL_TOKEN;
     delete process.env.CONTENT_ADMIN_READONLY;
+    delete process.env.SOVEREIGN_LAUNCH_KEY;
     vi.restoreAllMocks();
   });
 
@@ -50,6 +52,42 @@ describe("Sentinel Endpoint Protection", () => {
         .set("X-Admin-Token", "secret");
       expect(r.status).toBe(403);
       expect(r.body.error).toContain("read-only");
+    });
+
+    it("POST /launch requires timing-safe Sovereign Launch Key", async () => {
+      process.env.SOVEREIGN_LAUNCH_KEY = "sovereign-secret-launch-key";
+      const runWorkflow = vi.fn().mockResolvedValue({ status: 202, body: { ok: true } });
+      const app = express();
+      const mockTick = {} as any;
+      app.use("/api/sovereign/deploy", sovereignDeployRouter(mockTick, { runWorkflow }));
+
+      // 1. Missing launch key -> 403
+      const r1 = await request(app).post("/api/sovereign/deploy/launch").send({});
+      expect(r1.status).toBe(403);
+      expect(r1.body.error).toBe("launch_key_required");
+
+      // 2. Incorrect launch key -> 403
+      const r2 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("X-Sovereign-Launch-Key", "wrong-launch-key")
+        .send({});
+      expect(r2.status).toBe(403);
+      expect(r2.body.error).toBe("launch_key_required");
+
+      // 3. Correct launch key via header -> 202
+      const r3 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("X-Sovereign-Launch-Key", "sovereign-secret-launch-key")
+        .send({});
+      expect(r3.status).toBe(202);
+      expect(r3.body.ok).toBe(true);
+
+      // 4. Correct launch key via body -> 202
+      const r4 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .send({ launchKey: "sovereign-secret-launch-key" });
+      expect(r4.status).toBe(202);
+      expect(r4.body.ok).toBe(true);
     });
   });
 
