@@ -63,7 +63,8 @@ export function normalizeQuestSnapshot(input: Partial<QuestSnapshot>): QuestSnap
           required: Math.max(1, Number(objective.required ?? 1)),
           completed: Boolean(objective.completed),
         }))
-        .sort((a, b) => a.id.localeCompare(b.id))
+        // Bolt: Optimized hot-path objective sorting using fast direct relational string comparison instead of slow localeCompare
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     : [];
 
   return {
@@ -79,5 +80,6 @@ export function normalizeQuestSnapshot(input: Partial<QuestSnapshot>): QuestSnap
  * Sort quest snapshots by id for deterministic output.
  */
 export function sortQuestSnapshots(quests: QuestSnapshot[]): QuestSnapshot[] {
-  return [...quests].sort((a, b) => a.id.localeCompare(b.id));
+  // Bolt: Optimized hot-path quest snapshot sorting using fast direct relational string comparison instead of slow localeCompare
+  return [...quests].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
