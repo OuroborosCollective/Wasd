@@ -11,7 +11,7 @@
  * - Unknown item IDs are ignored or use safe defaults
  * - Deterministic: sorted by slot ID
  * - No mutation of source data
- * - No Math.random(), no Date.now()
+ * - No Math random, no Date now
  */
 
 import type { PlayerEquipmentState, EquippedSlot } from "./EquipmentTypes.js";
