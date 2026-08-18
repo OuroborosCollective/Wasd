@@ -54,7 +54,8 @@ export function calculateEquipmentStats(options: CalculateEquipmentStatsOptions)
   const aggregated: Record<string, number> = {};
 
   // Process each equipped slot
-  const sortedSlots = [...equipment.slots].sort((a, b) => a.slotId.localeCompare(b.slotId));
+  // Bolt: Optimized equipment slot sorting using fast direct relational string comparisons instead of slow localeCompare
+  const sortedSlots = [...equipment.slots].sort((a, b) => (a.slotId < b.slotId ? -1 : a.slotId > b.slotId ? 1 : 0));
 
   for (const slot of sortedSlots) {
     // Check if this is a known gathering tool definition
