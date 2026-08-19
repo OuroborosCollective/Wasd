@@ -51,6 +51,38 @@ describe("Sentinel Endpoint Protection", () => {
       expect(r.status).toBe(403);
       expect(r.body.error).toContain("read-only");
     });
+
+    it("POST /launch verifies launch key with constant-time equality", async () => {
+      process.env.SOVEREIGN_LAUNCH_KEY = "launch-secret-key";
+      const runWorkflowMock = vi.fn().mockResolvedValue({ status: 202, body: { ok: true } });
+      const app = express();
+      const mockTick = {} as any;
+      app.use("/api/sovereign/deploy", sovereignDeployRouter(mockTick, { runWorkflow: runWorkflowMock }));
+
+      // Missing launch key -> 403
+      const r1 = await request(app).post("/api/sovereign/deploy/launch").send({});
+      expect(r1.status).toBe(403);
+      expect(r1.body.error).toBe("launch_key_required");
+
+      // Wrong launch key -> 403
+      const r2 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("X-Sovereign-Launch-Key", "wrong-key")
+        .send({});
+      expect(r2.status).toBe(403);
+      expect(r2.body.error).toBe("launch_key_required");
+
+      // Valid launch key -> 202
+      const r3 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("X-Sovereign-Launch-Key", "launch-secret-key")
+        .send({});
+      expect(r3.status).toBe(202);
+      expect(r3.body.ok).toBe(true);
+      expect(runWorkflowMock).toHaveBeenCalled();
+
+      delete process.env.SOVEREIGN_LAUNCH_KEY;
+    });
   });
 
   describe("/api/sovereign/deploy", () => {
