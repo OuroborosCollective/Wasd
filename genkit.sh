@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVER_DIR="${ROOT_DIR}/server"
 CLI_VERSION="${GENKIT_CLI_VERSION:-1.40.1}"
+GENKIT_RUNTIME="src/devtools/genkit/runtime.ts"
+GENKIT_DOCTOR="src/devtools/genkit/doctor.ts"
+GENKIT_TEST="src/devtools/genkit/__tests__/contracts.test.ts"
 
 if ! command -v pnpm >/dev/null 2>&1; then
   echo "[genkit] pnpm is required (repo package manager)." >&2
@@ -39,19 +42,19 @@ case "${command_name}" in
     ;;
   dev)
     cd "${SERVER_DIR}"
-    run_genkit_cli start -- pnpm exec tsx src/genkit/runtime.ts "$@"
+    run_genkit_cli start -- pnpm exec tsx "${GENKIT_RUNTIME}" "$@"
     ;;
   runtime)
     cd "${SERVER_DIR}"
-    exec pnpm exec tsx src/genkit/runtime.ts "$@"
+    exec pnpm exec tsx "${GENKIT_RUNTIME}" "$@"
     ;;
   doctor)
     cd "${SERVER_DIR}"
-    exec pnpm exec tsx src/genkit/doctor.ts "$@"
+    exec pnpm exec tsx "${GENKIT_DOCTOR}" "$@"
     ;;
   test)
     cd "${SERVER_DIR}"
-    exec pnpm exec vitest run src/genkit/__tests__/contracts.test.ts "$@"
+    exec pnpm exec vitest run "${GENKIT_TEST}" "$@"
     ;;
   flow)
     if [[ $# -lt 1 ]]; then
