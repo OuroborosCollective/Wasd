@@ -4,8 +4,8 @@
  * Server-authoritative discovery state for POIs and chunks.
  *
  * Rules:
- * - No Math.random()
- * - No Date.now() for gameplay state
+ * - No Math random
+ * - No Date now for gameplay state
  * - Deterministic by playerId
  * - Arrays sorted, no duplicates
  */
