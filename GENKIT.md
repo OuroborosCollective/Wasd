@@ -24,6 +24,7 @@ Hard rules:
 - Database and code-fix flows produce plans marked `OWNER_REQUIRED`.
 - No model output is called a test pass, runtime readback, migration success, deployment success, or gameplay truth without the corresponding real evidence.
 - The Genkit runtime is not imported by `server/src/index.ts`.
+- The implementation lives under `server/src/devtools/genkit/` so it cannot shadow the npm package named `genkit` during TypeScript module resolution.
 
 ## Available flows
 
@@ -105,7 +106,7 @@ Useful Genkit MCP operations include documentation lookup, runtime management, f
 A typical MCP session is:
 
 1. Start/connect `genkit` MCP.
-2. Start the runtime with `pnpm exec tsx src/genkit/runtime.ts` from the `server/` working directory.
+2. Start the runtime with `pnpm exec tsx src/devtools/genkit/runtime.ts` from the `server/` working directory.
 3. Call `list_flows` and inspect schemas.
 4. Call `run_flow` with schema-valid JSON.
 5. Inspect the returned proposal and receipt.
@@ -152,12 +153,16 @@ Database plan:
 
 ## Repository implementation notes
 
-- `server/src/genkit/index.ts` registers the flows.
-- `server/src/genkit/runtime.ts` keeps only the Genkit reflection/runtime process alive.
-- `server/src/genkit/contracts.ts` enforces the non-authoritative payload boundary and canonical receipts.
-- `server/src/genkit/catalog.ts` is the machine-readable capability/effect inventory.
-- `server/src/genkit/doctor.ts` reports readiness without exposing secrets.
-- `server/src/genkit/__tests__/contracts.test.ts` verifies receipt determinism and rejects authority-field injection.
+- `server/src/devtools/genkit/index.ts` registers the flows.
+- `server/src/devtools/genkit/runtime.ts` keeps only the Genkit reflection/runtime process alive.
+- `server/src/devtools/genkit/contracts.ts` enforces the non-authoritative payload boundary and canonical receipts.
+- `server/src/devtools/genkit/catalog.ts` is the machine-readable capability/effect inventory.
+- `server/src/devtools/genkit/doctor.ts` reports readiness without exposing secrets.
+- `server/src/devtools/genkit/__tests__/contracts.test.ts` verifies receipt determinism and rejects authority-field injection.
+
+## CI verification
+
+The Genkit workflow builds `@wasd/shared` before the server TypeScript check because the server consumes shared package declarations. It then runs the Genkit contract test, the provider-safe doctor, the repository architecture guard, and the deterministic WorldTick guard.
 
 ## Provider hardening follow-up
 
