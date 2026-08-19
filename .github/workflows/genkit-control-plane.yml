@@ -7,8 +7,9 @@ on:
       - 'genkit.sh'
       - '.mcp.json'
       - 'GENKIT.md'
-      - 'server/src/genkit/**'
+      - 'server/src/devtools/genkit/**'
       - 'server/package.json'
+      - 'packages/shared/**'
       - 'pnpm-lock.yaml'
       - '.github/workflows/genkit-control-plane.yml'
   workflow_dispatch:
@@ -37,11 +38,14 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --no-frozen-lockfile --ignore-scripts
 
+      - name: Build shared dependency used by server type declarations
+        run: pnpm --filter @wasd/shared build
+
       - name: Typecheck server including Genkit flows
         run: pnpm --filter @wasd/server typecheck
 
       - name: Prove Genkit side-channel contract
-        run: pnpm --filter @wasd/server exec vitest run src/genkit/__tests__/contracts.test.ts
+        run: pnpm --filter @wasd/server exec vitest run src/devtools/genkit/__tests__/contracts.test.ts
 
       - name: Genkit doctor (provider credential optional in CI)
         run: bash genkit.sh doctor
