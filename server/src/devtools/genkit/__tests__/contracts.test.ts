@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ARELORIA_GENKIT_FLOW_CATALOG } from "../catalog.js";
 import {
@@ -82,5 +83,15 @@ describe("Areloria Genkit side-channel contract", () => {
     expect(new Set(ARELORIA_GENKIT_FLOW_CATALOG.map((entry) => entry.flowName)).size).toBe(
       ARELORIA_GENKIT_FLOW_CATALOG.length
     );
+  });
+
+  it("keeps the existing world-generation flow free of inline provider credentials", () => {
+    const source = readFileSync(
+      new URL("../../../modules/ai/WorldGenerationFlow.ts", import.meta.url),
+      "utf8"
+    );
+
+    expect(source).not.toMatch(/apiKey\s*:\s*["'][^"']+["']/);
+    expect(source).toContain("process.env.GOOGLE_GENERATIVE_AI_API_KEY");
   });
 });
