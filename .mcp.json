@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "genkit": {
+      "command": "bash",
+      "args": ["./genkit.sh", "mcp"],
+      "cwd": "."
+    }
+  }
+}
