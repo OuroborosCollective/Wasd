@@ -74,6 +74,43 @@ describe("WorldDiscoveryTypes", () => {
     });
   });
 
+  describe("sorting benchmark", () => {
+    it("should run a benchmark comparing localeCompare vs direct string comparison for discovery sorting", () => {
+      const poiIdsForLocaleCompare: string[] = [];
+      const poiIdsForDirectCompare: string[] = [];
+      for (let i = 0; i < 5000; i++) {
+        const id = `poi:${(i * 17) % 5000}:${(i * 31) % 5000}`;
+        poiIdsForLocaleCompare.push(id);
+        poiIdsForDirectCompare.push(id);
+      }
+
+      const ITERATIONS = 50;
+
+      const t0 = performance.now();
+      for (let iter = 0; iter < ITERATIONS; iter++) {
+        [...poiIdsForLocaleCompare].sort((a, b) => a.localeCompare(b));
+      }
+      const localeTime = performance.now() - t0;
+
+      const t1 = performance.now();
+      for (let iter = 0; iter < ITERATIONS; iter++) {
+        [...poiIdsForDirectCompare].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      }
+      const directTime = performance.now() - t1;
+
+      const avgLocale = localeTime / ITERATIONS;
+      const avgDirect = directTime / ITERATIONS;
+      const speedup = avgLocale / avgDirect;
+
+      console.log(`\n⚡ World Discovery Sort Benchmark (5000 items, 50 iterations avg):`);
+      console.log(`  - localeCompare sort avg:    ${avgLocale.toFixed(4)}ms`);
+      console.log(`  - Direct comparison sort avg: ${avgDirect.toFixed(4)}ms`);
+      console.log(`  - Speedup factor:             ${speedup.toFixed(2)}x faster\n`);
+
+      expect(avgDirect).toBeLessThan(avgLocale);
+    });
+  });
+
   describe("addDiscoveredChunk", () => {
     it("should add new chunk to state", () => {
       const state = createDefaultDiscoveryState("player1");
