@@ -47,6 +47,15 @@ jobs:
       - name: Prove Genkit side-channel contract
         run: pnpm --filter @wasd/server exec vitest run src/devtools/genkit/__tests__/contracts.test.ts
 
+      - name: Validate Genkit launcher and MCP config
+        run: |
+          bash -n genkit.sh
+          bash genkit.sh help >/dev/null
+          node -e 'JSON.parse(require("node:fs").readFileSync(".mcp.json", "utf8"))'
+
+      - name: Resolve Genkit MCP CLI entry point
+        run: bash genkit.sh mcp --help
+
       - name: Genkit doctor (provider credential optional in CI)
         run: bash genkit.sh doctor
 
