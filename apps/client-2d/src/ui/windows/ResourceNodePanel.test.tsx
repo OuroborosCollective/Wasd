@@ -46,7 +46,7 @@ describe("ResourceNodePanel UX & Accessibility", () => {
     }
   ];
 
-  it("renders live resources successfully with appropriate labels", async () => {
+  it("renders live resources successfully with appropriate labels and accessibility attributes", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -58,6 +58,34 @@ describe("ResourceNodePanel UX & Accessibility", () => {
     expect(container!.textContent).toContain("Ancient Oak");
     expect(container!.textContent).toContain("Copper Vein");
     expect(container!.textContent).toContain("Respawns in 30 ticks");
+
+    const section = container!.querySelector("section");
+    expect(section?.getAttribute("role")).toBe("region");
+    expect(section?.getAttribute("aria-label")).toBe("Resource Nodes");
+
+    const icon = container!.querySelector(".resource-row__icon");
+    expect(icon?.getAttribute("aria-hidden")).toBe("true");
+
+    const statusList = container!.querySelectorAll(".resource-row__status");
+    expect(statusList.length).toBe(2);
+    statusList.forEach((statusEl) => {
+      expect(statusEl.getAttribute("role")).toBe("status");
+    });
+  });
+
+  it("renders empty state with appropriate region role and aria-label", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(<ResourceNodePanel resources={[]} />);
+    });
+
+    const emptySection = container!.querySelector('[data-testid="resource-panel-empty"]');
+    expect(emptySection).toBeTruthy();
+    expect(emptySection?.getAttribute("role")).toBe("region");
+    expect(emptySection?.getAttribute("aria-label")).toBe("Resource Nodes");
   });
 
   it("adds loading states, aria-busy and disables the button on gather click", async () => {

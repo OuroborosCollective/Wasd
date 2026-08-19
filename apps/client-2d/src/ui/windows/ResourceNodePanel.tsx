@@ -34,14 +34,14 @@ export function ResourceNodePanel({ resources }: Props) {
 
   if (!resources.length) {
     return (
-      <section data-testid="resource-panel-empty" className="are-window">
+      <section data-testid="resource-panel-empty" className="are-window" role="region" aria-label="Resource Nodes">
         <p className="are-text-muted">No live resource nodes yet.</p>
       </section>
     );
   }
 
   return (
-    <section data-testid="resource-panel-live" className="are-window">
+    <section data-testid="resource-panel-live" className="are-window" role="region" aria-label="Resource Nodes">
       <div className="resource-list">
         {resources.map((node) => {
           const isGathering = gatheringIds.has(node.id);
@@ -53,7 +53,7 @@ export function ResourceNodePanel({ resources }: Props) {
               data-testid={`resource-node-${node.itemRewardId}`}
             >
               <div className="resource-row__header">
-                <span className="resource-row__icon" title={node.kind}>
+                <span className="resource-row__icon" title={node.kind} aria-hidden="true">
                   {kindIcons[node.kind] ?? "?"}
                 </span>
                 <strong className="resource-row__title">{node.title}</strong>
@@ -66,7 +66,7 @@ export function ResourceNodePanel({ resources }: Props) {
                 <span className="resource-row__reward">{node.itemRewardName}</span>
               </div>
 
-              <div className="resource-row__status">
+              <div className="resource-row__status" role="status">
                 {node.status === "available" ? (
                   <span className="resource-row__status--available">Available</span>
                 ) : (
