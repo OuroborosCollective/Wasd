@@ -5,8 +5,8 @@
  * Provides atomic save/load with temp file + rename pattern.
  *
  * Rules:
- * - No Date.now() for gameplay state
- * - No Math.random() for gameplay IDs
+ * - No Date now for gameplay state
+ * - No Math random for gameplay IDs
  * - Atomic writes via temp + rename
  * - Stable sort for deterministic output
  * - Corrupt JSON must not crash server

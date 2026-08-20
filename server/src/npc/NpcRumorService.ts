@@ -5,8 +5,8 @@
  * Handles deterministic rumor creation and spreading between NPCs.
  *
  * Determinism rules:
- * - No Date.now() for gameplay state
- * - No Math.random() for rumor spread
+ * - No Date now for gameplay state
+ * - No Math random for rumor spread
  * - Rumors propagate only on explicit server tick/action processing
  * - All IDs are deterministic based on input values
  * - Rumor propagation is deterministic and idempotent
