@@ -129,6 +129,40 @@ describe("Sentinel Endpoint Protection", () => {
       expect(r.status).toBe(403);
       expect(r.body.error).toContain("read-only");
     });
+
+    it("verifies launch key via constant-time comparison in header and body", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      process.env.SOVEREIGN_LAUNCH_KEY = "sovereign-secret-key-999";
+      const mockWorkflow = vi.fn().mockResolvedValue({ status: 202, body: { ok: true } });
+      const app = express();
+      const mockTick = {} as any;
+      app.use("/api/sovereign/deploy", adminRateLimiter, adminAuthMiddleware, sovereignDeployRouter(mockTick, { runWorkflow: mockWorkflow }));
+
+      // Invalid launch key -> 403
+      const r1 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("Authorization", "Bearer secret")
+        .set("x-sovereign-launch-key", "wrong-key");
+      expect(r1.status).toBe(403);
+      expect(r1.body.error).toBe("launch_key_required");
+
+      // Valid launch key in header -> 202
+      const r2 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("Authorization", "Bearer secret")
+        .set("x-sovereign-launch-key", "sovereign-secret-key-999");
+      expect(r2.status).toBe(202);
+      expect(mockWorkflow).toHaveBeenCalled();
+
+      // Valid launch key in body -> 202
+      mockWorkflow.mockClear();
+      const r3 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("Authorization", "Bearer secret")
+        .send({ launchKey: "sovereign-secret-key-999" });
+      expect(r3.status).toBe(202);
+      expect(mockWorkflow).toHaveBeenCalled();
+    });
   });
 
   describe("/api/are-shadow", () => {
