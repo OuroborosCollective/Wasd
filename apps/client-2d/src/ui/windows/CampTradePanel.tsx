@@ -100,6 +100,8 @@ export function CampTradePanel({ npc, campStock, onClose }: CampTradePanelProps)
   const snapshot = useLiveGameplaySnapshot();
   const [buying, setBuying] = useState(false);
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && onClose) {
@@ -109,20 +111,6 @@ export function CampTradePanel({ npc, campStock, onClose }: CampTradePanelProps)
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<string | null>(null);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && onClose) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
   }, [onClose]);
 
   const sellItemId = NPC_SELL_ITEM[npc.type] ?? "";
@@ -186,6 +174,8 @@ export function CampTradePanel({ npc, campStock, onClose }: CampTradePanelProps)
   return (
     <div
       data-testid="camp-trade-panel"
+      role="region"
+      aria-label="Camp Exchange Trade Panel"
       style={{
         position: "absolute",
         bottom: "100px",
@@ -330,6 +320,23 @@ export function CampTradePanel({ npc, campStock, onClose }: CampTradePanelProps)
         {/* Item Card */}
         <div
           data-testid="camp-stock-item"
+          role="button"
+          tabIndex={hasStock && canAfford ? 0 : -1}
+          aria-label={`${itemName}: ${stockQty} units available, ${buyPrice} coins per unit`}
+          title={
+            hasStock && canAfford
+              ? `Click to buy 1 ${itemName} for ${buyPrice} coins`
+              : !hasStock
+              ? "Camp stock empty"
+              : "Not enough coins"
+          }
+          onClick={handleBuy}
+          onKeyDown={(e) => {
+            if ((e.key === "Enter" || e.key === " ") && hasStock && canAfford && !buying) {
+              e.preventDefault();
+              void handleBuy();
+            }
+          }}
           style={{
             ...diamondGlassStyle,
             padding: "12px",
@@ -409,6 +416,8 @@ export function CampTradePanel({ npc, campStock, onClose }: CampTradePanelProps)
         {/* Error Message */}
         {error && (
           <div
+            role="alert"
+            aria-live="assertive"
             style={{
               background: "rgba(255, 180, 171, 0.15)",
               border: "1px solid #ffb4ab",
