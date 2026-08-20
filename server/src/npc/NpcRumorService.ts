@@ -249,7 +249,9 @@ export class NpcRumorService {
       weight: rumor.weight,
       note: rumor.note,
       sourceNpcId: rumor.sourceNpcId,
-    })).sort((a, b) => a.rumorId.localeCompare(b.rumorId));
+    }))
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+    .sort((a, b) => (a.rumorId < b.rumorId ? -1 : a.rumorId > b.rumorId ? 1 : 0));
   }
 
   /**

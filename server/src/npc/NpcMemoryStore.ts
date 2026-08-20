@@ -59,9 +59,10 @@ function stableSortFile(file: NpcMemoryStateFile): NpcMemoryStateFile {
         ...state,
         memoryEvents: [...state.memoryEvents].sort((a, b) => {
           if (a.logicalIndex !== b.logicalIndex) return a.logicalIndex - b.logicalIndex;
-          return a.eventId.localeCompare(b.eventId);
+          // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+          return a.eventId < b.eventId ? -1 : a.eventId > b.eventId ? 1 : 0;
         }),
-        knownRumorIds: [...state.knownRumorIds].sort(),
+        knownRumorIds: [...state.knownRumorIds].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
       };
       return npcAcc;
     }, {});
@@ -71,7 +72,8 @@ function stableSortFile(file: NpcMemoryStateFile): NpcMemoryStateFile {
 
   const sortedRumors: Record<string, NpcRumor[]> = {};
   for (const [playerId, playerRumors] of Object.entries(file.rumors)) {
-    sortedRumors[playerId] = [...playerRumors].sort((a, b) => a.rumorId.localeCompare(b.rumorId));
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+    sortedRumors[playerId] = [...playerRumors].sort((a, b) => (a.rumorId < b.rumorId ? -1 : a.rumorId > b.rumorId ? 1 : 0));
   }
 
   return {
@@ -129,9 +131,10 @@ export class NpcMemoryStore {
       trustTier: reputationToTrustTier(state.reputation),
       memoryEvents: [...state.memoryEvents].sort((a, b) => {
         if (a.logicalIndex !== b.logicalIndex) return a.logicalIndex - b.logicalIndex;
-        return a.eventId.localeCompare(b.eventId);
+        // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+        return a.eventId < b.eventId ? -1 : a.eventId > b.eventId ? 1 : 0;
       }),
-      knownRumorIds: [...state.knownRumorIds].sort(),
+      knownRumorIds: [...state.knownRumorIds].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
     };
 
     file.memoryStates[state.playerId][state.npcId] = sortedState;
@@ -147,7 +150,8 @@ export class NpcMemoryStore {
     const playerMemories = file.memoryStates[playerId];
     if (!playerMemories) return [];
 
-    return Object.values(playerMemories).sort((a, b) => a.npcId.localeCompare(b.npcId));
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+    return Object.values(playerMemories).sort((a, b) => (a.npcId < b.npcId ? -1 : a.npcId > b.npcId ? 1 : 0));
   }
 
   /**

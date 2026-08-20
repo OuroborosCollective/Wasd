@@ -418,7 +418,8 @@ export class NpcMemoryService {
       }
     }
 
-    return Object.freeze(snapshots.sort((a, b) => a.npcId.localeCompare(b.npcId)));
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+    return Object.freeze(snapshots.sort((a, b) => (a.npcId < b.npcId ? -1 : a.npcId > b.npcId ? 1 : 0)));
   }
 
   /**
