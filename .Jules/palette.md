@@ -29,3 +29,7 @@
 ## 2028-02-19 - [A11y with Interaction Hotkey Buttons and aria-keyshortcuts]
 **Learning:** Floating interactive prompt elements (like the InteractionPrompt for triggering object interactions) display visual `<kbd>` hints (e.g., "E") but often lack the corresponding programmatic key-binding mapping for assistive technologies. Adding `aria-keyshortcuts="e"` guarantees screen-reader users are informed of the actual shortcut constraint natively.
 **Action:** When designing or standardizing visual keybind badges or prompt cues, always expose the appropriate lowercase `aria-keyshortcuts` attribute on the focusable container or trigger button.
+
+## 2028-02-20 - [Accessible Status Dots and Region Identifiers in Guild Interfaces]
+**Learning:** Guild roster displays and status panels often rely on color-only status indicators (such as green/gray dots) and generic container divs. Adding `role="status"`, dynamic `aria-label` text, and matching hover `title` tooltips ("Online" / "Offline") to member status dots, alongside container `role="region"` and `aria-live="polite"` attributes, ensures that both screen-reader and mouse users receive clear status feedback without visual redesigns.
+**Action:** Always complement color-coded status dots with explicit `role="status"`, `aria-label`, and hover `title` attributes, and label panel containers with semantic region roles.
