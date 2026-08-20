@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { Server as HttpServer } from "node:http";
 import { URL } from "node:url";
 import { WebSocketServer, WebSocket } from "ws";
@@ -20,6 +21,12 @@ function parseBool(value: string | null): boolean {
   if (!value) return false;
   const v = value.trim().toLowerCase();
   return v === "1" || v === "true" || v === "yes" || v === "on";
+}
+
+function safeEqualText(a: string, b: string): boolean {
+  const left = createHash("sha256").update(a, "utf8").digest();
+  const right = createHash("sha256").update(b, "utf8").digest();
+  return left.length === right.length && timingSafeEqual(left, right);
 }
 
 function isLoopback(remoteAddress: string): boolean {
@@ -126,7 +133,10 @@ export class PlaytesterMonitorStream {
         : "");
 
     if (token.length > 0) {
-      return queryToken === token || headerToken.trim() === token;
+      return (
+        (queryToken.length > 0 && safeEqualText(queryToken, token)) ||
+        (headerToken.trim().length > 0 && safeEqualText(headerToken.trim(), token))
+      );
     }
 
     if (process.env.NODE_ENV !== "production") {
