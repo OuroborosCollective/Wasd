@@ -12,6 +12,6 @@
   },
   "dependencies": {
     "@wasd/shared": "workspace:*",
-    "ws": "^8.21.2"
+    "ws": "^8.21.3"
   }
 }
