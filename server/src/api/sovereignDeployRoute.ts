@@ -3,6 +3,7 @@ import { adminWriteBlockedHandler } from "../middleware/adminRequestHandlers.js"
 import { sensitiveWriteRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { execFile, execFileSync } from "node:child_process";
 import net from "node:net";
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { WorldTick } from "../core/are/index.js";
 import { getSupabaseSummary } from "../config/supabase.js";
 
@@ -63,11 +64,21 @@ function resolveSupabaseTcpTarget(): TcpTarget {
   return { host: "supabase-kong", port: explicitPort ?? 8000, source: "docker-default" };
 }
 
+function hashBuffer(value: string): Buffer {
+  return createHash("sha256").update(value, "utf8").digest();
+}
+
+function safeEqualText(a: string, b: string): boolean {
+  const left = hashBuffer(a);
+  const right = hashBuffer(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
 function requireLaunchKey(req: express.Request): boolean {
   const expected = process.env.SOVEREIGN_LAUNCH_KEY || process.env.ADMIN_DEPLOY_TOKEN || "";
   if (!expected) return false;
   const provided = String(req.headers["x-sovereign-launch-key"] || req.body?.launchKey || "");
-  return provided.length > 0 && provided === expected;
+  return provided.length > 0 && safeEqualText(provided, expected);
 }
 
 async function tcpProbe(host: string, port: number, timeoutMs = 850): Promise<boolean> {
