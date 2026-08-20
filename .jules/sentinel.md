@@ -32,3 +32,8 @@
 **Vulnerability:** The `/api/mcp` route used the standard `!==` relational string comparison to validate the incoming administrative bearer token against the configured `MCP_ADMIN_TOKEN`, exposing the token to potential timing analysis attacks.
 **Learning:** Custom administrative router middlewares often rely on standard non-constant-time comparison operators, creating easily exploitable leaks of sensitive platform keys.
 **Prevention:** Always implement timing-attack-resilient constant-time comparisons by hashing inputs (e.g., using SHA-256) and comparing them using `crypto.timingSafeEqual` in all custom middleware token checkers.
+
+## 2026-08-25 - [Medium] Sovereign Launch Key Verification Timing Attack
+**Vulnerability:** The `/api/sovereign/deploy` route used the standard `===` relational string comparison in `requireLaunchKey` to validate the provided sovereign launch key against the expected `SOVEREIGN_LAUNCH_KEY` or `ADMIN_DEPLOY_TOKEN`, exposing the token to timing analysis attacks.
+**Learning:** Sensitive deploy/launch endpoints can have custom validator functions that bypass standard auth middleware checks, leaving them vulnerable if they perform plain string comparisons.
+**Prevention:** Always implement a timing-attack-resilient constant-time comparison helper `safeEqualText` that hashes inputs using SHA-256 and compares them using `crypto.timingSafeEqual` to validate any administrative launch credentials or API keys.
