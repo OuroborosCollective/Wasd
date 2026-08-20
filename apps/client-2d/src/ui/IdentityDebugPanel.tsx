@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { shortIdentity } from "../identity/clientIdentity";
 
 interface Props {
@@ -22,10 +22,24 @@ export function IdentityDebugPanel({
   onResetIdentity,
   onClose
 }: Props) {
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="identity-debug-title"
       style={{
         position: "fixed",
         left: "50%",
@@ -43,8 +57,18 @@ export function IdentityDebugPanel({
       }}
     >
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: 16 }}>Identity Debug [P7]</h2>
-        <button type="button" onClick={onClose} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 16 }}>✕</button>
+        <h2 id="identity-debug-title" style={{ margin: 0, fontSize: 16 }}>
+          Identity Debug [P7]
+        </h2>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close identity debug panel"
+          title="Close identity debug panel"
+          style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 16 }}
+        >
+          ✕
+        </button>
       </header>
 
       <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
@@ -58,6 +82,8 @@ export function IdentityDebugPanel({
       <button
         type="button"
         onClick={onResetIdentity}
+        aria-label="Reset local identity"
+        title="Reset local guest identity and clear credentials"
         style={{
           marginTop: 16,
           padding: "8px 10px",
