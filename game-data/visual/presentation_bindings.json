@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "areloria.presentation-bindings.v1",
+  "description": "Presentation-only bindings. 2D and 3D consume the same authoritative entity/world identity and may render it differently. This file must never carry gameplay authority such as tick, worldHash, actor state, loot outcomes or canonical intents.",
+  "bindings": [],
+  "fallbacks": {
+    "player": {
+      "presentation2d": {
+        "kind": "shape",
+        "shape": "rect",
+        "size": 32,
+        "color": "#4488ff",
+        "outline": "#ffffff"
+      },
+      "presentation3d": {
+        "kind": "model",
+        "modelUrl": "/assets/models/characters/SK_Chr_NPC_Male_01.glb",
+        "scale": 1
+      }
+    },
+    "npc": {
+      "presentation2d": {
+        "kind": "shape",
+        "shape": "rect",
+        "size": 32,
+        "color": "#00ff00",
+        "outline": "#ffffff"
+      },
+      "presentation3d": {
+        "kind": "model",
+        "modelUrl": "/assets/models/characters/SK_Chr_NPC_Male_01.glb",
+        "scale": 1
+      }
+    },
+    "monster": {
+      "presentation2d": {
+        "kind": "shape",
+        "shape": "rect",
+        "size": 32,
+        "color": "#ff4444",
+        "outline": "#ffffff"
+      },
+      "presentation3d": {
+        "kind": "model",
+        "modelUrl": "/assets/models/characters/SK_Chr_NPC_Male_01.glb",
+        "scale": 1
+      }
+    }
+  }
+}

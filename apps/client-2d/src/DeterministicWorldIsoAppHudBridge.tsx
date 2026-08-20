@@ -1,85 +1,95 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
-  DeterministicWorldIsoApp as FutureRenderer,
-  type FutureRendererRuntimeSnapshot,
-} from "./DeterministicWorldIsoAppFuture";
+  LiveAuthoritativeWorld2D,
+  type Live2DRuntimeSnapshot,
+} from "./LiveAuthoritativeWorld2D";
 import { ArelorianStitchHud, type PlayerVitalsData } from "./ArelorianStitchHud";
+import { useLiveRuntimeState } from "./live/liveRuntimeState";
 
 type HudMessage = { from: string; txt: string };
 
-const INITIAL_RUNTIME: FutureRendererRuntimeSnapshot = {
+const INITIAL_RUNTIME: Live2DRuntimeSnapshot = {
   phase: "mounting",
-  bootState: "waiting",
+  connected: false,
   rendererStatus: "waiting",
-  playerPos: { x: 8, z: 9 },
-  chunkCoords: { chunkX: 0, chunkZ: 0 },
-  visibleChunks: 0,
-  initialized: false,
+  playerPos: null,
+  visibleEntities: 0,
+  serverTick: null,
+  presentationSha256: null,
+  renderProfile: null,
   error: null,
 };
 
-function makeVitals(snapshot: FutureRendererRuntimeSnapshot): PlayerVitalsData {
-  const travelLoad = Math.abs(snapshot.playerPos.x) + Math.abs(snapshot.playerPos.z);
-  return {
-    hp: snapshot.phase === "failed" ? 1 : 100,
-    maxHp: 100,
-    mana: snapshot.initialized ? 72 : 0,
-    maxMana: 100,
-    stamina: snapshot.initialized ? Math.max(64, 100 - (travelLoad % 28)) : 0,
-    maxStamina: 100,
-    xp: Math.min(100, snapshot.visibleChunks * 3),
-    maxXp: 100,
-    level: Math.max(1, 1 + Math.floor(snapshot.visibleChunks / 25)),
-  };
-}
+/**
+ * Sentinel display values used only to suppress the old invented HUD percentages
+ * until an authoritative vitals snapshot is available. They are deliberately
+ * zero and must never be interpreted as player state.
+ */
+const UNKNOWN_VITALS: PlayerVitalsData = {
+  hp: 0,
+  maxHp: 1,
+  mana: 0,
+  maxMana: 1,
+  stamina: 0,
+  maxStamina: 1,
+  xp: 0,
+  maxXp: 1,
+  level: 0,
+};
 
 export function DeterministicWorldIsoApp() {
-  const [runtime, setRuntime] = useState<FutureRendererRuntimeSnapshot>(INITIAL_RUNTIME);
+  const [runtime, setRuntime] = useState<Live2DRuntimeSnapshot>(INITIAL_RUNTIME);
   const [messages, setMessages] = useState<HudMessage[]>([
-    { from: "System", txt: "HUD bridge waiting for renderer runtime snapshot." },
+    { from: "System", txt: "Waiting for authoritative server reality." },
   ]);
-
-  const vitals = useMemo(() => makeVitals(runtime), [runtime]);
+  const live = useLiveRuntimeState();
 
   function append(from: string, txt: string): void {
     setMessages((current) => [...current.slice(-7), { from, txt }]);
   }
 
-  function handleRuntimeSnapshot(next: FutureRendererRuntimeSnapshot): void {
-    setRuntime(next);
-  }
+  const playerName = live.characterName || live.playerId || "Awaiting server identity";
+  const playerPos = live.playerPos ?? runtime.playerPos ?? undefined;
+  const chunkCoords = live.chunkCoords ?? undefined;
+  const connected = live.networkStatus === "connected" || runtime.connected;
 
   return (
     <>
-      <FutureRenderer onRuntimeSnapshot={handleRuntimeSnapshot} />
+      <LiveAuthoritativeWorld2D onRuntimeSnapshot={setRuntime} />
       <ArelorianStitchHud
-        connected={runtime.initialized}
-        assetStatus={`${runtime.rendererStatus.toUpperCase()} · ${runtime.visibleChunks} CHUNKS`}
+        connected={connected}
+        assetStatus={`${runtime.rendererStatus.toUpperCase()} · ${runtime.visibleEntities} LIVE ENTITIES · ${runtime.renderProfile ?? "DEFAULT"}`}
         weaponCount={0}
         equippedWeaponId={null}
         inventoryItems={[]}
-        playerName="Architect"
+        playerName={playerName}
         messages={messages}
-        onSkill={(skillId) => append("Skill", `${skillId.toUpperCase()} requested; renderer snapshot is ${runtime.phase}.`)}
-        onChat={(text) => append("Architect", text)}
-        onInteract={() => append("World", runtime.initialized ? "Nearest local NPC interaction requested." : "Renderer not initialized yet.")}
-        onStrike={() => append("Combat", runtime.initialized ? "Local strike preview requested." : "Renderer not initialized yet.")}
-        onCycleWeapon={() => append("Inventory", "No weapon pool is currently bound to this renderer snapshot.")}
-        onToggleAutoMove={() => {
-          window.__wasd2dMove?.({ dx: 1, dz: 0 });
-          append("System", "Move request sent to future renderer bridge.");
+        onSkill={(skillId) => {
+          window.dispatchEvent(new CustomEvent("wasd:client-action", { detail: { action: "use_skill", payload: { skillId } } }));
+          append("Skill", `${skillId.toUpperCase()} request forwarded to the canonical client-action bridge.`);
         }}
-        vitals={vitals}
-        debugPlayerPos={runtime.playerPos}
-        debugChunkCoords={runtime.chunkCoords}
-        debugVisibleChunks={runtime.visibleChunks}
-        debugHeartbeatReceived={runtime.initialized}
-        debugInitialized={runtime.initialized}
-        debugNetworkStatus="waiting"
-        debugServerTick={null}
-        debugAckSeq={null}
-        debugIdentity="future-hud-bridge"
-        debugCharacter="Architect"
+        onChat={(text) => append(playerName, text)}
+        onInteract={() => {
+          window.dispatchEvent(new CustomEvent("wasd:client-action", { detail: { action: "interact", payload: {} } }));
+          append("World", "Interaction request forwarded to the server-authoritative bridge.");
+        }}
+        onStrike={() => {
+          window.dispatchEvent(new CustomEvent("wasd:client-action", { detail: { action: "attack", payload: {} } }));
+          append("Combat", "Attack request forwarded to the server-authoritative bridge.");
+        }}
+        onCycleWeapon={() => append("Inventory", "Waiting for authoritative equipment binding.")}
+        onToggleAutoMove={() => append("System", "Auto-move is disabled in the read-only renderer; movement belongs to CanonicalIntent input.")}
+        vitals={UNKNOWN_VITALS}
+        debugPlayerPos={playerPos}
+        debugChunkCoords={chunkCoords}
+        debugVisibleChunks={live.visibleChunks ?? runtime.visibleEntities}
+        debugHeartbeatReceived={live.heartbeatStatus === "ok"}
+        debugInitialized={runtime.phase === "ready"}
+        debugNetworkStatus={live.networkStatus}
+        debugServerTick={live.serverTick ?? runtime.serverTick}
+        debugAckSeq={live.acknowledgedInputSeq}
+        debugIdentity={live.playerId ?? live.stableGuestId}
+        debugCharacter={live.characterName}
       />
     </>
   );

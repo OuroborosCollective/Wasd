@@ -51,6 +51,52 @@ describe("Sentinel Endpoint Protection", () => {
       expect(r.status).toBe(403);
       expect(r.body.error).toContain("read-only");
     });
+
+    it("POST /launch timing-safely validates sovereign launch key", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      process.env.SOVEREIGN_LAUNCH_KEY = "launch-key-12345";
+      const app = express();
+      const mockTick = {} as any;
+      const mockRunWorkflow = vi.fn().mockResolvedValue({ status: 202, body: { ok: true } });
+
+      app.use(
+        "/api/sovereign/deploy",
+        adminRateLimiter,
+        adminAuthMiddleware,
+        sovereignDeployRouter(mockTick, { runWorkflow: mockRunWorkflow })
+      );
+
+      // 1. Missing key
+      const r1 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("Authorization", "Bearer secret");
+      expect(r1.status).toBe(403);
+      expect(r1.body.error).toBe("launch_key_required");
+
+      // 2. Wrong key
+      const r2 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("Authorization", "Bearer secret")
+        .set("X-Sovereign-Launch-Key", "wrong-key");
+      expect(r2.status).toBe(403);
+
+      // 3. Right key in header
+      const r3 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("Authorization", "Bearer secret")
+        .set("X-Sovereign-Launch-Key", "launch-key-12345");
+      expect(r3.status).toBe(202);
+      expect(mockRunWorkflow).toHaveBeenCalled();
+
+      // 4. Right key in body
+      const r4 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("Authorization", "Bearer secret")
+        .send({ launchKey: "launch-key-12345" });
+      expect(r4.status).toBe(202);
+
+      delete process.env.SOVEREIGN_LAUNCH_KEY;
+    });
   });
 
   describe("/api/sovereign/deploy", () => {

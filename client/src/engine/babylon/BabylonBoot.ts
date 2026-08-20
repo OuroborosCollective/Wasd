@@ -23,6 +23,7 @@ import {
 } from "./playgroundTextures";
 import { applyTiledGroundTextures, MAIN_GROUND_UV_SCALE } from "./groundTextureUtils";
 import { isAndroid, prefersCompactTouchUi } from "../../ui/touchUi";
+import type { StudioRender3DProfile } from "../presentation/StudioPresentationConfig";
 
 export type BabylonApp = {
   engine: Engine;
@@ -31,15 +32,45 @@ export type BabylonApp = {
   ground: Mesh;
 };
 
+const studioProfiles = new WeakMap<Engine, StudioRender3DProfile>();
+
+export function applyBabylonRenderProfile(app: BabylonApp, profile: StudioRender3DProfile = {}): void {
+  studioProfiles.set(app.engine, { ...profile });
+  if (Number.isFinite(profile.hardwareScalingLevel) && Number(profile.hardwareScalingLevel) > 0) {
+    app.engine.setHardwareScalingLevel(Math.max(0.4, Math.min(4, Number(profile.hardwareScalingLevel))));
+  }
+  if (Number.isFinite(profile.maxFps)) {
+    app.engine.maxFPS = Math.max(0, Math.min(240, Number(profile.maxFps)));
+  }
+  if (profile.fog !== undefined) {
+    app.scene.fogMode = profile.fog ? Scene.FOGMODE_EXP2 : Scene.FOGMODE_NONE;
+  }
+  if (profile.toneMapping !== undefined) {
+    app.scene.imageProcessingConfiguration.toneMappingEnabled = profile.toneMapping;
+  }
+  if (profile.particles !== undefined) app.scene.particlesEnabled = profile.particles;
+  if (profile.shadows !== undefined) app.scene.shadowsEnabled = profile.shadows;
+  const renderDistance = profile.renderDistance;
+  if (renderDistance === "near") app.camera.maxZ = 450;
+  else if (renderDistance === "far") app.camera.maxZ = 2200;
+  else if (renderDistance === "normal") app.camera.maxZ = 1100;
+  app.scene.metadata = {
+    ...(app.scene.metadata ?? {}),
+    studioRenderProfile: { ...profile },
+    studioPresentationOnly: true,
+  };
+}
+
 export function createBabylonApp(
   canvas: HTMLCanvasElement,
-  options?: { skipGround?: boolean }
+  options?: { skipGround?: boolean; renderProfile?: StudioRender3DProfile }
 ): BabylonApp {
   const touchFirst = prefersCompactTouchUi();
   const android = isAndroid();
   const query =
     typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const qualityHigh = query.get("quality") === "high";
+  const studioProfile = options?.renderProfile ?? {};
   /** Treat large tablets as desktop for resolution when they report fine pointer. */
   const touchButDesktopClass =
     touchFirst && !android && typeof window !== "undefined" && window.innerWidth >= 1024;
@@ -47,7 +78,7 @@ export function createBabylonApp(
   /** `preserveDrawingBuffer` doubles memory bandwidth on many GPUs — avoid on phones (crashes / thermal throttle). */
   const wantScreenshots =
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("screenshot") === "1";
-  const engine = new Engine(canvas, true, {
+  const engine = new Engine(canvas, studioProfile.antialias !== false, {
     preserveDrawingBuffer: wantScreenshots,
     /** Stencil + skybox cube map are easy OOM / driver crash targets on Android WebGL. */
     stencil: !(useMobileRenderBudget || android),
@@ -164,17 +195,23 @@ export function createBabylonApp(
   bootAnchor.material = anchorMat;
   bootAnchor.position = new Vector3(0, 0.62, 0);
 
+  const app = { engine, scene, camera, ground };
+  applyBabylonRenderProfile(app, studioProfile);
+
   engine.runRenderLoop(() => {
     scene.render();
   });
 
   window.addEventListener("resize", () => {
-    if (!useMobileRenderBudget && !android) {
+    const activeProfile = studioProfiles.get(engine);
+    if (Number.isFinite(activeProfile?.hardwareScalingLevel) && Number(activeProfile?.hardwareScalingLevel) > 0) {
+      engine.setHardwareScalingLevel(Number(activeProfile?.hardwareScalingLevel));
+    } else if (!useMobileRenderBudget && !android) {
       const desktopDpr = typeof window !== "undefined" ? Math.max(1, window.devicePixelRatio || 1) : 1;
       engine.setHardwareScalingLevel(1 / desktopDpr);
     }
     engine.resize();
   });
 
-  return { engine, scene, camera, ground };
+  return app;
 }
