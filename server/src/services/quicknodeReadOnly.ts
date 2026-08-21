@@ -22,6 +22,7 @@ export interface QuicknodeReadOnlyStatus {
   readonly chainMatchesExpectation: boolean | null;
   readonly successfulProbes: number;
   readonly failedProbes: number;
+  readonly configurationError: string | null;
   readonly lastError: string | null;
 }
 
@@ -49,12 +50,14 @@ function parseEndpoint(raw: string): URL {
  * Read-only Quicknode observer. It can attest external chain metadata, but the
  * result never participates in ARE tick calculation, gameplay validation or
  * world hashes. There are deliberately no transaction/signing methods here.
+ * Invalid optional configuration degrades this observer; it never breaks boot.
  */
 export class QuicknodeReadOnlyObserver {
   private readonly rawUrl = process.env.QUICKNODE_RPC_URL?.trim() ?? "";
-  private readonly expectedChainId = normalizeChainId(process.env.QUICKNODE_EXPECTED_CHAIN_ID);
   private readonly enabledByConfig = envTruthy(process.env.QUICKNODE_ENABLED);
-  private readonly endpoint = this.rawUrl ? parseEndpoint(this.rawUrl) : null;
+  private readonly endpoint: URL | null;
+  private readonly expectedChainId: string | null;
+  private readonly configurationError: string | null;
   private timer: NodeJS.Timeout | null = null;
   private probing = false;
   private observedChainId: string | null = null;
@@ -63,8 +66,33 @@ export class QuicknodeReadOnlyObserver {
   private failedProbes = 0;
   private lastError: string | null = null;
 
+  constructor() {
+    const configurationErrors: string[] = [];
+    let endpoint: URL | null = null;
+    let expectedChainId: string | null = null;
+
+    if (this.rawUrl) {
+      try {
+        endpoint = parseEndpoint(this.rawUrl);
+      } catch (error) {
+        configurationErrors.push(error instanceof Error ? error.message : String(error));
+      }
+    }
+
+    try {
+      expectedChainId = normalizeChainId(process.env.QUICKNODE_EXPECTED_CHAIN_ID);
+    } catch (error) {
+      configurationErrors.push(error instanceof Error ? error.message : String(error));
+    }
+
+    this.endpoint = endpoint;
+    this.expectedChainId = expectedChainId;
+    this.configurationError = configurationErrors.length > 0 ? configurationErrors.join("; ") : null;
+    this.lastError = this.configurationError;
+  }
+
   get enabled(): boolean {
-    return this.enabledByConfig && Boolean(this.endpoint);
+    return this.enabledByConfig && Boolean(this.endpoint) && this.configurationError === null;
   }
 
   start(): void {
@@ -131,7 +159,7 @@ export class QuicknodeReadOnlyObserver {
   getStatus(): QuicknodeReadOnlyStatus {
     return {
       truthClass: QUICKNODE_TRUTH_CLASS,
-      configured: Boolean(this.endpoint),
+      configured: Boolean(this.endpoint) && this.configurationError === null,
       enabled: this.enabled,
       endpointHost: this.endpoint?.hostname ?? null,
       expectedChainId: this.expectedChainId,
@@ -143,6 +171,7 @@ export class QuicknodeReadOnlyObserver {
           : null,
       successfulProbes: this.successfulProbes,
       failedProbes: this.failedProbes,
+      configurationError: this.configurationError,
       lastError: this.lastError,
     };
   }
