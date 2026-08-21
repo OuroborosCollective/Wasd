@@ -39,14 +39,25 @@ describe('10Hz failure-family probe runtime', () => {
     expect(probe.completedCases).toBe(DEFAULT_FAILURE_FAMILY_PROBE_CASES.length);
     expect(probe.queuedCases).toBe(0);
 
-    expect(failures.families.runtime_source).toBeGreaterThanOrEqual(1);
-    expect(failures.families.state_invariant).toBeGreaterThanOrEqual(1);
-    expect(failures.families.determinism).toBeGreaterThanOrEqual(1);
-    expect(failures.families.persistence).toBeGreaterThanOrEqual(1);
-    expect(failures.families.ordering).toBeGreaterThanOrEqual(1);
-    expect(failures.families.system_exception).toBeGreaterThanOrEqual(1);
+    // Deliberate diagnostic faults are evidence, not organic server sickness.
+    expect(failures.status).toBe('clean');
+    expect(failures.runtimeOccurrences).toBe(0);
+    expect(failures.diagnosticOccurrences).toBe(DEFAULT_FAILURE_FAMILY_PROBE_CASES.length);
+    expect(failures.records.every((record) => record.origin === 'diagnostic_probe')).toBe(true);
+
+    expect(failures.diagnosticFamilies.runtime_source).toBeGreaterThanOrEqual(1);
+    expect(failures.diagnosticFamilies.state_invariant).toBeGreaterThanOrEqual(1);
+    expect(failures.diagnosticFamilies.determinism).toBeGreaterThanOrEqual(1);
+    expect(failures.diagnosticFamilies.persistence).toBeGreaterThanOrEqual(1);
+    expect(failures.diagnosticFamilies.ordering).toBeGreaterThanOrEqual(1);
+    expect(failures.diagnosticFamilies.system_exception).toBeGreaterThanOrEqual(1);
     expect(failures.records.every((record) => record.derivationRerunMatches)).toBe(true);
     expect(failures.records.every((record) => record.runId === 'regression-full-run')).toBe(true);
+
+    for (const probeCase of DEFAULT_FAILURE_FAMILY_PROBE_CASES) {
+      const record = failures.records.find((entry) => entry.caseId === probeCase.caseId);
+      expect(record?.family).toBe(probeCase.family);
+    }
 
     const transient = failures.records.find((record) => record.caseId === 'transient-system-recovery');
     expect(transient?.lastRerunOutcome).toBe('recovered');
