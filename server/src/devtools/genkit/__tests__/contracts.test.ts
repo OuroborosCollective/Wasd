@@ -70,6 +70,7 @@ describe("Areloria Genkit side-channel contract", () => {
     expect(ARELORIA_GENKIT_FLOW_CATALOG.map((entry) => entry.capability)).toEqual([
       "npc",
       "quest_lore",
+      "canonical_quest",
       "ui_menu",
       "database",
       "code_fix",
