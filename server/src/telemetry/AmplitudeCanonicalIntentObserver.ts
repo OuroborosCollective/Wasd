@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHmac } from "node:crypto";
 import type { ServerCanonicalIntent } from "../intents/ServerCanonicalIntent.js";
 
 export type AmplitudeRegion = "us" | "eu";
@@ -37,9 +37,9 @@ export interface AmplitudeObserverDiagnostics {
   readonly lastHttpStatus: number | null;
 }
 
-type ConfigProvider = () => AmplitudeObserverConfig | null;
-type FlushScheduler = (callback: () => void) => void;
-type AmplitudeTransport = (
+export type AmplitudeObserverConfigProvider = () => AmplitudeObserverConfig | null;
+export type AmplitudeFlushScheduler = (callback: () => void) => void;
+export type AmplitudeTransport = (
   url: string,
   payload: { readonly api_key: string; readonly events: readonly AmplitudeCanonicalIntentEvent[] },
 ) => Promise<{ readonly ok: boolean; readonly status: number }>;
@@ -73,10 +73,8 @@ export function resolveAmplitudeObserverConfig(
 }
 
 export function pseudonymizeAmplitudeActorId(actorId: string, identitySalt: string): string {
-  return createHash("sha256")
+  return createHmac("sha256", identitySalt)
     .update("areloria:amplitude:actor:v1\0", "utf8")
-    .update(identitySalt, "utf8")
-    .update("\0", "utf8")
     .update(actorId, "utf8")
     .digest("hex");
 }
@@ -137,9 +135,9 @@ export class AmplitudeCanonicalIntentObserver {
   private lastHttpStatus: number | null = null;
 
   constructor(
-    private readonly configProvider: ConfigProvider = () => resolveAmplitudeObserverConfig(),
+    private readonly configProvider: AmplitudeObserverConfigProvider = () => resolveAmplitudeObserverConfig(),
     private readonly transport: AmplitudeTransport = defaultAmplitudeTransport,
-    private readonly scheduleFlush: FlushScheduler = defaultFlushScheduler,
+    private readonly scheduleFlush: AmplitudeFlushScheduler = defaultFlushScheduler,
   ) {}
 
   observe(intent: ServerCanonicalIntent): void {
