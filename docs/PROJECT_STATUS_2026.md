@@ -29,7 +29,7 @@ Valid runtime truth must come from tick/logicalIndex, kappa, chunk/position, has
 | Main client entry | `client/src/main.ts` |
 | 2D client entry | `apps/client-2d/src/App.tsx` |
 | Primary rendering (3D) | Babylon.js (`@babylonjs/core` + loaders + materials + addons) |
-| Primary rendering (2D) | PixiJS v7 + React UI (`apps/client-2d/`) |
+| Primary rendering (2D) | PixiJS v7 + React UI. Active `/2d` uses `LiveAuthoritativeWorld2D`: live actors come from server heartbeat/tick state; static terrain/roads/buildings/props use `LiveAssetWorldSurface` with the real merged manifest and server-seeded `OuroborosWorldDirectorV1` projection provenance from `/health/world-projection`. |
 | Networking | WebSocket (`ws`) via `server/src/networking/WebSocketServer.ts` |
 | Manifest System | Deterministic server-authoritative state via hash chain in `server/src/core/manifest/`; client divergence detection in `apps/client-2d/src/manifest/`; resync API at `/api/manifest/*` |
 | Data content root | `game-data/` by default, optional published pack via `USE_PUBLISHED_CONTENT` / `CONTENT_PACK_DIR` |
@@ -113,6 +113,7 @@ Valid runtime truth must come from tick/logicalIndex, kappa, chunk/position, has
 | Item | Status |
 |------|--------|
 | World asset sync | `scripts/sync-world-assets.mjs` mirrors repo assets into client public paths |
+| 2D production asset projection | Active `/2d` no longer uses a blank/demo world surface. Player/NPC visuals are manifest-backed; loot fallback is manifest-backed; terrain, roads, buildings and props bind through the merged 2D manifest. Static scene generation starts only from server-published canonical seed/projection provenance and remains presentation-only (`gameplayAuthority:false`). Missing world assets are counted/skipped rather than replaced by convincing geometry. |
 | GLB links and pools | File-based content paths + GLB registry + asset pool resolver are active |
 | Admin model needs | `GET /api/admin/content/model-needs` provides needed/satisfied model suggestions |
 | Publish snapshot | `pnpm run content:publish` creates `published-content/current` pack |
@@ -202,4 +203,4 @@ When runtime behavior changes, update this file together with:
 - `docs/RELEASE_CHECKLIST.md`
 - relevant subsystem docs under `docs/`
 
-Last refreshed: 2026-06-15
+Last refreshed: 2026-08-21
