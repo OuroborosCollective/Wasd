@@ -8,6 +8,7 @@
 import {
   applySkillXp,
   type PlayerSkillState,
+  type PlayerSkillStateInput,
   type SkillId,
   normalizePlayerSkillState,
   createDefaultPlayerSkillState,
@@ -25,7 +26,6 @@ export type SkillEvent =
 export class SkillProgressionStore {
   private readonly playerSkills = new Map<string, PlayerSkillState>();
 
-  /** Get player skill state, creating default if needed. */
   getPlayerSkillState(playerId: string): PlayerSkillState {
     const existing = this.playerSkills.get(playerId);
     if (existing) return normalizePlayerSkillState(existing, playerId);
@@ -35,7 +35,6 @@ export class SkillProgressionStore {
     return created;
   }
 
-  /** Apply a deterministic XP event and return the updated exact state. */
   applyEvent(event: SkillEvent): PlayerSkillState {
     if (event.type !== "skill_xp_gain") {
       return this.getPlayerSkillState(event.playerId);
@@ -64,16 +63,14 @@ export class SkillProgressionStore {
     return nextState;
   }
 
-  /** Replace player skill state (including schema-1 hydration migration). */
-  replacePlayerSkillState(playerId: string, state: PlayerSkillState): void {
+  /** Replace player skill state and migrate schema-1 number-only snapshots. */
+  replacePlayerSkillState(playerId: string, state: PlayerSkillState | PlayerSkillStateInput): void {
     this.playerSkills.set(playerId, normalizePlayerSkillState(state, playerId));
   }
 
-  /** Clear all state (for testing only). */
   clearForTests(): void {
     this.playerSkills.clear();
   }
 }
 
-/** Global skill progression store singleton. Runtime callers use SkillProgressionService. */
 export const skillProgressionStore = new SkillProgressionStore();
