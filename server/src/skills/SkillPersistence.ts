@@ -1,19 +1,15 @@
 /**
  * SKILL PERSISTENCE INTERFACE
  *
- * Defines the persistence adapter interface for skill state.
- *
- * Rules:
- * - No secrets logged
- * - Graceful degradation on errors
- * - Deterministic file operations
+ * Schema 2 stores exact cap-free progression as canonical decimal strings
+ * inside each SkillSnapshot while retaining number read-model projections.
  */
 
-import type { PlayerSkillState } from "./SkillTypes";
-import { normalizePlayerSkillState } from "./SkillTypes";
+import type { PlayerSkillState } from "./SkillTypes.js";
+import { normalizePlayerSkillState } from "./SkillTypes.js";
 
 export interface PersistedPlayerSkillState extends PlayerSkillState {
-  schemaVersion: 1;
+  schemaVersion: 2;
 }
 
 export interface SkillPersistenceAdapter {
@@ -23,12 +19,12 @@ export interface SkillPersistenceAdapter {
 }
 
 /**
- * Create a persisted player skill state with normalization.
- * Pure function - deterministic.
+ * Normalize/migrate before persistence. Number-only schema-1 input is accepted
+ * by normalizePlayerSkillState and always written back as schema 2.
  */
 export function createPersistedPlayerSkillState(
   playerId: string,
-  state: PlayerSkillState
+  state: PlayerSkillState,
 ): PersistedPlayerSkillState {
   return normalizePlayerSkillState(state, playerId);
 }
