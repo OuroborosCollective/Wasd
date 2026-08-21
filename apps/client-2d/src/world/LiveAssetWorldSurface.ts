@@ -131,6 +131,14 @@ export function isoTile(tileX: number, tileZ: number): { x: number; y: number } 
   };
 }
 
+function meshCellCenterTile(cell: number, meshScaleTiles: number): number {
+  return cell * meshScaleTiles + (meshScaleTiles - 1) / 2;
+}
+
+function meshSpanCenterTile(startCell: number, spanCells: number, meshScaleTiles: number): number {
+  return startCell * meshScaleTiles + (spanCells * meshScaleTiles - 1) / 2;
+}
+
 function entryFrameKey(entry: AssetEntry): string {
   return JSON.stringify({
     src: entry.src,
@@ -364,7 +372,10 @@ export class LiveAssetWorldSurface {
       sprite.anchor.set(0.5, 0.5);
       sprite.width = TILE_W * meshScaleTiles;
       sprite.height = TILE_H * meshScaleTiles;
-      const pos = isoTile(cell.tileX * meshScaleTiles, cell.tileZ * meshScaleTiles);
+      const pos = isoTile(
+        meshCellCenterTile(cell.tileX, meshScaleTiles),
+        meshCellCenterTile(cell.tileZ, meshScaleTiles),
+      );
       sprite.x = pos.x;
       sprite.y = pos.y;
       sprite.zIndex = Math.round(pos.y - 10000);
@@ -387,7 +398,10 @@ export class LiveAssetWorldSurface {
       sprite.anchor.set(0.5, 0.5);
       sprite.width = TILE_W * meshScaleTiles;
       sprite.height = TILE_H * meshScaleTiles;
-      const pos = isoTile(localX * meshScaleTiles, localZ * meshScaleTiles);
+      const pos = isoTile(
+        meshCellCenterTile(localX, meshScaleTiles),
+        meshCellCenterTile(localZ, meshScaleTiles),
+      );
       sprite.x = pos.x;
       sprite.y = pos.y;
       sprite.zIndex = Math.round(pos.y - 5000);
@@ -408,8 +422,8 @@ export class LiveAssetWorldSurface {
       sprite.anchor.set(0.5, 1);
       scalePreservingAspect(sprite, 180 * buildingVisualScale, 220 * buildingVisualScale);
       const pos = isoTile(
-        (lot.tileX + lot.widthTiles / 2) * meshScaleTiles,
-        (lot.tileZ + lot.depthTiles / 2) * meshScaleTiles,
+        meshSpanCenterTile(lot.tileX, lot.widthTiles, meshScaleTiles),
+        meshSpanCenterTile(lot.tileZ, lot.depthTiles, meshScaleTiles),
       );
       sprite.x = pos.x;
       sprite.y = pos.y;
@@ -431,7 +445,10 @@ export class LiveAssetWorldSurface {
       const targetHeight = prop.propType === "tree" ? 128 : prop.propType === "market_stall" ? 82 : 58;
       const maxWidth = prop.propType === "tree" ? 104 : prop.propType === "market_stall" ? 128 : 72;
       scalePreservingAspect(sprite, targetHeight, maxWidth);
-      const pos = isoTile(prop.tileX * meshScaleTiles, prop.tileZ * meshScaleTiles);
+      const pos = isoTile(
+        meshCellCenterTile(prop.tileX, meshScaleTiles),
+        meshCellCenterTile(prop.tileZ, meshScaleTiles),
+      );
       sprite.x = pos.x;
       sprite.y = pos.y;
       sprite.zIndex = Math.round(pos.y + 1);
