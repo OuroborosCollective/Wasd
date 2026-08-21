@@ -5,7 +5,7 @@ import {
   getContentDataRoot,
   getContentDataSourceLabel,
 } from "../modules/content/contentDataRoot.js";
-import { validateContentRoot } from "../modules/content/validateContentCore.js";
+import { validateAuthoringContentRoot } from "../modules/content/validateAuthoringContent.js";
 import {
   validateQuestContentDefinitionAgainstContext,
   type QuestContentReferenceContext,
@@ -138,13 +138,19 @@ function main(): void {
   const next = [...existing, quest];
   fs.writeFileSync(questPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
 
-  const readback = validateContentRoot(root);
+  const readback = validateAuthoringContentRoot(root);
   if (!readback.ok) {
     fs.writeFileSync(questPath, originalRaw, "utf8");
-    die(`Post-write content validation failed; original file restored: ${readback.errors.join("; ")}`);
+    die(`Post-write authoring validation failed; original file restored: ${readback.errors.join("; ")}`);
   }
 
-  const after = loadAreloriaAuthoringContext();
+  let after: ReturnType<typeof loadAreloriaAuthoringContext>;
+  try {
+    after = loadAreloriaAuthoringContext();
+  } catch (error) {
+    fs.writeFileSync(questPath, originalRaw, "utf8");
+    die(`Post-write context readback failed; original file restored: ${error instanceof Error ? error.message : String(error)}`);
+  }
   const questId = String((quest as any)?.id ?? "");
   if (!after.quests.some((entry) => entry.id === questId)) {
     fs.writeFileSync(questPath, originalRaw, "utf8");
