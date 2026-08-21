@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { TickSystemRegistry } from '../TickSystemRegistry.js';
 import { WorldTickThinShell } from '../WorldTickThinShell.js';
-import { DEFAULT_FAILURE_FAMILY_PROBE_CASES } from '../TickFailureFamilyProbeSystem.js';
+import {
+  DEFAULT_FAILURE_FAMILY_PROBE_CASES,
+  TICK_FAILURE_FAMILY_PROBE_SYSTEM_NAME,
+} from '../TickFailureFamilyProbeSystem.js';
 
-function makeShell(): WorldTickThinShell {
+function makeRuntime(): { shell: WorldTickThinShell; registry: TickSystemRegistry } {
   const registry = new TickSystemRegistry();
   const shell = new WorldTickThinShell({ registry, worldSeed: 'failure-family-regression' });
   shell.registerWorldStateProvider({
@@ -15,12 +18,12 @@ function makeShell(): WorldTickThinShell {
     }),
   });
   shell.registerChunk('0:0');
-  return shell;
+  return { shell, registry };
 }
 
 describe('10Hz failure-family probe runtime', () => {
   it('executes one family case per authoritative tick and reruns only the side-effect-free probe', () => {
-    const shell = makeShell();
+    const { shell } = makeRuntime();
     const armed = shell.armFailureFamilyRun('regression-full-run');
     expect(armed.active).toBe(true);
     expect(armed.totalCases).toBe(DEFAULT_FAILURE_FAMILY_PROBE_CASES.length);
@@ -54,8 +57,22 @@ describe('10Hz failure-family probe runtime', () => {
     }
   });
 
+  it('keeps every non-probe TickSystem on the default never-rerun policy', () => {
+    const { registry } = makeRuntime();
+    const snapshot = registry.getRegistrationSnapshot();
+    const retryEnabled = snapshot.filter((entry) => entry.failureRerunPolicy === 'safe_same_context_once');
+
+    expect(retryEnabled).toHaveLength(1);
+    expect(retryEnabled[0].name).toBe(TICK_FAILURE_FAMILY_PROBE_SYSTEM_NAME);
+    expect(
+      snapshot
+        .filter((entry) => entry.name !== TICK_FAILURE_FAMILY_PROBE_SYSTEM_NAME)
+        .every((entry) => entry.failureRerunPolicy === 'never'),
+    ).toBe(true);
+  });
+
   it('does not arm a second run over an active run', () => {
-    const shell = makeShell();
+    const { shell } = makeRuntime();
     const first = shell.armFailureFamilyRun('first');
     const second = shell.armFailureFamilyRun('second');
     expect(first.runId).toBe('first');
