@@ -31,6 +31,32 @@ describe('TickFailureFamilyRuntime', () => {
     expect(derived.fingerprint).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('classifies hard boundary stages before the generic SYSTEM_EXCEPTION fallback code', () => {
+    const persistence = deriveTickFailure({
+      tick: 5,
+      stage: 'persistence_tick',
+      error: new Error('adapter write exploded'),
+    });
+    const provider = deriveTickFailure({
+      tick: 6,
+      stage: 'world_state',
+      provider: 'runtime-provider',
+      error: new Error('read exploded'),
+    });
+    const snapshot = deriveTickFailure({
+      tick: 7,
+      stage: 'snapshot_finalize',
+      error: new Error('snapshot invariant exploded'),
+    });
+
+    expect(persistence.code).toBe('SYSTEM_EXCEPTION');
+    expect(persistence.family).toBe('persistence');
+    expect(persistence.signals).toContain('stage:persistence_tick');
+    expect(provider.family).toBe('runtime_source');
+    expect(provider.signals).toContain('stage:world_state');
+    expect(snapshot.family).toBe('state_invariant');
+  });
+
   it('normalizes volatile numbers so repeated failures aggregate into one family record', () => {
     const runtime = new TickFailureFamilyRuntime();
     runtime.recordFailure({
