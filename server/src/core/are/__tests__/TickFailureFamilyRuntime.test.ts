@@ -11,6 +11,21 @@ function codedError(code: string, message: string): Error & { code: string } {
   return error;
 }
 
+function probeError(runId: string, caseId: string): Error & {
+  code: string;
+  failureFamilyRunId: string;
+  failureFamilyCaseId: string;
+} {
+  const error = codedError('DETERMINISM_DIVERGENCE', 'same diagnostic divergence') as Error & {
+    code: string;
+    failureFamilyRunId: string;
+    failureFamilyCaseId: string;
+  };
+  error.failureFamilyRunId = runId;
+  error.failureFamilyCaseId = caseId;
+  return error;
+}
+
 describe('TickFailureFamilyRuntime', () => {
   it.each([
     ['MISSING_RUNTIME_SOURCE', 'runtime_source'],
@@ -79,6 +94,37 @@ describe('TickFailureFamilyRuntime', () => {
     expect(snapshot.records[0].firstTick).toBe(10);
     expect(snapshot.records[0].lastTick).toBe(11);
     expect(snapshot.records[0].derivationRerunMatches).toBe(true);
+  });
+
+  it('keeps a stable fingerprint across diagnostic runs while preserving first and latest run provenance', () => {
+    const runtime = new TickFailureFamilyRuntime();
+    runtime.recordFailure({
+      tick: 20,
+      stage: 'system_tick',
+      system: 'failure-family-probe',
+      error: probeError('run-one', 'determinism-divergence'),
+      rerunEligible: true,
+    });
+    runtime.recordFailure({
+      tick: 40,
+      stage: 'system_tick',
+      system: 'failure-family-probe',
+      error: probeError('run-two', 'determinism-divergence'),
+      rerunEligible: true,
+    });
+
+    const snapshot = runtime.getSnapshot();
+    expect(snapshot.distinctFailures).toBe(1);
+    expect(snapshot.totalOccurrences).toBe(2);
+    expect(snapshot.records[0]).toMatchObject({
+      runId: 'run-one',
+      caseId: 'determinism-divergence',
+      lastRunId: 'run-two',
+      lastCaseId: 'determinism-divergence',
+      firstTick: 20,
+      lastTick: 40,
+      occurrenceCount: 2,
+    });
   });
 
   it('records rerun recovery without inventing a second failure occurrence', () => {
