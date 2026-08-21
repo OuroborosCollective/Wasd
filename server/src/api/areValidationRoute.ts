@@ -47,6 +47,12 @@ function failureFamilyReadback(tick: WorldTick, shell: any) {
   };
 }
 
+function runIdAlreadyObserved(shell: any, runId: string): boolean {
+  const failures = shell.getFailureFamilyStatus?.();
+  const records = Array.isArray(failures?.records) ? failures.records : [];
+  return records.some((record: any) => record?.runId === runId || record?.lastRunId === runId);
+}
+
 export function areValidationRouter(tick: WorldTick) {
   const router = express.Router();
   router.use(adminRateLimiter, adminAuthMiddleware);
@@ -95,7 +101,8 @@ export function areValidationRouter(tick: WorldTick) {
       res.status(503).json({ ok: false, error: "failure_family_runtime_unavailable" });
       return;
     }
-    if (req.body?.runId !== undefined && requestedRunId(req.body) === null) {
+    const requested = requestedRunId(req.body);
+    if (req.body?.runId !== undefined && requested === null) {
       res.status(400).json({ ok: false, error: "invalid_failure_family_run_id" });
       return;
     }
@@ -108,7 +115,16 @@ export function areValidationRouter(tick: WorldTick) {
       });
       return;
     }
-    shell.armFailureFamilyRun(requestedRunId(req.body));
+    if (requested && runIdAlreadyObserved(shell, requested)) {
+      res.status(409).json({
+        ok: false,
+        error: "failure_family_run_id_already_used",
+        requestedRunId: requested,
+        ...failureFamilyReadback(tick, shell),
+      });
+      return;
+    }
+    shell.armFailureFamilyRun(requested);
     res.status(202).json({
       ok: true,
       accepted: true,
