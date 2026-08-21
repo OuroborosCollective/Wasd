@@ -17,6 +17,7 @@ describe("Genkit authoritative gameplay operator contract", () => {
   it("exposes only fixed authoritative action identifiers", () => {
     expect(EXECUTABLE_GENKIT_GAMEPLAY_ACTIONS).toEqual([
       "move",
+      "combat_attack",
       "gather",
       "quest_talk",
       "quest_accept",
@@ -34,19 +35,23 @@ describe("Genkit authoritative gameplay operator contract", () => {
     const capabilities = getGenkitGameplayCapabilities();
     const executable = capabilities.executable as ReadonlyArray<Record<string, unknown>>;
     for (const entry of executable) {
-      if (entry.action === "move") continue;
+      if (entry.action === "move" || entry.action === "combat_attack") continue;
       expect(String(entry.path)).toMatch(/^\/api\//);
       expect(entry.authority).toBe("existing_server_route");
       expect(entry.canonicalIntentExpected).toBe(true);
     }
+
+    const combat = executable.find((entry) => entry.action === "combat_attack");
+    expect(combat?.authority).toBe("WorldTickThinShell -> TickSystemRegistry -> CombatTickSystem");
+    expect(capabilities.combatRuntime.available).toBe(true);
   });
 
-  it("keeps known truth gaps blocked instead of advertising fake authority", () => {
+  it("keeps remaining truth gaps blocked instead of advertising fake authority", () => {
     const capabilities = getGenkitGameplayCapabilities();
     const blocked = capabilities.blocked.map((entry) => entry.capability);
-    expect(blocked).toContain("combat");
     expect(blocked).toContain("direct_inventory_mutation");
     expect(blocked).toContain("guild_governance");
+    expect(blocked).not.toContain("combat");
     expect(blocked).not.toContain("equipment_mutation");
   });
 
