@@ -53,7 +53,7 @@ describe("2D production presentation truth", () => {
     expect(Object.keys(atlas.entries ?? {}).length).toBeGreaterThan(0);
   });
 
-  it("ships real terrain, building and prop assets in the merged 2D manifest source", () => {
+  it("ships real terrain, building and prop assets in the 2D manifest", () => {
     const manifest = readJson("apps/client-2d/public/2d-assets/manifest.json");
     expect(Object.keys(manifest.tilesets ?? {}).length).toBeGreaterThan(0);
     expect(Object.keys(manifest.buildings ?? {}).length).toBeGreaterThan(0);
@@ -87,10 +87,33 @@ describe("2D production presentation truth", () => {
     expect(surface).toContain("Intentionally DO NOT render plan.npcs");
   });
 
-  it("requires server-seeded projection provenance instead of a client-local demo seed", () => {
+  it("uses the server/shared 64-tile chunk contract and maps the 16-cell scene mesh explicitly", () => {
+    const unified = readText("packages/shared/src/world/UnifiedChunkContract.ts");
     const healthRoutes = readText("server/src/api/healthRoutes.ts");
     const surface = readText("apps/client-2d/src/world/LiveAssetWorldSurface.ts");
 
+    expect(unified).toContain("UNIFIED_CHUNK_SIZE_TILES = 64");
+    expect(unified).toContain("LEGACY_INTRACHUNK_MESH_TILES = 16");
+
+    expect(healthRoutes).toContain("areloria.client2d-world-projection.v2");
+    expect(healthRoutes).toContain("UNIFIED_CHUNK_SIZE_TILES");
+    expect(healthRoutes).toContain("LEGACY_INTRACHUNK_MESH_TILES");
+    expect(healthRoutes).toContain("meshScaleTiles");
+
+    expect(surface).toContain("chunkSizeTiles: UNIFIED_CHUNK_SIZE_TILES");
+    expect(surface).toContain("scenePlanMeshTiles: LEGACY_INTRACHUNK_MESH_TILES");
+    expect(surface).toContain("centerChunkX = Math.floor(tileX / this.projection.chunkSizeTiles)");
+    expect(surface).toContain("cell.tileX * meshScaleTiles");
+    expect(surface).toContain("chunkX * this.projection.chunkSizeTiles");
+  });
+
+  it("requires server-seeded WorldDirector provenance instead of a client-local demo seed", () => {
+    const canonicalSignals = readText("server/src/core/are/CanonicalLayerSeedSignals.ts");
+    const healthRoutes = readText("server/src/api/healthRoutes.ts");
+    const surface = readText("apps/client-2d/src/world/LiveAssetWorldSurface.ts");
+
+    expect(canonicalSignals).toContain("generateChunkScenePlan");
+    expect(canonicalSignals).toContain("resolveCanonicalWorldSeed");
     expect(healthRoutes).toContain("/world-projection");
     expect(healthRoutes).toContain("resolveCanonicalWorldSeed()");
     expect(healthRoutes).toContain("OuroborosWorldDirectorV1");
