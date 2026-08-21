@@ -57,6 +57,18 @@
         "modelUrl": "/assets/models/characters/SK_Chr_NPC_Male_01.glb",
         "scale": 1
       }
+    },
+    "loot": {
+      "presentation2d": {
+        "kind": "asset_manifest",
+        "assetCategory": "props",
+        "propType": "crate",
+        "scale": 0.75,
+        "anchor": [
+          0.5,
+          1
+        ]
+      }
     }
   }
 }
