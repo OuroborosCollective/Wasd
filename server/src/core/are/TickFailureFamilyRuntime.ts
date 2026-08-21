@@ -16,6 +16,7 @@ export type TickFailureStage =
   | 'persistence_tick'
   | 'scheduled_tick';
 
+export type TickFailureOrigin = 'runtime' | 'diagnostic_probe';
 export type TickFailureRerunOutcome = 'not_eligible' | 'recovered' | 'reproduced' | 'changed_failure';
 
 export interface TickFailureInput {
@@ -29,6 +30,7 @@ export interface TickFailureInput {
 
 export interface TickFailureDerivation {
   readonly family: TickFailureFamily;
+  readonly origin: TickFailureOrigin;
   readonly code: string;
   readonly errorName: string;
   readonly normalizedMessage: string;
@@ -60,17 +62,25 @@ export interface TickFailureRecord extends TickFailureDerivation {
 }
 
 export interface TickFailureFamilySnapshot {
+  /** Organic runtime health only. Diagnostic exercises never poison this status. */
   readonly status: 'clean' | 'observed';
   readonly totalOccurrences: number;
+  readonly runtimeOccurrences: number;
+  readonly diagnosticOccurrences: number;
   readonly distinctFailures: number;
   readonly lastFailureTick: number | null;
+  readonly lastRuntimeFailureTick: number | null;
   readonly lastHealthyTick: number | null;
+  /** All observations, including diagnostic probe runs. */
   readonly families: Readonly<Record<TickFailureFamily, number>>;
+  readonly runtimeFamilies: Readonly<Record<TickFailureFamily, number>>;
+  readonly diagnosticFamilies: Readonly<Record<TickFailureFamily, number>>;
   readonly records: readonly TickFailureRecord[];
 }
 
 type MutableFailureRecord = {
   family: TickFailureFamily;
+  origin: TickFailureOrigin;
   code: string;
   errorName: string;
   normalizedMessage: string;
@@ -114,6 +124,18 @@ const CODE_FAMILY: Readonly<Record<string, TickFailureFamily>> = Object.freeze({
   SYSTEM_EXCEPTION: 'system_exception',
 });
 
+function emptyFamilyCounts(): Record<TickFailureFamily, number> {
+  return {
+    runtime_source: 0,
+    system_exception: 0,
+    state_invariant: 0,
+    determinism: 0,
+    persistence: 0,
+    ordering: 0,
+    unknown: 0,
+  };
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? value as Record<string, unknown> : {};
 }
@@ -138,6 +160,7 @@ function errorDescriptor(error: unknown): {
   readonly code: string;
   readonly errorName: string;
   readonly message: string;
+  readonly origin: TickFailureOrigin;
   readonly runId: string | null;
   readonly caseId: string | null;
 } {
@@ -149,6 +172,7 @@ function errorDescriptor(error: unknown): {
     code,
     errorName,
     message,
+    origin: record.failureFamilyProbe === true ? 'diagnostic_probe' : 'runtime',
     runId: cleanString(record.failureFamilyRunId),
     caseId: cleanString(record.failureFamilyCaseId),
   };
@@ -200,6 +224,7 @@ export function deriveTickFailure(input: TickFailureInput): TickFailureDerivatio
   const system = cleanString(input.system) ?? '';
   const provider = cleanString(input.provider) ?? '';
   const fingerprint = stableFingerprint([
+    descriptor.origin,
     derived.family,
     input.stage,
     system,
@@ -211,6 +236,7 @@ export function deriveTickFailure(input: TickFailureInput): TickFailureDerivatio
 
   return Object.freeze({
     family: derived.family,
+    origin: descriptor.origin,
     code: descriptor.code,
     errorName: descriptor.errorName,
     normalizedMessage,
@@ -231,7 +257,10 @@ function freezeRecord(record: MutableFailureRecord): TickFailureRecord {
 export class TickFailureFamilyRuntime {
   private readonly records = new Map<string, MutableFailureRecord>();
   private totalOccurrences = 0;
+  private runtimeOccurrences = 0;
+  private diagnosticOccurrences = 0;
   private lastFailureTick: number | null = null;
+  private lastRuntimeFailureTick: number | null = null;
   private lastHealthyTick: number | null = null;
 
   recordFailure(input: TickFailureInput): TickFailureRecord {
@@ -241,6 +270,12 @@ export class TickFailureFamilyRuntime {
     const tick = Math.max(0, Math.trunc(Number(input.tick) || 0));
     this.totalOccurrences += 1;
     this.lastFailureTick = tick;
+    if (first.origin === 'diagnostic_probe') {
+      this.diagnosticOccurrences += 1;
+    } else {
+      this.runtimeOccurrences += 1;
+      this.lastRuntimeFailureTick = tick;
+    }
 
     const existing = this.records.get(first.fingerprint);
     if (existing) {
@@ -310,26 +345,29 @@ export class TickFailureFamilyRuntime {
   }
 
   getSnapshot(): TickFailureFamilySnapshot {
-    const familyCounts: Record<TickFailureFamily, number> = {
-      runtime_source: 0,
-      system_exception: 0,
-      state_invariant: 0,
-      determinism: 0,
-      persistence: 0,
-      ordering: 0,
-      unknown: 0,
-    };
+    const familyCounts = emptyFamilyCounts();
+    const runtimeFamilyCounts = emptyFamilyCounts();
+    const diagnosticFamilyCounts = emptyFamilyCounts();
     const records = [...this.records.values()]
       .sort((a, b) => b.lastTick - a.lastTick || a.fingerprint.localeCompare(b.fingerprint))
       .map(freezeRecord);
-    for (const record of records) familyCounts[record.family] += record.occurrenceCount;
+    for (const record of records) {
+      familyCounts[record.family] += record.occurrenceCount;
+      if (record.origin === 'diagnostic_probe') diagnosticFamilyCounts[record.family] += record.occurrenceCount;
+      else runtimeFamilyCounts[record.family] += record.occurrenceCount;
+    }
     return Object.freeze({
-      status: this.totalOccurrences === 0 ? 'clean' : 'observed',
+      status: this.runtimeOccurrences === 0 ? 'clean' : 'observed',
       totalOccurrences: this.totalOccurrences,
+      runtimeOccurrences: this.runtimeOccurrences,
+      diagnosticOccurrences: this.diagnosticOccurrences,
       distinctFailures: records.length,
       lastFailureTick: this.lastFailureTick,
+      lastRuntimeFailureTick: this.lastRuntimeFailureTick,
       lastHealthyTick: this.lastHealthyTick,
       families: Object.freeze({ ...familyCounts }),
+      runtimeFamilies: Object.freeze({ ...runtimeFamilyCounts }),
+      diagnosticFamilies: Object.freeze({ ...diagnosticFamilyCounts }),
       records: Object.freeze(records),
     });
   }
@@ -337,7 +375,10 @@ export class TickFailureFamilyRuntime {
   clear(): void {
     this.records.clear();
     this.totalOccurrences = 0;
+    this.runtimeOccurrences = 0;
+    this.diagnosticOccurrences = 0;
     this.lastFailureTick = null;
+    this.lastRuntimeFailureTick = null;
     this.lastHealthyTick = null;
   }
 
