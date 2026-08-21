@@ -10,7 +10,7 @@
  * - Stable merge order by provider ID
  */
 
-import { tickSystemRegistry } from "./TickSystemRegistry.js";
+import { tickSystemRegistry, type TickSystemRegistry } from "./TickSystemRegistry.js";
 import { createDefaultTickContext, type TickSystemContext } from "./TickSystem.js";
 import { SnapshotComposer } from "./SnapshotComposer.js";
 import { LayerPersistenceQueue, layerPersistenceQueue } from "./LayerPersistenceQueue.js";
@@ -26,6 +26,12 @@ import {
   LayerPersistenceWorldBrainReplaySink,
   RuntimeWorldBrainStatePort,
 } from "./WorldBrainRuntimePort.js";
+import {
+  registerTickFailureFamilyProbeSystem,
+  type FailureFamilyProbeRunStatus,
+  type TickFailureFamilyProbeSystem,
+} from "./TickFailureFamilyProbeSystem.js";
+import type { TickFailureFamilySnapshot } from "./TickFailureFamilyRuntime.js";
 
 /**
  * World state slice provided by a single provider.
@@ -90,6 +96,19 @@ export type ThinShellWorldStateProvider = () => WorldStateProviderSlice;
 
 export interface WorldTickThinShellOptions {
   readonly worldSeed?: string | number | null;
+  readonly registry?: TickSystemRegistry;
+}
+
+class WorldStateProviderFailure extends Error {
+  readonly code = 'WORLD_STATE_PROVIDER_FAILURE';
+  readonly providerId: string;
+
+  constructor(providerId: string, cause: unknown) {
+    const message = cause instanceof Error ? cause.message : String(cause ?? 'unknown provider failure');
+    super(`WorldStateProvider "${providerId}" failed: ${message}`, { cause });
+    this.name = 'WorldStateProviderFailure';
+    this.providerId = providerId;
+  }
 }
 
 const EMPTY_WORLD_STATE: ThinShellWorldState = Object.freeze({
@@ -141,6 +160,15 @@ function appendStable(target: unknown[], source: readonly unknown[] | undefined)
   }
 }
 
+function missingRuntimeSourceError(): Error & { code: string } {
+  const error = new Error(
+    "MISSING_RUNTIME_SOURCE: no WorldStateProvider registered for ARE truth path. " +
+    "Register at least one WorldStateProvider before ticking."
+  ) as Error & { code: string };
+  error.code = 'MISSING_RUNTIME_SOURCE';
+  return error;
+}
+
 export class WorldTickThinShell {
   private tickCount = 0;
   static readonly TICK_INTERVAL_MS = 100;
@@ -148,6 +176,8 @@ export class WorldTickThinShell {
   private snapshotComposer: SnapshotComposer;
   private persistenceQueue: LayerPersistenceQueue;
   private worldBrainState: RuntimeWorldBrainStatePort;
+  private readonly registry: TickSystemRegistry;
+  private readonly failureProbe: TickFailureFamilyProbeSystem;
   private isRunning = false;
   private timer: ReturnType<typeof setInterval> | null = null;
 
@@ -155,6 +185,7 @@ export class WorldTickThinShell {
   private worldStateProviders = new Map<string, WorldStateProvider>();
 
   constructor(options: WorldTickThinShellOptions = {}) {
+    this.registry = options.registry ?? tickSystemRegistry;
     this.snapshotComposer = new SnapshotComposer();
     this.persistenceQueue = layerPersistenceQueue;
     this.worldBrainState = new RuntimeWorldBrainStatePort({ worldSeed: options.worldSeed });
@@ -165,7 +196,8 @@ export class WorldTickThinShell {
     // so rehydrate stays fail-closed until a real backend is wired.
     this.worldBrainState.setReadbackProvider((chunkKey) => this.persistenceQueue.loadChunkState(chunkKey));
 
-    registerCoreTickSystems();
+    registerCoreTickSystems({}, this.registry);
+    this.failureProbe = registerTickFailureFamilyProbeSystem(this.registry);
     this.registerWorldBrainRuntimeSystem();
   }
 
@@ -174,8 +206,11 @@ export class WorldTickThinShell {
 
     console.log("[WorldTickThinShell] Starting - 10-Hz brain tick");
     this.isRunning = true;
-    tickSystemRegistry.notifyStart();
-    this.timer = setInterval(() => this.tick(), WorldTickThinShell.TICK_INTERVAL_MS);
+    this.registry.notifyStart();
+    // Runtime scheduling catches boundary failures so one broken provider cannot
+    // turn a structured 10Hz failure into an unhandled process exception. The
+    // direct tick() API still throws and remains fail-hard for tests/operators.
+    this.timer = setInterval(() => this.runScheduledTick(), WorldTickThinShell.TICK_INTERVAL_MS);
   }
 
   async stop(): Promise<void> {
@@ -190,14 +225,26 @@ export class WorldTickThinShell {
     }
 
     await this.persistenceQueue.shutdown();
-    tickSystemRegistry.notifyShutdown();
+    this.registry.notifyShutdown();
   }
 
   tick(): void {
     this.tickCount++;
+    const tick = this.tickCount;
+    const context: TickSystemContext = createDefaultTickContext(tick);
+    let worldState: ThinShellWorldState;
 
-    const context: TickSystemContext = createDefaultTickContext(this.tickCount);
-    const worldState = this.getWorldStateForTick(context);
+    try {
+      worldState = this.getWorldStateForTick(context);
+    } catch (error) {
+      this.registry.getFailureRuntime().recordFailure({
+        tick,
+        stage: 'world_state',
+        provider: (error as any)?.providerId ?? null,
+        error,
+      });
+      throw error;
+    }
 
     Object.defineProperty(context, "world", {
       value: worldState,
@@ -205,9 +252,33 @@ export class WorldTickThinShell {
       enumerable: true,
     });
 
-    tickSystemRegistry.executeAll(context);
-    this.finalizeWorldBrainSnapshot();
-    this.persistenceQueue.tick(this.tickCount as any);
+    const execution = this.registry.executeAll(context);
+
+    try {
+      this.finalizeWorldBrainSnapshot();
+    } catch (error) {
+      this.registry.getFailureRuntime().recordFailure({
+        tick,
+        stage: 'snapshot_finalize',
+        error,
+      });
+      throw error;
+    }
+
+    try {
+      this.persistenceQueue.tick(tick as any);
+    } catch (error) {
+      this.registry.getFailureRuntime().recordFailure({
+        tick,
+        stage: 'persistence_tick',
+        error,
+      });
+      throw error;
+    }
+
+    if (execution.failures.length === 0) {
+      this.registry.getFailureRuntime().recordHealthyTick(tick);
+    }
   }
 
   /**
@@ -217,10 +288,7 @@ export class WorldTickThinShell {
   private getWorldStateForTick(context: TickSystemContext): ThinShellWorldState {
     // ARE-RUNTIME-TRUTH: Fail hard if no providers - no silent EMPTY_WORLD_STATE
     if (this.worldStateProviders.size === 0) {
-      throw new Error(
-        "MISSING_RUNTIME_SOURCE: no WorldStateProvider registered for ARE truth path. " +
-        "Register at least one WorldStateProvider before ticking."
-      );
+      throw missingRuntimeSourceError();
     }
 
     // Stable sort providers by ID for deterministic merge order
@@ -247,7 +315,12 @@ export class WorldTickThinShell {
     };
 
     for (const provider of providers) {
-      const slice = normalizeWorldState(provider.getWorldState(context));
+      let slice: ThinShellWorldState;
+      try {
+        slice = normalizeWorldState(provider.getWorldState(context));
+      } catch (error) {
+        throw new WorldStateProviderFailure(provider.id, error);
+      }
 
       appendStable(merged.npcs, slice.npcs);
       appendStable(merged.players, slice.players);
@@ -325,6 +398,18 @@ export class WorldTickThinShell {
     return this.worldStateProviders.size > 0;
   }
 
+  getFailureFamilyStatus(): TickFailureFamilySnapshot {
+    return this.registry.getFailureRuntime().getSnapshot();
+  }
+
+  armFailureFamilyRun(requestedRunId?: string | null): FailureFamilyProbeRunStatus {
+    return this.failureProbe.armFullRun({ requestedRunId, currentTick: this.tickCount });
+  }
+
+  getFailureFamilyProbeStatus(): FailureFamilyProbeRunStatus {
+    return this.failureProbe.getStatus();
+  }
+
   registerChunk(chunkKey: string): void {
     this.worldBrainState.registerChunk(coerceChunkKey(chunkKey));
   }
@@ -391,6 +476,23 @@ export class WorldTickThinShell {
     };
   }
 
+  private runScheduledTick(): void {
+    try {
+      this.tick();
+    } catch (error) {
+      const snapshot = this.registry.getFailureRuntime().getSnapshot();
+      if (snapshot.lastFailureTick !== this.tickCount) {
+        this.registry.getFailureRuntime().recordFailure({
+          tick: this.tickCount,
+          stage: 'scheduled_tick',
+          error,
+        });
+      }
+      // No fake state and no retry of the full authoritative tick. A failed tick
+      // remains failed/consumed; the scheduler proceeds to the next 100ms slot.
+    }
+  }
+
   private registerWorldBrainRuntimeSystem(): void {
     // Registry replacement is intentional here: each ThinShell owns its runtime
     // WorldBrain ports. Replacement keeps tests and isolated runtimes honest
@@ -399,7 +501,7 @@ export class WorldTickThinShell {
       state: this.worldBrainState,
       snapshot: new SnapshotComposerWorldBrainSink(this.snapshotComposer),
       replay: new LayerPersistenceWorldBrainReplaySink(this.persistenceQueue),
-    });
+    }, this.registry);
   }
 
   private finalizeWorldBrainSnapshot(): void {
