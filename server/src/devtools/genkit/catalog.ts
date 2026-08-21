@@ -5,6 +5,7 @@ export interface AreloriaGenkitFlowCatalogEntry {
   capability:
     | "npc"
     | "quest_lore"
+    | "canonical_quest"
     | "ui_menu"
     | "database"
     | "code_fix"
@@ -26,6 +27,13 @@ export const ARELORIA_GENKIT_FLOW_CATALOG = Object.freeze([
   {
     flowName: "areloriaQuestLoreFlow",
     capability: "quest_lore",
+    effectClass: "CONTENT_PROPOSAL",
+    approval: "REVIEW_REQUIRED",
+    authoritativeWrite: false,
+  },
+  {
+    flowName: "areloriaCanonicalQuestProposalFlow",
+    capability: "canonical_quest",
     effectClass: "CONTENT_PROPOSAL",
     approval: "REVIEW_REQUIRED",
     authoritativeWrite: false,
