@@ -1,5 +1,6 @@
 import { canonicalIntentIntake } from "../intents/CanonicalIntentIntake.js";
 import { amplitudeTelemetry } from "./amplitudeTelemetry.js";
+import { quicknodeReadOnly } from "./quicknodeReadOnly.js";
 
 let installed = false;
 let unsubscribeAmplitude: (() => void) | null = null;
@@ -17,11 +18,16 @@ export function installExternalSideChannels(): void {
   unsubscribeAmplitude = canonicalIntentIntake.subscribe((observation) => {
     amplitudeTelemetry.observeCanonicalIntent(observation);
   });
+
+  // Quicknode may attest external chain metadata only. It has no write/signing
+  // API and no value from it is fed back into gameplay authority.
+  quicknodeReadOnly.start();
 }
 
 export async function shutdownExternalSideChannels(): Promise<void> {
   unsubscribeAmplitude?.();
   unsubscribeAmplitude = null;
+  quicknodeReadOnly.stop();
   await amplitudeTelemetry.shutdown();
   installed = false;
 }
