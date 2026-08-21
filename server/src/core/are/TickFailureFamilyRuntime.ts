@@ -58,7 +58,6 @@ export interface TickFailureRecord extends TickFailureDerivation {
 }
 
 export interface TickFailureFamilySnapshot {
-  /** Organic runtime health only. Diagnostic exercises never poison this status. */
   readonly status: 'clean' | 'observed';
   readonly totalOccurrences: number;
   readonly runtimeOccurrences: number;
@@ -67,7 +66,6 @@ export interface TickFailureFamilySnapshot {
   readonly lastFailureTick: number | null;
   readonly lastRuntimeFailureTick: number | null;
   readonly lastHealthyTick: number | null;
-  /** All observations, including diagnostic probe runs. */
   readonly families: Readonly<Record<TickFailureFamily, number>>;
   readonly runtimeFamilies: Readonly<Record<TickFailureFamily, number>>;
   readonly diagnosticFamilies: Readonly<Record<TickFailureFamily, number>>;
@@ -121,15 +119,7 @@ const CODE_FAMILY: Readonly<Record<string, TickFailureFamily>> = Object.freeze({
 });
 
 function emptyFamilyCounts(): Record<TickFailureFamily, number> {
-  return {
-    runtime_source: 0,
-    system_exception: 0,
-    state_invariant: 0,
-    determinism: 0,
-    persistence: 0,
-    ordering: 0,
-    unknown: 0,
-  };
+  return { runtime_source: 0, system_exception: 0, state_invariant: 0, determinism: 0, persistence: 0, ordering: 0, unknown: 0 };
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -175,21 +165,20 @@ function errorDescriptor(error: unknown): {
 }
 
 function deriveFamily(input: TickFailureInput, code: string, normalizedMessage: string): { family: TickFailureFamily; signals: string[] } {
-  // Hard truth-boundary stages take precedence over the generic fallback code.
   if (input.stage === 'world_state') {
     return { family: 'runtime_source', signals: ['stage:world_state', ...(CODE_FAMILY[code] ? [`code:${code}`] : [])] };
   }
   if (input.stage === 'persistence_tick') {
     return { family: 'persistence', signals: ['stage:persistence_tick', ...(CODE_FAMILY[code] ? [`code:${code}`] : [])] };
   }
-  // Snapshot finalization is a state-integrity boundary for an untyped Error.
-  // Explicit codes such as DETERMINISM_DIVERGENCE remain more specific and are
-  // handled by CODE_FAMILY below.
   if (input.stage === 'snapshot_finalize' && code === 'SYSTEM_EXCEPTION') {
     return { family: 'state_invariant', signals: ['stage:snapshot_finalize', 'code:SYSTEM_EXCEPTION'] };
   }
 
-  const direct = CODE_FAMILY[code];
+  // SYSTEM_EXCEPTION is the fallback descriptor for an untyped Error. It must
+  // not suppress a more specific derivation from the message/origin. All other
+  // explicit codes remain authoritative.
+  const direct = code === 'SYSTEM_EXCEPTION' ? null : CODE_FAMILY[code];
   if (direct) return { family: direct, signals: [`code:${code}`] };
 
   const haystack = [input.stage, input.system, input.provider, code, normalizedMessage].filter(Boolean).join('|').toLowerCase();
@@ -224,14 +213,8 @@ export function deriveTickFailure(input: TickFailureInput): TickFailureDerivatio
   const system = cleanString(input.system) ?? '';
   const provider = cleanString(input.provider) ?? '';
   const fingerprint = stableFingerprint([
-    descriptor.origin,
-    derived.family,
-    input.stage,
-    system,
-    provider,
-    descriptor.code,
-    descriptor.errorName,
-    normalizedMessage,
+    descriptor.origin, derived.family, input.stage, system, provider,
+    descriptor.code, descriptor.errorName, normalizedMessage,
   ]);
 
   return Object.freeze({
@@ -267,9 +250,8 @@ export class TickFailureFamilyRuntime {
     const tick = Math.max(0, Math.trunc(Number(input.tick) || 0));
     this.totalOccurrences += 1;
     this.lastFailureTick = tick;
-    if (first.origin === 'diagnostic_probe') {
-      this.diagnosticOccurrences += 1;
-    } else {
+    if (first.origin === 'diagnostic_probe') this.diagnosticOccurrences += 1;
+    else {
       this.runtimeOccurrences += 1;
       this.lastRuntimeFailureTick = tick;
     }
@@ -330,9 +312,7 @@ export class TickFailureFamilyRuntime {
         provider: input.provider ?? record.provider,
         rerunEligible: true,
       }).fingerprint;
-    } else {
-      record.lastRerunFingerprint = null;
-    }
+    } else record.lastRerunFingerprint = null;
     return freezeRecord(record);
   }
 
