@@ -57,11 +57,11 @@ jobs:
             server/src/tests/skills.test.ts \
             server/src/tests/xp-delta-router.test.ts
 
-      - name: Typecheck server
-        run: NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/server exec tsc --noEmit --pretty false
-
       - name: Build shared
         run: pnpm --filter @wasd/shared build
+
+      - name: Typecheck server
+        run: NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/server exec tsc --noEmit --pretty false
 
       - name: Build server
         run: pnpm -r --filter ./server build
