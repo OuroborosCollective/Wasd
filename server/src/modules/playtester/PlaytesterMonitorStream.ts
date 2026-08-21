@@ -1,8 +1,15 @@
 import type { Server as HttpServer } from "node:http";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { URL } from "node:url";
 import { WebSocketServer, WebSocket } from "ws";
 import { PlaytesterConfig } from "../../config/PlaytesterConfig.js";
 import type { PlaytesterMonitorUpdatePayload } from "./playtesterTypes.js";
+
+function safeEqualText(a: string, b: string): boolean {
+  const left = createHash("sha256").update(a, "utf8").digest();
+  const right = createHash("sha256").update(b, "utf8").digest();
+  return left.length === right.length && timingSafeEqual(left, right);
+}
 
 type ClientOptions = {
   performanceMode: boolean;
@@ -126,7 +133,9 @@ export class PlaytesterMonitorStream {
         : "");
 
     if (token.length > 0) {
-      return queryToken === token || headerToken.trim() === token;
+      const matchQuery = queryToken.length > 0 && safeEqualText(queryToken, token);
+      const matchHeader = headerToken.trim().length > 0 && safeEqualText(headerToken.trim(), token);
+      return matchQuery || matchHeader;
     }
 
     if (process.env.NODE_ENV !== "production") {

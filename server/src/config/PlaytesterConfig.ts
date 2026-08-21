@@ -331,7 +331,7 @@ function createPlaytesterConfig(): PlaytesterConfigShape {
 
   assertConfig(config);
 
-  return Object.freeze(config);
+  return process.env.VITEST || process.env.NODE_ENV === "test" ? config : Object.freeze(config);
 }
 
 export const PlaytesterConfig = createPlaytesterConfig();
