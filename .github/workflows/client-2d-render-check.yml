@@ -7,6 +7,7 @@ on:
       - 'apps/client-2d/**'
       - 'game-data/visual/presentation_bindings.json'
       - 'packages/shared/**'
+      - 'release.json'
       - 'server/src/api/healthRoutes.ts'
       - 'server/src/tests/client-2d-presentation-truth.test.ts'
       - 'scripts/audit-client-2d-renderer.mjs'
