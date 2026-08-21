@@ -1,12 +1,8 @@
 /**
  * POSTGRES SKILL PERSISTENCE ADAPTER
  *
- * DB-backed persistence for skill state.
- *
- * Rules:
- * - Graceful degradation when DATABASE_URL unavailable
- * - No secrets logged
- * - Deterministic queries
+ * DB-backed persistence for exact cap-free skill state. Existing schema-1 rows
+ * are normalized on read and rewritten as schema 2 on the next save.
  */
 
 import { Client } from "pg";
@@ -14,8 +10,8 @@ import {
   createPersistedPlayerSkillState,
   type PersistedPlayerSkillState,
   type SkillPersistenceAdapter,
-} from "./SkillPersistence";
-import { normalizePlayerSkillState } from "./SkillTypes";
+} from "./SkillPersistence.js";
+import { normalizePlayerSkillState } from "./SkillTypes.js";
 
 export async function ensurePlayerSkillStateTable(dbUrl: string): Promise<void> {
   const client = new Client({ connectionString: dbUrl });
@@ -25,7 +21,7 @@ export async function ensurePlayerSkillStateTable(dbUrl: string): Promise<void> 
     await client.query(`
       CREATE TABLE IF NOT EXISTS player_skill_state (
         player_id TEXT PRIMARY KEY,
-        schema_version INTEGER NOT NULL DEFAULT 1,
+        schema_version INTEGER NOT NULL DEFAULT 2,
         skills_json JSONB NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -51,8 +47,8 @@ export class PgSkillPersistenceAdapter implements SkillPersistenceAdapter {
     try {
       await client.connect();
       const result = await client.query(
-        "SELECT player_id, skills_json FROM player_skill_state WHERE player_id = $1",
-        [playerId]
+        "SELECT player_id, schema_version, skills_json FROM player_skill_state WHERE player_id = $1",
+        [playerId],
       );
 
       const row = result.rows[0];
@@ -61,10 +57,10 @@ export class PgSkillPersistenceAdapter implements SkillPersistenceAdapter {
       return normalizePlayerSkillState(
         {
           playerId: row.player_id,
-          schemaVersion: 1,
+          schemaVersion: Number(row.schema_version ?? 1),
           skills: Array.isArray(row.skills_json) ? row.skills_json : [],
         },
-        playerId
+        playerId,
       );
     } finally {
       await client.end().catch(() => undefined);
@@ -89,7 +85,7 @@ export class PgSkillPersistenceAdapter implements SkillPersistenceAdapter {
           skills_json = EXCLUDED.skills_json,
           updated_at = NOW()
         `,
-        [normalized.playerId, normalized.schemaVersion, JSON.stringify(normalized.skills)]
+        [normalized.playerId, normalized.schemaVersion, JSON.stringify(normalized.skills)],
       );
     } finally {
       await client.end().catch(() => undefined);
