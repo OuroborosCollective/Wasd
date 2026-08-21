@@ -1,7 +1,8 @@
 import { Assets, Container, Rectangle, Sprite, Texture } from "pixi.js";
 import {
-  DEFAULT_CHUNK_TILES,
-  KAPPA_STANDARD,
+  KAPPA_PER_TILE,
+  LEGACY_INTRACHUNK_MESH_TILES,
+  UNIFIED_CHUNK_SIZE_TILES,
   deriveChunkBiome,
   generateChunkScenePlan,
 } from "@wasd/shared";
@@ -14,13 +15,15 @@ const TILE_W = 64;
 const TILE_H = 32;
 
 export interface ServerWorldProjectionDescriptor {
-  readonly schemaVersion: "areloria.client2d-world-projection.v1";
+  readonly schemaVersion: "areloria.client2d-world-projection.v2";
   readonly truthClass: "SERVER_SEEDED_STATIC_PRESENTATION";
   readonly gameplayAuthority: false;
   readonly generator: "OuroborosWorldDirectorV1";
   readonly worldSeed: string;
-  readonly kappaPerTile: number;
-  readonly chunkTiles: number;
+  readonly kappaPerTile: typeof KAPPA_PER_TILE;
+  readonly chunkSizeTiles: typeof UNIFIED_CHUNK_SIZE_TILES;
+  readonly scenePlanMeshTiles: typeof LEGACY_INTRACHUNK_MESH_TILES;
+  readonly meshScaleTiles: number;
   readonly viewRadiusChunks: number;
   readonly serverTick: number;
   readonly worldHash: string | null;
@@ -57,24 +60,39 @@ export function parseServerWorldProjection(value: unknown): ServerWorldProjectio
   if (!value || typeof value !== "object") return null;
   const record = value as Record<string, unknown>;
   if (record.ok !== true) return null;
-  if (record.schemaVersion !== "areloria.client2d-world-projection.v1") return null;
+  if (record.schemaVersion !== "areloria.client2d-world-projection.v2") return null;
   if (record.truthClass !== "SERVER_SEEDED_STATIC_PRESENTATION") return null;
   if (record.gameplayAuthority !== false) return null;
   if (record.generator !== "OuroborosWorldDirectorV1") return null;
   if (record.actorPositionCompatibility !== "runtime_world_units_or_kappa") return null;
+
   const worldSeed = typeof record.worldSeed === "string" ? record.worldSeed.trim() : "";
   const source = typeof record.source === "string" ? record.source.trim() : "";
   const serverTick = Number(record.serverTick);
+  const kappaPerTile = positiveInteger(record.kappaPerTile, 0);
+  const chunkSizeTiles = positiveInteger(record.chunkSizeTiles, 0);
+  const scenePlanMeshTiles = positiveInteger(record.scenePlanMeshTiles, 0);
+  const meshScaleTiles = positiveInteger(record.meshScaleTiles, 0);
+
   if (!worldSeed || !source || !Number.isSafeInteger(serverTick) || serverTick < 0) return null;
+  // Fail closed if the server/client chunk contract drifts. The 16-cell scene
+  // plan is a semantic mesh INSIDE the authoritative 64-tile runtime chunk.
+  if (kappaPerTile !== KAPPA_PER_TILE) return null;
+  if (chunkSizeTiles !== UNIFIED_CHUNK_SIZE_TILES) return null;
+  if (scenePlanMeshTiles !== LEGACY_INTRACHUNK_MESH_TILES) return null;
+  if (chunkSizeTiles % scenePlanMeshTiles !== 0) return null;
+  if (meshScaleTiles !== chunkSizeTiles / scenePlanMeshTiles) return null;
 
   return Object.freeze({
-    schemaVersion: "areloria.client2d-world-projection.v1" as const,
+    schemaVersion: "areloria.client2d-world-projection.v2" as const,
     truthClass: "SERVER_SEEDED_STATIC_PRESENTATION" as const,
     gameplayAuthority: false as const,
     generator: "OuroborosWorldDirectorV1" as const,
     worldSeed,
-    kappaPerTile: positiveInteger(record.kappaPerTile, KAPPA_STANDARD),
-    chunkTiles: positiveInteger(record.chunkTiles, DEFAULT_CHUNK_TILES),
+    kappaPerTile: KAPPA_PER_TILE,
+    chunkSizeTiles: UNIFIED_CHUNK_SIZE_TILES,
+    scenePlanMeshTiles: LEGACY_INTRACHUNK_MESH_TILES,
+    meshScaleTiles,
     viewRadiusChunks: Math.min(2, positiveInteger(record.viewRadiusChunks, 1)),
     serverTick,
     worldHash: canonicalHashOrNull(record.worldHash),
@@ -98,12 +116,11 @@ export async function loadServerWorldProjection(
 /**
  * The live player bridge historically carried both tile/world-unit positions
  * and kappa-scaled positions. Keep that compatibility explicit while the
- * server migrates all actor coordinates to one unit. Static world generation
- * itself always uses KAPPA_STANDARD / DEFAULT_CHUNK_TILES from @wasd/shared.
+ * server migrates all actor coordinates to one unit.
  */
 export function runtimeWorldCoordinateToTile(value: number, kappaPerTile: number): number {
   if (!Number.isFinite(value)) return 0;
-  const kappa = positiveInteger(kappaPerTile, KAPPA_STANDARD);
+  const kappa = positiveInteger(kappaPerTile, KAPPA_PER_TILE);
   return Math.abs(value) > 512 ? value / kappa : value;
 }
 
@@ -184,7 +201,9 @@ export class LiveAssetWorldSurface {
   updateProjectionEvidence(next: ServerWorldProjectionDescriptor): void {
     if (
       next.worldSeed !== this.projection.worldSeed ||
-      next.chunkTiles !== this.projection.chunkTiles ||
+      next.chunkSizeTiles !== this.projection.chunkSizeTiles ||
+      next.scenePlanMeshTiles !== this.projection.scenePlanMeshTiles ||
+      next.meshScaleTiles !== this.projection.meshScaleTiles ||
       next.kappaPerTile !== this.projection.kappaPerTile ||
       next.generator !== this.projection.generator
     ) {
@@ -199,8 +218,8 @@ export class LiveAssetWorldSurface {
   async updateAround(runtimeX: number, runtimeZ: number, serverTick: number): Promise<void> {
     const tileX = runtimeWorldCoordinateToTile(runtimeX, this.projection.kappaPerTile);
     const tileZ = runtimeWorldCoordinateToTile(runtimeZ, this.projection.kappaPerTile);
-    const centerChunkX = Math.floor(tileX / this.projection.chunkTiles);
-    const centerChunkZ = Math.floor(tileZ / this.projection.chunkTiles);
+    const centerChunkX = Math.floor(tileX / this.projection.chunkSizeTiles);
+    const centerChunkZ = Math.floor(tileZ / this.projection.chunkSizeTiles);
     const centerKey = `${centerChunkX}:${centerChunkZ}:${this.projection.worldSeed}`;
     if (centerKey === this.lastCenterKey && this.chunks.size > 0) return;
     this.lastCenterKey = centerKey;
@@ -293,15 +312,16 @@ export class LiveAssetWorldSurface {
   }
 
   private async renderChunk(chunkX: number, chunkZ: number, serverTick: number): Promise<ChunkRecord> {
-    const chunkTiles = this.projection.chunkTiles;
+    const meshTiles = this.projection.scenePlanMeshTiles;
+    const meshScaleTiles = this.projection.meshScaleTiles;
     const biomeId = deriveChunkBiome(chunkX, chunkZ, this.projection.worldSeed);
     const plan = generateChunkScenePlan({
       worldSeed: this.projection.worldSeed,
       chunkX,
       chunkZ,
       biomeId,
-      kappa: this.projection.kappaPerTile as typeof KAPPA_STANDARD,
-      chunkTiles,
+      kappa: KAPPA_PER_TILE,
+      chunkTiles: meshTiles,
     });
     const contexts = buildAllChunkContexts(
       { chunkX, chunkZ, biomeId },
@@ -314,7 +334,10 @@ export class LiveAssetWorldSurface {
     const container = new Container();
     container.sortableChildren = true;
     container.label = `world-chunk:${chunkX}:${chunkZ}`;
-    const origin = isoTile(chunkX * chunkTiles, chunkZ * chunkTiles);
+    const origin = isoTile(
+      chunkX * this.projection.chunkSizeTiles,
+      chunkZ * this.projection.chunkSizeTiles,
+    );
     container.x = origin.x;
     container.y = origin.y;
     container.zIndex = Math.round(origin.y);
@@ -322,9 +345,11 @@ export class LiveAssetWorldSurface {
     let resolvedAssets = 0;
     let missingAssets = 0;
 
-    // Terrain is presentation only. Every visible cell must bind a real manifest
-    // asset; a missing asset is skipped and counted rather than replaced by a
-    // colored demo diamond.
+    // The shared WorldDirector's 16x16 cells are a semantic mesh inside the
+    // 64-tile authoritative chunk. Each mesh cell therefore occupies a 4x4
+    // runtime-tile footprint. Stretching a deterministic terrain tile across
+    // that semantic cell keeps sprite count bounded while aligning the plan
+    // with real actor/runtime chunk coordinates.
     for (const cell of plan.terrain) {
       const bound = this.binder.bindTerrainWithContext(
         cell.terrainType,
@@ -337,9 +362,9 @@ export class LiveAssetWorldSurface {
       }
       const sprite = new Sprite(texture);
       sprite.anchor.set(0.5, 0.5);
-      sprite.width = TILE_W;
-      sprite.height = TILE_H;
-      const pos = isoTile(cell.tileX, cell.tileZ);
+      sprite.width = TILE_W * meshScaleTiles;
+      sprite.height = TILE_H * meshScaleTiles;
+      const pos = isoTile(cell.tileX * meshScaleTiles, cell.tileZ * meshScaleTiles);
       sprite.x = pos.x;
       sprite.y = pos.y;
       sprite.zIndex = Math.round(pos.y - 10000);
@@ -360,9 +385,9 @@ export class LiveAssetWorldSurface {
       }
       const sprite = new Sprite(texture);
       sprite.anchor.set(0.5, 0.5);
-      sprite.width = TILE_W;
-      sprite.height = TILE_H;
-      const pos = isoTile(localX, localZ);
+      sprite.width = TILE_W * meshScaleTiles;
+      sprite.height = TILE_H * meshScaleTiles;
+      const pos = isoTile(localX * meshScaleTiles, localZ * meshScaleTiles);
       sprite.x = pos.x;
       sprite.y = pos.y;
       sprite.zIndex = Math.round(pos.y - 5000);
@@ -370,6 +395,7 @@ export class LiveAssetWorldSurface {
       resolvedAssets += 1;
     }
 
+    const buildingVisualScale = Math.max(1, Math.sqrt(meshScaleTiles));
     for (const lot of plan.settlement.lots) {
       const context = contexts.buildingContexts.get(lot.id) ?? contexts.chunk;
       const bound = this.binder.bindBuildingWithContext(lot.buildingType, context);
@@ -380,8 +406,11 @@ export class LiveAssetWorldSurface {
       }
       const sprite = new Sprite(texture);
       sprite.anchor.set(0.5, 1);
-      scalePreservingAspect(sprite, 180, 220);
-      const pos = isoTile(lot.tileX + lot.widthTiles / 2, lot.tileZ + lot.depthTiles / 2);
+      scalePreservingAspect(sprite, 180 * buildingVisualScale, 220 * buildingVisualScale);
+      const pos = isoTile(
+        (lot.tileX + lot.widthTiles / 2) * meshScaleTiles,
+        (lot.tileZ + lot.depthTiles / 2) * meshScaleTiles,
+      );
       sprite.x = pos.x;
       sprite.y = pos.y;
       sprite.zIndex = Math.round(pos.y);
@@ -402,7 +431,7 @@ export class LiveAssetWorldSurface {
       const targetHeight = prop.propType === "tree" ? 128 : prop.propType === "market_stall" ? 82 : 58;
       const maxWidth = prop.propType === "tree" ? 104 : prop.propType === "market_stall" ? 128 : 72;
       scalePreservingAspect(sprite, targetHeight, maxWidth);
-      const pos = isoTile(prop.tileX, prop.tileZ);
+      const pos = isoTile(prop.tileX * meshScaleTiles, prop.tileZ * meshScaleTiles);
       sprite.x = pos.x;
       sprite.y = pos.y;
       sprite.zIndex = Math.round(pos.y + 1);
