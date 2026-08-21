@@ -5,11 +5,16 @@
   "fallbacks": {
     "player": {
       "presentation2d": {
-        "kind": "shape",
-        "shape": "rect",
-        "size": 32,
-        "color": "#4488ff",
-        "outline": "#ffffff"
+        "kind": "asset_manifest",
+        "assetCategory": "characters",
+        "tags": [
+          "civilian"
+        ],
+        "scale": 2,
+        "anchor": [
+          0.5,
+          1
+        ]
       },
       "presentation3d": {
         "kind": "model",
@@ -19,11 +24,16 @@
     },
     "npc": {
       "presentation2d": {
-        "kind": "shape",
-        "shape": "rect",
-        "size": 32,
-        "color": "#00ff00",
-        "outline": "#ffffff"
+        "kind": "asset_manifest",
+        "assetCategory": "characters",
+        "tags": [
+          "civilian"
+        ],
+        "scale": 2,
+        "anchor": [
+          0.5,
+          1
+        ]
       },
       "presentation3d": {
         "kind": "model",
@@ -33,11 +43,14 @@
     },
     "monster": {
       "presentation2d": {
-        "kind": "shape",
-        "shape": "rect",
-        "size": 32,
-        "color": "#ff4444",
-        "outline": "#ffffff"
+        "kind": "asset_manifest",
+        "assetCategory": "characters",
+        "group": "Enemy",
+        "scale": 2,
+        "anchor": [
+          0.5,
+          1
+        ]
       },
       "presentation3d": {
         "kind": "model",
