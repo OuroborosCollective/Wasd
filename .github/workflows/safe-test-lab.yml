@@ -46,6 +46,17 @@ jobs:
       - name: Run ARE unit tests
         run: pnpm exec vitest run server/src/core/are
 
+      - name: Run stateless determinism and endless progression regressions
+        run: |
+          pnpm exec vitest run \
+            server/src/core/determinism \
+            server/src/are/__tests__/WorldHashSnapshot.test.ts \
+            server/src/modules/player/PlayerStatsDirector.test.ts \
+            server/src/tests/skill-progression-store.test.ts \
+            server/src/tests/skill-persistence.test.ts \
+            server/src/tests/skills.test.ts \
+            server/src/tests/xp-delta-router.test.ts
+
       - name: Build shared
         run: pnpm --filter @wasd/shared build
 
