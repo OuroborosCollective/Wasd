@@ -4,7 +4,7 @@ import {
   getContentDataRoot,
   getContentDataSourceLabel,
 } from "../../modules/content/contentDataRoot.js";
-import { validateContentRoot } from "../../modules/content/validateContentCore.js";
+import { validateAuthoringContentRoot } from "../../modules/content/validateAuthoringContent.js";
 import { sha256Receipt } from "./contracts.js";
 
 export interface AuthoringNpcSummary {
@@ -124,7 +124,7 @@ function toLoreSummaries(value: unknown): AuthoringLoreSummary[] {
 export function loadAreloriaAuthoringContext(): AreloriaAuthoringContext {
   const root = getContentDataRoot();
   const source = getContentDataSourceLabel();
-  const validation = validateContentRoot(root);
+  const validation = validateAuthoringContentRoot(root);
   if (!validation.ok) {
     throw new Error(
       `Cannot author against invalid Areloria content (${validation.errors.length} errors): ${validation.errors
