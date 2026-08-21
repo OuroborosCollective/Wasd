@@ -1,24 +1,28 @@
 import { sortCanonicalIntents, type ServerCanonicalIntent } from "./ServerCanonicalIntent.js";
 
+export interface CanonicalIntentObservation {
+  readonly action: string;
+  readonly actorId: string;
+  readonly tickId: number;
+  readonly chunkKey: string;
+  readonly intentHash: string;
+}
+
+export type CanonicalIntentObserver = (observation: CanonicalIntentObservation) => void;
+
 /**
  * CanonicalIntentIntake — the single place where authoritative (player AND
  * NPC) intents enter the server truth path (AIM-77).
  *
- * Before this, ServerCanonicalIntent was created only in route handlers
- * (gather/interact/inventory) and never reached the tick; player movement
- * (RuntimeMoveIntent) and NPC wander both bypassed it. Now both player and
- * NPC move intents are stamped as ServerCanonicalIntent and recorded here,
- * so the tick / world hash / manifest can later consume a unified intent
- * stream instead of three parallel vocabularies.
- *
- * The intake is intentionally a thin, deterministic registry: it stores,
- * sorts, and reports. It does not mutate world state — movement still
- * applies through the deterministic tick (RuntimePlayerSystem for players,
- * NPCSystem for NPCs). The intake is the integrity/audit record alongside.
+ * Observers are explicitly SIDE CHANNELS. The intake stores the real intent
+ * first, then schedules an immutable observation projection on the microtask
+ * queue. Observer errors are swallowed so telemetry/analytics can never alter
+ * whether an authoritative intent was accepted or how the tick reduces it.
  */
 export class CanonicalIntentIntake {
   private readonly byTick = new Map<number, ServerCanonicalIntent[]>();
   private readonly all: ServerCanonicalIntent[] = [];
+  private readonly observers = new Set<CanonicalIntentObserver>();
   private totalRecorded = 0;
 
   /** Record a canonical intent under its tick. Deterministic by content hash. */
@@ -29,6 +33,35 @@ export class CanonicalIntentIntake {
     else this.byTick.set(tick, [intent]);
     this.all.push(intent);
     this.totalRecorded += 1;
+
+    if (this.observers.size > 0) {
+      const observation = Object.freeze({
+        action: String(intent.action),
+        actorId: String(intent.actorId),
+        tickId: tick,
+        chunkKey: String(intent.chunkKey),
+        intentHash: String(intent.intentHash),
+      });
+      queueMicrotask(() => {
+        for (const observer of this.observers) {
+          try {
+            observer(observation);
+          } catch {
+            // Side-channel observers must never alter canonical intake truth.
+          }
+        }
+      });
+    }
+  }
+
+  /**
+   * Subscribe a non-authoritative observer. Returns an unsubscribe function.
+   * The observer receives only an immutable projection, never the mutable
+   * canonical intent object itself.
+   */
+  subscribe(observer: CanonicalIntentObserver): () => void {
+    this.observers.add(observer);
+    return () => this.observers.delete(observer);
   }
 
   /** Deterministically sorted intents for a single tick. */
@@ -65,6 +98,7 @@ export class CanonicalIntentIntake {
     totalRecorded: number;
     ticksWithIntents: number;
     byAction: Record<string, number>;
+    sideChannelObservers: number;
   } {
     const byAction: Record<string, number> = {};
     for (const intent of this.all) {
@@ -74,6 +108,7 @@ export class CanonicalIntentIntake {
       totalRecorded: this.totalRecorded,
       ticksWithIntents: this.byTick.size,
       byAction,
+      sideChannelObservers: this.observers.size,
     };
   }
 
