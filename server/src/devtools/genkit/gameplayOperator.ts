@@ -1,9 +1,20 @@
 import { canonicalIntentIntake } from "../../intents/CanonicalIntentIntake.js";
 import { canonicalizeActorMoveIntent } from "../../intents/ServerCanonicalIntent.js";
 import { worldTickAdapter } from "../../core/are/WorldTickThinShellAdapter.js";
+import {
+  ensureGenkitCombatTickRuntime,
+  executeGenkitCombatAttack,
+  getGenkitCombatRuntimeStatus,
+} from "./combatOperator.js";
+
+// Register the canonical combat TickSystem during the same server/module boot
+// that exposes the operator. It joins WorldTickThinShell's global registry; no
+// second timer or combat state loop is created.
+ensureGenkitCombatTickRuntime();
 
 export const EXECUTABLE_GENKIT_GAMEPLAY_ACTIONS = [
   "move",
+  "combat_attack",
   "gather",
   "quest_talk",
   "quest_accept",
@@ -29,7 +40,7 @@ export interface GenkitGameplayOperatorRequest {
   readonly expectedRevisionHash?: string;
 }
 
-type RouteAction = Exclude<GenkitGameplayAction, "move">;
+type RouteAction = Exclude<GenkitGameplayAction, "move" | "combat_attack">;
 
 type RouteDefinition = Readonly<{
   method: "POST";
@@ -54,7 +65,6 @@ const ROUTE_ACTIONS: Readonly<Record<RouteAction, RouteDefinition>> = Object.fre
 });
 
 const BLOCKED_AUTHORITY_CAPABILITIES = Object.freeze([
-  Object.freeze({ capability: "combat", reason: "CombatTickSystem exists but is not registered on the live WorldTickAdapter; no Genkit combat success may be claimed until that canonical tick path is wired." }),
   Object.freeze({ capability: "direct_inventory_mutation", reason: "The public inventory API is read-only. Inventory mutation remains available only through canonical gather, crafting, equipment and economy operations until a dedicated canonical inventory command path exists." }),
   Object.freeze({ capability: "guild_governance", reason: "GuildRuntimePort is currently unavailable on WorldTickAdapter." }),
 ]);
@@ -314,9 +324,11 @@ export function getGenkitGameplayCapabilities() {
     sequencePolicy: "strictly_increasing_per_session_and_player",
     executable: Object.freeze([
       Object.freeze({ action: "move", authority: "WorldTick RuntimePlayerSystem + ServerCanonicalIntent + CanonicalIntentIntake" }),
+      Object.freeze({ action: "combat_attack", authority: "WorldTickThinShell -> TickSystemRegistry -> CombatTickSystem" }),
       ...Object.entries(ROUTE_ACTIONS).map(([action, definition]) => Object.freeze({ action, ...definition })),
     ]),
     blocked: BLOCKED_AUTHORITY_CAPABILITIES,
+    combatRuntime: getGenkitCombatRuntimeStatus(),
     runtimePorts: Object.freeze(runtimePorts),
   });
 }
@@ -334,6 +346,19 @@ export async function executeGenkitGameplayAction(input: GenkitGameplayOperatorR
   try {
     if (input.action === "move") {
       const result = await executeMove(playerId, input.sequence, payload);
+      mutationAccepted = result.accepted;
+      return Object.freeze({
+        schemaVersion: "areloria.genkit-gameplay-execution.v1",
+        sessionId,
+        sequence: input.sequence,
+        playerId,
+        action: input.action,
+        ...result,
+      });
+    }
+
+    if (input.action === "combat_attack") {
+      const result = await executeGenkitCombatAttack({ playerId, sequence: input.sequence, payload });
       mutationAccepted = result.accepted;
       return Object.freeze({
         schemaVersion: "areloria.genkit-gameplay-execution.v1",
