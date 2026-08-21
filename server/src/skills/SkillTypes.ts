@@ -155,12 +155,14 @@ export function applySkillXp(
   return snapshotFromProgression(skill.id, advanced.state);
 }
 
-/** Create default player skill state with all skills at level 1. */
+/** Create default player skill state with all skills at level 1 in canonical order. */
 export function createDefaultPlayerSkillState(playerId: string): PlayerSkillState {
   return {
     playerId,
     schemaVersion: 2,
-    skills: DEFAULT_SKILLS.map((id) => normalizeSkillSnapshot({ id, xp: 0 })),
+    skills: DEFAULT_SKILLS
+      .map((id) => normalizeSkillSnapshot({ id, xp: 0 }))
+      .sort((a, b) => binaryCompare(a.id, b.id)),
   };
 }
 
