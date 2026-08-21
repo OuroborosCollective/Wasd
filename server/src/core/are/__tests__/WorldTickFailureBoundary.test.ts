@@ -10,7 +10,7 @@ function isolatedShell(): WorldTickThinShell {
 }
 
 describe('WorldTickThinShell failure boundary', () => {
-  it('keeps direct tick fail-hard for missing runtime truth and records the failed tick', () => {
+  it('keeps direct tick fail-hard for missing runtime truth and records the failed tick as organic runtime health', () => {
     const shell = isolatedShell();
     shell.registerChunk('0:0');
 
@@ -18,9 +18,14 @@ describe('WorldTickThinShell failure boundary', () => {
 
     const snapshot = shell.getFailureFamilyStatus();
     expect(shell.getTickCount()).toBe(1);
+    expect(snapshot.status).toBe('observed');
     expect(snapshot.totalOccurrences).toBe(1);
+    expect(snapshot.runtimeOccurrences).toBe(1);
+    expect(snapshot.diagnosticOccurrences).toBe(0);
     expect(snapshot.lastFailureTick).toBe(1);
+    expect(snapshot.lastRuntimeFailureTick).toBe(1);
     expect(snapshot.records[0]).toMatchObject({
+      origin: 'runtime',
       family: 'runtime_source',
       stage: 'world_state',
       code: 'MISSING_RUNTIME_SOURCE',
@@ -42,6 +47,7 @@ describe('WorldTickThinShell failure boundary', () => {
     expect(() => shell.tick()).toThrow('WorldStateProvider "broken-player-runtime" failed');
 
     const record = shell.getFailureFamilyStatus().records[0];
+    expect(record.origin).toBe('runtime');
     expect(record.family).toBe('runtime_source');
     expect(record.code).toBe('WORLD_STATE_PROVIDER_FAILURE');
     expect(record.provider).toBe('broken-player-runtime');
@@ -71,6 +77,8 @@ describe('WorldTickThinShell failure boundary', () => {
     expect(shell.getTickCount()).toBe(2);
     const rerunSnapshot = shell.getFailureFamilyStatus();
     expect(rerunSnapshot.totalOccurrences).toBe(2);
+    expect(rerunSnapshot.runtimeOccurrences).toBe(2);
+    expect(rerunSnapshot.diagnosticOccurrences).toBe(0);
     expect(rerunSnapshot.records[0].occurrenceCount).toBe(2);
     expect(rerunSnapshot.records[0].lastTick).toBe(2);
     expect(errorLog).toHaveBeenCalledTimes(2);
