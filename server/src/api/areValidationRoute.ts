@@ -31,6 +31,22 @@ function requestedRunId(body: any): string | null {
   return /^[a-zA-Z0-9:_-]{1,96}$/.test(value) ? value : null;
 }
 
+function failureFamilyReadback(tick: WorldTick, shell: any) {
+  const probe = shell.getFailureFamilyProbeStatus();
+  const failures = shell.getFailureFamilyStatus();
+  const runId = typeof probe?.runId === "string" && probe.runId.trim() ? probe.runId.trim() : null;
+  const records = Array.isArray(failures?.records) ? failures.records : [];
+  const runRecords = runId
+    ? records.filter((record: any) => record?.runId === runId || record?.lastRunId === runId)
+    : [];
+  return {
+    tick: Number((tick as any).tickCount ?? 0),
+    probe,
+    failures,
+    runRecords,
+  };
+}
+
 export function areValidationRouter(tick: WorldTick) {
   const router = express.Router();
   router.use(adminRateLimiter, adminAuthMiddleware);
@@ -70,12 +86,7 @@ export function areValidationRouter(tick: WorldTick) {
       res.status(503).json({ ok: false, error: "failure_family_runtime_unavailable" });
       return;
     }
-    res.status(200).json({
-      ok: true,
-      tick: Number((tick as any).tickCount ?? 0),
-      probe: shell.getFailureFamilyProbeStatus(),
-      failures: shell.getFailureFamilyStatus(),
-    });
+    res.status(200).json({ ok: true, ...failureFamilyReadback(tick, shell) });
   });
 
   router.post("/failure-families/run", express.json({ limit: "16kb" }), (req, res) => {
@@ -93,20 +104,18 @@ export function areValidationRouter(tick: WorldTick) {
       res.status(409).json({
         ok: false,
         error: "failure_family_run_already_active",
-        probe: before,
-        failures: shell.getFailureFamilyStatus(),
+        ...failureFamilyReadback(tick, shell),
       });
       return;
     }
-    const probe = shell.armFailureFamilyRun(requestedRunId(req.body));
+    shell.armFailureFamilyRun(requestedRunId(req.body));
     res.status(202).json({
       ok: true,
       accepted: true,
       execution: "next_10hz_tick_slots",
       gameplayMutation: false,
       rerunPolicy: "probe_only_safe_same_context_once",
-      probe,
-      failures: shell.getFailureFamilyStatus(),
+      ...failureFamilyReadback(tick, shell),
     });
   });
 
