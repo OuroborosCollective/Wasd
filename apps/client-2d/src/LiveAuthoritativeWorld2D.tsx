@@ -1,14 +1,22 @@
 import { useEffect, useRef } from "react";
-import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
+import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Texture } from "pixi.js";
 import { createClient } from "@wasd/core-network";
 import { liveId, liveName, livePayload, liveSummary, liveX, liveZ, type LiveRealityEntity } from "./liveReality";
+import {
+  loadAssetManifest,
+  pickCharacterVisual,
+  type AssetEntry,
+  type AssetManifest,
+} from "./assetManifest";
 
 const LIVE_SERVER_URL = import.meta.env.VITE_ARELORIA_LIVE_URL || window.location.origin;
 const PRESENTATION_URL = "/api/mcp/presentation-config";
 const KAPPA_PER_TILE = 1000;
+const ALLOW_DEBUG_SHAPES = import.meta.env.VITE_ARELORIA_DEBUG_SHAPES === "true";
 
 type PointKind = "player" | "npc" | "loot";
 type Phase = "mounting" | "connecting" | "ready" | "failed";
+type PresentationState = "resolved" | "missing" | "debug_shape";
 
 type Presentation2D = {
   kind?: string;
@@ -21,6 +29,10 @@ type Presentation2D = {
   size?: number;
   color?: string;
   outline?: string;
+  assetCategory?: "characters";
+  visualId?: string;
+  tags?: string[];
+  group?: string;
 };
 
 type PresentationBinding = {
@@ -58,6 +70,13 @@ type ActorVisual = {
   x: number;
   z: number;
   signature: string;
+  presentationState: PresentationState;
+  assetId: string | null;
+};
+
+type LoadedVisual = {
+  sprite: Sprite;
+  assetId: string | null;
 };
 
 export interface Live2DRuntimeSnapshot {
@@ -66,9 +85,13 @@ export interface Live2DRuntimeSnapshot {
   rendererStatus: "waiting" | "ready" | "failed";
   playerPos: { x: number; z: number } | null;
   visibleEntities: number;
+  resolvedAssetEntities: number;
+  missingPresentationEntities: number;
+  debugShapeEntities: number;
   serverTick: number | null;
   presentationSha256: string | null;
   renderProfile: string | null;
+  assetManifestLoaded: boolean;
   error: string | null;
 }
 
@@ -106,7 +129,7 @@ function point(entity: LiveRealityEntity, kind: PointKind, index: number): LiveP
   };
 }
 
-function presentationFor(feed: PresentationFeed | null, p: LivePoint): Presentation2D {
+function presentationFor(feed: PresentationFeed | null, p: LivePoint): Presentation2D | null {
   const bindings = feed?.presentation?.bindings ?? [];
   const exact = bindings.find((binding) =>
     binding.enabled !== false && binding.targetId === p.targetId &&
@@ -117,7 +140,7 @@ function presentationFor(feed: PresentationFeed | null, p: LivePoint): Presentat
     (binding.targetType === p.kind || binding.targetType === `${p.kind}_group` || binding.targetType === "*")
   );
   const fallback = feed?.presentation?.fallbacks?.[p.kind]?.presentation2d;
-  return exact?.presentation2d ?? wildcard?.presentation2d ?? fallback ?? {};
+  return exact?.presentation2d ?? wildcard?.presentation2d ?? fallback ?? null;
 }
 
 async function loadPresentationFeed(): Promise<PresentationFeed | null> {
@@ -140,12 +163,40 @@ function profileSettings(feed: PresentationFeed | null): { name: string | null; 
   return { name, settings };
 }
 
+function cropTexture(texture: Texture, entry: AssetEntry): Texture {
+  if (entry.frame) {
+    return new Texture({
+      source: texture.source,
+      frame: new Rectangle(entry.frame.x, entry.frame.y, entry.frame.w, entry.frame.h),
+    });
+  }
+
+  if (entry.sheetFrame && entry.frameSize) {
+    const frameWidth = Math.max(1, Number(entry.frameSize.w));
+    const frameHeight = Math.max(1, Number(entry.frameSize.h));
+    const columns = Math.max(1, Math.floor(Number(entry.sheetFrame.w) / frameWidth));
+    const idleColumn = Math.min(columns - 1, Math.floor(columns / 2));
+    return new Texture({
+      source: texture.source,
+      frame: new Rectangle(
+        Number(entry.sheetFrame.x) + idleColumn * frameWidth,
+        Number(entry.sheetFrame.y),
+        frameWidth,
+        frameHeight,
+      ),
+    });
+  }
+
+  return texture;
+}
+
 export function LiveAuthoritativeWorld2D({ onRuntimeSnapshot }: LiveAuthoritativeWorld2DProps = {}) {
   const host = useRef<HTMLDivElement>(null);
   const app = useRef<Application | null>(null);
   const world = useRef<Container | null>(null);
   const actors = useRef<Map<string, ActorVisual>>(new Map());
   const feed = useRef<PresentationFeed | null>(null);
+  const assetManifest = useRef<AssetManifest | null>(null);
   const feedSig = useRef("none:none");
   const connected = useRef(false);
   const serverTick = useRef<number | null>(null);
@@ -155,15 +206,20 @@ export function LiveAuthoritativeWorld2D({ onRuntimeSnapshot }: LiveAuthoritativ
 
   const emit = (visibleEntities = actors.current.size): void => {
     const profile = profileSettings(feed.current);
+    const actorValues = [...actors.current.values()];
     onRuntimeSnapshot?.({
       phase: phase.current,
       connected: connected.current,
       rendererStatus: phase.current === "ready" ? "ready" : phase.current === "failed" ? "failed" : "waiting",
       playerPos: playerPos.current,
       visibleEntities,
+      resolvedAssetEntities: actorValues.filter((actor) => actor.presentationState === "resolved").length,
+      missingPresentationEntities: actorValues.filter((actor) => actor.presentationState === "missing").length,
+      debugShapeEntities: actorValues.filter((actor) => actor.presentationState === "debug_shape").length,
       serverTick: serverTick.current,
       presentationSha256: feed.current?.presentationSha256 ?? null,
       renderProfile: profile.name,
+      assetManifestLoaded: Boolean(assetManifest.current),
       error: lastError.current,
     });
   };
@@ -173,8 +229,7 @@ export function LiveAuthoritativeWorld2D({ onRuntimeSnapshot }: LiveAuthoritativ
     actors.current.clear();
   };
 
-  const createShape = (presentation: Presentation2D, kind: PointKind): Container => {
-    const root = new Container();
+  const createDebugShape = (presentation: Presentation2D, kind: PointKind): Graphics => {
     const defaults = kind === "player" ? 0x4488ff : kind === "npc" ? 0x00aa55 : 0xffc14d;
     const size = Math.max(8, Number(presentation.size ?? 28));
     const graphic = new Graphics();
@@ -182,12 +237,58 @@ export function LiveAuthoritativeWorld2D({ onRuntimeSnapshot }: LiveAuthoritativ
     else graphic.roundRect(-size / 2, -size, size, size, Math.max(2, size * 0.16));
     graphic.fill(parseColor(presentation.color, defaults));
     graphic.stroke({ width: 2, color: parseColor(presentation.outline, 0xffffff), alpha: 0.8 });
-    root.addChild(graphic);
-    return root;
+    return graphic;
   };
 
-  const loadSprite = async (presentation: Presentation2D): Promise<Sprite | null> => {
+  const createMissingPresentationMarker = (kind: PointKind): Container => {
+    const marker = new Container();
+    const graphic = new Graphics();
+    graphic.moveTo(-10, -24).lineTo(10, -4);
+    graphic.moveTo(10, -24).lineTo(-10, -4);
+    graphic.stroke({ width: 3, color: 0xff3b7a, alpha: 0.95 });
+    marker.addChild(graphic);
+
+    const status = new Text({
+      text: `presentation unavailable: ${kind}`,
+      style: { fontSize: 9, fill: 0xff8fb3, stroke: { color: 0x02030a, width: 2 }, fontFamily: "monospace" },
+    });
+    status.anchor.set(0.5, 0);
+    status.y = 2;
+    marker.addChild(status);
+    return marker;
+  };
+
+  const loadAssetEntrySprite = async (entry: AssetEntry, presentation: Presentation2D): Promise<Sprite | null> => {
+    if (!entry.src) return null;
     try {
+      const baseTexture = await Assets.load<Texture>(entry.src);
+      const sprite = new Sprite(cropTexture(baseTexture, entry));
+      const anchor = presentation.anchor ?? [0.5, 1];
+      sprite.anchor.set(Number(anchor[0] ?? 0.5), Number(anchor[1] ?? 1));
+      sprite.scale.set(Number(presentation.scale ?? 1));
+      return sprite;
+    } catch (error) {
+      console.warn("[2D Live] asset-manifest sprite load failed", entry.id ?? entry.src, error);
+      return null;
+    }
+  };
+
+  const loadSprite = async (presentation: Presentation2D, p: LivePoint): Promise<LoadedVisual | null> => {
+    try {
+      if (presentation.kind === "asset_manifest") {
+        if (presentation.assetCategory !== "characters" || !assetManifest.current) return null;
+        const selected = pickCharacterVisual(assetManifest.current, {
+          visualId: presentation.visualId ?? null,
+          tags: presentation.tags ?? [],
+          group: presentation.group ?? null,
+          kind: "character",
+          seed: p.targetId,
+        });
+        if (!selected) return null;
+        const sprite = await loadAssetEntrySprite(selected.entry, presentation);
+        return sprite ? { sprite, assetId: selected.id } : null;
+      }
+
       let texture: Texture | null = null;
       if (presentation.atlasUrl && presentation.frame) {
         const sheet: any = await Assets.load(presentation.atlasUrl);
@@ -200,9 +301,9 @@ export function LiveAuthoritativeWorld2D({ onRuntimeSnapshot }: LiveAuthoritativ
       const anchor = presentation.anchor ?? [0.5, 1];
       sprite.anchor.set(Number(anchor[0] ?? 0.5), Number(anchor[1] ?? 1));
       sprite.scale.set(Number(presentation.scale ?? 1));
-      return sprite;
+      return { sprite, assetId: presentation.spriteUrl ?? presentation.frame ?? null };
     } catch (error) {
-      console.warn("[2D Studio] sprite load failed", error);
+      console.warn("[2D Live] configured sprite load failed", error);
       return null;
     }
   };
@@ -219,7 +320,7 @@ export function LiveAuthoritativeWorld2D({ onRuntimeSnapshot }: LiveAuthoritativ
       actors.current.delete(p.id);
     }
 
-    const root = createShape(presentation, p.kind);
+    const root = new Container();
     root.label = p.id;
     const label = new Text({
       text: p.name,
@@ -229,14 +330,37 @@ export function LiveAuthoritativeWorld2D({ onRuntimeSnapshot }: LiveAuthoritativ
     label.y = -38;
     root.addChild(label);
     layer.addChild(root);
-    const actor = { root, x: p.x, z: p.z, signature };
+
+    const actor: ActorVisual = {
+      root,
+      x: p.x,
+      z: p.z,
+      signature,
+      presentationState: "missing",
+      assetId: null,
+    };
     actors.current.set(p.id, actor);
 
-    const sprite = await loadSprite(presentation);
-    if (sprite && actors.current.get(p.id) === actor) {
-      const currentShape = root.children[0];
-      root.addChildAt(sprite, 0);
-      currentShape?.destroy();
+    if (presentation?.kind === "shape" && ALLOW_DEBUG_SHAPES) {
+      root.addChildAt(createDebugShape(presentation, p.kind), 0);
+      actor.presentationState = "debug_shape";
+      return actor;
+    }
+
+    if (presentation) {
+      const loaded = await loadSprite(presentation, p);
+      if (loaded && actors.current.get(p.id) === actor) {
+        root.addChildAt(loaded.sprite, 0);
+        actor.presentationState = "resolved";
+        actor.assetId = loaded.assetId;
+        root.label = loaded.assetId ? `${p.id}|asset:${loaded.assetId}` : p.id;
+        return actor;
+      }
+    }
+
+    if (actors.current.get(p.id) === actor) {
+      root.addChildAt(createMissingPresentationMarker(p.kind), 0);
+      actor.presentationState = "missing";
     }
     return actor;
   };
@@ -281,8 +405,20 @@ export function LiveAuthoritativeWorld2D({ onRuntimeSnapshot }: LiveAuthoritativ
     const boot = async (): Promise<void> => {
       try {
         phase.current = "connecting";
-        feed.current = await loadPresentationFeed();
+        const [presentationFeed, manifest] = await Promise.all([
+          loadPresentationFeed(),
+          loadAssetManifest(),
+        ]);
+        feed.current = presentationFeed;
+        assetManifest.current = manifest;
         feedSig.current = feedSignature(feed.current);
+
+        if (!presentationFeed) {
+          lastError.current = "presentation_config_unavailable";
+        } else if (!manifest) {
+          lastError.current = "asset_manifest_unavailable";
+        }
+
         const { settings } = profileSettings(feed.current);
         const resolutionScale = Math.max(0.5, Math.min(2, Number(settings.resolutionScale ?? 1)));
         const pixi = new Application();
@@ -335,6 +471,7 @@ export function LiveAuthoritativeWorld2D({ onRuntimeSnapshot }: LiveAuthoritativ
           if (next && nextSig !== feedSig.current) {
             feed.current = next;
             feedSig.current = nextSig;
+            lastError.current = null;
             const { settings: nextSettings } = profileSettings(next);
             pixi.ticker.maxFPS = Math.max(15, Math.min(240, Number(nextSettings.maxFps ?? 60)));
             clearActors();
@@ -357,6 +494,7 @@ export function LiveAuthoritativeWorld2D({ onRuntimeSnapshot }: LiveAuthoritativ
       app.current?.destroy(true);
       app.current = null;
       world.current = null;
+      assetManifest.current = null;
     };
   }, []);
 
