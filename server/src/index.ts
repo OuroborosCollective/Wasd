@@ -11,6 +11,7 @@ import { ServerBootstrap } from "./core/ServerBootstrap.js";
 import { installRuntimeChatRelay } from "./modules/chat/installRuntimeChatRelay.js";
 import "./modules/loot/installLootBridge.js";
 import { installARELootIntegration } from "./modules/loot/installARELootIntegration.js";
+import { installExternalSideChannels } from "./services/installExternalSideChannels.js";
 
 /**
  * Validates the supabase authentication configuration.
@@ -43,6 +44,9 @@ try {
   installDeterministicWatchdogRuntime();
   installAREInvariantHttpShieldRuntime();
   installRuntimeChatRelay();
+  // Analytics/external services observe accepted runtime facts only. They are
+  // installed outside every TickSystem and cannot grant gameplay authority.
+  installExternalSideChannels();
   const server = new ServerBootstrap();
   server.start();
 } catch (error) {
