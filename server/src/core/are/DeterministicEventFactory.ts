@@ -31,6 +31,10 @@ export interface WorldEventInput<TData = unknown> {
   readonly data: TData;
 }
 
+function binaryCompare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 /** Stable stringify using canonicalize for deterministic output */
 export function stableStringify(value: unknown): string {
   if (value === null) return "null";
@@ -48,7 +52,7 @@ export function stableStringify(value: unknown): string {
 
   if (typeof value === "object") {
     const record = value as Record<string, unknown>;
-    const keys = Object.keys(record).sort();
+    const keys = Object.keys(record).sort(binaryCompare);
     const pairs = keys.map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`);
     return `{${pairs.join(",")}}`;
   }
@@ -162,8 +166,9 @@ export function stableEntityKey(value: unknown): string {
 }
 
 /**
- * Stable sort with deterministic ordering by entity key.
+ * Stable sort with deterministic binary ordering by entity key.
+ * Locale-sensitive collation is intentionally excluded from ARE truth paths.
  */
 export function stableSort<T>(items: readonly T[]): readonly T[] {
-  return [...items].sort((a, b) => stableEntityKey(a).localeCompare(stableEntityKey(b)));
+  return [...items].sort((a, b) => binaryCompare(stableEntityKey(a), stableEntityKey(b)));
 }
