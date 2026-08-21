@@ -32,20 +32,10 @@ export const areloriaGameplayOperatorFlow = areloriaGenkit.defineFlow(
     outputSchema: z.unknown(),
   },
   async (rawInput) => {
-    // Genkit's current schema typing widens flow input fields to optional in
-    // TypeScript even though the runtime Zod schema requires them. Re-parse at
-    // the authority boundary, then construct the strict operator contract.
-    const parsed = GameplayOperatorInputSchema.parse(rawInput);
-    const input: GenkitGameplayOperatorRequest = {
-      sessionId: parsed.sessionId,
-      sequence: parsed.sequence,
-      playerId: parsed.playerId,
-      action: parsed.action,
-      ...(parsed.payload === undefined ? {} : { payload: parsed.payload }),
-      ...(parsed.expectedRevisionHash === undefined
-        ? {}
-        : { expectedRevisionHash: parsed.expectedRevisionHash }),
-    };
-    return executeGenkitGameplayAction(input);
+    // The Genkit-integrated Zod typing widens object fields to optional even
+    // after parse(). Runtime validation is still strict; narrow only after the
+    // successful parse so the authority executor receives its real contract.
+    const parsed = GameplayOperatorInputSchema.parse(rawInput) as unknown as GenkitGameplayOperatorRequest;
+    return executeGenkitGameplayAction(parsed);
   },
 );
