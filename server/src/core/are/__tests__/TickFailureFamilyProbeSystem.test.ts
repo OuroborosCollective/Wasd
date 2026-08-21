@@ -43,6 +43,7 @@ describe('10Hz failure-family probe runtime', () => {
     expect(failures.status).toBe('clean');
     expect(failures.runtimeOccurrences).toBe(0);
     expect(failures.diagnosticOccurrences).toBe(DEFAULT_FAILURE_FAMILY_PROBE_CASES.length);
+    expect(failures.lastHealthyTick).toBe(DEFAULT_FAILURE_FAMILY_PROBE_CASES.length);
     expect(failures.records.every((record) => record.origin === 'diagnostic_probe')).toBe(true);
 
     expect(failures.diagnosticFamilies.runtime_source).toBeGreaterThanOrEqual(1);
