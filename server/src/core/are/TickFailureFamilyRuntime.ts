@@ -34,7 +34,9 @@ export interface TickFailureDerivation {
   readonly normalizedMessage: string;
   readonly signals: readonly string[];
   readonly fingerprint: string;
+  /** First diagnostic run that produced this fingerprint, when applicable. */
   readonly runId: string | null;
+  /** First diagnostic case that produced this fingerprint, when applicable. */
   readonly caseId: string | null;
 }
 
@@ -51,6 +53,10 @@ export interface TickFailureRecord extends TickFailureDerivation {
   readonly lastRerunOutcome: TickFailureRerunOutcome;
   readonly lastRerunTick: number | null;
   readonly lastRerunFingerprint: string | null;
+  /** Most recent diagnostic run that hit this stable fingerprint. */
+  readonly lastRunId: string | null;
+  /** Most recent diagnostic case that hit this stable fingerprint. */
+  readonly lastCaseId: string | null;
 }
 
 export interface TickFailureFamilySnapshot {
@@ -64,6 +70,16 @@ export interface TickFailureFamilySnapshot {
 }
 
 type MutableFailureRecord = {
+  family: TickFailureFamily;
+  code: string;
+  errorName: string;
+  normalizedMessage: string;
+  signals: readonly string[];
+  fingerprint: string;
+  runId: string | null;
+  caseId: string | null;
+  lastRunId: string | null;
+  lastCaseId: string | null;
   stage: TickFailureStage;
   system: string | null;
   provider: string | null;
@@ -76,7 +92,7 @@ type MutableFailureRecord = {
   lastRerunOutcome: TickFailureRerunOutcome;
   lastRerunTick: number | null;
   lastRerunFingerprint: string | null;
-} & TickFailureDerivation;
+};
 
 const MAX_FAILURE_RECORDS = 256;
 
@@ -232,11 +248,15 @@ export class TickFailureFamilyRuntime {
       existing.occurrenceCount += 1;
       existing.derivationRerunMatches = existing.derivationRerunMatches && derivationRerunMatches;
       existing.rerunEligible = existing.rerunEligible || input.rerunEligible === true;
+      if (first.runId !== null) existing.lastRunId = first.runId;
+      if (first.caseId !== null) existing.lastCaseId = first.caseId;
       return freezeRecord(existing);
     }
 
     const next: MutableFailureRecord = {
       ...first,
+      lastRunId: first.runId,
+      lastCaseId: first.caseId,
       stage: input.stage,
       system: cleanString(input.system),
       provider: cleanString(input.provider),
