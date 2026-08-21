@@ -36,9 +36,7 @@ export interface TickFailureDerivation {
   readonly normalizedMessage: string;
   readonly signals: readonly string[];
   readonly fingerprint: string;
-  /** First diagnostic run that produced this fingerprint, when applicable. */
   readonly runId: string | null;
-  /** First diagnostic case that produced this fingerprint, when applicable. */
   readonly caseId: string | null;
 }
 
@@ -55,9 +53,7 @@ export interface TickFailureRecord extends TickFailureDerivation {
   readonly lastRerunOutcome: TickFailureRerunOutcome;
   readonly lastRerunTick: number | null;
   readonly lastRerunFingerprint: string | null;
-  /** Most recent diagnostic run that hit this stable fingerprint. */
   readonly lastRunId: string | null;
-  /** Most recent diagnostic case that hit this stable fingerprint. */
   readonly lastCaseId: string | null;
 }
 
@@ -180,13 +176,17 @@ function errorDescriptor(error: unknown): {
 
 function deriveFamily(input: TickFailureInput, code: string, normalizedMessage: string): { family: TickFailureFamily; signals: string[] } {
   // Hard truth-boundary stages take precedence over the generic fallback code.
-  // Otherwise a plain Error thrown by persistence would inherit
-  // SYSTEM_EXCEPTION and be misclassified before its origin stage is examined.
   if (input.stage === 'world_state') {
     return { family: 'runtime_source', signals: ['stage:world_state', ...(CODE_FAMILY[code] ? [`code:${code}`] : [])] };
   }
   if (input.stage === 'persistence_tick') {
     return { family: 'persistence', signals: ['stage:persistence_tick', ...(CODE_FAMILY[code] ? [`code:${code}`] : [])] };
+  }
+  // Snapshot finalization is a state-integrity boundary for an untyped Error.
+  // Explicit codes such as DETERMINISM_DIVERGENCE remain more specific and are
+  // handled by CODE_FAMILY below.
+  if (input.stage === 'snapshot_finalize' && code === 'SYSTEM_EXCEPTION') {
+    return { family: 'state_invariant', signals: ['stage:snapshot_finalize', 'code:SYSTEM_EXCEPTION'] };
   }
 
   const direct = CODE_FAMILY[code];
@@ -248,10 +248,7 @@ export function deriveTickFailure(input: TickFailureInput): TickFailureDerivatio
 }
 
 function freezeRecord(record: MutableFailureRecord): TickFailureRecord {
-  return Object.freeze({
-    ...record,
-    signals: Object.freeze([...record.signals]),
-  });
+  return Object.freeze({ ...record, signals: Object.freeze([...record.signals]) });
 }
 
 export class TickFailureFamilyRuntime {
