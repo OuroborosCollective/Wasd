@@ -49,6 +49,13 @@ export interface PlayerSkillState {
   schemaVersion: 2;
 }
 
+/** Input accepted at hydration boundaries, including legacy schema-1 saves. */
+export interface PlayerSkillStateInput {
+  playerId?: string;
+  skills?: Array<Partial<SkillSnapshot> & { id: SkillId }>;
+  schemaVersion?: number;
+}
+
 export const SKILL_TITLES: Record<SkillId, string> = {
   woodcutting: "Woodcutting",
   mining: "Mining",
@@ -95,8 +102,6 @@ function snapshotFromProgression(id: SkillId, progression: AREUnboundedProgressi
   const required = xpRequiredForNextLevelExact(progression.level);
   const requiredProjection = projectExactToSafeNumber(required);
 
-  // Read-model ratio only. Compute from exact integers before converting the
-  // bounded millionths projection to Number.
   const progressMillionths = required > 0n
     ? (progression.xpIntoLevel * 1_000_000n) / required
     : 0n;
@@ -122,17 +127,12 @@ export function xpForLevelExact(level: ExactIntegerInput): bigint {
   return xpRequiredForNextLevelExact(level);
 }
 
-/**
- * Backwards-compatible Number projection for code paths that cannot consume
- * exact strings yet. It is not the progression authority.
- */
+/** Backwards-compatible Number projection; never progression authority. */
 export function xpForLevel(level: number): number {
   return projectExactToSafeNumber(xpForLevelExact(level)).value;
 }
 
-/**
- * Backwards-compatible migration helper for number-era total XP.
- */
+/** Backwards-compatible migration helper for number-era total XP. */
 export function levelFromXp(xp: number): number {
   if (!Number.isSafeInteger(xp) || xp < 0) return 1;
   return projectExactToSafeNumber(progressionFromLegacyTotalXp(xp).level).value;
@@ -169,7 +169,7 @@ export function createDefaultPlayerSkillState(playerId: string): PlayerSkillStat
  * accepted through the legacy XP migration path and are emitted as schema 2.
  */
 export function normalizePlayerSkillState(
-  input: Partial<PlayerSkillState> | { playerId?: string; skills?: Partial<SkillSnapshot>[]; schemaVersion?: number } | null | undefined,
+  input: PlayerSkillStateInput | PlayerSkillState | null | undefined,
   playerId: string
 ): PlayerSkillState {
   const byId = new Map<SkillId, SkillSnapshot>();
