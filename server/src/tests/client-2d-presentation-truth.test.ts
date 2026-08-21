@@ -103,7 +103,8 @@ describe("2D production presentation truth", () => {
     expect(surface).toContain("chunkSizeTiles: UNIFIED_CHUNK_SIZE_TILES");
     expect(surface).toContain("scenePlanMeshTiles: LEGACY_INTRACHUNK_MESH_TILES");
     expect(surface).toContain("centerChunkX = Math.floor(tileX / this.projection.chunkSizeTiles)");
-    expect(surface).toContain("cell.tileX * meshScaleTiles");
+    expect(surface).toContain("meshCellCenterTile(cell.tileX, meshScaleTiles)");
+    expect(surface).toContain("meshSpanCenterTile(lot.tileX, lot.widthTiles, meshScaleTiles)");
     expect(surface).toContain("chunkX * this.projection.chunkSizeTiles");
   });
 
