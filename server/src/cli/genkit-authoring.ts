@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { genkitAuthoringRuntime } from "../ai/genkit/GenkitAuthoringRuntime.js";
+import { findRepoRootWithGameData } from "../modules/content/repoRoot.js";
 
 interface CliArgs {
   kind: "status" | "quest" | "poi";
@@ -52,7 +53,9 @@ function parseArgs(): CliArgs {
 }
 
 async function writeCompiled(targetPath: string, canonicalJson: string): Promise<string> {
-  const repositoryRoot = path.resolve(process.cwd(), "..");
+  const repositoryRoot = findRepoRootWithGameData();
+  if (!repositoryRoot) throw new Error("AUTHORING_REPOSITORY_ROOT_NOT_FOUND");
+
   const absoluteTarget = path.resolve(repositoryRoot, targetPath);
   const relative = path.relative(repositoryRoot, absoluteTarget);
 
@@ -64,6 +67,8 @@ async function writeCompiled(targetPath: string, canonicalJson: string): Promise
   }
 
   await fs.mkdir(path.dirname(absoluteTarget), { recursive: true });
+  // Never overwrite authored content implicitly. Replacement must use the
+  // hash-bound Studio write path with an explicit expected SHA-256.
   await fs.writeFile(absoluteTarget, canonicalJson, { encoding: "utf8", flag: "wx" });
   return relative.split(path.sep).join("/");
 }
