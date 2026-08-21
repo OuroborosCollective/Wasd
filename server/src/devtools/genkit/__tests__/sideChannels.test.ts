@@ -69,4 +69,17 @@ describe("external side-channel boundaries", () => {
     expect("sendTransaction" in observer).toBe(false);
     expect("sign" in observer).toBe(false);
   });
+
+  it("degrades malformed Quicknode config instead of throwing during process bootstrap", () => {
+    vi.stubEnv("QUICKNODE_ENABLED", "true");
+    vi.stubEnv("QUICKNODE_RPC_URL", "http://not-https.invalid/rpc");
+    vi.stubEnv("QUICKNODE_EXPECTED_CHAIN_ID", "not-a-chain-id");
+
+    expect(() => new QuicknodeReadOnlyObserver()).not.toThrow();
+    const observer = new QuicknodeReadOnlyObserver();
+    expect(observer.getStatus().enabled).toBe(false);
+    expect(observer.getStatus().configured).toBe(false);
+    expect(observer.getStatus().configurationError).toMatch(/HTTPS/);
+    expect(observer.getStatus().configurationError).toMatch(/chain/i);
+  });
 });
