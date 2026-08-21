@@ -22,6 +22,8 @@ describe("Genkit authoritative gameplay operator contract", () => {
       "quest_accept",
       "quest_complete",
       "craft",
+      "equipment_equip",
+      "equipment_unequip",
       "economy_sell_resource",
       "economy_sell_all_resources",
       "economy_buy_resource",
@@ -43,8 +45,9 @@ describe("Genkit authoritative gameplay operator contract", () => {
     const capabilities = getGenkitGameplayCapabilities();
     const blocked = capabilities.blocked.map((entry) => entry.capability);
     expect(blocked).toContain("combat");
-    expect(blocked).toContain("equipment_mutation");
-    expect(blocked).toContain("inventory_mutation");
+    expect(blocked).toContain("direct_inventory_mutation");
+    expect(blocked).toContain("guild_governance");
+    expect(blocked).not.toContain("equipment_mutation");
   });
 
   it("reports operator credential presence without exposing its value", () => {
