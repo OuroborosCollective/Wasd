@@ -51,6 +51,7 @@ jobs:
           pnpm exec vitest run \
             server/src/core/determinism \
             server/src/are/__tests__/WorldHashSnapshot.test.ts \
+            server/src/gameplay/adapters/__tests__/LegacySkillSnapshotAdapter.test.ts \
             server/src/modules/player/PlayerStatsDirector.test.ts \
             server/src/tests/skill-progression-store.test.ts \
             server/src/tests/skill-persistence.test.ts \
