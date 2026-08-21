@@ -22,7 +22,7 @@ The observer runs only after `CanonicalIntentIntake` has accepted the canonical 
 
 One accepted intent produces one `canonical_intent_accepted` event with:
 
-- `user_id`: SHA-256 pseudonym derived from a private deployment-only identity salt plus the canonical actor id;
+- `user_id`: HMAC-SHA256 pseudonym keyed by a private deployment-only identity salt over the canonical actor id;
 - `insert_id`: canonical `intentHash` for ingestion de-duplication;
 - event properties: action, tick id, logical index, received order, chunk key and canonical intent hash.
 
