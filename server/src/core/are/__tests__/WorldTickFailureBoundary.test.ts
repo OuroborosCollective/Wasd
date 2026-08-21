@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { TickSystemRegistry } from '../TickSystemRegistry.js';
 import { WorldTickThinShell } from '../WorldTickThinShell.js';
 
@@ -48,15 +48,23 @@ describe('WorldTickThinShell failure boundary', () => {
     expect(record.normalizedMessage).toContain('broken-player-runtime');
   });
 
-  it('scheduled 100ms execution consumes a failed tick without leaking an unhandled exception', () => {
+  it('scheduled 100ms execution consumes a failed tick, logs safe evidence, and does not leak an unhandled exception', () => {
     const shell = isolatedShell();
     shell.registerChunk('0:0');
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     expect(() => (shell as any).runScheduledTick()).not.toThrow();
     expect(shell.getTickCount()).toBe(1);
     const snapshot = shell.getFailureFamilyStatus();
     expect(snapshot.lastFailureTick).toBe(1);
     expect(snapshot.records[0].family).toBe('runtime_source');
+    expect(errorLog).toHaveBeenCalledTimes(1);
+    const firstLog = String(errorLog.mock.calls[0]?.[0] ?? '');
+    expect(firstLog).toContain('tick=1');
+    expect(firstLog).toContain('stage=world_state');
+    expect(firstLog).toContain('family=runtime_source');
+    expect(firstLog).toMatch(/fingerprint=[0-9a-f]{64}/);
+    expect(firstLog).not.toContain('MISSING_RUNTIME_SOURCE');
 
     // A later scheduled slot is a distinct failed tick; no fake state is reused.
     expect(() => (shell as any).runScheduledTick()).not.toThrow();
@@ -65,5 +73,9 @@ describe('WorldTickThinShell failure boundary', () => {
     expect(rerunSnapshot.totalOccurrences).toBe(2);
     expect(rerunSnapshot.records[0].occurrenceCount).toBe(2);
     expect(rerunSnapshot.records[0].lastTick).toBe(2);
+    expect(errorLog).toHaveBeenCalledTimes(2);
+    expect(String(errorLog.mock.calls[1]?.[0] ?? '')).toContain('tick=2');
+
+    errorLog.mockRestore();
   });
 });
