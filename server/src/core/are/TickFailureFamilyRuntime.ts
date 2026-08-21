@@ -139,12 +139,22 @@ function errorDescriptor(error: unknown): {
 }
 
 function deriveFamily(input: TickFailureInput, code: string, normalizedMessage: string): { family: TickFailureFamily; signals: string[] } {
+  // Hard truth-boundary stages take precedence over the generic fallback code.
+  // Otherwise a plain Error thrown by persistence would inherit
+  // SYSTEM_EXCEPTION and be misclassified before its origin stage is examined.
+  if (input.stage === 'world_state') {
+    return { family: 'runtime_source', signals: ['stage:world_state', ...(CODE_FAMILY[code] ? [`code:${code}`] : [])] };
+  }
+  if (input.stage === 'persistence_tick') {
+    return { family: 'persistence', signals: ['stage:persistence_tick', ...(CODE_FAMILY[code] ? [`code:${code}`] : [])] };
+  }
+
   const direct = CODE_FAMILY[code];
   if (direct) return { family: direct, signals: [`code:${code}`] };
 
   const haystack = [input.stage, input.system, input.provider, code, normalizedMessage].filter(Boolean).join('|').toLowerCase();
-  if (input.stage === 'world_state' || haystack.includes('runtime source') || haystack.includes('provider')) {
-    return { family: 'runtime_source', signals: ['stage-or-message:runtime_source'] };
+  if (haystack.includes('runtime source') || haystack.includes('provider')) {
+    return { family: 'runtime_source', signals: ['message:runtime_source'] };
   }
   if (haystack.includes('persist') || haystack.includes('postgres') || haystack.includes('redis') || haystack.includes('database')) {
     return { family: 'persistence', signals: ['message:persistence'] };
@@ -158,6 +168,7 @@ function deriveFamily(input: TickFailureInput, code: string, normalizedMessage: 
   if (haystack.includes('invariant') || haystack.includes('non-finite') || haystack.includes('nan') || haystack.includes('kappa')) {
     return { family: 'state_invariant', signals: ['message:state_invariant'] };
   }
+  if (input.stage === 'snapshot_finalize') return { family: 'state_invariant', signals: ['stage:snapshot_finalize'] };
   if (input.stage === 'system_tick') return { family: 'system_exception', signals: ['stage:system_tick'] };
   return { family: 'unknown', signals: ['fallback:unknown'] };
 }
@@ -235,7 +246,7 @@ export class TickFailureFamilyRuntime {
       derivationRerunMatches,
       rerunEligible: input.rerunEligible === true,
       rerunAttempts: 0,
-      lastRerunOutcome: input.rerunEligible === true ? 'not_eligible' : 'not_eligible',
+      lastRerunOutcome: 'not_eligible',
       lastRerunTick: null,
       lastRerunFingerprint: null,
     };
