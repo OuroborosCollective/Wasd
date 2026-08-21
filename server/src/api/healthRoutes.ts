@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from 'express';
 import path from 'node:path';
+import { DEFAULT_CHUNK_TILES, KAPPA_STANDARD } from '@wasd/shared';
 import type { WorldTick } from '../core/are/index.js';
+import { resolveCanonicalWorldSeed } from '../core/are/CanonicalLayerSeed.js';
 import { getDeterministicWatchdogStatus } from '../core/installDeterministicWatchdog.js';
 import { checkQuestPersistenceWritable } from './questPersistenceHealth.js';
 import { checkSkillPersistenceWritable } from './skillPersistenceHealth.js';
@@ -131,6 +133,36 @@ export function healthRoutes(options: HealthRouteOptions): Router {
         clientRoot,
         clientDistPath,
       }),
+    });
+  });
+
+  // Read-only provenance for the active 2D world renderer. This endpoint does
+  // not turn client worldgen into gameplay authority: it publishes the same
+  // canonical seed resolution and shared WorldDirector constants used by the
+  // server-side ARE seed path so the renderer can bind real graphics to a
+  // server-anchored static projection instead of inventing a local demo seed.
+  router.get('/world-projection', (_req: Request, res: Response) => {
+    noStore(res);
+    const tick = options.getTick();
+    const initializing = options.isInitializing();
+    const worldHashSnapshot = safe(() => tick?.getWorldHashSnapshot?.() ?? null, null);
+    const currentTick = Number((tick as any)?.tickCount ?? worldHashSnapshot?.tick ?? -1);
+    const tickReady = Boolean(tick) && !initializing && Number.isSafeInteger(currentTick) && currentTick >= 0;
+
+    res.status(tickReady ? 200 : 503).json({
+      ok: tickReady,
+      schemaVersion: 'areloria.client2d-world-projection.v1',
+      truthClass: 'SERVER_SEEDED_STATIC_PRESENTATION',
+      gameplayAuthority: false,
+      generator: 'OuroborosWorldDirectorV1',
+      worldSeed: resolveCanonicalWorldSeed(),
+      kappaPerTile: KAPPA_STANDARD,
+      chunkTiles: DEFAULT_CHUNK_TILES,
+      viewRadiusChunks: 1,
+      serverTick: tickReady ? currentTick : null,
+      worldHash: isCanonicalNonZeroHash(worldHashSnapshot?.worldHash) ? worldHashSnapshot.worldHash : null,
+      actorPositionCompatibility: 'runtime_world_units_or_kappa',
+      source: 'CanonicalLayerSeed.resolveCanonicalWorldSeed + @wasd/shared/WorldDirector',
     });
   });
 
