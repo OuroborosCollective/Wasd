@@ -14,9 +14,13 @@ const INITIAL_RUNTIME: Live2DRuntimeSnapshot = {
   rendererStatus: "waiting",
   playerPos: null,
   visibleEntities: 0,
+  resolvedAssetEntities: 0,
+  missingPresentationEntities: 0,
+  debugShapeEntities: 0,
   serverTick: null,
   presentationSha256: null,
   renderProfile: null,
+  assetManifestLoaded: false,
   error: null,
 };
 
@@ -52,13 +56,16 @@ export function DeterministicWorldIsoApp() {
   const playerPos = live.playerPos ?? runtime.playerPos ?? undefined;
   const chunkCoords = live.chunkCoords ?? undefined;
   const connected = live.networkStatus === "connected" || runtime.connected;
+  const presentationState = runtime.missingPresentationEntities > 0
+    ? `MISSING ${runtime.missingPresentationEntities}`
+    : `${runtime.resolvedAssetEntities} ASSETS`;
 
   return (
     <>
       <LiveAuthoritativeWorld2D onRuntimeSnapshot={setRuntime} />
       <ArelorianStitchHud
         connected={connected}
-        assetStatus={`${runtime.rendererStatus.toUpperCase()} · ${runtime.visibleEntities} LIVE ENTITIES · ${runtime.renderProfile ?? "DEFAULT"}`}
+        assetStatus={`${runtime.rendererStatus.toUpperCase()} · ${runtime.visibleEntities} LIVE ENTITIES · ${presentationState} · ${runtime.renderProfile ?? "DEFAULT"}`}
         weaponCount={0}
         equippedWeaponId={null}
         inventoryItems={[]}
