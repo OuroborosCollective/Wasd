@@ -7,6 +7,7 @@ import path from "path";
 import { z } from "zod";
 import { registerStudioMcpTools } from "../devtools/studio/registerStudioMcpTools.js";
 import { registerStudioExtendedMcpTools } from "../devtools/studio/registerStudioExtendedMcpTools.js";
+import { registerGenkitAuthoringMcpTools } from "../devtools/studio/registerGenkitAuthoringMcpTools.js";
 import { StudioGameDataStore } from "../devtools/studio/StudioGameDataStore.js";
 
 const transports = new Map<string, { transport: SSEServerTransport }>();
@@ -53,7 +54,7 @@ async function listPaths(
     const relativePath = path.relative(process.cwd(), fullPath).replaceAll(path.sep, "/");
     if (entry.isDirectory()) {
       if (includeDirectories) results.push(`${relativePath}/`);
-      results.push(...(await listPaths(fullPath, maxDepth, includeDirectories, currentDepth + 1)));
+      results.push(...(await listPaths(fullPath, maxDepth, includeDirectories, currentDepth + 1));
     } else {
       results.push(relativePath);
     }
@@ -77,12 +78,13 @@ function getConnectionProfile() {
       "For Nginx, disable proxy buffering on /api/mcp/sse.",
       "Live Studio effects additionally reuse ADMIN_PANEL_TOKEN or GM_PANEL_TOKEN internally.",
       "Areloria Studio uses the existing game MCP/server; no second NPC/game server is required.",
+      "Genkit authoring tools return proposal/hash evidence only; accepting content is a separate Studio write/review step.",
     ],
   };
 }
 
 function createMcpServer() {
-  const mcpServer = new McpServer({ name: "Areloria Game Server MCP", version: "1.3.0" });
+  const mcpServer = new McpServer({ name: "Areloria Game Server MCP", version: "1.4.0" });
 
   mcpServer.tool(
     "read_file",
@@ -142,6 +144,7 @@ function createMcpServer() {
 
   registerStudioMcpTools(mcpServer);
   registerStudioExtendedMcpTools(mcpServer);
+  registerGenkitAuthoringMcpTools(mcpServer);
   return mcpServer;
 }
 
