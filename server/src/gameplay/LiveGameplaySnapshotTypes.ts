@@ -9,7 +9,7 @@
  * - No wall-clock reads for gameplay state
  * - Empty arrays instead of undefined
  * - All arrays sorted deterministically by id
- * - Exact endless skill progression is carried as decimal strings; Number fields are projections
+ * - Exact endless skill progression uses decimal strings; Number fields are compatibility projections
  */
 
 import type { EquipmentStatBlock } from "../equipment/EquipmentStatTypes.js";
@@ -105,10 +105,8 @@ export interface LiveGameplayEquipmentSlot {
 
 export interface LiveGameplaySkillState {
   readonly skillId: string;
-  /** Compatibility projections. */
   readonly xp: number;
   readonly level: number;
-  /** Exact cap-free progression truth when available from schema-2 skills. */
   readonly xpExact?: string;
   readonly levelExact?: string;
   readonly xpIntoLevelExact?: string;
@@ -207,39 +205,99 @@ export interface CampNpcPosition {
   readonly y: number;
 }
 
+export type CampNpcType = "camp_woodcutter" | "camp_miner" | "camp_fisher";
+
 export interface LiveGameplayCampNpc {
-  readonly npcId: string;
-  readonly poiId: string;
+  readonly id: string;
+  readonly type: CampNpcType;
+  readonly name: string;
   readonly role: string;
-  readonly activity: CampNpcActivity;
-  readonly state: CampNpcState;
+  readonly poiId: string;
   readonly position: CampNpcPosition;
+  readonly state: CampNpcState;
+  readonly activity: CampNpcActivity;
+  readonly activityMessage: string;
+}
+
+export interface LiveGameplayCampStockItem {
+  readonly itemId: string;
+  readonly quantity: number;
+  readonly buyPrice?: number | null;
 }
 
 export interface LiveGameplayCampStock {
   readonly poiId: string;
-  readonly resourceId: string;
-  readonly quantity: number;
-  readonly capacity: number;
+  readonly items: readonly LiveGameplayCampStockItem[];
+  readonly lastUpdatedTick: number;
 }
+
+export interface LiveGameplayProcessingStation {
+  readonly id: string;
+  readonly type: "campfire" | "furnace" | "workbench";
+  readonly title: string;
+  readonly x: number;
+  readonly y: number;
+  readonly interactionRadius: number;
+}
+
+export interface LiveGameplayWorldSurface {
+  readonly schemaVersion: "world-surface-model.v1";
+  readonly tick: number;
+  readonly groups: readonly unknown[];
+  readonly points: readonly unknown[];
+}
+
+export const EMPTY_LIVE_GAMEPLAY_WORLD_SURFACE: LiveGameplayWorldSurface = Object.freeze({
+  schemaVersion: "world-surface-model.v1",
+  tick: 0,
+  groups: Object.freeze([]),
+  points: Object.freeze([]),
+});
+
+export type LiveGameplayCivicPressure = "empty" | "settled" | "crowded" | "over_capacity";
+
+export interface LiveGameplayCivicState {
+  readonly schemaVersion: "civic-state.v1";
+  readonly tick: number;
+  readonly houseCount: number;
+  readonly population: number;
+  readonly capacity: number;
+  readonly occupancyPermille: number;
+  readonly pressure: LiveGameplayCivicPressure;
+  readonly civicHash: string;
+}
+
+export const EMPTY_LIVE_GAMEPLAY_CIVIC_STATE: LiveGameplayCivicState = Object.freeze({
+  schemaVersion: "civic-state.v1",
+  tick: 0,
+  houseCount: 0,
+  population: 0,
+  capacity: 0,
+  occupancyPermille: 0,
+  pressure: "empty",
+  civicHash: "civic:00000000",
+});
 
 export interface LiveGameplaySnapshot {
   readonly schemaVersion: "live-gameplay-snapshot.v1";
   readonly playerId: string;
   readonly logicalIndex: number;
+  readonly tickRateHz: 10;
+  readonly tickMs: 100;
   readonly inventory: readonly LiveGameplayInventoryItem[];
   readonly equipment: readonly LiveGameplayEquipmentSlot[];
   readonly skills: readonly LiveGameplaySkillState[];
   readonly resourceNodes: readonly LiveGameplayResourceNode[];
   readonly wallet: LiveGameplayWallet;
+  readonly worldPois: readonly LiveGameplayWorldPoi[];
   readonly vendorEconomy: LiveGameplayVendorEconomySnapshot;
   readonly marketState: LiveGameplayMarketState;
-  readonly worldPois: readonly LiveGameplayWorldPoi[];
-  readonly worldSurface: unknown;
   readonly discoveryStats: DiscoveryStats;
   readonly recentDiscoveries: readonly RecentDiscovery[];
+  readonly campNpcs: readonly LiveGameplayCampNpc[];
+  readonly campStocks: readonly LiveGameplayCampStock[];
   readonly equipmentStats: EquipmentStatBlock;
-  readonly processingStations: readonly unknown[];
+  readonly processingStations: readonly LiveGameplayProcessingStation[];
   readonly activeQuests: readonly LiveGameplayQuestProgress[];
   readonly availableQuests: readonly LiveGameplayQuestProgress[];
   readonly completedQuestIds: readonly string[];
@@ -247,6 +305,18 @@ export interface LiveGameplaySnapshot {
   readonly npcReputations: readonly LiveGameplayNpcReputation[];
   readonly npcMemories: readonly LiveGameplayNpcMemory[];
   readonly npcRumors: readonly LiveGameplayNpcRumor[];
-  readonly campNpcs?: readonly LiveGameplayCampNpc[];
-  readonly campStocks?: readonly LiveGameplayCampStock[];
+  readonly worldSurface: LiveGameplayWorldSurface;
+  readonly civicState: LiveGameplayCivicState;
+}
+
+export interface GatherResult {
+  readonly ok: boolean;
+  readonly playerId: string;
+  readonly nodeId: string;
+  readonly resourceId: string;
+  readonly itemId: string;
+  readonly quantity: number;
+  readonly skillId: string;
+  readonly xpGranted: number;
+  readonly reason?: string;
 }
