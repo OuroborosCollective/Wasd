@@ -9,6 +9,8 @@ export const EXECUTABLE_GENKIT_GAMEPLAY_ACTIONS = [
   "quest_accept",
   "quest_complete",
   "craft",
+  "equipment_equip",
+  "equipment_unequip",
   "economy_sell_resource",
   "economy_sell_all_resources",
   "economy_buy_resource",
@@ -42,6 +44,8 @@ const ROUTE_ACTIONS: Readonly<Record<RouteAction, RouteDefinition>> = Object.fre
   quest_accept: Object.freeze({ method: "POST", path: "/api/quests/accept", authority: "existing_server_route", canonicalIntentExpected: true }),
   quest_complete: Object.freeze({ method: "POST", path: "/api/quests/complete", authority: "existing_server_route", canonicalIntentExpected: true }),
   craft: Object.freeze({ method: "POST", path: "/api/crafting/craft", authority: "existing_server_route", canonicalIntentExpected: true }),
+  equipment_equip: Object.freeze({ method: "POST", path: "/api/equipment/equip", authority: "existing_server_route", canonicalIntentExpected: true }),
+  equipment_unequip: Object.freeze({ method: "POST", path: "/api/equipment/unequip", authority: "existing_server_route", canonicalIntentExpected: true }),
   economy_sell_resource: Object.freeze({ method: "POST", path: "/api/economy/sell-resource", authority: "existing_server_route", canonicalIntentExpected: true }),
   economy_sell_all_resources: Object.freeze({ method: "POST", path: "/api/economy/sell-all-resources", authority: "existing_server_route", canonicalIntentExpected: true }),
   economy_buy_resource: Object.freeze({ method: "POST", path: "/api/economy/buy-resource", authority: "existing_server_route", canonicalIntentExpected: true }),
@@ -50,9 +54,8 @@ const ROUTE_ACTIONS: Readonly<Record<RouteAction, RouteDefinition>> = Object.fre
 });
 
 const BLOCKED_AUTHORITY_CAPABILITIES = Object.freeze([
-  Object.freeze({ capability: "combat", reason: "CombatRuntimePort is not registered on WorldTickAdapter; no Genkit combat success may be claimed until the canonical combat port is live." }),
-  Object.freeze({ capability: "equipment_mutation", reason: "Current equipment route is server-owned but does not yet return a ServerCanonicalIntent receipt; operator execution remains blocked until that truth gap is closed." }),
-  Object.freeze({ capability: "inventory_mutation", reason: "Current /api/inventory surface is read-only. Inventory changes must continue through canonical gather/crafting/economy/domain paths until a canonical inventory mutation route exists." }),
+  Object.freeze({ capability: "combat", reason: "CombatTickSystem exists but is not registered on the live WorldTickAdapter; no Genkit combat success may be claimed until that canonical tick path is wired." }),
+  Object.freeze({ capability: "direct_inventory_mutation", reason: "The public inventory API is read-only. Inventory mutation remains available only through canonical gather, crafting, equipment and economy operations until a dedicated canonical inventory command path exists." }),
   Object.freeze({ capability: "guild_governance", reason: "GuildRuntimePort is currently unavailable on WorldTickAdapter." }),
 ]);
 
@@ -87,7 +90,6 @@ function claimSequence(sessionId: string, playerId: string, sequence: number): {
   const key = `${sessionId}:${playerId}`;
   const previous = lastSequenceBySession.get(key);
   if (previous !== undefined && sequence <= previous) throw new Error("sequence_must_strictly_increase");
-  // Reserve synchronously so parallel calls cannot both pass the same gate.
   lastSequenceBySession.set(key, sequence);
   return { key, previous };
 }
