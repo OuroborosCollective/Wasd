@@ -3,6 +3,7 @@ import { areloriaGenkit } from "./index.js";
 import {
   EXECUTABLE_GENKIT_GAMEPLAY_ACTIONS,
   executeGenkitGameplayAction,
+  type GenkitGameplayOperatorRequest,
 } from "./gameplayOperator.js";
 
 const GameplayOperatorInputSchema = z
@@ -21,8 +22,8 @@ const GameplayOperatorInputSchema = z
  *
  * This flow does not ask a model to manufacture gameplay truth. It is a typed
  * Genkit orchestration surface around the real gameplayOperator, which in turn
- * either enqueues movement into WorldTick or calls an existing authoritative
- * server route and requires real follow-up readback.
+ * either enqueues movement/combat into WorldTick or calls an existing
+ * authoritative server route and requires real follow-up readback.
  */
 export const areloriaGameplayOperatorFlow = areloriaGenkit.defineFlow(
   {
@@ -30,5 +31,21 @@ export const areloriaGameplayOperatorFlow = areloriaGenkit.defineFlow(
     inputSchema: GameplayOperatorInputSchema,
     outputSchema: z.unknown(),
   },
-  async (input) => executeGenkitGameplayAction(input),
+  async (rawInput) => {
+    // Genkit's current schema typing widens flow input fields to optional in
+    // TypeScript even though the runtime Zod schema requires them. Re-parse at
+    // the authority boundary, then construct the strict operator contract.
+    const parsed = GameplayOperatorInputSchema.parse(rawInput);
+    const input: GenkitGameplayOperatorRequest = {
+      sessionId: parsed.sessionId,
+      sequence: parsed.sequence,
+      playerId: parsed.playerId,
+      action: parsed.action,
+      ...(parsed.payload === undefined ? {} : { payload: parsed.payload }),
+      ...(parsed.expectedRevisionHash === undefined
+        ? {}
+        : { expectedRevisionHash: parsed.expectedRevisionHash }),
+    };
+    return executeGenkitGameplayAction(input);
+  },
 );
