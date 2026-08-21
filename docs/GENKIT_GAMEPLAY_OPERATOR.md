@@ -61,11 +61,12 @@ Executes one fixed action. Inputs include:
 - action payload,
 - optional `expectedRevisionHash` optimistic lock.
 
-A failed/rejected pre-mutation call may release its sequence reservation. Once a server route has accepted a mutation, the sequence stays consumed even when later receipt/readback verification fails, preventing replay after an ambiguous accepted write.
+A failed/rejected pre-mutation call may release its sequence reservation. Once a server route or authoritative tick queue has accepted a mutation, the sequence stays consumed even when later receipt/readback verification fails, preventing replay after an ambiguous accepted write.
 
 ## Currently executable authority paths
 
-- `move` — directly enqueued into the live `RuntimePlayerSystem`; applied by the 10-Hz WorldTick; stamped as `ServerCanonicalIntent`; recorded by `CanonicalIntentIntake`; final position is read back after a later tick.
+- `move` — enqueued into the live `RuntimePlayerSystem`; applied by the 10-Hz WorldTick; stamped as `ServerCanonicalIntent`; recorded by `CanonicalIntentIntake`; final position is read back after a later tick.
+- `combat_attack` — canonical `attack` intent is idempotently queued into the global `CombatTickSystem`. The normal `WorldTickThinShell -> TickSystemRegistry` execution resolves the live player/NPC and range again inside the tick, performs the attack there, then exposes a bounded combat receipt. No second combat timer is created.
 - `gather` — `/api/resource/gather`.
 - `quest_talk` — `/api/npc/talk`.
 - `quest_accept` — `/api/quests/accept`.
@@ -81,11 +82,16 @@ A failed/rejected pre-mutation call may release its sequence reservation. Once a
 
 Every route-backed executable action must return an `ok: true` response plus a 64-hex `canonicalIntent.intentHash`. A follow-up gameplay snapshot is then read. `effectVerified` is true only when authoritative module evidence or mutation-history evidence changed.
 
+Combat uses its tick-owned receipt as the immediate mutation proof: before/after target health and attacker stamina, execution tick, range result and underlying `CombatResult`. Its canonical intent hash is the idempotency key.
+
+### Current melee range policy
+
+No authored melee-range value currently exists in WASD game-data/configuration. The operator therefore does not introduce a hidden free-standing balance value: the current melee reach is tied to the already-live movement quantum of **5 world units**, which is also the default distance applied by one authoritative movement intent. This should move to authored combat game-data when a canonical range policy is introduced.
+
 ## Explicitly blocked truth gaps
 
 These capabilities must remain unavailable until their runtime truth path exists:
 
-- **Combat:** `CombatTickSystem` exists but is not registered on the live `WorldTickAdapter`; direct `CombatSystem.attack()` would mutate health outside the canonical tick boundary.
 - **Free/direct inventory mutation:** the public inventory endpoint is read-only. Inventory still changes through canonical gather/craft/equipment/economy transactions.
 - **Guild governance:** `GuildRuntimePort` is currently unavailable on `WorldTickAdapter`.
 
@@ -117,7 +123,8 @@ Repository/CI green is not operational green. A deployment is operationally read
 5. a real player exists in `RuntimePlayerSystem`,
 6. a real operator action returns a canonical receipt,
 7. its follow-up runtime state/snapshot proves the expected mutation,
-8. no blocked capability is reported as successful.
+8. `combat_attack` receives a receipt from a later authoritative combat tick rather than mutating during the MCP call,
+9. no blocked capability is reported as successful.
 
 No mock response, generated snapshot, static fixture, or CI label can substitute for these checks.
 
