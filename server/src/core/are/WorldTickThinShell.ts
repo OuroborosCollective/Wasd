@@ -480,13 +480,23 @@ export class WorldTickThinShell {
     try {
       this.tick();
     } catch (error) {
-      const snapshot = this.registry.getFailureRuntime().getSnapshot();
+      const runtime = this.registry.getFailureRuntime();
+      let snapshot = runtime.getSnapshot();
       if (snapshot.lastFailureTick !== this.tickCount) {
-        this.registry.getFailureRuntime().recordFailure({
+        runtime.recordFailure({
           tick: this.tickCount,
           stage: 'scheduled_tick',
           error,
         });
+        snapshot = runtime.getSnapshot();
+      }
+      const latest = snapshot.records.find((record) => record.lastTick === this.tickCount) ?? null;
+      if (latest) {
+        console.error(
+          `[WorldTickThinShell] scheduled tick failure tick=${this.tickCount} stage=${latest.stage} family=${latest.family} fingerprint=${latest.fingerprint}`,
+        );
+      } else {
+        console.error(`[WorldTickThinShell] scheduled tick failure tick=${this.tickCount} family=unknown`);
       }
       // No fake state and no retry of the full authoritative tick. A failed tick
       // remains failed/consumed; the scheduler proceeds to the next 100ms slot.
