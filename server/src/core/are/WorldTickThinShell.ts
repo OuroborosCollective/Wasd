@@ -150,14 +150,10 @@ function normalizeWorldState(value: WorldStateProviderSlice | null | undefined):
   };
 }
 
-/**
- * Append items from source to target.
- */
+/** Append items from source to target. */
 function appendStable(target: unknown[], source: readonly unknown[] | undefined): void {
   if (!source || source.length === 0) return;
-  for (const item of source) {
-    target.push(item);
-  }
+  for (const item of source) target.push(item);
 }
 
 function missingRuntimeSourceError(): Error & { code: string } {
@@ -180,8 +176,6 @@ export class WorldTickThinShell {
   private readonly failureProbe: TickFailureFamilyProbeSystem;
   private isRunning = false;
   private timer: ReturnType<typeof setInterval> | null = null;
-
-  /** ARE-RUNTIME-TRUTH: Registry of world state providers - MUST have at least one */
   private worldStateProviders = new Map<string, WorldStateProvider>();
 
   constructor(options: WorldTickThinShellOptions = {}) {
@@ -189,11 +183,6 @@ export class WorldTickThinShell {
     this.snapshotComposer = new SnapshotComposer();
     this.persistenceQueue = layerPersistenceQueue;
     this.worldBrainState = new RuntimeWorldBrainStatePort({ worldSeed: options.worldSeed });
-
-    // Wire readback/rehydrate into the runtime world brain state (issue #2457):
-    // the persistence queue's real adapter is the readback source. This only
-    // takes effect once an adapter is set (via setAdapter / ensureAdapter),
-    // so rehydrate stays fail-closed until a real backend is wired.
     this.worldBrainState.setReadbackProvider((chunkKey) => this.persistenceQueue.loadChunkState(chunkKey));
 
     registerCoreTickSystems({}, this.registry);
@@ -203,27 +192,20 @@ export class WorldTickThinShell {
 
   start(): void {
     if (this.isRunning) return;
-
     console.log("[WorldTickThinShell] Starting - 10-Hz brain tick");
     this.isRunning = true;
     this.registry.notifyStart();
-    // Runtime scheduling catches boundary failures so one broken provider cannot
-    // turn a structured 10Hz failure into an unhandled process exception. The
-    // direct tick() API still throws and remains fail-hard for tests/operators.
     this.timer = setInterval(() => this.runScheduledTick(), WorldTickThinShell.TICK_INTERVAL_MS);
   }
 
   async stop(): Promise<void> {
     if (!this.isRunning) return;
-
     console.log("[WorldTickThinShell] Stopping");
     this.isRunning = false;
-
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
     }
-
     await this.persistenceQueue.shutdown();
     this.registry.notifyShutdown();
   }
@@ -257,61 +239,31 @@ export class WorldTickThinShell {
     try {
       this.finalizeWorldBrainSnapshot();
     } catch (error) {
-      this.registry.getFailureRuntime().recordFailure({
-        tick,
-        stage: 'snapshot_finalize',
-        error,
-      });
+      this.registry.getFailureRuntime().recordFailure({ tick, stage: 'snapshot_finalize', error });
       throw error;
     }
 
     try {
       this.persistenceQueue.tick(tick as any);
     } catch (error) {
-      this.registry.getFailureRuntime().recordFailure({
-        tick,
-        stage: 'persistence_tick',
-        error,
-      });
+      this.registry.getFailureRuntime().recordFailure({ tick, stage: 'persistence_tick', error });
       throw error;
     }
 
-    if (execution.failures.length === 0) {
+    const organicSystemFailure = execution.failures.some((failure) => failure.failure.origin === 'runtime');
+    if (!organicSystemFailure) {
       this.registry.getFailureRuntime().recordHealthyTick(tick);
     }
   }
 
-  /**
-   * Get merged world state from all registered providers.
-   * Throws MISSING_RUNTIME_SOURCE if no providers are registered.
-   */
   private getWorldStateForTick(context: TickSystemContext): ThinShellWorldState {
-    // ARE-RUNTIME-TRUTH: Fail hard if no providers - no silent EMPTY_WORLD_STATE
-    if (this.worldStateProviders.size === 0) {
-      throw missingRuntimeSourceError();
-    }
+    if (this.worldStateProviders.size === 0) throw missingRuntimeSourceError();
 
-    // Stable sort providers by ID for deterministic merge order
-    const providers = [...this.worldStateProviders.values()].sort((a, b) =>
-      a.id.localeCompare(b.id),
-    );
-
+    const providers = [...this.worldStateProviders.values()].sort((a, b) => a.id.localeCompare(b.id));
     const merged: Record<keyof TickContextWorldState, unknown[]> = {
-      npcs: [],
-      players: [],
-      loot: [],
-      inventory: [],
-      equipment: [],
-      resources: [],
-      warfronts: [],
-      economy: [],
-      factions: [],
-      quests: [],
-      housing: [],
-      kingdoms: [],
-      population: [],
-      help: [],
-      worldEvents: [],
+      npcs: [], players: [], loot: [], inventory: [], equipment: [], resources: [],
+      warfronts: [], economy: [], factions: [], quests: [], housing: [], kingdoms: [],
+      population: [], help: [], worldEvents: [],
     };
 
     for (const provider of providers) {
@@ -321,7 +273,6 @@ export class WorldTickThinShell {
       } catch (error) {
         throw new WorldStateProviderFailure(provider.id, error);
       }
-
       appendStable(merged.npcs, slice.npcs);
       appendStable(merged.players, slice.players);
       appendStable(merged.loot, slice.loot);
@@ -340,42 +291,19 @@ export class WorldTickThinShell {
     }
 
     return Object.freeze({
-      npcs: stableSort(merged.npcs),
-      players: stableSort(merged.players),
-      loot: stableSort(merged.loot),
-      inventory: stableSort(merged.inventory),
-      equipment: stableSort(merged.equipment),
-      resources: stableSort(merged.resources),
-      warfronts: stableSort(merged.warfronts),
-      economy: stableSort(merged.economy),
-      factions: stableSort(merged.factions),
-      quests: stableSort(merged.quests),
-      housing: stableSort(merged.housing),
-      kingdoms: stableSort(merged.kingdoms),
-      population: stableSort(merged.population),
-      help: stableSort(merged.help),
-      worldEvents: stableSort(merged.worldEvents),
+      npcs: stableSort(merged.npcs), players: stableSort(merged.players), loot: stableSort(merged.loot),
+      inventory: stableSort(merged.inventory), equipment: stableSort(merged.equipment), resources: stableSort(merged.resources),
+      warfronts: stableSort(merged.warfronts), economy: stableSort(merged.economy), factions: stableSort(merged.factions),
+      quests: stableSort(merged.quests), housing: stableSort(merged.housing), kingdoms: stableSort(merged.kingdoms),
+      population: stableSort(merged.population), help: stableSort(merged.help), worldEvents: stableSort(merged.worldEvents),
     });
   }
 
-  /**
-   * Register a WorldStateProvider for ARE truth path.
-   * Validates provider ID uniqueness and non-empty ID.
-   *
-   * @throws Error if provider ID is empty or duplicate
-   */
   registerWorldStateProvider(provider: WorldStateProvider): () => void {
-    if (!provider.id || provider.id.trim().length === 0) {
-      throw new Error("WorldStateProvider requires a stable non-empty id");
-    }
-
-    if (this.worldStateProviders.has(provider.id)) {
-      throw new Error(`Duplicate WorldStateProvider id: ${provider.id}`);
-    }
-
+    if (!provider.id || provider.id.trim().length === 0) throw new Error("WorldStateProvider requires a stable non-empty id");
+    if (this.worldStateProviders.has(provider.id)) throw new Error(`Duplicate WorldStateProvider id: ${provider.id}`);
     this.worldStateProviders.set(provider.id, provider);
     console.log(`[WorldTickThinShell] WorldStateProvider registered: ${provider.id}`);
-
     return () => {
       if (this.worldStateProviders.has(provider.id)) {
         this.worldStateProviders.delete(provider.id);
@@ -384,97 +312,37 @@ export class WorldTickThinShell {
     };
   }
 
-  /**
-   * Get count of registered providers (for testing/debugging)
-   */
-  getProviderCount(): number {
-    return this.worldStateProviders.size;
-  }
-
-  /**
-   * Check if any providers are registered
-   */
-  hasProviders(): boolean {
-    return this.worldStateProviders.size > 0;
-  }
-
-  getFailureFamilyStatus(): TickFailureFamilySnapshot {
-    return this.registry.getFailureRuntime().getSnapshot();
-  }
-
+  getProviderCount(): number { return this.worldStateProviders.size; }
+  hasProviders(): boolean { return this.worldStateProviders.size > 0; }
+  getFailureFamilyStatus(): TickFailureFamilySnapshot { return this.registry.getFailureRuntime().getSnapshot(); }
   armFailureFamilyRun(requestedRunId?: string | null): FailureFamilyProbeRunStatus {
     return this.failureProbe.armFullRun({ requestedRunId, currentTick: this.tickCount });
   }
+  getFailureFamilyProbeStatus(): FailureFamilyProbeRunStatus { return this.failureProbe.getStatus(); }
 
-  getFailureFamilyProbeStatus(): FailureFamilyProbeRunStatus {
-    return this.failureProbe.getStatus();
-  }
-
-  registerChunk(chunkKey: string): void {
-    this.worldBrainState.registerChunk(coerceChunkKey(chunkKey));
-  }
-
-  unregisterChunk(chunkKey: string): void {
-    this.worldBrainState.unregisterChunk(coerceChunkKey(chunkKey));
-  }
-
-  /**
-   * Wire the authoritative actor (player) state into the canonical world hash
-   * (AIM-104). The provider must return the live, tick-mutated players.
-   */
+  registerChunk(chunkKey: string): void { this.worldBrainState.registerChunk(coerceChunkKey(chunkKey)); }
+  unregisterChunk(chunkKey: string): void { this.worldBrainState.unregisterChunk(coerceChunkKey(chunkKey)); }
   setActorStateProvider(provider: (() => readonly import('./WorldBrainRuntimePort.js').ActorHashEntry[]) | null): void {
     this.worldBrainState.setActorStateProvider(provider);
   }
-
   getWorldBrainSeedRecord(chunkKey: string): CanonicalLayerSeedResult | null {
     return this.worldBrainState.getCanonicalSeedRecord(coerceChunkKey(chunkKey));
   }
-
-  getTickCount(): number {
-    return this.tickCount;
-  }
-
-  getWorldBrainSnapshot(): any {
-    return this.worldBrainState.getSnapshot();
-  }
-
-  getPersistenceStats() {
-    return this.persistenceQueue.getStats();
-  }
-
-  /**
-   * Wire a real persistence adapter into the queue (issue #2457). Required for
-   * the queue to count as non-degraded and for rehydrate to work.
-   */
+  getTickCount(): number { return this.tickCount; }
+  getWorldBrainSnapshot(): any { return this.worldBrainState.getSnapshot(); }
+  getPersistenceStats() { return this.persistenceQueue.getStats(); }
   setPersistenceAdapter(adapter: import('./LayerPersistencePort.js').LayerPersistenceAdapter): void {
     this.persistenceQueue.setAdapter(adapter);
   }
-
-  /**
-   * Lazily build the production persistence adapter via the async factory and
-   * wire it into the queue. Safe to await during bootstrap.
-   */
-  async ensurePersistenceAdapter(
-    factory: () => Promise<import('./LayerPersistencePort.js').LayerPersistenceAdapter>,
-  ): Promise<void> {
+  async ensurePersistenceAdapter(factory: () => Promise<import('./LayerPersistencePort.js').LayerPersistenceAdapter>): Promise<void> {
     await this.persistenceQueue.ensureAdapter(factory);
   }
-
-  /**
-   * Rehydrate all chunk layer states from real persisted data (issue #2457).
-   * Returns the number of chunks restored. No-op (0) when no adapter is wired.
-   */
   async rehydrateAllChunkStates(): Promise<number> {
     const adapter = this.persistenceQueue.getAdapter();
     if (!adapter || !adapter.loadAllChunkStates) return 0;
     return this.worldBrainState.rehydrateAll(() => adapter.loadAllChunkStates!());
   }
-
-  getSnapshotStats() {
-    return {
-      chunkCount: this.snapshotComposer.getChunkCount(),
-    };
-  }
+  getSnapshotStats() { return { chunkCount: this.snapshotComposer.getChunkCount() }; }
 
   private runScheduledTick(): void {
     try {
@@ -483,30 +351,19 @@ export class WorldTickThinShell {
       const runtime = this.registry.getFailureRuntime();
       let snapshot = runtime.getSnapshot();
       if (snapshot.lastFailureTick !== this.tickCount) {
-        runtime.recordFailure({
-          tick: this.tickCount,
-          stage: 'scheduled_tick',
-          error,
-        });
+        runtime.recordFailure({ tick: this.tickCount, stage: 'scheduled_tick', error });
         snapshot = runtime.getSnapshot();
       }
       const latest = snapshot.records.find((record) => record.lastTick === this.tickCount) ?? null;
       if (latest) {
-        console.error(
-          `[WorldTickThinShell] scheduled tick failure tick=${this.tickCount} stage=${latest.stage} family=${latest.family} fingerprint=${latest.fingerprint}`,
-        );
+        console.error(`[WorldTickThinShell] scheduled tick failure tick=${this.tickCount} stage=${latest.stage} family=${latest.family} fingerprint=${latest.fingerprint}`);
       } else {
         console.error(`[WorldTickThinShell] scheduled tick failure tick=${this.tickCount} family=unknown`);
       }
-      // No fake state and no retry of the full authoritative tick. A failed tick
-      // remains failed/consumed; the scheduler proceeds to the next 100ms slot.
     }
   }
 
   private registerWorldBrainRuntimeSystem(): void {
-    // Registry replacement is intentional here: each ThinShell owns its runtime
-    // WorldBrain ports. Replacement keeps tests and isolated runtimes honest
-    // without ever registering duplicate systems under the same name.
     registerWorldBrainTickSystem({
       state: this.worldBrainState,
       snapshot: new SnapshotComposerWorldBrainSink(this.snapshotComposer),
@@ -515,14 +372,9 @@ export class WorldTickThinShell {
   }
 
   private finalizeWorldBrainSnapshot(): void {
-    if (this.snapshotComposer.getChunkCount() > 0) {
-      this.snapshotComposer.finalizeWorldSnapshot(this.tickCount as any);
-    }
+    if (this.snapshotComposer.getChunkCount() > 0) this.snapshotComposer.finalizeWorldSnapshot(this.tickCount as any);
   }
 }
 
 export const worldTickThinShell = new WorldTickThinShell();
-
-export function registerWorldTickThinShell(): WorldTickThinShell {
-  return worldTickThinShell;
-}
+export function registerWorldTickThinShell(): WorldTickThinShell { return worldTickThinShell; }
