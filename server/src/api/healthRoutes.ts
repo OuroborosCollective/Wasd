@@ -1,6 +1,10 @@
 import { Router, type Request, type Response } from 'express';
 import path from 'node:path';
-import { DEFAULT_CHUNK_TILES, KAPPA_STANDARD } from '@wasd/shared';
+import {
+  KAPPA_PER_TILE,
+  LEGACY_INTRACHUNK_MESH_TILES,
+  UNIFIED_CHUNK_SIZE_TILES,
+} from '@wasd/shared';
 import type { WorldTick } from '../core/are/index.js';
 import { resolveCanonicalWorldSeed } from '../core/are/CanonicalLayerSeed.js';
 import { getDeterministicWatchdogStatus } from '../core/installDeterministicWatchdog.js';
@@ -138,9 +142,13 @@ export function healthRoutes(options: HealthRouteOptions): Router {
 
   // Read-only provenance for the active 2D world renderer. This endpoint does
   // not turn client worldgen into gameplay authority: it publishes the same
-  // canonical seed resolution and shared WorldDirector constants used by the
-  // server-side ARE seed path so the renderer can bind real graphics to a
-  // server-anchored static projection instead of inventing a local demo seed.
+  // canonical seed resolution and shared WorldDirector contracts used by the
+  // server-side ARE seed path so the renderer can bind real graphics to the
+  // server's deterministic static projection instead of inventing a demo seed.
+  //
+  // Important: the authoritative runtime chunk is 64 tiles. The WorldDirector
+  // still uses a 16x16 intra-chunk mesh for biome/road/settlement planning. Both
+  // values are exposed explicitly to prevent the historical 16/64 drift.
   router.get('/world-projection', (_req: Request, res: Response) => {
     noStore(res);
     const tick = options.getTick();
@@ -148,21 +156,24 @@ export function healthRoutes(options: HealthRouteOptions): Router {
     const worldHashSnapshot = safe(() => tick?.getWorldHashSnapshot?.() ?? null, null);
     const currentTick = Number((tick as any)?.tickCount ?? worldHashSnapshot?.tick ?? -1);
     const tickReady = Boolean(tick) && !initializing && Number.isSafeInteger(currentTick) && currentTick >= 0;
+    const meshScaleTiles = UNIFIED_CHUNK_SIZE_TILES / LEGACY_INTRACHUNK_MESH_TILES;
 
     res.status(tickReady ? 200 : 503).json({
       ok: tickReady,
-      schemaVersion: 'areloria.client2d-world-projection.v1',
+      schemaVersion: 'areloria.client2d-world-projection.v2',
       truthClass: 'SERVER_SEEDED_STATIC_PRESENTATION',
       gameplayAuthority: false,
       generator: 'OuroborosWorldDirectorV1',
       worldSeed: resolveCanonicalWorldSeed(),
-      kappaPerTile: KAPPA_STANDARD,
-      chunkTiles: DEFAULT_CHUNK_TILES,
+      kappaPerTile: KAPPA_PER_TILE,
+      chunkSizeTiles: UNIFIED_CHUNK_SIZE_TILES,
+      scenePlanMeshTiles: LEGACY_INTRACHUNK_MESH_TILES,
+      meshScaleTiles,
       viewRadiusChunks: 1,
       serverTick: tickReady ? currentTick : null,
       worldHash: isCanonicalNonZeroHash(worldHashSnapshot?.worldHash) ? worldHashSnapshot.worldHash : null,
       actorPositionCompatibility: 'runtime_world_units_or_kappa',
-      source: 'CanonicalLayerSeed.resolveCanonicalWorldSeed + @wasd/shared/WorldDirector',
+      source: 'CanonicalLayerSeedSignals + UnifiedChunkContract + @wasd/shared/WorldDirector',
     });
   });
 
