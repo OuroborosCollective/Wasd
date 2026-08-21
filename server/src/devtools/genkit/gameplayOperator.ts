@@ -354,6 +354,7 @@ export async function executeGenkitGameplayAction(input: GenkitGameplayOperatorR
     const response = await loopbackJson(route.method, route.path, playerId, payload);
     const accepted = response.ok && responseClaimsOk(response.body);
     const canonicalIntentPresent = responseHasCanonicalIntent(response.body);
+    mutationAccepted = accepted;
     if (!accepted) {
       return Object.freeze({
         schemaVersion: "areloria.genkit-gameplay-execution.v1",
@@ -375,7 +376,6 @@ export async function executeGenkitGameplayAction(input: GenkitGameplayOperatorR
       throw new Error("authoritative_route_missing_canonical_intent_receipt");
     }
 
-    mutationAccepted = true;
     const after = await readGenkitGameplaySnapshot(playerId);
     const changedModules = changedEvidenceModules(before, after);
     const mutationHistoryAdvanced =
