@@ -37,18 +37,24 @@ describe('ARE failure-family validation routes', () => {
   });
 
   it('accepts a run only when the probe is idle and reports 10Hz execution semantics', async () => {
-    const arm = vi.fn(() => ({
-      active: true,
-      runId: 'manual-regression',
-      queuedCases: 6,
-      completedCases: 0,
-      totalCases: 6,
-      startedAtTick: null,
-      lastExecutedTick: null,
-    }));
+    let probe = { active: false, runId: null as string | null, queuedCases: 0 };
+    const arm = vi.fn((runId: string | null) => {
+      probe = {
+        active: true,
+        runId: runId ?? 'generated-run',
+        queuedCases: 6,
+      };
+      return {
+        ...probe,
+        completedCases: 0,
+        totalCases: 6,
+        startedAtTick: null,
+        lastExecutedTick: null,
+      };
+    });
     const thinShell = {
       getFailureFamilyStatus: () => ({ status: 'clean', totalOccurrences: 0, records: [] }),
-      getFailureFamilyProbeStatus: () => ({ active: false, runId: null, queuedCases: 0 }),
+      getFailureFamilyProbeStatus: () => probe,
       armFailureFamilyRun: arm,
     };
     const app = appFor({ tickCount: 100, thinShell });
@@ -64,7 +70,37 @@ describe('ARE failure-family validation routes', () => {
       execution: 'next_10hz_tick_slots',
       gameplayMutation: false,
       rerunPolicy: 'probe_only_safe_same_context_once',
+      tick: 100,
+      probe: { active: true, runId: 'manual-regression', queuedCases: 6 },
+      runRecords: [],
     });
+  });
+
+  it('returns only records associated with the current or most recent run id', async () => {
+    const thinShell = {
+      getFailureFamilyProbeStatus: () => ({ active: false, runId: 'run-two', queuedCases: 0, completedCases: 6 }),
+      getFailureFamilyStatus: () => ({
+        status: 'clean',
+        totalOccurrences: 3,
+        records: [
+          { fingerprint: 'a', runId: 'run-one', lastRunId: 'run-two', caseId: 'case-a' },
+          { fingerprint: 'b', runId: 'run-one', lastRunId: 'run-one', caseId: 'case-b' },
+          { fingerprint: 'c', runId: null, lastRunId: null, caseId: null },
+        ],
+      }),
+      armFailureFamilyRun: vi.fn(),
+    };
+    const app = appFor({ tickCount: 222, thinShell });
+
+    const response = await admin(
+      request(app).get('/api/are/validation/failure-families/status'),
+    ).expect(200);
+
+    expect(response.body.tick).toBe(222);
+    expect(response.body.probe.runId).toBe('run-two');
+    expect(response.body.runRecords).toEqual([
+      { fingerprint: 'a', runId: 'run-one', lastRunId: 'run-two', caseId: 'case-a' },
+    ]);
   });
 
   it('rejects malformed run ids and a second run while one is active', async () => {
@@ -83,6 +119,7 @@ describe('ARE failure-family validation routes', () => {
       request(app).post('/api/are/validation/failure-families/run').send({ runId: 'next-run' }),
     ).expect(409);
     expect(active.body.error).toBe('failure_family_run_already_active');
+    expect(active.body.runRecords).toEqual([]);
     expect(thinShell.armFailureFamilyRun).not.toHaveBeenCalled();
   });
 });
