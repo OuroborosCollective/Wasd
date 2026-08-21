@@ -4,7 +4,7 @@
 
 This repository exposes an isolated Genkit development/content side-channel for AI-assisted game work. It is deliberately separate from the authoritative gameplay runtime.
 
-Genkit may propose NPC content, quest/lore content, UI/menu implementation plans, database change plans, code-fix plans, playtest analyses, and asset generation/import plans. A proposal is never evidence that the proposed write or runtime action happened.
+Genkit may propose NPC content, quest/lore content, canonical quest definitions, UI/menu implementation plans, database change plans, code-fix plans, playtest analyses, and asset generation/import plans. A proposal is never evidence that the proposed write or runtime action happened.
 
 ## Truth boundary
 
@@ -14,7 +14,7 @@ The authoritative gameplay chain remains:
 
 Genkit is outside that chain:
 
-`Genkit/model -> schema-validated proposal -> SHA-256 proposal receipt -> human/tool review -> real implementation tool -> tests/readback -> (for gameplay wishes) existing server canonical-intent path`
+`Genkit/model -> real content context -> schema-validated proposal -> SHA-256 proposal receipt -> explicit review/promotion -> real validation/readback -> game-data -> runtime content loader`
 
 Hard rules:
 
@@ -31,7 +31,8 @@ Hard rules:
 | Flow | Purpose | Effect class | Approval |
 | --- | --- | --- | --- |
 | `areloriaNpcProposalFlow` | NPC spawn/content/dialogue/behavior proposal | `CONTENT_PROPOSAL` | `REVIEW_REQUIRED` |
-| `areloriaQuestLoreFlow` | Quest and lore authored-content proposal | `CONTENT_PROPOSAL` | `REVIEW_REQUIRED` |
+| `areloriaQuestLoreFlow` | Free-form quest and lore authored-content proposal | `CONTENT_PROPOSAL` | `REVIEW_REQUIRED` |
+| `areloriaCanonicalQuestProposalFlow` | One canonical quest grounded in the real selected `game-data` context | `CONTENT_PROPOSAL` | `REVIEW_REQUIRED` |
 | `areloriaUiMenuPlanFlow` | UI/menu component and verification plan | `UI_CODE_PLAN` | `REVIEW_REQUIRED` |
 | `areloriaDatabasePlanFlow` | Forward/rollback/verification SQL plan | `DATABASE_WRITE_PLAN` | `OWNER_REQUIRED` |
 | `areloriaCodeFixPlanFlow` | Evidence-driven code-fix/test/readback plan | `REPOSITORY_WRITE_PLAN` | `OWNER_REQUIRED` |
@@ -40,12 +41,58 @@ Hard rules:
 
 Every successful flow returns `truthClass=SIDE_CHANNEL_PROPOSAL`, `authoritativeMutationAllowed=false`, `requiresReadback=true`, and a canonical SHA-256 receipt for the exact proposal envelope.
 
+## Canonical quest authoring
+
+`areloriaCanonicalQuestProposalFlow` is stricter than the general quest/lore flow:
+
+1. Resolve the same content root selected by the server (`legacy`, reviewed pack, or published pack).
+2. Run authoring-grade validation before the model is called.
+3. Read real NPC, item, quest and lore identifiers.
+4. Sort the context and bind it to `sourceContentHash` using the existing canonical SHA-256 receipt function.
+5. Ask the model for exactly one quest matching the canonical authored quest schema.
+6. Validate the returned NPC/item/prerequisite references against the real selected content.
+7. Return a review-only proposal whose promotion target is `quests/quests.json` and whose `writePerformed` field is always `false`.
+
+A stale proposal is rejected at promotion time if its `sourceContentHash` no longer matches current content.
+
+The canonical authored quest contract is implemented in:
+
+- `server/src/modules/content/questContentContract.ts`
+- `server/src/modules/content/validateAuthoringContent.ts`
+- `server/src/devtools/genkit/worldContext.ts`
+- `server/src/devtools/genkit/canonicalQuestFlow.ts`
+
+## Explicit quest promotion
+
+Genkit itself never writes `game-data`. A reviewed proposal can be promoted only through the separate CLI tool with the exact approved receipt:
+
+```bash
+cd server
+pnpm exec tsx src/tools/promoteCanonicalQuestProposal.ts \
+  --proposal ../content-proposals/quest.json \
+  --approve-receipt <exact-sha256-from-proposal>
+```
+
+The promotion tool:
+
+- accepts only `CANONICAL_QUEST_PROPOSAL`,
+- recomputes and verifies the SHA-256 receipt,
+- requires the proposal's content hash to match current content,
+- refuses direct promotion into published/pack runtime roots,
+- validates all canonical quest fields and references,
+- writes the legacy authoring `quests/quests.json`,
+- runs authoring validation after the write,
+- reads the content back and verifies the new quest is present,
+- restores the original file if post-write validation/readback fails.
+
+The tool's successful JSON output is write/readback evidence for the authored content file only. It is not proof that a running game server loaded the quest; runtime content-loader readback remains a separate gate.
+
 ## Provider configuration
 
 The current repository already contains the legacy `@genkit-ai/googleai` provider package. The bridge accepts a key from the first configured variable below without printing its value:
 
 1. `GOOGLE_GENAI_API_KEY`
-2. `GOOGLE_GENERATIVE_AI_API_KEY` (already present in `.env.example`)
+2. `GOOGLE_GENERATIVE_AI_API_KEY`
 3. `GOOGLE_API_KEY`
 
 Optional:
@@ -109,11 +156,24 @@ A typical MCP session is:
 2. Start the runtime with `pnpm exec tsx src/devtools/genkit/runtime.ts` from the `server/` working directory.
 3. Call `list_flows` and inspect schemas.
 4. Call `run_flow` with schema-valid JSON.
-5. Inspect the returned proposal and receipt.
-6. If implementation is desired, hand the plan to the appropriate repository/database/UI tool under its own permission boundary.
-7. Run real tests and runtime/persistence readback after mutation.
+5. Inspect the returned proposal, `sourceContentHash`, validation fields and receipt.
+6. Review the proposal outside the runtime truth path.
+7. If promotion is approved, save the exact envelope to a review file and invoke the explicit promotion tool with its exact receipt.
+8. Run real tests and runtime/content-loader readback after mutation.
 
 ## Example MCP flow input
+
+Canonical quest proposal:
+
+```json
+{
+  "brief": "Add one early-game quest that deepens the existing Millbrook resource loop without inventing new NPC or item IDs.",
+  "constraints": [
+    "Use only real NPC and item IDs from the supplied content context",
+    "Keep the reward appropriate for early progression"
+  ]
+}
+```
 
 NPC proposal:
 
@@ -151,18 +211,41 @@ Database plan:
 }
 ```
 
+## External product/research side channels
+
+Amplitude and Quicknode are not Genkit providers and never enter the Genkit/runtime authority path. Their optional server observers live under `server/src/services/` and are disabled by default.
+
+Safe status can be inspected without printing credentials:
+
+```bash
+cd server
+pnpm exec tsx src/tools/externalSideChannelDoctor.ts
+```
+
+To run a real read-only Quicknode probe when a real HTTPS RPC URL is configured:
+
+```bash
+pnpm exec tsx src/tools/externalSideChannelDoctor.ts --probe-quicknode
+```
+
+Amplitude observes immutable projections of already-recorded canonical intents. Quicknode exposes only `eth_chainId` and `eth_blockNumber`. Neither service can change intent acceptance, TickSystem execution, world state, or hashes.
+
 ## Repository implementation notes
 
-- `server/src/devtools/genkit/index.ts` registers the flows.
+- `server/src/devtools/genkit/index.ts` registers the original proposal flows.
+- `server/src/devtools/genkit/canonicalQuestFlow.ts` registers the real-context canonical quest flow.
 - `server/src/devtools/genkit/runtime.ts` keeps only the Genkit reflection/runtime process alive.
 - `server/src/devtools/genkit/contracts.ts` enforces the non-authoritative payload boundary and canonical receipts.
 - `server/src/devtools/genkit/catalog.ts` is the machine-readable capability/effect inventory.
-- `server/src/devtools/genkit/doctor.ts` reports readiness without exposing secrets.
+- `server/src/devtools/genkit/worldContext.ts` builds a deterministic prompt context from real selected content.
+- `server/src/devtools/genkit/doctor.ts` reports Genkit readiness without exposing secrets.
 - `server/src/devtools/genkit/__tests__/contracts.test.ts` verifies receipt determinism and rejects authority-field injection.
+- `server/src/devtools/genkit/__tests__/questAuthoring.test.ts` verifies real-content grounding and reference rejection.
+- `server/src/devtools/genkit/__tests__/sideChannels.test.ts` verifies observer failures cannot change canonical intent truth.
 
 ## CI verification
 
-The Genkit workflow builds `@wasd/shared` before the server TypeScript check because the server consumes shared package declarations. It then runs the Genkit contract test, the provider-safe doctor, the repository architecture guard, and the deterministic WorldTick guard.
+The existing Genkit workflow builds `@wasd/shared` before the server TypeScript check because the server consumes shared package declarations. It then runs the Genkit contract test, the provider-safe doctor, the repository architecture guard, and the deterministic WorldTick guard. The branch also contains additional quest-authoring/side-channel tests; CI configuration must explicitly include them before their result may be used as release evidence.
 
 ## Provider hardening follow-up
 
