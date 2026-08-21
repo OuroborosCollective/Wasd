@@ -44,6 +44,11 @@ interface LegacySkillSnapshot {
   readonly skillId?: string;
   readonly xp?: number;
   readonly level?: number;
+  readonly xpExact?: string;
+  readonly levelExact?: string;
+  readonly xpIntoLevelExact?: string;
+  readonly xpForNextLevelExact?: string;
+  readonly numberProjectionExact?: boolean;
 }
 
 interface LegacyResourceNodeSnapshot {
@@ -133,6 +138,12 @@ function toLiveNpcQuestProgress(quest: NpcQuestProgressSource): LiveGameplayQues
   };
 }
 
+function canonicalNonNegativeExact(value: unknown, allowZero = true): string | undefined {
+  if (typeof value !== "string" || !/^(0|[1-9][0-9]*)$/.test(value)) return undefined;
+  if (!allowZero && value === "0") return undefined;
+  return value;
+}
+
 export async function composeLiveGameplaySnapshotFromLegacy(
   input: ComposeLiveGameplaySnapshotFromLegacyInput,
 ): Promise<LiveGameplaySnapshot> {
@@ -146,11 +157,24 @@ export async function composeLiveGameplaySnapshotFromLegacy(
         itemId: slot.itemId ?? null,
       })),
     ),
-    getSkillStates: () => input.skills.map((skill) => ({
-      skillId: String(skill.skillId ?? skill.id ?? "unknown_skill"),
-      xp: Math.max(0, Math.floor(Number(skill.xp ?? 0))),
-      level: Math.max(1, Math.floor(Number(skill.level ?? 1))),
-    })),
+    getSkillStates: () => input.skills.map((skill) => {
+      const xpExact = canonicalNonNegativeExact(skill.xpExact);
+      const levelExact = canonicalNonNegativeExact(skill.levelExact, false);
+      const xpIntoLevelExact = canonicalNonNegativeExact(skill.xpIntoLevelExact);
+      const xpForNextLevelExact = canonicalNonNegativeExact(skill.xpForNextLevelExact, false);
+      return {
+        skillId: String(skill.skillId ?? skill.id ?? "unknown_skill"),
+        xp: Math.max(0, Math.floor(Number(skill.xp ?? 0))),
+        level: Math.max(1, Math.floor(Number(skill.level ?? 1))),
+        ...(xpExact ? { xpExact } : {}),
+        ...(levelExact ? { levelExact } : {}),
+        ...(xpIntoLevelExact ? { xpIntoLevelExact } : {}),
+        ...(xpForNextLevelExact ? { xpForNextLevelExact } : {}),
+        ...(typeof skill.numberProjectionExact === "boolean"
+          ? { numberProjectionExact: skill.numberProjectionExact }
+          : {}),
+      };
+    }),
     getResourceNodes: () => input.resourceNodes.map((node) => ({
       nodeId: String(node.nodeId ?? node.id ?? "unknown_node"),
       resourceId: String(node.resourceId ?? node.itemRewardId ?? node.kind ?? "resource"),
