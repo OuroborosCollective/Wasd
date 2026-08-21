@@ -80,7 +80,8 @@ export function resolveQuickNodeAttestationConfig(
 }
 
 function buildRequest(method: AllowedQuickNodeMethod, id: number): JsonRpcRequest {
-  return Object.freeze({ jsonrpc: "2.0" as const, id, method, params: Object.freeze([]) });
+  const params: readonly [] = [];
+  return Object.freeze({ jsonrpc: "2.0" as const, id, method, params });
 }
 
 async function defaultTransport(
