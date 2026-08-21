@@ -1,5 +1,6 @@
 import { ARELORIA_GENKIT_FLOW_CATALOG } from "./catalog.js";
 import "./index.js";
+import "./contentAuthoring.js";
 
 // This process exists only so the Genkit CLI/MCP reflection runtime can keep
 // the registered development flows discoverable. It is intentionally separate
