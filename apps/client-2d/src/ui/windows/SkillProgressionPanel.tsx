@@ -49,6 +49,8 @@ export function SkillProgressionPanel({ skills }: Props) {
               aria-valuenow={Math.round(skill.progressRatio * 100)}
               aria-valuemin={0}
               aria-valuemax={100}
+              aria-valuetext={`${skill.xp} / ${skill.xpForNextLevel} XP (${Math.round(skill.progressRatio * 100)}%)`}
+              title={`${skill.xp} / ${skill.xpForNextLevel} XP (${Math.round(skill.progressRatio * 100)}%)`}
             >
               <div
                 className="skill-row__fill"
