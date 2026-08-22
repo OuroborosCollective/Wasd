@@ -4,7 +4,6 @@ import { adminWriteBlockedHandler } from "../middleware/adminRequestHandlers.js"
 import { sensitiveWriteRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { execFile, execFileSync } from "node:child_process";
 import net from "node:net";
-import { createHash, timingSafeEqual } from "node:crypto";
 import type { WorldTick } from "../core/are/index.js";
 import { getSupabaseSummary } from "../config/supabase.js";
 
