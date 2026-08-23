@@ -46,6 +46,9 @@ jobs:
       - name: Run ARE unit tests
         run: pnpm exec vitest run server/src/core/are
 
+      - name: Run 10Hz failure-family route regression
+        run: pnpm exec vitest run server/src/tests/are-failure-family-route.test.ts
+
       - name: Build shared
         run: pnpm --filter @wasd/shared build
 
