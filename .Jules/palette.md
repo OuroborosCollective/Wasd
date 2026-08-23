@@ -29,3 +29,7 @@
 ## 2028-02-19 - [A11y with Interaction Hotkey Buttons and aria-keyshortcuts]
 **Learning:** Floating interactive prompt elements (like the InteractionPrompt for triggering object interactions) display visual `<kbd>` hints (e.g., "E") but often lack the corresponding programmatic key-binding mapping for assistive technologies. Adding `aria-keyshortcuts="e"` guarantees screen-reader users are informed of the actual shortcut constraint natively.
 **Action:** When designing or standardizing visual keybind badges or prompt cues, always expose the appropriate lowercase `aria-keyshortcuts` attribute on the focusable container or trigger button.
+
+## 2028-02-20 - [Comprehensive Accessibility & Hover Tooltips in Progression Panels]
+**Learning:** Skill progression bars often render raw numerical XP denominators without conveying human-readable context to screen readers or offering desktop hover feedback. Combining `role="region"` with `aria-label` on container panels, alongside `aria-valuetext` and matching hover `title` tooltips on `role="progressbar"` bars, provides assistive technology users with natural text readout and desktop users with immediate visual feedback.
+**Action:** Always complement `role="progressbar"` with descriptive `aria-valuetext` and a matching hover `title` tooltip in skill and progression UI components.
