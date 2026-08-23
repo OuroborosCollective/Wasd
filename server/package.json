@@ -37,7 +37,7 @@
     "js-yaml": "^4.3.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
-    "openai": "^6.49.0",
+    "openai": "^7.5.0",
     "pg": "^8.22.0",
     "posthog-node": "^5.48.0",
     "reflect-metadata": "^0.2.2",
