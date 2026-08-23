@@ -4,159 +4,136 @@ Purpose: Implement server-authoritative XP/level tracking and broadcast to clien
 
 ## Architecture: Read-Only Stats Axiom
 
-**The client NEVER calculates XP or levels locally.** All stats come from the server via WebSocket.
+**The client NEVER calculates authoritative XP or levels locally.** All progression truth comes from the server.
 
-```
+```text
 SERVER (Authoritative)          CLIENT (Read-Only)
 ─────────────────────           ───────────────────
-PlayerStatsDirector           CharacterOverlay
-    ↓                              ↑
-XP calculation                   Render only
-    ↓                              ↑
-Broadcast via WS              Receive snapshot
-    ↓                              ↑
-CombatDirector ─────────────── useSyncExternalStore
+SkillProgressionService             Skill/Character UI
+    ↓                                      ↑
+AREUnboundedProgression                 Render only
+    ↓                                      ↑
+Exact decimal-string snapshot       Receive snapshot
+    ↓                                      ↑
+Gameplay events / persistence ─────────────┘
 ```
 
-## Implementation
+## Endless progression invariant
 
-### 1. PlayerStatsDirector Singleton
+Arelorian skill progression has **no level cap**. `99`, `999999`, `Number.MAX_SAFE_INTEGER`, UI width, storage type, or a legacy safety constant must never become gameplay ceilings.
+
+The canonical progression owner is:
+
+- `server/src/core/determinism/AREUnboundedProgression.ts`
+
+Canonical state uses exact integers:
+
 ```typescript
-export class PlayerStatsDirector {
-  private playerSkills = new Map<string, Record<string, { xp: number; level: number }>>();
-  private broadcastFn: ((playerId, event, payload) => void) | null = null;
-  
-  setBroadcastFn(fn) {
-    this.broadcastFn = fn;
-  }
-  
-  applyXP(playerId: string, skillId: string, amount: number): { leveledUp: boolean; newLevel: number } {
-    const skills = this.getOrCreateSkills(playerId);
-    // ... RuneScape XP formula
-  }
-  
-  getFullSnapshot(playerId: string, playerState: any): PlayerStatsSnapshot {
-    // Return complete stats for UI
-  }
-  
-  private broadcastSnapshot(playerId: string) {
-    if (!this.broadcastFn) return;
-    const snapshot = this.getFullSnapshot(playerId, playerState);
-    this.broadcastFn(playerId, "player_stats_snapshot", snapshot);
-  }
+interface AREUnboundedProgressionState {
+  totalXp: bigint;
+  level: bigint;
+  xpIntoLevel: bigint;
 }
 ```
 
-### 2. RuneScape XP Formula
-```typescript
-const MAX_LEVEL = 99;
+BigInt is never serialized directly. Persistence and network snapshots expose exact values as canonical base-10 strings such as:
 
-function xpForLevel(level: number): number {
-  // XP needed to go from level to level+1
-  if (level <= 1) return 0;
-  return Math.floor(50 * Math.pow(level, 1.4));
-}
-
-function totalXpForLevel(level: number): number {
-  let total = 0;
-  for (let l = 2; l <= level; l++) {
-    total += xpForLevel(l - 1);
-  }
-  return total;
-}
-
-function levelFromXp(totalXp: number): number {
-  let level = 1;
-  let xpRemaining = totalXp;
-  while (level < MAX_LEVEL && xpRemaining >= xpForLevel(level)) {
-    xpRemaining -= xpForLevel(level);
-    level++;
-  }
-  return level;
+```json
+{
+  "xpExact": "900719925474099200000",
+  "levelExact": "1000000000000000001",
+  "xpIntoLevelExact": "42"
 }
 ```
 
-### 3. Types
-```typescript
-export interface SkillSnapshot {
-  xp: number;
-  level: number;
-  nextLevelXP: number;
-  progressPercent: number; // 0-100 for UI progress bar
-}
+Legacy `number` fields remain read-model/compatibility projections only. `numberProjectionExact=false` means callers MUST use the exact string fields for authoritative interpretation.
 
-export interface PlayerStatsSnapshot {
-  playerId: string;
-  skills: Record<string, SkillSnapshot>;
-  totalLevel: number;
-  hp: number;
-  maxHp: number;
-  mana: number;
-  maxMana: number;
-  stamina: number;
-  maxStamina: number;
-  gold: number;
-  level: number;
-}
+## Canonical XP curve
+
+The historical Arelorian curve is retained without floating-point truth:
+
+```text
+XP(level -> level+1) = floor(50 * level^1.4)
 ```
 
-### 4. Integration with CombatDirector
+The runtime evaluates the same curve exactly as integer arithmetic:
 
-CombatDirector emits XP events that PlayerStatsDirector consumes:
-```typescript
-// CombatDirector
-public drainXPevents(): XPGainEvent[] {
-  const events = this.pendingXPevents;
-  this.pendingXPevents = [];
-  return events;
-}
-
-// In WorldTick
-const xpEvents = combatDirector.drainXPevents();
-playerStatsDirector.queueXPevents(xpEvents);
-playerStatsDirector.processXPevents(xpEvents);
+```text
+floor((50^5 * level^7)^(1/5))
 ```
 
-### 5. Client UI Pattern
-```typescript
-// State store with useSyncExternalStore
-class CharacterStateStore {
-  private state: PlayerStatsSnapshot | null = null;
-  private listeners = new Set<() => void>();
-  
-  receiveSnapshot(snapshot: PlayerStatsSnapshot) {
-    this.state = snapshot;
-    this.notify();
-  }
-}
+The fifth root is computed with deterministic integer binary search. This avoids `Math.pow`, floating overflow, and artificial maximum levels in progression truth.
 
-export function useCharacterStats(): PlayerStatsSnapshot | null {
-  return useSyncExternalStore(
-    this.subscribe,
-    () => this.getSnapshot(),
-    () => null
-  );
-}
+Known values:
+
+```text
+level 1 -> 2:  50 XP
+level 2 -> 3: 131 XP
+level 3 -> 4: 232 XP
 ```
 
-## Skill Definitions
-Default skills to track:
-- `sword_mastery` - Sword weapons
-- `blunt_force` - Axes and maces
-- `archery` - Bow weapons
-- `heavy_armor` - Plate armor defense
-- `evasion` - Light/medium armor defense
-- `shield_wall` - Shield blocking
-- `combat` - Generic combat
+## Live skill runtime
 
-## Key Files
-- `server/src/modules/player/PlayerStatsDirector.ts` - Server-side stats director
-- `apps/client-2d/src/ui/CharacterOverlay.tsx` - React UI component
-- `apps/client-2d/src/ui/characterOverlay.css` - CSS styling
+The primary runtime path is:
 
-## Security Notes
+```text
+gameplay event
+  -> SkillProgressionService
+  -> SkillProgressionStore
+  -> applySkillXp
+  -> AREUnboundedProgression
+  -> schema-2 persistence
+  -> gameplay snapshot
+```
 
-- XP amounts are calculated SERVER-SIDE only
-- Client cannot manipulate stats
-- Snapshot is server-authoritative truth
-- Deterministic XP calculation is verifiable by ARE invariant guard
+Relevant files:
+
+- `server/src/skills/SkillTypes.ts`
+- `server/src/skills/SkillProgressionStore.ts`
+- `server/src/skills/SkillProgressionService.ts`
+- `server/src/skills/SkillPersistence.ts`
+- `server/src/skills/JsonSkillPersistenceAdapter.ts`
+- `server/src/skills/PgSkillPersistenceAdapter.ts`
+- `server/src/routes/gameplaySnapshot.ts`
+
+`PlayerStatsDirector` and the compatibility `modules/skill/SkillSystem` use the same exact curve/core. They may expose different skill ID sets, but they may not invent a second progression formula or cap.
+
+## Persistence schema
+
+Skill persistence schema version is **2**.
+
+Schema 1 number-only rows remain readable. Hydration deterministically reconstructs exact progression state from legacy total XP and the next successful save writes schema 2.
+
+PostgreSQL stores skill snapshots inside the existing `skills_json JSONB` payload; exact values are decimal strings, so no numeric database ceiling is introduced by the migration.
+
+## XP event rules
+
+- XP mutation is server-authoritative.
+- XP deltas are positive safe integers at the event boundary.
+- Accumulated progression truth immediately becomes bigint-backed exact state.
+- XP-delta ordering uses binary string comparison, not locale-sensitive collation.
+- Applying `400 + 600 XP` must produce the same canonical state as applying `1000 XP`.
+- Crossing level 99 or level 999999 is a normal transition, not an exceptional state.
+
+## UI rules
+
+- Clients render snapshots only.
+- Exact decimal-string fields are the long-horizon source of truth.
+- Number projections may be used while `numberProjectionExact === true`.
+- UI formatting must never clamp, wrap, truncate into a different value, or silently reinterpret an exact level as a Number.
+
+## Verification
+
+The Safe Test Lab explicitly executes regressions for:
+
+- stateless keyed randomness,
+- endless exact progression,
+- schema-1 -> schema-2 migration,
+- SkillProgressionStore,
+- PlayerStatsDirector,
+- legacy SkillSystem compatibility,
+- XP delta ordering,
+- WorldHashSnapshot strength,
+- deterministic event identity/order.
+
+Unit tests prove pure rules only. Runtime/deployment truth still requires the normal revision-bound deployment and runtime readback; a green unit test does not by itself prove production activation.

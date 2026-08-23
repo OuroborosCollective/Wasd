@@ -11,6 +11,8 @@ import { financeRouter } from "../api/financeRoute.js";
 import { createManifestResyncRouter } from "../api/manifestResyncRoute.js";
 import { voteRouter } from "../api/voteRoute.js";
 import { leaderboardRouter } from "../api/leaderboardRoute.js";
+import { areReplayRouter } from "../api/areReplayRoute.js";
+import { sdkBillingRouter } from "../api/sdkBillingRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -328,6 +330,65 @@ describe("Sentinel Endpoint Protection", () => {
         .set("X-Admin-Token", "wrong-token");
       expect(r.status).toBe(403);
       expect(r.body.error).toBe("forbidden");
+    });
+  });
+
+  describe("ARE Replay & SDK Billing routes timing-safe credential verification", () => {
+    it("verifies admin key via constant-time comparison in /billing/credit and /governance/directives/:id/enact", async () => {
+      process.env.SOVEREIGN_LAUNCH_KEY = "sovereign-launch-secret-777";
+      const mockTick = {} as any;
+      const app = express();
+      app.use("/api/are-replay", areReplayRouter(mockTick));
+
+      // 1. /billing/credit with wrong key
+      const r1 = await request(app)
+        .post("/api/are-replay/billing/credit")
+        .set("X-Sovereign-Key", "wrong-key")
+        .send({ credits: 100 });
+      expect(r1.status).toBe(403);
+      expect(r1.body.error).toBe("forbidden");
+
+      // 2. /billing/credit with correct key
+      const r2 = await request(app)
+        .post("/api/are-replay/billing/credit")
+        .set("X-Sovereign-Key", "sovereign-launch-secret-777")
+        .send({ credits: 100 });
+      expect(r2.status).toBe(200);
+      expect(r2.body.ok).toBe(true);
+
+      // 3. /governance/directives/:id/enact with wrong key
+      const r3 = await request(app)
+        .post("/api/are-replay/governance/directives/dir1/enact")
+        .set("X-Sovereign-Key", "wrong-key");
+      expect(r3.status).toBe(403);
+      expect(r3.body.error).toBe("forbidden");
+
+      delete process.env.SOVEREIGN_LAUNCH_KEY;
+    });
+
+    it("verifies admin key via constant-time comparison in /api/sdk-billing/credit", async () => {
+      process.env.SOVEREIGN_LAUNCH_KEY = "sdk-billing-secret-888";
+      const app = express();
+      app.use(express.json());
+      app.use("/api/sdk-billing", sdkBillingRouter());
+
+      // 1. Wrong key
+      const r1 = await request(app)
+        .post("/api/sdk-billing/credit")
+        .set("X-Sovereign-Key", "wrong-key")
+        .send({ credits: 50 });
+      expect(r1.status).toBe(403);
+      expect(r1.body.error).toBe("forbidden");
+
+      // 2. Correct key
+      const r2 = await request(app)
+        .post("/api/sdk-billing/credit")
+        .set("X-Sovereign-Key", "sdk-billing-secret-888")
+        .send({ credits: 50 });
+      expect(r2.status).toBe(200);
+      expect(r2.body.ok).toBe(true);
+
+      delete process.env.SOVEREIGN_LAUNCH_KEY;
     });
   });
 });

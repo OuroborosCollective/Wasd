@@ -1,8 +1,22 @@
 import { GameConfig } from "../../config/GameConfig.js";
+import {
+  advanceUnboundedProgression,
+  normalizeProgressionState,
+  progressionFromLegacyTotalXp,
+  projectExactToSafeNumber,
+  xpRequiredForNextLevelExact,
+  type AREUnboundedProgressionState,
+} from "../../core/determinism/AREUnboundedProgression.js";
 
 export interface SkillData {
+  /** Compatibility projections. */
   level: number;
   xp: number;
+  /** Exact cap-free truth. */
+  levelExact?: string;
+  xpExact?: string;
+  xpIntoLevelExact?: string;
+  numberProjectionExact?: boolean;
 }
 
 const SKILL_NAMES = [
@@ -11,51 +25,87 @@ const SKILL_NAMES = [
   "farming", "smithing", "fletching"
 ];
 
-export class SkillSystem {
-  private readonly MAX_LEVEL = 99;
+function progressionFromSkill(skill: Partial<SkillData>): AREUnboundedProgressionState {
+  if (
+    typeof skill.xpExact === "string" &&
+    typeof skill.levelExact === "string" &&
+    typeof skill.xpIntoLevelExact === "string"
+  ) {
+    return normalizeProgressionState({
+      totalXp: skill.xpExact,
+      level: skill.levelExact,
+      xpIntoLevel: skill.xpIntoLevelExact,
+    });
+  }
 
-  // ⚡ Bolt Optimization: Use WeakMap for caching to avoid leaking memory and preventing
-  // runtime caches from being persisted to the database.
+  const xp = Number(skill.xp ?? 0);
+  if (!Number.isSafeInteger(xp) || xp < 0) return progressionFromLegacyTotalXp(0);
+  return progressionFromLegacyTotalXp(xp);
+}
+
+function writeProgression(skill: SkillData, progression: AREUnboundedProgressionState): void {
+  const xp = projectExactToSafeNumber(progression.totalXp);
+  const level = projectExactToSafeNumber(progression.level);
+  skill.xp = xp.value;
+  skill.level = level.value;
+  skill.xpExact = progression.totalXp.toString(10);
+  skill.levelExact = progression.level.toString(10);
+  skill.xpIntoLevelExact = progression.xpIntoLevel.toString(10);
+  skill.numberProjectionExact = xp.exact && level.exact;
+}
+
+/**
+ * Compatibility skill facade. Canonical level math is shared with the live
+ * SkillProgressionStore/PlayerStatsDirector and has no MAX_LEVEL.
+ */
+export class SkillSystem {
   private skillsCache = new WeakMap<any, Record<string, SkillData>>();
 
   ensureSkill(player: any, skillName: string): SkillData {
     if (!player.skills) player.skills = {};
     if (!player.skills[skillName]) {
       player.skills[skillName] = { level: 1, xp: 0 };
+      writeProgression(player.skills[skillName], progressionFromLegacyTotalXp(0));
+    } else {
+      writeProgression(player.skills[skillName], progressionFromSkill(player.skills[skillName]));
     }
     return player.skills[skillName];
   }
 
   addXP(player: any, skillName: string, amount: number) {
     const skill = this.ensureSkill(player, skillName);
-    const oldLevel = skill.level;
-    skill.xp += amount;
-    while (skill.level < this.MAX_LEVEL && skill.xp >= this.nextLevelXP(skill.level)) {
-      skill.level += 1;
+    const current = progressionFromSkill(skill);
+    const safeAmount = Number(amount);
+    if (!Number.isSafeInteger(safeAmount) || safeAmount <= 0) {
+      return { skill, leveledUp: false, totalLevel: this.getTotalLevel(player) };
     }
-    const leveledUp = skill.level > oldLevel;
-    player.xp = (player.xp || 0) + amount;
-    this.checkPlayerLevel(player);
 
-    // ⚡ Bolt Optimization: Invalidate skills cache when XP is gained
+    const advanced = advanceUnboundedProgression(current, safeAmount);
+    writeProgression(skill, advanced.state);
+    const leveledUp = advanced.levelsGained > 0n;
+
+    player.xp = (player.xp || 0) + safeAmount;
+    this.checkPlayerLevel(player);
     this.skillsCache.delete(player);
 
     return { skill, leveledUp, totalLevel: this.getTotalLevel(player) };
   }
 
-  nextLevelXP(level: number) {
-    return Math.floor(50 * Math.pow(level, 1.4));
+  nextLevelXP(level: number): number {
+    if (!Number.isSafeInteger(level) || level < 1) return 50;
+    return projectExactToSafeNumber(xpRequiredForNextLevelExact(level)).value;
   }
 
   getLevel(player: any, skillName: string): number {
-    return player.skills?.[skillName]?.level ?? 1;
+    return this.ensureSkill(player, skillName).level;
   }
 
   getTotalLevel(player: any): number {
     if (!player.skills) return SKILL_NAMES.length;
     let total = 0;
     for (const name of SKILL_NAMES) {
-      total += player.skills[name]?.level ?? 1;
+      total += this.ensureSkill(player, name).level;
+      if (!Number.isSafeInteger(total)) return Number.MAX_SAFE_INTEGER;
     }
     return total;
   }
@@ -79,18 +129,11 @@ export class SkillSystem {
   }
 
   getAllSkills(player: any): Record<string, SkillData> {
-    // ⚡ Bolt Optimization: Use invalidation-based caching with WeakMap to avoid O(N) loops
-    // and multiple object allocations for the same skills data in the 10Hz world tick loop.
     const cached = this.skillsCache.get(player);
-    if (cached) {
-      return cached;
-    }
+    if (cached) return cached;
 
     const result: Record<string, SkillData> = {};
-    for (const name of SKILL_NAMES) {
-      result[name] = this.ensureSkill(player, name);
-    }
-
+    for (const name of SKILL_NAMES) result[name] = this.ensureSkill(player, name);
     this.skillsCache.set(player, result);
     return result;
   }

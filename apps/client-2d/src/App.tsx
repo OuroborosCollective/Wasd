@@ -274,7 +274,7 @@ export function App() {
     client.on("connect", () => setConn(true));
     client.on("disconnect", () => setConn(false));
     client.on("WORLD_HEARTBEAT", (e: any) => {
-      updateEntities(app, e.payload?.players ?? {}, e.payload?.agents ?? {});
+      updateEntities(app, e.payload?.players ?? {}, e.payload?.agents ?? e.payload?.npcs ?? {});
       applyHeartbeatSkills(e.payload);
       if (e.payload?.self) applyPlayerSnapshot(e.payload.self);
     });

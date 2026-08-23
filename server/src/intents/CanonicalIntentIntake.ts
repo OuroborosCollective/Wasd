@@ -1,4 +1,7 @@
+import { amplitudeCanonicalIntentObserver } from "../telemetry/AmplitudeCanonicalIntentObserver.js";
 import { sortCanonicalIntents, type ServerCanonicalIntent } from "./ServerCanonicalIntent.js";
+
+export type CanonicalIntentObserver = (intent: ServerCanonicalIntent) => void;
 
 /**
  * CanonicalIntentIntake — the single place where authoritative (player AND
@@ -15,11 +18,17 @@ import { sortCanonicalIntents, type ServerCanonicalIntent } from "./ServerCanoni
  * sorts, and reports. It does not mutate world state — movement still
  * applies through the deterministic tick (RuntimePlayerSystem for players,
  * NPCSystem for NPCs). The intake is the integrity/audit record alongside.
+ *
+ * Optional observers run strictly AFTER the authoritative record has been
+ * accepted and are exception-isolated. Their output is not read by the
+ * intake, tick, reducer, ordering, manifest or world hash.
  */
 export class CanonicalIntentIntake {
   private readonly byTick = new Map<number, ServerCanonicalIntent[]>();
   private readonly all: ServerCanonicalIntent[] = [];
   private totalRecorded = 0;
+
+  constructor(private readonly observer: CanonicalIntentObserver = () => {}) {}
 
   /** Record a canonical intent under its tick. Deterministic by content hash. */
   record(intent: ServerCanonicalIntent): void {
@@ -29,6 +38,14 @@ export class CanonicalIntentIntake {
     else this.byTick.set(tick, [intent]);
     this.all.push(intent);
     this.totalRecorded += 1;
+
+    // Side-channel boundary: observer failure must never roll back or alter
+    // the already-accepted canonical record.
+    try {
+      this.observer(intent);
+    } catch {
+      // Intentionally fail-open for gameplay / fail-closed for telemetry.
+    }
   }
 
   /** Deterministically sorted intents for a single tick. */
@@ -86,4 +103,6 @@ export class CanonicalIntentIntake {
 }
 
 /** Shared singleton intake for the live server truth path. */
-export const canonicalIntentIntake = new CanonicalIntentIntake();
+export const canonicalIntentIntake = new CanonicalIntentIntake((intent) => {
+  amplitudeCanonicalIntentObserver.observe(intent);
+});
