@@ -3,6 +3,7 @@ import { worldTickThinShell, type WorldTickThinShell } from './WorldTickThinShel
 import { RuntimePlayerSystem, RuntimeWarfrontPort, createRuntimeWarfrontSystem } from './RuntimeDomainPorts.js';
 import { registerWarfrontSystem, type WarfrontTickSystem } from './WarfrontTickSystem.js';
 import { registerNPCSystem } from './NPCTickSystem.js';
+import { registerSpatialBroadcastTickSystem } from './SpatialBroadcastTickSystem.js';
 import { sharedWorldEventBus } from '../../modules/ouroboros/sharedWorldEventBus.js';
 import { ChatChannelRouter, type ChatRecipient } from '../../modules/chat/ChatChannelRouter.js';
 import { getActiveGameWebSocketServer } from '../../networking/WebSocketServer.js';
@@ -204,6 +205,36 @@ export class WorldTickAdapter {
     this.deterministicLootDirector = deterministicLootDirector;
 
     this.warfrontTickSystem = registerWarfrontSystem(this.warfrontDomain);
+
+    // Phase 12: Register Spatial Broadcast System for periodic client updates
+    const spatialSystem = registerSpatialBroadcastTickSystem();
+    spatialSystem.setPlayerPositionProvider(() => this.playerSystem.getAllPlayers().map(p => ({ id: p.id, x: p.position.x, y: p.position.y, isOffline: p.isOffline })));
+    spatialSystem.setNpcPositionProvider(() => this.npcSystem.getAllNPCs().map(n => ({ id: n.id, x: n.position.x, y: n.position.y, name: n.name, health: n.health, maxHealth: n.maxHealth, role: n.role, state: n.state })));
+    spatialSystem.setLootProvider(() => this.deterministicLootDirector.getAllLoot());
+    spatialSystem.setPlayerToSocketProvider(() => this.playerToSocket);
+    spatialSystem.setSocketToPlayerProvider(() => (this as any).socketToPlayer || new Map());
+    spatialSystem.setBroadcastHandler((socketId, snapshot) => {
+      const uid = (this as any).socketToPlayer?.get(socketId);
+      const player = uid ? this.playerSystem.getPlayer(uid) : null;
+      if (player) {
+        this.sendToPlayer(socketId, {
+          type: "WORLD_HEARTBEAT",
+          payload: {
+            tick: this.tickCount,
+            serverTick: this.tickCount,
+            self: { id: player.id, name: player.name, x: player.position.x, y: player.position.y, z: player.position.z },
+            npcs: (snapshot as any).entities.filter((e: any) => e.kind === 'npc').reduce((acc: any, e: any) => {
+              acc[e.id] = { ...e.data.npc, x: e.tileX, y: e.tileZ, z: e.data.npc.z ?? 0 };
+              return acc;
+            }, {}),
+            players: (snapshot as any).entities.filter((e: any) => e.kind === 'player').reduce((acc: any, e: any) => {
+              acc[e.id] = { ...e.data.player, x: e.tileX, y: e.tileZ, z: e.data.player.z ?? 0 };
+              return acc;
+            }, {})
+          }
+        });
+      }
+    });
 
     // Register adapter's systems as WorldStateProvider for ARE truth path
     // This ensures WorldTickThinShell.getWorldStateForTick() always has data

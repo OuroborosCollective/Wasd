@@ -11,6 +11,8 @@ import { financeRouter } from "../api/financeRoute.js";
 import { createManifestResyncRouter } from "../api/manifestResyncRoute.js";
 import { voteRouter } from "../api/voteRoute.js";
 import { leaderboardRouter } from "../api/leaderboardRoute.js";
+import { areReplayRouter } from "../api/areReplayRoute.js";
+import { sdkBillingRouter } from "../api/sdkBillingRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -52,34 +54,48 @@ describe("Sentinel Endpoint Protection", () => {
       expect(r.body.error).toContain("read-only");
     });
 
-    it("POST /launch verifies launch key with constant-time equality", async () => {
-      process.env.SOVEREIGN_LAUNCH_KEY = "launch-secret-key";
-      const runWorkflowMock = vi.fn().mockResolvedValue({ status: 202, body: { ok: true } });
+    it("POST /launch timing-safely validates sovereign launch key", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      process.env.SOVEREIGN_LAUNCH_KEY = "launch-key-12345";
       const app = express();
       const mockTick = {} as any;
-      app.use("/api/sovereign/deploy", sovereignDeployRouter(mockTick, { runWorkflow: runWorkflowMock }));
+      const mockRunWorkflow = vi.fn().mockResolvedValue({ status: 202, body: { ok: true } });
 
-      // Missing launch key -> 403
-      const r1 = await request(app).post("/api/sovereign/deploy/launch").send({});
+      app.use(
+        "/api/sovereign/deploy",
+        adminRateLimiter,
+        adminAuthMiddleware,
+        sovereignDeployRouter(mockTick, { runWorkflow: mockRunWorkflow })
+      );
+
+      // 1. Missing key
+      const r1 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("Authorization", "Bearer secret");
       expect(r1.status).toBe(403);
       expect(r1.body.error).toBe("launch_key_required");
 
-      // Wrong launch key -> 403
+      // 2. Wrong key
       const r2 = await request(app)
         .post("/api/sovereign/deploy/launch")
-        .set("X-Sovereign-Launch-Key", "wrong-key")
-        .send({});
+        .set("Authorization", "Bearer secret")
+        .set("X-Sovereign-Launch-Key", "wrong-key");
       expect(r2.status).toBe(403);
-      expect(r2.body.error).toBe("launch_key_required");
 
-      // Valid launch key -> 202
+      // 3. Right key in header
       const r3 = await request(app)
         .post("/api/sovereign/deploy/launch")
-        .set("X-Sovereign-Launch-Key", "launch-secret-key")
-        .send({});
+        .set("Authorization", "Bearer secret")
+        .set("X-Sovereign-Launch-Key", "launch-key-12345");
       expect(r3.status).toBe(202);
-      expect(r3.body.ok).toBe(true);
-      expect(runWorkflowMock).toHaveBeenCalled();
+      expect(mockRunWorkflow).toHaveBeenCalled();
+
+      // 4. Right key in body
+      const r4 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("Authorization", "Bearer secret")
+        .send({ launchKey: "launch-key-12345" });
+      expect(r4.status).toBe(202);
 
       delete process.env.SOVEREIGN_LAUNCH_KEY;
     });
@@ -114,6 +130,40 @@ describe("Sentinel Endpoint Protection", () => {
         .set("Authorization", "Bearer secret");
       expect(r.status).toBe(403);
       expect(r.body.error).toContain("read-only");
+    });
+
+    it("verifies launch key via constant-time comparison in header and body", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      process.env.SOVEREIGN_LAUNCH_KEY = "sovereign-secret-key-999";
+      const mockWorkflow = vi.fn().mockResolvedValue({ status: 202, body: { ok: true } });
+      const app = express();
+      const mockTick = {} as any;
+      app.use("/api/sovereign/deploy", adminRateLimiter, adminAuthMiddleware, sovereignDeployRouter(mockTick, { runWorkflow: mockWorkflow }));
+
+      // Invalid launch key -> 403
+      const r1 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("Authorization", "Bearer secret")
+        .set("x-sovereign-launch-key", "wrong-key");
+      expect(r1.status).toBe(403);
+      expect(r1.body.error).toBe("launch_key_required");
+
+      // Valid launch key in header -> 202
+      const r2 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("Authorization", "Bearer secret")
+        .set("x-sovereign-launch-key", "sovereign-secret-key-999");
+      expect(r2.status).toBe(202);
+      expect(mockWorkflow).toHaveBeenCalled();
+
+      // Valid launch key in body -> 202
+      mockWorkflow.mockClear();
+      const r3 = await request(app)
+        .post("/api/sovereign/deploy/launch")
+        .set("Authorization", "Bearer secret")
+        .send({ launchKey: "sovereign-secret-key-999" });
+      expect(r3.status).toBe(202);
+      expect(mockWorkflow).toHaveBeenCalled();
     });
   });
 
@@ -280,6 +330,65 @@ describe("Sentinel Endpoint Protection", () => {
         .set("X-Admin-Token", "wrong-token");
       expect(r.status).toBe(403);
       expect(r.body.error).toBe("forbidden");
+    });
+  });
+
+  describe("ARE Replay & SDK Billing routes timing-safe credential verification", () => {
+    it("verifies admin key via constant-time comparison in /billing/credit and /governance/directives/:id/enact", async () => {
+      process.env.SOVEREIGN_LAUNCH_KEY = "sovereign-launch-secret-777";
+      const mockTick = {} as any;
+      const app = express();
+      app.use("/api/are-replay", areReplayRouter(mockTick));
+
+      // 1. /billing/credit with wrong key
+      const r1 = await request(app)
+        .post("/api/are-replay/billing/credit")
+        .set("X-Sovereign-Key", "wrong-key")
+        .send({ credits: 100 });
+      expect(r1.status).toBe(403);
+      expect(r1.body.error).toBe("forbidden");
+
+      // 2. /billing/credit with correct key
+      const r2 = await request(app)
+        .post("/api/are-replay/billing/credit")
+        .set("X-Sovereign-Key", "sovereign-launch-secret-777")
+        .send({ credits: 100 });
+      expect(r2.status).toBe(200);
+      expect(r2.body.ok).toBe(true);
+
+      // 3. /governance/directives/:id/enact with wrong key
+      const r3 = await request(app)
+        .post("/api/are-replay/governance/directives/dir1/enact")
+        .set("X-Sovereign-Key", "wrong-key");
+      expect(r3.status).toBe(403);
+      expect(r3.body.error).toBe("forbidden");
+
+      delete process.env.SOVEREIGN_LAUNCH_KEY;
+    });
+
+    it("verifies admin key via constant-time comparison in /api/sdk-billing/credit", async () => {
+      process.env.SOVEREIGN_LAUNCH_KEY = "sdk-billing-secret-888";
+      const app = express();
+      app.use(express.json());
+      app.use("/api/sdk-billing", sdkBillingRouter());
+
+      // 1. Wrong key
+      const r1 = await request(app)
+        .post("/api/sdk-billing/credit")
+        .set("X-Sovereign-Key", "wrong-key")
+        .send({ credits: 50 });
+      expect(r1.status).toBe(403);
+      expect(r1.body.error).toBe("forbidden");
+
+      // 2. Correct key
+      const r2 = await request(app)
+        .post("/api/sdk-billing/credit")
+        .set("X-Sovereign-Key", "sdk-billing-secret-888")
+        .send({ credits: 50 });
+      expect(r2.status).toBe(200);
+      expect(r2.body.ok).toBe(true);
+
+      delete process.env.SOVEREIGN_LAUNCH_KEY;
     });
   });
 });

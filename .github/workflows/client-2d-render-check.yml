@@ -5,7 +5,11 @@ on:
     branches: [main]
     paths:
       - 'apps/client-2d/**'
+      - 'game-data/visual/presentation_bindings.json'
       - 'packages/shared/**'
+      - 'release.json'
+      - 'server/src/api/healthRoutes.ts'
+      - 'server/src/tests/client-2d-presentation-truth.test.ts'
       - 'scripts/audit-client-2d-renderer.mjs'
       - 'scripts/extract-biome-atlas-v2.mjs'
       - 'scripts/extract-2d-weapon-pool.mjs'
@@ -60,6 +64,9 @@ jobs:
 
       - name: Generate and validate deterministic 2D assets
         run: pnpm --filter @wasd/client-2d validate:assets
+
+      - name: Prove production 2D presentation truth
+        run: pnpm exec vitest run server/src/tests/client-2d-presentation-truth.test.ts
 
       - name: Build 2D client
         run: |

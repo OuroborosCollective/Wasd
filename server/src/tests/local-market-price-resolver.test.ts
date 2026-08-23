@@ -62,4 +62,34 @@ describe("A5 local market price resolver", () => {
     expect(graph.resolveRoute(market.marketId, market.marketId)?.routeRiskPerMille).toBe(1000);
     expect(resolveSupplyPressurePerMille(25)).toBe(800);
   });
+
+  it("benchmarks precomputed listSellableItemIds vs dynamic object filtering & localeCompare sort", () => {
+    const prices = loadEconomyBasePricesFromGameData();
+    const resolver = new LocalPriceResolver(prices);
+    const iterations = 50_000;
+
+    // Benchmark precomputed cached call
+    const startCached = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      resolver.listSellableItemIds();
+    }
+    const durationCached = performance.now() - startCached;
+
+    // Benchmark dynamic filtering and sorting
+    const startUncached = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      Object.values(prices)
+        .filter((entry) => entry.sellable)
+        .map((entry) => entry.itemId)
+        .sort((a, b) => a.localeCompare(b));
+    }
+    const durationUncached = performance.now() - startUncached;
+
+    console.log(`[LocalPriceResolver Benchmark - ${iterations} calls]:`);
+    console.log(`  - Cached precomputed listSellableItemIds: ${durationCached.toFixed(4)}ms`);
+    console.log(`  - Uncached Object.values + localeCompare: ${durationUncached.toFixed(4)}ms`);
+    console.log(`  - Speedup: ${(durationUncached / durationCached).toFixed(2)}x faster`);
+
+    expect(durationCached).toBeLessThan(durationUncached);
+  });
 });

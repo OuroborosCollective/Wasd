@@ -64,7 +64,8 @@ function freezeState(state: CampStockStateSnapshot | MutableCampStockState): Cam
 function stockHash(poiId: string, state: CampStockStateSnapshot): string {
   const items = Object.entries(state.items)
     .filter(([, quantity]) => quantity > 0)
-    .sort(([a], [b]) => a.localeCompare(b))
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([itemId, quantity]) => `${itemId}:${quantity}`)
     .join(",");
   return stableHash32(`CAMP_STOCK_V2|${poiId}|${state.lastProcessedCycle}|${items}`).toString(16);
@@ -98,7 +99,8 @@ export class CampNpcService {
         activityMessage: ACTIVITY_MESSAGES[npcType][activity],
       });
     }
-    return npcs.sort((a, b) => a.id.localeCompare(b.id));
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+    return npcs.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   private generateNpcId(poiId: string): string {
@@ -155,7 +157,8 @@ export class CampNpcService {
             quantity,
             buyPrice: isCampStockBuyable(itemId) ? getCampStockBuyPrice(itemId) : null,
           }))
-          .sort((a, b) => a.itemId.localeCompare(b.itemId));
+          // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+          .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0));
         const hasDepositedState = state.lastProcessedCycle >= 0;
         return Object.freeze({
           poiId: poi.id,
@@ -166,7 +169,8 @@ export class CampNpcService {
           revisionHash: stockHash(poi.id, state),
         });
       })
-      .sort((a, b) => a.poiId.localeCompare(b.poiId));
+      // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+      .sort((a, b) => (a.poiId < b.poiId ? -1 : a.poiId > b.poiId ? 1 : 0));
   }
 
   public planBuyStock(input: {

@@ -22,26 +22,27 @@ function isValidId(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function binaryCompare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 function normalizeDelta(delta: XPDelta): XPDelta | null {
   if (!delta || delta.kind !== "xp_delta") return null;
   if (!isValidId(delta.playerId)) return null;
   if (!isValidId(delta.skillId)) return null;
-  if (!Number.isFinite(delta.amount) || delta.amount <= 0) return null;
+  if (!Number.isSafeInteger(delta.amount) || delta.amount <= 0) return null;
 
   const normalized: XPDelta = {
     kind: "xp_delta",
     source: delta.source,
-    tick: Number.isFinite(delta.tick) ? Math.max(0, Math.floor(delta.tick)) : 0,
+    tick: Number.isSafeInteger(delta.tick) ? Math.max(0, delta.tick) : 0,
     playerId: delta.playerId,
     skillId: delta.skillId,
-    amount: Math.max(1, Math.floor(delta.amount)),
+    amount: delta.amount,
   };
 
   if (isValidId(delta.sourceId)) {
-    return Object.freeze({
-      ...normalized,
-      sourceId: delta.sourceId,
-    });
+    return Object.freeze({ ...normalized, sourceId: delta.sourceId });
   }
 
   return Object.freeze(normalized);
@@ -49,11 +50,11 @@ function normalizeDelta(delta: XPDelta): XPDelta | null {
 
 function compareXPDelta(a: XPDelta, b: XPDelta): number {
   if (a.tick !== b.tick) return a.tick - b.tick;
-  const byPlayer = a.playerId.localeCompare(b.playerId);
+  const byPlayer = binaryCompare(a.playerId, b.playerId);
   if (byPlayer !== 0) return byPlayer;
-  const bySkill = a.skillId.localeCompare(b.skillId);
+  const bySkill = binaryCompare(a.skillId, b.skillId);
   if (bySkill !== 0) return bySkill;
-  return (a.sourceId ?? "").localeCompare(b.sourceId ?? "");
+  return binaryCompare(a.sourceId ?? "", b.sourceId ?? "");
 }
 
 function toXPGainEvent(delta: XPDelta): XPGainEvent {
@@ -85,7 +86,7 @@ export class XPDeltaRouter {
   }
 
   drainThroughTick(tickInclusive: number): XPDelta[] {
-    const safeTick = Number.isFinite(tickInclusive) ? Math.floor(tickInclusive) : -1;
+    const safeTick = Number.isSafeInteger(tickInclusive) ? tickInclusive : -1;
     const ready: XPDelta[] = [];
     const pending: XPDelta[] = [];
 
@@ -108,10 +109,7 @@ export class XPDeltaRouter {
 
   snapshot(): XPDeltaRouterSnapshot {
     const pending = [...this.pending].sort(compareXPDelta);
-    return Object.freeze({
-      pending: Object.freeze(pending),
-      count: pending.length,
-    });
+    return Object.freeze({ pending: Object.freeze(pending), count: pending.length });
   }
 
   clear(): void {

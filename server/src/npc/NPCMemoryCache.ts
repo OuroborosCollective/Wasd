@@ -44,7 +44,8 @@ export class NPCMemoryCache {
 
     this.events.sort((a, b) => {
       if (a.tick !== b.tick) return a.tick - b.tick;
-      return a.id.localeCompare(b.id);
+      // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
     });
 
     if (this.events.length > this.maxEvents) {
@@ -104,7 +105,8 @@ export class NPCMemoryCache {
 
     this.events = [...snapshot.events].sort((a, b) => {
       if (a.tick !== b.tick) return a.tick - b.tick;
-      return a.id.localeCompare(b.id);
+      // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
     });
   }
 
