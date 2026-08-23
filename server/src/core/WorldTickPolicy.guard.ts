@@ -63,7 +63,7 @@ if (!thinShellSource.includes("TICK_INTERVAL_MS = 100")) {
   throw new Error(`WorldTickThinShell must define TICK_INTERVAL_MS = 100 (10-Hz)`);
 }
 
-if (!thinShellSource.includes("setInterval(() => this.tick(), WorldTickThinShell.TICK_INTERVAL_MS)")) {
+if (!thinShellSource.includes("setInterval(() => this.runScheduledTick(), WorldTickThinShell.TICK_INTERVAL_MS)") && !thinShellSource.includes("setInterval(() => this.tick(), WorldTickThinShell.TICK_INTERVAL_MS)")) {
   throw new Error(`WorldTickThinShell must use setInterval with WorldTickThinShell.TICK_INTERVAL_MS`);
 }
 
