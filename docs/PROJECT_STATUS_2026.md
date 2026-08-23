@@ -30,7 +30,7 @@ Valid runtime truth must come from tick/logicalIndex, kappa, chunk/position, has
 | Main client entry | `client/src/main.ts` |
 | 2D client entry | `apps/client-2d/src/App.tsx` |
 | Primary rendering (3D) | Babylon.js (`@babylonjs/core` + loaders + materials + addons) |
-| Primary rendering (2D) | PixiJS v7 + React UI (`apps/client-2d/`) |
+| Primary rendering (2D) | PixiJS v7 + React UI. Active `/2d` uses `LiveAuthoritativeWorld2D`: live actors come from server heartbeat/tick state; static terrain/roads/buildings/props use `LiveAssetWorldSurface` with the real merged manifest and server-seeded `OuroborosWorldDirectorV1` projection provenance from `/health/world-projection`. |
 | Networking | WebSocket (`ws`) via `server/src/networking/WebSocketServer.ts` |
 | Manifest System | Deterministic server-authoritative state via hash chain in `server/src/core/manifest/`; client divergence detection in `apps/client-2d/src/manifest/`; resync API at `/api/manifest/*` |
 | Data content root | `game-data/` by default, optional published pack via `USE_PUBLISHED_CONTENT` / `CONTENT_PACK_DIR` |
@@ -76,6 +76,17 @@ Valid runtime truth must come from tick/logicalIndex, kappa, chunk/position, has
 
 ---
 
+## Non-authoritative integration side-channels
+
+| Integration | Status | Authority boundary |
+|---|---|---|
+| Amplitude | AIM-130 integration candidate on a dedicated branch. The observer consumes immutable `ServerCanonicalIntent` projections only after `CanonicalIntentIntake.record()`, pseudonymizes actor identity, uses a bounded queue and reports sent/failed/dropped diagnostics. Live ingestion is **not yet proven**; connected Amplitude currently exposes only the auto-created `default` project (`850948`) with no WASD events. | No telemetry value may affect TickSystem, canonical ordering, reducers, manifests, persistence or world hash. Missing credentials disable the observer. |
+| QuickNode | AIM-131 pending. Connector authentication currently fails with HTTP 403, so no endpoint/runtime claim exists. | Planned read-only attestation side-channel only (`eth_chainId`, `eth_blockNumber`); no signing, transaction submission or gameplay authority. |
+
+See `docs/AMPLITUDE_CANONICAL_INTENT_OBSERVER.md` for the current Amplitude contract.
+
+---
+
 ## Release blockers and open integration issues
 
 | Issue | Purpose |
@@ -114,6 +125,7 @@ Valid runtime truth must come from tick/logicalIndex, kappa, chunk/position, has
 | Item | Status |
 |------|--------|
 | World asset sync | `scripts/sync-world-assets.mjs` mirrors repo assets into client public paths |
+| 2D production asset projection | Active `/2d` no longer uses a blank/demo world surface. Player/NPC visuals are manifest-backed; loot fallback is manifest-backed; terrain, roads, buildings and props bind through the merged 2D manifest. Static scene generation starts only from server-published canonical seed/projection provenance and remains presentation-only (`gameplayAuthority:false`). Missing world assets are counted/skipped rather than replaced by convincing geometry. |
 | GLB links and pools | File-based content paths + GLB registry + asset pool resolver are active |
 | Admin model needs | `GET /api/admin/content/model-needs` provides needed/satisfied model suggestions |
 | Publish snapshot | `pnpm run content:publish` creates `published-content/current` pack |
