@@ -57,7 +57,7 @@ Valid runtime truth must come from tick/logicalIndex, kappa, chunk/position, has
 | Players/combat | Movement, target selection, attack handling, skill usage, cooldown/mana flow, death/respawn are wired. Balance/UI hardening remains open. |
 | Inventory/equipment/loot | Inventory stacks, equip/unequip, loot drop + pickup and sync are active. |
 | Canonical loot truth | Production path is `LootDirector -> ProceduralLootMachine -> loot_delta`. Inventory-Consumption trägt persistente Loot-Origins; bei vollständig abgelehntem Inventar-Delta übernimmt ausschließlich der serverseitige WorldDrop-Consumer. Ein Defeat→Delta→Inventory→Restart-Replay-Test deckt den Pfad ab. Legacy `LootSystem` ist quarantined. |
-| Player Stats Sync | Server-authoritative XP/level tracking via `PlayerStatsDirector`; `player_stats_snapshot` broadcast via WebSocket. |
+| Player Stats Sync | Server-authoritative XP/level tracking via `PlayerStatsDirector`; `player_stats_snapshot` broadcast via WebSocket. Draft PR #2579 unifies skill progression on an exact cap-free integer core with schema-2 decimal-string persistence and preserves the documented `floor(50 * level^1.4)` curve. This remains a tested candidate, not production truth, until merge plus revision-bound runtime readback. |
 | Quest system | Quest start/progression/sync and talk/collect/combat updates are active. |
 | Questline system | Questline engine + bridge and unlock propagation are wired. |
 | NPC runtime | `NPCSystem`, memory cache/persistence, relationships, proactive chat and game-data loading are wired. |
@@ -179,7 +179,7 @@ Gather starter resource node
 | System | Status | Notes |
 |--------|--------|-------|
 | Quest Persistence | Foundation complete | Production backup proof still open in #2039 |
-| Skill Progression | Partial | MVP skills and XP persistence exist |
+| Skill Progression | Partial | MVP skills and XP persistence exist. Draft PR #2579 removes the legacy 99/999999 ceilings, migrates number-only saves to exact schema-2 progression, and carries exact values through snapshot projection; production activation remains unproven until merge/deploy/readback. |
 | Resource Gathering | Partial | Starter and chunk resources exist; release audit cleanup remains #2041 |
 | Inventory | Partial | Resource/crafted/loot items exist; provenance/trading open #2048 |
 | Crafting | Partial | Starter recipes and tool recipes exist |

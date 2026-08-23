@@ -1,96 +1,82 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { SkillSystem } from "../modules/skill/SkillSystem.js";
 
-// ---------------------------------------------------------------------------
-// SkillSystem
-// ---------------------------------------------------------------------------
-describe("SkillSystem", () => {
+describe("SkillSystem compatibility facade", () => {
   let skills: SkillSystem;
 
-  beforeEach(() => { skills = new SkillSystem(); });
+  beforeEach(() => {
+    skills = new SkillSystem();
+  });
 
-  // ---- ensureSkill ---------------------------------------------------------
-
-  it("ensureSkill() creates skill at level 1 with 0 xp when missing", () => {
+  it("creates an exact level-1 skill when missing", () => {
     const player: any = { skills: {} };
-    skills.ensureSkill(player, "mining");
-    expect(player.skills.mining).toEqual({ level: 1, xp: 0 });
+    const skill = skills.ensureSkill(player, "mining");
+    expect(skill.level).toBe(1);
+    expect(skill.xp).toBe(0);
+    expect(skill.levelExact).toBe("1");
+    expect(skill.xpExact).toBe("0");
+    expect(skill.xpIntoLevelExact).toBe("0");
   });
 
-  it("ensureSkill() does not overwrite an existing skill", () => {
-    const player: any = { skills: { mining: { level: 5, xp: 200 } } };
-    skills.ensureSkill(player, "mining");
-    expect(player.skills.mining.level).toBe(5);
-    expect(player.skills.mining.xp).toBe(200);
+  it("migrates existing number-only skill state instead of overwriting XP", () => {
+    const player: any = { skills: { mining: { level: 5, xp: 201 } } };
+    const skill = skills.ensureSkill(player, "mining");
+    expect(skill.xpExact).toBe("201");
+    expect(skill.levelExact).toBe("3");
+    expect(skill.xpIntoLevelExact).toBe("20");
   });
 
-  // ---- nextLevelXP ---------------------------------------------------------
-
-  it("nextLevelXP() returns a positive number for level 1", () => {
-    expect(skills.nextLevelXP(1)).toBeGreaterThan(0);
-  });
-
-  it("nextLevelXP() increases as level increases", () => {
-    const xp1 = skills.nextLevelXP(1);
-    const xp2 = skills.nextLevelXP(2);
-    const xp5 = skills.nextLevelXP(5);
-    expect(xp2).toBeGreaterThan(xp1);
-    expect(xp5).toBeGreaterThan(xp2);
-  });
-
-  it("nextLevelXP(1) is floor(50 * 1^1.4) = 50", () => {
+  it("uses the canonical Arelorian XP curve", () => {
     expect(skills.nextLevelXP(1)).toBe(50);
+    expect(skills.nextLevelXP(2)).toBe(131);
+    expect(skills.nextLevelXP(3)).toBe(232);
+    expect(skills.nextLevelXP(5)).toBeGreaterThan(skills.nextLevelXP(2));
   });
 
-  // ---- addXP ---------------------------------------------------------------
-
-  it("addXP() accumulates xp on the skill", () => {
+  it("accumulates XP and crosses multiple levels deterministically", () => {
     const player: any = { skills: {} };
-    skills.addXP(player, "crafting", 20);
-    expect(player.skills.crafting.xp).toBe(20);
+    const result = skills.addXP(player, "magic", 1000);
+    expect(result.skill.xpExact).toBe("1000");
+    expect(BigInt(result.skill.levelExact)).toBeGreaterThan(2n);
+    expect(result.leveledUp).toBe(true);
   });
 
-  it("addXP() returns the skill object", () => {
+  it("accumulates XP across chunked calls identically", () => {
+    const oneBatch: any = { skills: {} };
+    const chunked: any = { skills: {} };
+    skills.addXP(oneBatch, "farming", 1000);
+    skills.addXP(chunked, "farming", 400);
+    skills.addXP(chunked, "farming", 600);
+    expect(chunked.skills.farming.levelExact).toBe(oneBatch.skills.farming.levelExact);
+    expect(chunked.skills.farming.xpExact).toBe(oneBatch.skills.farming.xpExact);
+    expect(chunked.skills.farming.xpIntoLevelExact).toBe(oneBatch.skills.farming.xpIntoLevelExact);
+  });
+
+  it("continues beyond level 99", () => {
+    const player: any = {
+      skills: {
+        combat: {
+          level: 99,
+          xp: 1_000_000_000,
+          levelExact: "99",
+          xpExact: "1000000000",
+          xpIntoLevelExact: "0",
+        },
+      },
+    };
+    skills.addXP(player, "combat", skills.nextLevelXP(99));
+    expect(player.skills.combat.levelExact).toBe("100");
+  });
+
+  it("does not accept non-integer or non-positive XP deltas", () => {
     const player: any = { skills: {} };
-    const result = skills.addXP(player, "crafting", 10);
-    expect(result.skill).toBe(player.skills.crafting);
-
+    skills.addXP(player, "combat", 0);
+    skills.addXP(player, "combat", -1);
+    skills.addXP(player, "combat", 1.5);
+    expect(player.skills.combat.xpExact).toBe("0");
   });
 
-  it("addXP() creates the skill if it does not exist", () => {
-    const player: any = { skills: {} };
-    skills.addXP(player, "fishing", 5);
-    expect(player.skills.fishing).toBeDefined();
-  });
-
-  it("addXP() levels up skill when xp threshold is crossed", () => {
-    const player: any = { skills: {} };
-    // nextLevelXP(1) = 50; add exactly 50 xp to level up
-    skills.addXP(player, "combat", 50);
-    expect(player.skills.combat.level).toBe(2);
-  });
-
-  it("addXP() does not level up when xp is below threshold", () => {
-    const player: any = { skills: {} };
-    skills.addXP(player, "combat", 49);
-    expect(player.skills.combat.level).toBe(1);
-  });
-
-  it("addXP() can trigger multiple level-ups in a single call", () => {
-    const player: any = { skills: {} };
-    // Add a very large amount of XP to skip several levels
-    skills.addXP(player, "magic", 100000);
-    expect(player.skills.magic.level).toBeGreaterThan(2);
-  });
-
-  it("addXP() accumulates xp across multiple calls", () => {
-    const player: any = { skills: {} };
-    skills.addXP(player, "farming", 20);
-    skills.addXP(player, "farming", 20);
-    expect(player.skills.farming.xp).toBe(40);
-  });
-
-  it("checkPlayerLevel() increases maxMana by playerManaPerLevel per level and grants mana on level-up", () => {
+  it("keeps existing overall player-level behavior", () => {
     const player: any = { xp: 0, level: 1, mana: 25, maxMana: 25 };
     skills.checkPlayerLevel(player);
     expect(player.level).toBe(1);
