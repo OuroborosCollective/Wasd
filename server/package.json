@@ -32,7 +32,7 @@
     "express-rate-limit": "^8.6.2",
     "genkit": "^1.40.1",
     "google-auth-library": "^10.9.1",
-    "googleapis": "^173.0.0",
+    "googleapis": "^176.0.0",
     "ioredis": "^5.11.0",
     "js-yaml": "^4.3.0",
     "jsonwebtoken": "^9.0.3",
