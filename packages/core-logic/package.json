@@ -71,7 +71,7 @@
     "react": "^19.2.8",
     "tsup": "^8.5.1",
     "typescript": "^5.8.0",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.11"
   },
   "peerDependencies": {
     "react": ">=18.0.0"
