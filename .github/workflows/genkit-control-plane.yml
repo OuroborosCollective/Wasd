@@ -44,8 +44,8 @@ jobs:
       - name: Typecheck server including Genkit flows
         run: pnpm --filter @wasd/server typecheck
 
-      - name: Prove Genkit side-channel contract
-        run: pnpm --filter @wasd/server exec vitest run src/devtools/genkit/__tests__/contracts.test.ts
+      - name: Prove full Genkit side-channel contract
+        run: bash genkit.sh test
 
       - name: Validate Genkit launcher and MCP config
         run: |

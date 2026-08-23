@@ -1,10 +1,12 @@
 import express, { Router } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { randomUUID, createHash, timingSafeEqual } from "node:crypto";
 import fs from "fs/promises";
 import path from "path";
 import { z } from "zod";
+import { registerGenkitGameplayOperatorMcpTools } from "../devtools/genkit/registerGameplayOperatorMcpTools.js";
 import { registerStudioMcpTools } from "../devtools/studio/registerStudioMcpTools.js";
 import { registerStudioExtendedMcpTools } from "../devtools/studio/registerStudioExtendedMcpTools.js";
 import { StudioGameDataStore } from "../devtools/studio/StudioGameDataStore.js";
@@ -67,6 +69,7 @@ function getConnectionProfile() {
       process.env.PUBLIC_WEBSOCKET_URL ||
       process.env.NEXT_PUBLIC_WEBSOCKET_URL ||
       "wss://<your-domain>/ws",
+    mcpStreamableHttpUrl: process.env.MCP_PUBLIC_HTTP_URL || "https://<your-domain>/api/mcp",
     mcpSseUrl: process.env.MCP_PUBLIC_SSE_URL || "https://<your-domain>/api/mcp/sse",
     mcpMessagesUrl:
       process.env.MCP_PUBLIC_MESSAGES_URL || "https://<your-domain>/api/mcp/messages?sessionId=<id>",
@@ -74,7 +77,8 @@ function getConnectionProfile() {
     notes: [
       "Set MCP_ADMIN_TOKEN in your server environment.",
       "Use Bearer auth in MCP client headers.",
-      "For Nginx, disable proxy buffering on /api/mcp/sse.",
+      "Prefer the Streamable HTTP endpoint at /api/mcp; legacy SSE remains for compatibility.",
+      "Genkit gameplay tools execute only allowlisted server-authoritative actions and require follow-up readback.",
       "Live Studio effects additionally reuse ADMIN_PANEL_TOKEN or GM_PANEL_TOKEN internally.",
       "Areloria Studio uses the existing game MCP/server; no second NPC/game server is required.",
     ],
@@ -82,7 +86,7 @@ function getConnectionProfile() {
 }
 
 function createMcpServer() {
-  const mcpServer = new McpServer({ name: "Areloria Game Server MCP", version: "1.3.0" });
+  const mcpServer = new McpServer({ name: "Areloria Game Server MCP", version: "1.5.0" });
 
   mcpServer.tool(
     "read_file",
@@ -140,6 +144,7 @@ function createMcpServer() {
     async () => ({ content: [{ type: "text" as const, text: JSON.stringify(getConnectionProfile(), null, 2) }] }),
   );
 
+  registerGenkitGameplayOperatorMcpTools(mcpServer);
   registerStudioMcpTools(mcpServer);
   registerStudioExtendedMcpTools(mcpServer);
   return mcpServer;
@@ -190,6 +195,31 @@ export function mcpRoute() {
     next();
   });
 
+  // Modern remote MCP transport. A fresh stateless transport/server pair is
+  // constructed for every request; no MCP transport instance is reused across
+  // requests. This keeps the endpoint request-scoped and avoids cross-session
+  // transport state leaking into gameplay/operator calls.
+  router.all("/", async (req, res) => {
+    try {
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined,
+      });
+      const mcpServer = createMcpServer();
+      await mcpServer.connect(transport);
+      await transport.handleRequest(req as any, res as any, req.body);
+    } catch (err: any) {
+      console.error("[MCP Streamable HTTP] Request failed", err);
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: "2.0",
+          error: { code: -32603, message: "MCP Streamable HTTP request failed" },
+          id: null,
+        });
+      }
+    }
+  });
+
+  // Legacy HTTP+SSE compatibility transport.
   router.get("/sse", async (req, res) => {
     try {
       const requestedSessionId = typeof req.query.sessionId === "string" ? req.query.sessionId.trim() : "";
