@@ -5,7 +5,19 @@
  * deterministic order: priority first, then stable system identity.
  */
 
-import type { TickSystem, TickSystemDescriptor, TickSystemContext, TickSystemPriority } from './TickSystem.js';
+import type {
+  TickSystem,
+  TickSystemDescriptor,
+  TickSystemContext,
+  TickSystemPriority,
+  TickFailureRerunPolicy,
+} from './TickSystem.js';
+import {
+  TickFailureFamilyRuntime,
+  deriveTickFailure,
+  type TickFailureRecord,
+  type TickFailureRerunOutcome,
+} from './TickFailureFamilyRuntime.js';
 
 /**
  * Registry event types for observability.
@@ -17,7 +29,22 @@ export type TickSystemRegistryEvent =
   | { type: 'disabled'; system: string }
   | { type: 'tick_start'; tick: number }
   | { type: 'tick_end'; tick: number; durationMs: number }
-  | { type: 'system_error'; system: string; error: Error };
+  | {
+      type: 'system_error';
+      tick: number;
+      system: string;
+      priority: TickSystemPriority;
+      error: Error;
+      failure: TickFailureRecord;
+      rerunOutcome: TickFailureRerunOutcome;
+    }
+  | {
+      type: 'system_rerun';
+      tick: number;
+      system: string;
+      outcome: Exclude<TickFailureRerunOutcome, 'not_eligible'>;
+      fingerprint: string;
+    };
 
 export interface TickSystemRegistrySnapshotEntry {
   readonly id: string;
@@ -26,6 +53,20 @@ export interface TickSystemRegistrySnapshotEntry {
   readonly enabled: boolean;
   readonly dependencies: readonly string[];
   readonly tags: readonly string[];
+  readonly failureRerunPolicy: TickFailureRerunPolicy;
+}
+
+export interface TickSystemExecutionFailure {
+  readonly system: string;
+  readonly tick: number;
+  readonly failure: TickFailureRecord;
+  readonly rerunOutcome: TickFailureRerunOutcome;
+}
+
+export interface TickSystemExecutionReport {
+  readonly tick: number;
+  readonly visitedSystems: readonly string[];
+  readonly failures: readonly TickSystemExecutionFailure[];
 }
 
 function systemIdentity(system: TickSystem): string {
@@ -52,10 +93,16 @@ function normalizeDescriptor(descriptor: TickSystemDescriptor): TickSystemDescri
     throw new Error(`TickSystem "${name}" requires a finite numeric priority`);
   }
 
+  const rerun = descriptor.failurePolicy?.rerun ?? 'never';
+  if (rerun !== 'never' && rerun !== 'safe_same_context_once') {
+    throw new Error(`TickSystem "${name}" has invalid failure rerun policy: ${String(rerun)}`);
+  }
+
   return {
     system,
     dependencies: [...descriptor.dependencies].map(String).sort(),
     tags: [...descriptor.tags].map(String).sort(),
+    failurePolicy: Object.freeze({ rerun }),
   };
 }
 
@@ -69,6 +116,11 @@ function compareDescriptors(a: TickSystemDescriptor, b: TickSystemDescriptor): n
   return a.system.name.localeCompare(b.system.name);
 }
 
+function asError(error: unknown): Error {
+  if (error instanceof Error) return error;
+  return new Error(String(error ?? 'unknown TickSystem failure'));
+}
+
 /**
  * TickSystemRegistry maintains all registered tick systems and orchestrates execution.
  */
@@ -78,6 +130,11 @@ export class TickSystemRegistry {
   private dirty = true;
   private listeners: Set<(event: TickSystemRegistryEvent) => void> = new Set();
   private tickDuration = 0;
+  private readonly failureRuntime: TickFailureFamilyRuntime;
+
+  constructor(failureRuntime: TickFailureFamilyRuntime = new TickFailureFamilyRuntime()) {
+    this.failureRuntime = failureRuntime;
+  }
 
   /**
    * Register a tick system with the registry.
@@ -122,6 +179,10 @@ export class TickSystemRegistry {
     return this.systems.has(systemName);
   }
 
+  getFailureRuntime(): TickFailureFamilyRuntime {
+    return this.failureRuntime;
+  }
+
   /**
    * Get all registered systems in deterministic execution order.
    */
@@ -152,6 +213,7 @@ export class TickSystemRegistry {
       enabled: descriptor.system.enabled,
       dependencies: Object.freeze([...descriptor.dependencies]),
       tags: Object.freeze([...descriptor.tags]),
+      failureRerunPolicy: descriptor.failurePolicy?.rerun ?? 'never',
     })));
   }
 
@@ -188,29 +250,109 @@ export class TickSystemRegistry {
 
   /**
    * Execute all enabled systems in deterministic priority/id order.
+   *
+   * Failure handling is fail-closed with respect to reruns. A system is never
+   * executed twice unless its descriptor explicitly opts into
+   * safe_same_context_once. That opt-in is reserved for systems whose tick body
+   * is proven side-effect-idempotent (for example the diagnostic probe system).
    */
-  executeAll(context: TickSystemContext): void {
+  executeAll(context: TickSystemContext): TickSystemExecutionReport {
     this.rebuildSortedList();
 
     const start = performance.now();
-    this.emit({ type: 'tick_start', tick: context.tickCount });
+    const tick = Number(context.tickCount);
+    const visitedSystems: string[] = [];
+    const failures: TickSystemExecutionFailure[] = [];
+    this.emit({ type: 'tick_start', tick });
 
     for (const descriptor of this.sortedSystems) {
       const { system } = descriptor;
 
       if (!system.enabled) continue;
+      visitedSystems.push(system.name);
 
       try {
         system.tick(context);
       } catch (error) {
-        console.error(`[TickSystemRegistry] Error in system "${system.name}":`, error);
-        this.emit({ type: 'system_error', system: system.name, error: error as Error });
+        const rerunEligible = descriptor.failurePolicy?.rerun === 'safe_same_context_once';
+        const originalError = asError(error);
+        const failure = this.failureRuntime.recordFailure({
+          tick,
+          stage: 'system_tick',
+          system: system.name,
+          error,
+          rerunEligible,
+        });
+        let rerunOutcome: TickFailureRerunOutcome = 'not_eligible';
+
+        if ((error as any)?.failureFamilyProbe === true) {
+          console.warn(`[TickSystemRegistry] Diagnostic failure-family probe "${system.name}" at tick ${tick}: ${originalError.message}`);
+        } else {
+          console.error(`[TickSystemRegistry] Error in system "${system.name}" at tick ${tick}:`, error);
+        }
+
+        if (rerunEligible) {
+          try {
+            system.tick(context);
+            rerunOutcome = 'recovered';
+            this.failureRuntime.recordRerunOutcome({
+              fingerprint: failure.fingerprint,
+              tick,
+              outcome: 'recovered',
+              stage: 'system_tick',
+              system: system.name,
+            });
+          } catch (rerunError) {
+            const rerunDerived = deriveTickFailure({
+              tick,
+              stage: 'system_tick',
+              system: system.name,
+              error: rerunError,
+              rerunEligible: true,
+            });
+            rerunOutcome = rerunDerived.fingerprint === failure.fingerprint ? 'reproduced' : 'changed_failure';
+            this.failureRuntime.recordRerunOutcome({
+              fingerprint: failure.fingerprint,
+              tick,
+              outcome: rerunOutcome,
+              error: rerunError,
+              stage: 'system_tick',
+              system: system.name,
+            });
+          }
+
+          this.emit({
+            type: 'system_rerun',
+            tick,
+            system: system.name,
+            outcome: rerunOutcome as Exclude<TickFailureRerunOutcome, 'not_eligible'>,
+            fingerprint: failure.fingerprint,
+          });
+        }
+
+        const currentFailure = this.failureRuntime.getSnapshot().records.find((record) => record.fingerprint === failure.fingerprint) ?? failure;
+        const executionFailure = Object.freeze({ system: system.name, tick, failure: currentFailure, rerunOutcome });
+        failures.push(executionFailure);
+        this.emit({
+          type: 'system_error',
+          tick,
+          system: system.name,
+          priority: system.priority,
+          error: originalError,
+          failure: currentFailure,
+          rerunOutcome,
+        });
       }
     }
 
     const end = performance.now();
     this.tickDuration = end - start;
-    this.emit({ type: 'tick_end', tick: context.tickCount, durationMs: this.tickDuration });
+    this.emit({ type: 'tick_end', tick, durationMs: this.tickDuration });
+    return Object.freeze({
+      tick,
+      visitedSystems: Object.freeze(visitedSystems),
+      failures: Object.freeze(failures),
+    });
   }
 
   /**
@@ -273,6 +415,7 @@ export class TickSystemRegistry {
     disabledSystems: number;
     lastTickDurationMs: number;
     systemsByPriority: Record<number, string[]>;
+    failureFamilies: ReturnType<TickFailureFamilyRuntime['getSnapshot']>;
   } {
     const systemsByPriority: Record<number, string[]> = {};
     let enabled = 0;
@@ -293,6 +436,7 @@ export class TickSystemRegistry {
       disabledSystems: disabled,
       lastTickDurationMs: this.tickDuration,
       systemsByPriority,
+      failureFamilies: this.failureRuntime.getSnapshot(),
     };
   }
 

@@ -20,6 +20,12 @@ export interface AIProcessOptions {
   mode?: AIServiceMode;
   agentId?: string;
   traceId?: string;
+  /**
+   * Authoritative logical tick supplied by the caller. This is the only time
+   * coordinate allowed to enter AI envelope identity or learning order.
+   * Defaults to 0 for non-runtime authoring/diagnostic calls.
+   */
+  tickId?: number;
   logicalIndex?: number;
   kappa?: number;
   resonance?: number;
@@ -96,6 +102,10 @@ export interface AILearningEvent {
   confidence: number;
   successScore: number;
   tags: string[];
+  /**
+   * Legacy field name retained for compatibility. Value is a deterministic
+   * logical tick, never wall-clock milliseconds.
+   */
   createdAt: number;
   metadata: Record<string, unknown>;
 }

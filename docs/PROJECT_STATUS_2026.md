@@ -1,4 +1,4 @@
-# Project status — Areloria / Ouroboros (June 2026)
+# Project status — Areloria / Ouroboros (August 2026)
 
 This file is the practical current-state snapshot. Use it before trusting older reconstruction or handover docs.
 
@@ -25,11 +25,12 @@ Valid runtime truth must come from tick/logicalIndex, kappa, chunk/position, has
 | Item | Status |
 |------|--------|
 | Monorepo layout | `client/` (Vite + Babylon.js), `apps/client-2d/` (PixiJS v7 + React), `server/` (Express + WebSocket), `game-data/` (authoritative JSON content) |
-| Main server loop | `server/src/core/WorldTick.ts` at ~100 ms sim tick |
+| Main server loop | `server/src/core/are/WorldTickThinShell.ts` owns the authoritative 100 ms / 10 Hz cadence and executes `TickSystemRegistry` |
+| 10 Hz failure-family evidence | `TickFailureFamilyRuntime` derives bounded runtime-source/system/state/determinism/persistence/ordering families at their real tick origin; same-context execution reruns are default-denied and only explicit retry-safe diagnostic systems may opt in |
 | Main client entry | `client/src/main.ts` |
 | 2D client entry | `apps/client-2d/src/App.tsx` |
 | Primary rendering (3D) | Babylon.js (`@babylonjs/core` + loaders + materials + addons) |
-| Primary rendering (2D) | PixiJS v7 + React UI (`apps/client-2d/`) |
+| Primary rendering (2D) | PixiJS v7 + React UI. Active `/2d` uses `LiveAuthoritativeWorld2D`: live actors come from server heartbeat/tick state; static terrain/roads/buildings/props use `LiveAssetWorldSurface` with the real merged manifest and server-seeded `OuroborosWorldDirectorV1` projection provenance from `/health/world-projection`. |
 | Networking | WebSocket (`ws`) via `server/src/networking/WebSocketServer.ts` |
 | Manifest System | Deterministic server-authoritative state via hash chain in `server/src/core/manifest/`; client divergence detection in `apps/client-2d/src/manifest/`; resync API at `/api/manifest/*` |
 | Data content root | `game-data/` by default, optional published pack via `USE_PUBLISHED_CONTENT` / `CONTENT_PACK_DIR` |
@@ -63,7 +64,7 @@ Valid runtime truth must come from tick/logicalIndex, kappa, chunk/position, has
 | Living Duden / NPC speech | Runtime language content loads from `game-data/language`; 2D NPC interaction emits runtime dialogue packets. |
 | Lineage runtime | FamilyHouseRegistry, birth journal, replay, LineageTickRunner, snapshot bridge and visible-POI runtime provider exist. |
 | Lineage worldSurface | Server projects houses/nodes into `liveGameplaySnapshot.worldSurface`; 2D renders markers; PR #2484 verbindet dieselben read-only Fakten mit Babylon-Minimap und 3D-Objekten. Browser-Paritätsevidence bleibt als Abschluss von #2046 erforderlich. |
-| Ouroboros agents | `OuroborosEngine` is instantiated and ticked from `WorldTick`. |
+| Ouroboros agents | `OuroborosEngine` is instantiated and ticked from the ARE tick registry. |
 | World systems | Chunks, observers, world objects, weather/time and terrain adapters are wired. |
 | Resource entities | Deterministic resource nodes and chunk coordinates are wired; remaining deterministic audit cleanup tracked by #2041. |
 | Storage system | `StorageEntity` entities with inventory, `open_storage`/`transfer_item` handlers in WorldTick. |
@@ -72,6 +73,17 @@ Valid runtime truth must come from tick/logicalIndex, kappa, chunk/position, has
 | Vote system | Vote banner/session/status and reward claims are wired. |
 | Crafting | Server-authoritative starter crafting loop is wired and visible in snapshots/UI. |
 | Admin content tools | `/api/admin/content/*` routes + `/admin-content.html` are active. |
+
+---
+
+## Non-authoritative integration side-channels
+
+| Integration | Status | Authority boundary |
+|---|---|---|
+| Amplitude | AIM-130 integration candidate on a dedicated branch. The observer consumes immutable `ServerCanonicalIntent` projections only after `CanonicalIntentIntake.record()`, pseudonymizes actor identity, uses a bounded queue and reports sent/failed/dropped diagnostics. Live ingestion is **not yet proven**; connected Amplitude currently exposes only the auto-created `default` project (`850948`) with no WASD events. | No telemetry value may affect TickSystem, canonical ordering, reducers, manifests, persistence or world hash. Missing credentials disable the observer. |
+| QuickNode | AIM-131 pending. Connector authentication currently fails with HTTP 403, so no endpoint/runtime claim exists. | Planned read-only attestation side-channel only (`eth_chainId`, `eth_blockNumber`); no signing, transaction submission or gameplay authority. |
+
+See `docs/AMPLITUDE_CANONICAL_INTENT_OBSERVER.md` for the current Amplitude contract.
 
 ---
 
@@ -113,6 +125,7 @@ Valid runtime truth must come from tick/logicalIndex, kappa, chunk/position, has
 | Item | Status |
 |------|--------|
 | World asset sync | `scripts/sync-world-assets.mjs` mirrors repo assets into client public paths |
+| 2D production asset projection | Active `/2d` no longer uses a blank/demo world surface. Player/NPC visuals are manifest-backed; loot fallback is manifest-backed; terrain, roads, buildings and props bind through the merged 2D manifest. Static scene generation starts only from server-published canonical seed/projection provenance and remains presentation-only (`gameplayAuthority:false`). Missing world assets are counted/skipped rather than replaced by convincing geometry. |
 | GLB links and pools | File-based content paths + GLB registry + asset pool resolver are active |
 | Admin model needs | `GET /api/admin/content/model-needs` provides needed/satisfied model suggestions |
 | Publish snapshot | `pnpm run content:publish` creates `published-content/current` pack |
@@ -126,6 +139,7 @@ Valid runtime truth must come from tick/logicalIndex, kappa, chunk/position, has
 | Item | Status |
 |------|--------|
 | Unit/integration tests | Vitest (`pnpm run test`) |
+| 10 Hz failure regressions | ARE suite covers deterministic family derivation, default-denied reruns, explicit safe retry outcomes, provider-origin retention, scheduled-boundary containment and a complete six-family `WorldTickThinShell` run; Safe Test Lab also runs the admin-route contract |
 | E2E tests | Playwright (`pnpm run test:e2e`, `pnpm run test:e2e:ci`) |
 | Lint | ESLint (`pnpm run lint`) |
 | Build | Root build compiles client then server (`pnpm run build`) |
@@ -202,4 +216,4 @@ When runtime behavior changes, update this file together with:
 - `docs/RELEASE_CHECKLIST.md`
 - relevant subsystem docs under `docs/`
 
-Last refreshed: 2026-08-21 (PR #2579 candidate state; production activation not claimed)
+Last refreshed: 2026-08-21
