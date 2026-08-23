@@ -6,7 +6,7 @@ SERVER_DIR="${ROOT_DIR}/server"
 CLI_VERSION="${GENKIT_CLI_VERSION:-1.40.1}"
 GENKIT_RUNTIME="src/devtools/genkit/runtime.ts"
 GENKIT_DOCTOR="src/devtools/genkit/doctor.ts"
-GENKIT_TEST="src/devtools/genkit/__tests__/contracts.test.ts"
+GENKIT_TEST_DIR="src/devtools/genkit/__tests__"
 
 if ! command -v pnpm >/dev/null 2>&1; then
   echo "[genkit] pnpm is required (repo package manager)." >&2
@@ -54,7 +54,7 @@ case "${command_name}" in
     ;;
   test)
     cd "${SERVER_DIR}"
-    exec pnpm exec vitest run "${GENKIT_TEST}" "$@"
+    exec pnpm exec vitest run "${GENKIT_TEST_DIR}" "$@"
     ;;
   flow)
     if [[ $# -lt 1 ]]; then
@@ -77,7 +77,7 @@ Usage:
   bash genkit.sh runtime             Start only the isolated flow runtime
   bash genkit.sh doctor              Print readiness without exposing secrets
   bash genkit.sh doctor --require-provider
-  bash genkit.sh test                Run Genkit contract tests
+  bash genkit.sh test                Run the complete Genkit control-plane test suite
   bash genkit.sh flow <name> '<json>' Run a flow against an already running runtime
 
 The Genkit lane is a non-authoritative development/content side-channel.
