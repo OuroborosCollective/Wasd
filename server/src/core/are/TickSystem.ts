@@ -48,10 +48,23 @@ export interface TickSystem {
   shutdown?(context?: TickSystemContext): void | Promise<void>;
 }
 
+/**
+ * Re-executing a live TickSystem after an exception is unsafe by default: a
+ * system may have partially mutated authoritative state before throwing. Only
+ * systems whose tick body is explicitly proven side-effect-idempotent may opt
+ * into a same-context single rerun.
+ */
+export type TickFailureRerunPolicy = 'never' | 'safe_same_context_once';
+
+export interface TickSystemFailurePolicy {
+  readonly rerun: TickFailureRerunPolicy;
+}
+
 export interface TickSystemDescriptor {
   system: TickSystem;
   dependencies: string[];
   tags: string[];
+  failurePolicy?: TickSystemFailurePolicy;
 }
 
 export function createDefaultTickContext(tickCount: number): TickSystemContext {

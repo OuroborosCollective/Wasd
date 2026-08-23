@@ -1,33 +1,20 @@
 /**
  * PlayerStatsDirector — Server-Authoritative Skill/XP State
  *
- * ARCHITECTURE (Server Authority + Stateless Determinism):
- * - All XP calculations are server-side only
- * - Player skill state is maintained per-player
- * - Broadcasts player_stats_snapshot to individual clients via WebSocket
- * - Client NEVER calculates XP or levels locally
- *
- * UNLIMITED SCALING SYSTEM:
- * - Practically uncapped skill progression with a hard safety ceiling
- * - Every gained skill level grants +5 unspent stat points
- * - Overcap crafting can consume skill level bonuses elsewhere:
- *   totalChance > 100% => guaranteed yield + bonus multi-yield chance
- *
- * CORE STATS:
- * - STR (Strength): Physical damage, carry weight
- * - AGI (Agility): Attack speed, dodge chance
- * - INT (Intelligence): Mana pool, craft quality bonus
- *
- * Stat Allocation Intent Flow:
- * 1. Client sends stat_alloc intent with target stat
- * 2. Server validates playerId/stat/tick and unspentStatPoints > 0
- * 3. Server deterministically applies stat increase
- * 4. Broadcast updated snapshot to client
+ * Arelorian progression is endless: no level cap or safety ceiling is allowed
+ * in canonical skill truth. Exact XP/levels are stored as decimal bigint
+ * strings; Number fields are compatibility/read-model projections only.
  */
 
 import { type XPGainEvent } from "../combat/CombatDirector.js";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import {
+  advanceUnboundedProgression,
+  normalizeProgressionState,
+  progressionFromLegacyTotalXp,
+  projectExactToSafeNumber,
+  xpRequiredForNextLevelExact,
+  type AREUnboundedProgressionState,
+} from "../../core/determinism/AREUnboundedProgression.js";
 
 export type CoreStatKey = "strength" | "agility" | "intelligence";
 
@@ -45,14 +32,18 @@ export interface StatAllocationIntent {
 }
 
 export interface SkillState {
+  /** Compatibility projections; use exact fields for authority. */
   xp: number;
   level: number;
+  xpExact?: string;
+  levelExact?: string;
+  xpIntoLevelExact?: string;
+  numberProjectionExact?: boolean;
 }
 
-export interface SkillSnapshot {
-  xp: number;
-  level: number;
+export interface SkillSnapshot extends SkillState {
   nextLevelXP: number;
+  nextLevelXPExact: string;
   progressPercent: number;
 }
 
@@ -73,6 +64,7 @@ export interface PlayerStatsSnapshot {
   coreStats: CoreStats;
   unspentStatPoints: number;
   totalLevel: number;
+  totalLevelExact: string;
   hp: number;
   maxHp: number;
   mana: number;
@@ -100,12 +92,13 @@ export interface ApplyXPResult {
   newLevel: number;
   levelsGained: number;
   xpApplied: number;
+  oldLevelExact?: string;
+  newLevelExact?: string;
+  levelsGainedExact?: string;
+  xpAppliedExact?: string;
   reason?: "INVALID_PLAYER" | "INVALID_SKILL" | "INVALID_XP";
 }
 
-// ─── XP Constants ─────────────────────────────────────────────────────────────
-
-const SAFETY_MAX_LEVEL = 999_999;
 const STAT_POINTS_PER_LEVEL = 5;
 
 const DEFAULT_CORE_STATS: CoreStats = {
@@ -114,119 +107,22 @@ const DEFAULT_CORE_STATS: CoreStats = {
   intelligence: 10,
 };
 
-const DEFAULT_SKILLS: Record<string, SkillState> = {
-  sword_mastery: { xp: 0, level: 1 },
-  blunt_force: { xp: 0, level: 1 },
-  archery: { xp: 0, level: 1 },
-  heavy_armor: { xp: 0, level: 1 },
-  evasion: { xp: 0, level: 1 },
-  shield_wall: { xp: 0, level: 1 },
-  combat: { xp: 0, level: 1 },
-
-  // Crafting/world skills can safely exist even before first use.
-  carpentry: { xp: 0, level: 1 },
-  smithing: { xp: 0, level: 1 },
-  alchemy: { xp: 0, level: 1 },
-  mining: { xp: 0, level: 1 },
-  woodcutting: { xp: 0, level: 1 },
-  fishing: { xp: 0, level: 1 },
-  cooking: { xp: 0, level: 1 },
-};
-
-/**
- * XP needed to advance from currentLevel to currentLevel + 1.
- *
- * Example:
- * - currentLevel 1 => XP required for level 2
- * - currentLevel 2 => XP required for level 3
- */
-export function xpForLevel(currentLevel: number): number {
-  const safeLevel = Math.max(1, Math.floor(currentLevel));
-
-  if (safeLevel >= SAFETY_MAX_LEVEL) {
-    return Number.MAX_SAFE_INTEGER;
-  }
-
-  return Math.max(1, Math.floor(50 * Math.pow(safeLevel + 1, 1.4)));
-}
-
-/**
- * Total XP required to stand at a specific level.
- *
- * Level 1 starts at 0 XP.
- * Level 2 requires xpForLevel(1).
- * Level 3 requires xpForLevel(1) + xpForLevel(2).
- */
-const totalXpCache: number[] = [0, 0];
-
-export function totalXpForLevel(level: number): number {
-  const targetLevel = Math.max(1, Math.min(SAFETY_MAX_LEVEL, Math.floor(level)));
-
-  if (typeof totalXpCache[targetLevel] === "number") {
-    return totalXpCache[targetLevel];
-  }
-
-  let lastKnownLevel = totalXpCache.length - 1;
-  let total = totalXpCache[lastKnownLevel] ?? 0;
-
-  while (lastKnownLevel < targetLevel) {
-    total += xpForLevel(lastKnownLevel);
-    lastKnownLevel++;
-    totalXpCache[lastKnownLevel] = total;
-  }
-
-  return totalXpCache[targetLevel] ?? total;
-}
-
-/**
- * Calculate level from total XP.
- * Uses binary search to avoid slow level-by-level loops.
- */
-export function levelFromXp(totalXp: number): number {
-  if (!Number.isFinite(totalXp) || totalXp <= 0) return 1;
-
-  const xp = Math.max(0, Math.floor(totalXp));
-
-  let low = 1;
-  let high = 2;
-
-  while (high < SAFETY_MAX_LEVEL && totalXpForLevel(high) <= xp) {
-    high = Math.min(SAFETY_MAX_LEVEL, high * 2);
-  }
-
-  while (low < high) {
-    const mid = Math.floor((low + high + 1) / 2);
-
-    if (totalXpForLevel(mid) <= xp) {
-      low = mid;
-    } else {
-      high = mid - 1;
-    }
-  }
-
-  return low;
-}
-
-function cloneCoreStats(stats: CoreStats): CoreStats {
-  return {
-    strength: stats.strength,
-    agility: stats.agility,
-    intelligence: stats.intelligence,
-  };
-}
-
-function cloneSkillStateMap(skills: Record<string, SkillState>): Record<string, SkillState> {
-  const cloned: Record<string, SkillState> = {};
-
-  for (const [skillId, skill] of Object.entries(skills)) {
-    cloned[skillId] = {
-      xp: Math.max(0, Math.floor(skill.xp)),
-      level: Math.max(1, Math.floor(skill.level)),
-    };
-  }
-
-  return cloned;
-}
+const DEFAULT_SKILL_IDS = [
+  "sword_mastery",
+  "blunt_force",
+  "archery",
+  "heavy_armor",
+  "evasion",
+  "shield_wall",
+  "combat",
+  "carpentry",
+  "smithing",
+  "alchemy",
+  "mining",
+  "woodcutting",
+  "fishing",
+  "cooking",
+] as const;
 
 function isValidPlayerId(playerId: string): boolean {
   return typeof playerId === "string" && playerId.trim().length > 0;
@@ -240,29 +136,98 @@ function isCoreStatKey(value: unknown): value is CoreStatKey {
   return value === "strength" || value === "agility" || value === "intelligence";
 }
 
-// ─── PlayerStatsDirector ──────────────────────────────────────────────────────
+function progressionFromSkill(skill: Partial<SkillState> | undefined): AREUnboundedProgressionState {
+  if (
+    typeof skill?.xpExact === "string" &&
+    typeof skill?.levelExact === "string" &&
+    typeof skill?.xpIntoLevelExact === "string"
+  ) {
+    return normalizeProgressionState({
+      totalXp: skill.xpExact,
+      level: skill.levelExact,
+      xpIntoLevel: skill.xpIntoLevelExact,
+    });
+  }
+
+  const xp = Number(skill?.xp ?? 0);
+  if (!Number.isSafeInteger(xp) || xp < 0) {
+    return progressionFromLegacyTotalXp(0);
+  }
+  return progressionFromLegacyTotalXp(xp);
+}
+
+function skillStateFromProgression(progression: AREUnboundedProgressionState): SkillState {
+  const xpProjection = projectExactToSafeNumber(progression.totalXp);
+  const levelProjection = projectExactToSafeNumber(progression.level);
+  return {
+    xp: xpProjection.value,
+    level: levelProjection.value,
+    xpExact: progression.totalXp.toString(10),
+    levelExact: progression.level.toString(10),
+    xpIntoLevelExact: progression.xpIntoLevel.toString(10),
+    numberProjectionExact: xpProjection.exact && levelProjection.exact,
+  };
+}
+
+function defaultSkillMap(): Record<string, SkillState> {
+  const result: Record<string, SkillState> = {};
+  for (const skillId of DEFAULT_SKILL_IDS) {
+    result[skillId] = skillStateFromProgression(progressionFromLegacyTotalXp(0));
+  }
+  return result;
+}
+
+function cloneCoreStats(stats: CoreStats): CoreStats {
+  return {
+    strength: stats.strength,
+    agility: stats.agility,
+    intelligence: stats.intelligence,
+  };
+}
+
+function cloneSkillStateMap(skills: Record<string, SkillState>): Record<string, SkillState> {
+  const cloned: Record<string, SkillState> = {};
+  for (const [skillId, skill] of Object.entries(skills)) {
+    cloned[skillId] = skillStateFromProgression(progressionFromSkill(skill));
+  }
+  return cloned;
+}
+
+/** Exact canonical XP required to advance currentLevel -> currentLevel + 1. */
+export function xpForLevelExact(currentLevel: number | string | bigint): bigint {
+  return xpRequiredForNextLevelExact(currentLevel);
+}
+
+/** Compatibility Number projection; not progression authority. */
+export function xpForLevel(currentLevel: number): number {
+  if (!Number.isSafeInteger(currentLevel) || currentLevel < 1) return 50;
+  return projectExactToSafeNumber(xpForLevelExact(currentLevel)).value;
+}
+
+/** Legacy helper retained for callers/tests; not used on the hot XP path. */
+export function totalXpForLevel(level: number): number {
+  if (!Number.isSafeInteger(level) || level <= 1) return 0;
+  let total = 0n;
+  for (let current = 1n; current < BigInt(level); current += 1n) {
+    total += xpRequiredForNextLevelExact(current);
+  }
+  return projectExactToSafeNumber(total).value;
+}
+
+/** Legacy Number migration helper. Exact runtime advancement never uses this. */
+export function levelFromXp(totalXp: number): number {
+  if (!Number.isSafeInteger(totalXp) || totalXp <= 0) return 1;
+  return projectExactToSafeNumber(progressionFromLegacyTotalXp(totalXp).level).value;
+}
 
 export class PlayerStatsDirector {
   private playerSkills: Map<string, Record<string, SkillState>> = new Map();
-
-  private playerCoreStats: Map<
-    string,
-    {
-      stats: CoreStats;
-      unspentPoints: number;
-    }
-  > = new Map();
-
+  private playerCoreStats: Map<string, { stats: CoreStats; unspentPoints: number }> = new Map();
   private broadcastToPlayer:
     | ((playerId: string, event: string, payload: PlayerStatsSnapshot) => void)
     | null = null;
-
   private pendingXPEvents: XPGainEvent[] = [];
 
-  /**
-   * Backwards-compatible alias for old property naming.
-   * Do not use directly outside this class.
-   */
   private get pendingXPevents(): XPGainEvent[] {
     return this.pendingXPEvents;
   }
@@ -285,8 +250,7 @@ export class PlayerStatsDirector {
 
   public queueXPevents(events: XPGainEvent[]): void {
     for (const event of events) {
-      if (!event) continue;
-      this.pendingXPevents.push(event);
+      if (event) this.pendingXPevents.push(event);
     }
   }
 
@@ -294,155 +258,111 @@ export class PlayerStatsDirector {
     const playerXPGains = new Map<string, Map<string, number>>();
 
     for (const event of events) {
-      if (!event) continue;
-      if (!isValidPlayerId(event.playerId)) continue;
-      if (!isValidSkillId(event.skillId)) continue;
-      if (!Number.isFinite(event.amount) || event.amount <= 0) continue;
+      if (!event || !isValidPlayerId(event.playerId) || !isValidSkillId(event.skillId)) continue;
+      if (!Number.isSafeInteger(event.amount) || event.amount <= 0) continue;
 
       let skillGains = playerXPGains.get(event.playerId);
-
       if (!skillGains) {
         skillGains = new Map<string, number>();
         playerXPGains.set(event.playerId, skillGains);
       }
-
-      skillGains.set(
-        event.skillId,
-        (skillGains.get(event.skillId) ?? 0) + Math.floor(event.amount),
-      );
+      skillGains.set(event.skillId, (skillGains.get(event.skillId) ?? 0) + event.amount);
     }
 
     for (const [playerId, skillGains] of playerXPGains) {
       for (const [skillId, amount] of skillGains) {
         this.applyXP(playerId, skillId, amount);
       }
-
       this.broadcastSnapshot(playerId);
     }
   }
 
   public applyXP(playerId: string, skillId: string, amount: number): ApplyXPResult {
     if (!isValidPlayerId(playerId)) {
-      return {
-        accepted: false,
-        leveledUp: false,
-        oldLevel: 1,
-        newLevel: 1,
-        levelsGained: 0,
-        xpApplied: 0,
-        reason: "INVALID_PLAYER",
-      };
+      return { accepted: false, leveledUp: false, oldLevel: 1, newLevel: 1, levelsGained: 0, xpApplied: 0, reason: "INVALID_PLAYER" };
     }
-
     if (!isValidSkillId(skillId)) {
-      return {
-        accepted: false,
-        leveledUp: false,
-        oldLevel: 1,
-        newLevel: 1,
-        levelsGained: 0,
-        xpApplied: 0,
-        reason: "INVALID_SKILL",
-      };
+      return { accepted: false, leveledUp: false, oldLevel: 1, newLevel: 1, levelsGained: 0, xpApplied: 0, reason: "INVALID_SKILL" };
     }
-
-    if (!Number.isFinite(amount) || amount <= 0) {
-      const existingSkill = this.getOrCreateSkills(playerId)[skillId] ?? { xp: 0, level: 1 };
-
+    if (!Number.isSafeInteger(amount) || amount <= 0) {
+      const existing = progressionFromSkill(this.getOrCreateSkills(playerId)[skillId]);
+      const level = projectExactToSafeNumber(existing.level).value;
       return {
         accepted: false,
         leveledUp: false,
-        oldLevel: existingSkill.level,
-        newLevel: existingSkill.level,
+        oldLevel: level,
+        newLevel: level,
         levelsGained: 0,
         xpApplied: 0,
+        oldLevelExact: existing.level.toString(10),
+        newLevelExact: existing.level.toString(10),
+        levelsGainedExact: "0",
+        xpAppliedExact: "0",
         reason: "INVALID_XP",
       };
     }
 
     const skills = this.getOrCreateSkills(playerId);
+    const current = progressionFromSkill(skills[skillId]);
+    const advanced = advanceUnboundedProgression(current, amount);
+    skills[skillId] = skillStateFromProgression(advanced.state);
 
-    if (!skills[skillId]) {
-      skills[skillId] = { xp: 0, level: 1 };
-    }
+    const oldLevel = projectExactToSafeNumber(current.level);
+    const newLevel = projectExactToSafeNumber(advanced.state.level);
+    const levelsGained = projectExactToSafeNumber(advanced.levelsGained);
 
-    const skill = skills[skillId];
-    const oldLevel = Math.max(1, Math.floor(skill.level));
-    const xpApplied = Math.max(1, Math.floor(amount));
-
-    skill.xp = Math.max(0, Math.floor(skill.xp)) + xpApplied;
-    skill.level = levelFromXp(skill.xp);
-
-    const newLevel = skill.level;
-    const levelsGained = Math.max(0, newLevel - oldLevel);
-
-    if (levelsGained > 0) {
-      this.awardStatPoints(playerId, levelsGained * STAT_POINTS_PER_LEVEL);
+    if (advanced.levelsGained > 0n) {
+      const awarded = advanced.levelsGained * BigInt(STAT_POINTS_PER_LEVEL);
+      const awardedProjection = projectExactToSafeNumber(awarded);
+      if (!awardedProjection.exact) {
+        throw new Error("stat point projection exceeded safe integer range; exact stat bank migration required");
+      }
+      this.awardStatPoints(playerId, awardedProjection.value);
     }
 
     return {
       accepted: true,
-      leveledUp: levelsGained > 0,
-      oldLevel,
-      newLevel,
-      levelsGained,
-      xpApplied,
+      leveledUp: advanced.levelsGained > 0n,
+      oldLevel: oldLevel.value,
+      newLevel: newLevel.value,
+      levelsGained: levelsGained.value,
+      xpApplied: amount,
+      oldLevelExact: current.level.toString(10),
+      newLevelExact: advanced.state.level.toString(10),
+      levelsGainedExact: advanced.levelsGained.toString(10),
+      xpAppliedExact: advanced.xpApplied.toString(10),
     };
   }
 
-  public getOrCreateCoreStats(playerId: string): {
-    stats: CoreStats;
-    unspentPoints: number;
-  } {
+  public getOrCreateCoreStats(playerId: string): { stats: CoreStats; unspentPoints: number } {
     if (!this.playerCoreStats.has(playerId)) {
-      this.playerCoreStats.set(playerId, {
-        stats: cloneCoreStats(DEFAULT_CORE_STATS),
-        unspentPoints: 0,
-      });
+      this.playerCoreStats.set(playerId, { stats: cloneCoreStats(DEFAULT_CORE_STATS), unspentPoints: 0 });
     }
-
     return this.playerCoreStats.get(playerId)!;
   }
 
   public handleStatAllocation(intent: StatAllocationIntent): StatAllocationResult {
-    if (!intent || intent.intent !== "stat_alloc") {
-      return { success: false, reason: "INVALID_INTENT" };
-    }
-
+    if (!intent || intent.intent !== "stat_alloc") return { success: false, reason: "INVALID_INTENT" };
     const { playerId, stat, tick } = intent;
-
-    if (!isValidPlayerId(playerId)) {
-      return { success: false, reason: "INVALID_PLAYER" };
-    }
-
-    if (!Number.isFinite(tick) || tick < 0) {
-      return { success: false, reason: "INVALID_TICK" };
-    }
-
-    if (!isCoreStatKey(stat)) {
-      return { success: false, reason: "INVALID_STAT" };
-    }
+    if (!isValidPlayerId(playerId)) return { success: false, reason: "INVALID_PLAYER" };
+    if (!Number.isFinite(tick) || tick < 0) return { success: false, reason: "INVALID_TICK" };
+    if (!isCoreStatKey(stat)) return { success: false, reason: "INVALID_STAT" };
 
     const playerStats = this.getOrCreateCoreStats(playerId);
-
-    if (playerStats.unspentPoints <= 0) {
-      return { success: false, reason: "NO_UNSPENT_POINTS" };
-    }
-
+    if (playerStats.unspentPoints <= 0) return { success: false, reason: "NO_UNSPENT_POINTS" };
     playerStats.stats[stat] += 1;
     playerStats.unspentPoints -= 1;
-
     this.broadcastSnapshot(playerId);
-
     return { success: true };
   }
 
   public awardStatPoints(playerId: string, amount: number = STAT_POINTS_PER_LEVEL): void {
-    if (!isValidPlayerId(playerId)) return;
-    if (!Number.isFinite(amount) || amount <= 0) return;
-
+    if (!isValidPlayerId(playerId) || !Number.isSafeInteger(amount) || amount <= 0) return;
     const playerStats = this.getOrCreateCoreStats(playerId);
-    playerStats.unspentPoints += Math.floor(amount);
+    if (!Number.isSafeInteger(playerStats.unspentPoints + amount)) {
+      throw new Error("unspent stat points exceeded safe integer range");
+    }
+    playerStats.unspentPoints += amount;
   }
 
   public getCoreStats(playerId: string): CoreStats {
@@ -455,46 +375,37 @@ export class PlayerStatsDirector {
 
   public getOrCreateSkills(playerId: string): Record<string, SkillState> {
     if (!this.playerSkills.has(playerId)) {
-      this.playerSkills.set(playerId, cloneSkillStateMap(DEFAULT_SKILLS));
+      this.playerSkills.set(playerId, defaultSkillMap());
     }
-
     return this.playerSkills.get(playerId)!;
   }
 
   public getSkillSnapshot(playerId: string, skillId: string): SkillSnapshot | null {
-    const skills = this.playerSkills.get(playerId);
-    if (!skills || !skills[skillId]) return null;
-
-    return this.createSkillSnapshot(skills[skillId]);
+    const skill = this.playerSkills.get(playerId)?.[skillId];
+    return skill ? this.createSkillSnapshot(skill) : null;
   }
 
-  public getFullSnapshot(
-    playerId: string,
-    playerState?: PlayerRuntimeState,
-  ): PlayerStatsSnapshot {
+  public getFullSnapshot(playerId: string, playerState?: PlayerRuntimeState): PlayerStatsSnapshot {
     const skills = this.getOrCreateSkills(playerId);
     const coreStatsData = this.getOrCreateCoreStats(playerId);
     const skillSnapshots: Record<string, SkillSnapshot> = {};
-
-    let totalLevel = 0;
+    let totalLevelExact = 0n;
 
     for (const [skillId, skill] of Object.entries(skills)) {
-      const fixedLevel = levelFromXp(skill.xp);
-
-      if (fixedLevel !== skill.level) {
-        skill.level = fixedLevel;
-      }
-
-      totalLevel += skill.level;
-      skillSnapshots[skillId] = this.createSkillSnapshot(skill);
+      const progression = progressionFromSkill(skill);
+      skills[skillId] = skillStateFromProgression(progression);
+      totalLevelExact += progression.level;
+      skillSnapshots[skillId] = this.createSkillSnapshot(skills[skillId]);
     }
 
+    const totalLevelProjection = projectExactToSafeNumber(totalLevelExact);
     return {
       playerId,
       skills: skillSnapshots,
       coreStats: cloneCoreStats(coreStatsData.stats),
       unspentStatPoints: coreStatsData.unspentPoints,
-      totalLevel,
+      totalLevel: totalLevelProjection.value,
+      totalLevelExact: totalLevelExact.toString(10),
       hp: playerState?.health ?? 0,
       maxHp: playerState?.maxHealth ?? 100,
       mana: playerState?.mana ?? 0,
@@ -507,11 +418,8 @@ export class PlayerStatsDirector {
   }
 
   public broadcastSnapshot(playerId: string, playerState?: PlayerRuntimeState): void {
-    if (!this.broadcastToPlayer) return;
-    if (!isValidPlayerId(playerId)) return;
-
-    const snapshot = this.getFullSnapshot(playerId, playerState);
-    this.broadcastToPlayer(playerId, "player_stats_snapshot", snapshot);
+    if (!this.broadcastToPlayer || !isValidPlayerId(playerId)) return;
+    this.broadcastToPlayer(playerId, "player_stats_snapshot", this.getFullSnapshot(playerId, playerState));
   }
 
   public removePlayer(playerId: string): void {
@@ -521,84 +429,51 @@ export class PlayerStatsDirector {
 
   public loadSkills(playerId: string, skills: Record<string, SkillState>): void {
     if (!isValidPlayerId(playerId)) return;
-
-    const sanitized: Record<string, SkillState> = {};
-
+    const sanitized = defaultSkillMap();
     for (const [skillId, skill] of Object.entries(skills ?? {})) {
       if (!isValidSkillId(skillId)) continue;
-
-      const xp = Number.isFinite(skill?.xp) ? Math.max(0, Math.floor(skill.xp)) : 0;
-      const level = levelFromXp(xp);
-
-      sanitized[skillId] = {
-        xp,
-        level,
-      };
+      sanitized[skillId] = skillStateFromProgression(progressionFromSkill(skill));
     }
-
-    this.playerSkills.set(playerId, {
-      ...cloneSkillStateMap(DEFAULT_SKILLS),
-      ...sanitized,
-    });
+    this.playerSkills.set(playerId, sanitized);
   }
 
-  public loadCoreStats(
-    playerId: string,
-    coreStats: Partial<CoreStats>,
-    unspentPoints: number = 0,
-  ): void {
+  public loadCoreStats(playerId: string, coreStats: Partial<CoreStats>, unspentPoints: number = 0): void {
     if (!isValidPlayerId(playerId)) return;
-
     this.playerCoreStats.set(playerId, {
       stats: {
         strength: this.safeStat(coreStats.strength, DEFAULT_CORE_STATS.strength),
         agility: this.safeStat(coreStats.agility, DEFAULT_CORE_STATS.agility),
         intelligence: this.safeStat(coreStats.intelligence, DEFAULT_CORE_STATS.intelligence),
       },
-      unspentPoints: Number.isFinite(unspentPoints)
-        ? Math.max(0, Math.floor(unspentPoints))
-        : 0,
+      unspentPoints: Number.isSafeInteger(unspentPoints) ? Math.max(0, unspentPoints) : 0,
     });
   }
 
   public getSkillsForSave(playerId: string): Record<string, SkillState> | undefined {
     const skills = this.playerSkills.get(playerId);
-    if (!skills) return undefined;
-
-    return cloneSkillStateMap(skills);
+    return skills ? cloneSkillStateMap(skills) : undefined;
   }
 
-  public getCoreStatsForSave(
-    playerId: string,
-  ): { stats: CoreStats; unspentPoints: number } | undefined {
+  public getCoreStatsForSave(playerId: string): { stats: CoreStats; unspentPoints: number } | undefined {
     const coreStats = this.playerCoreStats.get(playerId);
     if (!coreStats) return undefined;
-
-    return {
-      stats: cloneCoreStats(coreStats.stats),
-      unspentPoints: coreStats.unspentPoints,
-    };
+    return { stats: cloneCoreStats(coreStats.stats), unspentPoints: coreStats.unspentPoints };
   }
 
   private createSkillSnapshot(skill: SkillState): SkillSnapshot {
-    const xp = Math.max(0, Math.floor(skill.xp));
-    const level = Math.max(1, Math.floor(skill.level));
-
-    const currentLevelStartXP = totalXpForLevel(level);
-    const nextLevelStartXP = totalXpForLevel(level + 1);
-    const neededForNextLevel = Math.max(1, nextLevelStartXP - currentLevelStartXP);
-    const currentLevelXP = Math.max(0, xp - currentLevelStartXP);
-
-    const progressPercent = Math.max(
-      0,
-      Math.min(100, (currentLevelXP / neededForNextLevel) * 100),
-    );
+    const progression = progressionFromSkill(skill);
+    const required = xpRequiredForNextLevelExact(progression.level);
+    const requiredProjection = projectExactToSafeNumber(required);
+    const stateProjection = skillStateFromProgression(progression);
+    const progressBasisPoints = required > 0n
+      ? (progression.xpIntoLevel * 1_000_000n) / required
+      : 0n;
 
     return {
-      xp,
-      level,
-      nextLevelXP: neededForNextLevel,
-      progressPercent,
+      ...stateProjection,
+      nextLevelXP: requiredProjection.value,
+      nextLevelXPExact: required.toString(10),
+      progressPercent: Number(progressBasisPoints) / 10_000,
     };
   }
 
@@ -607,7 +482,5 @@ export class PlayerStatsDirector {
     return Math.max(1, Math.floor(value as number));
   }
 }
-
-// ─── Singleton Export ──────────────────────────────────────────────────────────
 
 export const playerStatsDirector = new PlayerStatsDirector();
