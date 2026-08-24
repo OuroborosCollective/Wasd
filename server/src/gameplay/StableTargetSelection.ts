@@ -65,7 +65,12 @@ export function selectSafestTarget(candidates: TargetCandidate[], sourcePosition
     const minThreatDistance = threats.reduce((best, threat) => Math.min(best, calculateDistance(candidate.position, threat.position)), Infinity);
     return { candidate, score: minThreatDistance - candidate.distance * 0.1 };
   });
-  scored.sort((a, b) => a.score - b.score || a.candidate.idHash - b.candidate.idHash || a.candidate.id.localeCompare(b.candidate.id));
+  // Bolt: Optimized hot-path sort comparator replacing slow localeCompare with direct relational string comparisons
+  scored.sort((a, b) =>
+    a.score - b.score ||
+    a.candidate.idHash - b.candidate.idHash ||
+    (a.candidate.id < b.candidate.id ? -1 : a.candidate.id > b.candidate.id ? 1 : 0)
+  );
   const selected = scored[0]!.candidate;
   return { id: selected.id, position: selected.position, distance: selected.distance, tieBreaker: `safest,hash:${selected.idHash.toString(16)}` };
 }
@@ -75,7 +80,13 @@ function getSortedCandidates(candidates: TargetCandidate[], sourcePosition: { x:
     ...candidate,
     distance: candidate.distance > 0 ? candidate.distance : calculateDistance(sourcePosition, candidate.position),
     idHash: candidate.idHash > 0 ? candidate.idHash : stableHash32(candidate.id),
-  })).sort((a, b) => a.distance - b.distance || a.idHash - b.idHash || (a.spawnHash ?? 0) - (b.spawnHash ?? 0) || a.id.localeCompare(b.id));
+  })).sort((a, b) =>
+    a.distance - b.distance ||
+    a.idHash - b.idHash ||
+    (a.spawnHash ?? 0) - (b.spawnHash ?? 0) ||
+    // Bolt: Optimized hot-path sort comparator replacing slow localeCompare with direct relational string comparisons
+    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
 }
 
 function calculateDistance(a: { x: number; y: number }, b: { x: number; y: number }): number {

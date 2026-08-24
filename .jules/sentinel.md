@@ -37,3 +37,8 @@
 **Vulnerability:** The `/api/sovereign/deploy` route used the standard `===` relational string comparison in `requireLaunchKey` to validate the provided sovereign launch key against the expected `SOVEREIGN_LAUNCH_KEY` or `ADMIN_DEPLOY_TOKEN`, exposing the token to timing analysis attacks.
 **Learning:** Sensitive deploy/launch endpoints can have custom validator functions that bypass standard auth middleware checks, leaving them vulnerable if they perform plain string comparisons.
 **Prevention:** Always implement a timing-attack-resilient constant-time comparison helper `safeEqualText` that hashes inputs using SHA-256 and compares them using `crypto.timingSafeEqual` to validate any administrative launch credentials or API keys.
+
+## 2026-09-01 - [Medium] Playtester Monitor Stream & WebRTC Token Verification Timing Attack
+**Vulnerability:** The Playtester monitor WebSocket stream (`PlaytesterMonitorStream`), WebRTC signaling server (`PlaytesterWebRTCSignaling`), and HTTP route access checks (`ServerBootstrap`) used relational `===` string comparisons to validate incoming query/header tokens against `PLAYTESTER_MONITOR_TOKEN`, exposing internal monitoring credentials to timing attacks.
+**Learning:** Custom WebSocket upgrade handlers and streaming endpoints often implement token authorization checks independently of standard Express auth middlewares, creating timing side-channel risks.
+**Prevention:** Always use SHA-256 digest hashing and `crypto.timingSafeEqual` via a `safeEqualText` helper for token comparisons in custom HTTP upgrade and WebSocket handlers.
