@@ -139,7 +139,8 @@ export function generateChunkResourceNodes(input: ChunkResourceInput): readonly 
     }
   }
 
-  return Object.freeze(nodes.sort((a, b) => a.id.localeCompare(b.id)));
+  // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+  return Object.freeze(nodes.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)));
 }
 
 export function getVisibleChunkCoords(tileX: number, tileZ: number): Array<{ chunkX: number; chunkZ: number }> {

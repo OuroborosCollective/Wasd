@@ -52,7 +52,8 @@ function ecologyStatus(state: ResourceNodeEcologyState): ResourceEcologyStatus {
 }
 
 function compareNodeId(a: { nodeId: string }, b: { nodeId: string }): number {
-  return a.nodeId.localeCompare(b.nodeId);
+  // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+  return a.nodeId < b.nodeId ? -1 : a.nodeId > b.nodeId ? 1 : 0;
 }
 
 function freezeState(state: ResourceNodeEcologyState): ResourceNodeEcologyState {
@@ -97,7 +98,8 @@ export class ResourceEcologyService {
   }
 
   registerNodes(definitions: readonly ResourceEcologyNodeSeed[]): readonly ResourceNodeEcologySnapshot[] {
-    return Object.freeze([...definitions].sort((a, b) => a.id.localeCompare(b.id)).map((node) => this.registerNode(node)));
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+    return Object.freeze([...definitions].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map((node) => this.registerNode(node)));
   }
 
   unregisterNode(nodeId: string): boolean {
