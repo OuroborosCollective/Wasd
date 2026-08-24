@@ -144,9 +144,10 @@ export function generateCampQuestOffers(input: GenerateCampQuestOffersInput): re
   const discovered = new Set(input.discoveredPoiIds.filter(Boolean));
   const completed = new Set(input.completedQuestIds ?? []);
 
+  // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
   const offers = input.worldPois
     .filter((poi): poi is GatheringCampQuestPoi => isDiscoveredGatheringCampPoi(poi, discovered))
-    .sort((a, b) => a.poiId.localeCompare(b.poiId))
+    .sort((a, b) => (a.poiId < b.poiId ? -1 : a.poiId > b.poiId ? 1 : 0))
     .map((poi): LiveGameplayQuestProgress | null => {
       const questId = `camp_daily:${poi.poiId}:${cycle}`;
       if (completed.has(questId)) return null;
@@ -179,7 +180,7 @@ export function generateCampQuestOffers(input: GenerateCampQuestOffersInput): re
       });
     })
     .filter((quest): quest is LiveGameplayQuestProgress => quest !== null)
-    .sort((a, b) => a.questId.localeCompare(b.questId));
+    .sort((a, b) => (a.questId < b.questId ? -1 : a.questId > b.questId ? 1 : 0));
 
   return Object.freeze(offers);
 }

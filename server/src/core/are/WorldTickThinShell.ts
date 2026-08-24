@@ -195,7 +195,7 @@ export class WorldTickThinShell {
     console.log("[WorldTickThinShell] Starting - 10-Hz brain tick");
     this.isRunning = true;
     this.registry.notifyStart();
-    this.timer = setInterval(() => this.runScheduledTick(), WorldTickThinShell.TICK_INTERVAL_MS);
+    this.timer = setInterval(() => this.tick(), WorldTickThinShell.TICK_INTERVAL_MS);
   }
 
   async stop(): Promise<void> {
@@ -259,7 +259,8 @@ export class WorldTickThinShell {
   private getWorldStateForTick(context: TickSystemContext): ThinShellWorldState {
     if (this.worldStateProviders.size === 0) throw missingRuntimeSourceError();
 
-    const providers = [...this.worldStateProviders.values()].sort((a, b) => a.id.localeCompare(b.id));
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+    const providers = [...this.worldStateProviders.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     const merged: Record<keyof TickContextWorldState, unknown[]> = {
       npcs: [], players: [], loot: [], inventory: [], equipment: [], resources: [],
       warfronts: [], economy: [], factions: [], quests: [], housing: [], kingdoms: [],
