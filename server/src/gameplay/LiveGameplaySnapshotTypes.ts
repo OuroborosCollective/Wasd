@@ -9,6 +9,7 @@
  * - No wall-clock reads for gameplay state
  * - Empty arrays instead of undefined
  * - All arrays sorted deterministically by id
+ * - Exact endless skill progression uses decimal strings; Number fields are compatibility projections
  */
 
 import type { EquipmentStatBlock } from "../equipment/EquipmentStatTypes.js";
@@ -106,6 +107,11 @@ export interface LiveGameplaySkillState {
   readonly skillId: string;
   readonly xp: number;
   readonly level: number;
+  readonly xpExact?: string;
+  readonly levelExact?: string;
+  readonly xpIntoLevelExact?: string;
+  readonly xpForNextLevelExact?: string;
+  readonly numberProjectionExact?: boolean;
 }
 
 export interface LiveGameplayResourceNode {

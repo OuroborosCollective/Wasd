@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "areloria.studio-tool-index.v1",
+  "transport": "existing /api/mcp SSE",
+  "gameplayAuthority": false,
+  "tools": {
+    "content": [
+      "studio_capabilities",
+      "studio_list_domains",
+      "studio_list_json",
+      "studio_read_json",
+      "studio_write_json",
+      "studio_upsert_json_entry",
+      "studio_delete_json_entry",
+      "studio_validate_content",
+      "studio_live_content_preview"
+    ],
+    "repository": [
+      "studio_repo_read",
+      "studio_repo_list",
+      "studio_repo_write_text",
+      "studio_repo_replace_text"
+    ],
+    "assets": [
+      "studio_scan_3d_models",
+      "studio_asset_brain_get",
+      "studio_runtime_asset_list",
+      "studio_runtime_asset_upsert",
+      "studio_runtime_asset_delete",
+      "studio_activate_database_asset",
+      "studio_live_glb_link_set",
+      "studio_live_glb_link_remove",
+      "studio_live_asset_pools_get",
+      "studio_live_asset_pool_set",
+      "studio_live_asset_pool_set_default",
+      "studio_live_asset_pools_reload"
+    ],
+    "presentation": [
+      "studio_presentation_get",
+      "studio_presentation_set_binding",
+      "studio_presentation_remove_binding",
+      "studio_render_profiles_get",
+      "studio_render_profile_set",
+      "studio_render_profile_activate"
+    ],
+    "world": [
+      "studio_live_world_place",
+      "studio_live_world_remove",
+      "studio_live_world_batch_place",
+      "studio_live_world_batch_remove"
+    ],
+    "evidence": [
+      "studio_runtime_readback"
+    ]
+  }
+}

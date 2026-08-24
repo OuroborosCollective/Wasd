@@ -1,8 +1,13 @@
 import { genkit, z } from 'genkit';
 import { googleAI, gemini } from '@genkit-ai/googleai';
 
+const configuredApiKey =
+  process.env.GOOGLE_GENAI_API_KEY?.trim() ||
+  process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
+  process.env.GOOGLE_API_KEY?.trim();
+
 const ai = genkit({
-  plugins: [googleAI({ apiKey: "AQ.Ab8RN6JcAbnGNQHj-20k8dSdK3p-wjvvOhDMNktjcub9KGdT7g" })],
+  plugins: [configuredApiKey ? googleAI({ apiKey: configuredApiKey }) : googleAI()],
 });
 
 export const generateWorldObjectsFlow = ai.defineFlow({

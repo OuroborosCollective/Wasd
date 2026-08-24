@@ -165,7 +165,8 @@ function projectComposerQuest(input: ComposerQuestProgress): LiveGameplaySnapsho
   const objectives = Array.isArray(input.objectives)
     ? input.objectives.map((objective) => normalizeComposerObjective(objective as ComposerQuestObjective))
         .filter((objective): objective is LiveGameplaySnapshot["quests"][number]["objectives"][number] => objective !== null)
-        .sort((a, b) => a.id.localeCompare(b.id))
+        // Bolt: Optimized hot-path objective sorting using fast direct relational string comparison instead of slow localeCompare
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     : [];
   return { id: questId, title: String(input.title ?? prettifyId(questId)), description: String(input.description ?? ""), status: questStatusFromComposerState(input.state), objectives };
 }
@@ -195,7 +196,8 @@ function projectComposerQuests(input: Record<string, unknown>): LiveGameplaySnap
       output.push({ id: questId, title: prettifyId(questId), description: "", status: "completed", objectives: [] });
     }
   }
-  return output.sort((a, b) => a.id.localeCompare(b.id));
+  // Bolt: Optimized hot-path quest list sorting using fast direct relational string comparison instead of slow localeCompare
+  return output.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 function copyArrayField(input: unknown): unknown[] {
