@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import express from "express";
 import { authRequestHandler } from "../middleware/authRequestHandler.js";
 import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
@@ -8,6 +9,16 @@ import { attachSovereignBillingBridge } from "../market/SovereignBillingBridge.j
 import { calculateUsageCost, sovereignMarket } from "../market/SovereignMarket.js";
 import { paypalAdapter } from "../finance/PayPalAdapter.js";
 import { sovereignGovernance } from "../governance/SovereignGovernance.js";
+
+function hashBuffer(value: string): Buffer {
+  return createHash("sha256").update(value, "utf8").digest();
+}
+
+function safeEqualText(a: string, b: string): boolean {
+  const left = hashBuffer(a);
+  const right = hashBuffer(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
 
 function firstParam(raw: unknown): string {
   if (Array.isArray(raw)) return String(raw[0] ?? "");
@@ -82,7 +93,7 @@ export function areReplayRouter(tick: WorldTick) {
   router.post("/billing/credit", express.json({ limit: "64kb" }), (req, res) => {
     const adminKey = process.env.SOVEREIGN_LAUNCH_KEY || process.env.ARE_MARKET_ADMIN_KEY || "";
     const provided = String(req.headers["x-sovereign-key"] || req.body?.key || "");
-    if (!adminKey || provided !== adminKey) return res.status(403).json({ ok: false, error: "forbidden" });
+    if (!adminKey || !safeEqualText(provided, adminKey)) return res.status(403).json({ ok: false, error: "forbidden" });
     const source = String(req.body?.source || process.env.ARE_SDK_CLIENT_ID || "local-engine");
     const displayName = String(req.body?.displayName || source);
     const credits = Number(req.body?.credits ?? 0);
@@ -150,7 +161,7 @@ export function areReplayRouter(tick: WorldTick) {
     try {
       const adminKey = process.env.SOVEREIGN_LAUNCH_KEY || process.env.ARE_GOVERNANCE_ADMIN_KEY || "";
       const provided = String(req.headers["x-sovereign-key"] || req.body?.key || "");
-      if (adminKey && provided !== adminKey) return res.status(403).json({ ok: false, error: "forbidden" });
+      if (adminKey && !safeEqualText(provided, adminKey)) return res.status(403).json({ ok: false, error: "forbidden" });
       const directive = sovereignGovernance.enact(req.params.id, Number(tickContextProvider.getContext().tickId));
       const report = sovereignGovernance.getReport(Number(tickContextProvider.getContext().tickId));
       broadcastCouncil(tick, report);

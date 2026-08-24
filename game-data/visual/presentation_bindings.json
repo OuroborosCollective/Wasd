@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "areloria.presentation-bindings.v1",
+  "description": "Presentation-only bindings. 2D and 3D consume the same authoritative entity/world identity and may render it differently. This file must never carry gameplay authority such as tick, worldHash, actor state, loot outcomes or canonical intents.",
+  "bindings": [],
+  "fallbacks": {
+    "player": {
+      "presentation2d": {
+        "kind": "asset_manifest",
+        "assetCategory": "characters",
+        "tags": [
+          "civilian"
+        ],
+        "scale": 2,
+        "anchor": [
+          0.5,
+          1
+        ]
+      },
+      "presentation3d": {
+        "kind": "model",
+        "modelUrl": "/assets/models/characters/SK_Chr_NPC_Male_01.glb",
+        "scale": 1
+      }
+    },
+    "npc": {
+      "presentation2d": {
+        "kind": "asset_manifest",
+        "assetCategory": "characters",
+        "tags": [
+          "civilian"
+        ],
+        "scale": 2,
+        "anchor": [
+          0.5,
+          1
+        ]
+      },
+      "presentation3d": {
+        "kind": "model",
+        "modelUrl": "/assets/models/characters/SK_Chr_NPC_Male_01.glb",
+        "scale": 1
+      }
+    },
+    "monster": {
+      "presentation2d": {
+        "kind": "asset_manifest",
+        "assetCategory": "characters",
+        "group": "Enemy",
+        "scale": 2,
+        "anchor": [
+          0.5,
+          1
+        ]
+      },
+      "presentation3d": {
+        "kind": "model",
+        "modelUrl": "/assets/models/characters/SK_Chr_NPC_Male_01.glb",
+        "scale": 1
+      }
+    },
+    "loot": {
+      "presentation2d": {
+        "kind": "asset_manifest",
+        "assetCategory": "props",
+        "propType": "crate",
+        "scale": 0.75,
+        "anchor": [
+          0.5,
+          1
+        ]
+      }
+    }
+  }
+}

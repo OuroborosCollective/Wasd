@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "areloria.render-profiles.v1",
+  "active": {
+    "client2d": "balanced",
+    "client3d": "balanced"
+  },
+  "profiles": {
+    "performance": {
+      "client2d": {
+        "resolutionScale": 0.75,
+        "maxFps": 45,
+        "antialias": false,
+        "particleBudget": 0.35,
+        "lighting": false,
+        "postFx": false,
+        "renderDistance": "near"
+      },
+      "client3d": {
+        "hardwareScalingLevel": 1.5,
+        "maxFps": 45,
+        "antialias": false,
+        "shadows": false,
+        "particles": false,
+        "fog": true,
+        "toneMapping": true,
+        "textureQuality": "medium",
+        "lodBias": 1.5,
+        "renderDistance": "near"
+      }
+    },
+    "balanced": {
+      "client2d": {
+        "resolutionScale": 1,
+        "maxFps": 60,
+        "antialias": true,
+        "particleBudget": 0.7,
+        "lighting": true,
+        "postFx": true,
+        "renderDistance": "normal"
+      },
+      "client3d": {
+        "hardwareScalingLevel": 1,
+        "maxFps": 60,
+        "antialias": true,
+        "shadows": true,
+        "particles": true,
+        "fog": true,
+        "toneMapping": true,
+        "textureQuality": "high",
+        "lodBias": 1,
+        "renderDistance": "normal"
+      }
+    },
+    "high": {
+      "client2d": {
+        "resolutionScale": 1.25,
+        "maxFps": 90,
+        "antialias": true,
+        "particleBudget": 1,
+        "lighting": true,
+        "postFx": true,
+        "renderDistance": "far"
+      },
+      "client3d": {
+        "hardwareScalingLevel": 0.8,
+        "maxFps": 90,
+        "antialias": true,
+        "shadows": true,
+        "particles": true,
+        "fog": true,
+        "toneMapping": true,
+        "textureQuality": "ultra",
+        "lodBias": 0.8,
+        "renderDistance": "far"
+      }
+    },
+    "cinematic": {
+      "client2d": {
+        "resolutionScale": 1.5,
+        "maxFps": 60,
+        "antialias": true,
+        "particleBudget": 1,
+        "lighting": true,
+        "postFx": true,
+        "renderDistance": "far"
+      },
+      "client3d": {
+        "hardwareScalingLevel": 0.65,
+        "maxFps": 60,
+        "antialias": true,
+        "shadows": true,
+        "particles": true,
+        "fog": true,
+        "toneMapping": true,
+        "textureQuality": "ultra",
+        "lodBias": 0.65,
+        "renderDistance": "far"
+      }
+    }
+  }
+}

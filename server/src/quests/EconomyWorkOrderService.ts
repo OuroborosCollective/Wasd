@@ -92,8 +92,9 @@ export function deriveEconomyWorkOrders(input: {
     throw new Error("work_order_actor_vendor_mismatch");
   }
 
+  // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
   const rules = [...(input.rules ?? DEFAULT_ECONOMY_WORK_ORDER_RULES)]
-    .sort((a, b) => a.itemId.localeCompare(b.itemId));
+    .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0));
   const orders: EconomyWorkOrderSnapshot[] = [];
 
   for (const rule of rules) {
@@ -129,5 +130,6 @@ export function deriveEconomyWorkOrders(input: {
     }));
   }
 
-  return Object.freeze(orders.sort((a, b) => a.orderId.localeCompare(b.orderId)));
+  // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+  return Object.freeze(orders.sort((a, b) => (a.orderId < b.orderId ? -1 : a.orderId > b.orderId ? 1 : 0)));
 }

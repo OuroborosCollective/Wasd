@@ -85,6 +85,8 @@ export {
 // TickSystem Core (types exported from types.js above)
 export {
   type TickSystemDescriptor,
+  type TickFailureRerunPolicy,
+  type TickSystemFailurePolicy,
   createDefaultTickContext,
 } from './TickSystem.js';
 
@@ -93,7 +95,34 @@ export {
   tickSystemRegistry,
   type TickSystemRegistryEvent,
   type TickSystemRegistrySnapshotEntry,
+  type TickSystemExecutionFailure,
+  type TickSystemExecutionReport,
 } from './TickSystemRegistry.js';
+
+// 10Hz failure-family runtime + diagnostic probe
+export {
+  TickFailureFamilyRuntime,
+  deriveTickFailure,
+  type TickFailureFamily,
+  type TickFailureStage,
+  type TickFailureRerunOutcome,
+  type TickFailureInput,
+  type TickFailureDerivation,
+  type TickFailureRecord,
+  type TickFailureFamilySnapshot,
+} from './TickFailureFamilyRuntime.js';
+
+export {
+  TICK_FAILURE_FAMILY_PROBE_SYSTEM_NAME,
+  DEFAULT_FAILURE_FAMILY_PROBE_CASES,
+  TickFailureFamilyProbeError,
+  TickFailureFamilyProbeSystem,
+  createTickFailureFamilyProbeDescriptor,
+  registerTickFailureFamilyProbeSystem,
+  type FailureFamilyProbeMode,
+  type FailureFamilyProbeCase,
+  type FailureFamilyProbeRunStatus,
+} from './TickFailureFamilyProbeSystem.js';
 
 // Pre-built TickSystem Implementations
 export {

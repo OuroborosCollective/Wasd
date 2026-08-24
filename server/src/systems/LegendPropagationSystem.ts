@@ -33,7 +33,8 @@ function stepOf(value: number): number {
 
 function pickDeterministic<T extends { id: string }>(items: readonly T[], seed: string): T | null {
     if (items.length === 0) return null;
-    const ordered = [...items].sort((a, b) => a.id.localeCompare(b.id));
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+    const ordered = [...items].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     return ordered[hash32(seed) % ordered.length] ?? null;
 }
 
@@ -45,18 +46,19 @@ export class LegendPropagationSystem {
     public static update(step = 0): void {
         const s = stepOf(step);
         const rawNpcs = NPCManager.instance.getAllNPCs();
+        // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
         const npcs: NPC[] = rawNpcs.map((n) => ({
             id: n.id,
             name: (n as { name?: string }).name ?? n.id,
             beliefs: (n as { beliefs?: Legend[] }).beliefs ?? [],
-        })).sort((a, b) => a.id.localeCompare(b.id));
+        })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
         const rawLegends = LegendManager.instance.getGlobalLegends();
         const globalLegends: Legend[] = rawLegends.map((l) => ({
             id: l.id,
             name: (l as { name?: string }).name ?? l.id,
             description: (l as { description?: string }).description ?? "",
-        })).sort((a, b) => a.id.localeCompare(b.id));
+        })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
         this.handleLegendPropagation(s, npcs, globalLegends);
         this.handleFactionFormation(s, npcs);
@@ -79,9 +81,10 @@ export class LegendPropagationSystem {
             return pickDeterministic(globalLegends, `${seed}:global-pick`);
         }
 
+        // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
         const npcsWithBeliefs = npcs
             .filter(n => n.beliefs.length > 0)
-            .sort((a, b) => a.id.localeCompare(b.id));
+            .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
         const sourceNpc = pickDeterministic(npcsWithBeliefs, `${seed}:source-npc`);
         if (!sourceNpc) return null;
         return pickDeterministic(sourceNpc.beliefs, `${seed}:source-belief`);
@@ -103,8 +106,9 @@ export class LegendPropagationSystem {
             });
         });
 
-        [...beliefGroups.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([legendId, group]) => {
-            group.members.sort((a, b) => a.id.localeCompare(b.id));
+        // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+        [...beliefGroups.entries()].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)).forEach(([legendId, group]) => {
+            group.members.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
             if (group.members.length >= this.CRITICAL_MASS_THRESHOLD) {
                 const seed = `faction-form:${step}:${legendId}:${group.members.map((m) => m.id).join(',')}`;
                 if (chance(seed, 10000) < this.FACTION_FORM_PER_10000) {

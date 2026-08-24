@@ -13,8 +13,14 @@
  * - Legacy API backward compatibility (process, generateResponse)
  * - New structured API (processStructured with AREEnvelope output)
  * - Local learning store
+ *
+ * Time rule:
+ * - Gameplay/AI identity uses only explicit logical tick + logical index.
+ * - Monotonic process time is used only for duration/timeout observability.
+ * - Wall clock never enters trace ids, hashes, learning order or envelopes.
  */
 
+import { performance } from "node:perf_hooks";
 import { ARE_CONSTANTS } from "../core/AREEnvelope.js";
 import { AutoHealBridge } from "../selfheal/AutoHealBridge.js";
 import type { IAutoHealBridge } from "../selfheal/AutoHeal.types.js";
@@ -94,16 +100,14 @@ export class AIService implements IAIService {
     input: string,
     options: AIProcessOptions = {}
   ): Promise<AIProcessResult> {
-    const startedAt = Date.now();
+    const measurementStartedAt = performance.now();
 
     const mode = options.mode ?? "deterministic";
     const agentId = this.normalizeAgentId(options.agentId ?? AIService.DEFAULT_AGENT_ID);
+    const tickId = this.normalizeTickId(options.tickId);
     const logicalIndex = this.normalizeLogicalIndex(options.logicalIndex);
     const kappa = this.normalizeKappa(options.kappa);
     const resonance = this.normalizeResonance(options.resonance);
-    const traceId =
-      options.traceId ??
-      this.createTraceId(agentId, logicalIndex, kappa, resonance, startedAt);
 
     const maxInputLength = this.clampInt(
       options.maxInputLength ?? AIService.DEFAULT_MAX_INPUT_LENGTH,
@@ -118,11 +122,24 @@ export class AIService implements IAIService {
     );
 
     let normalizedInput = "";
+    let traceId = options.traceId ?? "";
 
     try {
       normalizedInput = this.normalizeInput(input, maxInputLength);
 
       const inputHash = this.stableHash(normalizedInput);
+      if (!traceId) {
+        traceId = this.createTraceId(
+          agentId,
+          mode,
+          tickId,
+          logicalIndex,
+          kappa,
+          resonance,
+          inputHash
+        );
+      }
+
       const safety = this.safety.evaluate(normalizedInput, mode);
 
       if (!safety.allowed) {
@@ -130,7 +147,8 @@ export class AIService implements IAIService {
           mode,
           agentId,
           traceId,
-          startedAt,
+          createdTick: tickId,
+          measurementStartedAt,
           logicalIndex,
           kappa,
           resonance,
@@ -142,20 +160,22 @@ export class AIService implements IAIService {
           metadata: {
             safety,
             blockedTerms: safety.blockedTerms,
+            timeAuthority: "tick",
+            tickId,
             ...options.metadata,
           },
         });
 
         await this.healBridge.reportSafetyBlock(result);
-        
-        // Report to MiniMax for autonomous analysis
+
+        // External diagnostic side-channel only; never part of deterministic result.
         await this.miniMax.reportBug(
           "AI_SAFETY_BLOCK",
           safety.reason,
           "ai_core",
           { blockedTerms: safety.blockedTerms, rulesApplied: safety.rulesApplied }
         );
-        
+
         return result;
       }
 
@@ -172,6 +192,7 @@ export class AIService implements IAIService {
         [
           mode,
           agentId,
+          tickId,
           logicalIndex,
           kappa,
           resonance,
@@ -187,13 +208,14 @@ export class AIService implements IAIService {
         mode,
         agentId,
         traceId,
-        createdAt: startedAt,
+        // AREEnvelope keeps the historical property name. The value is a logical tick.
+        createdAt: tickId,
         logicalIndex,
         kappa,
         resonance,
         inputHash,
         outputHash,
-        durationMs: Date.now() - startedAt,
+        durationMs: this.measureDurationMs(measurementStartedAt),
         payload: {
           input,
           normalizedInput,
@@ -207,6 +229,9 @@ export class AIService implements IAIService {
         metadata: {
           deterministic: true,
           realCore: true,
+          timeAuthority: "tick",
+          tickId,
+          durationAuthority: "monotonic_side_channel",
           allowLearning: options.allowLearning ?? false,
           memoryScope: options.memoryScope ?? mode,
           ...options.metadata,
@@ -215,8 +240,8 @@ export class AIService implements IAIService {
 
       if (decision.action === "heal_request") {
         await this.healBridge.reportHealRequest(result);
-        
-        // Report heal request to MiniMax for autonomous recovery
+
+        // External recovery side-channel only.
         const heal = decision.heal;
         await this.miniMax.reportBug(
           heal?.code ?? "AI_HEAL_REQUEST",
@@ -239,7 +264,8 @@ export class AIService implements IAIService {
           confidence: decision.confidence,
           successScore: result.ok ? 1 : 0,
           tags: [mode, decision.intent, decision.action],
-          createdAt: startedAt,
+          // Legacy field name; deterministic tick, never wall clock.
+          createdAt: tickId,
           metadata: result.metadata,
         });
       }
@@ -248,6 +274,7 @@ export class AIService implements IAIService {
         mode,
         agentId,
         traceId,
+        tickId,
         logicalIndex,
         kappa,
         resonance,
@@ -264,11 +291,24 @@ export class AIService implements IAIService {
       const inputHash = this.stableHash(safeInput);
       const errorMessage = this.errorToString(error);
 
+      if (!traceId) {
+        traceId = this.createTraceId(
+          agentId,
+          mode,
+          tickId,
+          logicalIndex,
+          kappa,
+          resonance,
+          inputHash
+        );
+      }
+
       const result = this.createFailureResult({
         mode,
         agentId,
         traceId,
-        startedAt,
+        createdTick: tickId,
+        measurementStartedAt,
         logicalIndex,
         kappa,
         resonance,
@@ -281,21 +321,24 @@ export class AIService implements IAIService {
           deterministic: true,
           realCore: true,
           degraded: true,
+          timeAuthority: "tick",
+          tickId,
+          durationAuthority: "monotonic_side_channel",
           ...options.metadata,
         },
       });
 
       await this.healBridge.reportFailure(result);
-      
-      // Report to MiniMax for autonomous analysis and potential fix
+
+      // External diagnostic side-channel only.
       await this.miniMax.reportBug(
         "AI_PROCESS_FAILED",
         errorMessage,
         "ai_core",
-        { mode, agentId, traceId, logicalIndex },
+        { mode, agentId, traceId, tickId, logicalIndex },
         error instanceof Error ? error.stack : undefined
       );
-      
+
       return result;
     }
   }
@@ -304,7 +347,8 @@ export class AIService implements IAIService {
     mode: AIProcessResult["mode"];
     agentId: string;
     traceId: string;
-    startedAt: number;
+    createdTick: number;
+    measurementStartedAt: number;
     logicalIndex: number;
     kappa: number;
     resonance: number;
@@ -325,13 +369,13 @@ export class AIService implements IAIService {
       mode: input.mode,
       agentId: input.agentId,
       traceId: input.traceId,
-      createdAt: input.startedAt,
+      createdAt: input.createdTick,
       logicalIndex: input.logicalIndex,
       kappa: input.kappa,
       resonance: input.resonance,
       inputHash: input.inputHash,
       outputHash,
-      durationMs: Date.now() - input.startedAt,
+      durationMs: this.measureDurationMs(input.measurementStartedAt),
       payload: {
         input: input.normalizedInput,
         normalizedInput: input.normalizedInput,
@@ -350,7 +394,7 @@ export class AIService implements IAIService {
         },
         output,
         axiomHash: this.stableHash(
-          `failed:${input.mode}:${input.agentId}:${input.logicalIndex}:${input.inputHash}:${input.error}`
+          `failed:${input.mode}:${input.agentId}:${input.createdTick}:${input.logicalIndex}:${input.inputHash}:${input.error}`
         ),
         rulesApplied: input.rulesApplied,
         learningHints: [],
@@ -394,12 +438,17 @@ export class AIService implements IAIService {
     return normalized || AIService.DEFAULT_AGENT_ID;
   }
 
+  private normalizeTickId(value: number | undefined): number {
+    if (!Number.isFinite(value)) return 0;
+    return Math.max(0, Math.trunc(value as number));
+  }
+
   private normalizeLogicalIndex(value: number | undefined): number {
     if (!Number.isFinite(value)) return ARE_CONSTANTS.DEFAULT_LOGICAL_INDEX;
     return Math.max(0, Math.trunc(value as number));
   }
 
-  private normalizeKappa(value: number | undefined): number {
+  private normalizeKappa(_value: number | undefined): number {
     // Kappa is always 1000 - ARE invariant
     return ARE_CONSTANTS.KAPPA_INVARIANT;
   }
@@ -435,14 +484,24 @@ export class AIService implements IAIService {
 
   private createTraceId(
     agentId: string,
+    mode: string,
+    tickId: number,
     logicalIndex: number,
     kappa: number,
     resonance: number,
-    timestamp: number
+    inputHash: string
   ): string {
-    return `trace_${this.stableHash(
-      `${agentId}:${logicalIndex}:${kappa}:${resonance}:${timestamp}`
-    )}_${timestamp}`;
+    const identity = [
+      "ai-trace-v2",
+      mode,
+      agentId,
+      tickId,
+      logicalIndex,
+      kappa,
+      resonance,
+      inputHash,
+    ].join(":");
+    return `trace_${this.stableHash(identity)}_${tickId}_${logicalIndex}`;
   }
 
   /**
@@ -457,6 +516,13 @@ export class AIService implements IAIService {
     }
 
     return (hash >>> 0).toString(16).padStart(8, "0");
+  }
+
+  private measureDurationMs(startedAt: number): number {
+    const elapsed = performance.now() - startedAt;
+    if (!Number.isFinite(elapsed) || elapsed < 0) return 0;
+    // Observability-only value. Keep precision bounded and do not hash it.
+    return Math.round(elapsed * 1000) / 1000;
   }
 
   private async withTimeout<T>(
@@ -508,7 +574,6 @@ export class AIService implements IAIService {
       severity,
       message,
       ...payload,
-      timestamp: Date.now(),
     });
 
     if (severity === "error") {

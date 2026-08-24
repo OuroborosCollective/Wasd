@@ -20,6 +20,11 @@ const requiredSnippets = [
   ["Dockerfile.vps", "ARG BUILD_COMMIT_SHA=\"\""],
   ["Dockerfile.vps", "ENV BUILD_COMMIT_SHA=$BUILD_COMMIT_SHA"],
   ["Dockerfile.vps", "LABEL org.opencontainers.image.revision=$BUILD_COMMIT_SHA"],
+  ["Dockerfile.vps", "ENV NODE_OPTIONS=--max-old-space-size=1024"],
+  ["Dockerfile.vps", "RUN pnpm --filter @wasd/core-logic --if-present run build:runtime"],
+  ["Dockerfile.vps", "RUN pnpm --filter @wasd/shared --if-present build"],
+  ["Dockerfile.vps", "RUN pnpm --filter @wasd/engine --if-present run build:runtime"],
+  ["Dockerfile.vps", "RUN pnpm --filter @wasd/server --if-present build"],
   ["Dockerfile.vps", "--filter @wasd/server... --filter @wasd/client... --filter @wasd/engine..."],
   ["Dockerfile.vps", "RUN pnpm --filter @wasd/client --if-present build &&"],
   ["Dockerfile.vps", "test -d client/dist/assets"],
@@ -66,6 +71,11 @@ const vpsDockerfile = existsSync("Dockerfile.vps")
 if (vpsDockerfile.includes("mkdir -p client/dist && printf")) {
   failed = true;
   console.error("[vps-build-logic] Dockerfile.vps must fail closed instead of emitting a 3D-unavailable placeholder");
+}
+
+if (vpsDockerfile.includes("ENV NODE_OPTIONS=--max-old-space-size=4096")) {
+  failed = true;
+  console.error("[vps-build-logic] Dockerfile.vps must not permit the 4-GiB builder heap that produced deploy exit 137");
 }
 
 if (failed) {
