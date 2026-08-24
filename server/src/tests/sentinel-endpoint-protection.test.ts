@@ -341,7 +341,7 @@ describe("Sentinel Endpoint Protection", () => {
       const def = adminRoute();
       const app = express();
       app.use(express.json());
-      app.post(def.path, def.handler);
+      app.post(def.path, adminRateLimiter, def.handler);
 
       const r = await request(app)
         .post("/api/admin/command")
@@ -355,7 +355,7 @@ describe("Sentinel Endpoint Protection", () => {
       const def = adminRoute();
       const app = express();
       app.use(express.json());
-      app.post(def.path, def.handler);
+      app.post(def.path, adminRateLimiter, def.handler);
 
       // Missing token
       const r1 = await request(app)
@@ -378,7 +378,7 @@ describe("Sentinel Endpoint Protection", () => {
       const def = adminRoute();
       const app = express();
       app.use(express.json());
-      app.post(def.path, def.handler);
+      app.post(def.path, adminRateLimiter, def.handler);
 
       // Bearer auth
       const r1 = await request(app)

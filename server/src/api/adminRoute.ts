@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Request, RequestHandler } from "express";
+import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import {
   asSafeString,
   asyncRoute,
@@ -51,29 +52,42 @@ function checkAuthorization(
 }
 
 export function adminRoute(options: AdminRouteOptions = {}): ApiRouteDefinition {
-  const handler: RequestHandler = asyncRoute(async (req, res) => {
-    const ctx = createApiContext(req);
+  const handler: RequestHandler = asyncRoute(async (req, res, next) => {
+    adminRateLimiter(req, res, (err?: unknown) => {
+      if (err) {
+        next(err);
+        return;
+      }
 
-    if (!checkAuthorization(req, options.isAuthorized)) {
-      sendError(res, "admin", ctx, 403, "admin_forbidden", "Admin command rejected by policy.");
-      return;
-    }
+      try {
+        const ctx = createApiContext(req);
 
-    const body = requireJsonBody(req);
-    const command = asSafeString(body.command, "noop") || "noop";
+        if (!checkAuthorization(req, options.isAuthorized)) {
+          sendError(res, "admin", ctx, 403, "admin_forbidden", "Admin command rejected by policy.");
+          return;
+        }
 
-    if (command === "noop" && body.command !== undefined) {
-      sendError(res, "admin", ctx, 400, "invalid_admin_command", "Admin command must be a non-empty string.");
-      return;
-    }
+        const body = requireJsonBody(req);
+        const command = asSafeString(body.command, "noop") || "noop";
 
-    const result = options.executeCommand ? await options.executeCommand({ ...body, command }) : { accepted: true };
+        if (command === "noop" && body.command !== undefined) {
+          sendError(res, "admin", ctx, 400, "invalid_admin_command", "Admin command must be a non-empty string.");
+          return;
+        }
 
-    sendOk(res, "admin", ctx, {
-      axiom: "ARELOGIC_ADMIN_COMMAND_STABLE",
-      deterministic: true,
-      command,
-      result,
+        Promise.resolve(options.executeCommand ? options.executeCommand({ ...body, command }) : { accepted: true })
+          .then((result) => {
+            sendOk(res, "admin", ctx, {
+              axiom: "ARELOGIC_ADMIN_COMMAND_STABLE",
+              deterministic: true,
+              command,
+              result,
+            });
+          })
+          .catch(next);
+      } catch (error) {
+        next(error);
+      }
     });
   });
 
