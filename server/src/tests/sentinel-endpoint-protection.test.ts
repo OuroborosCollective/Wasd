@@ -13,6 +13,7 @@ import { voteRouter } from "../api/voteRoute.js";
 import { leaderboardRouter } from "../api/leaderboardRoute.js";
 import { areReplayRouter } from "../api/areReplayRoute.js";
 import { sdkBillingRouter } from "../api/sdkBillingRoute.js";
+import { adminRoute } from "../api/adminRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -330,6 +331,70 @@ describe("Sentinel Endpoint Protection", () => {
         .set("X-Admin-Token", "wrong-token");
       expect(r.status).toBe(403);
       expect(r.body.error).toBe("forbidden");
+    });
+  });
+
+  describe("/api/admin/command", () => {
+    it("allows command execution without token if no ADMIN_PANEL_TOKEN is set", async () => {
+      delete process.env.ADMIN_PANEL_TOKEN;
+      delete process.env.GM_PANEL_TOKEN;
+      const def = adminRoute();
+      const app = express();
+      app.use(express.json());
+      app.post(def.path, def.handler);
+
+      const r = await request(app)
+        .post("/api/admin/command")
+        .send({ command: "ping" });
+      expect(r.status).toBe(200);
+      expect(r.body.data.command).toBe("ping");
+    });
+
+    it("rejects command with 403 when ADMIN_PANEL_TOKEN is set and invalid/missing token is sent", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret-admin-token";
+      const def = adminRoute();
+      const app = express();
+      app.use(express.json());
+      app.post(def.path, def.handler);
+
+      // Missing token
+      const r1 = await request(app)
+        .post("/api/admin/command")
+        .send({ command: "ping" });
+      expect(r1.status).toBe(403);
+      expect(r1.body.error.code).toBe("admin_forbidden");
+
+      // Wrong token
+      const r2 = await request(app)
+        .post("/api/admin/command")
+        .set("Authorization", "Bearer wrong-token")
+        .send({ command: "ping" });
+      expect(r2.status).toBe(403);
+      expect(r2.body.error.code).toBe("admin_forbidden");
+    });
+
+    it("accepts command with 200 when valid token is provided in Bearer or X-Admin-Token header", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret-admin-token";
+      const def = adminRoute();
+      const app = express();
+      app.use(express.json());
+      app.post(def.path, def.handler);
+
+      // Bearer auth
+      const r1 = await request(app)
+        .post("/api/admin/command")
+        .set("Authorization", "Bearer secret-admin-token")
+        .send({ command: "ping" });
+      expect(r1.status).toBe(200);
+      expect(r1.body.data.command).toBe("ping");
+
+      // X-Admin-Token header
+      const r2 = await request(app)
+        .post("/api/admin/command")
+        .set("X-Admin-Token", "secret-admin-token")
+        .send({ command: "ping" });
+      expect(r2.status).toBe(200);
+      expect(r2.body.data.command).toBe("ping");
     });
   });
 
