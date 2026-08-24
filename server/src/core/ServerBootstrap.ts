@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { shutdownPostHog } from "../services/posthog.js";
 import express, { type Request } from "express";
 import { createServer } from "node:http";
@@ -134,7 +135,9 @@ export function buildClientPublicConfigJson(req?: Request): string {
 
 function envTruthy(key: string): boolean { const v = process.env[key]?.trim().toLowerCase(); return v === "true" || v === "1" || v === "yes"; }
 function shouldProxyBody(method: string): boolean { return ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase()); }
-function canAccessPlaytesterMonitor(req: Request): boolean { const token = PlaytesterConfig.monitorToken; if (!token) return true; return req.query.token as string === token; }
+function hashBuffer(value: string): Buffer { return createHash("sha256").update(value, "utf8").digest(); }
+function safeEqualText(a: string, b: string): boolean { const left = hashBuffer(a); const right = hashBuffer(b); return left.length === right.length && timingSafeEqual(left, right); }
+function canAccessPlaytesterMonitor(req: Request): boolean { const token = PlaytesterConfig.monitorToken; if (!token) return true; const provided = typeof req.query.token === "string" ? req.query.token.trim() : ""; return provided.length > 0 && safeEqualText(provided, token); }
 function safeHealthValue<T>(fn: () => T, fallback: T): T { try { return fn(); } catch { return fallback; } }
 
 export class ServerBootstrap {
