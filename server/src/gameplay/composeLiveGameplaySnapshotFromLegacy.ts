@@ -2,6 +2,7 @@ import { LiveGameplaySnapshotComposer, buildVendorEconomySnapshot } from "./Live
 import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery, LiveGameplayCampNpc, LiveGameplayCampStock, LiveGameplayQuestProgress, LiveGameplayNpcMemory, LiveGameplayNpcRumor } from "./LiveGameplaySnapshotTypes.js";
 import { toLiveEquipmentSlots } from "./adapters/EquipmentSnapshotAdapter.js";
 import { toLiveInventoryItems } from "./adapters/InventorySnapshotAdapter.js";
+import { toLiveSkillStateFromLegacy, type LegacySkillSnapshotLike } from "./adapters/LegacySkillSnapshotAdapter.js";
 import { getWalletService, getVendorStockService } from "../economy/economyRuntime.js";
 import { getVillageResourceVendor } from "../economy/VillageVendors.js";
 import { campNpcService } from "../npc/CampNpcService.js";
@@ -39,12 +40,7 @@ interface LegacyEquipmentSnapshot {
   readonly slots?: readonly LegacyEquipmentSlot[];
 }
 
-interface LegacySkillSnapshot {
-  readonly id?: string;
-  readonly skillId?: string;
-  readonly xp?: number;
-  readonly level?: number;
-}
+type LegacySkillSnapshot = LegacySkillSnapshotLike;
 
 interface LegacyResourceNodeSnapshot {
   readonly id?: string;
@@ -146,11 +142,7 @@ export async function composeLiveGameplaySnapshotFromLegacy(
         itemId: slot.itemId ?? null,
       })),
     ),
-    getSkillStates: () => input.skills.map((skill) => ({
-      skillId: String(skill.skillId ?? skill.id ?? "unknown_skill"),
-      xp: Math.max(0, Math.floor(Number(skill.xp ?? 0))),
-      level: Math.max(1, Math.floor(Number(skill.level ?? 1))),
-    })),
+    getSkillStates: () => input.skills.map(toLiveSkillStateFromLegacy),
     getResourceNodes: () => input.resourceNodes.map((node) => ({
       nodeId: String(node.nodeId ?? node.id ?? "unknown_node"),
       resourceId: String(node.resourceId ?? node.itemRewardId ?? node.kind ?? "resource"),

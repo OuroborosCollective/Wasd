@@ -21,6 +21,8 @@ export class MarketOrderBookService {
     readonly supply: readonly MarketSupplyEntry[];
   }): MarketOrderBookSnapshot {
     const supplyByItem = new Map(input.supply.map((entry) => [entry.itemId, Math.max(0, Math.floor(entry.quantity))] as const));
+    // Bolt: Optimization - listSellableItemIds() returns pre-sorted items by itemId,
+    // so resolving prices sequentially maintains sorted order without requiring an extra .sort call.
     const prices = this.resolver
       .listSellableItemIds()
       .map((itemId) => this.resolver.resolvePrice({
@@ -28,8 +30,7 @@ export class MarketOrderBookService {
         itemId,
         currentVendorStock: supplyByItem.get(itemId as InventoryItemId) ?? 0,
       }))
-      .filter((price): price is LocalMarketPriceResult => Boolean(price))
-      .sort((a, b) => a.itemId.localeCompare(b.itemId));
+      .filter((price): price is LocalMarketPriceResult => Boolean(price));
 
     return Object.freeze({
       marketId: input.market.marketId,

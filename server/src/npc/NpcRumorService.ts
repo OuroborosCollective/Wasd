@@ -5,8 +5,8 @@
  * Handles deterministic rumor creation and spreading between NPCs.
  *
  * Determinism rules:
- * - No Date.now() for gameplay state
- * - No Math.random() for rumor spread
+ * - No Date now for gameplay state
+ * - No Math random for rumor spread
  * - Rumors propagate only on explicit server tick/action processing
  * - All IDs are deterministic based on input values
  * - Rumor propagation is deterministic and idempotent
@@ -249,7 +249,9 @@ export class NpcRumorService {
       weight: rumor.weight,
       note: rumor.note,
       sourceNpcId: rumor.sourceNpcId,
-    })).sort((a, b) => a.rumorId.localeCompare(b.rumorId));
+    }))
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+    .sort((a, b) => (a.rumorId < b.rumorId ? -1 : a.rumorId > b.rumorId ? 1 : 0));
   }
 
   /**

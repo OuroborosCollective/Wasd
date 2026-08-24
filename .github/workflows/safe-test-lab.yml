@@ -46,8 +46,14 @@ jobs:
       - name: Run ARE unit tests
         run: pnpm exec vitest run server/src/core/are
 
+      - name: Run 10Hz failure-family route regression
+        run: pnpm exec vitest run server/src/tests/are-failure-family-route.test.ts
+
       - name: Build shared
         run: pnpm --filter @wasd/shared build
+
+      - name: Typecheck server
+        run: NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/server exec tsc --noEmit --pretty false
 
       - name: Build server
         run: pnpm -r --filter ./server build
