@@ -13,6 +13,8 @@ export function BootOverlay({ phase, message, fatal, progress }: Props): React.R
 
   return (
     <div
+      role="region"
+      aria-label="Initialization Boot Overlay"
       style={{
         position: "fixed",
         inset: 0,
@@ -56,11 +58,20 @@ export function BootOverlay({ phase, message, fatal, progress }: Props): React.R
 
         <h1 style={{ fontSize: 22, marginTop: 8 }}>Areloria</h1>
 
-        <p style={{ marginTop: 10, lineHeight: 1.5, opacity: 0.78 }}>
+        <p
+          aria-live="polite"
+          style={{ marginTop: 10, lineHeight: 1.5, opacity: 0.78 }}
+        >
           {fatal ?? message}
         </p>
 
         <div
+          role="progressbar"
+          aria-label="Boot initialization progress"
+          aria-valuenow={Math.round(progressWidth)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuetext={`${Math.round(progressWidth)}% - ${phase}`}
           style={{
             marginTop: 18,
             height: 8,
@@ -70,6 +81,7 @@ export function BootOverlay({ phase, message, fatal, progress }: Props): React.R
           }}
         >
           <div
+            aria-hidden="true"
             style={{
               width: `${progressWidth}%`,
               height: "100%",
@@ -83,6 +95,7 @@ export function BootOverlay({ phase, message, fatal, progress }: Props): React.R
         </div>
 
         <div
+          aria-hidden="true"
           style={{
             marginTop: 14,
             display: "flex",

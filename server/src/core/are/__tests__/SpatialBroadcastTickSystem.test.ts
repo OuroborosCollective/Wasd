@@ -154,3 +154,70 @@ describe('Global spatialBroadcastGrid instance', () => {
     expect(spatialBroadcastGrid).toBeInstanceOf(SpatialBroadcastGrid);
   });
 });
+
+import { SpatialBroadcastTickSystem } from '../SpatialBroadcastTickSystem.js';
+import { TickSystemPriority } from '../TickSystem.js';
+import { vi } from 'vitest';
+
+describe('SpatialBroadcastTickSystem', () => {
+  let system: SpatialBroadcastTickSystem;
+  let mockGrid: any;
+  let mockBroadcastHandler: any;
+
+  beforeEach(() => {
+    mockGrid = {
+      clear: vi.fn(),
+      upsert: vi.fn(),
+      getVisibleEntities: vi.fn().mockReturnValue([]),
+    };
+    mockBroadcastHandler = vi.fn();
+    system = new SpatialBroadcastTickSystem(mockGrid);
+    system.setBroadcastHandler(mockBroadcastHandler);
+  });
+
+  it('should have correct priority and name', () => {
+    expect(system.name).toBe('spatial-broadcast');
+    expect(system.priority).toBe(TickSystemPriority.BROADCAST);
+  });
+
+  it('should rebuild the grid and call broadcast handler during tick', () => {
+    const players = [{ id: 'p1', x: 10, y: 20, isOffline: false }];
+    const npcs = [{ id: 'n1', x: 15, y: 25, name: 'Guard' }];
+    
+    system.setPlayerPositionProvider(() => players);
+    system.setNpcPositionProvider(() => npcs);
+    system.setPlayerToSocketProvider(() => new Map([['p1', 'socket1']]));
+    system.setSocketToPlayerProvider(() => new Map([['socket1', 'p1']]));
+    
+    const visibleEntities = [
+      { id: 'p1', x: 10, y: 20, kind: 'player', data: { player: players[0] } },
+      { id: 'n1', x: 15, y: 25, kind: 'npc', data: { npc: npcs[0] } }
+    ];
+    mockGrid.getVisibleEntities.mockReturnValue(visibleEntities);
+
+    system.tick({ tickCount: 100 as any, isHighFrequencyTick: true });
+
+    // Grid management
+    expect(mockGrid.clear).toHaveBeenCalled();
+    expect(mockGrid.upsert).toHaveBeenCalledWith('p1', 10, 20, 'player', expect.anything());
+    expect(mockGrid.upsert).toHaveBeenCalledWith('n1', 15, 25, 'npc', expect.anything());
+
+    // Broadcast logic
+    expect(mockBroadcastHandler).toHaveBeenCalledWith('socket1', expect.objectContaining({
+      type: 'SPATIAL_SNAPSHOT',
+      playerId: 'p1',
+      entities: visibleEntities
+    }));
+  });
+
+  it('should skip offline players', () => {
+    const players = [{ id: 'p1', x: 10, y: 20, isOffline: true }];
+    system.setPlayerPositionProvider(() => players);
+    system.setPlayerToSocketProvider(() => new Map([['p1', 'socket1']]));
+    
+    system.tick({ tickCount: 100 as any, isHighFrequencyTick: true });
+    
+    expect(mockGrid.upsert).not.toHaveBeenCalledWith('p1', 10, 20, 'player', expect.anything());
+    expect(mockBroadcastHandler).not.toHaveBeenCalled();
+  });
+});

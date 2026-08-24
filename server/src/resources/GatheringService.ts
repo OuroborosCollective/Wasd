@@ -29,7 +29,7 @@ function getSkillLevel(skills: SkillSnapshot[], skillId: string): number {
 function cloneSkillState(state: PlayerSkillState): PlayerSkillState {
   return {
     playerId: state.playerId,
-    schemaVersion: 1,
+    schemaVersion: 2,
     skills: state.skills.map((skill) => ({ ...skill })),
   };
 }

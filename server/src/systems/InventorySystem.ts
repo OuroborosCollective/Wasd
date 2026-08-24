@@ -55,8 +55,9 @@ export class InventorySystem {
   }
 
   public getKnownItems(): InventoryItemDefinition[] {
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
     return [...this.items.values()]
-      .sort((a, b) => a.id.localeCompare(b.id))
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
       .map((item) => ({
         ...item,
         tags: item.tags ? [...item.tags] : [],
@@ -232,11 +233,12 @@ export class InventorySystem {
 
     const inventory = this.inventories.get(playerId);
 
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
     return {
       playerId,
       stacks: inventory
         ? [...inventory.entries()]
-            .sort(([a], [b]) => a.localeCompare(b))
+            .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
             .map(([itemId, amount]) => ({ itemId, amount }))
         : [],
     };
@@ -259,8 +261,9 @@ export class InventorySystem {
       nextInventory.set(stack.itemId, previous + stack.amount);
     }
 
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
     const normalized = [...nextInventory.entries()].sort(([a], [b]) =>
-      a.localeCompare(b),
+      a < b ? -1 : a > b ? 1 : 0,
     );
 
     this.inventories.set(snapshot.playerId, new Map(normalized));

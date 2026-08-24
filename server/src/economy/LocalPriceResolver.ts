@@ -45,7 +45,17 @@ function priceHash(input: Omit<LocalMarketPriceResult, "priceHash">): string {
 }
 
 export class LocalPriceResolver {
-  constructor(private readonly basePrices: EconomyBasePriceTable = loadEconomyBasePricesFromGameData()) {}
+  // Bolt: Optimization - Precompute and freeze sellable item IDs in constructor using fast direct relational comparison
+  // to avoid repeated Object.values, filtering, and slow localeCompare sorting on every price snapshot query.
+  private readonly cachedSellableItemIds: readonly string[];
+
+  constructor(private readonly basePrices: EconomyBasePriceTable = loadEconomyBasePricesFromGameData()) {
+    const ids = Object.values(this.basePrices)
+      .filter((entry) => entry.sellable)
+      .map((entry) => entry.itemId)
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    this.cachedSellableItemIds = Object.freeze(ids);
+  }
 
   isSellable(itemId: string): boolean {
     const entry = this.basePrices[itemId];
@@ -57,11 +67,8 @@ export class LocalPriceResolver {
     return entry?.sellable ? entry.basePrice : null;
   }
 
-  listSellableItemIds(): string[] {
-    return Object.values(this.basePrices)
-      .filter((entry) => entry.sellable)
-      .map((entry) => entry.itemId)
-      .sort((a, b) => a.localeCompare(b));
+  listSellableItemIds(): readonly string[] {
+    return this.cachedSellableItemIds;
   }
 
   resolvePrice(input: LocalMarketPriceInput): LocalMarketPriceResult | null {

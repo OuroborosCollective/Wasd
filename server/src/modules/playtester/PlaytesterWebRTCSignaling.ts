@@ -1,7 +1,18 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { Server as HttpServer, IncomingMessage } from "node:http";
 import { URL } from "node:url";
 import { WebSocketServer, WebSocket } from "ws";
 import { PlaytesterConfig } from "../../config/PlaytesterConfig.js";
+
+function hashBuffer(value: string): Buffer {
+  return createHash("sha256").update(value, "utf8").digest();
+}
+
+function safeEqualText(a: string, b: string): boolean {
+  const left = hashBuffer(a);
+  const right = hashBuffer(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
 
 type SignalRole = "publisher" | "viewer";
 type MonitorSignalType =
@@ -176,7 +187,7 @@ export class PlaytesterWebRTCSignaling {
     const requestToken = tokenFromRequest(req);
 
     if (configuredToken.length > 0) {
-      return requestToken === configuredToken;
+      return requestToken.length > 0 && safeEqualText(requestToken, configuredToken);
     }
 
     if (process.env.NODE_ENV !== "production") {
