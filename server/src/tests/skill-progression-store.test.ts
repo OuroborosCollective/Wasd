@@ -1,13 +1,11 @@
-/**
- * SKILL PROGRESSION STORE UNIT TESTS
- *
- * Tests for server-authoritative skill progression store.
- * Deterministic, player-isolated.
- */
-
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { SkillProgressionStore } from "../skills/SkillProgressionStore.js";
-import { xpForLevel, levelFromXp } from "../skills/SkillTypes.js";
+import {
+  levelFromXp,
+  normalizeSkillSnapshot,
+  xpForLevel,
+  xpForLevelExact,
+} from "../skills/SkillTypes.js";
 
 describe("SkillProgressionStore", () => {
   let store: SkillProgressionStore;
@@ -16,217 +14,169 @@ describe("SkillProgressionStore", () => {
     store = new SkillProgressionStore();
   });
 
-  describe("getPlayerSkillState", () => {
-    it("creates default skills for new player", () => {
-      const state = store.getPlayerSkillState("p1");
-
-      expect(state.playerId).toBe("p1");
-      expect(state.skills).toHaveLength(5);
-      expect(state.skills.map((s) => s.id).sort()).toEqual([
-        "combat",
-        "crafting",
-        "fishing",
-        "mining",
-        "woodcutting",
-      ]);
-    });
-
-    it("returns level 1 with 0 XP for all skills by default", () => {
-      const state = store.getPlayerSkillState("p1");
-
-      for (const skill of state.skills) {
-        expect(skill.level).toBe(1);
-        expect(skill.xp).toBe(0);
-      }
-    });
-
-    it("returns same state for same playerId", () => {
-      const state1 = store.getPlayerSkillState("p1");
-      const state2 = store.getPlayerSkillState("p1");
-
-      expect(state1).toBe(state2);
-    });
+  it("creates schema-2 exact defaults for a new player", () => {
+    const state = store.getPlayerSkillState("p1");
+    expect(state.playerId).toBe("p1");
+    expect(state.schemaVersion).toBe(2);
+    expect(state.skills).toHaveLength(5);
+    expect(state.skills.map((skill) => skill.id)).toEqual([
+      "combat",
+      "crafting",
+      "fishing",
+      "mining",
+      "woodcutting",
+    ]);
+    for (const skill of state.skills) {
+      expect(skill.level).toBe(1);
+      expect(skill.levelExact).toBe("1");
+      expect(skill.xp).toBe(0);
+      expect(skill.xpExact).toBe("0");
+      expect(skill.xpIntoLevelExact).toBe("0");
+      expect(skill.numberProjectionExact).toBe(true);
+    }
   });
 
-  describe("applyEvent - skill_xp_gain", () => {
-    it("adds XP to correct skill", () => {
-      const first = store.applyEvent({
-        type: "skill_xp_gain",
-        playerId: "p1",
-        skillId: "combat",
-        amount: 100,
-        source: "admin_test",
-      });
-
-      const combat = first.skills.find((s) => s.id === "combat");
-      expect(combat?.xp).toBe(100);
+  it("accumulates XP through exact progression state", () => {
+    store.applyEvent({
+      type: "skill_xp_gain",
+      playerId: "p1",
+      skillId: "combat",
+      amount: 100,
+      source: "admin_test",
     });
-
-    it("accumulates XP across multiple events", () => {
-      store.applyEvent({
-        type: "skill_xp_gain",
-        playerId: "p1",
-        skillId: "combat",
-        amount: 100,
-        source: "admin_test",
-      });
-
-      const second = store.applyEvent({
-        type: "skill_xp_gain",
-        playerId: "p1",
-        skillId: "combat",
-        amount: 50,
-        source: "admin_test",
-      });
-
-      const combat = second.skills.find((s) => s.id === "combat");
-      expect(combat?.xp).toBe(150);
+    const second = store.applyEvent({
+      type: "skill_xp_gain",
+      playerId: "p1",
+      skillId: "combat",
+      amount: 101,
+      source: "admin_test",
     });
+    const combat = second.skills.find((skill) => skill.id === "combat")!;
 
-    it("ignores zero or negative amounts", () => {
-      const first = store.applyEvent({
-        type: "skill_xp_gain",
-        playerId: "p1",
-        skillId: "combat",
-        amount: 100,
-        source: "admin_test",
-      });
-
-      store.applyEvent({
-        type: "skill_xp_gain",
-        playerId: "p1",
-        skillId: "combat",
-        amount: 0,
-        source: "admin_test",
-      });
-
-      const combat = first.skills.find((s) => s.id === "combat");
-      expect(combat?.xp).toBe(100);
-    });
-
-    it("only affects specified skill", () => {
-      store.applyEvent({
-        type: "skill_xp_gain",
-        playerId: "p1",
-        skillId: "combat",
-        amount: 100,
-        source: "admin_test",
-      });
-
-      const state = store.getPlayerSkillState("p1");
-      const mining = state.skills.find((s) => s.id === "mining");
-
-      expect(mining?.xp).toBe(0);
-    });
+    expect(combat.xpExact).toBe("201");
+    expect(combat.levelExact).toBe("3");
+    expect(combat.xpIntoLevelExact).toBe("20");
   });
 
-  describe("player isolation", () => {
-    it("isolates player state by playerId", () => {
-      store.applyEvent({
-        type: "skill_xp_gain",
-        playerId: "p1",
-        skillId: "mining",
-        amount: 100,
-        source: "admin_test",
-      });
-
-      const p2 = store.getPlayerSkillState("p2");
-
-      expect(p2.skills.find((s) => s.id === "mining")?.xp).toBe(0);
-    });
-
-    it("each player has independent XP", () => {
+  it("ignores zero, negative, fractional, and unsafe XP events", () => {
+    const invalidAmounts = [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1];
+    for (const amount of invalidAmounts) {
       store.applyEvent({
         type: "skill_xp_gain",
         playerId: "p1",
         skillId: "combat",
-        amount: 500,
+        amount,
         source: "admin_test",
       });
-
-      store.applyEvent({
-        type: "skill_xp_gain",
-        playerId: "p2",
-        skillId: "combat",
-        amount: 50,
-        source: "admin_test",
-      });
-
-      const p1Combat = store.getPlayerSkillState("p1").skills.find((s) => s.id === "combat");
-      const p2Combat = store.getPlayerSkillState("p2").skills.find((s) => s.id === "combat");
-
-      expect(p1Combat?.xp).toBe(500);
-      expect(p2Combat?.xp).toBe(50);
-    });
+    }
+    expect(store.getPlayerSkillState("p1").skills.find((skill) => skill.id === "combat")?.xpExact).toBe("0");
   });
 
-  describe("level calculation", () => {
-    it("level 1 requires 100 XP", () => {
-      expect(xpForLevel(1)).toBe(100);
+  it("isolates players and skills", () => {
+    store.applyEvent({
+      type: "skill_xp_gain",
+      playerId: "p1",
+      skillId: "mining",
+      amount: 100,
+      source: "admin_test",
     });
-
-    it("level 2 requires 400 XP", () => {
-      expect(xpForLevel(2)).toBe(400);
-    });
-
-    it("level 5 requires 2500 XP", () => {
-      expect(xpForLevel(5)).toBe(2500);
-    });
-
-    it("0 XP gives level 1", () => {
-      expect(levelFromXp(0)).toBe(1);
-    });
-
-    it("99 XP gives level 1", () => {
-      expect(levelFromXp(99)).toBe(1);
-    });
-
-    it("100 XP gives level 2", () => {
-      expect(levelFromXp(100)).toBe(2);
-    });
-
-    it("5000 XP gives level 7", () => {
-      expect(levelFromXp(5000)).toBe(7);
-    });
+    expect(store.getPlayerSkillState("p1").skills.find((skill) => skill.id === "mining")?.xpExact).toBe("100");
+    expect(store.getPlayerSkillState("p1").skills.find((skill) => skill.id === "combat")?.xpExact).toBe("0");
+    expect(store.getPlayerSkillState("p2").skills.find((skill) => skill.id === "mining")?.xpExact).toBe("0");
   });
 
-  describe("replacePlayerSkillState", () => {
-    it("replaces player state from persistence", () => {
-      store.applyEvent({
-        type: "skill_xp_gain",
-        playerId: "p1",
-        skillId: "combat",
-        amount: 100,
-        source: "admin_test",
-      });
-
-      store.replacePlayerSkillState("p1", {
-        playerId: "p1",
-        schemaVersion: 1,
-        skills: store.getPlayerSkillState("p1").skills.map((s) =>
-          s.id === "combat" ? { ...s, xp: 500 } : s
-        ),
-      });
-
-      const combat = store.getPlayerSkillState("p1").skills.find((s) => s.id === "combat");
-      expect(combat?.xp).toBe(500);
-    });
+  it("uses the canonical historical Arelorian XP curve", () => {
+    expect(xpForLevel(1)).toBe(50);
+    expect(xpForLevel(2)).toBe(131);
+    expect(xpForLevel(3)).toBe(232);
+    expect(levelFromXp(0)).toBe(1);
+    expect(levelFromXp(49)).toBe(1);
+    expect(levelFromXp(50)).toBe(2);
+    expect(levelFromXp(180)).toBe(2);
+    expect(levelFromXp(181)).toBe(3);
   });
 
-  describe("clearForTests", () => {
-    it("clears all player state", () => {
-      store.applyEvent({
-        type: "skill_xp_gain",
-        playerId: "p1",
-        skillId: "combat",
-        amount: 100,
-        source: "admin_test",
-      });
-
-      store.clearForTests();
-
-      const state = store.getPlayerSkillState("p1");
-      expect(state.skills.every((s) => s.xp === 0)).toBe(true);
+  it("migrates schema-1 number-only state", () => {
+    store.replacePlayerSkillState("p1", {
+      playerId: "p1",
+      schemaVersion: 1,
+      skills: [
+        {
+          id: "combat",
+          title: "Combat",
+          level: 3,
+          xp: 201,
+          xpForNextLevel: 0,
+          progressRatio: 0,
+        },
+      ],
     });
+
+    const combat = store.getPlayerSkillState("p1").skills.find((skill) => skill.id === "combat")!;
+    expect(combat.levelExact).toBe("3");
+    expect(combat.xpExact).toBe("201");
+    expect(combat.xpIntoLevelExact).toBe("20");
+  });
+
+  it("has no level-99 cap", () => {
+    const combat = normalizeSkillSnapshot({
+      id: "combat",
+      xp: 0,
+      xpExact: "1000000000",
+      levelExact: "99",
+      xpIntoLevelExact: "0",
+    });
+    store.replacePlayerSkillState("p1", {
+      playerId: "p1",
+      schemaVersion: 2,
+      skills: [combat],
+    });
+
+    store.applyEvent({
+      type: "skill_xp_gain",
+      playerId: "p1",
+      skillId: "combat",
+      amount: Number(xpForLevelExact(99)),
+      source: "admin_test",
+    });
+
+    expect(store.getPlayerSkillState("p1").skills.find((skill) => skill.id === "combat")?.levelExact).toBe("100");
+  });
+
+  it("has no former 999999 safety ceiling", () => {
+    const combat = normalizeSkillSnapshot({
+      id: "combat",
+      xp: 0,
+      xpExact: "999999999999999999",
+      levelExact: "999999",
+      xpIntoLevelExact: "0",
+    });
+    store.replacePlayerSkillState("p1", {
+      playerId: "p1",
+      schemaVersion: 2,
+      skills: [combat],
+    });
+
+    store.applyEvent({
+      type: "skill_xp_gain",
+      playerId: "p1",
+      skillId: "combat",
+      amount: Number(xpForLevelExact(999999)),
+      source: "admin_test",
+    });
+
+    expect(store.getPlayerSkillState("p1").skills.find((skill) => skill.id === "combat")?.levelExact).toBe("1000000");
+  });
+
+  it("clears all player state for tests", () => {
+    store.applyEvent({
+      type: "skill_xp_gain",
+      playerId: "p1",
+      skillId: "combat",
+      amount: 100,
+      source: "admin_test",
+    });
+    store.clearForTests();
+    expect(store.getPlayerSkillState("p1").skills.every((skill) => skill.xpExact === "0")).toBe(true);
   });
 });

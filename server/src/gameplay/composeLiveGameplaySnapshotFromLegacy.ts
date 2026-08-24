@@ -2,6 +2,7 @@ import { LiveGameplaySnapshotComposer, buildVendorEconomySnapshot } from "./Live
 import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery, LiveGameplayCampNpc, LiveGameplayCampStock, LiveGameplayQuestProgress, LiveGameplayNpcMemory, LiveGameplayNpcRumor } from "./LiveGameplaySnapshotTypes.js";
 import { toLiveEquipmentSlots } from "./adapters/EquipmentSnapshotAdapter.js";
 import { toLiveInventoryItems } from "./adapters/InventorySnapshotAdapter.js";
+import { toLiveSkillStateFromLegacy, type LegacySkillSnapshotLike } from "./adapters/LegacySkillSnapshotAdapter.js";
 import { getWalletService, getVendorStockService } from "../economy/economyRuntime.js";
 import { getVillageResourceVendor } from "../economy/VillageVendors.js";
 import { campNpcService } from "../npc/CampNpcService.js";
@@ -39,12 +40,7 @@ interface LegacyEquipmentSnapshot {
   readonly slots?: readonly LegacyEquipmentSlot[];
 }
 
-interface LegacySkillSnapshot {
-  readonly id?: string;
-  readonly skillId?: string;
-  readonly xp?: number;
-  readonly level?: number;
-}
+type LegacySkillSnapshot = LegacySkillSnapshotLike;
 
 interface LegacyResourceNodeSnapshot {
   readonly id?: string;
@@ -146,11 +142,7 @@ export async function composeLiveGameplaySnapshotFromLegacy(
         itemId: slot.itemId ?? null,
       })),
     ),
-    getSkillStates: () => input.skills.map((skill) => ({
-      skillId: String(skill.skillId ?? skill.id ?? "unknown_skill"),
-      xp: Math.max(0, Math.floor(Number(skill.xp ?? 0))),
-      level: Math.max(1, Math.floor(Number(skill.level ?? 1))),
-    })),
+    getSkillStates: () => input.skills.map(toLiveSkillStateFromLegacy),
     getResourceNodes: () => input.resourceNodes.map((node) => ({
       nodeId: String(node.nodeId ?? node.id ?? "unknown_node"),
       resourceId: String(node.resourceId ?? node.itemRewardId ?? node.kind ?? "resource"),
@@ -181,9 +173,12 @@ export async function composeLiveGameplaySnapshotFromLegacy(
       const eq = input.equipment as { slots?: readonly { slotId?: string; itemId?: string | null }[] } | null;
       if (!eq?.slots) return createDefaultStatBlock();
       const aggregated: Record<string, number> = {};
-      const sortedSlots = [...eq.slots].sort((a, b) =>
-        String(a.slotId ?? "").localeCompare(String(b.slotId ?? "")),
-      );
+      // Bolt: Optimized sort comparator replacing slow localeCompare with direct relational comparisons
+      const sortedSlots = [...eq.slots].sort((a, b) => {
+        const sa = String(a.slotId ?? "");
+        const sb = String(b.slotId ?? "");
+        return sa < sb ? -1 : sa > sb ? 1 : 0;
+      });
       for (const slot of sortedSlots) {
         if (!slot.itemId) continue;
         const tierMap: Record<string, Partial<Record<string, number>>> = {
@@ -231,7 +226,12 @@ export async function composeLiveGameplaySnapshotFromLegacy(
         discoveredPoiIds: worldDiscoveryService.getDiscoveredPoiIds(playerId),
         completedQuestIds,
       });
-      return [...npcQuests, ...campQuests].sort((a, b) => a.questId.localeCompare(b.questId));
+      // Bolt: Optimized sort comparator replacing slow localeCompare with direct relational comparisons
+      return [...npcQuests, ...campQuests].sort((a, b) => {
+        const qa = a.questId;
+        const qb = b.questId;
+        return qa < qb ? -1 : qa > qb ? 1 : 0;
+      });
     },
     getCompletedQuestIds: async (playerId: string) => {
       const npcCompletedQuestIds = npcQuestService.getCompletedQuestIds(playerId);

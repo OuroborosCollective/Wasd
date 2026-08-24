@@ -2,14 +2,21 @@
  * SKILL TYPES
  *
  * Server-side skill progression types.
- * Deterministic, server-authoritative.
+ * Deterministic, server-authoritative, and cap-free.
  *
- * Rules:
- * - No Date.now() for gameplay state
- * - No Math.random()
- * - Stable sort by id for determinism
- * - Pure normalizer functions
+ * Exact XP/level truth is persisted as canonical decimal strings. Number
+ * fields remain compatibility/read-model projections only.
  */
+
+import {
+  advanceUnboundedProgression,
+  normalizeProgressionState,
+  progressionFromLegacyTotalXp,
+  projectExactToSafeNumber,
+  xpRequiredForNextLevelExact,
+  type AREUnboundedProgressionState,
+  type ExactIntegerInput,
+} from "../core/determinism/AREUnboundedProgression.js";
 
 export type SkillId =
   | "woodcutting"
@@ -21,16 +28,32 @@ export type SkillId =
 export interface SkillSnapshot {
   id: SkillId;
   title: string;
+
+  /** Compatibility projections. Exact authority lives in the *Exact fields. */
   level: number;
   xp: number;
   xpForNextLevel: number;
   progressRatio: number;
+
+  /** Canonical, cap-free progression truth. */
+  levelExact: string;
+  xpExact: string;
+  xpIntoLevelExact: string;
+  xpForNextLevelExact: string;
+  numberProjectionExact: boolean;
 }
 
 export interface PlayerSkillState {
   playerId: string;
   skills: SkillSnapshot[];
-  schemaVersion: 1;
+  schemaVersion: 2;
+}
+
+/** Input accepted at hydration boundaries, including legacy schema-1 saves. */
+export interface PlayerSkillStateInput {
+  playerId?: string;
+  skills?: Array<Partial<SkillSnapshot> & { id: SkillId }>;
+  schemaVersion?: number;
 }
 
 export const SKILL_TITLES: Record<SkillId, string> = {
@@ -49,87 +72,120 @@ export const DEFAULT_SKILLS: readonly SkillId[] = [
   "crafting",
 ] as const;
 
-/**
- * Calculate XP required for a given level.
- * Pure function - deterministic.
- */
-export function xpForLevel(level: number): number {
-  const safeLevel = Math.max(1, Math.floor(level));
-  return safeLevel * safeLevel * 100;
+function binaryCompare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/**
- * Calculate level from total XP.
- * Pure function - deterministic.
- */
-export function levelFromXp(xp: number): number {
-  const safeXp = Math.max(0, Math.floor(xp));
-  let level = 1;
-
-  while (xpForLevel(level + 1) <= safeXp) {
-    level += 1;
+function progressionFromSkillInput(input: Partial<SkillSnapshot>): AREUnboundedProgressionState {
+  if (
+    typeof input.xpExact === "string" &&
+    typeof input.levelExact === "string" &&
+    typeof input.xpIntoLevelExact === "string"
+  ) {
+    return normalizeProgressionState({
+      totalXp: input.xpExact,
+      level: input.levelExact,
+      xpIntoLevel: input.xpIntoLevelExact,
+    });
   }
 
-  return level;
+  const legacyXp = Number(input.xp ?? 0);
+  if (!Number.isSafeInteger(legacyXp) || legacyXp < 0) {
+    throw new Error("legacy skill XP must be a non-negative safe integer");
+  }
+  return progressionFromLegacyTotalXp(legacyXp);
 }
 
-/**
- * Normalize a partial skill snapshot to a complete one.
- * Pure function - no mutation of input.
- */
+function snapshotFromProgression(id: SkillId, progression: AREUnboundedProgressionState): SkillSnapshot {
+  const totalXp = projectExactToSafeNumber(progression.totalXp);
+  const level = projectExactToSafeNumber(progression.level);
+  const required = xpRequiredForNextLevelExact(progression.level);
+  const requiredProjection = projectExactToSafeNumber(required);
+
+  const progressMillionths = required > 0n
+    ? (progression.xpIntoLevel * 1_000_000n) / required
+    : 0n;
+  const progressRatio = Number(progressMillionths) / 1_000_000;
+
+  return Object.freeze({
+    id,
+    title: SKILL_TITLES[id],
+    level: level.value,
+    xp: totalXp.value,
+    xpForNextLevel: requiredProjection.value,
+    progressRatio,
+    levelExact: progression.level.toString(10),
+    xpExact: progression.totalXp.toString(10),
+    xpIntoLevelExact: progression.xpIntoLevel.toString(10),
+    xpForNextLevelExact: required.toString(10),
+    numberProjectionExact: totalXp.exact && level.exact && requiredProjection.exact,
+  });
+}
+
+/** Exact canonical XP required to advance from level -> level + 1. */
+export function xpForLevelExact(level: ExactIntegerInput): bigint {
+  return xpRequiredForNextLevelExact(level);
+}
+
+/** Backwards-compatible Number projection; never progression authority. */
+export function xpForLevel(level: number): number {
+  return projectExactToSafeNumber(xpForLevelExact(level)).value;
+}
+
+/** Backwards-compatible migration helper for number-era total XP. */
+export function levelFromXp(xp: number): number {
+  if (!Number.isSafeInteger(xp) || xp < 0) return 1;
+  return projectExactToSafeNumber(progressionFromLegacyTotalXp(xp).level).value;
+}
+
+/** Normalize a partial skill snapshot to a complete cap-free snapshot. */
 export function normalizeSkillSnapshot(
   input: Partial<SkillSnapshot> & { id: SkillId }
 ): SkillSnapshot {
-  const xp = Math.max(0, Math.floor(Number(input.xp ?? 0)));
-  const level = levelFromXp(xp);
-  const currentLevelXp = xpForLevel(level);
-  const nextLevelXp = xpForLevel(level + 1);
-  const span = Math.max(1, nextLevelXp - currentLevelXp);
-  const progressRatio = Math.max(0, Math.min(1, (xp - currentLevelXp) / span));
-
-  return {
-    id: input.id,
-    title: SKILL_TITLES[input.id],
-    level,
-    xp,
-    xpForNextLevel: nextLevelXp,
-    progressRatio,
-  };
+  return snapshotFromProgression(input.id, progressionFromSkillInput(input));
 }
 
-/**
- * Create default player skill state with all skills at level 1.
- * Pure function - deterministic.
- */
+/** Apply exact XP to an existing skill without reconstructing level history. */
+export function applySkillXp(
+  skill: SkillSnapshot,
+  amount: ExactIntegerInput,
+): SkillSnapshot {
+  const current = progressionFromSkillInput(skill);
+  const advanced = advanceUnboundedProgression(current, amount);
+  return snapshotFromProgression(skill.id, advanced.state);
+}
+
+/** Create default player skill state with all skills at level 1 in canonical order. */
 export function createDefaultPlayerSkillState(playerId: string): PlayerSkillState {
   return {
     playerId,
-    schemaVersion: 1,
-    skills: DEFAULT_SKILLS.map((id) => normalizeSkillSnapshot({ id, xp: 0 })),
+    schemaVersion: 2,
+    skills: DEFAULT_SKILLS
+      .map((id) => normalizeSkillSnapshot({ id, xp: 0 }))
+      .sort((a, b) => binaryCompare(a.id, b.id)),
   };
 }
 
 /**
- * Normalize and validate a player skill state.
- * Fills in missing skills with defaults.
- * Pure function - no mutation of input.
+ * Normalize and migrate a player skill state. Schema-1 number-only saves are
+ * accepted through the legacy XP migration path and are emitted as schema 2.
  */
 export function normalizePlayerSkillState(
-  input: Partial<PlayerSkillState> | null | undefined,
+  input: PlayerSkillStateInput | PlayerSkillState | null | undefined,
   playerId: string
 ): PlayerSkillState {
   const byId = new Map<SkillId, SkillSnapshot>();
 
   for (const skill of input?.skills ?? []) {
-    if (!skill || !DEFAULT_SKILLS.includes(skill.id)) continue;
-    byId.set(skill.id, normalizeSkillSnapshot(skill));
+    if (!skill || !DEFAULT_SKILLS.includes(skill.id as SkillId)) continue;
+    byId.set(skill.id as SkillId, normalizeSkillSnapshot(skill as Partial<SkillSnapshot> & { id: SkillId }));
   }
 
   return {
     playerId,
-    schemaVersion: 1,
+    schemaVersion: 2,
     skills: DEFAULT_SKILLS.map((id) =>
       byId.get(id) ?? normalizeSkillSnapshot({ id, xp: 0 })
-    ).sort((a, b) => a.id.localeCompare(b.id)),
+    ).sort((a, b) => binaryCompare(a.id, b.id)),
   };
 }
