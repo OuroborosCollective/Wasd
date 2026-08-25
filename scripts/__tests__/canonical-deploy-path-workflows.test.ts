@@ -45,6 +45,8 @@ describe('canonical VPS deployment path workflows', () => {
     for (const key of ['DATABASE_URL', 'API_KEY', 'API_KEYS', 'ALLOWED_ORIGINS', 'CORS_ORIGINS']) {
       expect(workflow).toContain(`${key}: \${{ secrets.${key} }}`);
     }
+    expect(workflow).toContain('WASD_WORLD_SEED: ${{ secrets.WASD_WORLD_SEED || vars.WASD_WORLD_SEED }}');
+    expect(workflow).toContain('for key in DATABASE_URL API_KEY API_KEYS ALLOWED_ORIGINS CORS_ORIGINS WASD_WORLD_SEED; do');
     expect(workflow).toContain('RUNTIME_ENV_PATCH: ${{ runner.temp }}/wasd-runtime-env-${{ github.run_id }}.env');
     expect(workflow).toContain('RUNTIME_ENV_PATCH_NAME=".wasd-runtime-env-${GITHUB_RUN_ID}.env"');
     expect(workflow).toContain('chmod 600 "$RUNTIME_ENV_PATCH"');
