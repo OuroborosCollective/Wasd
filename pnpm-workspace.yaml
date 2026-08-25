@@ -52,4 +52,3 @@ minimumReleaseAgeExclude:
   - '@opentelemetry/sdk-node'
   - '@opentelemetry/sdk-trace-base'
   - '@opentelemetry/sdk-trace-node'
-  - 'electron-to-chromium'
