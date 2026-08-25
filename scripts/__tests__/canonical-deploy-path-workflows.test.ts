@@ -38,4 +38,22 @@ describe('canonical VPS deployment path workflows', () => {
     expect(workflow).toContain('git reset --hard "origin/$BRANCH"');
     expect(workflow).not.toContain('git clone --branch "$BRANCH" "$REPO_URL" .');
   });
+
+  it.each(workflowPaths)('%s applies protected runtime inputs after Git synchronization', (workflowPath) => {
+    const workflow = readWorkflow(workflowPath);
+
+    for (const key of ['DATABASE_URL', 'API_KEY', 'API_KEYS', 'ALLOWED_ORIGINS', 'CORS_ORIGINS']) {
+      expect(workflow).toContain(`${key}: \${{ secrets.${key} }}`);
+    }
+    expect(workflow).toContain('RUNTIME_ENV_PATCH: ${{ runner.temp }}/wasd-runtime-env-${{ github.run_id }}.env');
+    expect(workflow).toContain('RUNTIME_ENV_PATCH_NAME=".wasd-runtime-env-${GITHUB_RUN_ID}.env"');
+    expect(workflow).toContain('chmod 600 "$RUNTIME_ENV_PATCH"');
+    expect(workflow).toContain('-e "$RUNTIME_ENV_PATCH"');
+    expect(workflow).toContain('test -f "$RUNTIME_ENV_PATCH"');
+    expect(workflow).toContain("trap 'rm -f -- \"$RUNTIME_ENV_PATCH\"' EXIT");
+    expect(workflow).toContain('touch .env.docker');
+    expect(workflow).toContain('chmod 600 .env.docker');
+    expect(workflow).toContain('Runtime environment patched from protected workflow inputs.');
+    expect(workflow).toContain('rm -f "$RUNTIME_ENV_PATCH"');
+  });
 });
