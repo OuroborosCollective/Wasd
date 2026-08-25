@@ -185,12 +185,13 @@ jobs:
           API_KEYS: ${{ secrets.API_KEYS }}
           ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
           CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+          WASD_WORLD_SEED: ${{ secrets.WASD_WORLD_SEED || vars.WASD_WORLD_SEED }}
           RUNTIME_ENV_PATCH: ${{ runner.temp }}/wasd-runtime-env-${{ github.run_id }}.env
         run: |
           set -euo pipefail
           umask 077
           : > "$RUNTIME_ENV_PATCH"
-          for key in DATABASE_URL API_KEY API_KEYS ALLOWED_ORIGINS CORS_ORIGINS; do
+          for key in DATABASE_URL API_KEY API_KEYS ALLOWED_ORIGINS CORS_ORIGINS WASD_WORLD_SEED; do
             value="${!key-}"
             if [ -n "$value" ]; then
               printf '%s=%s\n' "$key" "$value" >> "$RUNTIME_ENV_PATCH"
