@@ -28,5 +28,6 @@ export function attachResourceEcologySnapshots(
   const ecologyByNodeId = new Map(ecologySnapshots.map((ecology) => [ecology.nodeId, ecology] as const));
   return snapshots
     .map((snapshot) => attachResourceEcologySnapshot(snapshot, ecologyByNodeId.get(snapshot.id) ?? null))
-    .sort((a, b) => a.id.localeCompare(b.id));
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }

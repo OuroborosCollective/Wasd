@@ -260,8 +260,9 @@ function normalizeEcologyConfig(raw: unknown, file: string): ResourceEcologyConf
   return Object.freeze({
     schemaVersion: RESOURCE_ECOLOGY_SCHEMA_VERSION,
     tickCadence: readInteger(record, "tickCadence", file, 1),
-    kindRules: Object.freeze(kindRules.sort((a, b) => a.kind.localeCompare(b.kind))),
-    nodeOverrides: Object.freeze(nodeOverrides.sort((a, b) => a.nodeId.localeCompare(b.nodeId))),
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+    kindRules: Object.freeze(kindRules.sort((a, b) => (a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : 0))),
+    nodeOverrides: Object.freeze(nodeOverrides.sort((a, b) => (a.nodeId < b.nodeId ? -1 : a.nodeId > b.nodeId ? 1 : 0))),
   });
 }
 
@@ -283,7 +284,8 @@ export function loadResourceNodeDefinitionsFromGameData(): readonly ResourceNode
     return node;
   });
 
-  return Object.freeze(nodes.sort((a, b) => a.id.localeCompare(b.id)));
+  // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+  return Object.freeze(nodes.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)));
 }
 
 export function loadGatheringMomentumRuleFromGameData(): GatheringMomentumRule {

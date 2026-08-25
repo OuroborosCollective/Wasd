@@ -155,7 +155,8 @@ export class ResourceNodeStore {
     return [...this.definitions.values()]
       .map((definition) => this.getSnapshot(definition.id, currentTick))
       .filter((snapshot): snapshot is ResourceNodeSnapshot => Boolean(snapshot))
-      .sort((a, b) => a.id.localeCompare(b.id));
+      // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   previewVisibleSnapshots(
@@ -185,7 +186,8 @@ export class ResourceNodeStore {
         this.runtime.get(definition.id) ?? defaultRuntimeState(definition.id),
         currentTick,
       ))
-      .sort((a, b) => a.id.localeCompare(b.id));
+      // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   getSnapshot(nodeId: string, currentTick: number): ResourceNodeSnapshot | null {
