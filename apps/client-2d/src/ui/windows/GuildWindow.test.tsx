@@ -99,4 +99,24 @@ describe("GuildWindow UX & Accessibility", () => {
     expect(warBtn.getAttribute("title")).toBe("War (Coming Soon)");
     expect(warBtn.disabled).toBe(true);
   });
+
+  it("renders member online status indicators with accessible attributes and tooltips", async () => {
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(<GuildWindow isOpen={true} />);
+    });
+
+    const statusDots = container!.querySelectorAll('.guild-member-status');
+    expect(statusDots.length).toBe(2);
+
+    const onlineDot = statusDots[0];
+    expect(onlineDot.getAttribute("role")).toBe("status");
+    expect(onlineDot.getAttribute("aria-label")).toBe("Online");
+    expect(onlineDot.getAttribute("title")).toBe("Online");
+
+    const offlineDot = statusDots[1];
+    expect(offlineDot.getAttribute("role")).toBe("status");
+    expect(offlineDot.getAttribute("aria-label")).toBe("Offline");
+    expect(offlineDot.getAttribute("title")).toBe("Offline");
+  });
 });

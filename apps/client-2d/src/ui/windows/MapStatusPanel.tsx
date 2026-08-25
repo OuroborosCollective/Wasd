@@ -37,52 +37,106 @@ export function MapStatusPanel({ snapshot, activeChunkCount, worldSeed = "arelor
   const discoveredChunkCount = discoveryStats?.discoveredChunkCount ?? 0;
   const visiblePoiCount = discoveryStats?.visiblePoiCount ?? poiCount;
 
+  const chunkDisplay =
+    map.chunkX === null || map.chunkZ === null
+      ? "waiting"
+      : `${map.chunkX}, ${map.chunkZ}`;
+  const activeChunksDisplay = String(
+    activeChunkCount ?? map.visibleChunks ?? "—"
+  );
+  const biomeDisplay = derivedBiome ?? map.biome ?? "unknown";
+
   return (
-    <div className="stitch-grid-panel" data-testid="map-panel-live">
-      <article className="stitch-info">
+    <div
+      className="stitch-grid-panel"
+      data-testid="map-panel-live"
+      role="region"
+      aria-label="Map and Exploration Status"
+    >
+      <article
+        className="stitch-info"
+        title={`Region: ${map.regionName}`}
+        aria-label={`Region: ${map.regionName}`}
+      >
         <small>Region</small>
         <b>{map.regionName}</b>
       </article>
-      <article className="stitch-info">
+      <article
+        className="stitch-info"
+        title={`Chunk coordinates: ${chunkDisplay}`}
+        aria-label={`Chunk: ${chunkDisplay}`}
+      >
         <small>Chunk</small>
-        <b>
-          {map.chunkX === null || map.chunkZ === null
-            ? "waiting"
-            : `${map.chunkX}, ${map.chunkZ}`}
-        </b>
+        <b>{chunkDisplay}</b>
       </article>
-      <article className="stitch-info">
+      <article
+        className="stitch-info"
+        title={`Active Chunks: ${activeChunksDisplay}`}
+        aria-label={`Active Chunks: ${activeChunksDisplay}`}
+      >
         <small>Active Chunks</small>
-        <b>{activeChunkCount ?? map.visibleChunks ?? "—"}</b>
+        <b>{activeChunksDisplay}</b>
       </article>
-      <article className="stitch-info">
+      <article
+        className="stitch-info"
+        title={`Resources in region: ${resourceCount}`}
+        aria-label={`Resources: ${resourceCount}`}
+      >
         <small>Resources</small>
         <b>{resourceCount}</b>
       </article>
-      <article className="stitch-info">
+      <article
+        className="stitch-info"
+        title={`Points of Interest in region: ${poiCount}`}
+        aria-label={`Points of Interest: ${poiCount}`}
+      >
         <small>POIs</small>
         <b>{poiCount}</b>
       </article>
-      <article className="stitch-info">
+      <article
+        className="stitch-info"
+        title={`Camp NPCs in region: ${campNpcCount}`}
+        aria-label={`Camp NPCs: ${campNpcCount}`}
+      >
         <small>Camp NPCs</small>
         <b>{campNpcCount}</b>
       </article>
-      <article className="stitch-info" data-testid="map-discovered-poi-count">
+      <article
+        className="stitch-info"
+        data-testid="map-discovered-poi-count"
+        title={`Discovered Points of Interest: ${discoveredPoiCount}`}
+        aria-label={`Discovered Points of Interest: ${discoveredPoiCount}`}
+      >
         <small>Discovered</small>
         <b>{discoveredPoiCount}</b>
       </article>
-      <article className="stitch-info" data-testid="map-discovered-chunk-count">
+      <article
+        className="stitch-info"
+        data-testid="map-discovered-chunk-count"
+        title={`Chunks Explored: ${discoveredChunkCount}`}
+        aria-label={`Chunks Explored: ${discoveredChunkCount}`}
+      >
         <small>Chunks Explored</small>
         <b>{discoveredChunkCount}</b>
       </article>
-      <article className="stitch-info">
+      <article
+        className="stitch-info"
+        title={`Biome: ${biomeDisplay}`}
+        aria-label={`Biome: ${biomeDisplay}`}
+      >
         <small>Biome</small>
-        <b>{derivedBiome ?? map.biome ?? "unknown"}</b>
+        <b>{biomeDisplay}</b>
       </article>
       {process.env.NODE_ENV !== "production" && (
-        <article className="stitch-info">
+        <article
+          className="stitch-info"
+          title={`World Seed: ${worldSeed}`}
+          aria-label={`World Seed: ${worldSeed}`}
+        >
           <small>WorldSeed</small>
-          <b style={{ fontSize: "9px", opacity: 0.7 }}>{worldSeed.slice(0, 16)}...</b>
+          <b style={{ fontSize: "9px", opacity: 0.7 }}>
+            {worldSeed.slice(0, 16)}...
+          </b>
         </article>
       )}
     </div>

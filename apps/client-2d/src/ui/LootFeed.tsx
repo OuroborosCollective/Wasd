@@ -11,6 +11,10 @@ export function LootFeed({ entries }: Props) {
 
   return (
     <div
+      role="log"
+      aria-label="Loot Feed"
+      aria-live="polite"
+      aria-relevant="additions"
       style={{
         position: "fixed",
         left: 12,
@@ -23,10 +27,19 @@ export function LootFeed({ entries }: Props) {
     >
       {entries.slice(0, 6).map((entry) => {
         const def = getItemDefinition(entry.itemId);
+        const name = def?.name ?? entry.itemId;
+        const rarity = def?.rarity ? ` (${def.rarity})` : "";
+        const ariaText = `Acquired ${entry.quantity} ${name}${rarity}`;
+        const tooltip = def?.description
+          ? `${name}${rarity} - ${def.description}`
+          : `${name}${rarity}`;
 
         return (
           <div
             key={entry.id}
+            role="status"
+            aria-label={ariaText}
+            title={tooltip}
             style={{
               padding: "8px 10px",
               borderRadius: 12,
@@ -37,7 +50,7 @@ export function LootFeed({ entries }: Props) {
               backdropFilter: "blur(8px)"
             }}
           >
-            +{entry.quantity} {def?.name ?? entry.itemId}
+            +{entry.quantity} {name}
           </div>
         );
       })}

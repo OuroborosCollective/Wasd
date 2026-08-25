@@ -97,10 +97,33 @@ describe("CampTradePanel UX & Accessibility", () => {
       );
     });
 
+    const panel = container!.querySelector('[data-testid="camp-trade-panel"]') as HTMLDivElement;
+    expect(panel.getAttribute("role")).toBe("region");
+    expect(panel.getAttribute("aria-label")).toBe("Camp Exchange Trade Panel");
+
     const buyBtn = container!.querySelector('[data-testid="camp-trade-buy-button"]') as HTMLButtonElement;
     expect(buyBtn).toBeTruthy();
     expect(buyBtn.disabled).toBe(false);
     expect(buyBtn.getAttribute("aria-busy")).toBe("false");
     expect(buyBtn.getAttribute("aria-label")).toBe("Buy 1 Wood Log for 5 coins");
+  });
+
+  it("configures the stock item card for keyboard focus and ARIA accessibility", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(
+        <CampTradePanel npc={mockNpc} campStock={mockStock} onClose={() => {}} />
+      );
+    });
+
+    const itemCard = container!.querySelector('[data-testid="camp-stock-item"]') as HTMLDivElement;
+    expect(itemCard).toBeTruthy();
+    expect(itemCard.getAttribute("role")).toBe("button");
+    expect(itemCard.getAttribute("tabIndex")).toBe("0");
+    expect(itemCard.getAttribute("aria-label")).toBe("Wood Log: 10 units available, 5 coins per unit");
+    expect(itemCard.getAttribute("title")).toBe("Click to buy 1 Wood Log for 5 coins");
   });
 });
