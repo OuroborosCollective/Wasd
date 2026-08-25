@@ -236,4 +236,41 @@ describe("QuestProgressionStore", () => {
       }
     });
   });
+
+  describe("sorting benchmark", () => {
+    it("runs a benchmark comparing localeCompare vs direct relational operator string comparison for quest snapshots", () => {
+      const sampleQuests = Array.from({ length: 500 }, (_, i) => ({
+        id: `quest_${(i * 37) % 500}`,
+        title: `Quest ${(i * 37) % 500}`,
+        description: "Test description",
+        status: "active" as const,
+        objectives: [],
+      }));
+
+      const iterations = 500;
+
+      // 1. Benchmarking localeCompare sort
+      const startLocale = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        [...sampleQuests].sort((a, b) => a.id.localeCompare(b.id));
+      }
+      const durationLocale = performance.now() - startLocale;
+
+      // 2. Benchmarking direct relational comparison sort
+      const startDirect = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        [...sampleQuests].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      }
+      const durationDirect = performance.now() - startDirect;
+
+      const speedup = durationLocale / (durationDirect || 0.001);
+
+      console.log(`Quest Snapshot Sort Benchmark (${iterations} iterations of 500 items):`);
+      console.log(`  - localeCompare sort:          ${durationLocale.toFixed(2)}ms`);
+      console.log(`  - direct relational sort:      ${durationDirect.toFixed(2)}ms`);
+      console.log(`  - Performance Speedup:         ${speedup.toFixed(2)}x faster`);
+
+      expect(speedup).toBeGreaterThan(0);
+    });
+  });
 });
