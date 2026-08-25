@@ -18,6 +18,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { RESOURCE_SELL_PRICES } from "../economy/ResourceSellPrices.js";
 import { GatheringService } from "../resources/GatheringService.js";
 import { CraftingService } from "../crafting/CraftingService.js";
 import { EconomyService } from "../economy/EconomyService.js";
@@ -627,7 +628,6 @@ describe("Resource Economy Loop", () => {
     });
 
     it("should use stable ordering for vendor price resolution", () => {
-      const { RESOURCE_SELL_PRICES } = require("../economy/ResourceSellPrices.js");
       
       // Sell prices should be deterministic
       const itemIds = Object.keys(RESOURCE_SELL_PRICES).sort();
