@@ -224,13 +224,16 @@ jobs:
           mkdir -p "$APP_DIR"
           cd "$APP_DIR"
           if [ ! -d .git ]; then
-            git clone --branch "$BRANCH" "$REPO_URL" .
+            # Installer-managed paths may already contain runtime files such as .env or
+            # data/. Initialise Git in place instead of failing with `git clone ... .`.
+            git init
+            git remote add origin "$REPO_URL"
           else
             git remote set-url origin "$REPO_URL" || true
-            git fetch --no-tags origin "$BRANCH"
-            git reset --hard "origin/$BRANCH"
-            git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e "$CLIENT_2D_ARCHIVE" -e apps/client-2d/dist/ -e .asset-inbox/ || true
           fi
+          git fetch --no-tags origin "$BRANCH"
+          git reset --hard "origin/$BRANCH"
+          git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e "$CLIENT_2D_ARCHIVE" -e apps/client-2d/dist/ -e .asset-inbox/ || true
           echo "Remote HEAD=$(git rev-parse HEAD)"
           echo "Expected HEAD=$GITHUB_SHA_EXPECTED"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA_EXPECTED"

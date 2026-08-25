@@ -27,4 +27,15 @@ describe('canonical VPS deployment path workflows', () => {
     expect(workflow).toContain('VPS_DEPLOY_PATH/DEPLOY_PATH must be an absolute path.');
     expect(workflow).toContain('Refusing to deploy into the filesystem root.');
   });
+
+  it.each(workflowPaths)('%s adopts a populated installer path without clone-in-place', (workflowPath) => {
+    const workflow = readWorkflow(workflowPath);
+
+    expect(workflow).toContain('Initialise Git in place instead of failing with `git clone ... .`.');
+    expect(workflow).toContain('git init');
+    expect(workflow).toContain('git remote add origin "$REPO_URL"');
+    expect(workflow).toContain('git fetch --no-tags origin "$BRANCH"');
+    expect(workflow).toContain('git reset --hard "origin/$BRANCH"');
+    expect(workflow).not.toContain('git clone --branch "$BRANCH" "$REPO_URL" .');
+  });
 });
