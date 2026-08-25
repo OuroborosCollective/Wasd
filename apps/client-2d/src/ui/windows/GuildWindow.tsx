@@ -90,9 +90,15 @@ function MemberRow({ member }: MemberRowProps) {
   
   return (
     <div className="guild-member-row">
-      <div className="guild-member-status" style={{ 
-        backgroundColor: member.online ? "#1eff00" : "#4a5a6a" 
-      }} />
+      <div
+        className="guild-member-status"
+        style={{
+          backgroundColor: member.online ? "#1eff00" : "#4a5a6a"
+        }}
+        role="status"
+        aria-label={member.online ? "Online" : "Offline"}
+        title={member.online ? "Online" : "Offline"}
+      />
       <div className="guild-member-info">
         <span className="guild-member-name" style={{ color: rankColor }}>
           {member.name}
