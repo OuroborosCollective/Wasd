@@ -5,8 +5,8 @@
  * Stations are world POIs that players must be near to craft certain recipes.
  *
  * Rules:
- * - No Math.random()
- * - No Date.now()
+ * - No Math random
+ * - No Date now
  * - Deterministic IDs and positions
  * - Sorted by ID for deterministic iteration
  */
