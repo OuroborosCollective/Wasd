@@ -38,7 +38,7 @@ export function MapStatusPanel({ snapshot, activeChunkCount, worldSeed = "arelor
   const visiblePoiCount = discoveryStats?.visiblePoiCount ?? poiCount;
 
   return (
-    <div className="stitch-grid-panel" data-testid="map-panel-live">
+    <div className="stitch-grid-panel" data-testid="map-panel-live" role="region" aria-label="Map Status">
       <article className="stitch-info">
         <small>Region</small>
         <b>{map.regionName}</b>
