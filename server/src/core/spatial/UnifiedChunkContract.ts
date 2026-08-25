@@ -58,7 +58,7 @@ export interface UnifiedChunkContract {
   readonly dormantAfterTicks: number;
 }
 
-export const UNIFIED_CHUNK_CONTRACT: UnifiedChunkContract = {
+export const UNIFIED_CHUNK_CONTRACT: UnifiedChunkContract = Object.freeze({
   chunkSizeTiles: CHUNK_SIZE_TILES,
   chunkSizeKappa: CHUNK_SIZE_KAPPA,
   simulationRadiusChunks: 2,
@@ -66,7 +66,7 @@ export const UNIFIED_CHUNK_CONTRACT: UnifiedChunkContract = {
   simulationGridSize: 5, // 2*2 + 1
   broadcastGridSize: 3, // 1*2 + 1
   dormantAfterTicks: 0, // Immediately dormant when no observers
-} as const;
+} as const);
 
 /**
  * Validate chunk coordinate is within bounds.

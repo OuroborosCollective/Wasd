@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { PlayerInventoryState } from "../inventory/InventoryTypes.js";
+import type { PlayerEquipmentState } from "../equipment/EquipmentTypes.js";
 import type { CharacterProfileSnapshot } from "../character/CharacterTypes.js";
 import { createStartPathQuestSnapshot } from "../character/StartPathQuestLine.js";
 
@@ -32,17 +33,21 @@ function createMockInventory(slots: Array<{ itemId: string; quantity: number }>)
 function createMockCharacter(archetype: CharacterProfileSnapshot["archetype"]): CharacterProfileSnapshot {
   return {
     playerId: "test_player",
-    name: "Test",
+    characterId: "character_test_player",
+    displayName: "Test",
     archetype,
-    level: 1,
-    experience: 0,
-    health: 100,
-    maxHealth: 100,
-    mana: 50,
-    maxMana: 50,
-    position: { x: 460, y: 500 },
-    createdAt: 0,
-    updatedAt: 0,
+    selected: true,
+  };
+}
+
+function createMockGatheringEquipment(): PlayerEquipmentState {
+  return {
+    playerId: "test_player",
+    schemaVersion: 1,
+    slots: [
+      { slotId: "mining_tool", itemId: "copper_pickaxe", title: "Copper Pickaxe", tier: 1 },
+      { slotId: "fishing_tool", itemId: "simple_fishing_rod", title: "Simple Fishing Rod", tier: 1 },
+    ],
   };
 }
 
@@ -63,9 +68,9 @@ describe("createStartPathQuestSnapshot", () => {
       expect(fishObjective?.completed).toBe(false);
     });
 
-    it("shows 1/3 when 1 raw_fish in inventory", () => {
+    it("shows 1/3 after the 2 starter fish plus 1 earned raw_fish", () => {
       const character = createMockCharacter("angler");
-      const inventory = createMockInventory([{ itemId: "raw_fish", quantity: 1 }]);
+      const inventory = createMockInventory([{ itemId: "raw_fish", quantity: 3 }]);
 
       const quest = createStartPathQuestSnapshot({ character, inventory });
 
@@ -74,9 +79,9 @@ describe("createStartPathQuestSnapshot", () => {
       expect(fishObjective?.required).toBe(3);
     });
 
-    it("shows 2/3 when 2 raw_fish in inventory", () => {
+    it("shows 2/3 after the 2 starter fish plus 2 earned raw_fish", () => {
       const character = createMockCharacter("angler");
-      const inventory = createMockInventory([{ itemId: "raw_fish", quantity: 2 }]);
+      const inventory = createMockInventory([{ itemId: "raw_fish", quantity: 4 }]);
 
       const quest = createStartPathQuestSnapshot({ character, inventory });
 
@@ -86,11 +91,11 @@ describe("createStartPathQuestSnapshot", () => {
       expect(fishObjective?.completed).toBe(false); // 2 < 3
     });
 
-    it("completes at 3/3 when 3 raw_fish in inventory", () => {
+    it("completes at 3/3 after the 2 starter fish plus 3 earned raw_fish and equipped tools", () => {
       const character = createMockCharacter("angler");
-      const inventory = createMockInventory([{ itemId: "raw_fish", quantity: 3 }]);
+      const inventory = createMockInventory([{ itemId: "raw_fish", quantity: 5 }]);
 
-      const quest = createStartPathQuestSnapshot({ character, inventory });
+      const quest = createStartPathQuestSnapshot({ character, inventory, equipment: createMockGatheringEquipment() });
 
       const fishObjective = quest?.objectives.find((o) => o.id === "catch_raw_fish");
       expect(fishObjective?.current).toBe(3);
@@ -113,14 +118,15 @@ describe("createStartPathQuestSnapshot", () => {
     it("does not regress when items are consumed", () => {
       // Start with completed quest
       const character = createMockCharacter("angler");
-      const inventory = createMockInventory([{ itemId: "raw_fish", quantity: 3 }]);
+      const inventory = createMockInventory([{ itemId: "raw_fish", quantity: 5 }]);
+      const equipment = createMockGatheringEquipment();
 
-      let quest = createStartPathQuestSnapshot({ character, inventory });
+      let quest = createStartPathQuestSnapshot({ character, inventory, equipment });
       expect(quest?.status).toBe("completed");
 
       // Simulate consuming 1 fish (inventory now has 2)
-      const inventoryAfterConsume = createMockInventory([{ itemId: "raw_fish", quantity: 2 }]);
-      quest = createStartPathQuestSnapshot({ character, inventoryAfterConsume });
+      const inventoryAfterConsume = createMockInventory([{ itemId: "raw_fish", quantity: 4 }]);
+      quest = createStartPathQuestSnapshot({ character, inventory: inventoryAfterConsume, equipment });
 
       // Quest is still completed (preserved from previous state)
       // This tests the upsertDerivedQuestSnapshot behavior in the actual system
@@ -144,7 +150,7 @@ describe("createStartPathQuestSnapshot", () => {
 
     it("shows 2/3 when 2 wood_log in inventory", () => {
       const character = createMockCharacter("forager");
-      const inventory = createMockInventory([{ itemId: "wood_log", quantity: 2 }]);
+      const inventory = createMockInventory([{ itemId: "wood_log", quantity: 4 }]);
 
       const quest = createStartPathQuestSnapshot({ character, inventory });
 
@@ -168,7 +174,7 @@ describe("createStartPathQuestSnapshot", () => {
 
     it("shows 2/3 when 2 copper_ore in inventory", () => {
       const character = createMockCharacter("miner");
-      const inventory = createMockInventory([{ itemId: "copper_ore", quantity: 2 }]);
+      const inventory = createMockInventory([{ itemId: "copper_ore", quantity: 4 }]);
 
       const quest = createStartPathQuestSnapshot({ character, inventory });
 
@@ -185,11 +191,11 @@ describe("createStartPathQuestSnapshot", () => {
       const character = createMockCharacter("angler");
 
       for (let qty = 0; qty <= 5; qty++) {
-        const inventory = createMockInventory([{ itemId: "raw_fish", quantity: qty }]);
+        const inventory = createMockInventory([{ itemId: "raw_fish", quantity: 2 + qty }]);
         const quest = createStartPathQuestSnapshot({ character, inventory });
         const fishObjective = quest?.objectives.find((o) => o.id === "catch_raw_fish");
 
-        expect(fishObjective?.current).toBe(qty);
+        expect(fishObjective?.current).toBe(Math.min(qty, 3));
         expect(fishObjective?.completed).toBe(qty >= 3);
       }
     });
@@ -201,8 +207,8 @@ describe("createStartPathQuestSnapshot", () => {
       const quest = createStartPathQuestSnapshot({ character, inventory });
       const fishObjective = quest?.objectives.find((o) => o.id === "catch_raw_fish");
 
-      // Label should be "Fange 3 Raw Fish", not "Fange 2/3 Raw Fish"
-      expect(fishObjective?.label).toBe("Fange 3 Raw Fish");
+      // The label states the real objective and explicitly excludes starter-kit items.
+      expect(fishObjective?.label).toBe("Fange 3 Raw Fish nach Starter-Kit");
       expect(fishObjective?.label).not.toContain("2/3");
     });
   });
@@ -210,7 +216,7 @@ describe("createStartPathQuestSnapshot", () => {
   describe("archetype fallbacks", () => {
     it("wanderer archetype uses cooked_fish", () => {
       const character = createMockCharacter("wanderer");
-      const inventory = createMockInventory([{ itemId: "cooked_fish", quantity: 1 }]);
+      const inventory = createMockInventory([{ itemId: "cooked_fish", quantity: 2 }]);
 
       const quest = createStartPathQuestSnapshot({ character, inventory });
 
@@ -242,14 +248,16 @@ describe("createStartPathQuestSnapshot", () => {
       expect(result).toBeNull();
     });
 
-    it("returns null when inventory is null", () => {
+    it("returns an empty active snapshot when inventory is null", () => {
       const character = createMockCharacter("angler");
       const result = createStartPathQuestSnapshot({
         character,
         inventory: null,
       });
 
-      expect(result).toBeNull();
+      expect(result?.id).toBe("start_path_angler");
+      expect(result?.status).toBe("active");
+      expect(result?.objectives.find((objective) => objective.id === "catch_raw_fish")?.current).toBe(0);
     });
   });
 });

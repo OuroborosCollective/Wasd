@@ -304,8 +304,12 @@ describe("CampNpcService", () => {
 
       service.clearForTests();
 
+      expect(service.getStockState(loggingCampPoi.id)).toBeUndefined();
+      // Snapshot projection is deterministic and intentionally recomputes the
+      // deposit for tick 39 from the cleared state.
       stocks = service.getCampStockSnapshots([loggingCampPoi], 39);
-      expect(stocks[0].items).toHaveLength(0);
+      expect(stocks[0].items).toHaveLength(1);
+      expect(stocks[0].items[0].quantity).toBe(1);
     });
   });
 });

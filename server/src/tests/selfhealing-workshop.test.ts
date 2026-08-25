@@ -145,18 +145,18 @@ describe("getDefaultRollbackSteps", () => {
   it("returns git revert steps", () => {
     const steps = getDefaultRollbackSteps("git_revert");
     expect(steps).toContain("Review generated patch before applying.");
-    expect(steps).toContain("git revert");
+    expect(steps).toContain("If regression occurs, revert the patch commit with: git revert <commit-hash>");
   });
 
   it("returns manual review steps", () => {
     const steps = getDefaultRollbackSteps("manual_review");
     expect(steps).toContain("Review the proposal manually.");
-    expect(steps).toContain("Implement the fix manually");
+    expect(steps).toContain("Implement the fix manually if appropriate.");
   });
 
   it("returns none steps", () => {
     const steps = getDefaultRollbackSteps("none");
-    expect(steps).toContain("No rollback needed");
+    expect(steps).toContain("No rollback needed - no changes were made.");
   });
 });
 

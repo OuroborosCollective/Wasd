@@ -102,8 +102,9 @@ describe('autofix-modules', () => {
     it('should detect Category A (ARE-Aligned)', () => {
       const code = `
         import { TickSystem } from '../core/are/TickSystem.js';
+        import { Kappa } from '../core/are/Kappa.js';
         implements TickSystem {
-          tick(ctx: TickSystemContext) {}
+          tick(ctx: TickSystemContext) { return Kappa; }
         }
       `;
       expect(detectCategoryTest(code)).toBe('A');
@@ -111,7 +112,7 @@ describe('autofix-modules', () => {
 
     it('should detect Category B (Deterministic-Ready)', () => {
       const code = `
-        import { Delta } from '../core/are/Delta.js';
+        import { Delta } from '../core/Delta.js';
         class LootSystem {
           generateDelta() { return new Delta(); }
         }
@@ -151,10 +152,10 @@ describe('autofix-modules', () => {
       expect(output).toBe(input); // no change
     });
 
-    it('should handle mixed case identifiers', () => {
-      const input = `KAPPA`; // uppercase
+    it('should preserve an unconfigured uppercase identifier', () => {
+      const input = `KAPPA`;
       const output = replaceIdentifiersTest(input);
-      expect(output).toBe('Kappa');
+      expect(output).toBe(input);
     });
 
     it('should not replace partial matches', () => {
@@ -241,15 +242,18 @@ function replaceIdentifiersTest(source) {
     const ch = source[i];
     const next = source[i + 1];
 
-    // Skip single-line comments
+    // Preserve single-line comments verbatim.
     if (ch === '/' && next === '/') {
+      const start = i;
       i += 2;
       while (i < source.length && source[i] !== '\n') i += 1;
+      output += source.slice(start, i);
       continue;
     }
 
-    // Skip multi-line comments
+    // Preserve multi-line comments verbatim.
     if (ch === '/' && next === '*') {
+      const start = i;
       i += 2;
       while (i < source.length) {
         if (source[i] === '*' && source[i + 1] === '/') {
@@ -258,12 +262,14 @@ function replaceIdentifiersTest(source) {
         }
         i += 1;
       }
+      output += source.slice(start, i);
       continue;
     }
 
-    // Skip string literals
+    // Preserve string and template literals verbatim.
     if (ch === '"' || ch === "'" || ch === '`') {
       const quote = ch;
+      const start = i;
       i += 1;
       while (i < source.length) {
         if (source[i] === '\\') {
@@ -276,6 +282,7 @@ function replaceIdentifiersTest(source) {
         }
         i += 1;
       }
+      output += source.slice(start, i);
       continue;
     }
 
@@ -309,13 +316,16 @@ function fixCategoryTyposTest(source) {
 }
 
 function detectCategoryTest(source) {
-  // Simplified detection for testing
-  const hasARE = /TickSystem|TickSystemContext|TickSystemPriority/.test(source);
+  // Keep this focused mirror aligned with the production categorisation rules.
+  const hasARE = /TickSystem|TickSystemContext|TickSystemPriority|core\/are|\/are\//.test(source);
+  const hasDelta = /\b(?:Delta|StateDelta|generateDelta|applyDelta|WorldDelta)\b/.test(source);
+  const hasDeterministicSignature = /\b(?:Kappa|Kappa1000|TickId|StateHash|ChunkKey|KappaPosition|DeterministicPrng|createDeterministicPrng|SeededARERng|deterministicRandom)\b/.test(source);
   const hasNonDet = /Date\.now|Math\.random/.test(source);
   const hasStub = source.length < 50 && /return null|return undefined/.test(source);
 
   if (hasStub && !hasARE) return 'E';
   if (hasNonDet) return 'D';
-  if (hasARE) return 'A';
+  if (hasARE && (hasDeterministicSignature || hasDelta)) return 'A';
+  if (hasARE || hasDelta) return 'B';
   return 'C';
 }

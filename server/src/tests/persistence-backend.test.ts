@@ -149,10 +149,10 @@ describe("IPersistenceBackend interface types", () => {
   });
 
   it("should handle readonly arrays in saveWorldObjects", () => {
-    const objects: readonly Readonly<Record<string, unknown>>[] = [
+    const objects: readonly Readonly<Record<string, unknown>>[] = Object.freeze([
       Object.freeze({ id: "obj1", x: 10 }),
       Object.freeze({ id: "obj2", x: 20 }),
-    ];
+    ]);
 
     // Verify objects are truly readonly
     expect(() => {

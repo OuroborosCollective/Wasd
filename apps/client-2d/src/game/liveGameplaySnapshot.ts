@@ -1030,6 +1030,11 @@ function normalizeCampStocks(input: unknown): CampStockSnapshot[] {
     .sort((a, b) => (a.poiId < b.poiId ? -1 : a.poiId > b.poiId ? 1 : 0));
 }
 
+function normalizeNonNegativeFiniteInteger(value: unknown): number {
+  const numeric = Number(value ?? 0);
+  return Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0;
+}
+
 /**
  * Normalize equipment stats from server.
  * Pure function - no mutation of input.
@@ -1040,15 +1045,15 @@ export function normalizeEquipmentStats(input: unknown): EquipmentStats {
   const raw = input as any;
 
   return {
-    attackPower: Math.max(0, Math.floor(Number(raw.attackPower ?? 0))),
-    defense: Math.max(0, Math.floor(Number(raw.defense ?? 0))),
-    maxHealth: Math.max(0, Math.floor(Number(raw.maxHealth ?? 0))),
-    maxStamina: Math.max(0, Math.floor(Number(raw.maxStamina ?? 0))),
-    magicFind: Math.max(0, Math.floor(Number(raw.magicFind ?? 0))),
-    gatheringYield: Math.max(0, Math.floor(Number(raw.gatheringYield ?? 0))),
-    gatheringXp: Math.max(0, Math.floor(Number(raw.gatheringXp ?? 0))),
-    lootQuality: Math.max(0, Math.floor(Number(raw.lootQuality ?? 0))),
-    criticalChancePerMille: Math.max(0, Math.floor(Number(raw.criticalChancePerMille ?? 0))),
+    attackPower: normalizeNonNegativeFiniteInteger(raw.attackPower),
+    defense: normalizeNonNegativeFiniteInteger(raw.defense),
+    maxHealth: normalizeNonNegativeFiniteInteger(raw.maxHealth),
+    maxStamina: normalizeNonNegativeFiniteInteger(raw.maxStamina),
+    magicFind: normalizeNonNegativeFiniteInteger(raw.magicFind),
+    gatheringYield: normalizeNonNegativeFiniteInteger(raw.gatheringYield),
+    gatheringXp: normalizeNonNegativeFiniteInteger(raw.gatheringXp),
+    lootQuality: normalizeNonNegativeFiniteInteger(raw.lootQuality),
+    criticalChancePerMille: normalizeNonNegativeFiniteInteger(raw.criticalChancePerMille),
   };
 }
 

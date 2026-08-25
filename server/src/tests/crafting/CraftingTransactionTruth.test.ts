@@ -15,8 +15,8 @@ import type {
   PersistedPlayerInventoryState,
 } from "../../inventory/InventoryPersistence";
 import {
+  applySkillXp,
   createDefaultPlayerSkillState,
-  normalizePlayerSkillState,
   type PlayerSkillState,
 } from "../../skills/SkillTypes";
 
@@ -52,9 +52,12 @@ class MemorySkillRuntime {
 
   public async applyEvent(event: { playerId: string; amount: number }): Promise<void> {
     const current = await this.getPlayerSkillState(event.playerId);
-    const crafting = current.skills.find((skill) => skill.id === "crafting");
-    if (crafting) crafting.xp += event.amount;
-    this.states.set(event.playerId, normalizePlayerSkillState(current, event.playerId));
+    this.states.set(event.playerId, {
+      ...current,
+      skills: current.skills.map((skill) => skill.id === "crafting"
+        ? applySkillXp(skill, event.amount)
+        : skill),
+    });
     this.applyCount += 1;
   }
 

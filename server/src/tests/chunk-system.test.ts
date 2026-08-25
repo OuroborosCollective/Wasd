@@ -13,29 +13,29 @@ describe('ChunkSystem Optimization', () => {
     expect(system.getActiveChunks().length).toBe(0);
 
     // Activate one chunk
-    system.setChunkActive('0:0', true);
+    system.setChunkActiveById('0:0', true);
     let active = system.getActiveChunks();
     expect(active.length).toBe(1);
-    expect(active[0].id).toBe('0:0');
+    expect(active[0]).toMatchObject({ x: 0, y: 0 });
 
     // Activate another
-    system.setChunkActive('1:1', true);
+    system.setChunkActiveById('1:1', true);
     active = system.getActiveChunks();
     expect(active.length).toBe(2);
 
     // Deactivate one
-    system.setChunkActive('0:0', false);
+    system.setChunkActiveById('0:0', false);
     active = system.getActiveChunks();
     expect(active.length).toBe(1);
-    expect(active[0].id).toBe('1:1');
+    expect(active[0]).toMatchObject({ x: 1, y: 1 });
 
     // Reactivate
-    system.setChunkActive('0:0', true);
+    system.setChunkActiveById('0:0', true);
     expect(system.getActiveChunks().length).toBe(2);
 
     // Deactivate all
-    system.setChunkActive('0:0', false);
-    system.setChunkActive('1:1', false);
+    system.setChunkActiveById('0:0', false);
+    system.setChunkActiveById('1:1', false);
     expect(system.getActiveChunks().length).toBe(0);
   });
 });

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import {
   createSyncStateOverlayState,
@@ -139,8 +140,7 @@ describe("SyncStateOverlay", () => {
     });
 
     it("sets correct class on overlay", () => {
-      renderSyncStateOverlay("stale_long", mockDoc);
-      const overlay = mockDoc.getElementById("areloria-sync-state-overlay");
+      const overlay = renderSyncStateOverlay("stale_long", mockDoc);
       expect(overlay?.className).toContain("sync-state-overlay--stale_long");
     });
   });

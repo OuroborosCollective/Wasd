@@ -109,8 +109,10 @@ describe('autoheal-modules', () => {
 
     it('should detect Math.random with ctx.rng as LOW_SEMANTIC', () => {
       const source = `
-        const roll = Math.random();
-        const ctx = { rng: { nextFloat: () => 0.5 } };
+        function roll(ctx: TickSystemContext) {
+          const value = Math.random();
+          return ctx.rng.nextFloat() + value;
+        }
       `;
       const hasMathRandom = /Math\.random/.test(source);
       const hasCtxRng = /ctx\.rng|context\.rng/.test(source);

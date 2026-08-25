@@ -83,6 +83,7 @@ export function interpolateFacing(
   currentDegrees: number,
   alpha: number,
 ): number {
+  if (!Number.isFinite(previousDegrees) || !Number.isFinite(currentDegrees)) return 0;
   const safeAlpha = clampVisualAlpha(alpha);
   const previous = normalizeDegrees(previousDegrees);
   const current = normalizeDegrees(currentDegrees);

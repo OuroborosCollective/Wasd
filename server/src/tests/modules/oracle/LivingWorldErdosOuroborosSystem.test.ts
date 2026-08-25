@@ -5,7 +5,7 @@ import {
   type CycleState,
   type AttractorType,
   type WorldEvent,
-} from "../../oracle/LivingWorldErdosOuroborosSystem";
+} from "../../../oracle/LivingWorldErdosOuroborosSystem.js";
 
 describe("LivingWorldErdosOuroborosSystem", () => {
   let system: LivingWorldErdosOuroborosSystem;

@@ -118,22 +118,25 @@ describe("SnapshotRenderBuffer", () => {
       expect(pair?.alpha).toBe(0.5);
     });
 
-    it("clamps alpha for ticks outside range", () => {
+    it("renders the earliest frame fully for target ticks before the buffer range", () => {
       const buffer = new SnapshotRenderBuffer<TestSnapshot>(3);
       buffer.push({ serverTick: 10, label: "a" });
       buffer.push({ serverTick: 20, label: "b" });
 
-      // Target tick 5 is before both frames
+      // Target tick 5 is before both frames, so previous and current collapse
+      // to the earliest known frame.
       const pair = buffer.getRenderPair(5);
-      expect(pair?.alpha).toBe(0);
+      expect(pair?.previous.serverTick).toBe(10);
+      expect(pair?.current.serverTick).toBe(10);
+      expect(pair?.alpha).toBe(1);
     });
 
-    it("clamps alpha for visualAlpha > 1", () => {
+    it("clamps visualAlpha before applying it as an interpolation multiplier", () => {
       const buffer = new SnapshotRenderBuffer<TestSnapshot>(3);
       buffer.push({ serverTick: 10, label: "a" });
       buffer.push({ serverTick: 20, label: "b" });
       const pair = buffer.getRenderPair(15, 2);
-      expect(pair?.alpha).toBe(1);
+      expect(pair?.alpha).toBe(0.5);
     });
 
     it("returns null when frames are in wrong order", () => {

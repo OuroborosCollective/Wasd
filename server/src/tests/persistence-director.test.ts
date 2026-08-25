@@ -50,12 +50,13 @@ vi.mock("../modules/inventory/index.js", () => ({
   inventoryDirector: {
     buildSnapshot: vi.fn().mockReturnValue({
       inventory: {
-        // Hier simulieren wir unsere deterministischen Item-Signaturen
+        // InventoryDirector exposes item objects; PersistenceDirector derives
+        // their canonical signature strings at the persistence boundary.
         slots: [
-          "base:blade_3|hilt_12|mat_iron", // Slot 0: Ein Item
-          "base:potion_1|tier_2",          // Slot 1: Noch ein Item
-          null,                            // Slot 2: Leer
-          null                             // Slot 3: Leer
+          { signature: "base:blade_3|hilt_12|mat_iron" },
+          { signature: "base:potion_1|tier_2" },
+          null,
+          null,
         ],
         maxSlots: 24,
         gold: 150,
@@ -174,8 +175,8 @@ describe("PersistenceDirector", () => {
       expect(snapshot.class).toBe("warrior");
       expect(snapshot.faction).toBe("forest_keepers");
       expect(snapshot.civilization).toBe("elder_grove");
-      expect(snapshot.inventory).toHaveLength(3);
-      expect(snapshot.inventory[0]).toContain("BLADE:iron");
+      expect(snapshot.inventory).toHaveLength(2);
+      expect(snapshot.inventory[0]).toBe("base:blade_3|hilt_12|mat_iron");
       expect(snapshot.equipment.weapon).toContain("BLADE:iron");
       expect(snapshot.equipment.armor).toBeNull();
       expect(snapshot.skills.sword_mastery).toBeDefined();

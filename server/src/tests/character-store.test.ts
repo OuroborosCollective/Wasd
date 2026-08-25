@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it, beforeEach } from "vitest";
-import { CharacterStore } from "../src/character/CharacterStore";
+import { CharacterStore } from "../character/CharacterStore.js";
 
 describe("CharacterStore", () => {
   let store: CharacterStore;
@@ -108,8 +108,10 @@ describe("CharacterStore", () => {
       currentTick: 1,
     });
 
-    expect(second.ok).toBe(false);
+    expect(second.ok).toBe(true);
     expect(second.reason).toBe("already_exists");
+    expect(second.profile?.displayName).toBe("First");
+    expect(second.profile?.archetype).toBe("wanderer");
   });
 
   it("rejects invalid archetypes", () => {

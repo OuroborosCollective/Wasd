@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { NPCMemoryCache, defaultHeuristicWeights } from "../modules/npc/NPCMemoryCache";
 import { ChatChannelRouter } from "../modules/chat/ChatChannelRouter";
-import { onTradeSuccess, onCombatWin, shouldChat } from "../modules/npc/NPCHeuristics";
+import { getHeuristicWeights, onTradeSuccess, onCombatWin, shouldChat } from "../modules/npc/NPCHeuristics";
 import {
   // Types from npc.types.ts
   NPCState,
@@ -26,89 +26,97 @@ import {
 } from "../types/npc.types";
 
 describe("NPCMemoryCache", () => {
-  it("creates default state for unknown NPC", () => {
+  it("returns no memories for an unknown NPC", () => {
     const cache = new NPCMemoryCache();
-    const state = cache.get("npc_test");
-    expect(state.npcId).toBe("npc_test");
-    expect(state.currentGoal).toBe("idle");
-    expect(state.heuristicWeights.aggression).toBe(0.5);
-    expect(state.dirty).toBe(false);
+    expect(cache.get("npc_test")).toEqual([]);
+    expect(cache.getBufferSize()).toBe(0);
   });
 
-  it("tracks observations and marks dirty", () => {
+  it("tracks observations in the write buffer", () => {
     const cache = new NPCMemoryCache();
     cache.observe("npc_1", "Saw a player nearby");
-    const s = cache.get("npc_1");
-    expect(s.shortTermObservations).toHaveLength(1);
-    expect(s.dirty).toBe(true);
+    const memories = cache.get("npc_1");
+
+    expect(memories).toHaveLength(1);
+    expect(memories[0]).toMatchObject({ npcId: "npc_1", content: "Saw a player nearby", tags: ["observation"] });
+    expect(cache.getDirtyEntries()).toEqual([{ npcId: "npc_1" }]);
   });
 
-  it("records chat messages", () => {
+  it("records chat messages as typed memories", () => {
     const cache = new NPCMemoryCache();
-    cache.recordChat("npc_1", { text: "Hello", sender: "Player1", channel: "local", ts: Date.now() });
-    expect(cache.get("npc_1").recentChatSeen).toHaveLength(1);
-  });
+    cache.recordChat("npc_1", { text: "Hello", sender: "Player1", channel: "local", ts: 42 });
 
-  it("enforces cooldown", () => {
-    const cache = new NPCMemoryCache();
-    expect(cache.checkCooldown("npc_1", "chat", 5000)).toBe(true);
-    expect(cache.checkCooldown("npc_1", "chat", 5000)).toBe(false);
-  });
-
-  it("hydrates from Supabase data", () => {
-    const cache = new NPCMemoryCache();
-    cache.hydrate("npc_1", {
-      heuristicWeights: { aggression: 0.8, tradeWillingness: 0.9, partySeeking: 0.1, chatFrequency: 0.6, fleeThreshold: 0.2 },
-      longTermGoals: ["guard_village"],
-      tradeHistory: [{ itemId: "sword", price: 100, success: true, ts: 1 }],
+    expect(cache.get("npc_1")[0]).toMatchObject({
+      content: "[local] Player1: Hello",
+      timestamp: 42,
+      tags: ["chat", "local"],
     });
-    const s = cache.get("npc_1");
-    expect(s.heuristicWeights.aggression).toBe(0.8);
-    expect(s.longTermGoals).toContain("guard_village");
-    expect(s.tradeHistory).toHaveLength(1);
-    expect(s.dirty).toBe(false);
   });
 
-  it("updates reputation", () => {
+  it("returns deterministic memory events", () => {
     const cache = new NPCMemoryCache();
-    cache.updateReputation("npc_1", "player_a", 10);
-    cache.updateReputation("npc_1", "player_a", 5);
-    const rep = cache.get("npc_1").reputation.find(r => r.playerId === "player_a");
-    expect(rep?.score).toBe(15);
+    cache.recordChat("npc_1", { text: "Hello", sender: "Player1", channel: "local", ts: 42 });
+
+    expect(cache.getEvents("npc_1")).toEqual([
+      expect.objectContaining({ npcId: "npc_1", timestamp: 42, kind: "chat" }),
+    ]);
   });
 
-  it("returns dirty entries", () => {
+  it("hydrates persisted memory snapshots", () => {
+    const cache = new NPCMemoryCache();
+    cache.hydrate({
+      memories: [{
+        id: "persisted-1",
+        npcId: "npc_1",
+        content: "Guarded the village",
+        importance: 3,
+        timestamp: 7,
+        tags: ["goal", "guard"],
+        persistent: true,
+      }],
+    });
+
+    expect(cache.get("npc_1")).toEqual([
+      expect.objectContaining({ id: "persisted-1", persistent: true, tags: ["goal", "guard"] }),
+    ]);
+    expect(cache.getDirtyEntries()).toEqual([]);
+  });
+
+  it("adds deterministic goal memories", () => {
+    const cache = new NPCMemoryCache();
+    cache.setGoal("npc_1", "guard_village");
+
+    expect(cache.get("npc_1")[0]).toMatchObject({ content: "guard_village", importance: 2, tags: ["goal"] });
+  });
+
+  it("marks and clears dirty entries after saving", () => {
     const cache = new NPCMemoryCache();
     cache.observe("npc_1", "test");
-    cache.get("npc_2"); // not dirty
-    expect(cache.getDirtyEntries()).toHaveLength(1);
-    expect(cache.getDirtyEntries()[0].npcId).toBe("npc_1");
+    cache.markSaved("npc_1");
+
+    expect(cache.getDirtyEntries()).toEqual([]);
+    expect(cache.get("npc_1")[0]?.persistent).toBe(true);
   });
 });
 
 describe("NPCHeuristics", () => {
   it("increases tradeWillingness on successful trade", () => {
     const cache = new NPCMemoryCache();
-    const before = cache.get("npc_1").heuristicWeights.tradeWillingness;
+    const before = getHeuristicWeights(cache, "npc_1").tradeWillingness;
     onTradeSuccess(cache, "npc_1");
-    expect(cache.get("npc_1").heuristicWeights.tradeWillingness).toBeGreaterThan(before);
+    expect(getHeuristicWeights(cache, "npc_1").tradeWillingness).toBeGreaterThan(before);
   });
 
   it("increases aggression on combat win", () => {
     const cache = new NPCMemoryCache();
-    const before = cache.get("npc_1").heuristicWeights.aggression;
+    const before = getHeuristicWeights(cache, "npc_1").aggression;
     onCombatWin(cache, "npc_1");
-    expect(cache.get("npc_1").heuristicWeights.aggression).toBeGreaterThan(before);
+    expect(getHeuristicWeights(cache, "npc_1").aggression).toBeGreaterThan(before);
   });
 
-  it("shouldChat is probabilistic (does not always fire)", () => {
+  it("shouldChat is deterministic for a fixed seed", () => {
     const cache = new NPCMemoryCache();
-    let trueCount = 0;
-    for (let i = 0; i < 100; i++) {
-      if (shouldChat(cache, "npc_1")) trueCount++;
-    }
-    expect(trueCount).toBeGreaterThanOrEqual(0);
-    expect(trueCount).toBeLessThan(100);
+    expect(shouldChat(cache, "npc_1", "seed-1")).toBe(shouldChat(cache, "npc_1", "seed-1"));
   });
 });
 

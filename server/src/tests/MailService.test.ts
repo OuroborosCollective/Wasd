@@ -26,12 +26,9 @@ describe("MailService", () => {
     expect(msg.body).toBe("Message body here");
   });
 
-  it("send() includes a createdAt timestamp", () => {
-    const before = Date.now();
+  it("send() uses the deterministic zero createdAt value", () => {
     const msg = mail.send("a", "b", "s", "b");
-    const after = Date.now();
-    expect(msg.createdAt).toBeGreaterThanOrEqual(before);
-    expect(msg.createdAt).toBeLessThanOrEqual(after);
+    expect(msg.createdAt).toBe(0);
   });
 
   it("inbox() returns empty array for player with no mail", () => {
@@ -79,11 +76,8 @@ describe("MailService", () => {
     expect(msg.body).toBe("Message body here");
   });
 
-  it("sendMail() includes a createdAt timestamp", async () => {
-    const before = Date.now();
+  it("sendMail() uses the deterministic zero createdAt value", async () => {
     const msg = await mail.sendMail("b", "s", "b");
-    const after = Date.now();
-    expect(msg.createdAt).toBeGreaterThanOrEqual(before);
-    expect(msg.createdAt).toBeLessThanOrEqual(after);
+    expect(msg.createdAt).toBe(0);
   });
 });

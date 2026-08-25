@@ -97,7 +97,7 @@ describe("LiveHeal v2", () => {
       const sm = createStateMachine("test");
       transition(sm, "health_degraded", "test");
       transition(sm, "heal_started", "locking");
-      sm.healingStartedAt = Date.now() - 120_000;
+      sm.healingStartedAt = -120_000;
       expect(isHealingTimedOut(sm, 60_000)).toBe(true);
     });
 

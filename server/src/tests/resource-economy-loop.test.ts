@@ -68,27 +68,17 @@ function nearStation(stationId: string) {
 // Helper to create a mock inventory service with pre-populated items
 function createMockInventoryService(initialItems?: Array<{ playerId: string; itemId: string; quantity: number }>) {
   const inventoryStore = new InventoryStore();
-  const inventoryService = new InventoryService(inventoryStore, mockInventoryPersistence);
-  
-  if (initialItems) {
-    for (const item of initialItems) {
-      inventoryService.addItemSync = (input: { playerId: string; itemId: string; quantity: number }) => {
-        const slot = inventoryStore.getSlot(input.playerId, input.itemId);
-        const newQuantity = (slot?.quantity ?? 0) + input.quantity;
-        inventoryStore.setSlot(input.playerId, { itemId: input.itemId, quantity: newQuantity });
-        return { ok: true, quantity: newQuantity };
-      };
-    }
+  for (const item of initialItems ?? []) {
+    inventoryStore.addItem(item);
   }
-  
-  return inventoryService;
+  return new InventoryService(inventoryStore, mockInventoryPersistence);
 }
 
 // Mock wallet service
 function createMockWalletService() {
   const walletStore = new WalletStore();
   return {
-    getWallet: (playerId: string) => walletStore.getWallet(playerId),
+    getWallet: async (playerId: string) => walletStore.getWallet(playerId),
     addCoins: async (input: { playerId: string; amount: number }) => {
       const state = walletStore.getWallet(input.playerId);
       const normalized = Math.max(0, Math.floor(Number(input.amount)));
@@ -97,6 +87,9 @@ function createMockWalletService() {
       return next;
     },
     hydratePlayer: async () => {},
+    restoreWallet: async (playerId: string, wallet: any) => {
+      walletStore.wallets.set(playerId, wallet);
+    },
   };
 }
 
@@ -104,22 +97,57 @@ function createMockWalletService() {
 function createMockSkillService() {
   const skillStore = new SkillProgressionStore();
   return {
-    getPlayerSkillState: async (playerId: string) => {
-      const state = skillStore.getPlayerSkills(playerId);
-      return { skills: state, playerId };
-    },
-    applyEvent: async (event: any) => {
-      // Simple mock - just track that event was called
-    },
+    getPlayerSkillState: async (playerId: string) => skillStore.getPlayerSkillState(playerId),
+    applyEvent: async (event: any) => skillStore.applyEvent(event),
     hydratePlayer: async () => {},
+    restorePlayerSkillState: async (playerId: string, state: any) => {
+      skillStore.replacePlayerSkillState(playerId, state);
+    },
+  };
+}
+
+function createMockCraftingReceiptPersistence() {
+  const receipts = new Map<string, any>();
+  return {
+    loadReceipt: async (operationId: string) => receipts.get(operationId) ?? null,
+    saveReceipt: async (receipt: any) => {
+      receipts.set(receipt.operationId, receipt);
+    },
+    deleteReceipt: async (operationId: string) => {
+      receipts.delete(operationId);
+    },
   };
 }
 
 // Mock vendor stock service
 function createMockVendorStockService() {
+  const states = new Map<string, { vendorId: string; schemaVersion: 1; items: Record<string, number> }>();
+  const getState = (vendorId: string) => {
+    const current = states.get(vendorId) ?? { vendorId, schemaVersion: 1 as const, items: {} };
+    states.set(vendorId, current);
+    return current;
+  };
+  const snapshot = (state: { vendorId: string; schemaVersion: 1; items: Record<string, number> }) =>
+    Object.freeze({ vendorId: state.vendorId, schemaVersion: 1 as const, items: Object.freeze({ ...state.items }) });
+
   return {
-    getItemQuantity: async () => 0,
-    adjustStock: async () => {},
+    getStock: async (vendorId: string) => snapshot(getState(vendorId)),
+    getItemQuantity: async (vendorId: string, itemId: string) => getState(vendorId).items[itemId] ?? 0,
+    addItems: async (vendorId: string, itemId: string, quantity: number) => {
+      const state = getState(vendorId);
+      state.items[itemId] = (state.items[itemId] ?? 0) + quantity;
+      return snapshot(state);
+    },
+    removeItems: async (vendorId: string, itemId: string, quantity: number) => {
+      const state = getState(vendorId);
+      const current = state.items[itemId] ?? 0;
+      if (current < quantity) return null;
+      state.items[itemId] = current - quantity;
+      return snapshot(state);
+    },
+    restoreStock: async (vendorId: string, state: { items: Record<string, number> }) => {
+      states.set(vendorId, { vendorId, schemaVersion: 1, items: { ...state.items } });
+    },
   };
 }
 
@@ -138,17 +166,21 @@ describe("Resource Economy Loop", () => {
   describe("GatheringService", () => {
     let gatheringService: GatheringService;
     let inventoryService: InventoryService;
+    let resourceNodeStore: ResourceNodeStore;
+    let skillService: ReturnType<typeof createMockSkillService>;
+    let equipmentService: ReturnType<typeof createMockEquipmentService>;
     
     beforeEach(async () => {
       const inventoryStore = new InventoryStore();
       inventoryService = new InventoryService(inventoryStore, mockInventoryPersistence);
-      const resourceNodeStore = new ResourceNodeStore(STARTER_RESOURCE_NODES);
-      gatheringService = new GatheringService(resourceNodeStore);
-      
-      // Inject dependencies via closures or test hooks
-      (gatheringService as any)._inventoryService = inventoryService;
-      (gatheringService as any)._skillService = createMockSkillService();
-      (gatheringService as any)._equipmentService = createMockEquipmentService();
+      resourceNodeStore = new ResourceNodeStore(STARTER_RESOURCE_NODES);
+      skillService = createMockSkillService();
+      equipmentService = createMockEquipmentService();
+      gatheringService = new GatheringService(resourceNodeStore, undefined, {
+        getInventoryService: async () => inventoryService,
+        getSkillService: async () => skillService as any,
+        equipment: equipmentService as any,
+      });
     });
 
     it("should add gathered item to inventory", async () => {
@@ -216,7 +248,11 @@ describe("Resource Economy Loop", () => {
         { slotId: "woodcutting_tool", itemId: "copper_axe" },
       ]);
       
-      (gatheringService as any)._equipmentService = equipmentService;
+      gatheringService = new GatheringService(resourceNodeStore, undefined, {
+        getInventoryService: async () => inventoryService,
+        getSkillService: async () => skillService as any,
+        equipment: equipmentService as any,
+      });
       
       const result = await gatheringService.gather({
         playerId: "player1",
@@ -260,15 +296,15 @@ describe("Resource Economy Loop", () => {
       inventoryService = new InventoryService(inventoryStore, mockInventoryPersistence);
       
       // Add required ingredients for crafting tests
-      inventoryStore.setSlot("player1", { itemId: "wood_log", quantity: 4 });
-      inventoryStore.setSlot("player1", { itemId: "copper_ore", quantity: 4 });
-      inventoryStore.setSlot("player1", { itemId: "raw_fish", quantity: 2 });
+      inventoryStore.addItem({ playerId: "player1", itemId: "wood_log", quantity: 4 });
+      inventoryStore.addItem({ playerId: "player1", itemId: "raw_fish", quantity: 2 });
       
       craftingService = new CraftingService(ALL_CRAFTING_RECIPES);
       
       // Inject dependencies
       (craftingService as any)._inventoryService = inventoryService;
       (craftingService as any)._skillService = createMockSkillService();
+      (craftingService as any)._receiptPersistence = createMockCraftingReceiptPersistence();
     });
 
     it("should craft wood_plank successfully with workbench", async () => {
@@ -280,6 +316,8 @@ describe("Resource Economy Loop", () => {
         recipeId: "craft_wood_plank",
         playerPosition: { x: station!.position.x, y: station!.position.y },
         stationId: station!.id,
+        currentTick: 100,
+        operationId: "craft:wood-plank:success",
       });
 
       expect(result.ok).toBe(true);
@@ -295,14 +333,16 @@ describe("Resource Economy Loop", () => {
     });
 
     it("should fail craft when missing ingredients", async () => {
-      const station = STARTER_PROCESSING_STATIONS.find(s => s.type === "workbench");
+      const station = STARTER_PROCESSING_STATIONS.find(s => s.type === "furnace");
       
-      // Player doesn't have copper_ingot
+      // Player does not have enough copper ore for this furnace recipe.
       const result = await craftingService.craft({
         playerId: "player1",
         recipeId: "smelt_copper_ingot",
         playerPosition: { x: station!.position.x, y: station!.position.y },
         stationId: station!.id,
+        currentTick: 100,
+        operationId: "craft:copper-ingot:missing",
       });
 
       expect(result.ok).toBe(false);
@@ -314,6 +354,8 @@ describe("Resource Economy Loop", () => {
         playerId: "player1",
         recipeId: "craft_wood_plank",
         playerPosition: { x: 0, y: 0 }, // Far from workbench
+        currentTick: 100,
+        operationId: "craft:wood-plank:far",
       });
 
       expect(result.ok).toBe(false);
@@ -333,6 +375,8 @@ describe("Resource Economy Loop", () => {
         playerId: "player1",
         recipeId: "nonexistent_recipe",
         playerPosition: { x: station!.position.x, y: station!.position.y },
+        currentTick: 100,
+        operationId: "craft:missing-recipe",
       });
 
       expect(result.ok).toBe(false);
@@ -356,6 +400,8 @@ describe("Resource Economy Loop", () => {
         recipeId: "craft_wood_plank",
         playerPosition: { x: station!.position.x, y: station!.position.y },
         stationId: station!.id,
+        currentTick: 100,
+        operationId: "craft:wood-plank:consume",
       });
 
       // Verify wood_log was consumed (2 wood_log per craft_wood_plank)
@@ -369,16 +415,17 @@ describe("Resource Economy Loop", () => {
     let economyService: EconomyService;
     let inventoryService: InventoryService;
     let walletStore: WalletStore;
+    let inventoryStore: InventoryStore;
 
     beforeEach(() => {
-      const inventoryStore = new InventoryStore();
+      inventoryStore = new InventoryStore();
       inventoryService = new InventoryService(inventoryStore, mockInventoryPersistence);
       walletStore = new WalletStore();
       
       economyService = new EconomyService(
         inventoryService,
         {
-          getWallet: (playerId: string) => walletStore.getWallet(playerId),
+          getWallet: async (playerId: string) => walletStore.getWallet(playerId),
           addCoins: async (input: { playerId: string; amount: number }) => {
             const state = walletStore.getWallet(input.playerId);
             const normalized = Math.max(0, Math.floor(Number(input.amount)));
@@ -387,6 +434,9 @@ describe("Resource Economy Loop", () => {
             return next;
           },
           hydratePlayer: async () => {},
+    restoreWallet: async (playerId: string, wallet: any) => {
+      walletStore.wallets.set(playerId, wallet);
+    },
         } as any,
         createMockVendorStockService() as any
       );
@@ -394,13 +444,14 @@ describe("Resource Economy Loop", () => {
 
     it("should sell resource successfully when near vendor", async () => {
       // Add wood_log to inventory
-      inventoryStore.setSlot("player1", { itemId: "wood_log", quantity: 5 });
+      inventoryStore.addItem({ playerId: "player1", itemId: "wood_log", quantity: 5 });
 
       const result = await economyService.sellResource({
         playerId: "player1",
         itemId: "wood_log",
         quantity: 3,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(true);
@@ -416,13 +467,14 @@ describe("Resource Economy Loop", () => {
     });
 
     it("should fail when vendor too far", async () => {
-      inventoryStore.setSlot("player1", { itemId: "wood_log", quantity: 5 });
+      inventoryStore.addItem({ playerId: "player1", itemId: "wood_log", quantity: 5 });
 
       const result = await economyService.sellResource({
         playerId: "player1",
         itemId: "wood_log",
         quantity: 3,
         playerPosition: farVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(false);
@@ -431,7 +483,7 @@ describe("Resource Economy Loop", () => {
 
     it("should not mutate inventory on sell failure", async () => {
       // Add 1 wood_log
-      inventoryStore.setSlot("player1", { itemId: "wood_log", quantity: 1 });
+      inventoryStore.addItem({ playerId: "player1", itemId: "wood_log", quantity: 1 });
 
       // Try to sell 5 (more than available)
       const result = await economyService.sellResource({
@@ -439,6 +491,7 @@ describe("Resource Economy Loop", () => {
         itemId: "wood_log",
         quantity: 5,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(false);
@@ -451,7 +504,7 @@ describe("Resource Economy Loop", () => {
 
     it("should not mutate wallet on sell failure", async () => {
       // Add wood_log
-      inventoryStore.setSlot("player1", { itemId: "wood_log", quantity: 1 });
+      inventoryStore.addItem({ playerId: "player1", itemId: "wood_log", quantity: 1 });
 
       // Get initial wallet
       const initialWallet = walletStore.getWallet("player1");
@@ -463,6 +516,7 @@ describe("Resource Economy Loop", () => {
         itemId: "wood_log",
         quantity: 1,
         playerPosition: farVendorPosition(),
+        currentTick: 100,
       });
 
       // Verify wallet unchanged
@@ -472,13 +526,14 @@ describe("Resource Economy Loop", () => {
 
     it("should sell processed resources for higher price", async () => {
       // Add wood_plank to inventory (processed, worth 3 coins)
-      inventoryStore.setSlot("player1", { itemId: "wood_plank", quantity: 2 });
+      inventoryStore.addItem({ playerId: "player1", itemId: "wood_plank", quantity: 2 });
 
       const result = await economyService.sellResource({
         playerId: "player1",
         itemId: "wood_plank",
         quantity: 2,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(true);
@@ -488,13 +543,14 @@ describe("Resource Economy Loop", () => {
 
     it("should sell raw fish for base price", async () => {
       // Add raw_fish to inventory (worth 2 coins)
-      inventoryStore.setSlot("player1", { itemId: "raw_fish", quantity: 3 });
+      inventoryStore.addItem({ playerId: "player1", itemId: "raw_fish", quantity: 3 });
 
       const result = await economyService.sellResource({
         playerId: "player1",
         itemId: "raw_fish",
         quantity: 3,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(true);
@@ -508,6 +564,7 @@ describe("Resource Economy Loop", () => {
         itemId: "wood_log",
         quantity: 1,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(false);
@@ -515,13 +572,14 @@ describe("Resource Economy Loop", () => {
     });
 
     it("should fail for invalid quantity", async () => {
-      inventoryStore.setSlot("player1", { itemId: "wood_log", quantity: 5 });
+      inventoryStore.addItem({ playerId: "player1", itemId: "wood_log", quantity: 5 });
 
       const result = await economyService.sellResource({
         playerId: "player1",
         itemId: "wood_log",
         quantity: 0,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(false);
