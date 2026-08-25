@@ -51,4 +51,61 @@ describe("selectAttackTarget", () => {
   it("npcIsCombatThreat is true for hostile", () => {
     expect(npcIsCombatThreat(wolf)).toBe(true);
   });
+
+  it("benchmarks fast relational string comparison vs localeCompare for target selection sorting", () => {
+    const generateCandidates = (count: number) => {
+      const arr = [];
+      for (let i = 0; i < count; i++) {
+        arr.push({
+          id: `tgt_monster_${String(i % 100).padStart(3, "0")}_${String(1000 + i).padStart(5, "0")}`,
+          idHash: 12345,
+          distance: 10,
+          spawnHash: 1,
+        });
+      }
+      return arr;
+    };
+
+    const count = 5000;
+    const iterations = 50;
+
+    let totalLocaleTime = 0;
+    let totalDirectTime = 0;
+
+    for (let iter = 0; iter < iterations; iter++) {
+      const candidatesForLocale = generateCandidates(count);
+      const candidatesForDirect = generateCandidates(count);
+
+      // 1. Benchmark localeCompare sorting
+      const t0 = performance.now(); // ARE-DETERMINISM-ALLOW
+      candidatesForLocale.sort((a, b) =>
+        a.distance - b.distance ||
+        a.idHash - b.idHash ||
+        (a.spawnHash ?? 0) - (b.spawnHash ?? 0) ||
+        a.id.localeCompare(b.id)
+      );
+      totalLocaleTime += performance.now() - t0; // ARE-DETERMINISM-ALLOW
+
+      // 2. Benchmark relational comparison sorting
+      const t1 = performance.now(); // ARE-DETERMINISM-ALLOW
+      candidatesForDirect.sort((a, b) =>
+        a.distance - b.distance ||
+        a.idHash - b.idHash ||
+        (a.spawnHash ?? 0) - (b.spawnHash ?? 0) ||
+        (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+      );
+      totalDirectTime += performance.now() - t1; // ARE-DETERMINISM-ALLOW
+    }
+
+    const avgLocaleTime = totalLocaleTime / iterations;
+    const avgDirectTime = totalDirectTime / iterations;
+    const speedup = avgLocaleTime / avgDirectTime;
+
+    console.log(`\n⚡ StableTargetSelection Sorting Benchmark (${count} items, ${iterations} iterations avg):`);
+    console.log(`  - localeCompare sort avg:    ${avgLocaleTime.toFixed(4)}ms`);
+    console.log(`  - Direct comparison sort avg: ${avgDirectTime.toFixed(4)}ms`);
+    console.log(`  - Speedup factor:             ${speedup.toFixed(2)}x faster\n`);
+
+    expect(speedup).toBeGreaterThan(1.0);
+  });
 });
