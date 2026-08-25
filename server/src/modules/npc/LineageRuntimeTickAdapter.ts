@@ -173,7 +173,6 @@ export function adaptSelectionsToCandidates(input: LineageTickAdapterInput): Lin
     const house = housesById.get(selection.houseId);
     const settlement = settlementsById.get(selection.settlementId);
 
-    const resolved = firstActor && secondActor && house && settlement;
     let reason: string | undefined;
 
     if (!firstActor) reason = 'first_actor_not_found';
@@ -185,7 +184,7 @@ export function adaptSelectionsToCandidates(input: LineageTickAdapterInput): Lin
 
     const resolution: SelectionResolution = {
       selection,
-      resolved: !!resolved,
+      resolved: reason === undefined,
       firstActor,
       secondActor,
       house,

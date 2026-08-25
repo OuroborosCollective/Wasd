@@ -1,60 +1,66 @@
-import { describe, expect, it } from 'vitest';
-import { HeuristicGoalPruner } from '../modules/npc/HeuristicGoalPruner';
+import { describe, expect, it } from "vitest";
+import { HeuristicGoalPruner } from "../modules/npc/HeuristicGoalPruner";
 
-describe('HeuristicGoalPruner', () => {
-  it('keeps all goals below the echo threshold and returns a new array', () => {
+describe("HeuristicGoalPruner", () => {
+  it("keeps all goals below the echo threshold and returns an isolated result array", () => {
     const pruner = new HeuristicGoalPruner();
     const goals = [
-      { id: 'walk', isCritical: false },
-      { id: 'defend', isCritical: true },
+      { id: "walk", isCritical: false, priority: 20 },
+      { id: "defend", isCritical: true, priority: 80 },
     ];
 
-    const pruned = pruner.prune(goals, 0.5);
+    const result = pruner.prune(goals, { tick: 10, echoIntensity: 0.5, maxGoals: 2 });
 
-    expect(pruned).toHaveLength(2);
-    expect(pruned).toEqual(goals);
-    expect(pruned).not.toBe(goals);
+    expect(result.kept).toHaveLength(2);
+    expect(result.kept).toEqual([
+      { id: "defend", isCritical: true, priority: 80 },
+      { id: "walk", isCritical: false, priority: 20 },
+    ]);
+    expect(result.kept).not.toBe(goals);
+    expect(result.removed).toEqual([]);
   });
 
-  it('reduces goals to critical goals at or above the echo threshold', () => {
+  it("reduces goals to critical goals at or above the echo threshold", () => {
     const pruner = new HeuristicGoalPruner();
     const goals = [
-      { id: 'walk', isCritical: false },
-      { id: 'defend', isCritical: true },
-      { id: 'celebrate', isCritical: false },
+      { id: "walk", isCritical: false, priority: 20 },
+      { id: "defend", isCritical: true, priority: 80 },
+      { id: "celebrate", isCritical: false, priority: 10 },
     ];
 
-    const pruned = pruner.prune(goals, 0.8);
+    const result = pruner.prune(goals, { tick: 10, echoIntensity: 0.8, maxGoals: 3 });
 
-    expect(pruned).toEqual([{ id: 'defend', isCritical: true }]);
+    expect(result.kept).toEqual([{ id: "defend", isCritical: true, priority: 80 }]);
+    expect(result.removed.map((entry) => entry.reason)).toEqual(["echo_non_critical", "echo_non_critical"]);
   });
 
-  it('treats invalid goal input and invalid echo intensity deterministically', () => {
+  it("treats invalid goal input deterministically", () => {
     const pruner = new HeuristicGoalPruner();
 
-    expect(pruner.prune(null, Number.NaN)).toEqual([]);
-    expect(pruner.prune(undefined, Number.POSITIVE_INFINITY)).toEqual([]);
+    expect(pruner.prune(null, { tick: 0, maxGoals: 3 })).toEqual({ kept: [], removed: [] });
+    expect(pruner.prune(undefined, { tick: 0, maxGoals: 3 })).toEqual({ kept: [], removed: [] });
   });
 
-  it('uses squared distance checks without mutating positions', () => {
-    const pruner = new HeuristicGoalPruner({ scanRadius: 40 });
+  it("uses squared distance checks without mutating positions", () => {
     const origin = { x: 0, y: 0 };
     const near = { x: 24, y: 31 };
     const far = { x: 40, y: 0 };
 
-    expect(pruner.isTargetInRange(origin, near)).toBe(true);
-    expect(pruner.isTargetInRange(origin, far)).toBe(false);
+    expect(HeuristicGoalPruner.isWithinRadius(origin.x, origin.y, near.x, near.y, 40)).toBe(true);
+    expect(HeuristicGoalPruner.isWithinRadius(origin.x, origin.y, far.x, far.y, 40)).toBe(false);
     expect(origin).toEqual({ x: 0, y: 0 });
   });
 
-  it('supports custom thresholds deterministically', () => {
-    const pruner = new HeuristicGoalPruner({ echoThreshold: 0.25 });
+  it("applies the echo threshold from the explicit deterministic context", () => {
+    const pruner = new HeuristicGoalPruner();
     const goals = [
-      { id: 'idle', isCritical: false },
-      { id: 'guard', isCritical: true },
+      { id: "idle", isCritical: false, priority: 20 },
+      { id: "guard", isCritical: true, priority: 80 },
     ];
 
-    expect(pruner.prune(goals, 0.24)).toHaveLength(2);
-    expect(pruner.prune(goals, 0.25)).toEqual([{ id: 'guard', isCritical: true }]);
+    expect(pruner.prune(goals, { tick: 1, echoIntensity: 0.69, maxGoals: 2 }).kept).toHaveLength(2);
+    expect(pruner.prune(goals, { tick: 1, echoIntensity: 0.7, maxGoals: 2 }).kept).toEqual([
+      { id: "guard", isCritical: true, priority: 80 },
+    ]);
   });
 });

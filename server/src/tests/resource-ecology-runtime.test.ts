@@ -134,14 +134,14 @@ describe("ResourceEcology runtime", () => {
   });
 
   it("uses collapse threshold to reduce regeneration", () => {
-    const collapsed = createService(configWithTreeInitialStock(1000));
+    const collapsed = createService(configWithTreeInitialStock(500));
     const healthy = createService(configWithTreeInitialStock(2000));
 
     const collapsedSnapshot = collapsed.getNodeSnapshot("tree_a", 10);
     const healthySnapshot = healthy.getNodeSnapshot("tree_a", 10);
 
     expect(collapsedSnapshot?.collapseActive).toBe(true);
-    expect(collapsedSnapshot?.currentStock).toBe(1250);
+    expect(collapsedSnapshot?.currentStock).toBe(750);
     expect(healthySnapshot?.collapseActive).toBe(false);
     expect(healthySnapshot?.currentStock).toBe(3000);
   });

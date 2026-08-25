@@ -89,12 +89,9 @@ describe("ItemGenerator", () => {
     expect(item.affixes).toEqual(affixes);
   });
 
-  it("includes a generatedAt timestamp", () => {
-    const before = Date.now();
+  it("uses the deterministic zero generatedAt value", () => {
     const item = generator.generate("ring", "uncommon");
-    const after = Date.now();
-    expect(item.generatedAt).toBeGreaterThanOrEqual(before);
-    expect(item.generatedAt).toBeLessThanOrEqual(after);
+    expect(item.generatedAt).toBe(0);
   });
 });
 

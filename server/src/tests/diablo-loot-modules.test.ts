@@ -127,8 +127,12 @@ describe("Diablo-style loot modules", () => {
       { id: "b", tags: ["ranged"] },
     ];
     let melee = 0;
+    let sampleIndex = 0;
+    const deterministicRng = {
+      nextFloat: () => (sampleIndex++ % 80) / 80,
+    } as any;
     for (let i = 0; i < 80; i++) {
-      const { base } = smartLootPickBase(bases, ["melee"], { noLegendaryStreak: 0 });
+      const { base } = smartLootPickBase(bases, ["melee"], { noLegendaryStreak: 0 }, deterministicRng);
       if (base.id === "a") melee++;
     }
     expect(melee).toBeGreaterThan(40);

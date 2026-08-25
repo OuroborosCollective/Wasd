@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { publishPlayerPositionBridge, readPlayerPositionBridge } from "./PlayerPositionBridge";
 
@@ -57,7 +58,7 @@ describe("PlayerPositionBridge", () => {
     });
 
     it("returns null for non-finite stored values", () => {
-      sessionStorage.setItem("wasd:2d:player-position:v1", JSON.stringify({ x: NaN, y: 500 }));
+      sessionStorage.setItem("wasd:2d:player-position:v1", '{"x":"NaN","y":500}');
       expect(readPlayerPositionBridge()).toBeNull();
     });
 

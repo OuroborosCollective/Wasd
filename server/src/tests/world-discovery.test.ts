@@ -74,40 +74,13 @@ describe("WorldDiscoveryTypes", () => {
     });
   });
 
-  describe("sorting benchmark", () => {
-    it("should run a benchmark comparing localeCompare vs direct string comparison for discovery sorting", () => {
-      const poiIdsForLocaleCompare: string[] = [];
-      const poiIdsForDirectCompare: string[] = [];
-      for (let i = 0; i < 5000; i++) {
-        const id = `poi:${(i * 17) % 5000}:${(i * 31) % 5000}`;
-        poiIdsForLocaleCompare.push(id);
-        poiIdsForDirectCompare.push(id);
-      }
+  describe("discovery sorting", () => {
+    it("keeps canonical POI IDs in deterministic lexicographic order with the direct comparator", () => {
+      const poiIds = ["poi:2:0", "poi:10:0", "poi:1:0", "poi:1:1"];
+      const directSorted = [...poiIds].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
-      const ITERATIONS = 50;
-
-      const t0 = performance.now();
-      for (let iter = 0; iter < ITERATIONS; iter++) {
-        [...poiIdsForLocaleCompare].sort((a, b) => a.localeCompare(b));
-      }
-      const localeTime = performance.now() - t0;
-
-      const t1 = performance.now();
-      for (let iter = 0; iter < ITERATIONS; iter++) {
-        [...poiIdsForDirectCompare].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-      }
-      const directTime = performance.now() - t1;
-
-      const avgLocale = localeTime / ITERATIONS;
-      const avgDirect = directTime / ITERATIONS;
-      const speedup = avgLocale / avgDirect;
-
-      console.log(`\n⚡ World Discovery Sort Benchmark (5000 items, 50 iterations avg):`);
-      console.log(`  - localeCompare sort avg:    ${avgLocale.toFixed(4)}ms`);
-      console.log(`  - Direct comparison sort avg: ${avgDirect.toFixed(4)}ms`);
-      console.log(`  - Speedup factor:             ${speedup.toFixed(2)}x faster\n`);
-
-      expect(avgDirect).toBeLessThan(avgLocale);
+      expect(directSorted).toEqual(["poi:10:0", "poi:1:0", "poi:1:1", "poi:2:0"]);
+      expect(poiIds).toEqual(["poi:2:0", "poi:10:0", "poi:1:0", "poi:1:1"]);
     });
   });
 

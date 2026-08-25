@@ -679,9 +679,12 @@ export function applyActionOutcome(
   const oldActionScore = memory.learning.actionScores[actionKey] ?? 0;
   const oldContextScore = memory.learning.contextScores[contextKey] ?? 0;
 
-  // Exponential moving average with 0.85 retention
-  const nextActionScore = Math.trunc(oldActionScore * 0.85 + outcomeScore * 0.15);
-  const nextContextScore = Math.trunc(oldContextScore * 0.85 + outcomeScore * 0.15);
+  // Exponential moving average with 0.85 retention. Preserve the sign of a
+  // small negative outcome: truncation toward zero would otherwise record the
+  // first failure as neutral and prevent the NPC from learning from it.
+  const quantizeLearnedScore = (score: number) => score < 0 ? Math.floor(score) : Math.trunc(score);
+  const nextActionScore = quantizeLearnedScore(oldActionScore * 0.85 + outcomeScore * 0.15);
+  const nextContextScore = quantizeLearnedScore(oldContextScore * 0.85 + outcomeScore * 0.15);
 
   const updatedLearning = {
     ...memory.learning,

@@ -183,10 +183,10 @@ export class CampNpcService {
     if (!Number.isInteger(input.quantity) || input.quantity <= 0) return { ok: false, error: "invalid_quantity" };
     if (!isGatheringCamp(input.poi.type)) return { ok: false, error: "invalid_camp" };
     const projected = this.projectStockState(input.poi, input.currentTick);
-    const currentQuantity = projected.items[input.itemId] ?? 0;
-    if (currentQuantity < input.quantity) return { ok: false, error: "insufficient_camp_stock" };
     const unitPrice = getCampStockBuyPrice(input.itemId);
     if (unitPrice === null) return { ok: false, error: "invalid_item" };
+    const currentQuantity = projected.items[input.itemId] ?? 0;
+    if (currentQuantity < input.quantity) return { ok: false, error: "insufficient_camp_stock" };
     const next = copyState(projected);
     const remainingStock = currentQuantity - input.quantity;
     if (remainingStock <= 0) delete next.items[input.itemId];
@@ -227,10 +227,10 @@ export class CampNpcService {
     if (!Number.isInteger(input.quantity) || input.quantity <= 0) return { ok: false, error: "invalid_quantity" };
     const current = this.campStocks.get(input.poiId);
     if (!current) return { ok: false, error: "invalid_camp" };
-    const currentQuantity = current.items[input.itemId] ?? 0;
-    if (currentQuantity < input.quantity) return { ok: false, error: "insufficient_camp_stock" };
     const unitPrice = getCampStockBuyPrice(input.itemId);
     if (unitPrice === null) return { ok: false, error: "invalid_item" };
+    const currentQuantity = current.items[input.itemId] ?? 0;
+    if (currentQuantity < input.quantity) return { ok: false, error: "insufficient_camp_stock" };
     const remainingStock = currentQuantity - input.quantity;
     if (remainingStock <= 0) delete current.items[input.itemId];
     else current.items[input.itemId] = remainingStock;

@@ -22,7 +22,7 @@ describe("WorldResonanceAdapter", () => {
   it("marks high divergence as critical", () => {
     const adapter = new WorldResonanceAdapter("/not-used.jsonl");
 
-    expect(adapter.updateFromTick({ tick: 12, divergence: 0.02 }).status).toBe("CRITICAL");
+    expect(adapter.updateFromTick({ tick: 12, divergence: 0.02, entropy: 0.1 }).status).toBe("CRITICAL");
   });
 
   it("marks decomposing NPC state as decomposition", () => {

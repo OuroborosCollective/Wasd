@@ -118,9 +118,10 @@ describe("SnapshotInterpolation", () => {
       expect(interpolateFacing(10, 350, 0.5)).toBe(0);
     });
 
-    it("handles opposite directions (180 degrees)", () => {
-      expect(interpolateFacing(0, 180, 0.5)).toBe(90);
-      expect(interpolateFacing(90, 270, 0.5)).toBe(180);
+    it("uses the deterministic counter-clockwise tie-break for opposite directions", () => {
+      // The shortest-arc formula maps an exact 180° tie to -180°.
+      expect(interpolateFacing(0, 180, 0.5)).toBe(270);
+      expect(interpolateFacing(90, 270, 0.5)).toBe(0);
     });
 
     it("returns value in [0, 360) range", () => {

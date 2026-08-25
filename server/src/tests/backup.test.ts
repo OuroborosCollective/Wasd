@@ -1,13 +1,25 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { BackupManager } from "../modules/monitoring/BackupManager.js";
-import { exec } from "child_process";
+import { spawn } from "child_process";
 
-// Mock child_process exec
-vi.mock("child_process", () => {
+vi.mock("child_process", () => ({
+  spawn: vi.fn(),
+}));
+
+function createMockChild(input: { code?: number; error?: Error; stderr?: string } = {}) {
+  const { code = 0, error, stderr = "" } = input;
   return {
-    exec: vi.fn((cmd, cb) => cb(null, { stdout: 'mocked', stderr: '' }))
+    stderr: {
+      on: vi.fn((event: string, listener: (chunk: string) => void) => {
+        if (event === "data" && stderr) queueMicrotask(() => listener(stderr));
+      }),
+    },
+    on: vi.fn((event: string, listener: (...args: any[]) => void) => {
+      if (event === "error" && error) queueMicrotask(() => listener(error));
+      if (event === "close" && !error) queueMicrotask(() => listener(code));
+    }),
   };
-});
+}
 
 describe("BackupManager Module", () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -17,10 +29,11 @@ describe("BackupManager Module", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    (spawn as any).mockImplementation(() => createMockChild());
     originalEnv = { ...process.env };
     manager = new BackupManager();
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -34,33 +47,31 @@ describe("BackupManager Module", () => {
       delete process.env.DATABASE_URL;
 
       await expect(manager.createLogicalBackup("test")).rejects.toThrow("DATABASE_URL is not configured.");
-      expect(exec).not.toHaveBeenCalled();
+      expect(spawn).not.toHaveBeenCalled();
     });
 
     it("should execute pg_dump and return backup details on success", async () => {
       process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/db";
-      const timestampBefore = Date.now();
 
       const result = await manager.createLogicalBackup("daily_backup");
 
-      const timestampAfter = Date.now();
-
-      expect(result.label).toBe("daily_backup");
-      expect(result.createdAt).toBeGreaterThanOrEqual(timestampBefore);
-      expect(result.createdAt).toBeLessThanOrEqual(timestampAfter);
-      expect(result.file).toMatch(new RegExp(`^/tmp/backup_daily_backup_${result.createdAt}\\.sql$`));
-
-      expect(exec).toHaveBeenCalledTimes(1);
-      const calledCmd = (exec as any).mock.calls[0][0];
-      expect(calledCmd).toBe(`pg_dump "postgres://user:pass@localhost:5432/db" -F c -f "${result.file}"`);
-
+      expect(result).toEqual({
+        label: "daily_backup",
+        createdAt: 0,
+        file: "/tmp/backup_daily_backup_0.sql",
+      });
+      expect(spawn).toHaveBeenCalledWith(
+        "pg_dump",
+        ["postgres://user:pass@localhost:5432/db", "-F", "c", "-f", result.file],
+        { stdio: ["ignore", "pipe", "pipe"], shell: false },
+      );
       expect(consoleLogSpy).toHaveBeenCalledWith(`Logical backup created successfully at ${result.file}`);
     });
 
-    it("should throw an error and log if exec fails", async () => {
+    it("should throw an error and log if the child process fails", async () => {
       process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/db";
       const mockError = new Error("pg_dump failed");
-      (exec as any).mockImplementationOnce((cmd: string, cb: Function) => cb(mockError));
+      (spawn as any).mockImplementationOnce(() => createMockChild({ error: mockError }));
 
       await expect(manager.createLogicalBackup("failed_backup")).rejects.toThrow("pg_dump failed");
       expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to create logical backup:", mockError);
@@ -72,7 +83,7 @@ describe("BackupManager Module", () => {
       delete process.env.DATABASE_URL;
 
       await expect(manager.restoreLogicalBackup("/tmp/backup.sql")).rejects.toThrow("DATABASE_URL is not configured.");
-      expect(exec).not.toHaveBeenCalled();
+      expect(spawn).not.toHaveBeenCalled();
     });
 
     it("should execute pg_restore and return true on success", async () => {
@@ -82,19 +93,19 @@ describe("BackupManager Module", () => {
       const result = await manager.restoreLogicalBackup(filePath);
 
       expect(result).toBe(true);
-      expect(exec).toHaveBeenCalledTimes(1);
-
-      const calledCmd = (exec as any).mock.calls[0][0];
-      expect(calledCmd).toBe(`pg_restore -d "postgres://user:pass@localhost:5432/db" -c -1 "/tmp/test_restore.sql"`);
-
+      expect(spawn).toHaveBeenCalledWith(
+        "pg_restore",
+        ["-d", "postgres://user:pass@localhost:5432/db", "-c", "-1", filePath],
+        { stdio: ["ignore", "pipe", "pipe"], shell: false },
+      );
       expect(consoleLogSpy).toHaveBeenCalledWith(`Logical backup restored successfully from ${filePath}`);
     });
 
-    it("should throw an error and log if exec fails", async () => {
+    it("should throw an error and log if the child process fails", async () => {
       process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/db";
       const filePath = "/tmp/bad_backup.sql";
       const mockError = new Error("pg_restore failed");
-      (exec as any).mockImplementationOnce((cmd: string, cb: Function) => cb(mockError));
+      (spawn as any).mockImplementationOnce(() => createMockChild({ error: mockError }));
 
       await expect(manager.restoreLogicalBackup(filePath)).rejects.toThrow("pg_restore failed");
       expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to restore logical backup:", mockError);

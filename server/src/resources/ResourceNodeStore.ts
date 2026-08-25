@@ -248,6 +248,14 @@ export class ResourceNodeStore {
     };
   }
 
+  /** Reset mutable node and player momentum state for isolated deterministic tests. */
+  clearForTests(): void {
+    for (const nodeId of this.definitions.keys()) {
+      this.runtime.set(nodeId, defaultRuntimeState(nodeId));
+    }
+    this.gatheringMomentumByPlayer.clear();
+  }
+
   private createSnapshot(
     definition: ResourceNodeDefinition,
     state: ResourceNodeRuntimeState,

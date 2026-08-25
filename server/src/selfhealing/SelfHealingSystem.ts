@@ -197,8 +197,9 @@ export class SelfHealingSystem extends EventEmitter {
         const currentCost = this.auditMap.get(filePath) || 0;
         if (currentCost >= MAX_COST_UNITS) return false;
 
-        const fd = fs.openSync(filePath, "r+");
+        let fd: number | null = null;
         try {
+            fd = fs.openSync(filePath, "r+");
             // Phase 1: O(1) Context Check
             const checkBuffer = Buffer.alloc(WINDOW_SIZE);
             const bytesRead = fs.readSync(fd, checkBuffer, 0, WINDOW_SIZE, pos);
@@ -228,7 +229,7 @@ export class SelfHealingSystem extends EventEmitter {
         } catch (error) {
             return false;
         } finally {
-            fs.closeSync(fd);
+            if (fd !== null) fs.closeSync(fd);
         }
     }
 

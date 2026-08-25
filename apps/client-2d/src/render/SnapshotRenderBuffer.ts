@@ -197,6 +197,12 @@ export class SnapshotRenderBuffer<TSnapshot = unknown> {
     const targetTick = normalizeTick(renderTick);
     if (targetTick === null || this.frames.length === 0) return null;
 
+    for (let index = 1; index < this.frames.length; index += 1) {
+      if (Number(this.frames[index - 1]!.serverTick) > Number(this.frames[index]!.serverTick)) {
+        return null;
+      }
+    }
+
     let previous = this.frames[0];
     let current = this.frames[this.frames.length - 1];
 

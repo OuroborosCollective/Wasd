@@ -17,13 +17,14 @@ function makeClientRoot(): string {
 }
 
 function makeTick() {
+  const stateHash = "a".repeat(64);
   return {
     tickCount: 44,
     getSpatialBroadcastStats: () => ({ chunkCount: 3, entityCount: 7 }),
-    getWorldHashSnapshot: () => ({ tick: 44, worldHash: "hash_44", chunkCount: 3, entityCount: 7, timestamp: 44 }),
+    getWorldHashSnapshot: () => ({ tick: 44, worldHash: stateHash, chunkCount: 3, entityCount: 7, timestamp: 44 }),
     getReplayRecorderStats: () => ({ recordedTicks: 44, replayBufferSize: 4 }),
     getManifestManager: () => ({
-      getLastStateHash: () => "hash_44",
+      getLastStateHash: () => stateHash,
       getLastSnapshotTick: () => 44,
       getReplayGuard: () => ({ getHighestTick: () => 44, getNonceCount: () => 0 }),
     }),

@@ -111,12 +111,9 @@ describe("PartySystem", () => {
     expect(p.members).toEqual(["leader1"]);
   });
 
-  it("createParty() includes a createdAt timestamp", () => {
-    const before = Date.now();
+  it("createParty() uses the deterministic zero createdAt value", () => {
     const p = party.createParty("leader1");
-    const after = Date.now();
-    expect(p.createdAt).toBeGreaterThanOrEqual(before);
-    expect(p.createdAt).toBeLessThanOrEqual(after);
+    expect(p.createdAt).toBe(0);
   });
 
   it("createParty() creates separate party objects each call", () => {
@@ -146,12 +143,9 @@ describe("GroupFinder", () => {
     expect(listing.activity).toBe("pvp");
   });
 
-  it("createListing() includes a createdAt timestamp", () => {
-    const before = Date.now();
+  it("createListing() uses the deterministic zero createdAt value", () => {
     const listing = groupFinder.createListing("p1", "raid");
-    const after = Date.now();
-    expect(listing.createdAt).toBeGreaterThanOrEqual(before);
-    expect(listing.createdAt).toBeLessThanOrEqual(after);
+    expect(listing.createdAt).toBe(0);
   });
 
   it("createListing() creates distinct objects for different calls", () => {

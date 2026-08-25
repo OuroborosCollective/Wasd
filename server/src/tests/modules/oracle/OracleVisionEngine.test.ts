@@ -4,7 +4,7 @@ import {
   type BloodOffering,
   type GhostTown,
   type FallenEntity,
-} from "../../oracle/OracleVisionEngine";
+} from "../../../oracle/OracleVisionEngine.js";
 
 describe("OracleVisionEngine", () => {
   const baseState = { tick: 50000, stateHash: "are_test12345678" };
@@ -98,8 +98,8 @@ describe("OracleVisionEngine", () => {
         {
           regionId: "region:low",
           position: { x: 0, y: 0 },
-          totalDeaths: 20,
-          deathsByType: { player: 10, npc: 10 },
+          totalDeaths: 60,
+          deathsByType: { player: 30, npc: 30 },
           firstDeathTick: 45000,
           lastDeathTick: 49900,
           dangerLevel: 300,

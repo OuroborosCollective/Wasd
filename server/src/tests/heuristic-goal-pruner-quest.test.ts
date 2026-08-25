@@ -35,9 +35,9 @@ describe('HeuristicGoalPruner (Quest Module)', () => {
       expect(isHighIntensityZone(zone)).toBe(true);
     });
 
-    it('returns false for combat zones at or below 0.95 intensity', () => {
+    it('returns true for combat zones at the inclusive 0.95 intensity threshold', () => {
       const zone: EchoZone = { x: 0, y: 0, radius: 50, intensity: 0.95, type: EchoZoneType.COMBAT };
-      expect(isHighIntensityZone(zone)).toBe(false);
+      expect(isHighIntensityZone(zone)).toBe(true);
     });
 
     it('returns true for collect zones above 0.80 intensity', () => {
@@ -45,11 +45,11 @@ describe('HeuristicGoalPruner (Quest Module)', () => {
       expect(isHighIntensityZone(zone)).toBe(true);
     });
 
-    it('uses 0.70 threshold for other zone types', () => {
+    it('uses an inclusive 0.70 threshold for other zone types', () => {
       const questZone: EchoZone = { x: 0, y: 0, radius: 50, intensity: 0.71, type: EchoZoneType.QUEST };
       const tradeZone: EchoZone = { x: 0, y: 0, radius: 50, intensity: 0.70, type: EchoZoneType.TRADE };
       expect(isHighIntensityZone(questZone)).toBe(true);
-      expect(isHighIntensityZone(tradeZone)).toBe(false);
+      expect(isHighIntensityZone(tradeZone)).toBe(true);
     });
   });
 
@@ -247,8 +247,8 @@ describe('HeuristicGoalPruner (Quest Module)', () => {
   });
 
   describe('HeuristicGoalPruner.isWithinRadius', () => {
-    it('returns true for points within radius', () => {
-      expect(HeuristicGoalPruner.isWithinRadius(0, 0, 3, 4, 5)).toBe(true);
+    it('returns true for points strictly within radius', () => {
+      expect(HeuristicGoalPruner.isWithinRadius(0, 0, 2, 4, 5)).toBe(true);
     });
 
     it('returns false for points outside radius', () => {

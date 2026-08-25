@@ -26,13 +26,25 @@ describe('Canonical layer seed truth', () => {
   });
 
   it('uses the canonical default world seed when no explicit runtime seed exists', () => {
-    const seed = deriveCanonicalLayerSeed({
-      chunkKey: createChunkKey(0, 0),
-      activationTick: createTickId(0),
-    });
+    const environmentKeys = ['WASD_WORLD_SEED', 'ARELORIA_WORLD_SEED', 'WORLD_SEED'] as const;
+    const previousValues = environmentKeys.map((key) => [key, process.env[key]] as const);
 
-    expect(seed.worldSeed).toBe(DEFAULT_ARELORIA_WORLD_SEED);
-    expect(Number(seed.checksum)).toBe(6500);
+    try {
+      for (const key of environmentKeys) delete process.env[key];
+
+      const seed = deriveCanonicalLayerSeed({
+        chunkKey: createChunkKey(0, 0),
+        activationTick: createTickId(0),
+      });
+
+      expect(seed.worldSeed).toBe(DEFAULT_ARELORIA_WORLD_SEED);
+      expect(Number(seed.checksum)).toBe(6500);
+    } finally {
+      for (const [key, value] of previousValues) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
   });
 
   it('folds deterministic biome terrain signals into the seed while preserving Kappa conservation', () => {

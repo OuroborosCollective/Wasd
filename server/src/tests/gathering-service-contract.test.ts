@@ -67,7 +67,7 @@ const testNodes: ResourceNodeDefinition[] = [
     kind: "fish_spot",
     title: "Test Fish",
     skillId: "fishing",
-    requiredLevel: 1,
+    requiredLevel: 2,
     xpReward: 20,
     itemRewardId: "raw_fish",
     itemRewardName: "Raw Fish",
@@ -168,7 +168,11 @@ describe("ResourceNodeStore Contract", () => {
         playerSkillLevel: 1,
       });
 
-      // At tick 110, node should be available
+      // At tick 110, the previous depletion has expired before the next gather.
+      const availableSnapshot = store.getSnapshot("test_tree_hand", 110);
+      expect(availableSnapshot?.status).toBe("available");
+      expect(availableSnapshot?.remainingTicks).toBe(0);
+
       const result = store.gather({
         playerId: "p1",
         nodeId: "test_tree_hand",
@@ -179,11 +183,6 @@ describe("ResourceNodeStore Contract", () => {
 
       expect(result.ok).toBe(true);
       expect(result.reason).toBe("gathered");
-
-      // Snapshot at 110 should show available
-      const snapshot = store.getSnapshot("test_tree_hand", 110);
-      expect(snapshot?.status).toBe("available");
-      expect(snapshot?.remainingTicks).toBe(0);
     });
 
     it("remainingTicks counts down correctly", () => {

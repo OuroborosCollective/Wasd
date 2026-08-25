@@ -51,14 +51,25 @@ function createTestInventoryService(
   };
 }
 
+function xpToReachLevel(level: number): number {
+  let totalXp = 0;
+  for (let currentLevel = 1; currentLevel < level; currentLevel += 1) {
+    totalXp += xpForLevel(currentLevel);
+  }
+  return totalXp;
+}
+
 function createSkillState(playerId: string, levels: Partial<Record<SkillId, number>>): PlayerSkillState {
   const base = createDefaultPlayerSkillState(playerId);
   return normalizePlayerSkillState({
     playerId,
     schemaVersion: 1,
     skills: base.skills.map((skill) => ({
-      ...skill,
-      xp: xpForLevel(levels[skill.id] ?? 1),
+      id: skill.id,
+      // xpForLevel is the XP cost to advance *from* a level, not the
+      // cumulative total at the beginning of that level. Omit the exact
+      // default fields so normalization takes this legacy-XP fixture path.
+      xp: xpToReachLevel(levels[skill.id] ?? 1),
     })),
   }, playerId);
 }

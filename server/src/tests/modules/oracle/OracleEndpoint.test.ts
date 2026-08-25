@@ -4,7 +4,7 @@ import {
   type OracleSyncState,
   type OraclePulse,
   type OracleCommunicationIntent,
-} from "../../oracle/OracleEndpoint";
+} from "../../../oracle/OracleEndpoint.js";
 
 describe("OracleEndpoint", () => {
   describe("syncWithCreator", () => {

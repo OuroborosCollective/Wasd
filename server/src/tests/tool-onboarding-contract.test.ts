@@ -14,6 +14,10 @@
  */
 
 import { describe, expect, it, beforeEach, vi } from "vitest";
+import { EQUIPMENT_DEFINITIONS } from "../equipment/EquipmentTypes.js";
+import { ResourceNodeStore } from "../resources/ResourceNodeStore.js";
+import { STARTER_RESOURCE_NODES } from "../resources/StarterResourceNodes.js";
+import { createStartPathQuestSnapshot } from "../character/StartPathQuestLine.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
 import { equipmentService } from "../equipment/equipmentRuntime.js";
 
@@ -37,7 +41,6 @@ describe("Starter Tool Bundle Contract", () => {
     const expectedSlots = ["mining_tool", "fishing_tool", "woodcutting_tool"];
 
     // Verify the tools exist in EQUIPMENT_DEFINITIONS
-    const { EQUIPMENT_DEFINITIONS } = require("../equipment/EquipmentTypes.js");
 
     expectedTools.forEach((toolId) => {
       expect(EQUIPMENT_DEFINITIONS).toHaveProperty(toolId);
@@ -48,47 +51,38 @@ describe("Starter Tool Bundle Contract", () => {
   });
 
   it("copper_pickaxe maps to mining_tool slot", () => {
-    const { EQUIPMENT_DEFINITIONS } = require("../equipment/EquipmentTypes.js");
     expect(EQUIPMENT_DEFINITIONS.copper_pickaxe.slotId).toBe("mining_tool");
   });
 
   it("simple_fishing_rod maps to fishing_tool slot", () => {
-    const { EQUIPMENT_DEFINITIONS } = require("../equipment/EquipmentTypes.js");
     expect(EQUIPMENT_DEFINITIONS.simple_fishing_rod.slotId).toBe("fishing_tool");
   });
 
   it("wooden_axe maps to woodcutting_tool slot", () => {
-    const { EQUIPMENT_DEFINITIONS } = require("../equipment/EquipmentTypes.js");
     expect(EQUIPMENT_DEFINITIONS.wooden_axe.slotId).toBe("woodcutting_tool");
   });
 });
 
 describe("Tool Slot Requirements", () => {
   it("ore nodes require mining_tool slot", () => {
-    const { ResourceNodeStore } = require("../resources/ResourceNodeStore.js");
-    const { StarterResourceNodes } = require("../resources/StarterResourceNodes.js");
 
-    const store = new ResourceNodeStore(StarterResourceNodes);
+    const store = new ResourceNodeStore(STARTER_RESOURCE_NODES);
     const oreSnapshot = store.getSnapshot("starter_ore_001", 0);
 
     expect(oreSnapshot?.requiredTool).toBe("mining_tool");
   });
 
   it("fish nodes require fishing_tool slot", () => {
-    const { ResourceNodeStore } = require("../resources/ResourceNodeStore.js");
-    const { StarterResourceNodes } = require("../resources/StarterResourceNodes.js");
 
-    const store = new ResourceNodeStore(StarterResourceNodes);
+    const store = new ResourceNodeStore(STARTER_RESOURCE_NODES);
     const fishSnapshot = store.getSnapshot("starter_fish_001", 0);
 
     expect(fishSnapshot?.requiredTool).toBe("fishing_tool");
   });
 
   it("starter_tree_001 does NOT require tool (bare-handed allowed)", () => {
-    const { ResourceNodeStore } = require("../resources/ResourceNodeStore.js");
-    const { StarterResourceNodes } = require("../resources/StarterResourceNodes.js");
 
-    const store = new ResourceNodeStore(StarterResourceNodes);
+    const store = new ResourceNodeStore(STARTER_RESOURCE_NODES);
     const treeSnapshot = store.getSnapshot("starter_tree_001", 0);
 
     expect(treeSnapshot?.requiredTool).toBeUndefined();
@@ -129,7 +123,6 @@ describe("getMissingToolSlot logic", () => {
 
 describe("Quest Objective for Tools", () => {
   it("equip_gathering_tools objective exists in start path quests", () => {
-    const { createStartPathQuestSnapshot } = require("../character/StartPathQuestLine.js");
 
     const character = {
       playerId: "test_player",
@@ -182,7 +175,6 @@ describe("Quest Objective for Tools", () => {
 
 describe("Idempotent Claim Flow", () => {
   it("hasToolsEquipped returns true when all tools equipped", async () => {
-    const { createStartPathQuestSnapshot } = require("../character/StartPathQuestLine.js");
 
     const character = {
       playerId: "test_player",
@@ -225,7 +217,6 @@ describe("Idempotent Claim Flow", () => {
 
 describe("Determinism", () => {
   it("same inputs produce same quest state", () => {
-    const { createStartPathQuestSnapshot } = require("../character/StartPathQuestLine.js");
 
     const character = {
       playerId: "test_player",
@@ -263,7 +254,6 @@ describe("Determinism", () => {
   });
 
   it("different equipment produces different tool objective state", () => {
-    const { createStartPathQuestSnapshot } = require("../character/StartPathQuestLine.js");
 
     const character = {
       playerId: "test_player",

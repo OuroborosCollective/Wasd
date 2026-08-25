@@ -57,6 +57,7 @@
     "@typescript-eslint/parser": "^8.66.0",
     "concurrently": "^10.0.4",
     "eslint": "^9.0.0",
+    "jsdom": "^29.1.1",
     "pnpm": "^11.20.0",
     "sharp": "^0.35.3",
     "typescript": "^5.8.0",

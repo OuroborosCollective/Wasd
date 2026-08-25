@@ -143,8 +143,9 @@ export class VoteSystem {
     }
     const banners = this.bannerStore.listActive().map((banner) => {
       const cooldownMs = toMs(banner.cooldownHours);
+      const hasClaim = Object.hasOwn(progress.lastClaimByBanner, banner.internalId);
       const lastClaimAt = asFiniteNumber(progress.lastClaimByBanner[banner.internalId], 0);
-      const nextEligibleAt = lastClaimAt > 0 ? lastClaimAt + cooldownMs : 0;
+      const nextEligibleAt = hasClaim ? lastClaimAt + cooldownMs : 0;
       const cooldownRemainingMs = nextEligibleAt > now ? nextEligibleAt - now : 0;
       const session = activeByBanner.get(banner.internalId);
       const status: VoteStatusBannerRow["status"] =
@@ -205,9 +206,10 @@ export class VoteSystem {
       return { ok: false, reason: "Vote banner is unavailable." };
     }
 
+    const hasClaim = Object.hasOwn(progress.lastClaimByBanner, banner.internalId);
     const lastClaimAt = asFiniteNumber(progress.lastClaimByBanner[banner.internalId], 0);
     const cooldownMs = toMs(banner.cooldownHours);
-    if (lastClaimAt > 0 && now < lastClaimAt + cooldownMs) {
+    if (hasClaim && now < lastClaimAt + cooldownMs) {
       return { ok: false, reason: "Vote banner is on daily cooldown." };
     }
 
@@ -409,8 +411,9 @@ export class VoteSystem {
     }
 
     const cooldownMs = toMs(banner.cooldownHours);
+    const hasClaim = Object.hasOwn(progress.lastClaimByBanner, banner.internalId);
     const lastClaimAt = asFiniteNumber(progress.lastClaimByBanner[banner.internalId], 0);
-    if (lastClaimAt > 0 && now < lastClaimAt + cooldownMs) {
+    if (hasClaim && now < lastClaimAt + cooldownMs) {
       return { ok: false, reason: "Vote banner still on daily cooldown.", status: this.getPlayerVoteStatus(player) };
     }
 

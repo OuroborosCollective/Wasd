@@ -3,7 +3,7 @@ import {
   OracleSocialDirector,
   type IntentRouter,
   type OracleCommunicationIntent,
-} from "../../oracle/OracleSocialDirector";
+} from "../../../oracle/OracleSocialDirector.js";
 
 describe("OracleSocialDirector", () => {
   let routedIntents: { channel: string; intent: OracleCommunicationIntent }[] = [];
