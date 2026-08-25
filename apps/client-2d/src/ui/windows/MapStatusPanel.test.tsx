@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, afterEach, beforeAll } from "vitest";
 import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { MapStatusPanel } from "./MapStatusPanel";
@@ -12,53 +12,87 @@ describe("MapStatusPanel UX & Accessibility", () => {
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   });
 
-  const getMockSnapshot = (): LiveGameplaySnapshot => ({
-    status: "live",
-    serverTick: 100,
-    character: null,
-    paperdoll: { character: null, slots: [] },
-    quests: [],
-    skills: [],
-    resources: [{ id: "res-1", name: "Iron Ore", type: "ore", quantity: 5 }],
-    inventory: { playerId: "p1", schemaVersion: 1, slots: [], capacity: 32 },
-    crafting: { recipes: [] },
-    equipment: null,
-    guild: { id: null, name: null, memberCount: 0, rank: null, villageEligible: false, treasury: null },
-    factions: [],
-    map: { regionName: "Areloria Central", chunkX: 12, chunkZ: -5, visibleChunks: 9, biome: "forest" },
-    wallet: { coin: 100 },
-    worldPois: [{ id: "poi-1", name: "Ancient Shrine" }],
-    vendorEconomy: { vendors: [] },
-    campNpcs: [{ id: "npc-1", name: "Guard" }],
-    campStocks: [],
-    processingStations: [],
-    discoveryStats: {
-      discoveredPoiCount: 3,
-      discoveredChunkCount: 15,
-      visiblePoiCount: 3,
-    },
+  afterEach(() => {
+    if (container) {
+      document.body.removeChild(container);
+      container = null;
+    }
   });
 
-  it("renders live map status panel with accessibility region role and aria-label", async () => {
+  const mockSnapshot: LiveGameplaySnapshot = {
+    status: "live",
+    map: {
+      regionName: "Ironpine Wilderness",
+      chunkX: 5,
+      chunkZ: -3,
+      visibleChunks: 9,
+      biome: "Taiga",
+    },
+    resources: [
+      { id: "node-1", kind: "tree", title: "Oak", status: "available", xpReward: 10, itemRewardId: "wood", itemRewardName: "Wood", remainingTicks: 0, position: { x: 0, y: 0 } },
+    ],
+    worldPois: [
+      { id: "poi-1", title: "Ancient Shrine", type: "shrine", x: 10, y: 10, discovered: true },
+    ],
+    campNpcs: [
+      { id: "npc-1", name: "Trader Joe", role: "vendor", status: "active", position: { x: 5, y: 5 } },
+    ],
+    discoveryStats: {
+      discoveredPoiCount: 3,
+      discoveredChunkCount: 12,
+      visiblePoiCount: 3,
+    },
+    character: { displayName: "Hero", archetype: "Warrior", level: 1 },
+    vitals: { hp: 100, maxHp: 100, hpPercent: 100, stamina: 50, maxStamina: 50, staminaPercent: 100 },
+    inventory: { items: [], capacity: 20, gold: 100 },
+    paperdoll: { character: { displayName: "Hero", archetype: "Warrior" }, slots: [] },
+    skills: [],
+    guild: { memberCount: 1, villageEligible: false },
+    factionStandings: [],
+    quests: [],
+    activeTrade: null,
+    gatherTools: [],
+    workOrders: [],
+    tradeOrders: [],
+  };
+
+  it("renders live map status metrics with role and aria-label", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
-    const snapshot = getMockSnapshot();
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(<MapStatusPanel snapshot={mockSnapshot} activeChunkCount={9} />);
+    });
+
+    const regionContainer = container!.querySelector('[data-testid="map-panel-live"]');
+    expect(regionContainer).toBeTruthy();
+    expect(regionContainer!.getAttribute("role")).toBe("region");
+    expect(regionContainer!.getAttribute("aria-label")).toBe("Map and Exploration Status");
+
+    expect(container!.textContent).toContain("Ironpine Wilderness");
+    expect(container!.textContent).toContain("5, -3");
+    expect(container!.textContent).toContain("9");
+  });
+
+  it("provides hover title tooltips and screen reader aria-labels on metric cards", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
 
     await act(async () => {
       const root = createRoot(container!);
-      root.render(<MapStatusPanel snapshot={snapshot} activeChunkCount={9} />);
+      root.render(<MapStatusPanel snapshot={mockSnapshot} activeChunkCount={9} />);
     });
 
-    const panel = container!.querySelector('[data-testid="map-panel-live"]');
-    expect(panel).toBeTruthy();
-    expect(panel?.getAttribute("role")).toBe("region");
-    expect(panel?.getAttribute("aria-label")).toBe("Map Status");
+    const articles = container!.querySelectorAll(".stitch-info");
+    expect(articles.length).toBeGreaterThan(0);
 
-    expect(container!.textContent).toContain("Areloria Central");
-    expect(container!.textContent).toContain("12, -5");
-    expect(container!.textContent).toContain("9");
+    const regionArticle = articles[0];
+    expect(regionArticle.getAttribute("title")).toBe("Region: Ironpine Wilderness");
+    expect(regionArticle.getAttribute("aria-label")).toBe("Region: Ironpine Wilderness");
 
-    document.body.removeChild(container);
+    const chunkArticle = articles[1];
+    expect(chunkArticle.getAttribute("title")).toBe("Chunk coordinates: 5, -3");
+    expect(chunkArticle.getAttribute("aria-label")).toBe("Chunk: 5, -3");
   });
 });
