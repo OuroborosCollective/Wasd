@@ -12,7 +12,8 @@ describe('VPS Docker builder memory contract', () => {
 
     expect(builderStart).toBeGreaterThanOrEqual(0);
     expect(clientArtifactBoundary).toBeGreaterThan(builderStart);
-    expect(builderSection).toContain('ENV NODE_OPTIONS=--max-old-space-size=512');
+    expect(builderSection).toContain('ENV NODE_OPTIONS=--max-old-space-size=256');
+    expect(builderSection).not.toContain('ENV NODE_OPTIONS=--max-old-space-size=512');
     expect(builderSection).not.toContain('ENV NODE_OPTIONS=--max-old-space-size=1024');
   });
 

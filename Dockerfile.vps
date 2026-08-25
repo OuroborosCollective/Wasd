@@ -141,9 +141,9 @@ RUN rm -rf packages/sdk-examples || true && \
 
 ENV NODE_ENV=production
 # The VPS Docker builder runs under a tight cgroup. The real 3D Vite build was
-# killed with exit 137 at a 1-GiB V8 allowance, while the full production build
-# succeeds with a 512-MiB heap and leaves native-memory headroom for esbuild.
-ENV NODE_OPTIONS=--max-old-space-size=512
+# still killed with exit 137 at a 512-MiB V8 allowance, while the full production
+# build succeeds with a 256-MiB heap and leaves native-memory headroom for esbuild.
+ENV NODE_OPTIONS=--max-old-space-size=256
 ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
 
 RUN node scripts/verify-vps-build-logic.mjs
