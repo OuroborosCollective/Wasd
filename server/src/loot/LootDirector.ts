@@ -40,6 +40,8 @@ class LootDirector {
   private auditStore: any;
   private started: boolean = false;
   private processedKeys = new Set<string>();
+  /** Keys currently being generated or consumed; closes the async replay window. */
+  private inFlightKeys = new Set<string>();
   private lootMachine: ProceduralLootMachine | null = null;
   private policy: any = null;
 
@@ -51,7 +53,8 @@ class LootDirector {
     invalidContexts: 0,
     failedRolls: 0,
     persistedDeltas: 0,
-    noConsumerDeltas: 0
+    noConsumerDeltas: 0,
+    auditFailures: 0
   };
 
   constructor({ db, eventBus, inventoryService, worldDropService, auditStore }: LootDirectorDeps) {
@@ -129,18 +132,19 @@ class LootDirector {
     }
 
     const idempotencyKey = createIdempotencyKey(context);
-    if (this.processedKeys.has(idempotencyKey)) {
+    if (this.processedKeys.has(idempotencyKey) || this.inFlightKeys.has(idempotencyKey)) {
       this.telemetry.idempotencyHits++;
       console.debug('[LootDirector] Duplicate event blocked:', idempotencyKey);
       return null;
     }
-
-    if (!this.lootMachine) {
-      this.policy = await this.loadPolicy();
-      this.lootMachine = new ProceduralLootMachine(this.db, this.policy);
-    }
+    this.inFlightKeys.add(idempotencyKey);
 
     try {
+      if (!this.lootMachine) {
+        this.policy = await this.loadPolicy();
+        this.lootMachine = new ProceduralLootMachine(this.db, this.policy);
+      }
+
       const result = await this.lootMachine.generate({
         playerId: context.sourceEntityId,
         tickIndex: context.sourceTick,
@@ -180,8 +184,16 @@ class LootDirector {
       this.observe(lootDelta);
 
       if (this.auditStore?.recordDrop) {
-        for (const item of lootDelta.items) {
-          await this.auditStore.recordDrop(context, item);
+        try {
+          for (const item of lootDelta.items) {
+            await this.auditStore.recordDrop(context, item);
+          }
+        } catch (error) {
+          // Audit is observational. Inventory/world-drop ownership is already
+          // committed, therefore this failure must not erase the truthful
+          // success result or trigger a replayable second drop.
+          this.telemetry.auditFailures++;
+          console.error('[LootDirector] Loot audit failed after consumer commit:', error);
         }
       }
 
@@ -210,6 +222,8 @@ class LootDirector {
       this.telemetry.failedRolls++;
       console.error('[LootDirector] Loot generation failed:', error);
       return null;
+    } finally {
+      this.inFlightKeys.delete(idempotencyKey);
     }
   }
 
