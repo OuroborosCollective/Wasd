@@ -16,7 +16,9 @@ permissions:
 
 env:
   DEPLOY_REASON: PR merged to main
-  DEPLOY_PATH: /opt/areloria
+  # The provisioner-owned secret is canonical. DEPLOY_PATH remains a temporary
+  # compatibility alias for installations that have not yet been renamed.
+  DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/areloria' }}
   DEPLOY_BRANCH: main
   ARELORIAN_PORT: ${{ secrets.VPS_ARELORIAN_PORT || '3001' }}
   ARELORIAN_DOCKER_NETWORK: ${{ secrets.VPS_DOCKER_NETWORK || 'areloria_arelorian-network' }}
@@ -125,6 +127,19 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      - name: Validate canonical deployment path
+        run: |
+          set -euo pipefail
+          case "${DEPLOY_PATH}" in
+            /*) ;;
+            *) echo "::error::VPS_DEPLOY_PATH/DEPLOY_PATH must be an absolute path."; exit 1 ;;
+          esac
+          if [ "${DEPLOY_PATH}" = "/" ]; then
+            echo "::error::Refusing to deploy into the filesystem root."
+            exit 1
+          fi
+          echo "Canonical deployment path accepted."
+
       - name: Download prebuilt client-2d artifact
         uses: actions/download-artifact@v4
         with:
