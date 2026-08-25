@@ -80,7 +80,14 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
 
   if (snapshot.status === "waiting") {
     return (
-      <div className="stitch-grid-panel" data-testid="quest-panel-waiting">
+      <div
+        className="stitch-grid-panel"
+        data-testid="quest-panel-waiting"
+        role="region"
+        aria-label="Quest Sync"
+        aria-busy="true"
+        aria-live="polite"
+      >
         <article className="stitch-info">
           <small>Quest Sync</small>
           <b>waiting for server snapshot</b>
@@ -91,7 +98,12 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
 
   if (snapshot.quests.length === 0) {
     return (
-      <div className="stitch-grid-panel" data-testid="quest-panel-empty">
+      <div
+        className="stitch-grid-panel"
+        data-testid="quest-panel-empty"
+        role="region"
+        aria-label="Quest Journal"
+      >
         <article className="stitch-info">
           <small>Quest Journal</small>
           <b>no active quests</b>
@@ -101,13 +113,22 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
   }
 
   return (
-    <div className="quest-journal-panel" data-testid="quest-panel-live">
+    <div
+      className="quest-journal-panel"
+      data-testid="quest-panel-live"
+      role="region"
+      aria-label="Active Quests"
+    >
       {snapshot.quests.map((quest) => {
         const rewardClaimable = canClaimReward(quest);
         const rewardClaimed = hasRewardClaimed(quest);
 
         return (
-          <article key={quest.id} className={`quest-journal-card quest-journal-card--${quest.status}`}>
+          <article
+            key={quest.id}
+            className={`quest-journal-card quest-journal-card--${quest.status}`}
+            aria-label={`Quest: ${quest.title}`}
+          >
             <header>
               <small>{rewardClaimed ? "claimed" : quest.status}</small>
               <b>{quest.title}</b>
@@ -132,6 +153,7 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
                       aria-valuemin={0}
                       aria-valuemax={objective.required}
                       aria-valuetext={`${objective.current} of ${objective.required} ${objective.label}`}
+                      title={`${objective.label}: ${objective.current}/${objective.required} (${progress}%)`}
                     >
                       <em style={{ width: `${progress}%` }} aria-hidden="true" />
                     </i>
@@ -146,6 +168,7 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
                 className="quest-journal-claim-button"
                 data-testid={`quest-claim-${quest.id}`}
                 aria-label={`Claim reward for ${quest.title}`}
+                title={`Claim reward for ${quest.title}`}
                 aria-busy={claimingQuestId === quest.id}
                 disabled={claimingQuestId === quest.id}
                 onClick={() => void claimReward(quest.id)}
