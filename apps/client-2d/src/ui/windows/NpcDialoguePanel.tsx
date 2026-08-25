@@ -64,7 +64,7 @@ export function NpcDialoguePanel({
 }: NpcDialoguePanelProps) {
   if (snapshot.status !== "live") {
     return (
-      <div className="cz-npc-panel" data-testid="npc-dialogue-runtime-state" role="status">
+      <div className="cz-npc-panel" data-testid="npc-dialogue-runtime-state" role="status" aria-live="polite">
         <div className="cz-npc-memory-note">
           NPC STATE {snapshot.status.toUpperCase()} // ACTIONS BLOCKED UNTIL SERVER REVISION
         </div>
@@ -75,7 +75,7 @@ export function NpcDialoguePanel({
   const dialogue = (snapshot.npcDialogues ?? []).find((entry) => entry.npcId === "village_trader_001");
   if (!dialogue) {
     return (
-      <div className="cz-npc-panel" data-testid="npc-dialogue-unavailable" role="status">
+      <div className="cz-npc-panel" data-testid="npc-dialogue-unavailable" role="status" aria-live="polite">
         <div className="cz-npc-memory-note">NPC ACTOR EVIDENCE UNAVAILABLE</div>
       </div>
     );
@@ -93,10 +93,10 @@ export function NpcDialoguePanel({
   const canComplete = activeQuest?.state === "ready_to_complete" && Boolean(onCompleteQuest);
 
   return (
-    <div className="cz-npc-panel" data-testid="npc-dialogue-village_trader_001">
+    <div className="cz-npc-panel" data-testid="npc-dialogue-village_trader_001" role="region" aria-label="NPC Dialogue">
       <div className="cz-npc-memory" data-testid="npc-memory-village_trader_001">
         <div className="cz-npc-memory-header">
-          <span className="cz-npc-sigil">◈</span>
+          <span className="cz-npc-sigil" aria-hidden="true">◈</span>
           <span className="cz-npc-label">SERVER MEMORY</span>
         </div>
         <div className="cz-npc-memory-content">
@@ -167,8 +167,13 @@ export function NpcDialoguePanel({
                 key={objective.objectiveId}
                 className={`cz-quest-objective ${objective.completed ? "completed" : ""}`}
                 data-testid={`quest-objective-${objective.objectiveId}`}
+                role="progressbar"
+                aria-valuenow={objective.current}
+                aria-valuemin={0}
+                aria-valuemax={objective.required}
+                aria-valuetext={`${objective.title}: ${objective.current} of ${objective.required}${objective.completed ? " (Completed)" : ""}`}
               >
-                <span className="cz-quest-check">{objective.completed ? "◉" : "○"}</span>
+                <span className="cz-quest-check" aria-hidden="true">{objective.completed ? "◉" : "○"}</span>
                 <span className="cz-quest-objective-title">{objective.title}</span>
                 <span className="cz-quest-progress">{objective.current}/{objective.required}</span>
               </li>
@@ -192,6 +197,8 @@ export function NpcDialoguePanel({
             type="button"
             className="cz-action-btn cz-action-btn--accept"
             data-testid="accept-quest-village_supply_order_001"
+            aria-label="Accept Village Supply Order"
+            title="Accept Village Supply Order"
             onClick={() => onAcceptQuest?.("village_supply_order_001")}
           >
             ACCEPT ORDER
@@ -202,13 +209,21 @@ export function NpcDialoguePanel({
             type="button"
             className="cz-action-btn cz-action-btn--complete"
             data-testid="complete-quest-village_supply_order_001"
+            aria-label="Complete Village Supply Order"
+            title="Complete Village Supply Order"
             onClick={() => onCompleteQuest?.("village_supply_order_001")}
           >
             COMPLETE ORDER
           </button>
         )}
         {activeQuest && onTalkToNpc && (
-          <button type="button" className="cz-action-btn cz-action-btn--talk" onClick={() => onTalkToNpc(dialogue.npcId)}>
+          <button
+            type="button"
+            className="cz-action-btn cz-action-btn--talk"
+            aria-label={`Talk to ${dialogue.displayName}`}
+            title={`Talk to ${dialogue.displayName}`}
+            onClick={() => onTalkToNpc(dialogue.npcId)}
+          >
             TALK TO {dialogue.displayName.toUpperCase()}
           </button>
         )}
