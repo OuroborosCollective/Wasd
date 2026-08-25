@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { craftRecipe } from "../../game/crafting";
 import {
   fetchGameplaySnapshot,
@@ -36,11 +36,29 @@ function buttonLabel(craftable: boolean, blockedReason?: string): string {
   }
 }
 
-function stationRequirement(recipe: { stationType?: string }): string | null {
+function stationRequirement(recipe: { stationType?: string }): { emoji: string; text: string } | null {
   if (!recipe.stationType) return null;
   const emoji = STATION_EMOJI[recipe.stationType] ?? "⚙️";
   const name = STATION_NAME[recipe.stationType] ?? recipe.stationType;
-  return `${emoji} ${name} required`;
+  return { emoji, text: `${name} required` };
+}
+
+function getButtonTooltip(
+  recipe: { title: string; craftable: boolean; blockedReason?: string; requiredLevel: number },
+  isPending: boolean,
+): string {
+  if (isPending) return `Craft request pending for ${recipe.title}`;
+  if (recipe.craftable) return `Craft ${recipe.title}`;
+  switch (recipe.blockedReason) {
+    case "missing_ingredients":
+      return `Missing required ingredients to craft ${recipe.title}`;
+    case "station_too_far":
+      return `Move closer to required station to craft ${recipe.title}`;
+    case "level_too_low":
+      return `Requires Crafting Lv. ${recipe.requiredLevel}`;
+    default:
+      return `Cannot craft ${recipe.title}: ${recipe.blockedReason ?? "requirements not met"}`;
+  }
 }
 
 function toast(type: "success" | "error", message: string): void {
@@ -52,6 +70,17 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
   const [pendingRecipeId, setPendingRecipeId] = useState<string | null>(null);
   const crafting: CraftingSnapshot = snapshot.crafting ?? { recipes: [] };
   const recipes = crafting.recipes ?? [];
+
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   const handleCraft = useCallback(async (recipeId: string) => {
     const actorId = getDefaultGameplayPlayerId();
@@ -158,7 +187,12 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
                   </div>
                   <div className="crafting-row__meta">
                     Requires Crafting Lv. {recipe.requiredLevel}
-                    {station && <span className="crafting-row__station">{station}</span>}
+                    {station && (
+                      <span className="crafting-row__station" title={station.text}>
+                        <span aria-hidden="true">{station.emoji} </span>
+                        {station.text}
+                      </span>
+                    )}
                     <span className="crafting-row__station">
                       {recipe.craftTicks === 0 ? "Immediate server commit" : `${recipe.craftTicks} ticks`}
                     </span>
@@ -173,17 +207,23 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
                       <span>{recipe.outputs.map((item) => `${item.quantity}× ${item.itemId}`).join(", ")}</span>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="crafting-row__button"
-                    disabled={!recipe.craftable || pendingRecipeId !== null}
-                    onClick={() => handleCraft(recipe.id)}
-                    data-testid={`process-${recipe.id}`}
-                    aria-busy={requestPending}
-                    aria-label={requestPending ? `Craft request pending for ${recipe.title}` : `Craft ${recipe.title}`}
-                  >
-                    {requestPending ? "REQUEST PENDING" : buttonLabel(recipe.craftable, recipe.blockedReason)}
-                  </button>
+                  {(() => {
+                    const tooltip = getButtonTooltip(recipe, requestPending);
+                    return (
+                      <button
+                        type="button"
+                        className="crafting-row__button"
+                        disabled={!recipe.craftable || pendingRecipeId !== null}
+                        onClick={() => handleCraft(recipe.id)}
+                        data-testid={`process-${recipe.id}`}
+                        aria-busy={requestPending}
+                        aria-label={tooltip}
+                        title={tooltip}
+                      >
+                        {requestPending ? "REQUEST PENDING" : buttonLabel(recipe.craftable, recipe.blockedReason)}
+                      </button>
+                    );
+                  })()}
                 </article>
               );
             })}
