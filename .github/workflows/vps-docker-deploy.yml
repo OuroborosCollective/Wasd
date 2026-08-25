@@ -39,7 +39,9 @@ jobs:
 
     env:
       DEPLOY_REASON: ${{ inputs.reason || 'Push deploy' }}
-      DEPLOY_PATH: /opt/areloria
+      # The provisioner-owned secret is canonical. DEPLOY_PATH remains a temporary
+      # compatibility alias for installations that have not yet been renamed.
+      DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/areloria' }}
       DEPLOY_BRANCH: main
       ARELORIAN_PORT: ${{ inputs.arelorian_port || '3001' }}
       ARELORIAN_DOCKER_NETWORK: ${{ inputs.docker_network || 'areloria_arelorian-network' }}
@@ -50,6 +52,19 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     steps:
+      - name: Validate canonical deployment path
+        run: |
+          set -euo pipefail
+          case "${DEPLOY_PATH}" in
+            /*) ;;
+            *) echo "::error::VPS_DEPLOY_PATH/DEPLOY_PATH must be an absolute path."; exit 1 ;;
+          esac
+          if [ "${DEPLOY_PATH}" = "/" ]; then
+            echo "::error::Refusing to deploy into the filesystem root."
+            exit 1
+          fi
+          echo "Canonical deployment path accepted."
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
