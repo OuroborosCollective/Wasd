@@ -15,7 +15,7 @@ export default defineConfig({
       "apps/api/src/**/*.test.ts"
     ],
     environment: "node",
-    setupFiles: ["./vitest.setup.ts"],
+    setupFiles: [path.resolve(__dirname, "./vitest.setup.ts")],
     server: {
       deps: {
         external: [
