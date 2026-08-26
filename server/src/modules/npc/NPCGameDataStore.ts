@@ -128,13 +128,16 @@ function npcFromGameData(def: NpcDefinition, spawn: NpcSpawn): NPC {
     maxHealth,
     skills: { combat: { level: combatLevel } },
     state: "idle",
-    memory: Object.freeze({
+    // The envelope is authoritative runtime state: NPC tick systems append
+    // thermal, goal-pruning and resonance facts to it. Keep immutable game-data
+    // leaves frozen, but never freeze this mutation-owned container.
+    memory: {
       dialogueId: def.dialogueId ?? null,
       questHooks: Object.freeze([...(def.questHooks ?? [])]),
       regionId: spawn.regionId,
       source: "game-data/npc",
       spawn: Object.freeze({ x: spawn.x, y: spawn.y, z: spawn.z }),
-    }),
+    },
   };
   if (def.dropTable && def.dropTable.length > 0) npc.dropTable = Object.freeze([...def.dropTable]);
   if (def.shopId) npc.shopId = def.shopId;
