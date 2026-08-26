@@ -23,7 +23,11 @@ export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK ARELORIAN_ENABLE_DOCKER_INGRESS A
 cd "$REPO_ROOT"
 
 LOCK_PATH="${DEPLOY_LOCK_PATH:-/tmp/wasd-vps-docker-deploy.lock}"
-DEPLOY_LOCK_WAIT_SECONDS="${DEPLOY_LOCK_WAIT_SECONDS:-1800}"
+# A stale remote deployment must not silently consume the entire workflow budget.
+# Five minutes is sufficient for a healthy hand-off on the provisioned VPS.
+DEPLOY_LOCK_WAIT_SECONDS="${DEPLOY_LOCK_WAIT_SECONDS:-300}"
+DEPLOY_ENGINE_BUILD_TIMEOUT_SECONDS="${DEPLOY_ENGINE_BUILD_TIMEOUT_SECONDS:-720}"
+DEPLOY_MONITOR_BUILD_TIMEOUT_SECONDS="${DEPLOY_MONITOR_BUILD_TIMEOUT_SECONDS:-300}"
 if command -v flock >/dev/null 2>&1; then
   exec 9>"$LOCK_PATH"
   echo "Acquiring VPS deploy lock: $LOCK_PATH (wait ${DEPLOY_LOCK_WAIT_SECONDS}s)"
@@ -54,6 +58,30 @@ compose_cmd() {
     "${DC[@]}" --env-file "$ARELORIAN_ENV_FILE" "${files[@]}" "$@"
   else
     "${DC[@]}" "${files[@]}" "$@"
+  fi
+}
+
+compose_build_with_deadline() {
+  local service="$1"
+  local timeout_seconds="$2"
+  local files=(-f docker-compose.yml)
+  if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
+    files+=(-f docker-compose.ingress.yml --profile ingress)
+  fi
+
+  echo "[$(date -Is)] Building ${service}; deadline=${timeout_seconds}s"
+  if ! command -v timeout >/dev/null 2>&1; then
+    echo "WARN: timeout utility unavailable; running ${service} build without a local deadline."
+    compose_cmd --progress plain build "$service"
+    return
+  fi
+
+  if [ -f "$ARELORIAN_ENV_FILE" ]; then
+    timeout --foreground --signal=TERM --kill-after=30s "${timeout_seconds}s" \
+      "${DC[@]}" --env-file "$ARELORIAN_ENV_FILE" "${files[@]}" --progress plain build "$service"
+  else
+    timeout --foreground --signal=TERM --kill-after=30s "${timeout_seconds}s" \
+      "${DC[@]}" "${files[@]}" --progress plain build "$service"
   fi
 }
 
@@ -414,8 +442,8 @@ docker builder prune -f --filter 'until=24h' >/dev/null 2>&1 || true
 docker image prune -f >/dev/null 2>&1 || true
 
 echo "[2/4] Build images (monorepo context, sequential to avoid OOM)"
-compose_cmd --progress plain build arelorian-engine
-compose_cmd --progress plain build monitor-bridge
+compose_build_with_deadline arelorian-engine "$DEPLOY_ENGINE_BUILD_TIMEOUT_SECONDS"
+compose_build_with_deadline monitor-bridge "$DEPLOY_MONITOR_BUILD_TIMEOUT_SECONDS"
 
 echo "[3/4] Recreate containers"
 compose_cmd down --remove-orphans || true
