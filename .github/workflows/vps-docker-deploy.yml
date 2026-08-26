@@ -167,6 +167,12 @@ jobs:
           tar -C apps/client-2d -czf "${CLIENT_2D_ARCHIVE}" dist
           ls -lh "${CLIENT_2D_ARCHIVE}"
 
+      - name: Build shared package for client-3d
+        run: |
+          set -euo pipefail
+          pnpm --filter @wasd/shared build
+          test -f packages/shared/dist/index.js
+
       - name: Build client-3d on GitHub runner
         run: |
           set -euo pipefail

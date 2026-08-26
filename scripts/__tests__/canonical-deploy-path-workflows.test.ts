@@ -43,6 +43,9 @@ describe('canonical VPS deployment path workflows', () => {
     const workflow = readWorkflow(workflowPath);
 
     expect(workflow).toContain('CLIENT_3D_ARCHIVE: wasd-client-3d-dist-${{ github.sha }}.tgz');
+    expect(workflow).toContain('Build shared package for client-3d');
+    expect(workflow).toContain('pnpm --filter @wasd/shared build');
+    expect(workflow).toContain('test -f packages/shared/dist/index.js');
     expect(workflow).toContain('Build client-3d on GitHub runner');
     expect(workflow).toContain('pnpm --filter @wasd/client build');
     expect(workflow).toContain("! grep -q 'Areloria 3D unavailable' client/dist/index.html");
