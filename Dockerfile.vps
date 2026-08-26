@@ -261,15 +261,15 @@ ENV WATCHDOG_AST_SYNC_BUDGET_MS=50
 ENV WATCHDOG_AST_SYNC_FAIL_ON_OVERRUN=false
 ENV QUEST_STATE_FILE=/app/data/quest-state.json
 
-COPY --from=builder /app/package.json /app/pnpm-workspace.yaml ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/server ./server
-COPY --from=builder /app/engine ./engine
-COPY --from=builder /app/dist/engine ./dist/engine
-COPY --from=builder /app/packages/core-logic ./packages/core-logic
-COPY --from=builder /app/packages/shared ./packages/shared
-COPY --from=builder /app/client/dist ./client/dist
-COPY --from=builder /app/client/dist ./server/client/dist
+COPY --from=builder --chown=nodeuser:nodejs /app/package.json /app/pnpm-workspace.yaml ./
+COPY --from=builder --chown=nodeuser:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodeuser:nodejs /app/server ./server
+COPY --from=builder --chown=nodeuser:nodejs /app/engine ./engine
+COPY --from=builder --chown=nodeuser:nodejs /app/dist/engine ./dist/engine
+COPY --from=builder --chown=nodeuser:nodejs /app/packages/core-logic ./packages/core-logic
+COPY --from=builder --chown=nodeuser:nodejs /app/packages/shared ./packages/shared
+COPY --from=builder --chown=nodeuser:nodejs /app/client/dist ./client/dist
+COPY --from=builder --chown=nodeuser:nodejs /app/client/dist ./server/client/dist
 
 RUN test -f /app/dist/engine/index.js && \
     test -f /app/dist/engine/determinism/tickPolicy.js && \
@@ -314,17 +314,20 @@ RUN ln -s /app/server/client/dist/2d/2d-assets /app/server/client/dist/2d-assets
     cp /app/server/client/dist/2d/2d-assets/credits/icon-192.png /app/server/client/dist/2d/2d-assets/credits/icon-512.png && \
     cp /app/server/client/dist/2d/2d-assets/credits/icon-192.png /app/client/dist/2d/2d-assets/credits/icon-192.png && \
     cp /app/server/client/dist/2d/2d-assets/credits/icon-192.png /app/client/dist/2d/2d-assets/credits/icon-512.png && \
-    # Create quest state data directory for persistence
-    mkdir -p /app/data
+    # Create quest state data directory for persistence; only this mutable path
+    # needs write access at runtime because copied image layers are already owned.
+    mkdir -p /app/data && \
+    chown nodeuser:nodejs /app/data
 
+# Ownership is assigned by COPY --chown above. Avoiding a recursive ownership
+# pass across the monorepo prevents a large copy-on-write layer during VPS export.
 RUN rm -rf \
     /app/server/src \
     /app/server/test \
     /app/server/tests \
     /app/server/scripts \
     /app/packages/core-logic/src \
-    /app/packages/shared/src && \
-    chown -R nodeuser:nodejs /app
+    /app/packages/shared/src
 
 USER nodeuser
 WORKDIR /app/server
