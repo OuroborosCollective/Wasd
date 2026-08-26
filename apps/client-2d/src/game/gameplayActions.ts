@@ -5,8 +5,7 @@
  * After each action, refetches the gameplay snapshot to update UI.
  *
  * Rules:
- * - No Math.random()
- * - No Date.now() for gameplay state
+ * - No client-generated nondeterministic gameplay state
  * - Server-authoritative: all decisions made server-side
  * - Client only sends action request and refetches state
  */
