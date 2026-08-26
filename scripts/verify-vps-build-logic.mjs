@@ -20,16 +20,19 @@ const requiredSnippets = [
   ["Dockerfile.vps", "ARG BUILD_COMMIT_SHA=\"\""],
   ["Dockerfile.vps", "ENV BUILD_COMMIT_SHA=$BUILD_COMMIT_SHA"],
   ["Dockerfile.vps", "LABEL org.opencontainers.image.revision=$BUILD_COMMIT_SHA"],
-  ["Dockerfile.vps", "ENV NODE_OPTIONS=--max-old-space-size=1024"],
+  ["Dockerfile.vps", "ENV NODE_OPTIONS=--max-old-space-size=256"],
   ["Dockerfile.vps", "RUN pnpm --filter @wasd/core-logic --if-present run build:runtime"],
   ["Dockerfile.vps", "RUN pnpm --filter @wasd/shared --if-present build"],
   ["Dockerfile.vps", "RUN pnpm --filter @wasd/engine --if-present run build:runtime"],
   ["Dockerfile.vps", "RUN pnpm --filter @wasd/server --if-present build"],
   ["Dockerfile.vps", "--filter @wasd/server... --filter @wasd/client... --filter @wasd/engine..."],
-  ["Dockerfile.vps", "RUN pnpm --filter @wasd/client --if-present build &&"],
+  ["Dockerfile.vps", "Client-3D is built on the GitHub runner and extracted on the VPS before docker build."],
   ["Dockerfile.vps", "test -d client/dist/assets"],
+  ["Dockerfile.vps", "test -f client/dist/build-stamp.json"],
+  ["Dockerfile.vps", "grep -q \"$BUILD_COMMIT_SHA\" client/dist/build-stamp.json"],
   ["docker-compose.yml", "BUILD_COMMIT_SHA: \"${BUILD_COMMIT_SHA:-}\""],
   ["scripts/deploy-vps-docker.sh", "export BUILD_COMMIT_SHA=\"$(git rev-parse HEAD)\""],
+  ["scripts/deploy-vps-docker.sh", "restore_prebuilt_client_artifacts"],
   ["scripts/deploy-vps-docker.sh", "client_3d_shell_ready"],
   ["scripts/deploy-vps-docker.sh", "!body.includes('Areloria 3D unavailable')"],
   ["scripts/revision-guardian.mjs", "PR_HEAD_NOT_BASED_ON_CURRENT_MAIN"],
@@ -71,6 +74,11 @@ const vpsDockerfile = existsSync("Dockerfile.vps")
 if (vpsDockerfile.includes("mkdir -p client/dist && printf")) {
   failed = true;
   console.error("[vps-build-logic] Dockerfile.vps must fail closed instead of emitting a 3D-unavailable placeholder");
+}
+
+if (vpsDockerfile.includes("RUN pnpm --filter @wasd/client --if-present build &&")) {
+  failed = true;
+  console.error("[vps-build-logic] Dockerfile.vps must consume the verified runner-built 3D artifact instead of recompiling it on the cgroup-constrained VPS");
 }
 
 if (vpsDockerfile.includes("ENV NODE_OPTIONS=--max-old-space-size=4096")) {

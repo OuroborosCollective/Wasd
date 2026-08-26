@@ -39,17 +39,33 @@ jobs:
 
     env:
       DEPLOY_REASON: ${{ inputs.reason || 'Push deploy' }}
-      DEPLOY_PATH: /opt/areloria
+      # The provisioner-owned secret is canonical. DEPLOY_PATH remains a temporary
+      # compatibility alias for installations that have not yet been renamed.
+      DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH || secrets.DEPLOY_PATH || '/opt/areloria' }}
       DEPLOY_BRANCH: main
       ARELORIAN_PORT: ${{ inputs.arelorian_port || '3001' }}
       ARELORIAN_DOCKER_NETWORK: ${{ inputs.docker_network || 'areloria_arelorian-network' }}
       SSH_PORT: ${{ inputs.ssh_port || secrets.SSH_PORT || '22' }}
       CLIENT_2D_ARCHIVE: wasd-client-2d-dist-${{ github.sha }}.tgz
+      CLIENT_3D_ARCHIVE: wasd-client-3d-dist-${{ github.sha }}.tgz
       CLIENT_2D_MARKER: REAL_PIXI_CLIENT
       CLIENT_2D_BUILD_SHA: ${{ github.sha }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     steps:
+      - name: Validate canonical deployment path
+        run: |
+          set -euo pipefail
+          case "${DEPLOY_PATH}" in
+            /*) ;;
+            *) echo "::error::VPS_DEPLOY_PATH/DEPLOY_PATH must be an absolute path."; exit 1 ;;
+          esac
+          if [ "${DEPLOY_PATH}" = "/" ]; then
+            echo "::error::Refusing to deploy into the filesystem root."
+            exit 1
+          fi
+          echo "Canonical deployment path accepted."
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -87,11 +103,11 @@ jobs:
           pnpm config set store-dir .pnpm-store
           pnpm config set verify-deps-before-run false
 
-      - name: Install client-2d dependencies
+      - name: Install deployment client dependencies
         run: |
           set -euo pipefail
-          pnpm --filter @wasd/client-2d... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
-          pnpm --filter @wasd/client-2d... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
+          pnpm --filter @wasd/client-2d... --filter @wasd/client... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
+          pnpm --filter @wasd/client-2d... --filter @wasd/client... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
 
       - name: Set up Python and Pillow
         run: |
@@ -151,6 +167,32 @@ jobs:
           tar -C apps/client-2d -czf "${CLIENT_2D_ARCHIVE}" dist
           ls -lh "${CLIENT_2D_ARCHIVE}"
 
+      - name: Build shared package for client-3d
+        run: |
+          set -euo pipefail
+          pnpm --filter @wasd/shared build
+          test -f packages/shared/dist/index.js
+
+      - name: Build client-3d on GitHub runner
+        run: |
+          set -euo pipefail
+          # The VPS Docker builder is cgroup-constrained; build the real 3D client here
+          # and transfer only a verified production dist to the installer-managed path.
+          rm -rf client/dist
+          pnpm --filter @wasd/client build
+          test -f client/dist/index.html
+          test -d client/dist/assets
+          ! grep -q 'Areloria 3D unavailable' client/dist/index.html
+          node <<'NODE'
+          const fs = require('node:fs');
+          const sha = process.env.GITHUB_SHA;
+          if (!sha) throw new Error('GITHUB_SHA missing');
+          fs.writeFileSync('client/dist/build-stamp.json', JSON.stringify({ ok: true, app: 'client-3d', commit: sha, generatedBy: 'vps-docker-deploy.yml' }, null, 2));
+          NODE
+          grep -q "${GITHUB_SHA}" client/dist/build-stamp.json
+          tar -C client -czf "${CLIENT_3D_ARCHIVE}" dist
+          ls -lh "${CLIENT_3D_ARCHIVE}"
+
       - name: Install sshpass
         run: |
           set -euo pipefail
@@ -178,13 +220,13 @@ jobs:
           echo "ERROR: VPS SSH stayed unreachable after retries."
           exit 255
 
-      - name: Upload prebuilt client-2d artifact to VPS
+      - name: Upload prebuilt client artifacts to VPS
         run: |
           set -euo pipefail
           sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -p "${SSH_PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" "mkdir -p '${DEPLOY_PATH}'"
           for attempt in 1 2 3; do
             echo "SCP attempt ${attempt}/3"
-            if sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -P "${SSH_PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${CLIENT_2D_ARCHIVE}" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${DEPLOY_PATH}/${CLIENT_2D_ARCHIVE}"; then
+            if sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -P "${SSH_PORT}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${CLIENT_2D_ARCHIVE}" "${CLIENT_3D_ARCHIVE}" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${DEPLOY_PATH}/"; then
               exit 0
             fi
             sleep 15
@@ -192,8 +234,32 @@ jobs:
           exit 1
 
       - name: Run strict Docker deploy on VPS
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          API_KEY: ${{ secrets.API_KEY }}
+          API_KEYS: ${{ secrets.API_KEYS }}
+          ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
+          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+          WASD_WORLD_SEED: ${{ secrets.WASD_WORLD_SEED || vars.WASD_WORLD_SEED }}
+          RUNTIME_ENV_PATCH: ${{ runner.temp }}/wasd-runtime-env-${{ github.run_id }}.env
         run: |
           set -euo pipefail
+          umask 077
+          : > "$RUNTIME_ENV_PATCH"
+          for key in DATABASE_URL API_KEY API_KEYS ALLOWED_ORIGINS CORS_ORIGINS WASD_WORLD_SEED; do
+            value="${!key-}"
+            if [ -n "$value" ]; then
+              printf '%s=%s\n' "$key" "$value" >> "$RUNTIME_ENV_PATCH"
+            fi
+          done
+          chmod 600 "$RUNTIME_ENV_PATCH"
+          RUNTIME_ENV_PATCH_NAME=".wasd-runtime-env-${GITHUB_RUN_ID}.env"
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp \
+            -P "${SSH_PORT}" \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$RUNTIME_ENV_PATCH" \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${DEPLOY_PATH}/${RUNTIME_ENV_PATCH_NAME}"
           sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh \
             -p "${SSH_PORT}" \
             -o StrictHostKeyChecking=no \
@@ -201,20 +267,52 @@ jobs:
             -o ServerAliveInterval=36 \
             -o ServerAliveCountMax=16 \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_BRANCH='${DEPLOY_BRANCH}' ARELORIAN_PORT='${ARELORIAN_PORT}' ARELORIAN_DOCKER_NETWORK='${ARELORIAN_DOCKER_NETWORK}' CLIENT_2D_ARCHIVE='${CLIENT_2D_ARCHIVE}' CLIENT_2D_MARKER='${CLIENT_2D_MARKER}' CLIENT_2D_BUILD_SHA='${CLIENT_2D_BUILD_SHA}' GITHUB_SHA_EXPECTED='${GITHUB_SHA}' bash -s" <<'REMOTE_EOF'
+            "DEPLOY_PATH='${DEPLOY_PATH}' DEPLOY_BRANCH='${DEPLOY_BRANCH}' ARELORIAN_PORT='${ARELORIAN_PORT}' ARELORIAN_DOCKER_NETWORK='${ARELORIAN_DOCKER_NETWORK}' CLIENT_2D_ARCHIVE='${CLIENT_2D_ARCHIVE}' CLIENT_3D_ARCHIVE='${CLIENT_3D_ARCHIVE}' CLIENT_2D_MARKER='${CLIENT_2D_MARKER}' CLIENT_2D_BUILD_SHA='${CLIENT_2D_BUILD_SHA}' CLIENT_3D_BUILD_SHA='${GITHUB_SHA}' GITHUB_SHA_EXPECTED='${GITHUB_SHA}' RUNTIME_ENV_PATCH='${RUNTIME_ENV_PATCH_NAME}' bash -s" <<'REMOTE_EOF'
           set -Eeuo pipefail
           APP_DIR="${DEPLOY_PATH:-/opt/areloria}"
           BRANCH="${DEPLOY_BRANCH:-main}"
           REPO_URL="https://github.com/${{ github.repository }}.git"
+          if [ -n "${RUNTIME_ENV_PATCH:-}" ]; then
+            case "$RUNTIME_ENV_PATCH" in
+              .wasd-runtime-env-*.env) ;;
+              *) echo "ERROR: refusing an unsafe runtime env patch path"; exit 1 ;;
+            esac
+            trap 'rm -f -- "$RUNTIME_ENV_PATCH"' EXIT
+          fi
           mkdir -p "$APP_DIR"
           cd "$APP_DIR"
           if [ ! -d .git ]; then
-            git clone --branch "$BRANCH" "$REPO_URL" .
+            # Installer-managed paths may already contain runtime files such as .env or
+            # data/. Initialise Git in place instead of failing with `git clone ... .`.
+            git init
+            git remote add origin "$REPO_URL"
           else
             git remote set-url origin "$REPO_URL" || true
-            git fetch --no-tags origin "$BRANCH"
-            git reset --hard "origin/$BRANCH"
-            git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e "$CLIENT_2D_ARCHIVE" -e apps/client-2d/dist/ -e .asset-inbox/ || true
+          fi
+          git fetch --no-tags origin "$BRANCH"
+          git reset --hard "origin/$BRANCH"
+          git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e "$CLIENT_2D_ARCHIVE" -e "$CLIENT_3D_ARCHIVE" -e "$RUNTIME_ENV_PATCH" -e apps/client-2d/dist/ -e client/dist/ -e .asset-inbox/ || true
+          if [ -n "${RUNTIME_ENV_PATCH:-}" ]; then
+            test -f "$RUNTIME_ENV_PATCH"
+            umask 077
+            touch .env.docker
+            chmod 600 .env.docker
+            while IFS= read -r entry || [ -n "$entry" ]; do
+              case "$entry" in
+                [A-Za-z_][A-Za-z0-9_]*=*)
+                  key="${entry%%=*}"
+                  tmp=".env.docker.tmp.$$"
+                  grep -v "^${key}=" .env.docker > "$tmp" || true
+                  printf '%s\n' "$entry" >> "$tmp"
+                  chmod 600 "$tmp"
+                  mv "$tmp" .env.docker
+                  ;;
+                '') ;;
+                *) echo "ERROR: refusing malformed runtime env entry"; exit 1 ;;
+              esac
+            done < "$RUNTIME_ENV_PATCH"
+            rm -f "$RUNTIME_ENV_PATCH"
+            echo "Runtime environment patched from protected workflow inputs."
           fi
           echo "Remote HEAD=$(git rev-parse HEAD)"
           echo "Expected HEAD=$GITHUB_SHA_EXPECTED"
@@ -229,24 +327,33 @@ jobs:
           grep -q 'world.sensor.frame' server/src/core/watchdog-live-sensors.ts
           grep -q 'installDeterministicWatchdogRuntime' server/src/index.ts
           echo "Remote strict source gate OK."
-          if [ -n "${CLIENT_2D_ARCHIVE:-}" ] && [ -f "$APP_DIR/$CLIENT_2D_ARCHIVE" ]; then
-            rm -rf apps/client-2d/dist
-            mkdir -p apps/client-2d
-            tar -xzf "$APP_DIR/$CLIENT_2D_ARCHIVE" -C apps/client-2d
-            test -f apps/client-2d/dist/index.html
-            grep -q "$CLIENT_2D_MARKER" apps/client-2d/dist/index.html
-            test -f apps/client-2d/dist/build-stamp.json
-            grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json
-          else
-            echo "WARN: no prebuilt client-2d archive found; Dockerfile must build it."
-          fi
+          test -n "${CLIENT_2D_ARCHIVE:-}" && test -f "$APP_DIR/$CLIENT_2D_ARCHIVE" || { echo "ERROR: no prebuilt client-2d archive found"; exit 1; }
+          rm -rf apps/client-2d/dist
+          mkdir -p apps/client-2d
+          tar -xzf "$APP_DIR/$CLIENT_2D_ARCHIVE" -C apps/client-2d
+          test -f apps/client-2d/dist/index.html
+          grep -q "$CLIENT_2D_MARKER" apps/client-2d/dist/index.html
+          test -f apps/client-2d/dist/build-stamp.json
+          grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json
+          test -n "${CLIENT_3D_ARCHIVE:-}" && test -f "$APP_DIR/$CLIENT_3D_ARCHIVE" || { echo "ERROR: no prebuilt client-3d archive found"; exit 1; }
+          rm -rf client/dist
+          mkdir -p client
+          tar -xzf "$APP_DIR/$CLIENT_3D_ARCHIVE" -C client
+          test -f client/dist/index.html
+          test -d client/dist/assets
+          ! grep -q 'Areloria 3D unavailable' client/dist/index.html
+          test -f client/dist/build-stamp.json
+          grep -q "$GITHUB_SHA_EXPECTED" client/dist/build-stamp.json
+          echo "Prebuilt client artifacts extracted and verified."
           chmod +x scripts/deploy-vps-docker.sh scripts/vps-docker-inline-deploy.sh 2>/dev/null || true
           ARELORIAN_PORT="${ARELORIAN_PORT:-3001}" \
           ARELORIAN_DOCKER_NETWORK="${ARELORIAN_DOCKER_NETWORK:-areloria_arelorian-network}" \
           ARELORIAN_ENV_FILE=".env.docker" \
           CLIENT_2D_ARCHIVE="$CLIENT_2D_ARCHIVE" \
+          CLIENT_3D_ARCHIVE="$CLIENT_3D_ARCHIVE" \
           CLIENT_2D_MARKER="$CLIENT_2D_MARKER" \
           CLIENT_2D_BUILD_SHA="$CLIENT_2D_BUILD_SHA" \
+          CLIENT_3D_BUILD_SHA="$GITHUB_SHA_EXPECTED" \
           DEPLOY_BRANCH="$BRANCH" \
           bash scripts/deploy-vps-docker.sh
           REMOTE_EOF

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import express from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
+import { aurionTransitionRuntime } from "../aurion/AurionTransitionRuntime.js";
 import { worldTickAdapter } from "../core/are/WorldTickThinShellAdapter.js";
 import { characterService } from "../character/characterRuntime.js";
 import { createPaperdollSnapshot } from "../character/PaperdollTypes.js";
@@ -177,6 +178,7 @@ export function createGameplaySnapshotRouter(_deps: GameplaySnapshotRouterDeps =
         discoveryStats,
         recentDiscoveries: [],
       });
+      const aurionTransition = aurionTransitionRuntime.getSnapshot(identity.playerId);
       const latestMutation = runtimeHistoryLog.latestByActor(identity.playerId);
       const revisionSequence = latestMutation?.sequence ?? -1;
       const lastMutationHash = latestMutation?.entryHash ?? null;
@@ -197,9 +199,11 @@ export function createGameplaySnapshotRouter(_deps: GameplaySnapshotRouterDeps =
         factions: moduleEvidence(factionStandings),
         map: moduleEvidence({ worldPois, npcActivity, worldSurface: composed.worldSurface }),
         workOrders: moduleEvidence(workOrders),
+        aurion: moduleEvidence(aurionTransition),
       });
       const composedWithEvidence = Object.freeze({
         ...composed,
+        aurionTransition,
         sourceEvidence,
         revisionSequence,
         lastMutationHash,
