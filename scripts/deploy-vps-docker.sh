@@ -13,10 +13,13 @@ ARELORIAN_ENV_FILE="${ARELORIAN_ENV_FILE:-.env.docker}"
 ARELORIAN_ENABLE_DOCKER_INGRESS="${ARELORIAN_ENABLE_DOCKER_INGRESS:-false}"
 ARELORIAN_INGRESS_HTTP_BIND="${ARELORIAN_INGRESS_HTTP_BIND:-0.0.0.0}"
 ARELORIAN_INGRESS_HTTP_PORT="${ARELORIAN_INGRESS_HTTP_PORT:-80}"
+CLIENT_2D_ARCHIVE="${CLIENT_2D_ARCHIVE:-}"
+CLIENT_3D_ARCHIVE="${CLIENT_3D_ARCHIVE:-}"
 CLIENT_2D_MARKER="${CLIENT_2D_MARKER:-REAL_PIXI_CLIENT}"
 CLIENT_2D_BUILD_SHA="${CLIENT_2D_BUILD_SHA:-}"
+CLIENT_3D_BUILD_SHA="${CLIENT_3D_BUILD_SHA:-}"
 NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}"
-export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK ARELORIAN_ENABLE_DOCKER_INGRESS ARELORIAN_INGRESS_HTTP_BIND ARELORIAN_INGRESS_HTTP_PORT CLIENT_2D_MARKER CLIENT_2D_BUILD_SHA NODE_OPTIONS
+export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK ARELORIAN_ENABLE_DOCKER_INGRESS ARELORIAN_INGRESS_HTTP_BIND ARELORIAN_INGRESS_HTTP_PORT CLIENT_2D_ARCHIVE CLIENT_3D_ARCHIVE CLIENT_2D_MARKER CLIENT_2D_BUILD_SHA CLIENT_3D_BUILD_SHA NODE_OPTIONS
 cd "$REPO_ROOT"
 
 LOCK_PATH="${DEPLOY_LOCK_PATH:-/tmp/wasd-vps-docker-deploy.lock}"
@@ -131,7 +134,17 @@ validate_client_2d_dockerfile_gate() {
     echo "WARN: CLIENT_2D_BUILD_SHA is empty; deploy can only prove marker, not exact client bundle freshness."
   fi
 
-  echo "Client-2D Dockerfile gate OK: ${CLIENT_2D_MARKER} enforced with PWA support."
+  test -f client/dist/index.html || { echo "ERROR: prebuilt client-3d index.html missing before Docker build."; exit 1; }
+  test -d client/dist/assets || { echo "ERROR: prebuilt client-3d assets missing before Docker build."; exit 1; }
+  if grep -q 'Areloria 3D unavailable' client/dist/index.html; then
+    echo "ERROR: prebuilt client-3d contains the unavailable placeholder."
+    exit 1
+  fi
+  if [ -n "$CLIENT_3D_BUILD_SHA" ]; then
+    test -f client/dist/build-stamp.json || { echo "ERROR: prebuilt client-3d build-stamp.json missing before Docker build."; exit 1; }
+    grep -q "$CLIENT_3D_BUILD_SHA" client/dist/build-stamp.json || { echo "ERROR: prebuilt client-3d build stamp does not match ${CLIENT_3D_BUILD_SHA}."; exit 1; }
+  fi
+  echo "Client Dockerfile gates OK: 2D ${CLIENT_2D_MARKER} plus verified real 3D artifact."
 }
 
 ensure_external_network() {
@@ -240,9 +253,9 @@ fetch_and_reset() {
   local temp_ref="refs/wasd-deploy/${DEPLOY_BRANCH}"
   echo "[1/4] git fetch + hard reset via temporary deploy ref"
   git reset --hard >/dev/null 2>&1 || true
-  # Always wipe dist/ so we start fresh. The GitHub workflow uploads a freshly-built
-  # client-2d artifact, so we must NOT preserve a stale dist/ from git history.
-  git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e .asset-inbox/ >/dev/null 2>&1 || true
+  # Always wipe dist/ so we start fresh. Preserve only the current runner-built
+  # archives, then re-extract verified 2D and 3D dists after the reset.
+  git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e .asset-inbox/ -e "$CLIENT_2D_ARCHIVE" -e "$CLIENT_3D_ARCHIVE" >/dev/null 2>&1 || true
   git update-ref -d "$temp_ref" >/dev/null 2>&1 || true
   if ! git -c remote.origin.fetch= fetch --no-tags origin "+refs/heads/${DEPLOY_BRANCH}:${temp_ref}"; then
     echo "WARN: fetch failed; healing stale origin ref and retrying once."
@@ -252,6 +265,26 @@ fetch_and_reset() {
   fi
   git reset --hard "$temp_ref"
   git update-ref -d "$temp_ref" >/dev/null 2>&1 || true
+}
+
+restore_prebuilt_client_artifacts() {
+  echo "=== Restore verified prebuilt client artifacts ==="
+  test -n "$CLIENT_2D_ARCHIVE" && test -f "$CLIENT_2D_ARCHIVE" || { echo "ERROR: client-2d archive missing after reset."; exit 1; }
+  test -n "$CLIENT_3D_ARCHIVE" && test -f "$CLIENT_3D_ARCHIVE" || { echo "ERROR: client-3d archive missing after reset."; exit 1; }
+  rm -rf apps/client-2d/dist client/dist
+  mkdir -p apps/client-2d client
+  tar -xzf "$CLIENT_2D_ARCHIVE" -C apps/client-2d
+  tar -xzf "$CLIENT_3D_ARCHIVE" -C client
+  test -f apps/client-2d/dist/index.html
+  grep -q "$CLIENT_2D_MARKER" apps/client-2d/dist/index.html
+  test -f apps/client-2d/dist/build-stamp.json
+  grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json
+  test -f client/dist/index.html
+  test -d client/dist/assets
+  ! grep -q 'Areloria 3D unavailable' client/dist/index.html
+  test -f client/dist/build-stamp.json
+  grep -q "$CLIENT_3D_BUILD_SHA" client/dist/build-stamp.json
+  echo "Verified prebuilt client-2d and client-3d artifacts restored."
 }
 
 import_cozy_assets_after_reset() {
@@ -362,6 +395,7 @@ if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
 fi
 
 fetch_and_reset
+restore_prebuilt_client_artifacts
 export BUILD_COMMIT_SHA="$(git rev-parse HEAD)"
 import_cozy_assets_after_reset
 validate_client_2d_dockerfile_gate

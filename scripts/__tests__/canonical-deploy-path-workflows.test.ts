@@ -39,6 +39,22 @@ describe('canonical VPS deployment path workflows', () => {
     expect(workflow).not.toContain('git clone --branch "$BRANCH" "$REPO_URL" .');
   });
 
+  it.each(workflowPaths)('%s transfers and verifies the real 3D client artifact before the VPS Docker build', (workflowPath) => {
+    const workflow = readWorkflow(workflowPath);
+
+    expect(workflow).toContain('CLIENT_3D_ARCHIVE: wasd-client-3d-dist-${{ github.sha }}.tgz');
+    expect(workflow).toContain('Build client-3d on GitHub runner');
+    expect(workflow).toContain('pnpm --filter @wasd/client build');
+    expect(workflow).toContain("! grep -q 'Areloria 3D unavailable' client/dist/index.html");
+    expect(workflow).toContain("fs.writeFileSync('client/dist/build-stamp.json'");
+    expect(workflow).toContain('CLIENT_3D_ARCHIVE=');
+    expect(workflow).toContain('-e "$CLIENT_3D_ARCHIVE"');
+    expect(workflow).toContain('-e client/dist/');
+    expect(workflow).toContain('tar -xzf "$APP_DIR/$CLIENT_3D_ARCHIVE" -C client');
+    expect(workflow).toContain('grep -q "$GITHUB_SHA_EXPECTED" client/dist/build-stamp.json');
+    expect(workflow).toContain('CLIENT_3D_BUILD_SHA=');
+  });
+
   it.each(workflowPaths)('%s applies protected runtime inputs after Git synchronization', (workflowPath) => {
     const workflow = readWorkflow(workflowPath);
 

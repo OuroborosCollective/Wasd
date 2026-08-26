@@ -11,6 +11,8 @@ npm-cache
 **/dist
 !apps/client-2d/dist
 !apps/client-2d/dist/**
+!client/dist
+!client/dist/**
 **/.next
 **/.nuxt
 **/build

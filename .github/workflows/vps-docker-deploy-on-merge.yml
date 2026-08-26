@@ -23,11 +23,12 @@ env:
   ARELORIAN_PORT: ${{ secrets.VPS_ARELORIAN_PORT || '3001' }}
   ARELORIAN_DOCKER_NETWORK: ${{ secrets.VPS_DOCKER_NETWORK || 'areloria_arelorian-network' }}
   CLIENT_2D_ARCHIVE: wasd-client-2d-dist-${{ github.sha }}.tgz
+  CLIENT_3D_ARCHIVE: wasd-client-3d-dist-${{ github.sha }}.tgz
   CLIENT_2D_MARKER: REAL_PIXI_CLIENT
   CLIENT_2D_BUILD_SHA: ${{ github.sha }}
 
 jobs:
-  build-client-2d:
+  build-clients:
     if: ${{ github.event.pull_request.merged == true }}
     runs-on: ubuntu-latest
     env:
@@ -54,11 +55,11 @@ jobs:
           pnpm config set store-dir .pnpm-store
           pnpm config set verify-deps-before-run false
 
-      - name: Install client-2d dependencies
+      - name: Install deployment client dependencies
         run: |
           set -euo pipefail
-          pnpm --filter @wasd/client-2d... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
-          pnpm --filter @wasd/client-2d... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
+          pnpm --filter @wasd/client-2d... --filter @wasd/client... install --lockfile-only --no-frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
+          pnpm --filter @wasd/client-2d... --filter @wasd/client... install --frozen-lockfile --prefer-offline --ignore-scripts --network-concurrency=1 --child-concurrency=1 --reporter=append-only
 
       - name: Import Cozy Spring assets when inbox exists
         run: |
@@ -111,16 +112,36 @@ jobs:
           tar -C apps/client-2d -czf "${CLIENT_2D_ARCHIVE}" dist
           ls -lh "${CLIENT_2D_ARCHIVE}"
 
-      - name: Upload prebuilt client-2d artifact
+      - name: Build client-3d on GitHub runner
+        run: |
+          set -euo pipefail
+          rm -rf client/dist
+          pnpm --filter @wasd/client build
+          test -f client/dist/index.html
+          test -d client/dist/assets
+          ! grep -q 'Areloria 3D unavailable' client/dist/index.html
+          node <<'NODE'
+          const fs = require('node:fs');
+          const sha = process.env.GITHUB_SHA;
+          if (!sha) throw new Error('GITHUB_SHA missing');
+          fs.writeFileSync('client/dist/build-stamp.json', JSON.stringify({ ok: true, app: 'client-3d', commit: sha, generatedBy: 'vps-docker-deploy-on-merge.yml' }, null, 2));
+          NODE
+          grep -q "${GITHUB_SHA}" client/dist/build-stamp.json
+          tar -C client -czf "${CLIENT_3D_ARCHIVE}" dist
+          ls -lh "${CLIENT_3D_ARCHIVE}"
+
+      - name: Upload prebuilt client artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: client-2d-dist-${{ github.sha }}
-          path: ${{ env.CLIENT_2D_ARCHIVE }}
+          name: deployment-client-dists-${{ github.sha }}
+          path: |
+            ${{ env.CLIENT_2D_ARCHIVE }}
+            ${{ env.CLIENT_3D_ARCHIVE }}
           retention-days: 1
 
   deploy:
     if: ${{ github.event.pull_request.merged == true }}
-    needs: build-client-2d
+    needs: build-clients
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -140,10 +161,10 @@ jobs:
           fi
           echo "Canonical deployment path accepted."
 
-      - name: Download prebuilt client-2d artifact
+      - name: Download prebuilt client artifacts
         uses: actions/download-artifact@v4
         with:
-          name: client-2d-dist-${{ github.sha }}
+          name: deployment-client-dists-${{ github.sha }}
           path: .
 
       - name: Install sshpass
@@ -171,12 +192,12 @@ jobs:
           echo "ERROR: VPS SSH unreachable after retries."
           exit 255
 
-      - name: Upload artifact to VPS
+      - name: Upload artifacts to VPS
         run: |
           set -euo pipefail
           sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -p "${{ secrets.SSH_PORT || 22 }}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" "mkdir -p '${{ env.DEPLOY_PATH }}'"
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -P "${{ secrets.SSH_PORT || 22 }}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${{ env.CLIENT_2D_ARCHIVE }}" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_PATH }}/${{ env.CLIENT_2D_ARCHIVE }}"
-          ls -lh "${{ env.CLIENT_2D_ARCHIVE }}"
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -P "${{ secrets.SSH_PORT || 22 }}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${{ env.CLIENT_2D_ARCHIVE }}" "${{ env.CLIENT_3D_ARCHIVE }}" "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_PATH }}/"
+          ls -lh "${{ env.CLIENT_2D_ARCHIVE }}" "${{ env.CLIENT_3D_ARCHIVE }}"
 
       - name: Deploy to VPS with Docker
         env:
@@ -212,7 +233,7 @@ jobs:
             -o ServerAliveInterval=36 \
             -o ServerAliveCountMax=16 \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "DEPLOY_PATH='${{ env.DEPLOY_PATH }}' DEPLOY_BRANCH='${{ env.DEPLOY_BRANCH }}' ARELORIAN_PORT='${{ env.ARELORIAN_PORT }}' ARELORIAN_DOCKER_NETWORK='${{ env.ARELORIAN_DOCKER_NETWORK }}' CLIENT_2D_ARCHIVE='${{ env.CLIENT_2D_ARCHIVE }}' CLIENT_2D_MARKER='${{ env.CLIENT_2D_MARKER }}' CLIENT_2D_BUILD_SHA='${{ env.CLIENT_2D_BUILD_SHA }}' GITHUB_SHA_EXPECTED='${{ github.sha }}' RUNTIME_ENV_PATCH='${RUNTIME_ENV_PATCH_NAME}' bash -s" <<'REMOTE_EOF'
+            "DEPLOY_PATH='${{ env.DEPLOY_PATH }}' DEPLOY_BRANCH='${{ env.DEPLOY_BRANCH }}' ARELORIAN_PORT='${{ env.ARELORIAN_PORT }}' ARELORIAN_DOCKER_NETWORK='${{ env.ARELORIAN_DOCKER_NETWORK }}' CLIENT_2D_ARCHIVE='${{ env.CLIENT_2D_ARCHIVE }}' CLIENT_3D_ARCHIVE='${{ env.CLIENT_3D_ARCHIVE }}' CLIENT_2D_MARKER='${{ env.CLIENT_2D_MARKER }}' CLIENT_2D_BUILD_SHA='${{ env.CLIENT_2D_BUILD_SHA }}' CLIENT_3D_BUILD_SHA='${{ github.sha }}' GITHUB_SHA_EXPECTED='${{ github.sha }}' RUNTIME_ENV_PATCH='${RUNTIME_ENV_PATCH_NAME}' bash -s" <<'REMOTE_EOF'
           set -Eeuo pipefail
           APP_DIR="${DEPLOY_PATH:-/opt/areloria}"
           BRANCH="${DEPLOY_BRANCH:-main}"
@@ -237,7 +258,7 @@ jobs:
           git fetch --no-tags origin "$BRANCH"
           git reset --hard "origin/$BRANCH"
           # IMPORTANT: Wipe dist directories to ensure fresh client-2d from artifact
-          git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e "$CLIENT_2D_ARCHIVE" -e "$RUNTIME_ENV_PATCH" -e apps/client-2d/dist/ -e .asset-inbox/ || true
+          git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e "$CLIENT_2D_ARCHIVE" -e "$CLIENT_3D_ARCHIVE" -e "$RUNTIME_ENV_PATCH" -e apps/client-2d/dist/ -e client/dist/ -e .asset-inbox/ || true
           if [ -n "${RUNTIME_ENV_PATCH:-}" ]; then
             test -f "$RUNTIME_ENV_PATCH"
             umask 077
@@ -264,27 +285,33 @@ jobs:
           echo "Expected HEAD=$GITHUB_SHA_EXPECTED"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA_EXPECTED"
           test -f Dockerfile.vps
-          # Extract prebuilt client-2d artifact
-          if [ -n "${CLIENT_2D_ARCHIVE:-}" ] && [ -f "$APP_DIR/$CLIENT_2D_ARCHIVE" ]; then
-            rm -rf apps/client-2d/dist
-            mkdir -p apps/client-2d
-            tar -xzf "$APP_DIR/$CLIENT_2D_ARCHIVE" -C apps/client-2d
-            test -f apps/client-2d/dist/index.html
-            grep -q "$CLIENT_2D_MARKER" apps/client-2d/dist/index.html
-            test -f apps/client-2d/dist/build-stamp.json
-            grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json
-            echo "Prebuilt client-2d artifact extracted and verified."
-          else
-            echo "ERROR: No client-2d artifact found at $APP_DIR/$CLIENT_2D_ARCHIVE"
-            exit 1
-          fi
+          test -n "${CLIENT_2D_ARCHIVE:-}" && test -f "$APP_DIR/$CLIENT_2D_ARCHIVE" || { echo "ERROR: no prebuilt client-2d archive found"; exit 1; }
+          rm -rf apps/client-2d/dist
+          mkdir -p apps/client-2d
+          tar -xzf "$APP_DIR/$CLIENT_2D_ARCHIVE" -C apps/client-2d
+          test -f apps/client-2d/dist/index.html
+          grep -q "$CLIENT_2D_MARKER" apps/client-2d/dist/index.html
+          test -f apps/client-2d/dist/build-stamp.json
+          grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json
+          test -n "${CLIENT_3D_ARCHIVE:-}" && test -f "$APP_DIR/$CLIENT_3D_ARCHIVE" || { echo "ERROR: no prebuilt client-3d archive found"; exit 1; }
+          rm -rf client/dist
+          mkdir -p client
+          tar -xzf "$APP_DIR/$CLIENT_3D_ARCHIVE" -C client
+          test -f client/dist/index.html
+          test -d client/dist/assets
+          ! grep -q 'Areloria 3D unavailable' client/dist/index.html
+          test -f client/dist/build-stamp.json
+          grep -q "$GITHUB_SHA_EXPECTED" client/dist/build-stamp.json
+          echo "Prebuilt client artifacts extracted and verified."
           chmod +x scripts/deploy-vps-docker.sh scripts/vps-docker-inline-deploy.sh 2>/dev/null || true
           ARELORIAN_PORT="${ARELORIAN_PORT:-3001}" \
           ARELORIAN_DOCKER_NETWORK="${ARELORIAN_DOCKER_NETWORK:-areloria_arelorian-network}" \
           ARELORIAN_ENV_FILE=".env.docker" \
           CLIENT_2D_ARCHIVE="$CLIENT_2D_ARCHIVE" \
+          CLIENT_3D_ARCHIVE="$CLIENT_3D_ARCHIVE" \
           CLIENT_2D_MARKER="$CLIENT_2D_MARKER" \
           CLIENT_2D_BUILD_SHA="$CLIENT_2D_BUILD_SHA" \
+          CLIENT_3D_BUILD_SHA="$GITHUB_SHA_EXPECTED" \
           DEPLOY_BRANCH="$BRANCH" \
           bash scripts/deploy-vps-docker.sh
 
