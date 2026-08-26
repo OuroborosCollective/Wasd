@@ -2,7 +2,9 @@
 // Live snapshot-based map display for ArelorianStitchHud
 // Server-authoritative, display-only
 
+import { useState } from "react";
 import type { LiveGameplaySnapshot } from "../../game/liveGameplaySnapshot";
+import { dispatchAurionTransition } from "../../game/gameplayActions";
 import { deriveChunkBiome } from "@wasd/shared";
 
 interface MapStatusPanelProps {
@@ -15,6 +17,7 @@ interface MapStatusPanelProps {
 
 export function MapStatusPanel({ snapshot, activeChunkCount, worldSeed = "areloria:earth_1_1" }: MapStatusPanelProps) {
   const map = snapshot.map;
+  const [aurionRequestError, setAurionRequestError] = useState<string | null>(null);
 
   // Derive biome from chunk coordinates for debug display
   // This matches the deterministic biome derivation in ChunkManager
@@ -45,6 +48,13 @@ export function MapStatusPanel({ snapshot, activeChunkCount, worldSeed = "arelor
     activeChunkCount ?? map.visibleChunks ?? "—"
   );
   const biomeDisplay = derivedBiome ?? map.biome ?? "unknown";
+  const aurionTransition = snapshot.aurionTransition;
+  const canRequestAurionTransition = aurionTransition?.status === "idle";
+
+  const requestAurionTransition = async () => {
+    const result = await dispatchAurionTransition();
+    setAurionRequestError(result.ok ? null : result.error ?? "aurion_transition_failed");
+  };
 
   return (
     <div
@@ -127,6 +137,24 @@ export function MapStatusPanel({ snapshot, activeChunkCount, worldSeed = "arelor
         <small>Biome</small>
         <b>{biomeDisplay}</b>
       </article>
+      {aurionTransition && (
+        <article
+          className="stitch-info"
+          data-testid="aurion-transition-status"
+          title={`Aurion: ${aurionTransition.status} in ${aurionTransition.zoneId}`}
+          aria-label={`Aurion transition: ${aurionTransition.status} in ${aurionTransition.zoneId}`}
+        >
+          <small>Aurion</small>
+          <b>{`${aurionTransition.zoneId} · ${aurionTransition.status}`}</b>
+          <span style={{ fontSize: "9px", opacity: 0.7 }}>{aurionTransition.persistence}</span>
+          {canRequestAurionTransition && (
+            <button type="button" data-testid="aurion-transition-request" onClick={() => { void requestAurionTransition(); }}>
+              Expanse betreten
+            </button>
+          )}
+          {aurionRequestError && <span role="status" style={{ fontSize: "9px" }}>{aurionRequestError}</span>}
+        </article>
+      )}
       {process.env.NODE_ENV !== "production" && (
         <article
           className="stitch-info"
