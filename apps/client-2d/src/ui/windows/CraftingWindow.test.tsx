@@ -119,6 +119,12 @@ describe("CraftingWindow UX & Accessibility", () => {
       root.render(<CraftingWindow isOpen={true} />);
     });
 
+    // Outer overlay container dialog accessibility check
+    const overlay = container!.querySelector(".wow-inventory-overlay");
+    expect(overlay).toBeTruthy();
+    expect(overlay!.getAttribute("role")).toBe("dialog");
+    expect(overlay!.getAttribute("aria-label")).toBe("Crafting");
+
     // Sword - Craftable
     const swordBtn = container!.querySelector("[data-testid='process-wooden_sword']") as HTMLButtonElement;
     expect(swordBtn).toBeTruthy();

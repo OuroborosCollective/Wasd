@@ -63,12 +63,13 @@ function finiteInteger(value: unknown, fallback = 0): number {
   return Number.isSafeInteger(numeric) ? numeric : fallback;
 }
 
-function resolveChunkKey(zone: any, npc: any): string {
+function resolveChunkKey(zone: any, npc: any): string | null {
   const explicit = requiredString(zone?.chunkKey);
   if (explicit) return explicit;
 
-  const x = Math.floor(Number(npc?.position?.x ?? 0));
-  const z = Math.floor(Number(npc?.position?.z ?? npc?.position?.y ?? 0));
+  const x = Number(npc?.position?.x);
+  const z = Number(npc?.position?.z ?? npc?.position?.y);
+  if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
   return `tile:${Math.floor(x / 64)}:${Math.floor(z / 64)}`;
 }
 
@@ -90,8 +91,9 @@ function buildCanonicalDefeatContext({ player, npc, zone, world, tickIndex }: {
   const chunkHash = requiredString(zone?.chunkHash ?? world?.chunkHash);
   const kappa = requiredString(world?.kappa ?? world?.kappaHash ?? world?.seedHash);
   const sourceTick = finiteInteger(tickIndex, -1);
+  const chunkKey = resolveChunkKey(zone, npc);
 
-  if (!sourceEntityId || !defeatedEntityId || !worldHash || !chunkHash || !kappa || sourceTick < 0) {
+  if (!sourceEntityId || !defeatedEntityId || !worldHash || !chunkHash || !kappa || !chunkKey || sourceTick < 0) {
     return null;
   }
 
@@ -105,7 +107,7 @@ function buildCanonicalDefeatContext({ player, npc, zone, world, tickIndex }: {
     defeatedEntityId,
     actorId: sourceEntityId,
     sourceTick,
-    chunkKey: resolveChunkKey(zone, npc),
+    chunkKey,
     worldHash,
     chunkHash,
     kappa,
