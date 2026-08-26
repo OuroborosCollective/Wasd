@@ -217,9 +217,10 @@ export class SovereignDestinyEngine {
         const sHash = sectorHash(context.seed, context.worldHash, context.tick, sector);
         return { sector, score, sHash };
       })
+      // Bolt: Optimized sector hash tie-breaker sorting using fast direct relational string comparisons instead of slow localeCompare
       .sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
-        return a.sHash.localeCompare(b.sHash);
+        return a.sHash < b.sHash ? -1 : a.sHash > b.sHash ? 1 : 0;
       })
       .slice(0, maxQuests);
 

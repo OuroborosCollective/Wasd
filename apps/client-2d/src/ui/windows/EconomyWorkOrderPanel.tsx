@@ -170,9 +170,10 @@ export function parseVerifiedWorkOrderResponse(value: unknown): VerifiedWorkOrde
   if (!Array.isArray(value.orders)) throw new Error('missing_work_order_list_evidence');
 
   const actorEvidence = parseActorEvidence(value.actorEvidence, value.vendorId);
+  // Bolt: Optimized orderId sorting using fast direct relational string comparisons instead of slow localeCompare
   const orders = value.orders
     .map((order) => parseOrder(order, value.tick, value.vendorId, actorEvidence))
-    .sort((a, b) => a.orderId.localeCompare(b.orderId));
+    .sort((a, b) => (a.orderId < b.orderId ? -1 : a.orderId > b.orderId ? 1 : 0));
 
   return Object.freeze({
     tick: value.tick,

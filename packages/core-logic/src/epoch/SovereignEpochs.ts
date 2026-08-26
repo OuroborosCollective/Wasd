@@ -127,7 +127,10 @@ function resetSector(sector: EpochSectorState, epoch: EpochDefinition, salt: str
 }
 
 function archiveHeroes(peers: HeroicPeer[] = []): HeroicPeer[] {
-  return [...peers].sort((a, b) => b.score - a.score || a.peerId.localeCompare(b.peerId)).slice(0, 7);
+  // Bolt: Optimized peerId sorting using fast direct relational string comparisons instead of slow localeCompare
+  return [...peers]
+    .sort((a, b) => b.score - a.score || (a.peerId < b.peerId ? -1 : a.peerId > b.peerId ? 1 : 0))
+    .slice(0, 7);
 }
 
 export function evaluateEpochShift(input: EpochProgressInput): EpochShiftPayload {
