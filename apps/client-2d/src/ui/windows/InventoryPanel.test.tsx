@@ -5,11 +5,19 @@ import { createRoot } from "react-dom/client";
 import { InventoryPanel } from "./InventoryPanel";
 import type { PlayerInventorySnapshot } from "../../game/liveGameplaySnapshot";
 import { dispatchSellResource, dispatchSellAllResources } from "../../game/gameplayActions";
+import { equipGatheringTool } from "../../game/equipment";
 
 vi.mock("../../game/gameplayActions", () => {
   return {
     dispatchSellResource: vi.fn(),
     dispatchSellAllResources: vi.fn(),
+  };
+});
+
+vi.mock("../../game/equipment", () => {
+  return {
+    equipGatheringTool: vi.fn(),
+    unequipGatheringTool: vi.fn(),
   };
 });
 
@@ -154,6 +162,72 @@ describe("InventoryPanel UX & Accessibility", () => {
     expect(sellAllBtn.disabled).toBe(false);
     expect(sellAllBtn.getAttribute("aria-busy")).toBe("false");
     expect(sellAllBtn.textContent).toBe("Sell All Resources");
+    expect(sellBtn.disabled).toBe(false);
+  });
+
+  it("updates tool equip button to loading state and disables actions on click", async () => {
+    let resolveEquipPromise: (val: any) => void = () => {};
+    const equipPromise = new Promise((resolve) => {
+      resolveEquipPromise = resolve;
+    });
+
+    vi.mocked(equipGatheringTool).mockImplementation(() => equipPromise as any);
+
+    const toolInventory: PlayerInventorySnapshot = {
+      playerId: "player-1",
+      capacity: 20,
+      slots: [
+        {
+          slotId: "slot-0",
+          itemId: "wooden_axe",
+          name: "Wooden Axe",
+          quantity: 1,
+          category: "equipment",
+        },
+        {
+          slotId: "slot-1",
+          itemId: "wood_log",
+          name: "Wood Log",
+          quantity: 5,
+          category: "resource",
+        },
+      ],
+    };
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(<InventoryPanel inventory={toolInventory} />);
+    });
+
+    const region = container!.querySelector("[role='region']");
+    expect(region).toBeTruthy();
+    expect(region!.getAttribute("aria-label")).toBe("Player Inventory");
+
+    const equipBtn = container!.querySelector("[data-testid='equip-item-wooden_axe']") as HTMLButtonElement;
+    const sellBtn = container!.querySelector("[data-testid='vendor-sell-wood_log']") as HTMLButtonElement;
+
+    expect(equipBtn.disabled).toBe(false);
+    expect(equipBtn.getAttribute("aria-busy")).toBe("false");
+
+    await act(async () => {
+      equipBtn.click();
+    });
+
+    expect(equipBtn.disabled).toBe(true);
+    expect(equipBtn.getAttribute("aria-busy")).toBe("true");
+    expect(equipBtn.textContent).toContain("Equipping...");
+    expect(sellBtn.disabled).toBe(true);
+
+    await act(async () => {
+      resolveEquipPromise({ ok: true, result: { ok: true } });
+    });
+
+    expect(equipBtn.disabled).toBe(false);
+    expect(equipBtn.getAttribute("aria-busy")).toBe("false");
+    expect(equipBtn.textContent).toContain("Wooden Axe");
     expect(sellBtn.disabled).toBe(false);
   });
 });

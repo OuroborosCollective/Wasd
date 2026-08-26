@@ -103,6 +103,7 @@ const VENDOR_ID = "village_trader_001";
 export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, equipmentStats }: Props) {
   const [sellingItemId, setSellingItemId] = useState<string | null>(null);
   const [isSellingAll, setIsSellingAll] = useState<boolean>(false);
+  const [equippingItemId, setEquippingItemId] = useState<string | null>(null);
 
   const slots = inventory?.slots ?? [];
   const equipped = equipment?.slots ?? [];
@@ -172,29 +173,34 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
 
   const handleEquip = useCallback(
     async (itemId: string) => {
-      const result = await equipGatheringTool(itemId);
+      setEquippingItemId(itemId);
+      try {
+        const result = await equipGatheringTool(itemId);
 
-      if (result.ok && result.result?.ok) {
-        window.dispatchEvent(
-          new CustomEvent("wasd:toast", {
-            detail: {
-              type: "success",
-              message: "Tool equipped",
-            },
-          }),
-        );
+        if (result.ok && result.result?.ok) {
+          window.dispatchEvent(
+            new CustomEvent("wasd:toast", {
+              detail: {
+                type: "success",
+                message: "Tool equipped",
+              },
+            }),
+          );
 
-        // Refetch snapshot to update equipment/paperdoll display
-        await refetchSnapshot();
-      } else {
-        window.dispatchEvent(
-          new CustomEvent("wasd:toast", {
-            detail: {
-              type: "error",
-              message: `Equip failed: ${result.result?.reason ?? "unknown"}`,
-            },
-          }),
-        );
+          // Refetch snapshot to update equipment/paperdoll display
+          await refetchSnapshot();
+        } else {
+          window.dispatchEvent(
+            new CustomEvent("wasd:toast", {
+              detail: {
+                type: "error",
+                message: `Equip failed: ${result.result?.reason ?? "unknown"}`,
+              },
+            }),
+          );
+        }
+      } finally {
+        setEquippingItemId(null);
       }
     },
     [refetchSnapshot],
@@ -311,7 +317,7 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
 
   if (!slots.length && !equipped.length) {
     return (
-      <section data-testid="inventory-panel-empty" className="are-window">
+      <section data-testid="inventory-panel-empty" className="are-window" role="region" aria-label="Player Inventory">
         <p className="are-text-muted">No items collected yet.</p>
         <p className="are-text-muted">
           <small>Walk near resource nodes and gather to collect items.</small>
@@ -321,7 +327,7 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
   }
 
   return (
-    <section data-testid="inventory-panel-live" className="are-window">
+    <section data-testid="inventory-panel-live" className="are-window" role="region" aria-label="Player Inventory">
       {/* Wallet Section */}
       <div className="wallet-section" data-testid="wallet-coin-balance">
         <span className="wallet-label">💰 Coins:</span>
@@ -391,6 +397,7 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
                       data-testid={`unequip-slot-${slot.slotId}`}
                       title={`Unequip ${slot.title}`}
                       aria-label={`Unequip ${slot.title}`}
+                      disabled={equippingItemId !== null || isSellingAll || sellingItemId !== null}
                     >
                       ✕
                     </button>
@@ -408,6 +415,7 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
               {tools.map((slot) => {
                 const iconPath = getGatheringToolIcon(slot.itemId);
                 const toolName = TOOL_NAMES[slot.itemId] ?? slot.name;
+                const isEquipping = equippingItemId === slot.itemId;
                 return (
                   <button
                     key={slot.slotId}
@@ -415,13 +423,15 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
                     className={`tool-button rarity-${TOOL_RARITY[slot.itemId] ?? "common"}`}
                     onClick={() => handleEquip(slot.itemId)}
                     data-testid={`equip-item-${slot.itemId}`}
-                    title={`Equip ${toolName}`}
-                    aria-label={`Equip ${toolName}`}
+                    title={isEquipping ? `Equipping ${toolName}...` : `Equip ${toolName}`}
+                    aria-label={isEquipping ? `Equipping ${toolName}...` : `Equip ${toolName}`}
+                    disabled={equippingItemId !== null || isSellingAll || sellingItemId !== null}
+                    aria-busy={isEquipping}
                   >
                     {iconPath && (
                       <img src={iconPath} alt={slot.name} className="tool-svg-icon" />
                     )}
-                    <span className="tool-name">{TOOL_NAMES[slot.itemId] ?? slot.name}</span>
+                    <span className="tool-name">{isEquipping ? "Equipping..." : TOOL_NAMES[slot.itemId] ?? slot.name}</span>
                   </button>
                 );
               })}
@@ -451,7 +461,7 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
           data-testid="sell-all-resources-button"
           title={isSellingAll ? "Selling resources..." : "Sell all collectable resources in inventory"}
           aria-label={isSellingAll ? "Selling resources..." : "Sell all collectable resources in inventory"}
-          disabled={isSellingAll || sellingItemId !== null}
+          disabled={isSellingAll || sellingItemId !== null || equippingItemId !== null}
           aria-busy={isSellingAll}
         >
           {isSellingAll ? "Selling..." : "Sell All Resources"}
@@ -497,7 +507,7 @@ export function InventoryPanel({ inventory, equipment, wallet, vendorEconomy, eq
                   data-testid={`vendor-sell-${slot.itemId}`}
                   title={sellingItemId === slot.itemId ? `Selling ${slot.name}...` : `Sell ${slot.name} for ${totalValue} coins`}
                   aria-label={sellingItemId === slot.itemId ? `Selling ${slot.name}...` : `Sell ${slot.name} for ${totalValue} coins`}
-                  disabled={isSellingAll || sellingItemId !== null}
+                  disabled={isSellingAll || sellingItemId !== null || equippingItemId !== null}
                   aria-busy={sellingItemId === slot.itemId}
                 >
                   {sellingItemId === slot.itemId ? "SELLING..." : `SELL ${totalValue}c`}
