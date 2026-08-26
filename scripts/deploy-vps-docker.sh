@@ -482,10 +482,11 @@ ok=0
 for i in $(seq 1 36); do
   if container_http_ready; then
     echo "  container HTTP ready ($i/36)"
-    if client_shell_ready && client_2d_shell_ready && client_3d_shell_ready && client_2d_build_stamp_ready && portal_shell_ready; then
+    # 2D-first release gate: 3D may be built and diagnosed separately, but it
+    # must not block a confirmed Pixi 2D client, portal, and server runtime.
+    if client_shell_ready && client_2d_shell_ready && client_2d_build_stamp_ready && portal_shell_ready; then
       echo "  client shell ready"
       echo "  client-2d shell ready (${CLIENT_2D_MARKER})"
-      echo "  client-3d shell ready"
       echo "  client-2d build stamp ready (${CLIENT_2D_BUILD_SHA:-not-required})"
       echo "  portal shell ready"
       if host_http_ready; then echo "  host HTTP mapping ready"; else echo "  WARN: host mapping not responding yet"; fi
@@ -493,21 +494,22 @@ for i in $(seq 1 36); do
       ok=1
       break
     fi
-    echo "  waiting for client/2d/3d/portal shell/build stamp... ($i/36)"
+    echo "  waiting for client/2d/portal shell/build stamp... ($i/36)"
   fi
   if [ "$i" -ge 12 ] && runtime_activity_ready; then
     echo "  runtime activity ready ($i/36): node process and world events detected"
-    if client_shell_ready && client_2d_shell_ready && client_3d_shell_ready && client_2d_build_stamp_ready && portal_shell_ready; then
+    # 2D-first release gate: 3D may be built and diagnosed separately, but it
+    # must not block a confirmed Pixi 2D client, portal, and server runtime.
+    if client_shell_ready && client_2d_shell_ready && client_2d_build_stamp_ready && portal_shell_ready; then
       echo "  client shell ready"
       echo "  client-2d shell ready (${CLIENT_2D_MARKER})"
-      echo "  client-3d shell ready"
       echo "  client-2d build stamp ready (${CLIENT_2D_BUILD_SHA:-not-required})"
       echo "  portal shell ready"
       if ingress_http_ready; then echo "  ingress HTTP ready"; else echo "  WARN: ingress HTTP not responding yet"; fi
       ok=1
       break
     fi
-    echo "  waiting for client/2d/3d/portal shell/build stamp... ($i/36)"
+    echo "  waiting for client/2d/portal shell/build stamp... ($i/36)"
   fi
   echo "  waiting... ($i/36)"
   sleep 5
