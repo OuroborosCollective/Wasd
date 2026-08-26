@@ -5,6 +5,7 @@ import {
 } from "./LiveAuthoritativeWorld2D";
 import { ArelorianStitchHud, type PlayerVitalsData } from "./ArelorianStitchHud";
 import { useLiveRuntimeState } from "./live/liveRuntimeState";
+import { deriveWorldBootStatus } from "./worldBootStatus";
 
 type HudMessage = { from: string; txt: string };
 
@@ -69,9 +70,32 @@ export function DeterministicWorldIsoApp() {
   const worldState = runtime.worldProjectionReady
     ? `${runtime.activeWorldChunks ?? 0} CHUNKS · ${runtime.resolvedWorldAssets ?? 0} WORLD ASSETS${(runtime.missingWorldAssets ?? 0) > 0 ? ` · ${runtime.missingWorldAssets} MISSING` : ""}`
     : "WORLD PROJECTION WAITING";
+  const worldBootStatus = deriveWorldBootStatus(runtime, live.networkStatus, live.serverTick);
+  const authoritativeTick = live.serverTick ?? runtime.serverTick;
+  const hasServerEvidence = runtime.worldProjectionReady === true
+    && (live.networkStatus === "connected" || runtime.connected)
+    && typeof authoritativeTick === "number";
 
   return (
-    <>
+    <div data-testid="deterministic-world-root" data-boot-state={worldBootStatus} style={{ display: "contents" }}>
+      <output
+        data-testid="world-boot-status"
+        data-server-evidence={hasServerEvidence ? "present" : "pending"}
+        aria-live="polite"
+        style={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          padding: 0,
+          margin: -1,
+          overflow: "hidden",
+          clip: "rect(0, 0, 0, 0)",
+          whiteSpace: "nowrap",
+          border: 0,
+        }}
+      >
+        World boot: {worldBootStatus}; renderer {runtime.rendererStatus}; network {live.networkStatus}; server tick {authoritativeTick ?? "pending"}; evidence {hasServerEvidence ? "present" : "pending"}.
+      </output>
       <LiveAuthoritativeWorld2D onRuntimeSnapshot={setRuntime} />
       <ArelorianStitchHud
         connected={connected}
@@ -108,6 +132,6 @@ export function DeterministicWorldIsoApp() {
         debugIdentity={live.playerId ?? live.stableGuestId}
         debugCharacter={live.characterName}
       />
-    </>
+    </div>
   );
 }
