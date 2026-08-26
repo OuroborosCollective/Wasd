@@ -69,12 +69,9 @@ describe("SiegeEngine", () => {
     expect(result.target).toBe("targetY");
   });
 
-  it("start() includes startedAt timestamp", () => {
-    const before = Date.now();
+  it("start() uses the deterministic zero startedAt value", () => {
     const result = engine.start({ id: "a" }, { id: "b" });
-    const after = Date.now();
-    expect(result.startedAt).toBeGreaterThanOrEqual(before);
-    expect(result.startedAt).toBeLessThanOrEqual(after);
+    expect(result.startedAt).toBe(0);
   });
 });
 
@@ -156,13 +153,10 @@ describe("TelemetryCollector", () => {
     expect(collector.list()[0].payload).toEqual({ damage: 42 });
   });
 
-  it("recorded event has a createdAt timestamp", () => {
-    const before = Date.now();
+  it("records the deterministic zero createdAt value", () => {
     collector.record("tick", {});
-    const after = Date.now();
     const event = collector.list()[0];
-    expect(event.createdAt).toBeGreaterThanOrEqual(before);
-    expect(event.createdAt).toBeLessThanOrEqual(after);
+    expect(event.createdAt).toBe(0);
   });
 
   it("multiple events accumulate in order", () => {
@@ -213,12 +207,9 @@ describe("HousingSystem", () => {
     expect(house.upgrades).toBe(0);
   });
 
-  it("createHouse() includes a createdAt timestamp", () => {
-    const before = Date.now();
+  it("createHouse() uses the deterministic zero createdAt value", () => {
     const house = housing.createHouse("p1", "plot_D");
-    const after = Date.now();
-    expect(house.createdAt).toBeGreaterThanOrEqual(before);
-    expect(house.createdAt).toBeLessThanOrEqual(after);
+    expect(house.createdAt).toBe(0);
   });
 });
 

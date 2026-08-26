@@ -1,29 +1,18 @@
-/**
- * GATHERING SERVICE
- *
- * Server-authoritative gathering logic.
- * Connects resource nodes to skill XP and item rewards.
- *
- * Rules:
- * - No Math.random()
- * - No Date.now() for gameplay state
- * - Server-authoritative: playerId, skill level, XP, items
- * - Deterministic respawn by serverTick
- */
-
 import { getSkillProgressionService } from "../skills/skillRuntime.js";
+import type { SkillProgressionService } from "../skills/SkillProgressionService.js";
 import type { PlayerSkillState, SkillSnapshot } from "../skills/SkillTypes.js";
-import type { ResourceNodeStore } from "./ResourceNodeStore.js";
+import type { ResourceGatherMutationSnapshot, ResourceNodeStore } from "./ResourceNodeStore.js";
 import { resourceNodeStore } from "./ResourceNodeStore.js";
-import type { GatherResourceResult, RequiredToolSlot } from "./ResourceTypes.js";
+import type { GatherResourceResult, RequiredToolSlot, ResourceNodeSnapshot } from "./ResourceTypes.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
+import type { InventoryService } from "../inventory/InventoryService.js";
+import type { InventoryItemOrigin, PlayerInventoryState } from "../inventory/InventoryTypes.js";
 import { equipmentService } from "../equipment/equipmentRuntime.js";
 import { applyPermille, getGatheringToolBonus } from "../equipment/EquipmentBonus.js";
+import { resourceEcologyService, type ResourceEcologyService } from "./ResourceEcologyService.js";
+import { attachResourceEcologySnapshot, attachResourceEcologySnapshots } from "./ResourceEcologySnapshotAdapter.js";
+import type { ResourceNodeEcologySnapshot, ResourceNodeEcologyState } from "./ResourceEcologyTypes.js";
 
-/**
- * Check if player has the required tool equipped.
- * Returns the required slot ID if missing, null if equipped.
- */
 function getMissingToolSlot(
   equipmentSlots: Array<{ slotId: string; itemId: string }>,
   requiredTool?: RequiredToolSlot,
@@ -33,12 +22,25 @@ function getMissingToolSlot(
   return hasTool ? null : requiredTool;
 }
 
-/**
- * Get player skill level for a specific skill.
- * Returns 1 as default if skill not found.
- */
 function getSkillLevel(skills: SkillSnapshot[], skillId: string): number {
-  return skills.find((s) => s.id === skillId)?.level ?? 1;
+  return skills.find((skill) => skill.id === skillId)?.level ?? 1;
+}
+
+function cloneSkillState(state: PlayerSkillState): PlayerSkillState {
+  return {
+    playerId: state.playerId,
+    schemaVersion: 2,
+    skills: state.skills.map((skill) => ({ ...skill })),
+  };
+}
+
+function cloneInventoryState(state: PlayerInventoryState): PlayerInventoryState {
+  return {
+    playerId: state.playerId,
+    schemaVersion: 1,
+    capacity: state.capacity,
+    slots: state.slots.map((slot) => ({ ...slot })),
+  };
 }
 
 export interface GatherInput {
@@ -46,79 +48,90 @@ export interface GatherInput {
   nodeId: string;
   playerPosition: { x: number; y: number };
   currentTick: number;
-  /** Optional callback for item reward (inventory system integration point) */
+  inventoryOrigin?: InventoryItemOrigin;
   onItemReward?: (item: { id: string; name: string; quantity: number }) => void;
 }
 
-/**
- * Options for listing resource snapshots with procedural nodes.
- */
 export interface ListSnapshotsOptions {
-  /** Current server tick for depletion calculation */
   currentTick: number;
-  /** Optional player position to register visible chunks (kappa units) */
   playerPosition?: { x: number; y: number };
 }
 
-export class GatheringService {
-  constructor(private readonly nodes: ResourceNodeStore = resourceNodeStore) {}
+interface GatheringDependencies {
+  readonly getSkillService: () => Promise<SkillProgressionService>;
+  readonly getInventoryService: () => Promise<InventoryService>;
+  readonly equipment: Pick<typeof equipmentService, "getPlayerEquipment">;
+}
 
-  /**
-   * Register visible chunks for a player based on their position.
-   * This ensures procedural resource nodes are available for gathering.
-   *
-   * @param playerPosition - Player position in kappa units { x, y }
-   */
+interface GatherRollbackSnapshot {
+  readonly playerId: string;
+  readonly nodeId: string;
+  readonly node: ResourceGatherMutationSnapshot;
+  readonly ecology: ResourceNodeEcologyState | null;
+  readonly skill: PlayerSkillState;
+  readonly inventory: PlayerInventoryState;
+  readonly appliedOriginUids: readonly string[];
+  readonly movementEventCount: number;
+}
+
+const DEFAULT_DEPENDENCIES: GatheringDependencies = {
+  getSkillService: getSkillProgressionService,
+  getInventoryService,
+  equipment: equipmentService,
+};
+
+export class GatheringService {
+  private readonly nodeMutationQueues = new Map<string, Promise<void>>();
+
+  constructor(
+    private readonly nodes: ResourceNodeStore = resourceNodeStore,
+    private readonly ecology: ResourceEcologyService = resourceEcologyService,
+    private readonly dependencies: GatheringDependencies = DEFAULT_DEPENDENCIES,
+  ) {}
+
   registerVisibleChunks(playerPosition: { x: number; y: number }): void {
     this.nodes.registerVisibleChunks(playerPosition);
   }
 
-  /**
-   * Get count of registered chunks.
-   */
   getRegisteredChunkCount(): number {
     return this.nodes.getRegisteredChunkCount();
   }
 
-  /**
-   * Get count of total registered nodes.
-   */
   getTotalNodeCount(): number {
     return this.nodes.getTotalNodeCount();
   }
 
-  /**
-   * Attempt to gather from a resource node.
-   * Server-authoritative: resolves skill level, applies XP, triggers rewards.
-   * Persists gathered items to player inventory.
-   *
-   * Tool requirement check:
-   * - Nodes with requiredTool must have that equipment slot equipped
-   * - starter_tree_001 has no requiredTool (hand gather allowed for MVP first tree)
-   * - All ore nodes require mining_tool
-   * - All fish spots require fishing_tool
-   */
   async gather(input: GatherInput): Promise<GatherResourceResult> {
-    const { playerId, nodeId, playerPosition, currentTick, onItemReward } = input;
+    return this.withNodeMutationLock(input.nodeId, () => this.gatherLocked(input));
+  }
 
-    // Get player skill state from persistence
-    const skillService = await getSkillProgressionService();
-    const skillState: PlayerSkillState = await skillService.getPlayerSkillState(playerId);
+  private async gatherLocked(input: GatherInput): Promise<GatherResourceResult> {
+    const { playerId, nodeId, playerPosition, currentTick, inventoryOrigin, onItemReward } = input;
 
-    // Determine skill level for the node's required skill
+    const skillService = await this.dependencies.getSkillService();
+    const skillState = await skillService.getPlayerSkillState(playerId);
+
     const nodeSnapshot = this.nodes.getSnapshot(nodeId, currentTick);
     const playerSkillLevel = nodeSnapshot
       ? getSkillLevel(skillState.skills, nodeSnapshot.skillId)
       : 1;
 
-    // Get player equipment for tool check
-    const equipment = await equipmentService.getPlayerEquipment(playerId);
+    const ecologyBefore = this.attachEcology(nodeSnapshot, currentTick)?.ecology ?? null;
+    if (ecologyBefore && ecologyBefore.currentStock <= 0) {
+      return {
+        ok: false,
+        playerId,
+        nodeId,
+        reason: "node_depleted",
+        snapshot: this.attachEcology(nodeSnapshot, currentTick),
+      };
+    }
 
-    // Check if required tool is equipped
+    const equipment = await this.dependencies.equipment.getPlayerEquipment(playerId);
     const requiredTool = nodeSnapshot?.requiredTool;
     const missingTool = getMissingToolSlot(equipment.slots, requiredTool);
     if (missingTool) {
-      const snapshot = this.nodes.getSnapshot(nodeId, currentTick);
+      const snapshot = this.attachEcology(this.nodes.getSnapshot(nodeId, currentTick), currentTick);
       return {
         ok: false,
         playerId,
@@ -129,7 +142,19 @@ export class GatheringService {
       };
     }
 
-    // Attempt gather in the node store
+    const inventoryService = await this.dependencies.getInventoryService();
+    const inventoryState = await inventoryService.getPlayerInventory(playerId);
+    const rollbackSnapshot: GatherRollbackSnapshot = {
+      playerId,
+      nodeId,
+      node: this.nodes.captureGatherMutationState(playerId, nodeId),
+      ecology: this.ecology.captureNodeState(nodeId),
+      skill: cloneSkillState(skillState),
+      inventory: cloneInventoryState(inventoryState),
+      appliedOriginUids: [...inventoryService.getAppliedOriginUids(playerId)],
+      movementEventCount: inventoryService.getMovementEventCount(),
+    };
+
     const result = this.nodes.gather({
       playerId,
       nodeId,
@@ -138,85 +163,163 @@ export class GatheringService {
       playerSkillLevel,
     });
 
-    // If gather failed, return result immediately
     if (!result.ok || !result.skillId || !result.xpReward) {
+      result.snapshot = this.attachEcology(result.snapshot ?? null, currentTick);
       return result;
     }
 
-    // Apply XP multiplier from equipped tool (already fetched above)
-    const bonus = getGatheringToolBonus({
-      equipment,
-      skillId: result.skillId,
-    });
-
-    const xpReward = applyPermille(result.xpReward, bonus.xpMultiplierPermille);
-
-    // Apply skill XP reward
-    await skillService.applyEvent({
-      type: "skill_xp_gain",
-      playerId,
-      skillId: result.skillId,
-      amount: xpReward,
-      source: "resource_gather",
-    });
-
-    // Tier 2 tools get +1 bonus yield
-    const bonusYield = bonus.tier >= 2 ? 1 : 0;
-
-    // Persist item reward to player inventory
-    if (result.itemRewardId) {
-      const inventoryService = await getInventoryService();
-      const totalQuantity = 1 + bonusYield;
-      const inventoryResult = await inventoryService.addItem({
-        playerId,
-        itemId: result.itemRewardId,
-        quantity: totalQuantity,
-      });
-
-      // Extend result with inventory status and bonus info
-      (result as any).inventoryAdded = inventoryResult.ok;
-      (result as any).inventoryQuantity = inventoryResult.ok ? inventoryResult.quantity : 0;
-      (result as any).bonusYield = bonusYield;
-      (result as any).toolTier = bonus.tier;
-
-      // If inventory failed (full), log but still grant XP and deplete node
-      // MVP: For stackable resources with 999 maxStack, inventory_full is rare
-      if (!inventoryResult.ok) {
-        console.warn(
-          `[gathering] inventory add failed for ${playerId}: ${inventoryResult.reason}`,
-        );
+    try {
+      const ecologyAfter = this.ecology.applyExtraction({ nodeId, currentTick, actorId: playerId });
+      if (result.snapshot && ecologyAfter) {
+        result.snapshot = attachResourceEcologySnapshot(result.snapshot, ecologyAfter);
       }
-    }
 
-    // Trigger item reward callback (backward compatibility)
-    if (result.itemRewardId && result.itemRewardName && onItemReward) {
-      onItemReward({
-        id: result.itemRewardId,
-        name: result.itemRewardName,
-        quantity: 1 + bonusYield,
+      const bonus = getGatheringToolBonus({
+        equipment,
+        skillId: result.skillId,
       });
-    }
+      const xpReward = applyPermille(result.xpReward, bonus.xpMultiplierPermille);
 
-    return result;
+      await skillService.applyEvent({
+        type: "skill_xp_gain",
+        playerId,
+        skillId: result.skillId,
+        amount: xpReward,
+        source: "resource_gather",
+      });
+
+      const bonusYield = bonus.tier >= 2 ? 1 : 0;
+      if (result.itemRewardId) {
+        const totalQuantity = 1 + bonusYield;
+        const inventoryResult = await inventoryService.addItem({
+          playerId,
+          itemId: result.itemRewardId,
+          quantity: totalQuantity,
+          ...(inventoryOrigin ? { origin: inventoryOrigin } : {}),
+        });
+
+        if (!inventoryResult.ok) {
+          await this.restoreGatherState(rollbackSnapshot, skillService, inventoryService);
+          return {
+            ...result,
+            ok: false,
+            reason: "inventory_write_failed",
+            inventoryAdded: false,
+            inventoryQuantity: 0,
+            bonusYield,
+            toolTier: bonus.tier,
+            snapshot: this.attachEcology(this.nodes.getSnapshot(nodeId, currentTick), currentTick),
+          };
+        }
+
+        result.inventoryAdded = true;
+        result.inventoryQuantity = inventoryResult.quantity;
+        result.bonusYield = bonusYield;
+        result.toolTier = bonus.tier;
+      }
+
+      if (result.itemRewardId && result.itemRewardName && onItemReward) {
+        onItemReward({
+          id: result.itemRewardId,
+          name: result.itemRewardName,
+          quantity: 1 + (result.bonusYield ?? 0),
+        });
+      }
+
+      return result;
+    } catch (error) {
+      await this.restoreGatherState(rollbackSnapshot, skillService, inventoryService, error);
+      return {
+        ok: false,
+        playerId,
+        nodeId,
+        reason: "transaction_failed",
+        inventoryAdded: false,
+        inventoryQuantity: 0,
+        snapshot: this.attachEcology(this.nodes.getSnapshot(nodeId, currentTick), currentTick),
+      };
+    }
   }
 
-  /**
-   * Get all resource node snapshots for the current tick.
-   * Used for LiveGameplaySnapshot.
-   *
-   * @param currentTick - Current server tick
-   * @param playerPosition - Optional player position in kappa units to register visible chunks
-   */
-  listResourceSnapshots(currentTick: number, playerPosition?: { x: number; y: number }) {
-    // Register visible chunks if player position is provided
+  listResourceSnapshots(currentTick: number, playerPosition?: { x: number; y: number }): ResourceNodeSnapshot[] {
     if (playerPosition) {
       this.registerVisibleChunks(playerPosition);
     }
-    return this.nodes.listSnapshots(currentTick);
+
+    const snapshots = this.nodes.listSnapshots(currentTick);
+    const ecologySnapshots: ResourceNodeEcologySnapshot[] = snapshots
+      .map((snapshot) => {
+        this.ecology.registerNode(snapshot);
+        return this.ecology.getNodeSnapshot(snapshot.id, currentTick);
+      })
+      .filter((snapshot): snapshot is ResourceNodeEcologySnapshot => Boolean(snapshot));
+
+    return attachResourceEcologySnapshots(snapshots, ecologySnapshots);
+  }
+
+  private async restoreGatherState(
+    snapshot: GatherRollbackSnapshot,
+    skillService: SkillProgressionService,
+    inventoryService: InventoryService,
+    cause?: unknown,
+  ): Promise<void> {
+    const synchronousFailures: unknown[] = [];
+    try {
+      this.nodes.restoreGatherMutationState(snapshot.node);
+    } catch (error) {
+      synchronousFailures.push(error);
+    }
+    try {
+      this.ecology.restoreNodeState(snapshot.nodeId, snapshot.ecology);
+    } catch (error) {
+      synchronousFailures.push(error);
+    }
+
+    const results = await Promise.allSettled([
+      skillService.restorePlayerSkillState(snapshot.playerId, snapshot.skill),
+      inventoryService.restorePlayerInventory(
+        snapshot.playerId,
+        snapshot.inventory,
+        snapshot.appliedOriginUids,
+        snapshot.movementEventCount,
+      ),
+    ]);
+    const asynchronousFailures = results
+      .filter((result): result is PromiseRejectedResult => result.status === "rejected")
+      .map((result) => result.reason);
+
+    if (synchronousFailures.length > 0 || asynchronousFailures.length > 0) {
+      throw new AggregateError(
+        [cause, ...synchronousFailures, ...asynchronousFailures].filter(Boolean),
+        "gather_transaction_rollback_failed",
+      );
+    }
+  }
+
+  private async withNodeMutationLock<T>(nodeId: string, operation: () => Promise<T>): Promise<T> {
+    let release: () => void = () => undefined;
+    const previous = this.nodeMutationQueues.get(nodeId) ?? Promise.resolve();
+    const current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.nodeMutationQueues.set(nodeId, current);
+
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+      if (this.nodeMutationQueues.get(nodeId) === current) {
+        this.nodeMutationQueues.delete(nodeId);
+      }
+    }
+  }
+
+  private attachEcology(snapshot: ResourceNodeSnapshot | null, currentTick: number): ResourceNodeSnapshot | null {
+    if (!snapshot) return null;
+    this.ecology.registerNode(snapshot);
+    return attachResourceEcologySnapshot(snapshot, this.ecology.getNodeSnapshot(snapshot.id, currentTick));
   }
 }
 
-/**
- * Global singleton instance for production use.
- */
 export const gatheringService = new GatheringService();

@@ -1,0 +1,85 @@
+{
+  "$schema": "./semantic-primitives.schema.json",
+  "version": 1,
+  "primitives": [
+    {
+      "concept": "greeting",
+      "language": "de",
+      "lexemeIds": ["de_gruessen"],
+      "emotionProfile": { "trust": 0.3, "joy": 0.2 },
+      "socialRegister": "formal"
+    },
+    {
+      "concept": "fear",
+      "language": "de",
+      "lexemeIds": ["de_furcht", "de_gefahr"],
+      "emotionProfile": { "fear": 0.8 },
+      "socialRegister": "formal"
+    },
+    {
+      "concept": "hunger",
+      "language": "de",
+      "lexemeIds": ["de_hunger"],
+      "emotionProfile": { "hunger": 0.9, "shame": 0.3 },
+      "socialRegister": "peasant"
+    },
+    {
+      "concept": "duty",
+      "language": "de",
+      "lexemeIds": ["de_pflicht"],
+      "emotionProfile": { "duty": 0.9, "pride": 0.4, "shame": 0.5 },
+      "socialRegister": "noble"
+    },
+    {
+      "concept": "trade",
+      "language": "de",
+      "lexemeIds": ["de_handel"],
+      "emotionProfile": { "trust": 0.3, "joy": 0.4 },
+      "socialRegister": "formal"
+    },
+    {
+      "concept": "iron",
+      "language": "de",
+      "lexemeIds": ["de_eisen"],
+      "emotionProfile": { "pride": 0.3, "duty": 0.3 },
+      "socialRegister": "guild"
+    },
+    {
+      "concept": "fire",
+      "language": "de",
+      "lexemeIds": ["de_feuer"],
+      "emotionProfile": { "fear": 0.4, "anger": 0.3 },
+      "socialRegister": "guild"
+    },
+    {
+      "concept": "danger",
+      "language": "de",
+      "lexemeIds": ["de_gefahr"],
+      "emotionProfile": { "fear": 0.7, "duty": 0.3 },
+      "socialRegister": "formal"
+    },
+    {
+      "concept": "friend",
+      "language": "de",
+      "lexemeIds": ["de_freund"],
+      "emotionProfile": { "trust": 0.7, "joy": 0.5 },
+      "socialRegister": "intimate"
+    },
+    {
+      "concept": "village",
+      "language": "de",
+      "lexemeIds": ["de_dorf"],
+      "emotionProfile": { "trust": 0.4, "duty": 0.4, "pride": 0.3 },
+      "socialRegister": "peasant"
+    }
+  ],
+  "conceptMappings": {
+    "threat": ["fear", "danger"],
+    "help": ["friend"],
+    "survival": ["hunger"],
+    "craft": ["iron", "fire"],
+    "commerce": ["trade"],
+    "home": ["village"],
+    "honor": ["duty"]
+  }
+}

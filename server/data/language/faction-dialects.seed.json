@@ -1,0 +1,126 @@
+{
+  "$schema": "./faction-dialects.schema.json",
+  "version": 1,
+  "dialects": [
+    {
+      "factionId": "merchant_league",
+      "baseLanguage": "en",
+      "signatureMorphemes": ["coin", "trade", "profit", "fair", "deal", "purse", "gold"],
+      "registerPreference": "formal",
+      "tabooWords": ["steal", "cheat", "swindle", "fraud"],
+      "honorifics": ["good sir", "esteemed colleague", "valued associate", "honored merchant"],
+      "curseWords": ["knave", "miser", "swindler", "scoundrel"],
+      "ritualPhrases": [
+        "Hail to the merchant.",
+        "Fair winds fill your sails.",
+        "May your purses stay full.",
+        "Profits be with you.",
+        "By the coin we trade."
+      ],
+      "dialectVariants": [
+        { "lexemeId": "de_handel", "variant": "trade", "register": "formal", "weight": 1000 },
+        { "lexemeId": "de_freund", "variant": "associate", "register": "formal", "weight": 800 }
+      ]
+    },
+    {
+      "factionId": "shadow_register",
+      "baseLanguage": "guild",
+      "signatureMorphemes": ["soft", "cut", "shadow", "whisper", "blade", "night", "moon", "coin"],
+      "registerPreference": "criminal",
+      "tabooWords": ["honest", "sheriff", "guard", "snitch", "fence"],
+      "honorifics": ["friend", "associate", "shadow", "cousin", "blade-sibling"],
+      "curseWords": ["copper", "fence", "rat", "telltale", "sun-touched"],
+      "ritualPhrases": [
+        "Shadows guide you.",
+        "Cut clean, go deep.",
+        "The night is our ally.",
+        "Soft hands, quick feet.",
+        "By the low moon."
+      ],
+      "dialectVariants": [
+        { "lexemeId": "de_freund", "variant": "cousin", "register": "criminal", "weight": 900 },
+        { "lexemeId": "de_handel", "variant": "deal", "register": "criminal", "weight": 700 }
+      ]
+    },
+    {
+      "factionId": "sun_order",
+      "baseLanguage": "mythic",
+      "signatureMorphemes": ["light", "order", "sacred", "blessed", "divine", "sun", "truth", "oath"],
+      "registerPreference": "religious",
+      "tabooWords": ["dark", "shadow", "chaos", "void", "heretic"],
+      "honorifics": ["blessed one", "lightbringer", "faithful", "sun-touched", "order-keeper"],
+      "curseWords": ["heretic", "shadow-touched", "voidwalker", "chaos-spawn"],
+      "ritualPhrases": [
+        "The light endures.",
+        "Blessed by the sun.",
+        "Order through devotion.",
+        "Truth illuminates.",
+        "By sacred oath."
+      ],
+      "dialectVariants": [
+        { "lexemeId": "de_pflicht", "variant": "sacred duty", "register": "religious", "weight": 1000 },
+        { "lexemeId": "de_gefahr", "variant": "shadow-threat", "register": "religious", "weight": 800 }
+      ]
+    },
+    {
+      "factionId": "millbrook",
+      "baseLanguage": "de",
+      "signatureMorphemes": ["dorf", "feld", "gut", "brot", "wasser", "brunnen", "weg"],
+      "registerPreference": "peasant",
+      "tabooWords": ["fremder", "dieb", "unnütz"],
+      "honorifics": ["freund", "nachbar", "guter mensch", "fellow", "village-keeper"],
+      "curseWords": ["schurke", "bauer", "tunichtgut"],
+      "ritualPhrases": [
+        "Guten tag.",
+        "Möge die Ernte gut sein.",
+        "Der Brunnen steht unter Gesetz.",
+        "Gemeinsam stark.",
+        "Das Dorf bleibt."
+      ],
+      "dialectVariants": [
+        { "lexemeId": "de_dorf", "variant": "Heimat", "register": "peasant", "weight": 1000 },
+        { "lexemeId": "de_hunger", "variant": "Brot-mangel", "register": "peasant", "weight": 700 }
+      ]
+    },
+    {
+      "factionId": "blacksmith_guild",
+      "baseLanguage": "de",
+      "signatureMorphemes": ["eisen", "hammer", "feuer", "schmied", "stahl", "esse", "zange"],
+      "registerPreference": "guild",
+      "tabooWords": ["betrüger", "pfuscher", "schlecht", "weak"],
+      "honorifics": ["meister", "geselle", "lehrling", "forge-keeper"],
+      "curseWords": ["pfuscher", "blech", "schlacke"],
+      "ritualPhrases": [
+        "Eisen und Feuer.",
+        "Gute Arbeit.",
+        "Der Hammer spricht.",
+        "Stahl erträgt.",
+        "Am Amboss zeugt."
+      ],
+      "dialectVariants": [
+        { "lexemeId": "de_eisen", "variant": "stahl", "register": "guild", "weight": 1000 },
+        { "lexemeId": "de_feuer", "variant": "esse", "register": "guild", "weight": 900 }
+      ]
+    },
+    {
+      "factionId": "guardians",
+      "baseLanguage": "de",
+      "signatureMorphemes": ["wache", "schutz", "burg", "treue", "waffen", "schild"],
+      "registerPreference": "military",
+      "tabooWords": ["feigling", " Desertör", "verräter"],
+      "honorifics": ["kamerad", "wächter", "streiter", "shield-brother"],
+      "curseWords": ["feigling", "schild-brecher"],
+      "ritualPhrases": [
+        "Die Wache steht.",
+        "Schild und Schwert.",
+        "Treue bis zum Ende.",
+        "Die Burg bleibt.",
+        "Wir wachen."
+      ],
+      "dialectVariants": [
+        { "lexemeId": "de_pflicht", "variant": "treue", "register": "military", "weight": 1000 },
+        { "lexemeId": "de_gefahr", "variant": "posten-gefahr", "register": "military", "weight": 800 }
+      ]
+    }
+  ]
+}

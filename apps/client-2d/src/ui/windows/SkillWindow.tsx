@@ -212,6 +212,7 @@ function StatBar({ label, current, max, color = "#c8b878" }: StatBarProps) {
   const safeMax = Math.max(1, safeNumber(max, 1));
   const safeCurrent = Math.max(0, safeNumber(current, 0));
   const percent = clampPercent((safeCurrent / safeMax) * 100);
+  const isCriticalLow = percent < 20 && (label === "HP" || label === "Stamina");
 
   return (
     <div className="char-bar-container">
@@ -222,9 +223,18 @@ function StatBar({ label, current, max, color = "#c8b878" }: StatBarProps) {
         </span>
       </div>
 
-      <div className="char-bar-track">
+      <div
+        className="char-bar-track"
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={Math.floor(safeMax)}
+        aria-valuenow={Math.floor(safeCurrent)}
+        aria-valuetext={`${Math.round(percent)}%`}
+        title={`${label}: ${Math.floor(safeCurrent)} / ${Math.floor(safeMax)} (${Math.round(percent)}%)`}
+      >
         <div
-          className="char-bar-fill"
+          className={`char-bar-fill ${isCriticalLow ? "animate-pulse" : ""}`}
           style={{
             width: `${percent}%`,
             backgroundColor: color,
@@ -297,6 +307,20 @@ export function SkillWindow({ isOpen = true, onClose }: CharacterWindowProps) {
     };
   }, []);
 
+  // Listen for Escape key to close the window
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   const handleAllocate = useCallback(
     (stat: CoreStatKey) => {
       if (!snapshot) return;
@@ -349,7 +373,8 @@ export function SkillWindow({ isOpen = true, onClose }: CharacterWindowProps) {
         <h2>SKILLS</h2>
 
         {onClose && (
-          <button className="wow-close-btn" onClick={onClose} aria-label="Close">
+          <button className="wow-close-btn" onClick={onClose} aria-label="Close [ESC]" aria-keyshortcuts="Escape">
+            <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
             ✕
           </button>
         )}

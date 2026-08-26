@@ -29,9 +29,11 @@ export function GameplayWindowDock({ openPanels, onToggle }: Props) {
             aria-pressed={active}
             onClick={() => onToggle(panel.id)}
             title={`${panel.title} (${panel.shortcut})`}
+            aria-label={`${panel.title} Panel [${panel.shortcut}]`}
+            aria-keyshortcuts={panel.shortcut.toLowerCase()}
           >
             <span>{panel.title}</span>
-            <kbd>{panel.shortcut}</kbd>
+            <kbd aria-hidden="true">{panel.shortcut}</kbd>
           </button>
         );
       })}

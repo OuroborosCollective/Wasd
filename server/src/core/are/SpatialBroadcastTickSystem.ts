@@ -14,7 +14,7 @@
 
 import { TickSystem, TickSystemPriority, type TickSystemContext } from './TickSystem.js';
 import { tickSystemRegistry } from './TickSystemRegistry.js';
-import { createChunkKey, type ChunkKey, type ChunkCoord } from './types.js';
+import { createChunkKey, type ChunkKey } from './types.js';
 import { UNIFIED_CHUNK_CONTRACT } from '../spatial/UnifiedChunkContract.js';
 
 /**
@@ -23,11 +23,6 @@ import { UNIFIED_CHUNK_CONTRACT } from '../spatial/UnifiedChunkContract.js';
  */
 const SPATIAL_CHUNK_SIZE = UNIFIED_CHUNK_CONTRACT.chunkSizeTiles;
 
-/**
- * Chunk key format: "cx:cz" where:
- *   - cx = Math.floor(tileX / SPATIAL_CHUNK_SIZE)
- *   - cz = Math.floor(tileZ / SPATIAL_CHUNK_SIZE)
- */
 type SpatialEntityKind = "player" | "npc" | "loot";
 
 interface SpatialEntity {
@@ -68,12 +63,6 @@ function getChunkKeysForRadius(centerChunkKey: ChunkKey, radius: number): ChunkK
 
 /**
  * SpatialBroadcastGrid maintains an O(1) spatial index for entity lookup.
- * 
- * Architecture:
- * - Map<ChunkKey, Set<EntityId>> for fast chunk-to-entity lookup
- * - Map<EntityId, SpatialEntity> for entity data cache
- * 
- * When an entity moves, we detect chunk migration and update both indexes.
  */
 export class SpatialBroadcastGrid {
   /** Map<ChunkKey, Set<EntityId>> - O(1) lookup by chunk */
@@ -81,6 +70,11 @@ export class SpatialBroadcastGrid {
   
   /** Map<EntityId, SpatialEntity> - Entity data cache */
   private entities = new Map<string, SpatialEntity>();
+
+  private pruneChunkIfEmpty(chunkKey: ChunkKey): void {
+    const set = this.chunkToEntities.get(chunkKey);
+    if (set && set.size === 0) this.chunkToEntities.delete(chunkKey);
+  }
 
   /**
    * Register or update an entity's position in the spatial grid.
@@ -97,12 +91,14 @@ export class SpatialBroadcastGrid {
       if (oldChunkKey === newChunkKey) {
         existing.tileX = tileX;
         existing.tileZ = tileZ;
+        existing.kind = kind;
         existing.data = data;
         return;
       }
       
-      // Different chunk - migrate entity
+      // Different chunk - migrate entity and prune the old chunk if it is empty
       this.chunkToEntities.get(oldChunkKey)?.delete(id);
+      this.pruneChunkIfEmpty(oldChunkKey);
     }
     
     // Insert into new chunk
@@ -125,27 +121,33 @@ export class SpatialBroadcastGrid {
     
     const chunkKey = computeChunkKey(entity.tileX, entity.tileZ);
     this.chunkToEntities.get(chunkKey)?.delete(id);
+    this.pruneChunkIfEmpty(chunkKey);
     this.entities.delete(id);
   }
   
   /**
    * Get all entities visible in the chunk grid around the given tile position.
    * Uses broadcastRadiusChunks from UnifiedChunkContract.
+   * ⚡ Bolt Optimization: Avoids getChunkKeysForRadius overhead (allocations, splits, parsing).
    */
   getVisibleEntities(centerTileX: number, centerTileZ: number): SpatialEntity[] {
-    const centerChunkKey = computeChunkKey(centerTileX, centerTileZ);
-    const chunkKeys = getChunkKeysForRadius(centerChunkKey, UNIFIED_CHUNK_CONTRACT.broadcastRadiusChunks);
+    const cx = Math.floor(centerTileX / SPATIAL_CHUNK_SIZE);
+    const cz = Math.floor(centerTileZ / SPATIAL_CHUNK_SIZE);
+    const radius = UNIFIED_CHUNK_CONTRACT.broadcastRadiusChunks;
     
     const visibleEntities: SpatialEntity[] = [];
     
-    for (const chunkKey of chunkKeys) {
-      const entityIds = this.chunkToEntities.get(chunkKey);
-      if (!entityIds) continue;
-      
-      for (const id of entityIds) {
-        const entity = this.entities.get(id);
-        if (entity) {
-          visibleEntities.push(entity);
+    for (let dx = -radius; dx <= radius; dx++) {
+      for (let dz = -radius; dz <= radius; dz++) {
+        const chunkKey = createChunkKey(cx + dx, cz + dz);
+        const entityIds = this.chunkToEntities.get(chunkKey);
+        if (!entityIds) continue;
+
+        for (const id of entityIds) {
+          const entity = this.entities.get(id);
+          if (entity) {
+            visibleEntities.push(entity);
+          }
         }
       }
     }
@@ -185,14 +187,19 @@ export class SpatialBroadcastGrid {
    */
   getStats(): { totalEntities: number; totalChunks: number; byKind: Record<SpatialEntityKind, number> } {
     const byKind: Record<SpatialEntityKind, number> = { player: 0, npc: 0, loot: 0 };
+    let totalChunks = 0;
     
     for (const entity of this.entities.values()) {
       byKind[entity.kind]++;
     }
+
+    for (const entityIds of this.chunkToEntities.values()) {
+      if (entityIds.size > 0) totalChunks++;
+    }
     
     return {
       totalEntities: this.entities.size,
-      totalChunks: this.chunkToEntities.size,
+      totalChunks,
       byKind,
     };
   }
@@ -205,9 +212,6 @@ export const spatialBroadcastGrid = new SpatialBroadcastGrid();
 
 /**
  * SpatialBroadcastTickSystem implements TickSystem for spatial management.
- * 
- * This extracts the spatial grid logic from WorldTick.tick() into a
- * standalone system that can be tested and reused.
  */
 export class SpatialBroadcastTickSystem implements TickSystem {
   readonly name = 'spatial-broadcast';
@@ -226,171 +230,77 @@ export class SpatialBroadcastTickSystem implements TickSystem {
     this.grid = grid || spatialBroadcastGrid;
   }
   
-  /**
-   * Set the player position provider.
-   * Called each tick to get current player positions.
-   */
   setPlayerPositionProvider(provider: () => Array<{ id: string; x: number; y: number; isOffline?: boolean }>): void {
     this.playerPositionProvider = provider;
   }
   
-  /**
-   * Set the NPC position provider.
-   */
   setNpcPositionProvider(provider: () => Array<{ id: string; x: number; y: number; name?: string; health?: number; maxHealth?: number; role?: string; state?: string }>): void {
     this.npcPositionProvider = provider;
   }
   
-  /**
-   * Set the loot entity provider.
-   */
   setLootProvider(provider: () => Array<{ id: string; position?: { x: number; y: number }; items?: unknown[]; gold?: number }>): void {
     this.lootProvider = provider;
   }
   
-  /**
-   * Set the broadcast handler for sending snapshots to clients.
-   */
   setBroadcastHandler(handler: (socketId: string, snapshot: unknown) => void): void {
     this.broadcastHandler = handler;
   }
   
-  /**
-   * Set the player-to-socket mapping provider.
-   */
   setPlayerToSocketProvider(provider: () => Map<string, string>): void {
     this.playerToSocketProvider = provider;
   }
   
-  /**
-   * Set the socket-to-player mapping provider.
-   */
   setSocketToPlayerProvider(provider: () => Map<string, string>): void {
     this.socketToPlayerProvider = provider;
   }
   
-  tick(context: TickSystemContext): void {
-    // Step 1: Rebuild the spatial grid with current entity positions
+  tick(_context: TickSystemContext): void {
     this.grid.clear();
     
-    // Step 2: Add all online players to spatial grid
-    if (this.playerPositionProvider) {
-      const players = this.playerPositionProvider();
-      for (const player of players) {
-        if (player.isOffline) continue;
-        const tileX = Math.round(player.x);
-        const tileZ = Math.round(player.y);
-        this.grid.upsert(player.id, tileX, tileZ, "player", {
-          id: player.id,
-          x: tileX,
-          z: tileZ,
-          kind: "player",
-        });
-      }
+    for (const player of this.playerPositionProvider?.() ?? []) {
+      if (player.isOffline) continue;
+      this.grid.upsert(player.id, player.x, player.y, 'player', { player });
     }
     
-    // Step 3: Add all NPCs to spatial grid
-    if (this.npcPositionProvider) {
-      const npcs = this.npcPositionProvider();
-      for (const npc of npcs) {
-        const tileX = Math.round(npc.x);
-        const tileZ = Math.round(npc.y);
-        this.grid.upsert(npc.id, tileX, tileZ, "npc", {
-          id: npc.id,
-          name: npc.name ?? npc.id,
-          x: tileX,
-          z: tileZ,
-          kind: "npc",
-          health: npc.health,
-          maxHealth: npc.maxHealth,
-          role: npc.role,
-          state: npc.state,
-        });
-      }
+    for (const npc of this.npcPositionProvider?.() ?? []) {
+      this.grid.upsert(npc.id, npc.x, npc.y, 'npc', { npc });
     }
     
-    // Step 4: Add all loot entities to spatial grid
-    if (this.lootProvider) {
-      const lootEntities = this.lootProvider();
-      for (const loot of lootEntities) {
-        if (!loot.position) continue;
-        const tileX = Math.round(loot.position.x);
-        const tileZ = Math.round(loot.position.y);
-        this.grid.upsert(loot.id, tileX, tileZ, "loot", {
-          id: loot.id,
-          x: tileX,
-          z: tileZ,
-          kind: "loot",
-          items: loot.items,
-          gold: loot.gold,
-        });
-      }
+    for (const loot of this.lootProvider?.() ?? []) {
+      if (!loot.position) continue;
+      this.grid.upsert(loot.id, loot.position.x, loot.position.y, 'loot', { loot });
     }
     
-    // Step 5: Broadcast spatial snapshots to each connected player
-    if (this.broadcastHandler && this.playerToSocketProvider && this.socketToPlayerProvider) {
-      const playerToSocket = this.playerToSocketProvider();
-      const socketToPlayer = this.socketToPlayerProvider();
-      
-      for (const [socketId, playerId] of playerToSocket) {
-        // Find player position from provider
-        if (this.playerPositionProvider) {
-          const players = this.playerPositionProvider();
-          const player = players.find(p => p.id === playerId);
-          if (!player || player.isOffline) continue;
-          
-          const playerTileX = Math.round(player.x);
-          const playerTileZ = Math.round(player.y);
-          
-          // Build and broadcast snapshot
-          const snapshot = this.buildSpatialSnapshot(playerId, playerTileX, playerTileZ);
-          this.broadcastHandler(socketId, snapshot);
-        }
-      }
+    this.broadcastVisibleEntities();
+  }
+
+  private broadcastVisibleEntities(): void {
+    if (!this.broadcastHandler || !this.playerToSocketProvider || !this.socketToPlayerProvider) return;
+    const playerToSocket = this.playerToSocketProvider();
+    for (const player of this.playerPositionProvider?.() ?? []) {
+      if (player.isOffline) continue;
+      const socketId = playerToSocket.get(player.id);
+      if (!socketId) continue;
+      const visibleEntities = this.grid.getVisibleEntities(player.x, player.y);
+      this.broadcastHandler(socketId, {
+        type: 'SPATIAL_SNAPSHOT',
+        playerId: player.id,
+        entities: visibleEntities,
+      });
     }
   }
-  
-  /**
-   * Build a spatial snapshot for a player at the given position.
-   */
-  private buildSpatialSnapshot(selfId: string, playerTileX: number, playerTileZ: number): {
-    type: string;
-    selfId: string;
-    otherPlayers: Record<string, unknown>[];
-    npcs: Record<string, unknown>[];
-    loot: Record<string, unknown>[];
-  } {
-    const visibleEntities = this.grid.getVisibleEntities(playerTileX, playerTileZ);
-    
-    const otherPlayers: Record<string, unknown>[] = [];
-    const npcs: Record<string, unknown>[] = [];
-    const loot: Record<string, unknown>[] = [];
-    
-    for (const entity of visibleEntities) {
-      if (entity.id === selfId) continue; // Skip self
-      
-      if (entity.kind === "player") {
-        otherPlayers.push(entity.data);
-      } else if (entity.kind === "npc") {
-        npcs.push(entity.data);
-      } else if (entity.kind === "loot") {
-        loot.push(entity.data);
-      }
-    }
-    
-    return {
-      type: "spatial_snapshot",
-      selfId,
-      otherPlayers,
-      npcs,
-      loot,
-    };
-  }
-  
-  /**
-   * Get the underlying spatial grid for testing.
-   */
+
   getGrid(): SpatialBroadcastGrid {
     return this.grid;
   }
+}
+
+export function registerSpatialBroadcastTickSystem(registry = tickSystemRegistry): SpatialBroadcastTickSystem {
+  const system = new SpatialBroadcastTickSystem();
+  registry.register({
+    system,
+    dependencies: [],
+    tags: ['spatial', 'broadcast'],
+  });
+  return system;
 }

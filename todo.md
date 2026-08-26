@@ -1,0 +1,50 @@
+# Arelorian WASD – Issue-Arbeitsliste
+
+- [x] #2043: Eine SHA-gebundene Coverage-Matrix für reale UI-Mutationsloops erstellen, vorhandene Snapshot-, Intent-, Domain-, Persistenz- und Folgesnapshotpfade belegen und nur nachgewiesene Lücken in bestehenden Truth-Pfaden schließen.
+- [x] Die Snapshot-Bridge-Evidenzannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit CI keinen Nicht-Live-Faktensatz als live ausgibt.
+- [ ] #2369: Produktionsrevision, tatsächliche Node-Version und unveränderlichen Container-Digest aus der laufenden Runtime erfassen; erst dann zielgenaue Image-Pins sowie Security-, Health-, WebSocket-, Auth-, Tick- und Replay-Evidence prüfen.
+- [x] #2369: Versionierte Docker-Pfade und offizielle Node-22.23.2-Sicherheitsfixes geprüft; lokale Runner-Evidence nicht als Produktionsnachweis ausgegeben.
+- [ ] #2372: Bestehende Events, Deltas, Receipts, RuntimeHistoryLog, Origins und Replay-Grenzen inventarisieren, den Economy-Receipt-Pfad als echten Pilotpfad prüfen und nur nachgewiesene Lücken ohne zweite Event-Wahrheit schließen.
+- [ ] #2480 bleibt ausgesetzt, bis der im Issue referenzierte Sovereign-Frontend- und Backend-Quellbaum im Repository oder als zugänglicher Mirror bereitsteht.
+- [x] #2372 Phase A und Economy-Pilotpfad auf `dad57978d07cd2745db8cc7624dd9baea73dc2af` auditiert; persistente History-/Hash-Chain-Evidence bleibt als konkrete, noch unbelegte Grenze festgehalten.
+- [x] #2256: Den kanonischen LootDirector mit persistenter Inventory-Origin-Deduplizierung verbinden und den autoritativen Defeat→Delta→Inventory→Restart-Replay-Pfad mit einer echten In-Memory-Domain-Persistenz testen.
+- [x] Die bestehende LootCanonicalization-Integration so korrigieren, dass sie die im echten LootDirector fest definierte rollHash-/UID-Sortierung abbildet.
+- [x] Die Snapshot-Bridge-Testannahme auf den ehrlichen `empty`-Status für eine inhaltsleere, aber valide Serverantwort korrigieren.
+- [x] #2070: Den verbindlichen deterministischen Vertrag gegen den aktuellen Main-Callgraph mit Tick, kanonischen Inputs, Read-only-Projektion sowie Hash-/Evidence-Grenze dokumentieren.
+- [x] #2093: Einen SHA-gebundenen Current Index der offenen WASD/Areloria-Gates gegen den aktuellen Main-Callgraph erstellen.
+- [x] Die Snapshot-Bridge-Testannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit die Vertrags-PR keine Nicht-Live-Evidenz als live deklariert.
+- [x] Den fehlenden `EvidenceLayer`-Typimport im Shared-Runtime-Evidence-Test ergänzen, damit der Vertrags-PR gegen den aktuellen Main-Ausgangszustand typgeprüft werden kann.
+- [ ] #2469: Für PR-Head `12ee850e7264c60d60c14bbf4a05af46e4003d2d` authentifizierte 2D- und 3D-Browser-Smokes sowie Snapshot-/Hash-Readbacks derselben Serverrevision erfassen.
+- [x] #2469: Minimale Unit→Guard→Build→Browser→Snapshot/Hash-Evidence-Kette, zulässige Screenshots und semantische Paritätskriterien ohne Fake-Truth festgelegt.
+- [ ] #2370: Nach Merge von PR #2484 die grüne TypeScript-5-Baseline erneut erfassen und erst danach TypeScript 6 sowie TypeScript 7 isoliert vergleichen.
+- [x] #2370 Phase 0: TS-5-Baseline auf `dad57978d07cd2745db8cc7624dd9baea73dc2af` ausgeführt und den bestehenden `EvidenceLayer`-Importblocker ohne Toolchain-Umgehung dokumentiert.
+- [x] #2372: Den realen JSON-Crafting-Receipt-Pfad auf Hash-Integrität, Rehydrate und korrupten Persistenzinhalt prüfen, ohne einen zweiten Event- oder Replay-Pfad zu erzeugen.
+- [x] Den fehlenden `EvidenceLayer`-Typimport im Shared-Runtime-Evidence-Test ergänzen, damit der Crafting-Receipt-PR gegen den aktuellen Main-Ausgangszustand typgeprüft werden kann.
+- [x] Die Snapshot-Bridge-Testannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit der autonome Check keine Nicht-Live-Evidenz als live deklariert.
+- [ ] #2466 – Den gemeinsamen 64-Tile-/Kappa-Discovery-Vertrag in aktiven Server-, 2D- und 3D-Pfaden durchsetzen und Replay-/Persistenzgrenzen absichern.
+- [ ] #2465 – Das serverautoritativ abgeleitete `WorldOverlayModel` im realen 2D-Entrypoint verwenden und Reachability, Projektion sowie Browser-Smokes belegen.
+- [ ] #2464 – Den vorhandenen Overlay-Vertrag im Babylon-3D-Pfad für Minimap und `worldSurface` adapterbasiert integrieren.
+- [ ] #2469 – Runtime-Evidence und semantische 2D-/3D-Parität für die integrierten Slices belegen.
+- [ ] Weitere offene Gates (#2480, #2372, #2370, #2369, #2256, #2046, #2045, #2044, #2043, #2038) nach ihren dokumentierten Abhängigkeiten analysieren und ohne Ersatzwahrheit bearbeiten.
+- [x] Gemeinsamen 64-Tile-/Kappa-Discovery-Vertrag im aktiven WorldDiscoveryService durchsetzen und mit Server-, Shared- sowie Build-Prüfungen belegen.
+- [x] Reale 2D-Overlay-Container dauerhaft mounten, damit der Viewport nach dem ersten Snapshot messbar bleibt.
+- [x] Servergelieferte `worldSurface`-Punkte und Gruppen über einen read-only Babylon-Adapter in den aktiven 3D-Pfad integrieren.
+- [x] #2046: Die tatsächliche Babylon-Projektion mit einer echten Headless-Scene gegen servergelieferte Gruppen, Punkte sowie empty/blocked-Zustände testen.
+- [x] #2046: Nichtleere serverautoritäre `worldSurface.groups` und `worldSurface.points` in die ehrliche Overlay-Statusableitung einbeziehen.
+- [ ] #2480 bleibt ausgesetzt, bis der im Issue referenzierte Sovereign-Frontend- und Backend-Quellbaum im Repository oder als zugänglicher Mirror bereitsteht.
+- [x] #2043: Eine SHA-gebundene Coverage-Matrix für reale UI-Mutationsloops erstellen, vorhandene Snapshot-, Intent-, Domain-, Persistenz- und Folgesnapshotpfade belegen und nur nachgewiesene Lücken in bestehenden Truth-Pfaden schließen.
+- [x] Die Snapshot-Bridge-Evidenzannahme auf `empty` für valide, aber inhaltsleere Serverantworten korrigieren, damit CI keinen Nicht-Live-Faktensatz als live ausgibt.
+- [x] Den fehlenden `EvidenceLayer`-Typimport in den Runtime-Evidence-Tests beheben, damit der Shared-Truth-Vertrag auch im TypeScript-Gate geprüft wird.
+- [ ] VPS-Runtime für #2469, #2369 und #2038 ausschließlich lesend gegen die tatsächlich laufende Revision, Weltseed-Herkunft, Health-, Snapshot- und WebSocket-Endpunkte erfassen; keine Produktionswerte oder Dienste verändern.
+- [ ] Deterministische Snapshot-/Hash-Kausalität für den erhobenen VPS-Lauf zusätzlich unabhängig plausibilisieren; diese Nebenprüfung nicht als Ersatz für Server- oder Replay-Evidence werten.
+- [ ] #2046: Den VPS-Produktionsbuild fail-closed gegen den belegten `Areloria 3D unavailable`-Fallback absichern und die tatsächliche 3D-Buildauslieferung vor dem Kopieren nach `/3d` nachweisen.
+- [x] #2046: Lokalen realen 3D-Build sowie den erweiterten VPS-Build-Logikvalidator gegen den entfernten Platzhalter erfolgreich ausgeführt.
+- [ ] #2038/#2369: Den tatsächlich deployten Git-Commit aus dem vorhandenen VPS-Deployskript als Build-Argument und Runtime-Metadatum binden, damit `client-config.json` keine ungebundene `dev`-Revision ausgibt.
+- [x] #2038/#2369: Release-SHA-Bindung statisch mit dem VPS-Build-Logikvalidator, der Compose-Konfiguration und der Deployskript-Syntax geprüft.
+- [x] #2038/#2369: Schreibgeschützten VPS-Audit ohne Secret-Ausgabe für Image-Digest, Port, Weltseed-Präsenz, Health, Snapshot, 3D-Entrypoint und WebSocket-Upgrade dokumentiert.
+- [ ] Sovereign-Studio-ato: Revisions-Guardian-, Evidence- und revisionsgebundene Deploy-/Readback-Workflows gegen die WASD-Truth-Pfade abgleichen und nur kompatible fail-closed Verträge mit realer Runtime-Evidence übernehmen.
+- [ ] Einen WASD-Revisions-Guardian für exakte 40-stellige PR-/Main-SHAs mit maschinenlesbarer Evidence einführen, den 3D-/2D-Deploy auf ein OCI-Revisionslabel binden und eine unabhängige, nicht sensitive VPS-Readback-Receipt-Validierung nach erfolgreichem Main-Deploy implementieren.
+- [x] Sovereign-Studio-ato-Vertragsabgleich dokumentiert sowie lokale fail-closed WASD-Portierung für Guardian, OCI-Revisionslabel, gepinnten VPS-Host und Receipt-Validator erfolgreich ausgeführt.
+- [ ] Systemvergleich: Aktuelle Main-Revision, VPS-Container-/Runtime-Metadaten, öffentliche Endpunkte sowie GitHub-Deploy-/Guardian-/Readback-Läufe gegen den Auditstand vor `b60209d…` ausschließlich lesend abgleichen.
+- [ ] Main-Deploy `31631218879`: Den belegten Docker-Builder-Exit-137 beim Server-Transpile-Build durch eine ressourcenbewusste, sequenzielle Buildausführung beheben, ohne einen erforderlichen Runtime- oder 3D-Artefaktpfad zu überspringen.
+- [x] Main-Deploy `31631218879`: Core-, Shared-, Engine- und Server-Runtime-Build vollständig und isoliert unter `--max-old-space-size=1024` ausgeführt; Dockerlogikvalidator bestätigt den entferntem 4-GiB-Builder-Heap.

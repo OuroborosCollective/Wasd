@@ -3,7 +3,7 @@
 # =========================================================
 # BASE
 # =========================================================
-FROM node:22-alpine AS base
+FROM node:22.23.2-alpine AS base
 
 # System optimizations
 RUN apk add --no-cache \
@@ -115,7 +115,7 @@ RUN pnpm --filter @wasd/server deploy /app/prod-server
 # =========================================================
 # RUNTIME
 # =========================================================
-FROM node:22-alpine AS runner
+FROM node:22.23.2-alpine AS runner
 
 WORKDIR /app
 

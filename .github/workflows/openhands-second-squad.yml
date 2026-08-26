@@ -1,0 +1,254 @@
+name: 🤖 OpenHands Second Squad
+
+on:
+  issues:
+    types: [opened, edited, labeled]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Specific issue number to process"
+        required: false
+        type: string
+      max_issues:
+        description: "Max issues to process"
+        required: false
+        default: "1"
+        type: string
+
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: read
+
+
+concurrency:
+  group: openhands-second-squad-${{ github.repository }}-${{ github.event.issue.number || github.run_id }}
+  cancel-in-progress: false
+
+
+env:
+  OPENHANDS_MACRO: "@second-squad"
+  OPENHANDS_RESOLVER_VERSION: "0.48.0"
+  TARGET_BRANCH: main
+  MAX_ITERATIONS: "40"
+  PR_TYPE: "draft"
+  PYTHON_VERSION: "3.12"
+
+
+jobs:
+  collect-issues:
+    name: 🎯 Collect issues for Second Squad
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      count: ${{ steps.collect.outputs.count }}
+      matrix: ${{ steps.collect.outputs.matrix }}
+
+    steps:
+      - name: 🔍 Collect target issues
+        id: collect
+        uses: actions/github-script@v7
+        env:
+          MACRO: ${{ env.OPENHANDS_MACRO }}
+          MAX_ISSUES: ${{ inputs.max_issues || '1' }}
+          ISSUE_NUMBER: ${{ inputs.issue_number || '' }}
+        with:
+          script: |
+            const targets = [];
+            const seen = new Set();
+
+            const trustedAssociations = new Set([
+              "OWNER", "MEMBER", "COLLABORATOR"
+            ]);
+
+            const macro = process.env.MACRO || "@second-squad";
+
+            function addTarget(issueNumber, reason) {
+              if (!issueNumber || seen.has(issueNumber)) return;
+              seen.add(issueNumber);
+              targets.push({
+                issue_number: String(issueNumber),
+                reason
+              });
+            }
+
+            const eventName = context.eventName;
+            const payload = context.payload;
+
+            if (eventName === "workflow_dispatch") {
+              const issueNum = process.env.ISSUE_NUMBER;
+              if (issueNum) {
+                addTarget(issueNum, "manual-dispatch");
+              }
+            }
+
+            if (eventName === "issues") {
+              const issue = payload.issue;
+              if (issue && !issue.pull_request) {
+                const labelName = payload.label?.name;
+                if (payload.action === "labeled" && labelName === "second-squad") {
+                  addTarget(issue.number, "labeled:second-squad");
+                } else if (payload.action === "opened" && !issue.labels?.length) {
+                  addTarget(issue.number, "opened-unlabeled");
+                }
+              }
+            }
+
+            if (eventName === "issue_comment") {
+              const comment = payload.comment;
+              const issue = payload.issue;
+              if (comment && issue && comment.body?.includes(macro) &&
+                  trustedAssociations.has(comment.author_association)) {
+                addTarget(issue.number, "trusted-macro-comment");
+              }
+            }
+
+            const matrix = { include: targets };
+            core.setOutput("count", String(targets.length));
+            core.setOutput("matrix", JSON.stringify(matrix));
+            core.info(`Selected ${targets.length} Second Squad target(s).`);
+
+  second-squad-process:
+    name: ⚔️ Second Squad process #${{ matrix.issue_number }}
+    needs: collect-issues
+    if: needs.collect-issues.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJson(needs.collect-issues.outputs.matrix) }}
+
+    env:
+      ISSUE_NUMBER: ${{ matrix.issue_number }}
+      REASON: ${{ matrix.reason }}
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      LLM_MODEL: ${{ secrets.LLM_MODEL || vars.LLM_MODEL || 'anthropic/claude-sonnet-4-20250514' }}
+      GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || github.token }}
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: 🧬 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.PAT_TOKEN || github.token }}
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install OpenHands resolver
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "openhands-ai==${OPENHANDS_RESOLVER_VERSION}"
+          python - <<'PY'
+          import importlib.metadata
+          import openhands.resolver.resolve_issue
+
+          print("openhands-ai", importlib.metadata.version("openhands-ai"))
+          print("resolver module", openhands.resolver.resolve_issue.__file__)
+          PY
+
+      - name: 💬 Post start comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT_TOKEN || github.token }}
+          script: |
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(process.env.ISSUE_NUMBER),
+              body: [
+                "⚔️ **Second Squad aktiviert.**",
+                "",
+                `Issue: #${process.env.ISSUE_NUMBER}`,
+                `Reason: \`${process.env.REASON}\``,
+                `OpenHands resolver: \`${process.env.OPENHANDS_RESOLVER_VERSION}\``,
+                `Run: ${runUrl}`
+              ].join("\n")
+            });
+
+      - name: 🧠 Run Second Squad
+        id: squad
+        run: |
+          set -o pipefail
+          cd /tmp
+          rm -rf squad-workspace
+          mkdir -p squad-workspace
+
+          python -m openhands.resolver.resolve_issue \
+            --selected-repo "${{ github.repository }}" \
+            --issue-number "${{ env.ISSUE_NUMBER }}" \
+            --max-iterations "${{ env.MAX_ITERATIONS }}" \
+            --token "${{ env.GITHUB_TOKEN }}" \
+            --llm-model "${{ env.LLM_MODEL }}" \
+            --llm-api-key "${{ env.LLM_API_KEY }}" \
+            --output-dir /tmp/squad-workspace/output \
+            2>&1 | tee /tmp/squad-resolve.log
+
+      - name: 📤 Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: second-squad-${{ matrix.issue_number }}
+          path: |
+            /tmp/squad-resolve.log
+            /tmp/squad-workspace/output
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: ✅ Post result comment
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          SUCCESS: ${{ steps.squad.outcome }}
+        with:
+          github-token: ${{ secrets.PAT_TOKEN || github.token }}
+          script: |
+            const fs = require("fs");
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            let logContent = "";
+            try {
+              logContent = fs.readFileSync("/tmp/squad-resolve.log", "utf8").slice(-3000);
+            } catch {}
+
+            const success = process.env.SUCCESS === "success";
+            const staleLabel = success ? "second-squad-needs-help" : "second-squad-fixed";
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: Number(process.env.ISSUE_NUMBER),
+                name: staleLabel
+              });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(process.env.ISSUE_NUMBER),
+              labels: ["second-squad-attempted", success ? "second-squad-fixed" : "second-squad-needs-help"]
+            });
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(process.env.ISSUE_NUMBER),
+              body: [
+                success ? "✅ **Second Squad ist erfolgreich durchgelaufen.**" : "⚠️ **Second Squad ist fehlgeschlagen und benötigt Hilfe.**",
+                "",
+                `Run: ${runUrl}`,
+                logContent ? ["```", logContent, "```"].join("\n") : ""
+              ].filter(Boolean).join("\n")
+            });

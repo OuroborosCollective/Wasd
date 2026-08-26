@@ -59,18 +59,16 @@ describe("ChatService", () => {
     expect(msg.content).toBe("Need healer!");
   });
 
-  it("sendMessage() includes a createdAt timestamp", () => {
-    const before = Date.now();
+  it("sendMessage() uses the deterministic zero createdAt value", () => {
     const msg = service.sendMessage("p1", "guild", "Ready to raid");
-    const after = Date.now();
-    expect(msg.createdAt).toBeGreaterThanOrEqual(before);
-    expect(msg.createdAt).toBeLessThanOrEqual(after);
+    expect(msg.createdAt).toBe(0);
   });
 
-  it("two successive messages have non-decreasing timestamps", () => {
+  it("two successive messages keep the deterministic createdAt value", () => {
     const m1 = service.sendMessage("p1", "global", "first");
     const m2 = service.sendMessage("p1", "global", "second");
-    expect(m2.createdAt).toBeGreaterThanOrEqual(m1.createdAt);
+    expect(m1.createdAt).toBe(0);
+    expect(m2.createdAt).toBe(0);
   });
 });
 

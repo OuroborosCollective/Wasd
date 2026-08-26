@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "lawFlags": [
+    {
+      "id": "trade_tariff_enabled",
+      "description": "Allows a real governance service to enable trade tariffs after validation.",
+      "defaultEnabled": false
+    },
+    {
+      "id": "guard_patrol_priority",
+      "description": "Allows a real governance service to prioritize guard patrol funding after validation.",
+      "defaultEnabled": false
+    },
+    {
+      "id": "war_declaration_locked",
+      "description": "Keeps war declaration locked unless real governance state validates it.",
+      "defaultEnabled": true
+    }
+  ]
+}

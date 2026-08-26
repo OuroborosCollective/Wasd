@@ -25,13 +25,10 @@ describe("KingdomLedger", () => {
     expect(ledger.all()).toHaveLength(1);
   });
 
-  it("record() attaches a timestamp to each entry", () => {
-    const before = Date.now();
+  it("record() attaches the deterministic zero tick to each entry", () => {
     ledger.record({ type: "trade" });
-    const after = Date.now();
     const entry = ledger.all()[0];
-    expect(entry.ts).toBeGreaterThanOrEqual(before);
-    expect(entry.ts).toBeLessThanOrEqual(after);
+    expect(entry.ts).toBe(0);
   });
 
   it("multiple records are preserved in order", () => {

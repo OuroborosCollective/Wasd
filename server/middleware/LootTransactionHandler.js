@@ -6,78 +6,49 @@ const { SecurityProvider } = require('../security/SecurityProvider');
 /**
  * LootTransactionHandler
  *
- * Deterministische, ACID-konforme Loot-Verteilung.
+ * Gehärtete deterministische, ACID-konforme Loot-Verteilung für ARELogic/MMORPG.
  *
- * Kernregeln:
- * - Keine nicht-deterministische Randomness.
- * - Keine direkte Client-Vertrauensbasis für Teilnehmer.
- * - Idempotenz über transactionKey.
- * - Session-Lock via SELECT ... FOR UPDATE.
- * - Wallet-Updates atomar.
- * - Item-Ownership deterministisch.
- * - Audit-Log innerhalb derselben DB-Transaktion.
- * - Resttoken werden deterministisch verteilt.
+ * Regeln:
+ * - Keine Math.random(), kein Date.now() im deterministischen Rückgabe-/Key-Pfad.
+ * - transactionKey ist echte Idempotenz-ID.
+ * - Payload-Mismatch bei gleicher transactionKey wird blockiert.
+ * - Teilnehmer werden serverseitig aus session_participants ermittelt.
+ * - Client-Teilnehmer sind nur optionaler Sanity-Check, niemals Autorität.
+ * - Session, Teilnehmer und bestehende Loot-Transaktion werden per FOR UPDATE gesperrt.
+ * - Wallet-Updates und Inventory-Inserts laufen atomar in derselben DB-Transaktion.
+ * - Audit-Logs entstehen innerhalb derselben DB-Transaktion.
+ * - Resttoken werden deterministisch über Stable-Hash-Reihenfolge verteilt.
  */
 class LootTransactionHandler {
   static STATUS_ACTIVE = 'ACTIVE';
+
+  static TX_PROCESSING = 'PROCESSING';
   static TX_COMPLETED = 'COMPLETED';
   static TX_FAILED = 'FAILED';
 
   static MAX_ITEMS_PER_LOOT = 256;
   static MAX_PARTICIPANTS = 128;
   static MAX_TOKENS = 2_147_483_647;
+  static MAX_SAFE_ID_LENGTH = 128;
+  static MAX_RARITY_LENGTH = 64;
+  static MAX_SEED_LENGTH = 128;
 
-  /**
-   * Hauptmethode für Shared-Loot-Verteilung.
-   *
-   * @param {string} sessionId
-   * @param {{
-   *   transactionKey?: string,
-   *   tokens?: number,
-   *   items?: Array<{
-   *     templateId: string,
-   *     designatedRecipient?: string,
-   *     rarity?: string,
-   *     seed?: string|number
-   *   }>
-   * }} lootPayload
-   * @param {Array<string>} requestedParticipantIds
-   * @returns {Promise<{
-   *   success: boolean,
-   *   idempotent?: boolean,
-   *   sessionId?: string,
-   *   transactionKey?: string,
-   *   tokensDistributed?: number,
-   *   itemsDistributed?: number,
-   *   timestamp: number,
-   *   error?: string
-   * }>}
-   */
   static async handleLootDistribution(sessionId, lootPayload, requestedParticipantIds) {
-    const now = Date.now();
-
     let connection;
+    let transactionKey = null;
+    let payloadHash = null;
 
     try {
       this.assertValidSessionId(sessionId);
-      const normalizedLoot = this.normalizeLootPayload(lootPayload);
-      const clientParticipants = this.normalizeParticipantIds(requestedParticipantIds);
 
-      const transactionKey = this.buildTransactionKey(
-        sessionId,
-        normalizedLoot,
-        clientParticipants
-      );
+      const normalizedLoot = this.normalizeLootPayload(lootPayload);
+      const requestedParticipants = this.normalizeParticipantIds(requestedParticipantIds, {
+        allowEmpty: true
+      });
 
       connection = await Database.getConnection();
       await connection.beginTransaction();
 
-      /**
-       * 1. Session exklusiv sperren.
-       *
-       * Wichtig:
-       * queryOne() abstrahiert mysql2/promise-Formate.
-       */
       const sessionState = await this.queryOne(
         connection,
         `
@@ -100,24 +71,38 @@ class LootTransactionHandler {
         throw new LootError('SESSION_INACCESSIBLE_OR_LOCKED', 409);
       }
 
-      /**
-       * 2. Idempotenz prüfen.
-       *
-       * transactionKey erlaubt mehrere Loot-Events pro Session,
-       * verhindert aber doppeltes Ausführen desselben Events.
-       */
+      const authorizedParticipants = await this.loadAuthorizedParticipants(
+        connection,
+        sessionId,
+        requestedParticipants
+      );
+
+      if (authorizedParticipants.length === 0) {
+        throw new LootError('NO_AUTHORIZED_PARTICIPANTS', 400);
+      }
+
+      payloadHash = this.buildPayloadHash(sessionId, normalizedLoot, authorizedParticipants);
+      transactionKey = this.buildTransactionKey(sessionId, normalizedLoot, payloadHash);
+
       const existingTx = await this.queryOne(
         connection,
         `
           SELECT
             id,
-            status
+            status,
+            payload_hash,
+            tokens_distributed,
+            items_distributed
           FROM loot_transactions
           WHERE transaction_key = ?
           FOR UPDATE
         `,
         [transactionKey]
       );
+
+      if (existingTx && existingTx.payload_hash && existingTx.payload_hash !== payloadHash) {
+        throw new LootError('LOOT_TRANSACTION_KEY_PAYLOAD_MISMATCH', 409);
+      }
 
       if (existingTx && existingTx.status === this.TX_COMPLETED) {
         await connection.commit();
@@ -127,71 +112,26 @@ class LootTransactionHandler {
           idempotent: true,
           sessionId,
           transactionKey,
-          tokensDistributed: 0,
-          itemsDistributed: 0,
-          timestamp: now
+          payloadHash,
+          tokensDistributed: Number(existingTx.tokens_distributed || 0),
+          itemsDistributed: Number(existingTx.items_distributed || 0),
+          timestamp: this.deterministicTimestamp(`${transactionKey}:IDEMPOTENT`)
         };
       }
 
-      if (existingTx && existingTx.status !== this.TX_FAILED) {
-        throw new LootError('LOOT_TRANSACTION_ALREADY_EXISTS', 409);
+      if (existingTx && existingTx.status === this.TX_PROCESSING) {
+        throw new LootError('LOOT_TRANSACTION_ALREADY_PROCESSING', 409);
       }
 
-      /**
-       * 3. Serverseitige Teilnehmer ermitteln.
-       *
-       * Der Client darf Teilnehmer vorschlagen, aber nicht autoritativ setzen.
-       */
-      const authorizedParticipants = await this.loadAuthorizedParticipants(
-        connection,
+      await this.putProcessingTransaction(connection, {
+        hasExistingFailedTx: Boolean(existingTx && existingTx.status === this.TX_FAILED),
         sessionId,
-        clientParticipants
-      );
+        transactionKey,
+        requestedParticipants,
+        authorizedParticipants,
+        payloadHash
+      });
 
-      if (authorizedParticipants.length === 0) {
-        throw new LootError('NO_AUTHORIZED_PARTICIPANTS', 400);
-      }
-
-      /**
-       * 4. Transaktion vormerken.
-       *
-       * Bei Unique-Key auf transaction_key ist das zusätzlich race-safe.
-       */
-      await this.execute(
-        connection,
-        `
-          INSERT INTO loot_transactions
-            (
-              session_id,
-              transaction_key,
-              status,
-              requested_participants_json,
-              authorized_participants_json,
-              payload_hash,
-              created_at
-            )
-          VALUES
-            (?, ?, ?, ?, ?, ?, NOW())
-        `,
-        [
-          sessionId,
-          transactionKey,
-          'PROCESSING',
-          JSON.stringify(clientParticipants),
-          JSON.stringify(authorizedParticipants),
-          this.stableHash(JSON.stringify(normalizedLoot))
-        ]
-      );
-
-      /**
-       * 5. Token deterministisch verteilen.
-       *
-       * Beispiel:
-       * 10 Token, 3 Spieler:
-       * baseShare = 3
-       * remainder = 1
-       * Der deterministisch erste Empfänger bekommt +1.
-       */
       const tokensDistributed = await this.distributeTokens(
         connection,
         sessionId,
@@ -200,9 +140,6 @@ class LootTransactionHandler {
         transactionKey
       );
 
-      /**
-       * 6. Items deterministisch verteilen.
-       */
       const itemsDistributed = await this.distributeItems(
         connection,
         sessionId,
@@ -211,9 +148,6 @@ class LootTransactionHandler {
         transactionKey
       );
 
-      /**
-       * 7. Finalisieren.
-       */
       await this.execute(
         connection,
         `
@@ -240,23 +174,30 @@ class LootTransactionHandler {
         idempotent: false,
         sessionId,
         transactionKey,
+        payloadHash,
         tokensDistributed,
         itemsDistributed,
-        timestamp: Date.now()
+        timestamp: this.deterministicTimestamp(`${transactionKey}:COMPLETED`)
       };
     } catch (error) {
       if (connection) {
         try {
           await connection.rollback();
         } catch (_) {
-          // Rollback-Fehler nicht verschlucken, aber auch nicht den echten Fehler überschreiben.
+          // Rollback-Fehler darf den eigentlichen Fehler nicht überschreiben.
         }
       }
 
       return {
         success: false,
+        sessionId: this.isSafeId(sessionId) ? sessionId : undefined,
+        transactionKey: transactionKey || undefined,
+        payloadHash: payloadHash || undefined,
+        statusCode: error && error.statusCode ? error.statusCode : 500,
         error: error && error.message ? error.message : 'LOOT_TRANSACTION_FAILED',
-        timestamp: Date.now()
+        timestamp: this.deterministicTimestamp(
+          `${this.safeText(sessionId)}:${transactionKey || 'NO_TX'}:${error && error.message ? error.message : 'FAILED'}`
+        )
       };
     } finally {
       if (connection && typeof connection.release === 'function') {
@@ -266,14 +207,11 @@ class LootTransactionHandler {
   }
 
   /**
-   * Lädt serverseitig berechtigte Teilnehmer.
-   *
-   * Erwartete Tabelle:
-   * session_participants(session_id, user_id, eligible, left_at)
+   * Serverautoritär: lädt alle aktuell berechtigten Teilnehmer.
+   * requestedParticipantIds sind nur ein optionaler Sanity-Check.
+   * Dadurch kann ein Client keine anderen Spieler aus dem Shared Loot herausfiltern.
    */
   static async loadAuthorizedParticipants(connection, sessionId, requestedParticipantIds) {
-    const requestedSet = new Set(requestedParticipantIds);
-
     const rows = await this.queryRows(
       connection,
       `
@@ -289,27 +227,95 @@ class LootTransactionHandler {
       [sessionId]
     );
 
-    const serverParticipants = rows
-      .map((row) => String(row.user_id))
-      .filter((userId) => requestedSet.has(userId));
+    const serverParticipants = this.normalizeParticipantIds(
+      rows.map((row) => String(row.user_id)),
+      { allowEmpty: true }
+    );
 
-    return this.normalizeParticipantIds(serverParticipants);
+    if (serverParticipants.length === 0) {
+      return [];
+    }
+
+    if (requestedParticipantIds.length > 0) {
+      const serverSet = new Set(serverParticipants);
+
+      for (const requestedUserId of requestedParticipantIds) {
+        if (!serverSet.has(requestedUserId)) {
+          throw new LootError(`REQUESTED_PARTICIPANT_NOT_AUTHORIZED:${requestedUserId}`, 403);
+        }
+      }
+    }
+
+    if (serverParticipants.length > this.MAX_PARTICIPANTS) {
+      throw new LootError('TOO_MANY_AUTHORIZED_PARTICIPANTS', 400);
+    }
+
+    return serverParticipants;
   }
 
-  static async distributeTokens(
-    connection,
-    sessionId,
-    totalTokens,
-    participantIds,
-    transactionKey
-  ) {
+  static async putProcessingTransaction(connection, input) {
+    if (input.hasExistingFailedTx) {
+      await this.execute(
+        connection,
+        `
+          UPDATE loot_transactions
+          SET
+            status = ?,
+            requested_participants_json = ?,
+            authorized_participants_json = ?,
+            payload_hash = ?,
+            tokens_distributed = 0,
+            items_distributed = 0,
+            processed_at = NULL
+          WHERE transaction_key = ?
+        `,
+        [
+          this.TX_PROCESSING,
+          JSON.stringify(input.requestedParticipants),
+          JSON.stringify(input.authorizedParticipants),
+          input.payloadHash,
+          input.transactionKey
+        ]
+      );
+
+      return;
+    }
+
+    await this.execute(
+      connection,
+      `
+        INSERT INTO loot_transactions
+          (
+            session_id,
+            transaction_key,
+            status,
+            requested_participants_json,
+            authorized_participants_json,
+            payload_hash,
+            tokens_distributed,
+            items_distributed,
+            created_at
+          )
+        VALUES
+          (?, ?, ?, ?, ?, ?, 0, 0, NOW())
+      `,
+      [
+        input.sessionId,
+        input.transactionKey,
+        this.TX_PROCESSING,
+        JSON.stringify(input.requestedParticipants),
+        JSON.stringify(input.authorizedParticipants),
+        input.payloadHash
+      ]
+    );
+  }
+
+  static async distributeTokens(connection, sessionId, totalTokens, participantIds, transactionKey) {
     if (totalTokens <= 0) {
       return 0;
     }
 
-    const participantCount = participantIds.length;
-
-    if (participantCount <= 0) {
+    if (!Array.isArray(participantIds) || participantIds.length <= 0) {
       throw new LootError('NO_PARTICIPANTS_FOR_TOKEN_DISTRIBUTION', 400);
     }
 
@@ -318,6 +324,7 @@ class LootTransactionHandler {
       `${transactionKey}:TOKEN_ORDER`
     );
 
+    const participantCount = deterministicOrder.length;
     const baseShare = Math.floor(totalTokens / participantCount);
     const remainder = totalTokens % participantCount;
 
@@ -358,7 +365,9 @@ class LootTransactionHandler {
           amount,
           totalTokens,
           baseShare,
-          remainder
+          remainder,
+          orderIndex: i,
+          participantCount
         }
       });
 
@@ -368,35 +377,22 @@ class LootTransactionHandler {
     return distributed;
   }
 
-  static async distributeItems(
-    connection,
-    sessionId,
-    items,
-    participantIds,
-    transactionKey
-  ) {
+  static async distributeItems(connection, sessionId, items, participantIds, transactionKey) {
+    if (!Array.isArray(items) || items.length === 0) {
+      return 0;
+    }
+
+    if (!Array.isArray(participantIds) || participantIds.length <= 0) {
+      throw new LootError('NO_PARTICIPANTS_FOR_ITEM_DISTRIBUTION', 400);
+    }
+
     let distributed = 0;
 
     for (let index = 0; index < items.length; index += 1) {
       const item = items[index];
+      const recipientId = this.determineRecipient(item, participantIds, `${transactionKey}:ITEM:${index}`);
+      const instanceId = this.generateDeterministicInstanceId(transactionKey, item, index, recipientId);
 
-      const recipientId = this.determineRecipient(
-        item,
-        participantIds,
-        `${transactionKey}:ITEM:${index}`
-      );
-
-      const instanceId = this.generateDeterministicInstanceId(
-        transactionKey,
-        item,
-        index,
-        recipientId
-      );
-
-      /**
-       * Wichtig:
-       * Unique-Key auf instance_id verhindert doppelte Item-Erzeugung.
-       */
       await this.execute(
         connection,
         `
@@ -429,7 +425,8 @@ class LootTransactionHandler {
           transactionKey,
           index,
           item,
-          instanceId
+          instanceId,
+          recipientId
         }
       });
 
@@ -439,84 +436,66 @@ class LootTransactionHandler {
     return distributed;
   }
 
-  /**
-   * Deterministische Empfängerwahl.
-   *
-   * Kein Math.random().
-   * Kein Crypto-Random.
-   * Gleicher Input => gleicher Empfänger.
-   */
   static determineRecipient(item, participantIds, seed) {
     if (!Array.isArray(participantIds) || participantIds.length === 0) {
       throw new LootError('NO_PARTICIPANTS', 400);
     }
 
-    if (
-      item &&
-      item.designatedRecipient &&
-      participantIds.includes(String(item.designatedRecipient))
-    ) {
-      return String(item.designatedRecipient);
+    if (item && item.designatedRecipient) {
+      const designatedRecipient = String(item.designatedRecipient);
+
+      if (participantIds.includes(designatedRecipient)) {
+        return designatedRecipient;
+      }
+
+      throw new LootError(`DESIGNATED_RECIPIENT_NOT_AUTHORIZED:${designatedRecipient}`, 403);
     }
 
-    const ordered = this.deterministicOrder(participantIds, seed);
-    return ordered[0];
+    return this.deterministicOrder(participantIds, seed)[0];
   }
 
   static deterministicOrder(values, seed) {
     return [...values].sort((a, b) => {
-      const hashA = this.stableHash(`${seed}:${a}`);
-      const hashB = this.stableHash(`${seed}:${b}`);
+      const left = String(a);
+      const right = String(b);
+      const hashA = this.stableDigest(`${seed}:${left}`);
+      const hashB = this.stableDigest(`${seed}:${right}`);
 
       if (hashA < hashB) return -1;
       if (hashA > hashB) return 1;
 
-      return String(a).localeCompare(String(b));
+      return left.localeCompare(right, 'en', { sensitivity: 'variant' });
     });
   }
 
-  /**
-   * Stabiler FNV-1a Hash.
-   *
-   * Absichtlich kein Node crypto nötig.
-   * Für deterministische Sortierung reicht das.
-   */
-  static stableHash(input) {
-    const str = String(input);
-    let hash = 0x811c9dc5;
-
-    for (let i = 0; i < str.length; i += 1) {
-      hash ^= str.charCodeAt(i);
-      hash = Math.imul(hash, 0x01000193);
-    }
-
-    return (hash >>> 0).toString(16).padStart(8, '0');
-  }
-
-  static buildTransactionKey(sessionId, normalizedLoot, participantIds) {
-    const canonical = JSON.stringify({
+  static buildPayloadHash(sessionId, normalizedLoot, authorizedParticipants) {
+    return this.stableDigest({
+      version: 2,
       sessionId,
       tokens: normalizedLoot.tokens,
-      items: normalizedLoot.items.map((item) => ({
-        templateId: item.templateId,
-        designatedRecipient: item.designatedRecipient || null,
-        rarity: item.rarity || null,
-        seed: item.seed || null
-      })),
-      participants: [...participantIds].sort()
+      items: normalizedLoot.items,
+      authorizedParticipants
     });
+  }
+
+  static buildTransactionKey(sessionId, normalizedLoot, payloadHash) {
+    const sessionHash = this.stableDigest(sessionId).slice(0, 16);
 
     if (normalizedLoot.transactionKey) {
-      return `${sessionId}:${normalizedLoot.transactionKey}:${this.stableHash(canonical)}`;
+      const externalHash = this.stableDigest(normalizedLoot.transactionKey).slice(0, 24);
+      return `loot:${sessionHash}:${externalHash}`;
     }
 
-    return `${sessionId}:loot:${this.stableHash(canonical)}`;
+    return `loot:${sessionHash}:${payloadHash.slice(0, 32)}`;
   }
 
   static generateDeterministicInstanceId(transactionKey, item, index, recipientId) {
-    const raw = JSON.stringify({
+    const raw = this.stableStringify({
+      version: 2,
       transactionKey,
       templateId: item.templateId,
+      rarity: item.rarity || null,
+      seed: item.seed || null,
       index,
       recipientId
     });
@@ -528,79 +507,110 @@ class LootTransactionHandler {
       return SecurityProvider.generateDeterministicUUID(raw);
     }
 
-    /**
-     * Fallback:
-     * Kein echter UUID-v4, aber deterministisch und DB-tauglich.
-     */
-    return `loot_${this.stableHash(raw)}_${this.stableHash(`${raw}:b`)}`;
+    return `loot_${this.stableDigest(raw).slice(0, 32)}`;
   }
 
   static normalizeLootPayload(payload) {
-    if (!payload || typeof payload !== 'object') {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       throw new LootError('INVALID_LOOT_PAYLOAD', 400);
     }
 
-    const tokens = Number.isInteger(payload.tokens) ? payload.tokens : 0;
+    const tokens = payload.tokens === undefined || payload.tokens === null
+      ? 0
+      : Number(payload.tokens);
 
-    if (tokens < 0 || tokens > this.MAX_TOKENS) {
+    if (!Number.isInteger(tokens) || tokens < 0 || tokens > this.MAX_TOKENS) {
       throw new LootError('INVALID_TOKEN_AMOUNT', 400);
     }
 
-    const items = Array.isArray(payload.items) ? payload.items : [];
+    const items = payload.items === undefined || payload.items === null
+      ? []
+      : payload.items;
+
+    if (!Array.isArray(items)) {
+      throw new LootError('INVALID_LOOT_ITEMS', 400);
+    }
 
     if (items.length > this.MAX_ITEMS_PER_LOOT) {
       throw new LootError('TOO_MANY_LOOT_ITEMS', 400);
     }
 
-    const normalizedItems = items.map((item, index) => {
-      if (!item || typeof item !== 'object') {
-        throw new LootError(`INVALID_ITEM_AT_INDEX:${index}`, 400);
+    const normalizedItems = items.map((item, index) => this.normalizeLootItem(item, index));
+
+    let transactionKey = null;
+
+    if (payload.transactionKey !== undefined && payload.transactionKey !== null) {
+      if (!this.isSafeId(payload.transactionKey)) {
+        throw new LootError('INVALID_TRANSACTION_KEY', 400);
       }
 
-      if (!this.isSafeId(item.templateId)) {
-        throw new LootError(`INVALID_ITEM_TEMPLATE_ID_AT_INDEX:${index}`, 400);
-      }
+      transactionKey = String(payload.transactionKey);
+    }
 
-      const normalized = {
-        templateId: String(item.templateId)
-      };
-
-      if (item.designatedRecipient !== undefined && item.designatedRecipient !== null) {
-        if (!this.isSafeId(item.designatedRecipient)) {
-          throw new LootError(`INVALID_DESIGNATED_RECIPIENT_AT_INDEX:${index}`, 400);
-        }
-
-        normalized.designatedRecipient = String(item.designatedRecipient);
-      }
-
-      if (item.rarity !== undefined && item.rarity !== null) {
-        normalized.rarity = String(item.rarity).slice(0, 64);
-      }
-
-      if (item.seed !== undefined && item.seed !== null) {
-        normalized.seed = String(item.seed).slice(0, 128);
-      }
-
-      return normalized;
-    });
+    if (tokens === 0 && normalizedItems.length === 0) {
+      throw new LootError('EMPTY_LOOT_PAYLOAD', 400);
+    }
 
     return {
-      transactionKey:
-        typeof payload.transactionKey === 'string'
-          ? payload.transactionKey.slice(0, 128)
-          : null,
+      transactionKey,
       tokens,
       items: normalizedItems
     };
   }
 
-  static normalizeParticipantIds(participantIds) {
+  static normalizeLootItem(item, index) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new LootError(`INVALID_ITEM_AT_INDEX:${index}`, 400);
+    }
+
+    if (!this.isSafeId(item.templateId)) {
+      throw new LootError(`INVALID_ITEM_TEMPLATE_ID_AT_INDEX:${index}`, 400);
+    }
+
+    const normalized = {
+      templateId: String(item.templateId)
+    };
+
+    if (item.designatedRecipient !== undefined && item.designatedRecipient !== null) {
+      if (!this.isSafeId(item.designatedRecipient)) {
+        throw new LootError(`INVALID_DESIGNATED_RECIPIENT_AT_INDEX:${index}`, 400);
+      }
+
+      normalized.designatedRecipient = String(item.designatedRecipient);
+    }
+
+    if (item.rarity !== undefined && item.rarity !== null) {
+      if (!this.isBoundedSafeText(item.rarity, this.MAX_RARITY_LENGTH)) {
+        throw new LootError(`INVALID_RARITY_AT_INDEX:${index}`, 400);
+      }
+
+      normalized.rarity = String(item.rarity).toUpperCase();
+    }
+
+    if (item.seed !== undefined && item.seed !== null) {
+      if (!this.isBoundedSafeText(item.seed, this.MAX_SEED_LENGTH)) {
+        throw new LootError(`INVALID_SEED_AT_INDEX:${index}`, 400);
+      }
+
+      normalized.seed = String(item.seed);
+    }
+
+    return normalized;
+  }
+
+  static normalizeParticipantIds(participantIds, options = {}) {
+    const allowEmpty = Boolean(options.allowEmpty);
+
+    if (participantIds === undefined || participantIds === null) {
+      if (allowEmpty) return [];
+      throw new LootError('INVALID_PARTICIPANTS', 400);
+    }
+
     if (!Array.isArray(participantIds)) {
       throw new LootError('INVALID_PARTICIPANTS', 400);
     }
 
     const unique = [];
-
     const seen = new Set();
 
     for (const raw of participantIds) {
@@ -616,7 +626,7 @@ class LootTransactionHandler {
       }
     }
 
-    if (unique.length === 0) {
+    if (unique.length === 0 && !allowEmpty) {
       throw new LootError('EMPTY_PARTICIPANTS', 400);
     }
 
@@ -624,7 +634,7 @@ class LootTransactionHandler {
       throw new LootError('TOO_MANY_PARTICIPANTS', 400);
     }
 
-    return unique.sort();
+    return unique.sort((a, b) => String(a).localeCompare(String(b), 'en', { sensitivity: 'variant' }));
   }
 
   static assertValidSessionId(sessionId) {
@@ -638,11 +648,33 @@ class LootTransactionHandler {
       return false;
     }
 
-    if (value.length < 1 || value.length > 128) {
+    if (value.length < 1 || value.length > this.MAX_SAFE_ID_LENGTH) {
       return false;
     }
 
-    return /^[a-zA-Z0-9:_\-]+$/.test(value);
+    return /^[a-zA-Z0-9:_-]+$/.test(value);
+  }
+
+  static isBoundedSafeText(value, maxLength) {
+    if (value === undefined || value === null) {
+      return false;
+    }
+
+    const text = String(value);
+
+    if (text.length < 1 || text.length > maxLength) {
+      return false;
+    }
+
+    return /^[a-zA-Z0-9:_./-]+$/.test(text);
+  }
+
+  static safeText(value) {
+    if (value === undefined || value === null) {
+      return 'NULL';
+    }
+
+    return String(value).slice(0, 256);
   }
 
   static async insertAuditLog(connection, entry) {
@@ -664,18 +696,79 @@ class LootTransactionHandler {
         entry.eventType,
         entry.userId,
         entry.sessionId,
-        JSON.stringify(entry.detail)
+        this.stableStringify(entry.detail)
       ]
     );
   }
 
-  /**
-   * Kompatibel mit:
-   * - mysql2/promise: query() => [rows, fields]
-   * - eigene Wrapper: query() => rows
-   */
+  static stableDigest(input) {
+    const canonical = typeof input === 'string' ? input : this.stableStringify(input);
+
+    return [
+      this.stableHash32(`a:${canonical}`),
+      this.stableHash32(`b:${canonical}`),
+      this.stableHash32(`c:${canonical}`),
+      this.stableHash32(`d:${canonical}`)
+    ].join('');
+  }
+
+  static stableHash(input) {
+    return this.stableHash32(input);
+  }
+
+  static stableHash32(input) {
+    const str = String(input);
+    let hash = 0x811c9dc5;
+
+    for (let i = 0; i < str.length; i += 1) {
+      hash ^= str.charCodeAt(i);
+      hash = Math.imul(hash, 0x01000193);
+    }
+
+    return (hash >>> 0).toString(16).padStart(8, '0');
+  }
+
+  static deterministicTimestamp(seed) {
+    return parseInt(this.stableHash32(seed), 16);
+  }
+
+  static stableStringify(value) {
+    if (value === null) {
+      return 'null';
+    }
+
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value)) {
+        throw new LootError('NON_FINITE_NUMBER_IN_STABLE_STRINGIFY', 400);
+      }
+
+      return String(value);
+    }
+
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+
+    if (typeof value === 'string') {
+      return JSON.stringify(value);
+    }
+
+    if (Array.isArray(value)) {
+      return `[${value.map((entry) => this.stableStringify(entry)).join(',')}]`;
+    }
+
+    if (typeof value === 'object') {
+      const keys = Object.keys(value).sort();
+      return `{${keys
+        .map((key) => `${JSON.stringify(key)}:${this.stableStringify(value[key])}`)
+        .join(',')}}`;
+    }
+
+    return JSON.stringify(String(value));
+  }
+
   static async queryRows(connection, sql, params) {
-    const result = await connection.query(sql, params);
+    const result = await this.execute(connection, sql, params);
 
     if (Array.isArray(result) && Array.isArray(result[0])) {
       return result[0];
@@ -694,6 +787,10 @@ class LootTransactionHandler {
   }
 
   static async execute(connection, sql, params) {
+    if (typeof connection.execute === 'function') {
+      return connection.execute(sql, params);
+    }
+
     return connection.query(sql, params);
   }
 
@@ -709,27 +806,25 @@ class LootTransactionHandler {
     return 0;
   }
 
-  /**
-   * Express Middleware.
-   *
-   * Wichtig:
-   * In Produktion sollte req.user/serverseitige Auth hier zusätzlich geprüft werden.
-   */
   static async middleware(req, res, next) {
     try {
       const { sessionId, lootData, participants } = req.body || {};
 
+      const effectiveParticipants = Array.isArray(participants)
+        ? participants
+        : (req.user && req.user.id ? [String(req.user.id)] : []);
+
       const result = await LootTransactionHandler.handleLootDistribution(
         sessionId,
         lootData,
-        participants
+        effectiveParticipants
       );
 
       if (result.success) {
         return res.status(200).json(result);
       }
 
-      return res.status(409).json(result);
+      return res.status(result.statusCode || 409).json(result);
     } catch (error) {
       if (typeof next === 'function') {
         return next(error);
@@ -738,7 +833,7 @@ class LootTransactionHandler {
       return res.status(500).json({
         success: false,
         error: 'LOOT_MIDDLEWARE_FATAL',
-        timestamp: Date.now()
+        timestamp: LootTransactionHandler.deterministicTimestamp('LOOT_MIDDLEWARE_FATAL')
       });
     }
   }
@@ -753,3 +848,4 @@ class LootError extends Error {
 }
 
 module.exports = LootTransactionHandler;
+module.exports.LootError = LootError;

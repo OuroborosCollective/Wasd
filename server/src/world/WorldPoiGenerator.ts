@@ -20,9 +20,10 @@
 import { SeededARERng } from "@wasd/shared";
 import type { WorldPoiSnapshot, WorldPoiType } from "./WorldPoiTypes.js";
 import { getCampResourceBias } from "./WorldPoiTypes.js";
+import { resolveResourceWorldSeed } from "../resources/ResourceWorldSeedResolver.js";
 
-/** World seed for the game world */
-const WORLD_SEED = "areloria:earth_1_1";
+/** Runtime-resolved world seed. No hardcoded seed fallback. */
+const WORLD_SEED = resolveResourceWorldSeed(undefined, "world poi generator");
 
 /** Chunk size in tiles (kappa units / 1000) */
 const CHUNK_TILES = 16;
@@ -65,19 +66,16 @@ function getPoiTypeForBiome(biome: ChunkBiomeId, rng: SeededARERng): WorldPoiTyp
   switch (biome) {
     case "forest":
     case "forest_village": {
-      // Forests can have logging camps
       const roll = rng.intInclusive(0, 999);
-      return roll < 350 ? "logging_camp" : null; // 35% chance
+      return roll < 350 ? "logging_camp" : null;
     }
     case "mountain": {
-      // Mountains can have mining camps
       const roll = rng.intInclusive(0, 999);
-      return roll < 300 ? "mining_camp" : null; // 30% chance
+      return roll < 300 ? "mining_camp" : null;
     }
     case "plains": {
-      // Plains can have fishing camps (near water)
       const roll = rng.intInclusive(0, 999);
-      return roll < 250 ? "fishing_camp" : null; // 25% chance
+      return roll < 250 ? "fishing_camp" : null;
     }
     default:
       return null;

@@ -13,8 +13,13 @@ export function GuildStatusPanel({ snapshot }: GuildStatusPanelProps) {
 
   if (snapshot.status === "waiting") {
     return (
-      <div className="stitch-grid-panel" data-testid="guild-panel-waiting">
-        <article className="stitch-info">
+      <div
+        role="region"
+        aria-label="Guild Status"
+        className="stitch-grid-panel"
+        data-testid="guild-panel-waiting"
+      >
+        <article className="stitch-info" role="status" aria-live="polite">
           <small>Guild Sync</small>
           <b>waiting for server snapshot</b>
         </article>
@@ -24,7 +29,12 @@ export function GuildStatusPanel({ snapshot }: GuildStatusPanelProps) {
 
   if (!guild.id) {
     return (
-      <div className="stitch-grid-panel" data-testid="guild-panel-empty">
+      <div
+        role="region"
+        aria-label="Guild Status"
+        className="stitch-grid-panel"
+        data-testid="guild-panel-empty"
+      >
         <article className="stitch-info">
           <small>Guild</small>
           <b>unclaimed</b>
@@ -38,7 +48,12 @@ export function GuildStatusPanel({ snapshot }: GuildStatusPanelProps) {
   }
 
   return (
-    <div className="stitch-grid-panel" data-testid="guild-panel-live">
+    <div
+      role="region"
+      aria-label="Guild Status"
+      className="stitch-grid-panel"
+      data-testid="guild-panel-live"
+    >
       <article className="stitch-info">
         <small>Guild</small>
         <b>{guild.name ?? guild.id}</b>

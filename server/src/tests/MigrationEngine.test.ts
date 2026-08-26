@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { MigrationEngine } from "../modules/migration/MigrationEngine.js";
 
 describe("MigrationEngine", () => {
@@ -26,16 +26,11 @@ describe("MigrationEngine", () => {
     expect(typeof result.departedAt).toBe("number");
   });
 
-  it("should record the current timestamp for departedAt", () => {
+  it("uses the deterministic zero departedAt value", () => {
     const engine = new MigrationEngine();
-
-    const now = 1600000000000;
-    vi.spyOn(Date, 'now').mockReturnValue(now);
 
     const result = engine.migrate("group-456", "zone-x", "zone-y");
 
-    expect(result.departedAt).toBe(now);
-
-    vi.restoreAllMocks();
+    expect(result.departedAt).toBe(0);
   });
 });

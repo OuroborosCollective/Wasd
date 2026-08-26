@@ -2,20 +2,31 @@
 
 /**
  * LOOT ROUTES - Phase 11: OuroborosTickSystem Integration
- * 
- * ARE Infinite Loot Machine routes with deterministic tick context.
- * Uses TickSystemContextProvider instead of direct tickIndex.
+ *
+ * ARE Infinite Loot Machine admin routes with deterministic tick context.
+ * The router is guarded at the source so legacy mount points cannot bypass
+ * admin access checks or rate limiting.
  */
 
 import { getLootDirector } from '../bootLootSystem.js';
-import express from 'express';
+import express, { type RequestHandler, type Router } from 'express';
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
+import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
+import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 
-export function createLootRoutes(app: any): void {
-  // Ensure JSON parsing is available for POST body
-  app.use(express.json());
+const adminLootRateLimiter = adminRateLimiter as unknown as RequestHandler;
 
-  app.get('/admin/loot/status', (_req: any, res: any) => {
+export function createLootRouter(): Router {
+  const router = express.Router();
+
+  // Ensure JSON parsing is available for POST body, then guard all admin loot
+  // endpoints before any handler executes. Keep the middleware split so Express
+  // 5 type resolution does not collapse mixed middleware overloads.
+  router.use(express.json());
+  router.use(adminLootRateLimiter);
+  router.use(adminAuthMiddleware);
+
+  router.get('/status', (_req: any, res: any) => {
     const lootDirector = getLootDirector();
 
     if (!lootDirector) {
@@ -33,7 +44,7 @@ export function createLootRoutes(app: any): void {
     });
   });
 
-  app.post('/admin/loot/generate', async (req: any, res: any) => {
+  router.post('/generate', async (req: any, res: any) => {
     const lootDirector = getLootDirector();
 
     if (!lootDirector) {
@@ -49,7 +60,7 @@ export function createLootRoutes(app: any): void {
       const db = (global as any).__db || {};
       const machine = new ProceduralLootMachine(db);
 
-      // Phase 11: Use TickSystemContextProvider for deterministic tickIndex
+      // Phase 11: Use TickSystemContextProvider for deterministic tickIndex.
       const tickContext = tickContextProvider.getContext();
       const tickIndex = ctx.tickIndex ?? tickContext.tickIndex;
 
@@ -74,19 +85,24 @@ export function createLootRoutes(app: any): void {
         seedHash: result.seedHash,
         items: result.items,
         context: result.context,
-        // Ouroboros tick system context for deterministic tracking
+        // Ouroboros tick system context for deterministic tracking.
         tickContext: {
           tickId: tickContext.tickId,
           worldTimeHours: tickContext.worldTimeHours,
           seedHash: tickContext.seedHash,
         },
       });
-    } catch (error: any) {
+    } catch (_error: any) {
       res.status(500).json({
         ok: false,
-        error: error.message,
-        stack: error.stack
+        error: 'Internal server error'
       });
     }
   });
+
+  return router;
+}
+
+export function createLootRoutes(app: any): void {
+  app.use('/admin/loot', createLootRouter());
 }

@@ -1,8 +1,8 @@
 import { TraitResonanceEngine } from './TraitResonanceEngine';
 
 export interface ChunkData {
-    traits: string[];
-    intensity: number;
+    aggression_avg: number;
+    faith_avg: number;
 }
 
 export class AtmosphereMapper {
@@ -19,26 +19,23 @@ export class AtmosphereMapper {
     }
 
     /**
-     * Generiert eine Heatmap basierend auf der Trait-Resonanz der Chunks.
-     * Optimiert für Performance durch Reduzierung von GC-Druck und Objekt-Allokationen.
+     * Generates a 64×64 heatmap from the canonical social-simulation chunk
+     * aggregates. Faith provides the potential atmosphere; aggression damps it.
      */
-    public generateHeatmap(grid: ChunkData[][]): number[][] {
-        let x: number = 0;
-        let y: number = 0;
-        let currentChunk: ChunkData;
-        let currentRow: ChunkData[];
-        let targetRow: number[];
+    public generateHeatmap(grid: readonly (readonly ChunkData[])[]): number[][] {
+        if (grid.length !== this.size || grid.some((row) => row.length !== this.size)) {
+            throw new Error(`AtmosphereMapper expects a ${this.size}x${this.size} grid`);
+        }
 
-        for (y = 0; y < this.size; y++) {
-            currentRow = grid[y];
-            targetRow = this.heatmap[y];
-            
-            for (x = 0; x < this.size; x++) {
-                currentChunk = currentRow[x];
-                
-                // Berechnung der Resonanz über die Engine und Multiplikation mit der Intensität
-                // Es wird angenommen, dass calculateResonance eine performante Methode ist.
-                targetRow[x] = this.engine.calculateResonance(currentChunk.traits) * currentChunk.intensity;
+        for (let y = 0; y < this.size; y++) {
+            const currentRow = grid[y]!;
+            const targetRow = this.heatmap[y]!;
+            for (let x = 0; x < this.size; x++) {
+                const currentChunk = currentRow[x]!;
+                targetRow[x] = this.engine.calculateResonance(
+                    currentChunk.aggression_avg,
+                    currentChunk.faith_avg,
+                );
             }
         }
 

@@ -18,6 +18,14 @@
  */
 
 import { describe, expect, it, beforeEach, vi } from "vitest";
+import { ITEM_DEFINITIONS, type InventoryItemId } from "../inventory/InventoryTypes.js";
+import { EQUIPMENT_DEFINITIONS, normalizeEquipmentState, type EquippedSlot } from "../equipment/EquipmentTypes.js";
+import { UPGRADE_CRAFTING_RECIPES } from "../crafting/UpgradeRecipes.js";
+import { ALL_CRAFTING_RECIPES } from "../crafting/StarterRecipes.js";
+import type { RecipeId } from "../crafting/CraftingTypes.js";
+import { getGatheringToolBonus } from "../equipment/EquipmentBonus.js";
+import { EquipmentStore } from "../equipment/EquipmentStore.js";
+import type { GatherResourceResult } from "../resources/ResourceTypes.js";
 
 // Mock services before imports
 vi.mock("../inventory/inventoryRuntime.js", () => ({
@@ -37,7 +45,6 @@ vi.mock("../skills/skillRuntime.js", () => ({
 
 describe("Upgrade Tool Item Definitions", () => {
   it("copper_axe is defined in ITEM_DEFINITIONS", () => {
-    const { ITEM_DEFINITIONS } = require("../inventory/InventoryTypes.js");
     expect(ITEM_DEFINITIONS).toHaveProperty("copper_axe");
     expect(ITEM_DEFINITIONS.copper_axe.name).toBe("Copper Axe");
     expect(ITEM_DEFINITIONS.copper_axe.category).toBe("equipment");
@@ -45,7 +52,6 @@ describe("Upgrade Tool Item Definitions", () => {
   });
 
   it("reinforced_pickaxe is defined in ITEM_DEFINITIONS", () => {
-    const { ITEM_DEFINITIONS } = require("../inventory/InventoryTypes.js");
     expect(ITEM_DEFINITIONS).toHaveProperty("reinforced_pickaxe");
     expect(ITEM_DEFINITIONS.reinforced_pickaxe.name).toBe("Reinforced Pickaxe");
     expect(ITEM_DEFINITIONS.reinforced_pickaxe.category).toBe("equipment");
@@ -53,7 +59,6 @@ describe("Upgrade Tool Item Definitions", () => {
   });
 
   it("reinforced_fishing_rod is defined in ITEM_DEFINITIONS", () => {
-    const { ITEM_DEFINITIONS } = require("../inventory/InventoryTypes.js");
     expect(ITEM_DEFINITIONS).toHaveProperty("reinforced_fishing_rod");
     expect(ITEM_DEFINITIONS.reinforced_fishing_rod.name).toBe("Reinforced Fishing Rod");
     expect(ITEM_DEFINITIONS.reinforced_fishing_rod.category).toBe("equipment");
@@ -61,7 +66,6 @@ describe("Upgrade Tool Item Definitions", () => {
   });
 
   it("upgrade tools do NOT conflict with starter tool IDs", () => {
-    const { ITEM_DEFINITIONS } = require("../inventory/InventoryTypes.js");
     // These are the starter tool IDs from #1784
     const starterTools = ["wooden_axe", "copper_pickaxe", "simple_fishing_rod"];
     // These are the upgrade tool IDs
@@ -80,28 +84,24 @@ describe("Upgrade Tool Item Definitions", () => {
 
 describe("Upgrade Equipment Definitions", () => {
   it("copper_axe has correct slot and tier", () => {
-    const { EQUIPMENT_DEFINITIONS } = require("../equipment/EquipmentTypes.js");
     expect(EQUIPMENT_DEFINITIONS).toHaveProperty("copper_axe");
     expect(EQUIPMENT_DEFINITIONS.copper_axe.slotId).toBe("woodcutting_tool");
     expect(EQUIPMENT_DEFINITIONS.copper_axe.tier).toBe(2);
   });
 
   it("reinforced_pickaxe has correct slot and tier", () => {
-    const { EQUIPMENT_DEFINITIONS } = require("../equipment/EquipmentTypes.js");
     expect(EQUIPMENT_DEFINITIONS).toHaveProperty("reinforced_pickaxe");
     expect(EQUIPMENT_DEFINITIONS.reinforced_pickaxe.slotId).toBe("mining_tool");
     expect(EQUIPMENT_DEFINITIONS.reinforced_pickaxe.tier).toBe(2);
   });
 
   it("reinforced_fishing_rod has correct slot and tier", () => {
-    const { EQUIPMENT_DEFINITIONS } = require("../equipment/EquipmentTypes.js");
     expect(EQUIPMENT_DEFINITIONS).toHaveProperty("reinforced_fishing_rod");
     expect(EQUIPMENT_DEFINITIONS.reinforced_fishing_rod.slotId).toBe("fishing_tool");
     expect(EQUIPMENT_DEFINITIONS.reinforced_fishing_rod.tier).toBe(2);
   });
 
   it("starter tools still have tier 1", () => {
-    const { EQUIPMENT_DEFINITIONS } = require("../equipment/EquipmentTypes.js");
     expect(EQUIPMENT_DEFINITIONS.wooden_axe.tier).toBe(1);
     expect(EQUIPMENT_DEFINITIONS.copper_pickaxe.tier).toBe(1);
     expect(EQUIPMENT_DEFINITIONS.simple_fishing_rod.tier).toBe(1);
@@ -110,7 +110,6 @@ describe("Upgrade Equipment Definitions", () => {
 
 describe("Upgrade Recipe Definitions", () => {
   it("craft_copper_axe recipe exists", () => {
-    const { UPGRADE_CRAFTING_RECIPES } = require("../crafting/UpgradeRecipes.js");
     const recipe = UPGRADE_CRAFTING_RECIPES.find((r) => r.id === "craft_copper_axe");
     expect(recipe).toBeTruthy();
     expect(recipe?.stationType).toBe("workbench");
@@ -119,7 +118,6 @@ describe("Upgrade Recipe Definitions", () => {
   });
 
   it("craft_reinforced_pickaxe recipe exists", () => {
-    const { UPGRADE_CRAFTING_RECIPES } = require("../crafting/UpgradeRecipes.js");
     const recipe = UPGRADE_CRAFTING_RECIPES.find((r) => r.id === "craft_reinforced_pickaxe");
     expect(recipe).toBeTruthy();
     expect(recipe?.stationType).toBe("workbench");
@@ -128,7 +126,6 @@ describe("Upgrade Recipe Definitions", () => {
   });
 
   it("craft_reinforced_fishing_rod recipe exists", () => {
-    const { UPGRADE_CRAFTING_RECIPES } = require("../crafting/UpgradeRecipes.js");
     const recipe = UPGRADE_CRAFTING_RECIPES.find((r) => r.id === "craft_reinforced_fishing_rod");
     expect(recipe).toBeTruthy();
     expect(recipe?.stationType).toBe("workbench");
@@ -137,14 +134,12 @@ describe("Upgrade Recipe Definitions", () => {
   });
 
   it("all upgrade recipes require workbench station", () => {
-    const { UPGRADE_CRAFTING_RECIPES } = require("../crafting/UpgradeRecipes.js");
     UPGRADE_CRAFTING_RECIPES.forEach((recipe) => {
       expect(recipe.stationType).toBe("workbench");
     });
   });
 
   it("upgrade recipes are in ALL_CRAFTING_RECIPES", () => {
-    const { ALL_CRAFTING_RECIPES } = require("../crafting/StarterRecipes.js");
     const upgradeRecipeIds = ["craft_copper_axe", "craft_reinforced_pickaxe", "craft_reinforced_fishing_rod"];
 
     upgradeRecipeIds.forEach((recipeId) => {
@@ -156,7 +151,6 @@ describe("Upgrade Recipe Definitions", () => {
 
 describe("RecipeId Type", () => {
   it("upgrade recipe IDs are valid RecipeId union members", () => {
-    const { RecipeId } = require("../crafting/CraftingTypes.js");
     const upgradeIds: RecipeId[] = ["craft_copper_axe", "craft_reinforced_pickaxe", "craft_reinforced_fishing_rod"];
 
     upgradeIds.forEach((id) => {
@@ -169,7 +163,6 @@ describe("RecipeId Type", () => {
 
 describe("InventoryItemId Type", () => {
   it("upgrade tool IDs are valid InventoryItemId union members", () => {
-    const { InventoryItemId } = require("../inventory/InventoryTypes.js");
     const upgradeIds: InventoryItemId[] = ["copper_axe", "reinforced_pickaxe", "reinforced_fishing_rod"];
 
     upgradeIds.forEach((id) => {
@@ -182,7 +175,6 @@ describe("InventoryItemId Type", () => {
 
 describe("Tool Tier Bonus", () => {
   it("getGatheringToolBonus returns tier from equipment", () => {
-    const { getGatheringToolBonus } = require("../equipment/EquipmentBonus.js");
 
     // Test Tier 1 tool
     const tier1Bonus = getGatheringToolBonus({
@@ -208,7 +200,6 @@ describe("Tool Tier Bonus", () => {
   });
 
   it("default tier is 1 when no tool equipped", () => {
-    const { getGatheringToolBonus } = require("../equipment/EquipmentBonus.js");
 
     const noToolBonus = getGatheringToolBonus({
       equipment: {
@@ -222,7 +213,6 @@ describe("Tool Tier Bonus", () => {
   });
 
   it("Tier 2 tools have higher XP multiplier", () => {
-    const { getGatheringToolBonus } = require("../equipment/EquipmentBonus.js");
 
     const tier1Bonus = getGatheringToolBonus({
       equipment: {
@@ -248,7 +238,6 @@ describe("Tool Tier Bonus", () => {
 
 describe("GatherResourceResult Bonus Fields", () => {
   it("GatherResourceResult interface has bonusYield field", () => {
-    const { GatherResourceResult } = require("../resources/ResourceTypes.js");
     // TypeScript compile-time check
     const result: GatherResourceResult = {
       ok: true,
@@ -264,7 +253,6 @@ describe("GatherResourceResult Bonus Fields", () => {
 
 describe("EquippedSlot Tier Field", () => {
   it("EquippedSlot interface has tier field", () => {
-    const { EquippedSlot } = require("../equipment/EquipmentTypes.js");
     // TypeScript compile-time check
     const slot: EquippedSlot = {
       slotId: "mining_tool",
@@ -278,7 +266,6 @@ describe("EquippedSlot Tier Field", () => {
 
 describe("normalizeEquipmentState includes tier", () => {
   it("normalizeEquipmentState adds tier from definition", () => {
-    const { normalizeEquipmentState } = require("../equipment/EquipmentTypes.js");
 
     const result = normalizeEquipmentState(
       {
@@ -294,7 +281,6 @@ describe("normalizeEquipmentState includes tier", () => {
   });
 
   it("normalizeEquipmentState defaults tier to 1", () => {
-    const { normalizeEquipmentState } = require("../equipment/EquipmentTypes.js");
 
     const result = normalizeEquipmentState(
       {
@@ -312,7 +298,6 @@ describe("normalizeEquipmentState includes tier", () => {
 
 describe("EquipmentStore equipItem includes tier", () => {
   it("equipItem adds tier to equipped slot", () => {
-    const { EquipmentStore } = require("../equipment/EquipmentStore.js");
 
     const store = new EquipmentStore();
 
@@ -331,7 +316,6 @@ describe("EquipmentStore equipItem includes tier", () => {
   });
 
   it("equipItem replaces existing tool in same slot", () => {
-    const { EquipmentStore } = require("../equipment/EquipmentStore.js");
 
     const store = new EquipmentStore();
 
@@ -358,21 +342,18 @@ describe("EquipmentStore equipItem includes tier", () => {
 
 describe("Starter Tools Still Work", () => {
   it("starter tools still exist in EQUIPMENT_DEFINITIONS", () => {
-    const { EQUIPMENT_DEFINITIONS } = require("../equipment/EquipmentTypes.js");
     expect(EQUIPMENT_DEFINITIONS).toHaveProperty("wooden_axe");
     expect(EQUIPMENT_DEFINITIONS).toHaveProperty("copper_pickaxe");
     expect(EQUIPMENT_DEFINITIONS).toHaveProperty("simple_fishing_rod");
   });
 
   it("starter tools still have correct slots", () => {
-    const { EQUIPMENT_DEFINITIONS } = require("../equipment/EquipmentTypes.js");
     expect(EQUIPMENT_DEFINITIONS.wooden_axe.slotId).toBe("woodcutting_tool");
     expect(EQUIPMENT_DEFINITIONS.copper_pickaxe.slotId).toBe("mining_tool");
     expect(EQUIPMENT_DEFINITIONS.simple_fishing_rod.slotId).toBe("fishing_tool");
   });
 
   it("starter recipes still exist in ALL_CRAFTING_RECIPES", () => {
-    const { ALL_CRAFTING_RECIPES } = require("../crafting/StarterRecipes.js");
     const starterRecipeIds = ["craft_wooden_axe", "craft_copper_pickaxe", "craft_simple_fishing_rod"];
 
     starterRecipeIds.forEach((recipeId) => {
@@ -384,7 +365,6 @@ describe("Starter Tools Still Work", () => {
 
 describe("Determinism", () => {
   it("same equipment state produces same normalized state", () => {
-    const { normalizeEquipmentState } = require("../equipment/EquipmentTypes.js");
 
     const input = {
       playerId: "test_player",
@@ -402,7 +382,6 @@ describe("Determinism", () => {
   });
 
   it("upgrade tools have stable tier across normalizations", () => {
-    const { normalizeEquipmentState } = require("../equipment/EquipmentTypes.js");
 
     const input = {
       playerId: "test_player",
@@ -424,7 +403,6 @@ describe("Determinism", () => {
 
 describe("Crafting Recipe Structure", () => {
   it("upgrade recipes require starter tool as ingredient", () => {
-    const { UPGRADE_CRAFTING_RECIPES } = require("../crafting/UpgradeRecipes.js");
 
     // craft_copper_axe requires wooden_axe
     const copperAxeRecipe = UPGRADE_CRAFTING_RECIPES.find((r) => r.id === "craft_copper_axe");
@@ -440,7 +418,6 @@ describe("Crafting Recipe Structure", () => {
   });
 
   it("upgrade recipes output correct upgrade tool", () => {
-    const { UPGRADE_CRAFTING_RECIPES } = require("../crafting/UpgradeRecipes.js");
 
     const copperAxeRecipe = UPGRADE_CRAFTING_RECIPES.find((r) => r.id === "craft_copper_axe");
     expect(copperAxeRecipe?.outputs).toContainEqual({ itemId: "copper_axe", quantity: 1 });

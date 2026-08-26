@@ -107,12 +107,12 @@ describe('SpatialBroadcastGrid', () => {
       grid.upsert('npc1', 110, 210, 'npc', {});
       grid.upsert('player2', 5000, 5000, 'player', {}); // Different chunk
       
-      const entities = grid.getEntitiesInChunk(createChunkKey('1:3'));
+      const entities = grid.getEntitiesInChunk(createChunkKey(1, 3));
       expect(entities.length).toBe(2);
     });
 
     it('should return empty array for empty chunk', () => {
-      const entities = grid.getEntitiesInChunk(createChunkKey('999:999'));
+      const entities = grid.getEntitiesInChunk(createChunkKey(999, 999));
       expect(entities.length).toBe(0);
     });
   });
@@ -132,10 +132,11 @@ describe('SpatialBroadcastGrid', () => {
 
   describe('getStats', () => {
     it('should return correct statistics', () => {
+      // All coordinates intentionally stay in chunk (1, 3) with 64-tile chunks.
       grid.upsert('player1', 100, 200, 'player', {});
       grid.upsert('player2', 110, 210, 'player', {});
       grid.upsert('npc1', 120, 220, 'npc', {});
-      grid.upsert('loot1', 130, 230, 'loot', {});
+      grid.upsert('loot1', 126, 230, 'loot', {});
       
       const stats = grid.getStats();
       
@@ -151,5 +152,72 @@ describe('SpatialBroadcastGrid', () => {
 describe('Global spatialBroadcastGrid instance', () => {
   it('should export a singleton instance', () => {
     expect(spatialBroadcastGrid).toBeInstanceOf(SpatialBroadcastGrid);
+  });
+});
+
+import { SpatialBroadcastTickSystem } from '../SpatialBroadcastTickSystem.js';
+import { TickSystemPriority } from '../TickSystem.js';
+import { vi } from 'vitest';
+
+describe('SpatialBroadcastTickSystem', () => {
+  let system: SpatialBroadcastTickSystem;
+  let mockGrid: any;
+  let mockBroadcastHandler: any;
+
+  beforeEach(() => {
+    mockGrid = {
+      clear: vi.fn(),
+      upsert: vi.fn(),
+      getVisibleEntities: vi.fn().mockReturnValue([]),
+    };
+    mockBroadcastHandler = vi.fn();
+    system = new SpatialBroadcastTickSystem(mockGrid);
+    system.setBroadcastHandler(mockBroadcastHandler);
+  });
+
+  it('should have correct priority and name', () => {
+    expect(system.name).toBe('spatial-broadcast');
+    expect(system.priority).toBe(TickSystemPriority.BROADCAST);
+  });
+
+  it('should rebuild the grid and call broadcast handler during tick', () => {
+    const players = [{ id: 'p1', x: 10, y: 20, isOffline: false }];
+    const npcs = [{ id: 'n1', x: 15, y: 25, name: 'Guard' }];
+    
+    system.setPlayerPositionProvider(() => players);
+    system.setNpcPositionProvider(() => npcs);
+    system.setPlayerToSocketProvider(() => new Map([['p1', 'socket1']]));
+    system.setSocketToPlayerProvider(() => new Map([['socket1', 'p1']]));
+    
+    const visibleEntities = [
+      { id: 'p1', x: 10, y: 20, kind: 'player', data: { player: players[0] } },
+      { id: 'n1', x: 15, y: 25, kind: 'npc', data: { npc: npcs[0] } }
+    ];
+    mockGrid.getVisibleEntities.mockReturnValue(visibleEntities);
+
+    system.tick({ tickCount: 100 as any, isHighFrequencyTick: true });
+
+    // Grid management
+    expect(mockGrid.clear).toHaveBeenCalled();
+    expect(mockGrid.upsert).toHaveBeenCalledWith('p1', 10, 20, 'player', expect.anything());
+    expect(mockGrid.upsert).toHaveBeenCalledWith('n1', 15, 25, 'npc', expect.anything());
+
+    // Broadcast logic
+    expect(mockBroadcastHandler).toHaveBeenCalledWith('socket1', expect.objectContaining({
+      type: 'SPATIAL_SNAPSHOT',
+      playerId: 'p1',
+      entities: visibleEntities
+    }));
+  });
+
+  it('should skip offline players', () => {
+    const players = [{ id: 'p1', x: 10, y: 20, isOffline: true }];
+    system.setPlayerPositionProvider(() => players);
+    system.setPlayerToSocketProvider(() => new Map([['p1', 'socket1']]));
+    
+    system.tick({ tickCount: 100 as any, isHighFrequencyTick: true });
+    
+    expect(mockGrid.upsert).not.toHaveBeenCalledWith('p1', 10, 20, 'player', expect.anything());
+    expect(mockBroadcastHandler).not.toHaveBeenCalled();
   });
 });

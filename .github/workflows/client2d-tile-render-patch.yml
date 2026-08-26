@@ -10,6 +10,8 @@ permissions:
 jobs:
   patch:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -18,7 +20,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22.23.2'
 
       - name: Patch biome tile rendering
         run: |

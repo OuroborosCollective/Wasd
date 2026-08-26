@@ -1,253 +1,232 @@
 #!/usr/bin/env python3
 """
-stitch-atlas-intake.test.py
+scripts/__tests__/stitch_atlas_intake.test.py
 
-Tests for the Stitch 2.5D atlas intake pipeline.
-Run with: python scripts/__tests__/stitch-atlas-intake.test.py
+Invariant tests for the deterministic Stitch 2.5D asset intake pipeline.
+
+These tests intentionally avoid brittle fixed accepted/manual-review counts. The
+CV pipeline is allowed to get stricter over time, but it must keep runtime truth
+safe: deterministic manifest, no unknown runtime assets, atlas frameCount sync,
+ZIP/loose image collection, and stable replay.
 """
 
-import sys
-import os
+from __future__ import annotations
+
 import json
-import hashlib
 import re
+import sys
+import tempfile
+import zipfile
 from pathlib import Path
 
-# Add scripts dir to path for imports
+from PIL import Image
+
 SCRIPT_DIR = Path(__file__).parent.parent.parent.resolve()
 sys.path.insert(0, str(SCRIPT_DIR))
 
-# Import the intake module functions
-from scripts.stitch_atlas_intake import (
-    slugify_name,
+from scripts.stitch_atlas_intake import (  # noqa: E402
     classify_asset,
     classify_from_zip_path,
+    collect_sources,
     detect_grid,
+    run_intake,
+    slugify_name,
     stable_hash,
 )
 
-# -----------------------------------------------------------------------------
-# Test helpers
-# -----------------------------------------------------------------------------
 
-def test(condition, message):
-    """Simple test assertion."""
+def test(condition: bool, message: str) -> bool:
     if condition:
         print(f"  PASS {message}")
         return True
-    else:
-        print(f"  FAIL {message}")
-        return False
+    print(f"  FAIL {message}")
+    return False
 
-def run_tests():
+
+def count(result: bool, passed: int, failed: int) -> tuple[int, int]:
+    return (passed + 1, failed) if result else (passed, failed + 1)
+
+
+def create_image(path: Path, size: tuple[int, int] = (256, 256), color=(255, 0, 0)) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    img = Image.new("RGB", size, color)
+    img.save(path)
+
+
+def read_json(path: Path) -> dict:
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def assert_manifest_invariants(manifest_path: Path, client_dir: Path, passed: int, failed: int) -> tuple[int, int]:
+    manifest = read_json(manifest_path)
+    assets = manifest.get("assets", [])
+    manual_review = manifest.get("manualReview", [])
+    reference_only = manifest.get("referenceOnly", [])
+
+    passed, failed = count(test(manifest.get("schemaVersion") >= 1, "Manifest schema present"), passed, failed)
+    passed, failed = count(test(manifest.get("deterministic") is True, "Manifest deterministic flag true"), passed, failed)
+    passed, failed = count(test(manifest.get("assetCount") == len(assets), "assetCount matches runtime assets"), passed, failed)
+    passed, failed = count(test(manifest.get("manualReviewCount") == len(manual_review), "manualReviewCount matches entries"), passed, failed)
+    passed, failed = count(test(manifest.get("referenceOnlyCount") == len(reference_only), "referenceOnlyCount matches entries"), passed, failed)
+    passed, failed = count(test(len(assets) > 0, "At least one runtime-safe asset accepted"), passed, failed)
+    passed, failed = count(test(all(asset.get("category") != "unknown" for asset in assets), "No unknown assets in runtime manifest"), passed, failed)
+
+    asset_ids = [asset["assetId"] for asset in assets]
+    passed, failed = count(test(len(asset_ids) == len(set(asset_ids)), "No duplicate asset IDs"), passed, failed)
+    passed, failed = count(test(assets == sorted(assets, key=lambda asset: (asset["category"], asset["assetId"], asset["sourcePath"])), "Assets sorted deterministically"), passed, failed)
+
+    required_fields = ["assetId", "category", "displayName", "sourcePath", "imagePath", "atlasPath", "previewPath", "width", "height", "frameWidth", "frameHeight", "frameCount", "pivot", "sourceSha256", "processedSha256", "status"]
+    passed, failed = count(test(all(all(field in asset for field in required_fields) for asset in assets), "All assets have required manifest fields"), passed, failed)
+
+    manifest_str = json.dumps(manifest, sort_keys=True)
+    timestamps = re.findall(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", manifest_str)
+    passed, failed = count(test(len(timestamps) == 0, "No wall-clock timestamps in manifest"), passed, failed)
+
+    for asset in assets:
+        image_path = client_dir / asset["imagePath"]
+        atlas_path = client_dir / asset["atlasPath"]
+        preview_path = client_dir / asset["previewPath"]
+        passed, failed = count(test(image_path.exists(), f"Runtime image exists for {asset['assetId']}"), passed, failed)
+        passed, failed = count(test(atlas_path.exists(), f"Atlas exists for {asset['assetId']}"), passed, failed)
+        passed, failed = count(test(preview_path.exists(), f"Preview exists for {asset['assetId']}"), passed, failed)
+        atlas = read_json(atlas_path)
+        passed, failed = count(test(atlas.get("meta", {}).get("assetId") == asset["assetId"], f"Atlas meta assetId matches for {asset['assetId']}"), passed, failed)
+        passed, failed = count(test(atlas.get("meta", {}).get("frameCount") == asset["frameCount"], f"Atlas meta frameCount matches manifest for {asset['assetId']}"), passed, failed)
+        passed, failed = count(test(len(atlas.get("frames", {})) == asset["frameCount"], f"Atlas frame count matches manifest for {asset['assetId']}"), passed, failed)
+
+    return passed, failed
+
+
+def run_tests() -> bool:
     passed = 0
     failed = 0
-    
-    print("\n=== slugify_name tests ===")
-    
-    if test(slugify_name("skeleton_warrior") == "skeleton_warrior", "Simple name slugify"):
-        passed += 1
-    else:
-        failed += 1
-    
-    if test(slugify_name("Hero Character") == "hero_character", "Space separated"):
-        passed += 1
-    else:
-        failed += 1
-    
-    if test(slugify_name("my-file_name.png") == "my_file_name", "File with dashes/dots"):
-        passed += 1
-    else:
-        failed += 1
-    
-    print("\n=== classify_asset tests ===")
-    
-    if test(classify_asset("skeleton_warrior.png") == "enemy", "Enemy classification"):
-        passed += 1
-    else:
-        failed += 1
-    
-    if test(classify_asset("magic_effect.png") == "vfx", "VFX classification"):
-        passed += 1
-    else:
-        failed += 1
-    
-    if test(classify_asset("floor_tiles.png") == "tile", "Tile classification"):
-        passed += 1
-    else:
-        failed += 1
-    
-    print("\n=== classify_from_zip_path tests ===")
-    
-    enemy_path = "stitch_2.5d_enemy_sprite_atlas/sprite_atlas_sheet_for_a_2.5d_isometric_enemy_skeleton_warrior._style_dark_1/screen.png"
-    if test(classify_from_zip_path(enemy_path) == "enemy", "Enemy path classification"):
-        passed += 1
-    else:
-        failed += 1
-    
-    boss_path = "stitch_2.5d_enemy_sprite_atlas/sprite_atlas_sheet_for_a_2.5d_isometric_boss_enemy_skeleton_king._style_dark_1/screen.png"
-    if test(classify_from_zip_path(boss_path) == "boss", "Boss path classification"):
-        passed += 1
-    else:
-        failed += 1
-    
-    tile_path = "stitch_2.5d_enemy_sprite_atlas/sprite_atlas_sheet_for_2.5d_isometric_floor_tiles._style_dark_fantasy_diablo_4/screen.png"
-    if test(classify_from_zip_path(tile_path) == "tile", "Tile path classification"):
-        passed += 1
-    else:
-        failed += 1
-    
-    vfx_path = "stitch_2.5d_enemy_sprite_atlas/sprite_atlas_sheet_for_2.5d_isometric_magic_attack_effects._style_dark_fantasy/screen.png"
-    if test(classify_from_zip_path(vfx_path) == "vfx", "VFX path classification"):
-        passed += 1
-    else:
-        failed += 1
-    
-    hero_path = "stitch_2.5d_enemy_sprite_atlas/sprite_atlas_sheet_for_a_2.5d_isometric_hero_character_human_male._style_dark/screen.png"
-    if test(classify_from_zip_path(hero_path) == "hero", "Hero path classification"):
-        passed += 1
-    else:
-        failed += 1
-    
-    prop_path = "stitch_2.5d_enemy_sprite_atlas/sprite_atlas_sheet_for_2.5d_isometric_environment_objects_ancient_pillars./screen.png"
-    if test(classify_from_zip_path(prop_path) == "prop", "Prop path classification"):
-        passed += 1
-    else:
-        failed += 1
-    
-    equip_path = "stitch_2.5d_enemy_sprite_atlas/sprite_atlas_sheet_for_2.5d_isometric_equipment_overlays_hardened_leather/screen.png"
-    if test(classify_from_zip_path(equip_path) == "equipment_overlay", "Equipment overlay classification"):
-        passed += 1
-    else:
-        failed += 1
-    
-    print("\n=== detect_grid tests ===")
-    
-    if test(detect_grid(1024, 1024) == {"columns": 8, "rows": 8, "frameWidth": 128, "frameHeight": 128, "sheetSize": 1024, "frameCount": 64}, "1024x1024 grid detection"):
-        passed += 1
-    else:
-        failed += 1
-    
-    if test(detect_grid(768, 768) == {"columns": 6, "rows": 6, "frameWidth": 128, "frameHeight": 128, "sheetSize": 768, "frameCount": 36}, "768x768 grid detection"):
-        passed += 1
-    else:
-        failed += 1
-    
-    if test(detect_grid(512, 512) == {"columns": 4, "rows": 4, "frameWidth": 128, "frameHeight": 128, "sheetSize": 512, "frameCount": 16}, "512x512 grid detection"):
-        passed += 1
-    else:
-        failed += 1
-    
-    if test(detect_grid(256, 256) is None, "256x256 invalid grid detection"):
-        passed += 1
-    else:
-        failed += 1
-    
-    if test(detect_grid(1024, 512) is None, "Non-square image detection"):
-        passed += 1
-    else:
-        failed += 1
-    
+
+    print("\n=== slugify/classification/grid tests ===")
+    passed, failed = count(test(slugify_name("2.5D Enemy Sprite.png") == "25d_enemy_sprite", "2.5D normalized"), passed, failed)
+    passed, failed = count(test(classify_asset("skeleton_warrior.png") == "enemy", "Enemy classification"), passed, failed)
+    passed, failed = count(test(classify_asset("magic_effect.png") == "vfx", "VFX classification"), passed, failed)
+    passed, failed = count(test(classify_asset("floor_tiles.png") == "tile", "Tile classification"), passed, failed)
+    passed, failed = count(test(classify_asset("city_guard_idle.png") == "npc", "NPC classification"), passed, failed)
+    passed, failed = count(test(classify_asset("iron_sword_icon.png") == "item", "Item classification"), passed, failed)
+    passed, failed = count(test(classify_asset("plate_armor_overlay.png") == "equipment_overlay", "Equipment overlay classification"), passed, failed)
+    passed, failed = count(test(classify_asset("fantasy_stone_city_village_house_set.png") == "building", "Building classification"), passed, failed)
+    passed, failed = count(test(classify_from_zip_path("pack/sprite_atlas_sheet_for_a_2.5d_isometric_boss_enemy_skeleton_king/screen.png") == "boss", "Boss ZIP path classification"), passed, failed)
+    passed, failed = count(test(classify_from_zip_path("pack/sprite_atlas_sheet_for_2.5d_isometric_floor_tiles/screen.png") == "tile", "Tile ZIP path classification"), passed, failed)
+
+    expected_grid = {"columns": 8, "rows": 8, "frameWidth": 128, "frameHeight": 128, "sheetSize": 1024, "frameCount": 64}
+    passed, failed = count(test(detect_grid(1024, 1024) == expected_grid, "Legacy 1024x1024 grid detection"), passed, failed)
+    explicit_grid = detect_grid(1536, 1536, source_path="stitch_enemy_undead_blade_walker_6x6_256.png")
+    passed, failed = count(test(explicit_grid is not None and explicit_grid["columns"] == 6 and explicit_grid["rows"] == 6 and explicit_grid["frameWidth"] == 256 and explicit_grid["frameHeight"] == 256, "Explicit 1536 6x6 256 grid"), passed, failed)
+    passed, failed = count(test(detect_grid(1536, 1536, source_path="eldritch_modular_gothic_npc_assembly_catalog.png") is None, "Catalog sheet is not blindly sliced"), passed, failed)
+
     print("\n=== stable_hash tests ===")
-    
     hash1 = stable_hash(b"test data")
     hash2 = stable_hash(b"test data")
     hash3 = stable_hash(b"other data")
-    
-    if test(hash1 == hash2, "Same input produces same hash"):
-        passed += 1
-    else:
-        failed += 1
-    
-    if test(hash1 != hash3, "Different input produces different hash"):
-        passed += 1
-    else:
-        failed += 1
-    
-    if test(len(hash1) == 64, "SHA-256 hash length (64 chars)"):
-        passed += 1
-    else:
-        failed += 1
-    
-    print("\n=== manifest tests ===")
-    
-    manifest_path = SCRIPT_DIR / "assets" / "runtime" / "stitch" / "manifest.json"
-    if manifest_path.exists():
-        with open(manifest_path) as f:
-            manifest = json.load(f)
-        
-        if test(manifest.get("schemaVersion") == 1, "Manifest schema version is 1"):
-            passed += 1
-        else:
-            failed += 1
-        
-        if test(manifest.get("deterministic") == True, "Manifest deterministic flag is true"):
-            passed += 1
-        else:
-            failed += 1
-        
-        if test(manifest.get("generatedBy") == "scripts/stitch-atlas-intake.py", "Generated by correct script"):
-            passed += 1
-        else:
-            failed += 1
-        
+    passed, failed = count(test(hash1 == hash2, "Same input produces same hash"), passed, failed)
+    passed, failed = count(test(hash1 != hash3, "Different input produces different hash"), passed, failed)
+    passed, failed = count(test(len(hash1) == 64, "SHA-256 hash length is 64 chars"), passed, failed)
+
+    print("\n=== collect_sources tests ===")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        create_image(root / "enemy_skeleton.jpg", size=(128, 128), color=(255, 0, 0))
+        create_image(root / "prop_tree.png", size=(256, 256), color=(0, 255, 0))
+        create_image(root / "ui_icon.jpeg", size=(64, 64), color=(0, 0, 255))
+        (root / "ignored.txt").write_text("not an image", encoding="utf-8")
+        zip_source_image = root / "npc_guard_source.jpeg"
+        create_image(zip_source_image, size=(128, 128), color=(33, 90, 180, 255))
+        zip_path = root / "pack.zip"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.write(zip_source_image, "inside/npc_guard.jpeg")
+            zf.writestr("inside/readme.txt", "ignored")
+        sources = collect_sources(root)
+        source_names = [source.display_source_path for source in sources]
+        source_hashes_by_name = {source.display_source_path: stable_hash(source.data) for source in sources}
+        passed, failed = count(test(len(sources) == 5, "Directory keeps loose images and ZIP images as distinct sources"), passed, failed)
+        passed, failed = count(test(any("enemy_skeleton.jpg" in name for name in source_names), "Collects JPG"), passed, failed)
+        passed, failed = count(test(any("prop_tree.png" in name for name in source_names), "Collects PNG"), passed, failed)
+        passed, failed = count(test(any("ui_icon.jpeg" in name for name in source_names), "Collects JPEG"), passed, failed)
+        passed, failed = count(test(any("npc_guard_source.jpeg" in name for name in source_names), "Collects loose image also packed into ZIP"), passed, failed)
+        passed, failed = count(test(any("pack.zip!/inside/npc_guard.jpeg" in name for name in source_names), "Collects JPEG inside ZIP"), passed, failed)
+        loose_npc = next((name for name in source_names if name.endswith("npc_guard_source.jpeg")), "")
+        zipped_npc = next((name for name in source_names if "pack.zip!/inside/npc_guard.jpeg" in name), "")
+        passed, failed = count(test(bool(loose_npc) and bool(zipped_npc) and loose_npc != zipped_npc and source_hashes_by_name[loose_npc] == source_hashes_by_name[zipped_npc], "Loose and ZIP copies keep separate source paths with same content hash"), passed, failed)
+
+    print("\n=== runtime intake tests ===")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        input_dir = root / "input"
+        output_dir = root / "output"
+        quarantine_dir = root / "quarantine"
+        client_dir = root / "client"
+
+        create_image(input_dir / "enemy_skeleton_idle.jpg", size=(300, 500), color=(255, 0, 0))
+        create_image(input_dir / "tile_swamp_ground.png", size=(256, 256), color=(0, 255, 0))
+        create_image(input_dir / "ui_inventory_icon.jpeg", size=(96, 96), color=(0, 0, 255))
+        create_image(input_dir / "npc_guard_walk_4x4.png", size=(512, 512), color=(255, 255, 0))
+        create_image(input_dir / "fantasy_stone_city_village_house_set.png", size=(1536, 2048), color=(120, 120, 120))
+        create_image(input_dir / "mobile_asset_collection_overview.jpg", size=(1080, 1920), color=(12, 20, 44))
+        create_image(input_dir / "stitch_enemy_undead_blade_walker_6x6_256.png", size=(1536, 1536), color=(99, 30, 170))
+
+        zip_path = input_dir / "mixed_pack.zip"
+        zip_image = root / "hero_character_male.png"
+        create_image(zip_image, size=(256, 384), color=(255, 0, 255))
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.write(zip_image, "characters/hero_character_male.png")
+
+        exit_code = run_intake(input_path=input_dir, output_dir=output_dir, quarantine_dir=quarantine_dir, client_dir=client_dir, pack_id="test_pack")
+        manifest_path = output_dir / "manifest.json"
+        report_path = output_dir / "report.json"
+        client_manifest_path = client_dir / "manifest.json"
+
+        passed, failed = count(test(exit_code == 0, "run_intake exits successfully"), passed, failed)
+        passed, failed = count(test(manifest_path.exists(), "Manifest created"), passed, failed)
+        passed, failed = count(test(report_path.exists(), "Report created"), passed, failed)
+        passed, failed = count(test(client_manifest_path.exists(), "Client manifest copied"), passed, failed)
+        passed, failed = assert_manifest_invariants(manifest_path, client_dir, passed, failed)
+
+        manifest = read_json(manifest_path)
         assets = manifest.get("assets", [])
-        if test(len(assets) > 0, f"Manifest has {len(assets)} assets"):
-            passed += 1
-        else:
-            failed += 1
-        
-        # Check all assets have required fields
-        required_fields = ["assetId", "category", "displayName", "imagePath", "atlasPath", "width", "height", "frameWidth", "frameHeight", "frameCount", "pivot", "sourceSha256", "processedSha256"]
-        all_have_fields = all(all(field in a for field in required_fields) for a in assets)
-        if test(all_have_fields, "All assets have required fields"):
-            passed += 1
-        else:
-            failed += 1
-        
-        # Check no duplicate asset IDs
-        asset_ids = [a["assetId"] for a in assets]
-        if test(len(asset_ids) == len(set(asset_ids)), "No duplicate asset IDs"):
-            passed += 1
-        else:
-            failed += 1
-        
-        # Check sorting
-        sorted_assets = sorted(assets, key=lambda a: (a["category"], a["assetId"], a["sourcePath"]))
-        if test(assets == sorted_assets, "Assets are sorted by category, assetId, sourcePath"):
-            passed += 1
-        else:
-            failed += 1
-        
-        # Check categories
-        categories = set(a["category"] for a in assets)
-        has_enemy = "enemy" in categories
-        has_tile = "tile" in categories
-        has_vfx = "vfx" in categories
-        has_prop = "prop" in categories
-        
-        if test(has_enemy and has_tile and has_vfx and has_prop, f"Has required categories: enemy={has_enemy}, tile={has_tile}, vfx={has_vfx}, prop={has_prop}"):
-            passed += 1
-        else:
-            failed += 1
-        
-        # Check no wall-clock timestamps in manifest
-        manifest_str = json.dumps(manifest)
-        timestamp_pattern = r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}'
-        timestamps = re.findall(timestamp_pattern, manifest_str)
-        if test(len(timestamps) == 0, "No wall-clock timestamps in manifest"):
-            passed += 1
-        else:
-            failed += 1
-        
-    else:
-        print(f"  SKIP Manifest not found at {manifest_path}")
-    
+        manual_review = manifest.get("manualReview", [])
+        reference_only = manifest.get("referenceOnly", [])
+        categories = {asset["category"] for asset in assets}
+        manual_categories = {entry["category"] for entry in manual_review}
+        reference_categories = {entry["category"] for entry in reference_only}
+        passed, failed = count(test("enemy" in categories, "Runtime intake has accepted enemy asset"), passed, failed)
+        passed, failed = count(test("building" in manual_categories, "Building catalog is manual-review"), passed, failed)
+        passed, failed = count(test("hero" in manual_categories, "Non-square hero ZIP image is manual-review"), passed, failed)
+        passed, failed = count(test("unknown" in reference_categories, "Mobile overview is reference-only"), passed, failed)
+
+        accepted_enemy = [asset for asset in assets if "undead_blade_walker" in asset["assetId"]]
+        passed, failed = count(test(len(accepted_enemy) == 1 and accepted_enemy[0]["columns"] == 6 and accepted_enemy[0]["rows"] == 6 and accepted_enemy[0]["frameCount"] == 36, "Explicit 6x6 enemy sheet accepted with 36 runtime frames"), passed, failed)
+        passed, failed = count(test(read_json(report_path).get("deterministic") is True, "Report deterministic flag true"), passed, failed)
+
+    print("\n=== deterministic replay tests ===")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        input_dir = root / "input"
+        output_a = root / "output_a"
+        output_b = root / "output_b"
+        quarantine_a = root / "quarantine_a"
+        quarantine_b = root / "quarantine_b"
+        client_a = root / "client_a"
+        client_b = root / "client_b"
+        create_image(input_dir / "enemy_skeleton_idle.jpg", size=(300, 500), color=(123, 12, 99, 255))
+        create_image(input_dir / "prop_tree.png", size=(256, 256), color=(20, 140, 30, 255))
+        exit_a = run_intake(input_path=input_dir, output_dir=output_a, quarantine_dir=quarantine_a, client_dir=client_a, pack_id="replay_pack")
+        exit_b = run_intake(input_path=input_dir, output_dir=output_b, quarantine_dir=quarantine_b, client_dir=client_b, pack_id="replay_pack")
+        manifest_a = stable_hash((output_a / "manifest.json").read_bytes())
+        manifest_b = stable_hash((output_b / "manifest.json").read_bytes())
+        passed, failed = count(test(exit_a == 0 and exit_b == 0, "Both replay runs exit successfully"), passed, failed)
+        passed, failed = count(test(manifest_a == manifest_b, "Manifest hash is stable across replay"), passed, failed)
+
     print("\n" + "=" * 50)
     print(f"RESULTS: {passed} passed, {failed} failed")
     print("=" * 50)
-    
     return failed == 0
+
 
 if __name__ == "__main__":
     success = run_tests()

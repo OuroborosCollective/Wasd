@@ -28,6 +28,26 @@ export interface AREShadowTickResult {
   readonly error?: unknown;
 }
 
+export interface AREShadowProbeInput {
+  readonly source: 'test' | 'ci' | 'diagnostic';
+  readonly testFile: string;
+  readonly caseName: string;
+  readonly tick: number;
+  readonly status: 'pass' | 'fail' | 'warning';
+  readonly inputHash?: string | number;
+  readonly outputHash?: string | number;
+  readonly expectedHash?: string | number;
+  readonly discrepancy?: string;
+  readonly recommendation?: string;
+  readonly metadata?: Record<string, unknown>;
+}
+
+export interface AREShadowProbeResult {
+  readonly recorded: boolean;
+  readonly probeHash: number;
+  readonly tick: number;
+}
+
 function isNpcEntity(entityId: string): boolean {
   return entityId.startsWith('npc:');
 }
@@ -50,6 +70,40 @@ function kappaCellOf(position: unknown): string {
   return `${x}:${y}:${z}`;
 }
 
+function stableSerialize(value: unknown): string {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => stableSerialize(item)).join(',')}]`;
+  const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
+  return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableSerialize(entry)}`).join(',')}}`;
+}
+
+function probeHash(input: AREShadowProbeInput): number {
+  return whole(stableHashLike([
+    'ARE_SHADOW_PROBE_V1',
+    input.source,
+    input.testFile,
+    input.caseName,
+    input.tick,
+    input.status,
+    input.inputHash ?? '',
+    input.outputHash ?? '',
+    input.expectedHash ?? '',
+    input.discrepancy ?? '',
+    stableSerialize(input.metadata ?? {}),
+  ].join('|')));
+}
+
+function stableHashLike(text: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
 export class AREShadowAdapter {
   private static readonly defaultEcosystemState = new AREShadowState();
   private static readonly logSink = new AREShadowLogSink();
@@ -69,6 +123,31 @@ export class AREShadowAdapter {
     };
   }
 
+  static recordShadowProbe(input: AREShadowProbeInput): AREShadowProbeResult {
+    const tick = whole(input.tick);
+    const hash = probeHash({ ...input, tick });
+    const envelope = Object.freeze({
+      type: 'ARE_SHADOW_PROBE',
+      version: 1,
+      source: input.source,
+      testFile: input.testFile,
+      caseName: input.caseName,
+      tick,
+      status: input.status,
+      inputHash: input.inputHash ?? null,
+      outputHash: input.outputHash ?? null,
+      expectedHash: input.expectedHash ?? null,
+      discrepancy: input.discrepancy ?? null,
+      recommendation: input.recommendation ?? null,
+      metadataHash: stableHashLike(stableSerialize(input.metadata ?? {})),
+      probeHash: hash,
+      ecosystem: this.getEcosystemTelemetry(),
+      truthPath: 'shadow_only',
+    });
+    this.logSink.write(tick, envelope as any);
+    return Object.freeze({ recorded: true, probeHash: hash, tick });
+  }
+
   private static flushTopologyCells(tick: number): void {
     const cells = [...this.topologyCells.values()];
     for (const ids of cells) {
@@ -85,7 +164,7 @@ export class AREShadowAdapter {
     if (this.topologyTick === null) {
       areTopologyNetwork.seedCore('core:singularity', 0);
       this.topologyTick = t;
-      console.log(`[AREShadowAdapter] 🧠 Topology initialisiert bei tick=${t}`);
+      console.log(`[AREShadowAdapter] Topology initialized at tick=${t}`);
     }
     if (t !== this.topologyTick) {
       this.flushTopologyCells(this.topologyTick);
@@ -101,7 +180,7 @@ export class AREShadowAdapter {
   private static writeShadowLog(input: AREShadowTickInput, stateHash: number | undefined): void {
     if (this.lastLoggedTick === input.tick) return;
     this.lastLoggedTick = input.tick;
-    
+
     const stats = {
       capacity: input.buffer.capacity,
       size: input.buffer.size,
@@ -110,46 +189,33 @@ export class AREShadowAdapter {
       latestStateHash: stateHash ?? null,
       ecosystem: this.getEcosystemTelemetry(),
     };
-    
-    console.log(`[AREShadowAdapter] 📡 Write shadow log: tick=${input.tick}, entity=${input.entityId}, stateHash=${stateHash}`);
+
+    console.log(`[AREShadowAdapter] Write shadow log: tick=${input.tick}, entity=${input.entityId}, stateHash=${stateHash}`);
     this.logSink.write(input.tick, stats as any);
   }
 
-  /**
-   * routeThoughtStateLog - Route autonomous player ThoughtState to shadow log stream.
-   * 
-   * Called by AutonomousPlayerTickSystem every 50 ticks when generating thinking logs.
-   * Routes the thought state out of the main tick loop for external research sync.
-   * 
-   * @param thoughtState - The complete thought state to route
-   * @param researchExportPath - Optional path for Google Drive sync
-   */
   static routeThoughtStateLog(thoughtState: ThoughtState, researchExportPath?: string): void {
     const tick = thoughtState.tick;
-    
-    // Create research envelope for external sync
+
     const researchEnvelope = {
       type: 'AUTONOMOUS_PLAYER_THOUGHT_STATE',
       version: '1.0',
       entityId: thoughtState.entityId,
-      tick: tick,
-      thoughtState: thoughtState,
+      tick,
+      thoughtState,
       exportPath: researchExportPath ?? null,
-      routedAt: Date.now(),
+      routedAtTick: tick,
       ecosystem: this.getEcosystemTelemetry(),
     };
-    
-    // Write to shadow log sink for persistence
-    console.log(`[AREShadowAdapter] 🧠 ThoughtState logged: entity=${thoughtState.entityId} tick=${tick} action=${thoughtState.decision.action}`);
-    console.log(`[AREShadowAdapter] 📊 Utility Scores: combat=${thoughtState.utilityScores.combatScore} diplomacy=${thoughtState.utilityScores.diplomacyScore} flee=${thoughtState.utilityScores.fleeScore}`);
-    console.log(`[AREShadowAdapter] 🎯 Decision: ${thoughtState.decision.reasoning}`);
-    
-    // Write to log sink for structured storage
+
+    console.log(`[AREShadowAdapter] ThoughtState logged: entity=${thoughtState.entityId} tick=${tick} action=${thoughtState.decision.action}`);
+    console.log(`[AREShadowAdapter] Utility Scores: combat=${thoughtState.utilityScores.combatScore} diplomacy=${thoughtState.utilityScores.diplomacyScore} flee=${thoughtState.utilityScores.fleeScore}`);
+    console.log(`[AREShadowAdapter] Decision: ${thoughtState.decision.reasoning}`);
+
     this.logSink.write(tick, researchEnvelope as any);
-    
-    // If export path provided, flag for external Google Drive sync
+
     if (researchExportPath) {
-      console.log(`[AREShadowAdapter] 📁 Marked for research export: ${researchExportPath}`);
+      console.log(`[AREShadowAdapter] Marked for research export: ${researchExportPath}`);
     }
   }
 
@@ -158,10 +224,9 @@ export class AREShadowAdapter {
       return { skipped: true, recorded: false };
     }
 
-    // Initialization guard - MUSS vor dem ersten Tick erfolgen
     if (this.initializationTick === null) {
       this.initializationTick = input.tick;
-      console.log(`[AREShadowAdapter] ✅ Adapter initialisiert bei tick=${input.tick}, BufferCap=${input.buffer.capacity}`);
+      console.log(`[AREShadowAdapter] Adapter initialized at tick=${input.tick}, BufferCap=${input.buffer.capacity}`);
     }
 
     try {
@@ -206,7 +271,7 @@ export class AREShadowAdapter {
       AREShadowAdapter.writeShadowLog(input, entry.stateHash);
       return { skipped: false, recorded: true, stateHash: entry.stateHash };
     } catch (error) {
-      console.error(`[AREShadowAdapter] ❌ Fehler bei tick=${input.tick}, entity=${input.entityId}:`, error);
+      console.error(`[AREShadowAdapter] Error at tick=${input.tick}, entity=${input.entityId}:`, error);
       return { skipped: false, recorded: false, error };
     }
   }

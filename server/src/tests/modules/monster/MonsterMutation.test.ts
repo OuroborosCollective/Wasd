@@ -1,14 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { mutateMonster } from "../../../modules/monster/MonsterMutation.js";
 
 describe("MonsterMutation", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+  const rngWithValue = (value: number) => ({ nextFloat: () => value });
 
   const baseDna = {
     species: "goblin",
@@ -17,9 +11,7 @@ describe("MonsterMutation", () => {
   };
 
   it("returns a clone with empty mutations array when biome has no effect and rare variant fails", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.5); // 0.5 >= 0.08, rare_variant false
-
-    const result = mutateMonster(baseDna, "plains");
+    const result = mutateMonster(baseDna, "plains", rngWithValue(0.5) as any);
 
     expect(result.species).toBe("goblin");
     expect(result.resilience).toBe(0.5);
@@ -31,9 +23,7 @@ describe("MonsterMutation", () => {
   });
 
   it("increases resilience and adds frost_resistance mutation in 'snow' biome", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.5);
-
-    const result = mutateMonster(baseDna, "snow");
+    const result = mutateMonster(baseDna, "snow", rngWithValue(0.5) as any);
 
     expect(result.resilience).toBeCloseTo(0.7); // 0.5 + 0.2
     expect(result.mutations).toContain("frost_resistance");
@@ -42,9 +32,7 @@ describe("MonsterMutation", () => {
   });
 
   it("increases aggression and adds swamp_hunger mutation in 'swamp' biome", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.5);
-
-    const result = mutateMonster(baseDna, "swamp");
+    const result = mutateMonster(baseDna, "swamp", rngWithValue(0.5) as any);
 
     expect(result.aggression).toBeCloseTo(0.65); // 0.5 + 0.15
     expect(result.mutations).toContain("swamp_hunger");
@@ -52,19 +40,15 @@ describe("MonsterMutation", () => {
     expect(result.resilience).toBe(0.5); // shouldn't change
   });
 
-  it("adds rare_variant mutation when Math.random is less than 0.08", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.05);
-
-    const result = mutateMonster(baseDna, "plains");
+  it("adds rare_variant mutation when the explicit RNG is below 0.08", () => {
+    const result = mutateMonster(baseDna, "plains", rngWithValue(0.05) as any);
 
     expect(result.mutations).toContain("rare_variant");
     expect(result.mutations.length).toBe(1);
   });
 
   it("applies multiple mutations if biome and rare_variant both trigger", () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.05);
-
-    const result = mutateMonster(baseDna, "snow");
+    const result = mutateMonster(baseDna, "snow", rngWithValue(0.05) as any);
 
     expect(result.resilience).toBeCloseTo(0.7);
     expect(result.mutations).toContain("frost_resistance");

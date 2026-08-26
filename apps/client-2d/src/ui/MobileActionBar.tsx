@@ -21,6 +21,8 @@ export function MobileActionBar({
 
   return (
     <div
+      role="toolbar"
+      aria-label="Mobile action controls"
       style={{
         position: "fixed",
         right: 16,
@@ -35,12 +37,15 @@ export function MobileActionBar({
         const state = skills[skillId];
         const def = SKILL_DEFINITIONS[skillId];
         const disabled = state.cooldownRemainingTicks > 0;
+        const cooldownText = disabled ? ` (Cooldown: ${state.cooldownRemainingTicks} ticks)` : "";
 
         return (
           <button
             key={skillId}
             type="button"
             disabled={disabled}
+            aria-label={`${def.label} skill${disabled ? ` (Cooldown ${state.cooldownRemainingTicks} ticks)` : ""}`}
+            title={`${def.label}${cooldownText}`}
             onPointerDown={(event) => {
               event.preventDefault();
               onSkill(skillId);
@@ -70,6 +75,9 @@ export function MobileActionBar({
         <button
           type="button"
           onClick={onInventory}
+          aria-label="Open Inventory"
+          title="Open Inventory (I)"
+          aria-keyshortcuts="i"
           style={{
             width: 48,
             height: 36,
@@ -86,6 +94,9 @@ export function MobileActionBar({
         <button
           type="button"
           onClick={onEquipment}
+          aria-label="Open Equipment"
+          title="Open Equipment (E)"
+          aria-keyshortcuts="e"
           style={{
             width: 48,
             height: 36,
@@ -102,6 +113,9 @@ export function MobileActionBar({
         <button
           type="button"
           onClick={onQuest}
+          aria-label="Open Quests"
+          title="Open Quests (Q)"
+          aria-keyshortcuts="q"
           style={{
             width: 36,
             height: 36,

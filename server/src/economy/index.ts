@@ -1,9 +1,3 @@
-/**
- * ECONOMY MODULE
- *
- * Server-authoritative economy for resource selling and currency management.
- */
-
 export { EconomyService } from "./EconomyService.js";
 export { WalletService } from "./WalletService.js";
 export { WalletStore } from "./WalletStore.js";
@@ -14,3 +8,13 @@ export { VendorStockService } from "./VendorStockService.js";
 export { VendorStockStore } from "./VendorStockStore.js";
 export { type VendorStockState, type VendorStockSnapshot, type VendorPriceInfo, type DemandBand } from "./VendorStockTypes.js";
 export { calculateDynamicPrice, getDemandBand, getDemandHint, isPriceAffected, DEMAND_THRESHOLDS, DEMAND_PRICE_ADJUSTMENT } from "./DemandPricing.js";
+export { LocalPriceResolver, localPriceResolver, resolveSupplyPressurePerMille } from "./LocalPriceResolver.js";
+export { MarketOrderBookService } from "./MarketOrderBookService.js";
+export { TradeRouteGraph } from "./TradeRouteGraph.js";
+export { createLocalMarketSnapshot } from "./EconomySnapshotAdapter.js";
+export { loadEconomyBasePricesFromGameData, loadLocalMarketsFromGameData } from "./EconomyGameData.js";
+export { loadRegionalWorkOrdersFromGameData } from "./WorkOrderGameData.js";
+export { WorkOrderStore, workOrderStore } from "./WorkOrderStore.js";
+export { WorkOrderService, workOrderService } from "./WorkOrderService.js";
+export type { LocalMarketDefinition, LocalMarketSnapshot, LocalMarketPriceResult } from "./LocalMarketTypes.js";
+export type { RegionalWorkOrderDefinition, RegionalWorkOrderGameData, RegionalWorkOrderRegion, WorkOrderSnapshot, WorkOrderContributionResult } from "./WorkOrderTypes.js";

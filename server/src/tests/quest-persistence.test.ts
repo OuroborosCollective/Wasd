@@ -9,6 +9,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { describe, expect, it, afterEach } from "vitest";
+import { normalizePersistedQuestState } from "../quests/QuestPersistence.js";
 import { JsonQuestPersistenceAdapter } from "../quests/JsonQuestPersistenceAdapter.js";
 import { createPersistedQuestState } from "../quests/QuestPersistence.js";
 
@@ -295,7 +296,6 @@ describe("createPersistedQuestState", () => {
   });
 
   it("normalizes empty playerId to fallback", () => {
-    const { normalizePersistedQuestState } = require("../quests/QuestPersistence.js");
 
     const normalized = normalizePersistedQuestState({}, "fallback-id");
 

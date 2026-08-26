@@ -1,4 +1,8 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import express from "express";
+import { authRequestHandler } from "../middleware/authRequestHandler.js";
+import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
+import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import type { WorldTick } from "../core/are/index.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { attachSovereignBillingBridge } from "../market/SovereignBillingBridge.js";
@@ -6,10 +10,36 @@ import { calculateUsageCost, sovereignMarket } from "../market/SovereignMarket.j
 import { paypalAdapter } from "../finance/PayPalAdapter.js";
 import { sovereignGovernance } from "../governance/SovereignGovernance.js";
 
-function parseTick(raw: string): number | null {
-  const tick = Number(raw);
+function hashBuffer(value: string): Buffer {
+  return createHash("sha256").update(value, "utf8").digest();
+}
+
+function safeEqualText(a: string, b: string): boolean {
+  const left = hashBuffer(a);
+  const right = hashBuffer(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function firstParam(raw: unknown): string {
+  if (Array.isArray(raw)) return String(raw[0] ?? "");
+  return typeof raw === "string" ? raw : "";
+}
+
+function parseTick(raw: unknown): number | null {
+  const tick = Number(firstParam(raw));
   if (!Number.isInteger(tick) || tick < 0) return null;
   return tick;
+}
+
+function replayStatsAvailable(stats: any): boolean {
+  return Boolean(
+    stats
+    && stats.available !== false
+    && Number.isInteger(Number(stats.recordedTicks))
+    && Number(stats.recordedTicks) > 0
+    && Number.isInteger(Number(stats.replayBufferSize))
+    && Number(stats.replayBufferSize) > 0,
+  );
 }
 
 function broadcastCouncil(tick: WorldTick, payload: unknown): void {
@@ -24,15 +54,27 @@ export function areReplayRouter(tick: WorldTick) {
   attachSovereignBillingBridge(tick as any, (tick as any).ws ?? { broadcast: () => undefined });
   sovereignGovernance.attachToTick(tick as any);
 
-  router.get("/stats", (_req, res) => {
-    res.json({ ok: true, stats: tick.getReplayRecorderStats?.() ?? null });
+  router.get("/stats", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
+    const stats = tick.getReplayRecorderStats?.() ?? null;
+    const ok = replayStatsAvailable(stats);
+    res.status(ok ? 200 : 503).json({
+      ok,
+      status: ok ? "available" : "unavailable",
+      stats,
+    });
   });
 
-  router.get("/repair/status", (_req, res) => {
-    res.json({ ok: true, autoRepair: tick.getAutoRepairStatus?.() ?? null });
+  router.get("/repair/status", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
+    const autoRepair = tick.getAutoRepairStatus?.() ?? null;
+    const ok = autoRepair?.ok === true;
+    res.status(ok ? 200 : 503).json({
+      ok,
+      status: ok ? "available" : "unavailable",
+      autoRepair,
+    });
   });
 
-  router.get("/billing/status", (_req, res) => {
+  router.get("/billing/status", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
     const usage = tick.getDeterministicUsageStats?.() ?? null;
     res.json({
       ok: true,
@@ -51,7 +93,7 @@ export function areReplayRouter(tick: WorldTick) {
   router.post("/billing/credit", express.json({ limit: "64kb" }), (req, res) => {
     const adminKey = process.env.SOVEREIGN_LAUNCH_KEY || process.env.ARE_MARKET_ADMIN_KEY || "";
     const provided = String(req.headers["x-sovereign-key"] || req.body?.key || "");
-    if (!adminKey || provided !== adminKey) return res.status(403).json({ ok: false, error: "forbidden" });
+    if (!adminKey || !safeEqualText(provided, adminKey)) return res.status(403).json({ ok: false, error: "forbidden" });
     const source = String(req.body?.source || process.env.ARE_SDK_CLIENT_ID || "local-engine");
     const displayName = String(req.body?.displayName || source);
     const credits = Number(req.body?.credits ?? 0);
@@ -88,7 +130,7 @@ export function areReplayRouter(tick: WorldTick) {
     }
   });
 
-  router.get("/governance/status", (_req, res) => {
+  router.get("/governance/status", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
     const report = sovereignGovernance.getReport(Number(tickContextProvider.getContext().tickId));
     res.json(report);
   });
@@ -119,7 +161,7 @@ export function areReplayRouter(tick: WorldTick) {
     try {
       const adminKey = process.env.SOVEREIGN_LAUNCH_KEY || process.env.ARE_GOVERNANCE_ADMIN_KEY || "";
       const provided = String(req.headers["x-sovereign-key"] || req.body?.key || "");
-      if (adminKey && provided !== adminKey) return res.status(403).json({ ok: false, error: "forbidden" });
+      if (adminKey && !safeEqualText(provided, adminKey)) return res.status(403).json({ ok: false, error: "forbidden" });
       const directive = sovereignGovernance.enact(req.params.id, Number(tickContextProvider.getContext().tickId));
       const report = sovereignGovernance.getReport(Number(tickContextProvider.getContext().tickId));
       broadcastCouncil(tick, report);
@@ -129,36 +171,47 @@ export function areReplayRouter(tick: WorldTick) {
     }
   });
 
-  router.get("/oracle/prophecy", (_req, res) => {
+  router.get("/oracle/prophecy", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
     const oracle = tick.getOracleReport?.() ?? null;
     res.json({ ok: true, oracle });
   });
 
-  router.get("/oracle/status", (_req, res) => {
+  router.get("/oracle/status", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
     const oracle = tick.getOracleReport?.() ?? null;
     const active = oracle?.prophecies?.some((prophecy: any) => prophecy.active) ?? false;
     res.json({ ok: true, active, generatedAtTick: oracle?.generatedAtTick ?? null, prophecyCount: oracle?.prophecies?.length ?? 0 });
   });
 
-  router.get("/snapshot/:tick", (req, res) => {
+  router.get("/snapshot/:tick", adminRateLimiter, adminAuthMiddleware, (req, res) => {
     const requestedTick = parseTick(req.params.tick);
     if (requestedTick === null) {
       res.status(400).json({ ok: false, error: "invalid_tick", message: "Tick must be a positive integer." });
       return;
     }
 
-    const replay = tick.getReplaySnapshot?.(requestedTick);
-    if (!replay) {
-      res.status(404).json({
+    const stats = tick.getReplayRecorderStats?.() ?? null;
+    if (!replayStatsAvailable(stats)) {
+      res.status(503).json({
         ok: false,
-        error: "replay_tick_not_found",
-        message: "Requested tick is outside the in-memory replay ring buffer.",
-        stats: tick.getReplayRecorderStats?.() ?? null,
+        error: "replay_unavailable",
+        message: "No canonical replay recorder is available for this runtime.",
+        stats,
       });
       return;
     }
 
-    res.json(replay);
+    const replay = tick.getReplaySnapshot?.(requestedTick);
+    if (!replay || (replay as any).snapshot == null) {
+      res.status(404).json({
+        ok: false,
+        error: "replay_tick_not_found",
+        message: "Requested tick is outside the canonical replay buffer.",
+        stats,
+      });
+      return;
+    }
+
+    res.status(200).json(replay);
   });
 
   return router;

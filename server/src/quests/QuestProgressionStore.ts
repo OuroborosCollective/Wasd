@@ -41,7 +41,6 @@ export type QuestEvent =
   | { type: "npc_kill"; playerId: string; npcId: string }
   | { type: "item_pickup"; playerId: string; itemId: string; quantity: number };
 
-// Constants for quest objective targets - NPC ID allowlists
 const TOWN_ELDER_IDS = new Set([
   "town_elder",
   "npc_town_elder",
@@ -56,6 +55,7 @@ const TRAINING_TARGET_IDS = new Set([
 ]);
 
 const FIRST_STEPS_QUEST_ID = "first_steps";
+const REWARD_CLAIMED_OBJECTIVE_ID = "reward_claimed";
 
 function isTownElderNpc(npcId: string): boolean {
   return TOWN_ELDER_IDS.has(npcId);
@@ -63,6 +63,29 @@ function isTownElderNpc(npcId: string): boolean {
 
 function isTrainingTargetNpc(npcId: string): boolean {
   return TRAINING_TARGET_IDS.has(npcId);
+}
+
+function hasRewardClaimedObjective(quest: QuestSnapshot): boolean {
+  return quest.objectives.some((objective) => objective.id === REWARD_CLAIMED_OBJECTIVE_ID && objective.completed);
+}
+
+function withRewardClaimedObjective(quest: QuestSnapshot): QuestSnapshot {
+  if (hasRewardClaimedObjective(quest)) return quest;
+
+  return normalizeQuestSnapshot({
+    ...quest,
+    status: "completed",
+    objectives: [
+      ...quest.objectives,
+      {
+        id: REWARD_CLAIMED_OBJECTIVE_ID,
+        label: "Belohnung abgeholt",
+        current: 1,
+        required: 1,
+        completed: true,
+      },
+    ],
+  });
 }
 
 function createFirstStepsQuest(
@@ -92,10 +115,6 @@ function createFirstStepsQuest(
   });
 }
 
-/**
- * Create persistence adapter based on environment.
- * Supports JSON (default) and Postgres (production).
- */
 function createPersistenceAdapter(): QuestPersistenceAdapter {
   const driver = process.env.QUEST_PERSISTENCE_DRIVER ?? "json";
 
@@ -114,13 +133,10 @@ function createPersistenceAdapter(): QuestPersistenceAdapter {
 export class QuestProgressionStore {
   private readonly playerQuests = new Map<string, Map<string, QuestSnapshot>>();
   private readonly hydratedPlayers = new Set<string>();
+  private readonly stateCache = new Map<string, PlayerQuestState>();
 
   constructor(private readonly persistence?: QuestPersistenceAdapter) {}
 
-  /**
-   * Hydrate player quest state from persistence.
-   * Safe to call multiple times - only hydrates once per playerId.
-   */
   async hydratePlayer(playerId: string): Promise<void> {
     if (!this.persistence || this.hydratedPlayers.has(playerId)) return;
 
@@ -131,15 +147,12 @@ export class QuestProgressionStore {
         map.set(quest.id, normalizeQuestSnapshot(quest));
       }
       this.playerQuests.set(playerId, map);
+      this.stateCache.delete(playerId);
     }
 
     this.hydratedPlayers.add(playerId);
   }
 
-  /**
-   * Flush player state to persistence (for testing).
-   * Not required for normal gameplay - persistence happens async after events.
-   */
   async flushPlayerForTests(playerId: string): Promise<void> {
     if (!this.persistence) return;
 
@@ -150,19 +163,30 @@ export class QuestProgressionStore {
   }
 
   getPlayerQuestState(playerId: string): PlayerQuestState {
+    const cached = this.stateCache.get(playerId);
+    if (cached) return cached;
+
     const quests = this.playerQuests.get(playerId);
 
     if (!quests) {
-      return {
+      const firstSteps = createFirstStepsQuest("available");
+      const state: PlayerQuestState = {
         playerId,
-        quests: [createFirstStepsQuest("available")],
+        quests: [firstSteps],
+        questIds: [firstSteps.id],
       };
+      this.stateCache.set(playerId, state);
+      return state;
     }
 
-    return {
+    const sortedQuests = sortQuestSnapshots([...quests.values()]);
+    const state: PlayerQuestState = {
       playerId,
-      quests: sortQuestSnapshots([...quests.values()]),
+      quests: sortedQuests,
+      questIds: sortedQuests.map((q) => q.id),
     };
+    this.stateCache.set(playerId, state);
+    return state;
   }
 
   acceptQuest(playerId: string, questId: string): QuestSnapshot {
@@ -177,14 +201,10 @@ export class QuestProgressionStore {
           });
 
     this.setQuest(playerId, quest);
+    this.stateCache.delete(playerId);
     return quest;
   }
 
-  /**
-   * Preserve derived quest completion from server-authoritative snapshots.
-   * This is used for start-path quests whose objectives are derived from inventory.
-   * Once completed, they must not regress when follow-up crafting consumes items.
-   */
   upsertDerivedQuestSnapshot(playerId: string, quest: QuestSnapshot): QuestSnapshot {
     const normalized = normalizeQuestSnapshot(quest);
     const existing = this.getOrCreatePlayerQuestMap(playerId).get(normalized.id);
@@ -194,8 +214,37 @@ export class QuestProgressionStore {
     }
 
     this.setQuest(playerId, normalized);
+    this.stateCache.delete(playerId);
     void this.persistPlayerState(playerId);
     return normalized;
+  }
+
+  isQuestRewardClaimed(playerId: string, questId: string): boolean {
+    const quest = this.getOrCreatePlayerQuestMap(playerId).get(questId);
+    return quest ? hasRewardClaimedObjective(quest) : false;
+  }
+
+  markQuestRewardClaimed(playerId: string, questId: string): { ok: boolean; reason: string; quest?: QuestSnapshot } {
+    const quests = this.getOrCreatePlayerQuestMap(playerId);
+    const quest = quests.get(questId);
+
+    if (!quest) {
+      return { ok: false, reason: "quest_not_found" };
+    }
+
+    if (quest.status !== "completed") {
+      return { ok: false, reason: "quest_not_completed", quest };
+    }
+
+    if (hasRewardClaimedObjective(quest)) {
+      return { ok: false, reason: "reward_already_claimed", quest };
+    }
+
+    const claimedQuest = withRewardClaimedObjective(quest);
+    this.setQuest(playerId, claimedQuest);
+    this.stateCache.delete(playerId);
+    void this.persistPlayerState(playerId);
+    return { ok: true, reason: "reward_claimed", quest: claimedQuest };
   }
 
   applyEvent(event: QuestEvent): PlayerQuestState {
@@ -206,20 +255,24 @@ export class QuestProgressionStore {
     }
 
     const state = this.getOrCreatePlayerQuestMap(event.playerId);
-    let quest =
+    const originalQuest =
       state.get(FIRST_STEPS_QUEST_ID) ?? createFirstStepsQuest("active");
 
-    // Auto-activate if available
-    if (quest.status === "available") {
-      quest = { ...quest, status: "active" as const };
+    let status = originalQuest.status;
+    if (status === "available") {
+      status = "active";
     }
 
-    const objectives = quest.objectives.map((objective) => {
+    let changed = originalQuest.status !== status;
+
+    const objectives = originalQuest.objectives.map((objective) => {
       if (
         event.type === "npc_talk" &&
         objective.id === "talk_to_elder" &&
-        isTownElderNpc(event.npcId)
+        isTownElderNpc(event.npcId) &&
+        !objective.completed
       ) {
+        changed = true;
         return {
           ...objective,
           current: 1,
@@ -230,8 +283,10 @@ export class QuestProgressionStore {
       if (
         event.type === "npc_kill" &&
         objective.id === "defeat_training_dummy" &&
-        isTrainingTargetNpc(event.npcId)
+        isTrainingTargetNpc(event.npcId) &&
+        !objective.completed
       ) {
+        changed = true;
         return {
           ...objective,
           current: 1,
@@ -242,12 +297,16 @@ export class QuestProgressionStore {
       return objective;
     });
 
+    if (!changed) {
+      return this.getPlayerQuestState(event.playerId);
+    }
+
     const completed =
       objectives.length > 0 && objectives.every((o) => o.completed);
 
     this.setQuest(event.playerId, {
-      ...quest,
-      status: completed ? "completed" : "active",
+      ...originalQuest,
+      status: completed ? "completed" : status,
       objectives,
     });
 
@@ -259,6 +318,7 @@ export class QuestProgressionStore {
   private setQuest(playerId: string, quest: QuestSnapshot): void {
     const quests = this.getOrCreatePlayerQuestMap(playerId);
     quests.set(quest.id, normalizeQuestSnapshot(quest));
+    this.stateCache.delete(playerId);
   }
 
   private getOrCreatePlayerQuestMap(
@@ -269,14 +329,11 @@ export class QuestProgressionStore {
       quests = new Map();
       quests.set(FIRST_STEPS_QUEST_ID, createFirstStepsQuest("available"));
       this.playerQuests.set(playerId, quests);
+      this.stateCache.delete(playerId);
     }
     return quests;
   }
 
-  /**
-   * Persist player state asynchronously.
-   * Failures are swallowed to prevent gameplay loop crashes.
-   */
   private async persistPlayerState(playerId: string): Promise<void> {
     if (!this.persistence) return;
 
@@ -287,13 +344,9 @@ export class QuestProgressionStore {
       );
     } catch {
       // Never crash gameplay loop because persistence failed.
-      // Later SelfHeal/Watchdog can observe persistence errors.
     }
   }
 
-  /**
-   * Get persistence driver info for health checks.
-   */
   getPersistenceInfo(): { driver: string; adapter: string } {
     const driver = process.env.QUEST_PERSISTENCE_DRIVER ?? "json";
     return {
@@ -303,11 +356,6 @@ export class QuestProgressionStore {
   }
 }
 
-/**
- * Global quest progression store singleton with configurable persistence.
- * Uses QUEST_PERSISTENCE_DRIVER env var (default: json).
- * Falls back to JSON when DATABASE_URL unavailable for Postgres.
- */
 export const questProgressionStore = new QuestProgressionStore(
   createPersistenceAdapter(),
 );

@@ -40,7 +40,7 @@ export class CharacterService {
 
     const result = this.store.createCharacter(input);
 
-    if (result.ok && result.profile) {
+    if (result.ok && result.profile && result.reason === "created") {
       await this.persistence.saveCharacterProfile(
         createPersistedCharacterProfile(input.playerId, result.profile),
       );

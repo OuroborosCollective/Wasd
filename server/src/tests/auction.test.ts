@@ -50,12 +50,9 @@ describe("AuctionHouse", () => {
     expect(house.all()).toHaveLength(2);
   });
 
-  it("listing includes a createdAt timestamp", () => {
-    const before = Date.now();
+  it("listing uses the deterministic zero createdAt value", () => {
     const listing = house.list({ id: "gem" }, "p1", 999);
-    const after = Date.now();
-    expect(listing.createdAt).toBeGreaterThanOrEqual(before);
-    expect(listing.createdAt).toBeLessThanOrEqual(after);
+    expect(listing.createdAt).toBe(0);
   });
 
   it("each listing preserves the item reference", () => {

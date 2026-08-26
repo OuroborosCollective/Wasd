@@ -1,5 +1,5 @@
 import "./styles/tailwind.css";
-import { createBabylonApp } from "./engine/babylon/BabylonBoot";
+import { applyBabylonRenderProfile, createBabylonApp, type BabylonApp } from "./engine/babylon/BabylonBoot";
 import { BabylonAdapter } from "./engine/babylon/BabylonAdapter";
 import { MMORPGClientCore } from "./core/MMORPGClientCore";
 import { connectSocket, requestSceneChange, sendCommand, type ConnectionOptions } from "./networking/websocketClient";
@@ -8,6 +8,13 @@ import { showDialogue } from "./ui/hud";
 import { mountNewHud } from "./ui/redesign/MountNewHud";
 import { initSupabaseClient, getSupabaseClientSync } from "./auth/supabase";
 import { getJoystickState, initMobileControls, isMobile } from "./ui/mobileControls";
+import { StudioPresentationEngineBridge } from "./engine/presentation/StudioPresentationEngineBridge";
+import {
+  getActiveStudio3DRenderProfile,
+  loadStudioPresentationFeed,
+  startStudioPresentationPolling,
+  subscribeStudioPresentation,
+} from "./engine/presentation/StudioPresentationConfig";
 
 import { getQuickCastSkillId } from "./game/combatSkills";
 import { triggerImpactBusterClientGuard } from "./game/impactBuster";
@@ -16,6 +23,7 @@ import { resolveGameAuthProvider } from "./config/gameAuth";
 import { initChat, focusChatInput } from "./ui/chat";
 import { initMinimap, toggleMinimapVisibility } from "./ui/minimap";
 import { worldService } from "./game/world/services";
+import { installWorldSurfaceBabylonRenderer } from "./game/WorldSurfaceBabylonRenderer";
 
 type AREPolicyConfig = {
   cooldownMs?: number;
@@ -66,11 +74,18 @@ function showBootStatus(message: string, tone: "info" | "warn" | "error" | "ok" 
   status.textContent = message;
 }
 
-function bootEngineBridge(targetCanvas: HTMLCanvasElement): IEngineBridge {
-  const app = createBabylonApp(targetCanvas, { skipGround: true });
+function bootEngineBridge(targetCanvas: HTMLCanvasElement): {
+  bridge: IEngineBridge;
+  app: BabylonApp;
+  studioBridge: StudioPresentationEngineBridge;
+} {
+  const { profile } = getActiveStudio3DRenderProfile();
+  const app = createBabylonApp(targetCanvas, { skipGround: true, renderProfile: profile });
   (window as any).babylonScene = app.scene;
-  console.log("Renderer: Babylon (DynamicTerrain enabled)");
-  return new BabylonAdapter(app.scene, app.camera);
+  console.log("Renderer: Babylon (DynamicTerrain enabled; Areloria Studio presentation active)");
+  const raw = new BabylonAdapter(app.scene, app.camera);
+  const studioBridge = new StudioPresentationEngineBridge(raw);
+  return { bridge: studioBridge, app, studioBridge };
 }
 
 async function loadAREPolicyConfig(): Promise<AREPolicyConfig | undefined> {
@@ -91,9 +106,18 @@ async function loadAREPolicyConfig(): Promise<AREPolicyConfig | undefined> {
 
 void (async () => {
 try {
+  showBootStatus("Loading Studio presentation profile...", "info");
+  await loadStudioPresentationFeed();
   showBootStatus("Booting renderer...", "info");
-  // 1. Boot Engine + Adapter
-  const adapter = bootEngineBridge(canvas);
+  // 1. Boot Engine + presentation-only adapter decorator
+  const { bridge: adapter, app: babylonApp, studioBridge } = bootEngineBridge(canvas);
+  const stopPresentationPolling = startStudioPresentationPolling(3000);
+  const unsubscribeRenderProfile = subscribeStudioPresentation(() => {
+    const { name, profile } = getActiveStudio3DRenderProfile();
+    applyBabylonRenderProfile(babylonApp, profile);
+    showBootStatus(`Studio render profile applied: ${name ?? "default"}`, "ok");
+  });
+  installWorldSurfaceBabylonRenderer((window as any).babylonScene);
   showBootStatus("Renderer ready. Connecting to world...", "info");
 
   // Initialize world services (terrain, trees, physics, atmosphere, etc.)
@@ -225,6 +249,9 @@ try {
 
   // Cleanup on page unload
   window.addEventListener("beforeunload", () => {
+    stopPresentationPolling();
+    unsubscribeRenderProfile();
+    studioBridge.dispose();
     worldService.dispose();
   });
 } catch (error: any) {

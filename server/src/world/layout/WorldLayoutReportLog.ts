@@ -15,6 +15,7 @@ function ensureDir(dirPath: string): void {
 export class WorldLayoutReportLog {
   private readonly logPath: string;
   private readonly maxEntries: number;
+  private sequence = 0;
 
   constructor(logPath: string, maxEntries = 5000) {
     this.logPath = logPath;
@@ -22,8 +23,12 @@ export class WorldLayoutReportLog {
     ensureDir(path.dirname(logPath));
   }
 
-  record(entry: Omit<LayoutReportEntry, "timestamp">): LayoutReportEntry {
-    const full: LayoutReportEntry = { ...entry, timestamp: Date.now() };
+  record(entry: Omit<LayoutReportEntry, "timestamp"> & { timestamp?: number }): LayoutReportEntry {
+    const full: LayoutReportEntry = {
+      ...entry,
+      timestamp: normalizeDeterministicTimestamp(entry.timestamp, () => this.nextSequence()),
+    };
+
     try {
       fs.appendFileSync(this.logPath, JSON.stringify(full) + "\n", "utf-8");
     } catch {
@@ -63,4 +68,15 @@ export class WorldLayoutReportLog {
       return fs.readFileSync(this.logPath, "utf-8").split("\n").filter((l) => l.trim().length > 0).length;
     } catch { return 0; }
   }
+
+  private nextSequence(): number {
+    this.sequence += 1;
+    return this.sequence;
+  }
+}
+
+function normalizeDeterministicTimestamp(value: unknown, fallback: () => number): number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+    ? value
+    : fallback();
 }

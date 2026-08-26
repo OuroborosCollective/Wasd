@@ -1,0 +1,73 @@
+---
+title: Server Architecture
+description: Server runtime design and implementation
+---
+
+# Server Architecture
+
+Areloria runs server-side simulation at 10Hz.
+
+Runtime evidence is bound to:
+
+- Tick
+- Chunk scope
+- Kappa position
+- Deterministic seed
+- Hash chain
+- Replay proof
+
+## WebSocket Intent Contract
+
+The client sends an intent request. The server canonicalizes accepted input.
+
+```typescript
+interface ClientIntentMessage {
+  type: 'intent';
+  clientIntentKey?: string;
+  payload: unknown;
+}
+
+interface CanonicalServerIntent {
+  tickId: number;
+  logicalIndex: number;
+  receivedOrder: number;
+  entityKey: string;
+  intentHash: string;
+  payload: unknown;
+}
+```
+
+Client clock values are telemetry fields. Simulation input uses server tick, logical index, received order, entity key, payload, and hash.
+
+## Health Endpoint
+
+`GET /health` is diagnostic evidence for probes and dashboards.
+
+```json
+{
+  "ok": true,
+  "status": "ok",
+  "project": "ARELORIAN MMORPG",
+  "authorization": {
+    "mode": "development",
+    "simulationAuthority": false
+  },
+  "are": {
+    "worldHash": "server-derived",
+    "replay": "available"
+  }
+}
+```
+
+Development login is diagnostic convenience. Production sessions need a real provider check.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Wahrheitspfad Contract" icon="shield-check" href="/mintlify/architecture/truth-path">
+    Runtime evidence gates for real features
+  </Card>
+  <Card title="Determinism Rules" icon="hash" href="/mintlify/architecture/determinism">
+    Deterministic simulation principles
+  </Card>
+</CardGroup>

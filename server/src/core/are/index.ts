@@ -85,6 +85,8 @@ export {
 // TickSystem Core (types exported from types.js above)
 export {
   type TickSystemDescriptor,
+  type TickFailureRerunPolicy,
+  type TickSystemFailurePolicy,
   createDefaultTickContext,
 } from './TickSystem.js';
 
@@ -92,7 +94,35 @@ export {
   TickSystemRegistry,
   tickSystemRegistry,
   type TickSystemRegistryEvent,
+  type TickSystemRegistrySnapshotEntry,
+  type TickSystemExecutionFailure,
+  type TickSystemExecutionReport,
 } from './TickSystemRegistry.js';
+
+// 10Hz failure-family runtime + diagnostic probe
+export {
+  TickFailureFamilyRuntime,
+  deriveTickFailure,
+  type TickFailureFamily,
+  type TickFailureStage,
+  type TickFailureRerunOutcome,
+  type TickFailureInput,
+  type TickFailureDerivation,
+  type TickFailureRecord,
+  type TickFailureFamilySnapshot,
+} from './TickFailureFamilyRuntime.js';
+
+export {
+  TICK_FAILURE_FAMILY_PROBE_SYSTEM_NAME,
+  DEFAULT_FAILURE_FAMILY_PROBE_CASES,
+  TickFailureFamilyProbeError,
+  TickFailureFamilyProbeSystem,
+  createTickFailureFamilyProbeDescriptor,
+  registerTickFailureFamilyProbeSystem,
+  type FailureFamilyProbeMode,
+  type FailureFamilyProbeCase,
+  type FailureFamilyProbeRunStatus,
+} from './TickFailureFamilyProbeSystem.js';
 
 // Pre-built TickSystem Implementations
 export {
@@ -179,12 +209,56 @@ export {
   type LayerPersistenceEvent
 } from './LayerPersistenceQueue.js';
 
+// Phase 9b: Real Layer Persistence Port + Adapters (issue #2457)
+export {
+  type LayerPersistenceAdapter,
+  type PersistedLayerState,
+  PERSISTED_LAYER_ORDER,
+  layersToCanonicalArray,
+  canonicalArrayToLayers,
+  normalizePersistedLayerState,
+} from './LayerPersistencePort.js';
+export { JsonLayerPersistenceAdapter, resolveLayerStateFilePath } from './JsonLayerPersistenceAdapter.js';
+export { PgLayerPersistenceAdapter } from './PgLayerPersistenceAdapter.js';
+export {
+  createLayerPersistenceAdapter,
+  getLayerPersistenceDriverName,
+  resolveLayerPersistenceFilePath,
+  type LayerPersistenceDriver,
+} from './createLayerPersistenceAdapter.js';
+
 // Phase 10: WorldTick Thin Shell
 export {
   WorldTickThinShell,
   worldTickThinShell,
-  registerWorldTickThinShell
+  registerWorldTickThinShell,
+  type WorldStateProviderSlice,
+  type WorldStateProvider,
+  type TickContextWorldState,
+  type WorldTickThinShellOptions,
 } from './WorldTickThinShell.js';
+
+// Deterministic Event Factory (ARE-RUNTIME-TRUTH)
+export {
+  TICK_MS,
+  stableStringify,
+  deterministicHash,
+  hashData,
+  createDeterministicEventId,
+  createDeterministicEvent,
+  stableEntityKey,
+  stableSort,
+  type DeterministicEventContext,
+  type WorldEventInput,
+} from './DeterministicEventFactory.js';
+
+// Runtime World State Providers (ARE-RUNTIME-TRUTH)
+export {
+  NPCWorldStateProvider,
+  PlayerWorldStateProvider,
+  LootWorldStateProvider,
+  CompositeWorldStateProvider,
+} from './RuntimeWorldStateProviders.js';
 
 // Phase 11: WorldBrainTickSystem - Clean TickSystem integration
 export {
@@ -205,6 +279,47 @@ export {
   type WorldBrainTickSystemOptions,
 } from './WorldBrainTickSystem.js';
 
+// Phase 11: WorldBrain runtime port wiring
+export {
+  RuntimeWorldBrainStatePort,
+  LayerPersistenceWorldBrainReplaySink,
+  chunkLayerStateToIARELayers,
+  iareLayersToChunkLayerState,
+  type RuntimeWorldBrainStatePortOptions,
+} from './WorldBrainRuntimePort.js';
+
+// Phase 11: Canonical Layer Seed Truth
+export {
+  CANONICAL_LAYER_SEED_VERSION,
+  DEFAULT_ARELORIA_WORLD_SEED,
+  deriveCanonicalLayerSeed,
+  canonicalLayerSeedHash,
+  resolveCanonicalWorldSeed,
+  zeroStateHash,
+  type CanonicalSeedBiomeId,
+  type CanonicalLayerSeedSignals,
+  type CanonicalLayerSeedInput,
+  type CanonicalLayerSeedResult,
+} from './CanonicalLayerSeed.js';
+
+// Phase 11: Canonical Signal Balance Matrix
+export {
+  CANONICAL_SIGNAL_BALANCE_VERSION,
+  CANONICAL_SIGNAL_BALANCE_MATRIX,
+  applyCanonicalSignalBalance,
+  calculateCanonicalSignalLayerDeltas,
+  getCanonicalSignalBalanceSnapshot,
+  type CanonicalNumericSignalKey,
+  type CanonicalSignalBalanceRule,
+  type CanonicalSignalBalanceMatrix,
+} from './CanonicalLayerSignalBalance.js';
+
+// Phase 11: Canonical Worldgen Seed Signals
+export {
+  deriveCanonicalWorldgenSeedSignals,
+  type CanonicalWorldgenSignalInput,
+} from './CanonicalLayerSeedSignals.js';
+
 // Phase 11: OuroborosTickSystem - Ouroboros autonomous agent integration
 export {
   OUROBOROS_TICK_SYSTEM_NAME,
@@ -215,6 +330,29 @@ export {
   getOuroborosTickSystem,
   type OuroborosTickSystemOptions,
 } from './OuroborosTickSystem.js';
+
+// Phase 11: OracleTickSystem - Oracle Living World System integration
+export {
+  ORACLE_TICK_SYSTEM_NAME,
+  ORACLE_TICK_PRIORITY,
+  OracleTickSystem,
+  createOracleTickSystem,
+  registerOracleTickSystem,
+  getOracleTickSystem,
+  type OracleTickSystemOptions,
+  type BrainInformationFlow,
+  type OracleCriticalEvent,
+  type OracleRecommendation,
+} from './OracleTickSystem.js';
+
+// Phase 11: Core TickSystem registration bootstrap
+export {
+  CORE_TICK_SYSTEM_REGISTRATION_ORDER,
+  registerCoreTickSystems,
+  type CoreTickSystemName,
+  type CoreTickSystemRegistrationOptions,
+  type CoreTickSystemRegistrationResult,
+} from './CoreTickSystemRegistration.js';
 
 // Phase 11: WorldTickScheduler - Thin scheduler without wall-clock dependencies
 export {
@@ -239,3 +377,22 @@ export {
   getDeterministicSeed,
   type TickContext,
 } from './TickSystemContextProvider.js';
+
+// Phase 11: KappaLayers - Unified 13-layer definition with Kappa1000 hashing
+export {
+  KAPPA_LAYER_NAMES,
+  KAPPA_LAYER_CONSTANTS,
+  LEGACY_LAYER_MAPPING,
+  kappa1000Hash,
+  hashChunkKappa1000,
+  verifyChunkKappaHash,
+  checksumKappaLayers,
+  createEmptyKappaLayers,
+  createKappaLayers,
+  cloneKappaLayers,
+  getKappaLayerValues,
+  fromChunkLayerState,
+  toChunkLayerState,
+  type KappaLayerKey,
+  type KappaLayers,
+} from './KappaLayers.js';

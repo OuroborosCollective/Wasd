@@ -1,0 +1,61 @@
+name: PR State Audit
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+  statuses: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  audit-current-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report current PR state without mutation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          gh api "repos/$REPOSITORY/pulls/$PR_NUMBER" \
+            --jq '{number, title, state, draft, mergeable, mergeable_state, head_sha: .head.sha, base: .base.ref}'
+
+          gh api "repos/$REPOSITORY/commits/${{ github.event.pull_request.head.sha }}/check-runs" \
+            --jq '.check_runs[] | {name, status, conclusion}' || true
+
+          echo "Read-only audit complete. This workflow never merges, closes, or deletes branches."
+
+  audit-open-prs:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report open PRs without mutation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          OPEN_PRS="$(gh api "repos/$REPOSITORY/pulls?state=open&per_page=100" --jq 'length')"
+          echo "Open PR count: $OPEN_PRS"
+
+          if [ "$OPEN_PRS" -gt 0 ]; then
+            gh api "repos/$REPOSITORY/pulls?state=open&per_page=100" \
+              --jq '.[] | {number, title, draft, author: .user.login, head_sha: .head.sha}'
+          fi
+
+          echo "Read-only audit complete. No PR state was changed."

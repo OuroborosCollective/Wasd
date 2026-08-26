@@ -3,31 +3,28 @@
  *
  * Controlled API for resource gathering interactions.
  * Server-authoritative: playerId, position, skill level, XP, items.
- *
- * Phase 11: Integrated with OuroborosTickSystem via TickSystemContextProvider.
- *
- * Rules:
- * - No Math.random()
- * - No Date.now() for gameplay state
- * - Server resolves playerId from auth/session
- * - Auth guard applies in production unless guest/dev fallback is explicitly enabled
- * - Strict input validation
  */
 
 import express from "express";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { gatheringService } from "../resources/GatheringService.js";
-import { npcQuestService } from "../quests/NpcQuestService.js";
+import { npcQuestRuntime } from "../quests/NpcQuestRuntime.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
+import {
+  canonicalizeClientIntent,
+  chunkKeyFromWorldPosition,
+} from "../intents/ServerCanonicalIntent.js";
 
 const router = express.Router();
-
-// Parse JSON bodies
 router.use(express.json());
 
-// Maximum allowed player position values (prevent overflow)
 const MAX_POSITION = 100_000;
 const MIN_POSITION = -100_000;
+
+type ValidTickContext = ReturnType<typeof tickContextProvider.getContext> & {
+  tickIndex: number;
+  tickId: number | string;
+};
 
 function envFlagEnabled(value: string | undefined): boolean {
   return !["0", "false", "no"].includes(value?.trim().toLowerCase() || "");
@@ -41,58 +38,50 @@ function isGuestHttpAllowed(): boolean {
   );
 }
 
-/**
- * Validate and parse nodeId from request.
- * Node IDs must be safe identifiers (no injection risk).
- */
 function parseNodeId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  // Safe identifier: alphanumeric with underscore and hyphen, 1-96 chars
-  if (!/^[a-zA-Z0-9_-]{1,96}$/.test(trimmed)) return null;
-  return trimmed;
+  return /^[a-zA-Z0-9_-]{1,96}$/.test(trimmed) ? trimmed : null;
 }
 
-/**
- * Validate and parse player position from request.
- * Returns null if invalid or out of bounds.
- */
 function parsePosition(value: unknown): { x: number; y: number } | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
   const x = Number(raw.x);
   const y = Number(raw.y);
-
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  if (x < MIN_POSITION || x > MAX_POSITION) return null;
-  if (y < MIN_POSITION || y > MAX_POSITION) return null;
-
-  // Round to 3 decimal places for stability
+  if (x < MIN_POSITION || x > MAX_POSITION || y < MIN_POSITION || y > MAX_POSITION) return null;
   return {
     x: Math.round(x * 1000) / 1000,
     y: Math.round(y * 1000) / 1000,
   };
 }
 
-/**
- * POST /api/resource/gather
- *
- * Attempt to gather from a resource node.
- * Server-authoritative: resolves skill level, applies XP, returns result.
- */
+function parseOptionalRequestId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return /^[a-zA-Z0-9:_./-]{1,160}$/.test(trimmed) ? trimmed : undefined;
+}
+
+function resolveValidTickContext(): ValidTickContext | null {
+  const context = tickContextProvider.getContext();
+  const tickIndex = Number(context.tickIndex);
+  const tickId = context.tickId;
+  const validTickId =
+    (typeof tickId === "number" && Number.isSafeInteger(tickId) && tickId >= 0) ||
+    (typeof tickId === "string" && /^[a-zA-Z0-9:_./-]{1,160}$/.test(tickId));
+
+  if (!Number.isSafeInteger(tickIndex) || tickIndex < 0 || !validTickId) return null;
+  return { ...context, tickIndex, tickId } as ValidTickContext;
+}
+
 router.post("/gather", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-
-  // Production requires authenticated player unless configured guest/dev fallback is active.
   if (process.env.NODE_ENV === "production" && !identity.authenticated && !isGuestHttpAllowed()) {
-    res.status(401).json({
-      ok: false,
-      error: "authenticated_player_required",
-    });
+    res.status(401).json({ ok: false, error: "authenticated_player_required" });
     return;
   }
 
-  // Parse and validate nodeId
   const nodeId = parseNodeId(req.body?.nodeId);
   if (!nodeId) {
     res.status(400).json({
@@ -103,7 +92,6 @@ router.post("/gather", async (req, res) => {
     return;
   }
 
-  // Player position is required. Do not silently use node position or {0,0}.
   const playerPosition = parsePosition(req.body?.playerPosition);
   if (!playerPosition) {
     res.status(400).json({
@@ -114,37 +102,90 @@ router.post("/gather", async (req, res) => {
     return;
   }
 
-  // Parse and validate currentTick (defaults to 0)
-  const rawTick = Number(req.body?.currentTick ?? 0);
-  const currentTick = Number.isFinite(rawTick)
-    ? Math.max(0, Math.floor(rawTick))
-    : 0;
-
-  // Attempt gather
-  const result = await gatheringService.gather({
-    playerId: identity.playerId,
-    nodeId,
-    playerPosition,
-    currentTick,
-  });
-
-  // Update NPC quest progress if gather succeeded
-  if (result.ok && result.itemRewardId) {
-    npcQuestService.updateQuestProgress(
-      identity.playerId,
-      "gather",
-      result.itemRewardId,
-      result.inventoryQuantity ?? 1,
-    );
+  const tickContext = resolveValidTickContext();
+  if (!tickContext) {
+    res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
+    return;
   }
 
-  // Return 200 for success, 409 for failure (conflict with world state)
-  // Phase 11: Include deterministic tick context for Ouroboros integration
-  const tickContext = tickContextProvider.getContext();
-  res.status(result.ok ? 200 : 409).json({
-    ok: result.ok,
+  const canonicalIntent = canonicalizeClientIntent<"gather">(
+    {
+      action: "gather",
+      requestId: parseOptionalRequestId(req.body?.requestId ?? req.body?.intentId),
+      payload: { nodeId, playerPosition },
+    },
+    {
+      actorId: identity.playerId,
+      tickId: tickContext.tickId,
+      logicalIndex: tickContext.tickIndex,
+      receivedOrder: 0,
+      chunkKey: chunkKeyFromWorldPosition(playerPosition),
+    },
+  );
+
+  const result = await gatheringService.gather({
+    playerId: canonicalIntent.actorId,
+    nodeId: canonicalIntent.payload.nodeId,
+    playerPosition: canonicalIntent.payload.playerPosition,
+    currentTick: canonicalIntent.logicalIndex,
+    inventoryOrigin: {
+      uid: canonicalIntent.intentHash,
+      tick: canonicalIntent.logicalIndex,
+      source: "gather_delta",
+      sourceHash: canonicalIntent.intentHash,
+    },
+  });
+
+  if (!result.ok) {
+    res.status(409).json({
+      ok: false,
+      result,
+      questProgressCommitted: null,
+      canonicalIntent,
+      tickContext: {
+        tickId: tickContext.tickId,
+        worldTimeHours: tickContext.worldTimeHours,
+        seedHash: tickContext.seedHash,
+      },
+    });
+    return;
+  }
+
+  let questProgressHistoryHash: string | undefined;
+  if (result.itemRewardId && result.inventoryAdded) {
+    const questProgress = await npcQuestRuntime.updateQuestProgress(
+      canonicalIntent.actorId,
+      {
+        intentHash: canonicalIntent.intentHash,
+        tick: canonicalIntent.logicalIndex,
+        chunkKey: canonicalIntent.chunkKey,
+        eventType: "gather",
+        targetId: result.itemRewardId,
+        quantity: result.inventoryQuantity ?? 0,
+      },
+    );
+    if (!questProgress.ok) {
+      res.status(503).json({
+        ok: false,
+        error: "quest_progress_commit_failed",
+        gatherCommitted: true,
+        result,
+        questProgressCommitted: false,
+        questProgressError: questProgress.reason,
+        canonicalIntent,
+      });
+      return;
+    }
+    questProgressHistoryHash = questProgress.result.historyHash;
+  }
+
+  res.status(200).json({
+    ok: true,
+    gatherCommitted: true,
     result,
-    // Ouroboros tick system context
+    questProgressCommitted: result.itemRewardId && result.inventoryAdded ? true : null,
+    ...(questProgressHistoryHash ? { questProgressHistoryHash } : {}),
+    canonicalIntent,
     tickContext: {
       tickId: tickContext.tickId,
       worldTimeHours: tickContext.worldTimeHours,
@@ -153,24 +194,18 @@ router.post("/gather", async (req, res) => {
   });
 });
 
-/**
- * GET /api/resource/nodes
- *
- * List all resource node snapshots.
- * Used for client panel and debugging.
- */
-router.get("/nodes", async (req, res) => {
-  // Phase 11: Use TickSystemContextProvider for deterministic tick
-  const tickContext = tickContextProvider.getContext();
-  const currentTick = tickContext.tickIndex;
+router.get("/nodes", async (_req, res) => {
+  const tickContext = resolveValidTickContext();
+  if (!tickContext) {
+    res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
+    return;
+  }
 
-  const nodes = gatheringService.listResourceSnapshots(currentTick);
-
+  const nodes = gatheringService.listResourceSnapshots(tickContext.tickIndex);
   res.json({
     ok: true,
     nodes,
     count: nodes.length,
-    // Ouroboros tick system context
     tickContext: {
       tickId: tickContext.tickId,
       worldTimeHours: tickContext.worldTimeHours,

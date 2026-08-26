@@ -1,185 +1,489 @@
-/**
- * ECONOMY API ROUTE
- *
- * Server-authoritative economy API for resource selling.
- * No Date.now(), no Math.random(), stable ordering.
- * Requires vendor proximity for selling.
- */
-
-import express, { Router } from "express";
+import express, { Router, type Response } from "express";
+import rateLimit from "express-rate-limit";
 import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
-import { economyService } from "./economyRuntime.js";
-import { npcQuestService } from "../quests/NpcQuestService.js";
+import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
+import { stableHash32 } from "../core/determinism/AREDeterminism.js";
+import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
+import {
+  canonicalizeClientIntent,
+  chunkKeyFromWorldPosition,
+  type ServerCanonicalIntent,
+} from "../intents/ServerCanonicalIntent.js";
+import { getInventoryService } from "../inventory/inventoryRuntime.js";
+import { transferInventoryItemPersistent } from "../inventory/InventoryTransferService.js";
+import { deriveEconomyWorkOrders } from "../quests/EconomyWorkOrderService.js";
+import { npcQuestRuntime } from "../quests/NpcQuestRuntime.js";
+import { campQuestRuntime } from "../quests/campQuestRuntime.js";
+import { economyService, vendorStockService } from "./economyRuntime.js";
+import {
+  getAllVendors,
+  getVendorActorEvidence,
+  type VendorActorEvidence,
+} from "./VillageVendors.js";
 
 const router = Router();
 
+const economyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: "rate_limited" },
+});
+const buyResourceRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: "rate_limited" },
+});
+const tradeTransferRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: "rate_limited" },
+});
+const campQuestRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: "rate_limited" },
+});
+
 router.use(express.json());
+router.use(economyLimiter);
 
-function parseItemId(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!/^[a-zA-Z0-9_]{1,64}$/.test(trimmed)) return null;
-  return trimmed;
-}
-
-function parseQuantity(value: unknown): number {
-  const n = Math.floor(Number(value));
-  if (!Number.isFinite(n) || n < 0) return -1;
-  return n;
-}
-
-// Maximum allowed player position values (prevent overflow/exploit)
 const MAX_POSITION = 100_000;
 const MIN_POSITION = -100_000;
 
-function parsePosition(value: unknown): { x: number; y: number } | null {
-  if (!value || typeof value !== "object") return null;
-  const pos = value as { x?: unknown; y?: unknown };
-  const x = Number(pos.x);
-  const y = Number(pos.y);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  // Validate bounds to prevent overflow/exploit
-  if (x < MIN_POSITION || x > MAX_POSITION) return null;
-  if (y < MIN_POSITION || y > MAX_POSITION) return null;
-  return { x, y };
-}
+type RuntimeTickContext = {
+  readonly tick: number;
+  readonly tickId: number | string;
+};
 
-function parseVendorId(value: unknown): string | null {
+type EconomyInteractPayload = {
+  readonly targetId: string;
+  readonly interaction: "sell_resource" | "sell_all_resources" | "buy_resource" | "complete_camp_quest";
+  readonly playerPosition: { readonly x: number; readonly y: number };
+  readonly itemId?: string;
+  readonly quantity?: number;
+  readonly questId?: string;
+};
+
+type EconomyInventoryPayload = {
+  readonly operation: "move";
+  readonly itemId: string;
+  readonly toPlayerId: string;
+  readonly quantity: number;
+};
+
+type CanonicalEconomyInteract = ServerCanonicalIntent<"interact"> & {
+  readonly payload: EconomyInteractPayload;
+};
+type CanonicalEconomyInventory = ServerCanonicalIntent<"inventory"> & {
+  readonly payload: EconomyInventoryPayload;
+};
+
+function parseSafeId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  if (!/^[a-zA-Z0-9_]{1,64}$/.test(trimmed)) return null;
-  return trimmed;
+  return /^[a-zA-Z0-9_-]{1,96}$/.test(trimmed) ? trimmed : null;
 }
 
-/**
- * POST /api/economy/sell-resource
- *
- * Sell a specific quantity of a resource item.
- * Requires player to be near the village trader.
- * Consumes items from inventory, adds coins to wallet.
- */
+function parseRequestId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return /^[a-zA-Z0-9:_./-]{1,160}$/.test(trimmed) ? trimmed : undefined;
+}
+
+function parseCampQuestIdInput(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return /^camp_daily:[a-zA-Z0-9_:-]{1,144}:[0-9]{1,12}$/.test(trimmed) ? trimmed : null;
+}
+
+function parseQuantity(value: unknown): number {
+  const quantity = Math.floor(Number(value));
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : -1;
+}
+
+function parsePosition(value: unknown): { x: number; y: number } | null {
+  if (!value || typeof value !== "object") return null;
+  const position = value as { x?: unknown; y?: unknown };
+  const x = Number(position.x);
+  const y = Number(position.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  if (x < MIN_POSITION || x > MAX_POSITION || y < MIN_POSITION || y > MAX_POSITION) return null;
+  return { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };
+}
+
+function requireProductionAuth(identity: { authenticated: boolean }, res: Response): boolean {
+  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+    res.status(401).json({ ok: false, error: "authenticated_player_required" });
+    return false;
+  }
+  return true;
+}
+
+function resolveRuntimeTickContext(): RuntimeTickContext | null {
+  const context = tickContextProvider.getContext();
+  const tick = Number(context.tickIndex);
+  const tickId = context.tickId;
+  const validTickId =
+    (typeof tickId === "number" && Number.isSafeInteger(tickId) && tickId >= 0) ||
+    (typeof tickId === "string" && /^[a-zA-Z0-9:_./-]{1,160}$/.test(tickId));
+  if (!Number.isSafeInteger(tick) || tick < 0 || !validTickId) return null;
+  return { tick, tickId };
+}
+
+function requireRuntimeTick(res: Response): RuntimeTickContext | null {
+  const runtime = resolveRuntimeTickContext();
+  if (!runtime) res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
+  return runtime;
+}
+
+function resolveVendorEvidence(value: unknown): { actor: VendorActorEvidence } | { error: string } {
+  const fallbackVendor = getAllVendors()[0];
+  if (!fallbackVendor) return { error: "vendor_runtime_unavailable" };
+  const vendorId = value === undefined || value === null || value === ""
+    ? fallbackVendor.id
+    : parseSafeId(value);
+  if (!vendorId) return { error: "invalid_vendor_id" };
+  const actor = getVendorActorEvidence(vendorId);
+  return actor ? { actor } : { error: "unknown_vendor" };
+}
+
+function respondVendorError(res: Response, error: string): void {
+  res.status(error === "vendor_runtime_unavailable" ? 503 : 400).json({ ok: false, error });
+}
+
+function canonicalizeEconomyInteract(input: {
+  readonly actorId: string;
+  readonly runtime: RuntimeTickContext;
+  readonly requestId?: string;
+  readonly payload: EconomyInteractPayload;
+}): CanonicalEconomyInteract {
+  return canonicalizeClientIntent<"interact">(
+    { action: "interact", requestId: input.requestId, payload: input.payload },
+    {
+      actorId: input.actorId,
+      tickId: input.runtime.tickId,
+      logicalIndex: input.runtime.tick,
+      receivedOrder: 0,
+      chunkKey: chunkKeyFromWorldPosition(input.payload.playerPosition),
+    },
+  ) as CanonicalEconomyInteract;
+}
+
+function canonicalizeEconomyInventory(input: {
+  readonly actorId: string;
+  readonly runtime: RuntimeTickContext;
+  readonly requestId?: string;
+  readonly payload: EconomyInventoryPayload;
+}): CanonicalEconomyInventory {
+  return canonicalizeClientIntent<"inventory">(
+    { action: "inventory", requestId: input.requestId, payload: input.payload },
+    {
+      actorId: input.actorId,
+      tickId: input.runtime.tickId,
+      logicalIndex: input.runtime.tick,
+      receivedOrder: 0,
+      chunkKey: `inventory:${input.actorId}`,
+    },
+  ) as CanonicalEconomyInventory;
+}
+
+async function persistSoldQuestProgress(
+  intent: CanonicalEconomyInteract,
+  sold: readonly { readonly itemId: string; readonly quantitySold: number }[],
+): Promise<{ committed: boolean; historyHashes: readonly string[]; error?: string }> {
+  const historyHashes: string[] = [];
+  for (const entry of [...sold].sort((a, b) => a.itemId.localeCompare(b.itemId))) {
+    if (entry.quantitySold <= 0) continue;
+    const progress = await npcQuestRuntime.updateQuestProgress(
+      intent.actorId,
+      {
+        intentHash: `${intent.intentHash}:${entry.itemId}`,
+        tick: intent.logicalIndex,
+        chunkKey: intent.chunkKey,
+        eventType: "sell",
+        targetId: entry.itemId,
+        quantity: entry.quantitySold,
+      },
+    );
+    if (!progress.ok) return { committed: false, historyHashes, error: progress.reason };
+    historyHashes.push(progress.result.historyHash);
+  }
+  return { committed: true, historyHashes: Object.freeze(historyHashes) };
+}
+
 router.post("/sell-resource", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-
-  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
-    res.status(401).json({
-      ok: false,
-      error: "authenticated_player_required",
-    });
-    return;
-  }
-
-  const itemId = parseItemId(req.body?.itemId);
+  if (!requireProductionAuth(identity, res)) return;
+  const itemId = parseSafeId(req.body?.itemId);
   const quantity = parseQuantity(req.body?.quantity);
   const playerPosition = parsePosition(req.body?.playerPosition);
-  const vendorId = parseVendorId(req.body?.vendorId);
+  const vendor = resolveVendorEvidence(req.body?.vendorId);
+  if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item_id" });
+  if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
+  if (!playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  if ("error" in vendor) return void respondVendorError(res, vendor.error);
+  const runtime = requireRuntimeTick(res);
+  if (!runtime) return;
 
-  if (!itemId) {
-    res.status(400).json({
-      ok: false,
-      error: "invalid_item_id",
-    });
-    return;
-  }
-
-  if (quantity <= 0) {
-    res.status(400).json({
-      ok: false,
-      error: "invalid_quantity",
-    });
-    return;
-  }
-
-  // Validate player position if provided
-  if (req.body?.playerPosition !== undefined && !playerPosition) {
-    res.status(400).json({
-      ok: false,
-      error: "invalid_player_position",
-    });
-    return;
-  }
-
+  const canonicalIntent = canonicalizeEconomyInteract({
+    actorId: identity.playerId,
+    runtime,
+    requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
+    payload: { targetId: vendor.actor.actorId, interaction: "sell_resource", itemId, quantity, playerPosition },
+  });
   try {
     const result = await economyService.sellResource({
-      playerId: identity.playerId,
-      itemId,
-      quantity,
-      playerPosition: playerPosition ?? undefined,
-      vendorId: vendorId ?? undefined,
+      playerId: canonicalIntent.actorId,
+      itemId: canonicalIntent.payload.itemId ?? "",
+      quantity: canonicalIntent.payload.quantity ?? 0,
+      playerPosition: canonicalIntent.payload.playerPosition,
+      vendorId: canonicalIntent.payload.targetId,
+      currentTick: canonicalIntent.logicalIndex,
     });
-
-    // Update NPC quest progress if sell succeeded
-    if (result.ok) {
-      npcQuestService.updateQuestProgress(
-        identity.playerId,
-        "sell",
-        itemId,
-        quantity,
-      );
+    if (!result.ok) {
+      res.status(409).json({ ok: false, result, canonicalIntent, questProgressCommitted: null });
+      return;
     }
-
-    const statusCode = result.ok ? 200 : 400;
-    res.status(statusCode).json({
-      ok: result.ok,
+    const questProgress = await persistSoldQuestProgress(canonicalIntent, [{
+      itemId: result.itemId,
+      quantitySold: result.quantitySold,
+    }]);
+    if (!questProgress.committed) {
+      res.status(503).json({
+        ok: false,
+        error: "quest_progress_commit_failed",
+        economyCommitted: true,
+        result,
+        canonicalIntent,
+        questProgressCommitted: false,
+        questProgressError: questProgress.error,
+      });
+      return;
+    }
+    res.status(200).json({
+      ok: true,
+      economyCommitted: true,
       result,
+      canonicalIntent,
+      questProgressCommitted: true,
+      questProgressHistoryHashes: questProgress.historyHashes,
     });
   } catch (error) {
     console.error("[economy-sell-resource] Failed to sell resource:", error);
-    res.status(500).json({
-      ok: false,
-      error: "internal_error",
-    });
+    res.status(500).json({ ok: false, error: "internal_error", canonicalIntent });
   }
 });
 
-/**
- * POST /api/economy/sell-all-resources
- *
- * Sell all sellable resource items in the player's inventory.
- * Requires player to be near the village trader.
- * Consumes all resource items, adds coins to wallet.
- */
 router.post("/sell-all-resources", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-
-  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
-    res.status(401).json({
-      ok: false,
-      error: "authenticated_player_required",
-    });
-    return;
-  }
-
+  if (!requireProductionAuth(identity, res)) return;
   const playerPosition = parsePosition(req.body?.playerPosition);
-  const vendorId = parseVendorId(req.body?.vendorId);
+  const vendor = resolveVendorEvidence(req.body?.vendorId);
+  if (!playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  if ("error" in vendor) return void respondVendorError(res, vendor.error);
+  const runtime = requireRuntimeTick(res);
+  if (!runtime) return;
 
-  // Validate player position if provided
-  if (req.body?.playerPosition !== undefined && !playerPosition) {
-    res.status(400).json({
-      ok: false,
-      error: "invalid_player_position",
-    });
-    return;
-  }
-
+  const canonicalIntent = canonicalizeEconomyInteract({
+    actorId: identity.playerId,
+    runtime,
+    requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
+    payload: { targetId: vendor.actor.actorId, interaction: "sell_all_resources", playerPosition },
+  });
   try {
     const result = await economyService.sellAllResources({
-      playerId: identity.playerId,
-      playerPosition: playerPosition ?? undefined,
-      vendorId: vendorId ?? undefined,
+      playerId: canonicalIntent.actorId,
+      playerPosition: canonicalIntent.payload.playerPosition,
+      vendorId: canonicalIntent.payload.targetId,
+      currentTick: canonicalIntent.logicalIndex,
     });
-
-    const statusCode = result.ok ? 200 : 400;
-    res.status(statusCode).json({
-      ok: result.ok,
+    if (!result.ok) {
+      res.status(409).json({ ok: false, result, canonicalIntent, questProgressCommitted: null });
+      return;
+    }
+    const questProgress = await persistSoldQuestProgress(canonicalIntent, result.sold);
+    if (!questProgress.committed) {
+      res.status(503).json({
+        ok: false,
+        error: "quest_progress_commit_failed",
+        economyCommitted: true,
+        result,
+        canonicalIntent,
+        questProgressCommitted: false,
+        questProgressError: questProgress.error,
+      });
+      return;
+    }
+    res.status(200).json({
+      ok: true,
+      economyCommitted: true,
       result,
+      canonicalIntent,
+      questProgressCommitted: true,
+      questProgressHistoryHashes: questProgress.historyHashes,
     });
   } catch (error) {
     console.error("[economy-sell-all-resources] Failed to sell resources:", error);
-    res.status(500).json({
-      ok: false,
-      error: "internal_error",
+    res.status(500).json({ ok: false, error: "internal_error", canonicalIntent });
+  }
+});
+
+router.post("/buy-resource", buyResourceRateLimiter, async (req, res) => {
+  const identity = resolveHttpPlayerIdentity(req);
+  if (!requireProductionAuth(identity, res)) return;
+  const itemId = parseSafeId(req.body?.itemId);
+  const quantity = parseQuantity(req.body?.quantity);
+  const playerPosition = parsePosition(req.body?.playerPosition);
+  const vendor = resolveVendorEvidence(req.body?.vendorId);
+  if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item_id" });
+  if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
+  if (!playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  if ("error" in vendor) return void respondVendorError(res, vendor.error);
+  const runtime = requireRuntimeTick(res);
+  if (!runtime) return;
+
+  const canonicalIntent = canonicalizeEconomyInteract({
+    actorId: identity.playerId,
+    runtime,
+    requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
+    payload: { targetId: vendor.actor.actorId, interaction: "buy_resource", itemId, quantity, playerPosition },
+  });
+  try {
+    const result = await economyService.buyResource({
+      playerId: canonicalIntent.actorId,
+      itemId: canonicalIntent.payload.itemId ?? "",
+      quantity: canonicalIntent.payload.quantity ?? 0,
+      playerPosition: canonicalIntent.payload.playerPosition,
+      vendorId: canonicalIntent.payload.targetId,
+      currentTick: canonicalIntent.logicalIndex,
     });
+    res.status(result.ok ? 200 : 409).json({ ok: result.ok, result, canonicalIntent });
+  } catch (error) {
+    console.error("[economy-buy-resource] Failed to buy resource:", error);
+    res.status(500).json({ ok: false, error: "internal_error", canonicalIntent });
+  }
+});
+
+router.post("/complete-camp-quest", campQuestRateLimiter, async (req, res) => {
+  const identity = resolveHttpPlayerIdentity(req);
+  if (!requireProductionAuth(identity, res)) return;
+  const questId = parseCampQuestIdInput(req.body?.questId);
+  const playerPosition = parsePosition(req.body?.playerPosition);
+  if (!questId) return void res.status(400).json({ ok: false, error: "invalid_quest_id" });
+  if (!playerPosition) return void res.status(400).json({ ok: false, error: "invalid_player_position" });
+  const runtime = requireRuntimeTick(res);
+  if (!runtime) return;
+  const canonicalIntent = canonicalizeEconomyInteract({
+    actorId: identity.playerId,
+    runtime,
+    requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
+    payload: { targetId: questId, interaction: "complete_camp_quest", questId, playerPosition },
+  });
+  try {
+    const result = await campQuestRuntime.completeCampQuest({
+      playerId: canonicalIntent.actorId,
+      questId: canonicalIntent.payload.questId ?? canonicalIntent.payload.targetId,
+      playerPosition: canonicalIntent.payload.playerPosition,
+      currentTick: canonicalIntent.logicalIndex,
+    });
+    res.status(result.ok ? 200 : 409).json({ ok: result.ok, result, canonicalIntent });
+  } catch (error) {
+    console.error("[economy-complete-camp-quest] Failed to complete camp quest:", error);
+    res.status(500).json({ ok: false, error: "internal_error", canonicalIntent });
+  }
+});
+
+router.post("/trade-transfer", tradeTransferRateLimiter, async (req, res) => {
+  const identity = resolveHttpPlayerIdentity(req);
+  if (!requireProductionAuth(identity, res)) return;
+  const toPlayerId = parseSafeId(req.body?.toPlayerId);
+  const itemId = parseSafeId(req.body?.itemId);
+  const quantity = parseQuantity(req.body?.quantity);
+  if (!toPlayerId) return void res.status(400).json({ ok: false, error: "invalid_receiver" });
+  if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item_id" });
+  if (quantity <= 0) return void res.status(400).json({ ok: false, error: "invalid_quantity" });
+  const runtime = requireRuntimeTick(res);
+  if (!runtime) return;
+  const canonicalIntent = canonicalizeEconomyInventory({
+    actorId: identity.playerId,
+    runtime,
+    requestId: parseRequestId(req.body?.requestId ?? req.body?.intentId),
+    payload: { operation: "move", itemId, toPlayerId, quantity },
+  });
+  const inventoryService = await getInventoryService();
+  const result = await transferInventoryItemPersistent(inventoryService, {
+    fromPlayerId: canonicalIntent.actorId,
+    toPlayerId: canonicalIntent.payload.toPlayerId,
+    itemId: canonicalIntent.payload.itemId,
+    quantity: canonicalIntent.payload.quantity,
+    tick: canonicalIntent.logicalIndex,
+    uid: `trade:${canonicalIntent.intentHash}`,
+    sourceHash: canonicalIntent.intentHash,
+  });
+  let historyHash: string | undefined;
+  if (result.ok) {
+    historyHash = runtimeHistoryLog.write({
+      tick: canonicalIntent.logicalIndex,
+      source: "trade_transfer",
+      actorId: canonicalIntent.actorId,
+      subjectId: `${canonicalIntent.payload.toPlayerId}:${canonicalIntent.payload.itemId}`,
+      chunkKey: canonicalIntent.chunkKey,
+      payload: { ...result, intentHash: canonicalIntent.intentHash },
+    }).entryHash;
+  }
+  res.status(result.ok ? 200 : 409).json({ ok: result.ok, result, canonicalIntent, ...(historyHash ? { historyHash } : {}) });
+});
+
+router.get("/work-orders", async (req, res) => {
+  const vendor = resolveVendorEvidence(req.query.vendorId);
+  if ("error" in vendor) return void respondVendorError(res, vendor.error);
+  const runtime = requireRuntimeTick(res);
+  if (!runtime) return;
+  try {
+    const stock = await vendorStockService.getStock(vendor.actor.actorId);
+    const orders = deriveEconomyWorkOrders({ stock, tick: runtime.tick, actor: vendor.actor });
+    const revisionHash = stableHash32([
+      "ECONOMY_WORK_ORDER_RESPONSE_V1",
+      vendor.actor.definitionHash,
+      ...orders.map((order) => order.stateHash).sort(),
+    ].join("|")).toString(16);
+    res.json({
+      ok: true,
+      tick: runtime.tick,
+      tickId: runtime.tickId,
+      vendorId: vendor.actor.actorId,
+      actorEvidence: vendor.actor,
+      revisionHash,
+      orders,
+    });
+  } catch (error) {
+    console.error("[economy-work-orders] Failed to derive work orders:", error);
+    res.status(500).json({ ok: false, error: "internal_error" });
+  }
+});
+
+router.get("/market-snapshot", async (_req, res) => {
+  const runtime = requireRuntimeTick(res);
+  if (!runtime) return;
+  try {
+    const snapshot = await economyService.marketSnapshot();
+    const revisionHash = stableHash32([
+      "ECONOMY_MARKET_RESPONSE_V2",
+      runtime.tick,
+      JSON.stringify(snapshot),
+    ].join("|")).toString(16);
+    res.json({ ok: true, tick: runtime.tick, tickId: runtime.tickId, revisionHash, snapshot });
+  } catch (error) {
+    console.error("[economy-market-snapshot] Failed to create snapshot:", error);
+    res.status(500).json({ ok: false, error: "internal_error" });
   }
 });
 

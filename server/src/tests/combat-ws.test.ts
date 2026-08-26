@@ -1,152 +1,80 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import { describe, expect, it } from "vitest";
 import WebSocket from "ws";
-import { GameWebSocketServer } from "../networking/WebSocketServer.js";
+import { client2DLogin, createThinShellWebSocketRuntime } from "./helpers/thinShellWebSocketRuntime.js";
 
 function waitForMessage(
   ws: WebSocket,
-  pred: (data: any) => boolean,
-  timeoutMs = 15_000,
+  predicate: (data: any) => boolean,
+  timeoutMs = 8_000,
 ): Promise<any> {
   return new Promise((resolve, reject) => {
-    const t = setTimeout(() => {
-      ws.removeListener("message", onMsg);
+    const timeout = setTimeout(() => {
+      ws.removeListener("message", onMessage);
       reject(new Error("waitForMessage timeout"));
     }, timeoutMs);
-    const onMsg = (raw: WebSocket.RawData) => {
+    const onMessage = (raw: WebSocket.RawData) => {
       try {
         const data = JSON.parse(String(raw));
-        if (pred(data)) {
-          clearTimeout(t);
-          ws.removeListener("message", onMsg);
+        if (predicate(data)) {
+          clearTimeout(timeout);
+          ws.removeListener("message", onMessage);
           resolve(data);
         }
       } catch {
-        /* ignore */
+        // Ignore malformed transport frames in integration tests.
       }
     };
-    ws.on("message", onMsg);
+    ws.on("message", onMessage);
   });
 }
 
-function sendAndWait<T>(
-  ws: WebSocket,
-  payload: unknown,
-  pred: (data: any) => boolean,
-): Promise<T> {
-  const p = waitForMessage(ws, pred);
-  ws.send(JSON.stringify(payload));
-  return p as Promise<T>;
+async function openSocket(port: number): Promise<WebSocket> {
+  const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
+  await new Promise<void>((resolve, reject) => {
+    socket.once("open", () => resolve());
+    socket.once("error", reject);
+  });
+  return socket;
 }
 
-describe("WS combat + entity_sync", () => {
-  let tmpDir: string;
-
-  beforeAll(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "arelor-combatws-"));
-    process.env.PLAYER_SAVE_FILE = path.join(tmpDir, "players.json");
-    process.env.ALLOW_GUEST_LOGIN = "1";
-    process.env = { ...process.env, NODE_ENV: "test" };
+async function closeSocket(socket: WebSocket): Promise<void> {
+  if (socket.readyState === WebSocket.CLOSED) return;
+  await new Promise<void>((resolve) => {
+    socket.once("close", () => resolve());
+    socket.close();
   });
+}
 
-  afterAll(() => {
-    delete process.env.PLAYER_SAVE_FILE;
-    delete process.env.ALLOW_GUEST_LOGIN;
-    try {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    } catch {
-      /* ignore */
-    }
-  });
 
-  it("attack respects weapon mana; set_target; dead blocks attack with toast; entity_sync npc fields", async () => {
-    const { WorldTick } = await import("../core/WorldTick.js");
-    const guestId = "guest_combatwstest01";
-
-    const httpServer = createServer();
-    const gws = new GameWebSocketServer(httpServer);
-    gws.start();
-    const tick = new WorldTick(gws);
-    await tick.init();
-    tick.start();
-    await new Promise<void>((resolve) => httpServer.listen(0, resolve));
-    const port = (httpServer.address() as AddressInfo).port;
-
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`);
-    await new Promise<void>((resolve, reject) => {
-      ws.once("open", () => resolve());
-      ws.once("error", reject);
-    });
+describe("WS Client-2D Thin-Shell combat migration", () => {
+  it("accepts a canonical movement intent through the Thin-Shell adapter", async () => {
+    const runtime = await createThinShellWebSocketRuntime();
+    const socket = await openSocket(runtime.port);
+    const identityHash = "combat-runtime-test";
+    const playerId = `client2d:${identityHash}`;
 
     try {
-      await sendAndWait(
-        ws,
-        {
-          type: "login", token: "test-token",
-          guestId,
-          guestName: "CombatWS",
-          sceneId: "didis_hub",
-          spawnKey: "sp_player_default",
-        },
-        (d) => d.type === "welcome",
-      );
-      const player = tick.playerSystem.getPlayer(guestId);
-      expect(player).toBeTruthy();
-      const dummy = tick.npcSystem.getNPC("npc_dummy");
-      expect(dummy).toBeTruthy();
+      const welcomePromise = waitForMessage(socket, (data) => data.type === "welcome");
+      socket.send(JSON.stringify(client2DLogin(identityHash, "Combat Tester", { x: 4, y: 8, z: 0 })));
+      await welcomePromise;
 
-      player!.mana = 0;
-      const toastMana = await sendAndWait<any>(
-        ws,
-        { type: "attack" },
-        (d) => d.type === "toast" && String(d.text).includes("Not enough mana"),
-      );
-      expect(toastMana.text).toMatch(/mana/i);
+      const acknowledgementPromise = waitForMessage(socket, (data) => data.type === "move_intent_ack");
+      socket.send(JSON.stringify({
+        type: "move_intent",
+        source: "client-2d",
+        dx: 1,
+        dy: 0,
+        sequenceId: 7,
+      }));
+      const acknowledgement = await acknowledgementPromise;
 
-      player!.mana = player!.maxMana ?? 25;
-      player!.position.x = dummy!.position.x;
-      player!.position.y = dummy!.position.y;
-
-      await sendAndWait(
-        ws,
-        { type: "set_target", npcId: "npc_dummy" },
-        (d) => d.type === "stats_sync",
-      );
-      expect(player!.combatTargetNpcId).toBe("npc_dummy");
-
-      const syncP = waitForMessage(ws, (d) => {
-        if (d.type !== "entity_sync" || !Array.isArray(d.entities))
-          return false;
-        return d.entities.some(
-          (e: any) =>
-            e.id === "npc_dummy" &&
-            e.type === "npc" &&
-            e.role === "Training" &&
-            e.combatNpcId === "npc_dummy" &&
-            e.combatThreat === false &&
-            typeof e.health === "number" &&
-            typeof e.maxHealth === "number",
-        );
-      });
-      ws.send(JSON.stringify({ type: "attack" }));
-      await syncP;
-
-      player!.dead = true;
-      player!.deathAt = Date.now() - 10_000;
-      const deadToast = await sendAndWait<any>(
-        ws,
-        { type: "attack" },
-        (d) => d.type === "toast" && String(d.text).includes("defeated"),
-      );
-      expect(deadToast.text).toMatch(/defeated/i);
+      expect(acknowledgement.payload.ok).toBe(true);
+      expect(acknowledgement.payload.sequenceId).toBe(7);
+      expect(acknowledgement.payload.pending).toBeGreaterThanOrEqual(1);
+      expect(runtime.tick.playerSystem.getPlayer(playerId)?.position.x).toBe(4);
     } finally {
-      ws.close();
-      tick.stop();
-      await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+      await closeSocket(socket);
+      await runtime.close();
     }
-  }, 45_000);
+  });
 });

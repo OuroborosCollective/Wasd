@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.5.0",
+  "packageManager": "pnpm@11.8.0",
   "scripts": {
     "build": "pnpm -r build",
     "build:web": "pnpm -r --filter @wasd/web build",
@@ -29,9 +29,22 @@
     "guard:architecture": "node scripts/arelorian-architecture-lint.mjs",
     "guard:worldtick": "pnpm --filter @wasd/server guard:worldtick",
     "guard:entrypoints": "node scripts/verify-client-entrypoints.mjs",
-    "guard:all": "pnpm guard:monorepo && pnpm guard:architecture && pnpm guard:worldtick && pnpm guard:entrypoints && pnpm audit:core-alignment",
+    "guard:deploy-2d-first": "node scripts/test-deploy-2d-first-readiness.mjs",
+    "guard:all": "pnpm guard:monorepo && pnpm guard:architecture && pnpm guard:worldtick && pnpm guard:entrypoints && pnpm guard:deploy-2d-first && pnpm audit:core-alignment",
     "audit:core-alignment": "node scripts/audit-core-reality-alignment.mjs",
     "audit:core-alignment:fail": "node scripts/audit-core-reality-alignment.mjs --fail",
+    "audit:release-state": "node scripts/audit-areloria-release-state.mjs",
+    "audit:release-state:json": "node scripts/audit-areloria-release-state.mjs --json",
+    "audit:release-state:fail": "node scripts/audit-areloria-release-state.mjs --fail",
+    "modules:scan": "node scripts/analyze-modules.mjs --verbose",
+    "modules:scan:ci": "node scripts/analyze-modules.mjs --ci --verbose --fail-on=D,E",
+    "modules:fix:dry": "node scripts/autofix-modules.mjs --manifest",
+    "modules:fix": "node scripts/autofix-modules.mjs --write --manifest",
+    "modules:fix:headers": "node scripts/autofix-modules.mjs --write --manifest --headers",
+    "autoheal:plan": "node scripts/autoheal-modules.mjs --plan",
+    "autoheal:plan:verbose": "node scripts/autoheal-modules.mjs --plan --verbose",
+    "autoheal:apply": "node scripts/autoheal-modules.mjs --apply --max-risk=SAFE_MECHANICAL",
+    "autoheal:apply:low": "node scripts/autoheal-modules.mjs --apply --max-risk=LOW_SEMANTIC",
     "clean": "pnpm -r exec rm -rf dist node_modules"
   },
   "engines": {
@@ -39,16 +52,17 @@
     "pnpm": ">=9"
   },
   "devDependencies": {
-    "@types/node": "^25.9.1",
+    "@types/node": "^22.20.1",
     "@types/ws": "^8.18.1",
-    "@typescript-eslint/eslint-plugin": "^8.60.0",
-    "@typescript-eslint/parser": "^8.60.0",
-    "concurrently": "^10.0.0",
-    "eslint": "^10.4.1",
-    "pnpm": "^11.5.0",
-    "sharp": "^0.33.5",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.8",
-    "ws": "^8.21.0"
+    "@typescript-eslint/eslint-plugin": "^8.66.0",
+    "@typescript-eslint/parser": "^8.66.0",
+    "concurrently": "^10.0.4",
+    "eslint": "^9.0.0",
+    "jsdom": "^29.1.1",
+    "pnpm": "^11.20.0",
+    "sharp": "^0.35.3",
+    "typescript": "^5.8.0",
+    "vitest": "^2.0.0",
+    "ws": "^8.21.3"
   }
 }

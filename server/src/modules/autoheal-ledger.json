@@ -1,0 +1,101 @@
+{
+  "runId": "autoheal-2026-06-12T03-30-46-504Z",
+  "mode": "strict",
+  "createdAt": "2026-06-12T03:30:46.504Z",
+  "completedAt": "2026-06-12T03:31:02.462Z",
+  "actions": [
+    {
+      "kind": "FIX_TYPE_ONLY_IMPORT",
+      "file": "server/src/modules/world/ProfileResolver.ts",
+      "risk": "SAFE_MECHANICAL",
+      "current": "import { Resolver, Mutation, Arg, InputType, Field, Float } from 'type-graphql'",
+      "suggested": "import type { InputType } from 'type-graphql.js'"
+    },
+    {
+      "kind": "MARK_DATE_NOW_TELEMETRY",
+      "file": "server/src/modules/npc/NPCMemoryPersistence.ts",
+      "risk": "LOW_SEMANTIC",
+      "reason": "Date.now in @are-telemetry-side-channel file"
+    },
+    {
+      "kind": "MARK_DATE_NOW_TELEMETRY",
+      "file": "server/src/modules/player/AutonomousPlayerTickSystem.ts",
+      "risk": "MEDIUM_SEMANTIC",
+      "reason": "Date.now found outside telemetry side-channel"
+    }
+  ],
+  "forbidden": [
+    {
+      "kind": "MANUAL_REQUIRED",
+      "file": "server/src/modules/asset-brain/AssetBrainDatabase.ts",
+      "reason": "Math.random found but no ctx.rng in scope. Needs manual ARE seed binding.",
+      "risk": "FORBIDDEN"
+    },
+    {
+      "kind": "MANUAL_REQUIRED",
+      "file": "server/src/modules/asset-brain/AssetPipeline.ts",
+      "reason": "Math.random found but no ctx.rng in scope. Needs manual ARE seed binding.",
+      "risk": "FORBIDDEN"
+    },
+    {
+      "kind": "MANUAL_REQUIRED",
+      "file": "server/src/modules/content/adminGlbPathCheck.ts",
+      "reason": "Category E stub detected - do NOT auto-fill with fake logic",
+      "risk": "FORBIDDEN"
+    },
+    {
+      "kind": "MANUAL_REQUIRED",
+      "file": "server/src/modules/content/repoRoot.ts",
+      "reason": "Category E stub detected - do NOT auto-fill with fake logic",
+      "risk": "FORBIDDEN"
+    },
+    {
+      "kind": "MANUAL_REQUIRED",
+      "file": "server/src/modules/economy/EconomyEngine.ts",
+      "reason": "Category E stub detected - do NOT auto-fill with fake logic",
+      "risk": "FORBIDDEN"
+    },
+    {
+      "kind": "MANUAL_REQUIRED",
+      "file": "server/src/modules/economy/PlayerMarket.ts",
+      "reason": "Category E stub detected - do NOT auto-fill with fake logic",
+      "risk": "FORBIDDEN"
+    },
+    {
+      "kind": "MANUAL_REQUIRED",
+      "file": "server/src/modules/gameplay/ContractManager.ts",
+      "reason": "Category E stub detected - do NOT auto-fill with fake logic",
+      "risk": "FORBIDDEN"
+    },
+    {
+      "kind": "MANUAL_REQUIRED",
+      "file": "server/src/modules/gameplay/InventorySystem.ts",
+      "reason": "Category E stub detected - do NOT auto-fill with fake logic",
+      "risk": "FORBIDDEN"
+    },
+    {
+      "kind": "MANUAL_REQUIRED",
+      "file": "server/src/modules/guild/GuildSystem.ts",
+      "reason": "Category E stub detected - do NOT auto-fill with fake logic",
+      "risk": "FORBIDDEN"
+    },
+    {
+      "kind": "MANUAL_REQUIRED",
+      "file": "server/src/modules/systems/PathfindingSystem.ts",
+      "reason": "Category E stub detected - do NOT auto-fill with fake logic",
+      "risk": "FORBIDDEN"
+    },
+    {
+      "kind": "MANUAL_REQUIRED",
+      "file": "server/src/modules/world/ResourceScatter.ts",
+      "reason": "Category E stub detected - do NOT auto-fill with fake logic",
+      "risk": "FORBIDDEN"
+    }
+  ],
+  "verification": {
+    "--noEmit": "failed",
+    "test": "failed",
+    "--fail-on=D,E": "failed"
+  },
+  "verdict": "VERIFICATION_FAILED"
+}

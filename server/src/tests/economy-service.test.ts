@@ -32,6 +32,37 @@ function farVendorPosition() {
   return { x: VILLAGE_TRADER.position.x + 100, y: VILLAGE_TRADER.position.y + 100 };
 }
 
+function createMockVendorStockService() {
+  const states = new Map<string, { vendorId: string; schemaVersion: 1; items: Record<string, number> }>();
+  const stateFor = (vendorId: string) => {
+    const state = states.get(vendorId) ?? { vendorId, schemaVersion: 1 as const, items: {} };
+    states.set(vendorId, state);
+    return state;
+  };
+  const snapshot = (state: { vendorId: string; schemaVersion: 1; items: Record<string, number> }) =>
+    Object.freeze({ vendorId: state.vendorId, schemaVersion: 1 as const, items: Object.freeze({ ...state.items }) });
+
+  return {
+    getStock: async (vendorId: string) => snapshot(stateFor(vendorId)),
+    getItemQuantity: async (vendorId: string, itemId: string) => stateFor(vendorId).items[itemId] ?? 0,
+    addItems: async (vendorId: string, itemId: string, quantity: number) => {
+      const state = stateFor(vendorId);
+      state.items[itemId] = (state.items[itemId] ?? 0) + quantity;
+      return snapshot(state);
+    },
+    removeItems: async (vendorId: string, itemId: string, quantity: number) => {
+      const state = stateFor(vendorId);
+      const current = state.items[itemId] ?? 0;
+      if (current < quantity) return null;
+      state.items[itemId] = current - quantity;
+      return snapshot(state);
+    },
+    restoreStock: async (vendorId: string, state: { items: Record<string, number> }) => {
+      states.set(vendorId, { vendorId, schemaVersion: 1, items: { ...state.items } });
+    },
+  };
+}
+
 describe("EconomyService", () => {
   let economyService: EconomyService;
   let inventoryService: InventoryService;
@@ -51,7 +82,10 @@ describe("EconomyService", () => {
         return next;
       },
       hydratePlayer: async () => {},
-    } as any);
+      restoreWallet: async (playerId: string, wallet: any) => {
+        walletStore.wallets.set(playerId, wallet);
+      },
+    } as any, createMockVendorStockService() as any);
   });
 
   describe("sellResource", () => {
@@ -64,6 +98,7 @@ describe("EconomyService", () => {
         itemId: "wood_log",
         quantity: 3,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(true);
@@ -85,6 +120,7 @@ describe("EconomyService", () => {
         itemId: "wood_log",
         quantity: 1,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(false);
@@ -97,6 +133,7 @@ describe("EconomyService", () => {
         itemId: "wood_log",
         quantity: 0,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(false);
@@ -112,6 +149,7 @@ describe("EconomyService", () => {
         itemId: "wooden_axe",
         quantity: 1,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(false);
@@ -127,6 +165,7 @@ describe("EconomyService", () => {
         itemId: "wood_log",
         quantity: 5,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(false);
@@ -143,6 +182,7 @@ describe("EconomyService", () => {
         itemId: "wood_log",
         quantity: 5,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(false);
@@ -164,6 +204,7 @@ describe("EconomyService", () => {
       const result = await economyService.sellAllResources({
         playerId: "player1",
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(true);
@@ -181,6 +222,7 @@ describe("EconomyService", () => {
       const result = await economyService.sellAllResources({
         playerId: "player1",
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(false);
@@ -195,6 +237,7 @@ describe("EconomyService", () => {
       const result = await economyService.sellAllResources({
         playerId: "player1",
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(true);
@@ -216,6 +259,7 @@ describe("EconomyService", () => {
       const result = await economyService.sellAllResources({
         playerId: "nonexistent",
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(false);
@@ -238,6 +282,7 @@ describe("EconomyService", () => {
         itemId: "wood_log",
         quantity: 3,
         playerPosition: farVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(false);
@@ -258,6 +303,7 @@ describe("EconomyService", () => {
       const result = await economyService.sellAllResources({
         playerId: "player1",
         playerPosition: farVendorPosition(),
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(false);
@@ -277,6 +323,7 @@ describe("EconomyService", () => {
         playerId: "player1",
         itemId: "wood_log",
         quantity: 3,
+        currentTick: 100,
         // No playerPosition
       });
 
@@ -299,6 +346,7 @@ describe("EconomyService", () => {
         itemId: "wood_log",
         quantity: 3,
         playerPosition: { x: Infinity, y: 0 },
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(false);
@@ -320,6 +368,7 @@ describe("EconomyService", () => {
         itemId: "wood_log",
         quantity: 3,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
         vendorId: "nonexistent_vendor",
       });
 
@@ -347,6 +396,7 @@ describe("EconomyService", () => {
         itemId: "wood_log",
         quantity: 3,
         playerPosition: edgePosition,
+        currentTick: 100,
       });
 
       expect(result.ok).toBe(true);
@@ -381,6 +431,7 @@ describe("EconomyService", () => {
           itemId,
           quantity: 1,
           playerPosition: nearVendorPosition(),
+        currentTick: 100,
         });
         expect(result.unitPrice).toBe(expectedPrice);
         expect(result.totalCoins).toBe(expectedPrice);
@@ -400,6 +451,7 @@ describe("EconomyService", () => {
         itemId: "copper_ore",
         quantity: 2,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
       expect(rawResult.totalCoins).toBe(6); // 2 ore x 3 coins
 
@@ -410,6 +462,7 @@ describe("EconomyService", () => {
         itemId: "wood_log",
         quantity: 2,
         playerPosition: nearVendorPosition(),
+        currentTick: 100,
       });
       expect(woodResult.totalCoins).toBe(2); // 2 logs x 1 coin
 

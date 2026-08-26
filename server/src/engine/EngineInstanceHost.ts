@@ -15,8 +15,10 @@ export interface EnginePacket {
 export class EngineInstanceHost {
     private engine: AREEngineBox;
     private clients: Map<string, IClientConnection>;
-    private tickRate: number = 20; 
+    private readonly tickRateHz: number = 10;
+    private readonly tickDurationMs: number = 100;
     private intervalId: any = null;
+    private tickId = 0;
 
     constructor() {
         this.engine = new AREEngineBox();
@@ -36,11 +38,12 @@ export class EngineInstanceHost {
     }
 
     public processIncomingPacket(clientId: string, packetData: any): void {
+        const packetTick = Number.isFinite(packetData?.tickId) ? Math.trunc(packetData.tickId) : this.tickId;
         const packet: EnginePacket = {
             clientId,
             type: packetData.type || 'input',
             payload: packetData.payload || {},
-            timestamp: Date.now()
+            timestamp: packetTick * this.tickDurationMs
         };
         
         this.engine.inputQueue.push(packet);
@@ -51,11 +54,12 @@ export class EngineInstanceHost {
 
         this.intervalId = setInterval(() => {
             try {
-                this.engine.update(1000 / this.tickRate);
+                this.tickId += 1;
+                this.engine.update(1000 / this.tickRateHz);
             } catch (error) {
                 console.error("Engine Update Error:", error);
             }
-        }, this.tickRate);
+        }, this.tickDurationMs);
     }
 
     public stop(): void {
@@ -70,7 +74,8 @@ export class EngineInstanceHost {
 
         const message = JSON.stringify({
             op: 'DELTA',
-            t: Date.now(),
+            t: this.tickId * this.tickDurationMs,
+            tickId: this.tickId,
             d: delta
         });
 
@@ -78,6 +83,7 @@ export class EngineInstanceHost {
             try {
                 client.send(message);
             } catch (e) {
+                void e;
                 this.removeClient(id);
             }
         }

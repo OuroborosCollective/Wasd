@@ -108,31 +108,38 @@ export function GatheringToolsPanel({ equipment, inventory, onEquip }: Props) {
     GATHERING_TOOL_IDS.has(slot.itemId)
   );
   const [isClaiming, setIsClaiming] = useState(false);
+  const [equippingItemId, setEquippingItemId] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimSuccess, setClaimSuccess] = useState(false);
 
   const handleEquip = useCallback(
     async (itemId: string) => {
-      const result = await equipGatheringTool(itemId);
+      if (equippingItemId || isClaiming) return;
+      setEquippingItemId(itemId);
+      try {
+        const result = await equipGatheringTool(itemId);
 
-      // Show toast notification
-      window.dispatchEvent(
-        new CustomEvent("wasd:toast", {
-          detail: {
-            type: result.ok ? "success" : "error",
-            message: result.ok
-              ? "Tool equipped"
-              : `Equip failed: ${result.result?.reason ?? "unknown"}`,
-          },
-        }),
-      );
+        // Show toast notification
+        window.dispatchEvent(
+          new CustomEvent("wasd:toast", {
+            detail: {
+              type: result.ok ? "success" : "error",
+              message: result.ok
+                ? "Tool equipped"
+                : `Equip failed: ${result.result?.reason ?? "unknown"}`,
+            },
+          }),
+        );
 
-      // Notify parent
-      if (result.ok) {
-        onEquip?.(itemId);
+        // Notify parent
+        if (result.ok) {
+          onEquip?.(itemId);
+        }
+      } finally {
+        setEquippingItemId(null);
       }
     },
-    [onEquip],
+    [onEquip, equippingItemId, isClaiming],
   );
 
   const handleClaimStarterTools = useCallback(async () => {
@@ -216,31 +223,52 @@ export function GatheringToolsPanel({ equipment, inventory, onEquip }: Props) {
           <p className="empty-text">No gathering tools in inventory.</p>
         ) : (
           <div className="tools-grid">
-            {tools.map((slot) => (
-              <button
-                key={slot.slotId}
-                type="button"
-                className="tool-button"
-                onClick={() => handleEquip(slot.itemId)}
-                title={`Equip ${slot.name}`}
-              >
-                <span className="tool-icon">
-                  {(() => {
-                    const iconPath = getGatheringToolIcon(slot.itemId);
-                    return iconPath ? (
-                      <img 
-                        src={iconPath} 
-                        alt={slot.name}
-                        style={{ width: 32, height: 32, imageRendering: 'pixelated' }}
-                      />
-                    ) : (
-                      slot.itemId.includes("axe") ? "🪓" : slot.itemId.includes("pickaxe") ? "⛏️" : "🎣"
-                    );
-                  })()}
-                </span>
-                <span className="tool-name">{slot.name}</span>
-              </button>
-            ))}
+            {tools.map((slot) => {
+              const isCurrentEquipping = equippingItemId === slot.itemId;
+              const isBlocked = !!equippingItemId || isClaiming;
+              return (
+                <button
+                  key={slot.slotId}
+                  type="button"
+                  className="tool-button"
+                  onClick={() => handleEquip(slot.itemId)}
+                  disabled={isBlocked}
+                  aria-busy={isCurrentEquipping}
+                  title={
+                    isCurrentEquipping
+                      ? `Equipping ${slot.name}...`
+                      : isBlocked
+                      ? "Operation in progress"
+                      : `Equip ${slot.name}`
+                  }
+                  aria-label={
+                    isCurrentEquipping
+                      ? `Equipping ${slot.name} to tool slot`
+                      : isBlocked
+                      ? `Cannot equip ${slot.name} right now`
+                      : `Equip ${slot.name} to tool slot`
+                  }
+                >
+                  <span className="tool-icon">
+                    {(() => {
+                      const iconPath = getGatheringToolIcon(slot.itemId);
+                      return iconPath ? (
+                        <img
+                          src={iconPath}
+                          alt={slot.name}
+                          style={{ width: 32, height: 32, imageRendering: 'pixelated' }}
+                        />
+                      ) : (
+                        slot.itemId.includes("axe") ? "🪓" : slot.itemId.includes("pickaxe") ? "⛏️" : "🎣"
+                      );
+                    })()}
+                  </span>
+                  <span className="tool-name">
+                    {isCurrentEquipping ? "Equipping..." : slot.name}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -251,18 +279,34 @@ export function GatheringToolsPanel({ equipment, inventory, onEquip }: Props) {
           <p className="claim-description">
             Gather resources outside the starter village requires proper tools.
           </p>
-          <button
-            type="button"
-            className="claim-starter-tools-button"
-            data-testid="claim-starter-tools-button"
-            onClick={handleClaimStarterTools}
-            disabled={isClaiming}
-          >
-            {isClaiming ? "Claiming..." : "Claim Starter Tools"}
-          </button>
-          {claimError && (
-            <p className="claim-error">{claimError}</p>
-          )}
+          <div aria-live="polite" aria-busy={isClaiming || !!equippingItemId}>
+            <button
+              type="button"
+              className="claim-starter-tools-button"
+              data-testid="claim-starter-tools-button"
+              onClick={handleClaimStarterTools}
+              disabled={isClaiming || !!equippingItemId}
+              aria-busy={isClaiming}
+              aria-label={
+                isClaiming
+                  ? "Claiming starter tools from server"
+                  : !!equippingItemId
+                  ? "Tool equip in progress"
+                  : "Claim free starter gathering tools"
+              }
+              style={isClaiming || !!equippingItemId ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+            >
+              {isClaiming ? "Claiming..." : "Claim Starter Tools"}
+            </button>
+            {claimError && (
+              <p className="claim-error" role="alert">{claimError}</p>
+            )}
+            {claimSuccess && (
+              <p className="claim-success" role="status" style={{ color: "var(--ouro-green)", fontSize: "0.8rem", marginTop: "4px" }}>
+                Starter tools successfully claimed and equipped!
+              </p>
+            )}
+          </div>
         </div>
       )}
     </section>

@@ -8,6 +8,8 @@ const root = process.cwd();
 const srcDir = join(root, 'src');
 const outDir = join(root, 'dist');
 
+const RUNTIME_WORKSPACE_PACKAGES = new Set(['shared', 'core-logic']);
+
 async function loadEsbuild() {
   try {
     return require('esbuild');
@@ -64,12 +66,33 @@ function withJsExtension(specifier) {
   return `${specifier.slice(0, suffixIndex)}.js${specifier.slice(suffixIndex)}`;
 }
 
+function rewriteWorkspaceSourceSpecifier(specifier) {
+  const suffixIndex = specifier.search(/[?#]/);
+  const pathPart = suffixIndex === -1 ? specifier : specifier.slice(0, suffixIndex);
+  const suffix = suffixIndex === -1 ? '' : specifier.slice(suffixIndex);
+
+  const rewritten = pathPart.replace(/(^|\/)packages\/(shared|core-logic)\/src\//g, (_match, prefix, packageName) => {
+    if (!RUNTIME_WORKSPACE_PACKAGES.has(packageName)) return `${prefix}packages/${packageName}/src/`;
+    return `${prefix}packages/${packageName}/dist/`;
+  });
+
+  return `${rewritten}${suffix}`;
+}
+
+function rewriteImportSpecifier(specifier) {
+  return rewriteWorkspaceSourceSpecifier(withJsExtension(specifier));
+}
+
 function rewriteRelativeEsmSpecifiers(output) {
   return output
-    .replace(/(from\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => `${prefix}${withJsExtension(specifier)}${suffix}`)
-    .replace(/(import\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => `${prefix}${withJsExtension(specifier)}${suffix}`)
-    .replace(/(import\(\s*['"])(\.\.?\/[^'"]+)(['"]\s*\))/g, (_match, prefix, specifier, suffix) => `${prefix}${withJsExtension(specifier)}${suffix}`)
-    .replace(/(export\s+[^;]*?from\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => `${prefix}${withJsExtension(specifier)}${suffix}`);
+    .replace(/(from\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => `${prefix}${rewriteImportSpecifier(specifier)}${suffix}`)
+    .replace(/(import\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => `${prefix}${rewriteImportSpecifier(specifier)}${suffix}`)
+    .replace(/(import\(\s*['"])(\.\.?\/[^'"]+)(['"]\s*\))/g, (_match, prefix, specifier, suffix) => `${prefix}${rewriteImportSpecifier(specifier)}${suffix}`)
+    .replace(/(export\s+[^;]*?from\s*['"])(\.\.?\/[^'"]+)(['"])/g, (_match, prefix, specifier, suffix) => `${prefix}${rewriteImportSpecifier(specifier)}${suffix}`);
+}
+
+function hasRuntimeSourceImportLeak(output) {
+  return /(?:^|\/)packages\/(?:shared|core-logic)\/src\//.test(output);
 }
 
 function loaderFor(file) {
@@ -102,8 +125,15 @@ async function transpile(file) {
   }
 
   const jsFile = toOutFile(file, '.js');
+  const output = rewriteRelativeEsmSpecifiers(result.code || '');
+  if (hasRuntimeSourceImportLeak(output)) {
+    console.error(`Runtime source import leak in ${relative(root, file)}. Workspace imports must resolve to package dist output.`);
+    process.exitCode = 1;
+    return;
+  }
+
   await ensureParent(jsFile);
-  await writeFile(jsFile, rewriteRelativeEsmSpecifiers(result.code || ''));
+  await writeFile(jsFile, output);
 }
 
 async function copyAsset(file) {

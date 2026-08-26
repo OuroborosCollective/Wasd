@@ -1,0 +1,198 @@
+---
+title: Quickstart
+description: Get Areloria WASD running in 5 minutes
+---
+
+# Quickstart
+
+Begin your journey with Areloria WASD. This guide takes you from zero to a running game server with 2D client.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- **Node.js 22.x** or higher
+- **pnpm 9+** (or npm/yarn with pnpm compatibility)
+- **Python 3.x** with Pillow (for asset pipeline)
+- **Docker** (optional, for production-style testing)
+- **Git** for version control
+
+## Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/OuroborosCollective/Wasd.git
+cd Wasd
+```
+
+### 2. Install Dependencies
+
+```bash
+pnpm install
+```
+
+### 3. Build the Shared Package
+
+The `@wasd/shared` package must be built before the client works:
+
+```bash
+pnpm -C packages/shared build
+```
+
+If you encounter import resolution errors, clear the build cache:
+
+```bash
+rm packages/shared/*.tsbuildinfo
+pnpm -C packages/shared build
+```
+
+## Running the Development Server
+
+### Option 1: Full Monorepo Build (Recommended)
+
+```bash
+pnpm build
+```
+
+This builds clients first, then the server with embedded Vite middleware.
+
+### Option 2: Server Only
+
+```bash
+npx tsx server/src/index.ts
+```
+
+The server runs on **port 3000** with embedded Vite middleware for development.
+
+### Option 3: Separate Server and Client
+
+Terminal 1 - Game Server:
+```bash
+pnpm --filter @wasd/server dev
+```
+
+Terminal 2 - 2D Client:
+```bash
+pnpm --filter @wasd/client-2d dev
+```
+
+## Verify the Server
+
+Once running, check the health endpoint:
+
+```bash
+curl http://localhost:3000/health
+```
+
+Expected response shape:
+```json
+{
+  "ok": true,
+  "status": "ok",
+  "project": "ARELORIAN MMORPG",
+  "version": "0.2.0",
+  "authorization": {
+    "mode": "development",
+    "simulationAuthority": false,
+    "useSupabaseWsLogin": false,
+    "requireSupabaseAuth": false,
+    "allowGuestLogin": true,
+    "allowDevLogin": true
+  },
+  "persistence": {
+    "status": "file"
+  },
+  "content": {
+    "mode": "game-data"
+  },
+  "are": {
+    "worldHash": "server-derived",
+    "replay": "available"
+  }
+}
+```
+
+Development authorization is a side-channel convenience. Gameplay authority still comes from server tick, chunk scope, deterministic seed, replay, and state hash — never from a client or placeholder.
+
+## Access the Client
+
+Navigate to:
+- **2D Client**: http://localhost:3000/2d
+- **Admin Panel**: http://localhost:3000/admin-content.html
+- **Health Check**: http://localhost:3000/health
+
+## Common Commands
+
+| Command | Description |
+|---------|-------------|
+| `pnpm install` | Install all dependencies |
+| `pnpm build` | Build entire monorepo |
+| `pnpm build:2d` | Build 2D client only |
+| `pnpm build:server` | Build server only |
+| `pnpm dev:2d` | Run 2D client dev server |
+| `pnpm lint` | Run ESLint |
+| `pnpm test` | Run unit/integration tests |
+| `pnpm test:e2e` | Run end-to-end tests |
+
+## Environment Variables
+
+Create a `.env` file based on the template:
+
+```bash
+cp .env.example .env
+```
+
+Key variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | Server port |
+| `PERSISTENCE_DRIVER` | `auto` | Persistence: auto, postgres, file |
+| `AUTH_PROVIDER` | `none` | Auth: supabase, none |
+| `NODE_ENV` | `development` | Environment mode |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture Overview" icon="layers" href="/mintlify/architecture/overview">
+    Understand how the pieces fit together
+  </Card>
+  <Card title="Wahrheitspfad Contract" icon="shield-check" href="/mintlify/architecture/truth-path">
+    Verify what counts as real runtime evidence
+  </Card>
+  <Card title="Server Architecture" icon="server" href="/mintlify/architecture/server">
+    Deep dive into the authoritative server
+  </Card>
+  <Card title="Determinism Rules" icon="hash" href="/mintlify/architecture/determinism">
+    Learn the deterministic simulation principles
+  </Card>
+  <Card title="Gameplay Systems" icon="gamepad-2" href="/mintlify/gameplay/overview">
+    Explore the gameplay mechanics
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### "Failed to resolve import @wasd/shared"
+
+Rebuild the shared package:
+```bash
+rm packages/shared/*.tsbuildinfo
+pnpm -C packages/shared build
+```
+
+### WebSocket connection issues
+
+Check that the server is running and the port is not blocked by a firewall.
+
+### Client shows blank page
+
+Ensure Vite middleware is running. Try:
+```bash
+pnpm build:2d
+```
+
+---
+
+Need help? Reach out to the development team.

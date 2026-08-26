@@ -9,3 +9,31 @@
 ## 2028-02-14 - [Quest Tracker Accessibility]
 **Learning:** Progress bars in objective trackers are often purely visual. Implementing the WAI-ARIA `progressbar` pattern with `aria-valuetext` for percentage-based progress ensures that screen reader users can track mission objectives with the same precision as sighted players.
 **Action:** Always wrap visual progress indicators in Quest or Objective trackers with `role="progressbar"` and provide both raw (`aria-valuenow`) and human-readable (`aria-valuetext`) progress values.
+
+## 2028-02-15 - [Standardizing Quest Journal Panels with Accessibility and Close Button Patterns]
+**Learning:** Standardizing Quest Journal elements to align with the rest of the application's close button and accessibility patterns ensures keyboard discoverability and screen-reader compatibility. Custom inline list elements for objective lists can be transformed into semantic progressive nodes using `role="progressbar"`, while standardizing the header close buttons using the global `.wow-close-btn` class maintains UI cohesion.
+**Action:** Always verify if Quest Journal or tracker panels have a standardized close button pattern (`.wow-close-btn` class with `<kbd className="cz-kbd">ESC</kbd>`) and use semantic ARIA attributes for progress tracking components.
+
+## 2028-02-16 - [Keyboard Navigation in Overlay Modal Views]
+**Learning:** Custom HUD overlay panels (like camp trade exchange modals) often bypass the standard window wrapper controls, leading to isolated components that trap keyboard-only users. Attaching an ESC-keypress event listener directly within the component and styling the inline close element to display the semantic `<kbd className="cz-kbd">ESC</kbd>` hint provides visual and functional cohesion without disrupting the custom Diamond Glass aesthetics.
+**Action:** Always implement local `keydown` window event listeners for Escape key actions in customized overlays, and decorate the close button with a `<kbd className="cz-kbd">ESC</kbd>` hint and matching `aria-keyshortcuts`.
+
+## 2028-02-17 - [Interactive Shortcut Mapping & High-Situational Vitals Feedback]
+**Learning:** Exposing programmatic mappings using `aria-keyshortcuts` on interactive HUD widgets (like menu tabs or skill bars) allows modern screen readers to dynamically map hotkeys to actions. Additionally, pairing these accessible markers with lightweight, non-blocking CSS pulse animations for critical states (such as low health/stamina) ensures high-fidelity situational awareness for both keyboard-only/sighted players and screen-reader users alike.
+**Action:** Always complement visual hotkey indicators with structural `aria-keyshortcuts` attributes, and implement smooth pulsing visual transitions for status bars during low-vital conditions.
+
+## 2028-02-18 - [Standardizing Equipment Paperdoll Slots for Full Keyboard and Click UX Accessibility]
+**Learning:** Paperdoll equipment slots with `role="button"` and `tabIndex={0}` are commonly implemented as simple card containers that fail to capture generic keyboard space/enter keydown triggers and only bind action callbacks to a nested visual unequip button. Standardizing these card items by moving the full `onClick` action up to the card element, intercepting keydown events for Enter/Space triggers, preventing event bubbling on child controls with `e.stopPropagation()`, and introducing dynamic screen-reader compatible `aria-label` attributes ensures keyboard accessibility and consistent click targets without modifying layout files or styling patterns.
+**Action:** Always bind the click trigger directly on semantic button-like card container items, handle standard keyboard actions natively, and provide clear dynamic screen-reader descriptions specifying the equipment item name and slot destination.
+
+## 2028-02-19 - [A11y with Interaction Hotkey Buttons and aria-keyshortcuts]
+**Learning:** Floating interactive prompt elements (like the InteractionPrompt for triggering object interactions) display visual `<kbd>` hints (e.g., "E") but often lack the corresponding programmatic key-binding mapping for assistive technologies. Adding `aria-keyshortcuts="e"` guarantees screen-reader users are informed of the actual shortcut constraint natively.
+**Action:** When designing or standardizing visual keybind badges or prompt cues, always expose the appropriate lowercase `aria-keyshortcuts` attribute on the focusable container or trigger button.
+
+## 2028-02-20 - [Standardizing Skill Window with ESC Navigation, ARIA Attributes, and Low-Vitals Pulse Animations]
+**Learning:** Standing HUD containers such as the SkillWindow can have purely visual progressbars and close buttons that aren't natively accessible. Wrapping visual progress bars in `role="progressbar"` with exact ARIA bounds and values ensures screen readers can parse player vital states correctly. Additionally, pairing this with a conditional, self-contained pulse animation class for HP/Stamina levels below 20% dramatically enhances situational awareness for sighted users without performance overhead.
+**Action:** Always implement a dedicated Escape-key event listener on overlay modal panels to support keyboard dismissal, and accompany vital state progress bars with semantic progressbar attributes, dynamic tooltips, and non-blocking pulse animations for low thresholds.
+
+## 2028-02-21 - [Modal Dialog vs Landmark Region Semantics]
+**Learning:** Pop-up/overlay panels (like CraftingWindow) with headers and close controls must retain `role="dialog"` rather than generic `role="region"`. Changing overlay containers to `role="region"` strips the dialog focus context from screen reader users when pop-up panels open.
+**Action:** Always maintain `role="dialog"` on pop-up overlay window containers and use `role="region"` only for inline, non-modal content sections.

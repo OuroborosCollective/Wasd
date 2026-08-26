@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "kappa": 1000,
+  "profiles": {
+    "grass": {
+      "semanticUse": ["grass", "plains", "forest_floor"],
+      "assetKind": "grass",
+      "cropProfileId": "tile_iso_96x48_anchor_center",
+      "renderLayer": "terrain"
+    },
+    "road_edge": {
+      "semanticUse": ["road_edge", "path_edge"],
+      "assetKind": "road",
+      "cropProfileId": "tile_iso_96x48_anchor_center",
+      "renderLayer": "terrain"
+    },
+    "stone": {
+      "semanticUse": ["stone", "mountain", "ruin_floor"],
+      "assetKind": "grass",
+      "cropProfileId": "tile_iso_96x48_anchor_center",
+      "renderLayer": "terrain"
+    },
+    "sand": {
+      "semanticUse": ["sand", "desert"],
+      "assetKind": "desert",
+      "cropProfileId": "tile_iso_96x48_anchor_center",
+      "renderLayer": "terrain"
+    }
+  }
+}

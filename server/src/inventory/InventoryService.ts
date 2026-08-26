@@ -2,7 +2,7 @@
  * INVENTORY SERVICE
  *
  * Server-authoritative inventory service with persistence hydration.
- * Deterministic: No Math.random(), no Date.now(), stable ordering.
+ * Deterministic: seeded/tick-safe runtime and stable ordering.
  */
 
 import { InventoryStore } from "./InventoryStore.js";
@@ -12,8 +12,10 @@ import {
 } from "./InventoryPersistence.js";
 import type {
   InventoryAddResult,
-  InventoryRemoveResult,
   InventoryItemId,
+  InventoryItemOrigin,
+  InventoryMovementEvent,
+  InventoryRemoveResult,
   PlayerInventoryState,
 } from "./InventoryTypes.js";
 
@@ -30,19 +32,30 @@ export class InventoryService {
     return this.store.getPlayerInventory(playerId);
   }
 
+  getAppliedOriginUids(playerId: string): readonly string[] {
+    return this.store.getAppliedOriginUids(playerId);
+  }
+
+  getMovementEventCount(): number {
+    return this.store.getMovementEventCount();
+  }
+
+  getMovementEvents(playerId?: string): readonly InventoryMovementEvent[] {
+    return this.store.getMovementEvents(playerId);
+  }
+
   async addItem(input: {
     playerId: string;
     itemId: InventoryItemId | string;
     quantity: number;
+    origin?: InventoryItemOrigin;
   }): Promise<InventoryAddResult> {
     await this.hydratePlayer(input.playerId);
 
     const result = this.store.addItem(input);
 
     if (result.ok && result.state) {
-      await this.persistence.savePlayerInventory(
-        createPersistedPlayerInventoryState(input.playerId, result.state),
-      );
+      await this.persistInventory(input.playerId, result.state);
     }
 
     return result;
@@ -58,9 +71,7 @@ export class InventoryService {
     const result = this.store.removeItem(input);
 
     if (result.ok && result.state) {
-      await this.persistence.savePlayerInventory(
-        createPersistedPlayerInventoryState(input.playerId, result.state),
-      );
+      await this.persistInventory(input.playerId, result.state);
     }
 
     return result;
@@ -74,12 +85,44 @@ export class InventoryService {
     return this.store.hasItems(input);
   }
 
+  async persistInventory(playerId: string, state: PlayerInventoryState): Promise<void> {
+    await this.persistence.savePlayerInventory(
+      createPersistedPlayerInventoryState(
+        playerId,
+        state,
+        this.store.getAppliedOriginUids(playerId),
+      ),
+    );
+  }
+
+  replacePlayerInventory(
+    playerId: string,
+    state: PlayerInventoryState,
+    appliedOriginUids: readonly string[] = [],
+  ): void {
+    this.store.replacePlayerInventory(playerId, state, appliedOriginUids);
+    this.hydratedPlayers.add(playerId);
+  }
+
+  async restorePlayerInventory(
+    playerId: string,
+    state: PlayerInventoryState,
+    appliedOriginUids: readonly string[] = [],
+    movementEventCount?: number,
+  ): Promise<void> {
+    this.replacePlayerInventory(playerId, state, appliedOriginUids);
+    if (movementEventCount !== undefined) {
+      this.store.truncateMovementEvents(movementEventCount);
+    }
+    await this.persistInventory(playerId, state);
+  }
+
   async hydratePlayer(playerId: string): Promise<void> {
     if (this.hydratedPlayers.has(playerId)) return;
 
     const persisted = await this.persistence.loadPlayerInventory(playerId);
     if (persisted) {
-      this.store.replacePlayerInventory(playerId, persisted);
+      this.store.replacePlayerInventory(playerId, persisted, persisted.appliedOriginUids);
     }
 
     this.hydratedPlayers.add(playerId);

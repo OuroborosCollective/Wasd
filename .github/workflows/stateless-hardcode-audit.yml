@@ -1,0 +1,88 @@
+name: Stateless Hardcode Audit
+
+on:
+  pull_request:
+    paths:
+      - 'apps/client-2d/src/**'
+      - 'server/src/**'
+      - 'scripts/audit-hardcoded-runtime-state.mjs'
+      - '.github/workflows/stateless-hardcode-audit.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/client-2d/src/**'
+      - 'server/src/**'
+      - 'scripts/audit-hardcoded-runtime-state.mjs'
+      - '.github/workflows/stateless-hardcode-audit.yml'
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: 'Fail when ERROR severity toxic runtime hardcoding is found'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      strict_all:
+        description: 'Treat WARN findings as ERROR too'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stateless-hardcode-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hardcode-audit:
+    name: Audit toxic runtime hardcoding
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.2'
+
+      - name: Print toolchain
+        run: |
+          node --version
+
+      - name: Run stateless hardcode audit
+        env:
+          STRICT_INPUT: ${{ inputs.strict }}
+          STRICT_ALL_INPUT: ${{ inputs.strict_all }}
+        run: |
+          set -euo pipefail
+
+          args=()
+
+          # Only fail on push to main or workflow_dispatch with strict=true
+          # Pull requests report findings without blocking merge
+          if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            args+=(--fail)
+          fi
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${STRICT_INPUT:-true}" = "true" ]; then
+            args+=(--fail)
+          fi
+
+          if [ "${STRICT_ALL_INPUT:-false}" = "true" ]; then
+            args+=(--strict-all)
+          fi
+
+          node scripts/audit-hardcoded-runtime-state.mjs "${args[@]}"

@@ -1,24 +1,39 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { InventoryPanel, type InventoryItem } from "./ui/InventoryPanel";
-import { InventoryPanel as InventorySnapshotPanel } from "./ui/windows/InventoryPanel";
-import { EquipmentPanel } from "./ui/windows/EquipmentPanel";
-import { AREHeartbeatPanel, DEFAULT_ARE_HEARTBEAT, type AREHeartbeatSnapshot } from "./AREHeartbeatPanel";
-import { QuestJournalPanel } from "./ui/windows/QuestJournalPanel";
-import { QuestPreviewPanel } from "./ui/windows/QuestPreviewPanel";
-import { GuildStatusPanel } from "./ui/windows/GuildStatusPanel";
-import { FactionStandingPanel } from "./ui/windows/FactionStandingPanel";
-import { MapStatusPanel } from "./ui/windows/MapStatusPanel";
-import { ResourceNodePanel } from "./ui/windows/ResourceNodePanel";
-import { useLiveGameplaySnapshot } from "./game/useLiveGameplaySnapshot";
-import { GameplayWindowDock } from "./ui/GameplayWindowDock";
-import { GameplayWindowsLayer } from "./ui/GameplayWindowsLayer";
-import { useGameplayPanels } from "./ui/useGameplayPanels";
-import { publishPlayerPositionBridge } from "./game/PlayerPositionBridge";
-import "./areHeartbeat.css";
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { InventoryPanel, type InventoryItem } from './ui/InventoryPanel';
+import { InventoryPanel as InventorySnapshotPanel } from './ui/windows/InventoryPanel';
+import { EquipmentPanel } from './ui/windows/EquipmentPanel';
+import {
+  AREHeartbeatPanel,
+  DEFAULT_ARE_HEARTBEAT,
+  type AREHeartbeatSnapshot,
+} from './AREHeartbeatPanel';
+import { QuestJournalPanel } from './ui/windows/QuestJournalPanel';
+import { QuestPreviewPanel } from './ui/windows/QuestPreviewPanel';
+import { GuildStatusPanel } from './ui/windows/GuildStatusPanel';
+import { FactionStandingPanel } from './ui/windows/FactionStandingPanel';
+import { MapStatusPanel } from './ui/windows/MapStatusPanel';
+import { ResourceNodePanel } from './ui/windows/ResourceNodePanel';
+import { EconomyWorkOrderPanel } from './ui/windows/EconomyWorkOrderPanel';
+import { useLiveGameplaySnapshot } from './game/useLiveGameplaySnapshot';
+import { GameplayWindowDock } from './ui/GameplayWindowDock';
+import { GameplayWindowsLayer } from './ui/GameplayWindowsLayer';
+import { useGameplayPanels } from './ui/useGameplayPanels';
+import { publishPlayerPositionBridge } from './game/PlayerPositionBridge';
+import './areHeartbeat.css';
 
 type Msg = { from: string; txt: string };
-type HudPanel = "inventory" | "character" | "map" | "combat" | "guild" | "factions" | "quests" | "resources" | null;
-type HudOverlay = "vitals" | "radar" | "chat";
+type HudPanel =
+  | 'inventory'
+  | 'character'
+  | 'map'
+  | 'combat'
+  | 'guild'
+  | 'factions'
+  | 'quests'
+  | 'resources'
+  | 'work-orders'
+  | null;
+type HudOverlay = 'vitals' | 'radar' | 'chat';
 
 export interface PlayerVitalsData {
   hp: number;
@@ -56,7 +71,7 @@ export interface ArelorianStitchHudProps {
   debugHeartbeatReceived?: boolean;
   debugInitialized?: boolean;
   // DEBUG: Additional runtime values
-  debugNetworkStatus?: "connected" | "disconnected" | "waiting";
+  debugNetworkStatus?: 'connected' | 'disconnected' | 'waiting';
   debugServerTick?: number | null;
   debugAckSeq?: number | null;
   debugIdentity?: string | null;
@@ -64,34 +79,40 @@ export interface ArelorianStitchHudProps {
 }
 
 const skills = [
-  { id: "atk", key: "1", icon: "⚔", label: "Strike", cost: "STA 4" },
-  { id: "def", key: "2", icon: "🛡", label: "Guard", cost: "MANA +" },
-  { id: "mag", key: "3", icon: "✦", label: "Aether", cost: "MANA 12" },
-  { id: "talk", key: "E", icon: "☉", label: "Talk", cost: "SYNC" },
+  { id: 'atk', key: '1', icon: '⚔', label: 'Strike', cost: 'STA 4' },
+  { id: 'def', key: '2', icon: '🛡', label: 'Guard', cost: 'MANA +' },
+  { id: 'mag', key: '3', icon: '✦', label: 'Aether', cost: 'MANA 12' },
+  { id: 'talk', key: 'E', icon: '☉', label: 'Talk', cost: 'SYNC' },
 ];
 
 const panels: { id: Exclude<HudPanel, null>; label: string; icon: string; shortcut: string }[] = [
-  { id: "inventory", label: "Inventory", icon: "◇", shortcut: "i" },
-  { id: "character", label: "Skills", icon: "⬢", shortcut: "k" },
-  { id: "combat", label: "Matrix", icon: "✕", shortcut: "c" },
-  { id: "map", label: "Map", icon: "◌", shortcut: "m" },
-  { id: "guild", label: "Guild", icon: "♜", shortcut: "g" },
-  { id: "factions", label: "Factions", icon: "⚖", shortcut: "f" },
-  { id: "quests", label: "Quests", icon: "!", shortcut: "q" },
-  { id: "resources", label: "Resources", icon: "⛏", shortcut: "r" },
+  { id: 'inventory', label: 'Inventory', icon: '◇', shortcut: 'i' },
+  { id: 'character', label: 'Skills', icon: '⬢', shortcut: 'k' },
+  { id: 'combat', label: 'Matrix', icon: '✕', shortcut: 'c' },
+  { id: 'map', label: 'Map', icon: '◌', shortcut: 'm' },
+  { id: 'guild', label: 'Guild', icon: '♜', shortcut: 'g' },
+  { id: 'factions', label: 'Factions', icon: '⚖', shortcut: 'f' },
+  { id: 'quests', label: 'Quests', icon: '!', shortcut: 'q' },
+  { id: 'resources', label: 'Resources', icon: '⛏', shortcut: 'r' },
+  { id: 'work-orders', label: 'Orders', icon: '⌘', shortcut: 'o' },
 ];
 
 // Chat button for side menu
-const chatPanelBtn = { id: "chat" as HudPanel, label: "Chat", icon: "💬", shortcut: "t" };
+const chatPanelBtn = { id: 'chat' as HudPanel, label: 'Chat', icon: '💬', shortcut: 't' };
 
 const overlays: { id: HudOverlay; label: string; short: string }[] = [
-  { id: "vitals", label: "Vitals", short: "HP" },
-  { id: "radar", label: "Radar", short: "MAP" },
-  { id: "chat", label: "Chat", short: "CHAT" },
+  { id: 'vitals', label: 'Vitals', short: 'HP' },
+  { id: 'radar', label: 'Radar', short: 'MAP' },
+  { id: 'chat', label: 'Chat', short: 'CHAT' },
 ];
 
 function isTypingTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || Boolean((target as HTMLElement | null)?.isContentEditable);
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    Boolean((target as HTMLElement | null)?.isContentEditable)
+  );
 }
 
 async function requestFullscreen() {
@@ -133,10 +154,14 @@ export function ArelorianStitchHud({
 }: ArelorianStitchHudProps) {
   const [activePanel, setActivePanel] = useState<HudPanel>(null);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
-  const [openOverlays, setOpenOverlays] = useState<Record<HudOverlay, boolean>>({ vitals: false, radar: false, chat: false });
+  const [openOverlays, setOpenOverlays] = useState<Record<HudOverlay, boolean>>({
+    vitals: false,
+    radar: false,
+    chat: false,
+  });
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
-  const [chatText, setChatText] = useState("");
-  
+  const [chatText, setChatText] = useState('');
+
   // Live gameplay snapshot from server (display-only, no game logic)
   const liveGameplay = useLiveGameplaySnapshot();
 
@@ -154,54 +179,56 @@ export function ArelorianStitchHud({
 
   const visibleMessages = useMemo(() => messages.slice(-6), [messages]);
   const hudClasses = [
-    "stitch-hud",
-    openOverlays.vitals ? "show-vitals" : "",
-    openOverlays.radar ? "show-radar" : "",
-    openOverlays.chat ? "show-chat" : "",
-  ].filter(Boolean).join(" ");
+    'stitch-hud',
+    openOverlays.vitals ? 'show-vitals' : '',
+    openOverlays.radar ? 'show-radar' : '',
+    openOverlays.chat ? 'show-chat' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   useEffect(() => {
     function handleFullscreenChange() {
       setIsFullscreen(Boolean(document.fullscreenElement));
     }
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (isTypingTarget(event.target)) return;
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         setActivePanel(null);
         setIsInventoryOpen(false);
         setOpenOverlays({ vitals: false, radar: false, chat: false });
         return;
       }
-      if (event.key.toLowerCase() === "h") {
+      if (event.key.toLowerCase() === 'h') {
         setOpenOverlays((current) => ({ ...current, vitals: !current.vitals }));
         return;
       }
-      if (event.key.toLowerCase() === "enter") {
+      if (event.key.toLowerCase() === 'enter') {
         setOpenOverlays((current) => ({ ...current, chat: true }));
         return;
       }
       const panel = panels.find((p) => p.shortcut === event.key.toLowerCase());
       if (!panel) return;
       event.preventDefault();
-      if (panel.id === "inventory") {
+      if (panel.id === 'inventory') {
         toggleInventory();
         return;
       }
       setActivePanel((current) => (current === panel.id ? null : panel.id));
     }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   function toggleInventory() {
     setIsInventoryOpen((current) => {
       const next = !current;
-      setActivePanel(next ? "inventory" : null);
+      setActivePanel(next ? 'inventory' : null);
       return next;
     });
   }
@@ -211,7 +238,7 @@ export function ArelorianStitchHud({
   }
 
   function selectPanel(panel: Exclude<HudPanel, null>) {
-    if (panel === "inventory") {
+    if (panel === 'inventory') {
       toggleInventory();
       return;
     }
@@ -221,7 +248,7 @@ export function ArelorianStitchHud({
 
   function openQuestJournal() {
     setIsInventoryOpen(false);
-    setActivePanel("quests");
+    setActivePanel('quests');
   }
 
   function closePanel() {
@@ -234,17 +261,21 @@ export function ArelorianStitchHud({
     const text = chatText.trim();
     if (!text) return;
     onChat(text);
-    setChatText("");
+    setChatText('');
   }
 
   function handleSkill(id: string) {
-    if (id === "talk") onInteract();
-    else if (id === "atk" && onStrike) onStrike();
+    if (id === 'talk') onInteract();
+    else if (id === 'atk' && onStrike) onStrike();
     else onSkill(id);
   }
 
   return (
-    <div className={hudClasses} data-testid="arelorian-stitch-hud" aria-label="Arelorian Science MMO HUD">
+    <div
+      className={hudClasses}
+      data-testid="arelorian-stitch-hud"
+      aria-label="Arelorian Science MMO HUD"
+    >
       <div className="stitch-scanlines" aria-hidden="true" />
 
       <header className="stitch-topbar" role="banner">
@@ -253,9 +284,11 @@ export function ArelorianStitchHud({
           <strong>Millbrook Observer Node</strong>
         </div>
         <div className="stitch-node-status" role="status" aria-live="polite">
-          <span className={connected ? "stitch-live-dot on" : "stitch-live-dot"} />
-          <b>{connected ? "WORLD ONLINE" : "SYNCING"}</b>
-          <small>{assetStatus} · {weaponCount} WEAPONS</small>
+          <span className={connected ? 'stitch-live-dot on' : 'stitch-live-dot'} />
+          <b>{connected ? 'WORLD ONLINE' : 'SYNCING'}</b>
+          <small>
+            {assetStatus} · {weaponCount} WEAPONS
+          </small>
         </div>
       </header>
 
@@ -264,8 +297,8 @@ export function ArelorianStitchHud({
           <button
             key={overlay.id}
             type="button"
-            data-testid={overlay.id === "chat" ? "mobile-chat-toggle" : undefined}
-            className={openOverlays[overlay.id] ? "active" : ""}
+            data-testid={overlay.id === 'chat' ? 'mobile-chat-toggle' : undefined}
+            className={openOverlays[overlay.id] ? 'active' : ''}
             onClick={() => toggleOverlay(overlay.id)}
             aria-pressed={openOverlays[overlay.id]}
             title={overlay.label}
@@ -275,12 +308,19 @@ export function ArelorianStitchHud({
         ))}
       </nav>
 
-      <button className="stitch-fullscreen-toggle" type="button" onClick={() => requestFullscreen().catch(() => undefined)} aria-pressed={isFullscreen}>
-        {isFullscreen ? "EXIT" : "FULL"}
+      <button
+        className="stitch-fullscreen-toggle"
+        type="button"
+        onClick={() => requestFullscreen().catch(() => undefined)}
+        aria-pressed={isFullscreen}
+      >
+        {isFullscreen ? 'EXIT' : 'FULL'}
       </button>
 
       <aside className="stitch-vitals" aria-label="Player Vital Stats">
-        <div className="stitch-portrait"><span>Ω</span></div>
+        <div className="stitch-portrait">
+          <span>Ω</span>
+        </div>
         <div className="stitch-nameplate">
           <small>Lv.{level}</small>
           <strong>{playerName}</strong>
@@ -298,45 +338,65 @@ export function ArelorianStitchHud({
         <div className="stitch-debug-title">POSITION DEBUG</div>
         <div className="stitch-debug-row">
           <span>Network:</span>
-          <span className={debugNetworkStatus === "connected" ? "ok" : debugNetworkStatus === "disconnected" ? "error" : "warn"}>
-            {debugNetworkStatus ?? "waiting"}
+          <span
+            className={
+              debugNetworkStatus === 'connected'
+                ? 'ok'
+                : debugNetworkStatus === 'disconnected'
+                  ? 'error'
+                  : 'warn'
+            }
+          >
+            {debugNetworkStatus ?? 'waiting'}
           </span>
         </div>
         <div className="stitch-debug-row">
           <span>Heartbeat:</span>
-          <span className={debugHeartbeatReceived ? "ok" : "warn"}>{debugHeartbeatReceived ? "OK" : "waiting"}</span>
+          <span className={debugHeartbeatReceived ? 'ok' : 'warn'}>
+            {debugHeartbeatReceived ? 'OK' : 'waiting'}
+          </span>
         </div>
         <div className="stitch-debug-row">
           <span>Initialized:</span>
-          <span className={debugInitialized ? "ok" : "warn"}>{debugInitialized ? "YES" : "waiting"}</span>
+          <span className={debugInitialized ? 'ok' : 'warn'}>
+            {debugInitialized ? 'YES' : 'waiting'}
+          </span>
         </div>
         <div className="stitch-debug-row">
           <span>Player Pos:</span>
-          <span>{debugPlayerPos ? `${debugPlayerPos.x.toFixed(0)}, ${debugPlayerPos.z.toFixed(0)}` : "waiting"}</span>
+          <span>
+            {debugPlayerPos
+              ? `${debugPlayerPos.x.toFixed(0)}, ${debugPlayerPos.z.toFixed(0)}`
+              : 'waiting'}
+          </span>
         </div>
         <div className="stitch-debug-row">
           <span>Chunk Coords:</span>
-          <span>{debugChunkCoords ? `${debugChunkCoords.chunkX}, ${debugChunkCoords.chunkZ}` : "waiting"}</span>
+          <span>
+            {debugChunkCoords
+              ? `${debugChunkCoords.chunkX}, ${debugChunkCoords.chunkZ}`
+              : 'waiting'}
+          </span>
         </div>
         <div className="stitch-debug-row">
           <span>Visible Chunks:</span>
-          <span>{debugVisibleChunks != null ? debugVisibleChunks : "waiting"}</span>
+          <span>{debugVisibleChunks != null ? debugVisibleChunks : 'waiting'}</span>
         </div>
         <div className="stitch-debug-row">
           <span>Server Tick:</span>
-          <span>{debugServerTick != null ? debugServerTick : "waiting"}</span>
+          <span>{debugServerTick != null ? debugServerTick : 'waiting'}</span>
         </div>
         <div className="stitch-debug-row">
           <span>Ack Seq:</span>
-          <span>{debugAckSeq != null ? debugAckSeq : "waiting"}</span>
+          <span>{debugAckSeq != null ? debugAckSeq : 'waiting'}</span>
         </div>
         <div className="stitch-debug-row">
           <span>Identity:</span>
-          <span>{debugIdentity ? debugIdentity.slice(0, 8) + "..." : "waiting"}</span>
+          <span>{debugIdentity ? debugIdentity.slice(0, 8) + '...' : 'waiting'}</span>
         </div>
         <div className="stitch-debug-row">
           <span>Character:</span>
-          <span>{debugCharacter ?? "waiting"}</span>
+          <span>{debugCharacter ?? 'waiting'}</span>
         </div>
       </aside>
 
@@ -349,7 +409,7 @@ export function ArelorianStitchHud({
             observerCount: null,
             replayHash: null,
             serverTick: debugServerTick ?? null,
-            heartbeatStatus: debugHeartbeatReceived ? "live" : "waiting",
+            heartbeatStatus: debugHeartbeatReceived ? 'live' : 'waiting',
             lastUpdated: null,
           }}
         />
@@ -359,10 +419,12 @@ export function ArelorianStitchHud({
         {panels.map((panel) => (
           <button
             key={panel.id}
-            className={activePanel === panel.id ? "active" : ""}
+            className={activePanel === panel.id ? 'active' : ''}
             onClick={() => selectPanel(panel.id)}
             title={`${panel.label} [${panel.shortcut.toUpperCase()}]`}
             aria-pressed={activePanel === panel.id}
+            aria-keyshortcuts={panel.shortcut}
+            aria-label={`${panel.label} [${panel.shortcut.toUpperCase()}]`}
           >
             <span>{panel.icon}</span>
             <small>{panel.label}</small>
@@ -370,10 +432,12 @@ export function ArelorianStitchHud({
         ))}
         {/* Chat button in side menu */}
         <button
-          className={openOverlays.chat ? "active" : ""}
-          onClick={() => toggleOverlay("chat")}
+          className={openOverlays.chat ? 'active' : ''}
+          onClick={() => toggleOverlay('chat')}
           title="Chat [T]"
           aria-pressed={openOverlays.chat}
+          aria-keyshortcuts="t"
+          aria-label="Chat [T]"
         >
           <span>{chatPanelBtn.icon}</span>
           <small>{chatPanelBtn.label}</small>
@@ -381,7 +445,11 @@ export function ArelorianStitchHud({
       </aside>
 
       <section className="stitch-radar" aria-label="Radar Sensor">
-        <div className="stitch-radar-ring"><i /><i /><i /></div>
+        <div className="stitch-radar-ring">
+          <i />
+          <i />
+          <i />
+        </div>
         <div>
           <b>ARE Pulse</b>
           <small>10Hz deterministic mesh</small>
@@ -389,21 +457,36 @@ export function ArelorianStitchHud({
       </section>
 
       <section className="stitch-chat" aria-label="Chat and Oracle Feed">
-        <div className="stitch-panel-title"><b>Local / Oracle Feed</b><span>live</span></div>
+        <div className="stitch-panel-title">
+          <b>Local / Oracle Feed</b>
+          <span>live</span>
+        </div>
         <div className="stitch-chat-lines" role="log" aria-live="polite">
           {visibleMessages.map((message, index) => (
-            <p key={`${message.from}-${index}`}><b>{message.from}</b> {message.txt}</p>
+            <p key={`${message.from}-${index}`}>
+              <b>{message.from}</b> {message.txt}
+            </p>
           ))}
         </div>
         <form onSubmit={submitChat} className="stitch-chat-input">
-          <input value={chatText} onChange={(event) => setChatText(event.target.value)} placeholder="Send local message…" aria-label="Chat input" />
+          <input
+            value={chatText}
+            onChange={(event) => setChatText(event.target.value)}
+            placeholder="Send local message…"
+            aria-label="Chat input"
+          />
           <button type="submit">SEND</button>
         </form>
       </section>
 
       <nav className="stitch-skillbar" aria-label="Skill Bar">
         {skills.map((skill) => (
-          <button key={skill.id} onClick={() => handleSkill(skill.id)} aria-label={`${skill.label} skill`}>
+          <button
+            key={skill.id}
+            onClick={() => handleSkill(skill.id)}
+            aria-label={`${skill.label} skill [${skill.key}]`}
+            aria-keyshortcuts={skill.key}
+          >
             <kbd aria-hidden="true">{skill.key}</kbd>
             <span>{skill.icon}</span>
             <b>{skill.label}</b>
@@ -413,20 +496,22 @@ export function ArelorianStitchHud({
       </nav>
 
       <section className="stitch-bottom-right" aria-label="Quick Actions">
-        <button onClick={toggleInventory} aria-pressed={isInventoryOpen}>BAG</button>
+        <button onClick={toggleInventory} aria-pressed={isInventoryOpen}>
+          BAG
+        </button>
         <button onClick={onToggleAutoMove}>AUTO</button>
         <button onClick={onInteract}>INTERACT</button>
         <button
           type="button"
           data-testid="mobile-chat-toggle"
-          onClick={() => toggleOverlay("chat")}
+          onClick={() => toggleOverlay('chat')}
           aria-pressed={openOverlays.chat}
         >
           CHAT
         </button>
       </section>
 
-      {activePanel && (activePanel !== "inventory" || isInventoryOpen) && (
+      {activePanel && (activePanel !== 'inventory' || isInventoryOpen) && (
         <StitchPanel
           panel={activePanel}
           weaponCount={weaponCount}
@@ -446,9 +531,21 @@ export function ArelorianStitchHud({
 }
 
 function Gauge({ label, value, tone }: { label: string; value: number; tone: string }) {
+  const isLow = value < 20 && (tone === 'ruby' || tone === 'emerald');
   return (
-    <div className={`stitch-gauge ${tone}`} role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
-      <div><b>{label}</b><span>{value}%</span></div>
+    <div
+      className={`stitch-gauge ${tone}${isLow ? ' low-pulse' : ''}`}
+      role="progressbar"
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={label}
+      aria-valuetext={`${value}% ${label}`}
+    >
+      <div>
+        <b>{label}</b>
+        <span>{value}%</span>
+      </div>
       <i style={{ width: `${value}%` }} />
     </div>
   );
@@ -475,68 +572,122 @@ function StitchPanel({
 }) {
   const title = panelTitle(panel);
   return (
-    <div className="stitch-modal" role="dialog" aria-modal="true" aria-labelledby="stitch-modal-title">
+    <div
+      className="stitch-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="stitch-modal-title"
+    >
       <div className="stitch-modal-card">
         <header>
           <div>
             <small>ARELORIAN SCIENCE MODULE</small>
             <h2 id="stitch-modal-title">{title}</h2>
           </div>
-          <button onClick={onClose} aria-label="Close panel">×</button>
+          <button
+            type="button"
+            className="wow-close-btn"
+            onClick={onClose}
+            aria-label="Close [ESC]"
+            aria-keyshortcuts="Escape"
+          >
+            <kbd className="cz-kbd" aria-hidden="true">
+              ESC
+            </kbd>
+            ✕
+          </button>
         </header>
-        {panel === "inventory" && (
+        {panel === 'inventory' && (
           <>
-            <InventorySnapshotPanel inventory={liveGameplay.inventory} equipment={liveGameplay.equipment} />
-            <InventoryPanel items={inventoryItems} equippedWeaponId={equippedWeaponId} onEquipWeapon={(item) => onEquipWeapon?.(item)} />
+            <InventorySnapshotPanel
+              inventory={liveGameplay.inventory}
+              equipment={liveGameplay.equipment}
+            />
+            <InventoryPanel
+              items={inventoryItems}
+              equippedWeaponId={equippedWeaponId}
+              onEquipWeapon={(item) => onEquipWeapon?.(item)}
+            />
           </>
         )}
-        {panel === "character" && <EquipmentPanel isOpen={true} onClose={onClose} />}
-        {panel === "combat" && <CombatPreview equippedWeaponId={equippedWeaponId} />}
-        {panel === "map" && <MapStatusPanel snapshot={liveGameplay} />}
-        {panel === "guild" && <GuildStatusPanel snapshot={liveGameplay} />}
-        {panel === "factions" && <FactionStandingPanel snapshot={liveGameplay} />}
-        {panel === "quests" && <QuestJournalPanel snapshot={liveGameplay} />}
-        {panel === "resources" && <ResourceNodePanel resources={liveGameplay.resources ?? []} />}
-        {panel === "inventory" && weaponCount > 0 && <button className="stitch-cycle-fallback" type="button" onClick={onCycleWeapon}>Cycle Gear Visual</button>}
+        {panel === 'character' && <EquipmentPanel isOpen={true} onClose={onClose} />}
+        {panel === 'combat' && <CombatPreview equippedWeaponId={equippedWeaponId} />}
+        {panel === 'map' && <MapStatusPanel snapshot={liveGameplay} />}
+        {panel === 'guild' && <GuildStatusPanel snapshot={liveGameplay} />}
+        {panel === 'factions' && <FactionStandingPanel snapshot={liveGameplay} />}
+        {panel === 'quests' && <QuestJournalPanel snapshot={liveGameplay} />}
+        {panel === 'resources' && <ResourceNodePanel resources={liveGameplay.resources ?? []} />}
+        {panel === 'work-orders' && <EconomyWorkOrderPanel />}
+        {panel === 'inventory' && weaponCount > 0 && (
+          <button className="stitch-cycle-fallback" type="button" onClick={onCycleWeapon}>
+            Cycle Gear Visual
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 function panelTitle(panel: Exclude<HudPanel, null>) {
-  return ({
-    inventory: "Inventory Matrix",
-    character: "Character & Skills",
-    combat: "Combat Matrix",
-    map: "Arelorian Highlands",
-    guild: "Guild Console",
-    factions: "Faction Reputation",
-    quests: "Quest Journal",
-    resources: "Resource Nodes",
-  } as const)[panel];
+  return (
+    {
+      inventory: 'Inventory Matrix',
+      character: 'Character & Skills',
+      combat: 'Combat Matrix',
+      map: 'Arelorian Highlands',
+      guild: 'Guild Console',
+      factions: 'Faction Reputation',
+      quests: 'Quest Journal',
+      resources: 'Resource Nodes',
+      'work-orders': 'NPC Work Orders',
+    } as const
+  )[panel];
 }
 
 function cleanWeaponName(id?: string | null) {
-  return id ? id.replace(/[_-]/g, " ") : "none equipped";
+  return id ? id.replace(/[_-]/g, ' ') : 'none equipped';
 }
 
 function CharacterPreview() {
-  return <div className="stitch-grid-panel"><Info label="Level" value="1" /><Info label="ARE Sync" value="stable" /><Info label="Class" value="classless" /><Info label="Skill Mode" value="use-based" /></div>;
+  return (
+    <div className="stitch-grid-panel">
+      <Info label="Level" value="1" />
+      <Info label="ARE Sync" value="stable" />
+      <Info label="Class" value="classless" />
+      <Info label="Skill Mode" value="use-based" />
+    </div>
+  );
 }
 function CombatPreview({ equippedWeaponId }: { equippedWeaponId?: string | null }) {
-  return <div className="stitch-grid-panel"><Info label="Tick" value="10Hz" /><Info label="Weapon" value={cleanWeaponName(equippedWeaponId)} /><Info label="Threat" value="low" /><Info label="Warfront" value="cycle-linked" /></div>;
+  return (
+    <div className="stitch-grid-panel">
+      <Info label="Tick" value="10Hz" />
+      <Info label="Weapon" value={cleanWeaponName(equippedWeaponId)} />
+      <Info label="Threat" value="low" />
+      <Info label="Warfront" value="cycle-linked" />
+    </div>
+  );
 }
 function Info({ label, value }: { label: string; value: string }) {
-  return <article className="stitch-info"><small>{label}</small><b>{value}</b></article>;
+  return (
+    <article className="stitch-info">
+      <small>{label}</small>
+      <b>{value}</b>
+    </article>
+  );
 }
 
 // Gameplay Windows Layer with snapshot - wraps hook and layer
-function GameplayWindowsLayerWithSnapshot({ liveGameplay }: { liveGameplay: ReturnType<typeof useLiveGameplaySnapshot> }) {
+function GameplayWindowsLayerWithSnapshot({
+  liveGameplay,
+}: {
+  liveGameplay: ReturnType<typeof useLiveGameplaySnapshot>;
+}) {
   const { openPanels, togglePanel } = useGameplayPanels();
 
   return (
     <>
-      <GameplayWindowsLayer snapshot={liveGameplay} openPanels={openPanels} />
+      <GameplayWindowsLayer snapshot={liveGameplay} openPanels={openPanels} onClose={togglePanel} />
       <GameplayWindowDock openPanels={openPanels} onToggle={togglePanel} />
     </>
   );

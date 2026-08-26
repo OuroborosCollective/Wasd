@@ -90,9 +90,15 @@ function MemberRow({ member }: MemberRowProps) {
   
   return (
     <div className="guild-member-row">
-      <div className="guild-member-status" style={{ 
-        backgroundColor: member.online ? "#1eff00" : "#4a5a6a" 
-      }} />
+      <div
+        className="guild-member-status"
+        style={{
+          backgroundColor: member.online ? "#1eff00" : "#4a5a6a"
+        }}
+        role="status"
+        aria-label={member.online ? "Online" : "Offline"}
+        title={member.online ? "Online" : "Offline"}
+      />
       <div className="guild-member-info">
         <span className="guild-member-name" style={{ color: rankColor }}>
           {member.name}
@@ -128,6 +134,20 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
     return () => window.removeEventListener("wasd:network-packet", handleNetworkPacket);
   }, []);
 
+  // Listen for Escape key to close the window
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const members = snapshot?.members ?? [];
@@ -138,7 +158,8 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
       <div className="wow-inventory-header">
         <h2>GUILD</h2>
         {onClose && (
-          <button className="wow-close-btn" onClick={onClose} aria-label="Close">
+          <button className="wow-close-btn" onClick={onClose} aria-label="Close [ESC]" aria-keyshortcuts="Escape">
+            <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
             ✕
           </button>
         )}
@@ -192,16 +213,36 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
         <section className="guild-section guild-actions-section">
           <h3>Actions</h3>
           <div className="guild-actions-grid">
-            <button className="guild-action-btn" disabled>
+            <button
+              className="guild-action-btn"
+              disabled
+              title="Invite (Coming Soon)"
+              aria-label="Invite (Coming Soon)"
+            >
               📢 Invite
             </button>
-            <button className="guild-action-btn" disabled>
+            <button
+              className="guild-action-btn"
+              disabled
+              title="Guild Info (Coming Soon)"
+              aria-label="Guild Info (Coming Soon)"
+            >
               📜 Guild Info
             </button>
-            <button className="guild-action-btn" disabled>
+            <button
+              className="guild-action-btn"
+              disabled
+              title="Treasury (Coming Soon)"
+              aria-label="Treasury (Coming Soon)"
+            >
               💰 Treasury
             </button>
-            <button className="guild-action-btn" disabled>
+            <button
+              className="guild-action-btn"
+              disabled
+              title="War (Coming Soon)"
+              aria-label="War (Coming Soon)"
+            >
               ⚔️ War
             </button>
           </div>

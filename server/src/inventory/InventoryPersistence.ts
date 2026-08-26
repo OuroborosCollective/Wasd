@@ -12,6 +12,7 @@ import {
 
 export interface PersistedPlayerInventoryState extends PlayerInventoryState {
   schemaVersion: 1;
+  appliedOriginUids: string[];
 }
 
 export interface InventoryPersistenceAdapter {
@@ -20,9 +21,18 @@ export interface InventoryPersistenceAdapter {
   health?(): Promise<{ ok: boolean; driver: string; error?: string }>;
 }
 
+function normalizeAppliedOriginUids(values: readonly string[] | undefined): string[] {
+  return [...new Set((values ?? []).map((value) => String(value).trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
 export function createPersistedPlayerInventoryState(
   playerId: string,
   state: PlayerInventoryState,
+  appliedOriginUids: readonly string[] = [],
 ): PersistedPlayerInventoryState {
-  return normalizePlayerInventoryState(state, playerId);
+  return {
+    ...normalizePlayerInventoryState(state, playerId),
+    appliedOriginUids: normalizeAppliedOriginUids(appliedOriginUids),
+  };
 }

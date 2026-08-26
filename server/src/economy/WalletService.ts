@@ -2,7 +2,7 @@
  * WALLET SERVICE
  *
  * Server-authoritative wallet service with persistence hydration.
- * Deterministic: No Math.random(), no Date.now(), stable ordering.
+ * Deterministic: seeded/tick-safe runtime and stable ordering.
  */
 
 import { WalletStore } from "./WalletStore.js";
@@ -32,13 +32,34 @@ export class WalletService {
     await this.hydratePlayer(input.playerId);
     const result = this.store.addCoins(input.playerId, input.amount);
 
-    if (result) {
-      await this.persistence.saveWallet(
-        createPersistedWalletState(input.playerId, result),
-      );
-    }
-
+    await this.persistWallet(input.playerId, result);
     return result;
+  }
+
+  async subtractCoins(input: {
+    playerId: string;
+    amount: number;
+  }): Promise<WalletState> {
+    await this.hydratePlayer(input.playerId);
+    const result = this.store.subtractCoins(input.playerId, input.amount);
+
+    await this.persistWallet(input.playerId, result);
+    return result;
+  }
+
+  async persistWallet(playerId: string, state: WalletState): Promise<void> {
+    await this.persistence.saveWallet(createPersistedWalletState(playerId, state));
+  }
+
+  async restoreWallet(playerId: string, state: WalletState): Promise<void> {
+    const restored: WalletState = {
+      playerId,
+      schemaVersion: 1,
+      balances: { ...state.balances },
+    };
+    this.store.replaceWallet(playerId, restored);
+    this.hydratedPlayers.add(playerId);
+    await this.persistWallet(playerId, restored);
   }
 
   async hydratePlayer(playerId: string): Promise<void> {

@@ -7,72 +7,112 @@
  * The 13 Layer-Zustände der Chunks werden asynchron weggeschrieben.
  */
 
-import type { ChunkKey, TickId, StateHash, KappaInt } from './types.js';
+import type { ChunkKey, TickId, StateHash } from './types.js';
 import type { IARELogicLayers } from './IARELogicLayers.js';
-import { createStateHash } from './types.js';
+import type { LayerPersistenceAdapter, PersistedLayerState } from './LayerPersistencePort.js';
+import { layersToCanonicalArray } from './LayerPersistencePort.js';
+import { getLayerPersistenceDriverName } from './createLayerPersistenceAdapter.js';
 
-/**
- * Layer persistence event for write-behind queue.
- */
 export interface LayerPersistenceEvent {
   chunkKey: ChunkKey;
   tick: TickId;
   layerSnapshot: IARELogicLayers;
   deltaHash: StateHash;
-  timestamp: number; // Wall-clock for ops only
+  timestamp: number;
 }
 
-/**
- * Persistence queue statistics.
- */
 export interface PersistenceQueueStats {
   queuedEvents: number;
   flushedEvents: number;
   failedEvents: number;
   lastFlushTimestamp: number;
   averageFlushDurationMs: number;
+  /** Explicit persistence driver in use (json | postgres | none). Never a placeholder. */
+  driver: string;
+  /** True only when a real adapter confirmed the last write; never a fake-green. */
+  lastWriteConfirmed: boolean;
+  /** True when the queue degraded (adapter missing/failed) — not green. */
+  degraded: boolean;
 }
 
-/**
- * LayerPersistenceQueue - Write-behind queue for 13-layer persistence.
- * 
- * Writes are debounced and batched to minimize I/O impact on tick timing.
- * Uses async operations to ensure non-blocking behavior.
- */
 export class LayerPersistenceQueue {
-  /** Pending persistence events */
   private eventQueue: LayerPersistenceEvent[] = [];
-  
-  /** Flush interval in ticks (every 300 ticks = 30 seconds at 10Hz) */
   private flushIntervalTicks = 300;
-  
-  /** Maximum queue size before forced flush */
   private maxQueueSize = 1000;
-  
-  /** Current tick count */
   private currentTick: TickId = 0 as TickId;
-  
-  /** Statistics */
+
+  /**
+   * Real persistence adapter. `null` only before the async factory resolves
+   * or when no adapter could be built (degraded). The queue never fakes a
+   * write: while `null`, flush is a no-op and stats stay non-green.
+   */
+  private adapter: LayerPersistenceAdapter | null = null;
+  private adapterReady: Promise<void> | null = null;
+  private driverName: string = 'none';
+
   private stats: PersistenceQueueStats = {
     queuedEvents: 0,
     flushedEvents: 0,
     failedEvents: 0,
     lastFlushTimestamp: 0,
-    averageFlushDurationMs: 0
+    averageFlushDurationMs: 0,
+    driver: 'none',
+    lastWriteConfirmed: false,
+    degraded: true,
   };
-  
-  /** Flush timer handle */
+
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
-  
+
+  constructor(adapter: LayerPersistenceAdapter | null = null) {
+    if (adapter) {
+      this.setAdapter(adapter);
+    } else {
+      this.driverName = getLayerPersistenceDriverName();
+      this.stats.driver = this.driverName;
+    }
+  }
+
   /**
-   * Enqueue a layer persistence event.
-   * Non-blocking - returns immediately.
+   * Inject a real persistence adapter. Required for the queue to count as
+   * non-degraded. Used by bootstrap wiring and tests.
    */
+  setAdapter(adapter: LayerPersistenceAdapter): void {
+    this.adapter = adapter;
+    this.driverName = adapter.driverName;
+    this.stats.driver = this.driverName;
+    this.stats.degraded = false;
+  }
+
+  /**
+   * Lazily build the production adapter via the async factory. Safe to call
+   * repeatedly; resolves once the adapter is set.
+   */
+  async ensureAdapter(
+    factory: () => Promise<LayerPersistenceAdapter>,
+  ): Promise<void> {
+    if (this.adapter) return;
+    if (this.adapterReady) {
+      await this.adapterReady;
+      return;
+    }
+    this.adapterReady = (async () => {
+      try {
+        const built = await factory();
+        this.setAdapter(built);
+      } catch (error) {
+        console.error('[LayerPersistenceQueue] Adapter init failed:', error);
+        this.stats.degraded = true;
+      } finally {
+        this.adapterReady = null;
+      }
+    })();
+    await this.adapterReady;
+  }
+
   enqueue(event: LayerPersistenceEvent): void {
     this.eventQueue.push(event);
     this.stats.queuedEvents++;
-    
-    // Check if we need to force flush
+
     if (this.eventQueue.length >= this.maxQueueSize) {
       this.flush().catch(e => {
         console.error('[LayerPersistenceQueue] Flush error:', e);
@@ -80,20 +120,14 @@ export class LayerPersistenceQueue {
       });
     }
   }
-  
-  /**
-   * Check if flush should occur based on tick interval.
-   */
+
   shouldFlush(): boolean {
     return this.currentTick > 0 && this.currentTick % this.flushIntervalTicks === 0;
   }
-  
-  /**
-   * Called each tick to potentially trigger a flush.
-   */
+
   tick(tickCount: TickId): void {
     this.currentTick = tickCount;
-    
+
     if (this.shouldFlush()) {
       this.flush().catch(e => {
         console.error('[LayerPersistenceQueue] Periodic flush error:', e);
@@ -101,125 +135,130 @@ export class LayerPersistenceQueue {
       });
     }
   }
-  
-  /**
-   * Flush all queued events asynchronously.
-   * Non-blocking for tick loop.
-   */
+
   async flush(): Promise<void> {
     if (this.eventQueue.length === 0) {
       return;
     }
-    
-    const startTime = performance.now();
+
+    // ARE truth path: never fake a write. If no real adapter is wired, keep
+    // events in the queue, mark degraded, and count failures.
+    if (!this.adapter) {
+      this.stats.degraded = true;
+      this.stats.failedEvents += this.eventQueue.length;
+      return;
+    }
+
     const eventsToFlush = [...this.eventQueue];
     this.eventQueue = [];
-    
+
     try {
-      // Batch write all events
       await this.persistBatch(eventsToFlush);
-      
-      const duration = performance.now() - startTime;
-      this.updateStats(duration);
-      
+      this.updateStats(eventsToFlush.length);
+      this.stats.lastWriteConfirmed = true;
     } catch (error) {
-      // Re-queue failed events for retry
+      // Preserve events on failure — no lost mutations.
       this.eventQueue.unshift(...eventsToFlush);
       this.stats.failedEvents += eventsToFlush.length;
+      this.stats.lastWriteConfirmed = false;
+      this.stats.degraded = true;
       throw error;
     }
   }
-  
-  /**
-   * Persist a batch of events.
-   * In production, this would write to database/filesystem.
-   */
+
   private async persistBatch(events: LayerPersistenceEvent[]): Promise<void> {
-    // Simulated async persistence
-    // In production: await db.writeBatch(events)
-    
-    return new Promise((resolve) => {
-      // Simulate async write with minimal delay
-      setTimeout(() => {
-        // In production: actual database write
-        // await this.persistenceAdapter.writeEvents(events);
-        resolve();
-      }, 1);
-    });
+    if (!this.adapter) {
+      throw new Error('[LayerPersistenceQueue] No persistence adapter wired');
+    }
+
+    // Canonical sort (ChunkKey -> Tick) for deterministic representation.
+    const sorted = [...events].sort((a, b) =>
+      String(a.chunkKey).localeCompare(String(b.chunkKey)) ||
+      Number(a.tick) - Number(b.tick),
+    );
+
+    const persisted: PersistedLayerState[] = sorted.map((event) => ({
+      chunkKey: event.chunkKey,
+      tick: event.tick,
+      deltaHash: event.deltaHash,
+      schemaVersion: 1 as const,
+      layers: layersToCanonicalArray(event.layerSnapshot),
+    }));
+
+    await this.adapter.saveBatch(persisted);
   }
-  
+
   /**
-   * Update statistics after flush.
+   * Read back the persisted layer state for a chunk, or null. Used by rehydrate
+   * on chunk registration. Returns null when no adapter is wired (fail closed).
    */
-  private updateStats(durationMs: number): void {
-    const totalFlushed = this.stats.flushedEvents + this.eventQueue.length;
-    const totalDuration = this.stats.averageFlushDurationMs * this.stats.flushedEvents + durationMs;
-    
-    this.stats.flushedEvents += this.eventQueue.length;
-    this.stats.lastFlushTimestamp = Date.now();
-    this.stats.averageFlushDurationMs = totalDuration / this.stats.flushedEvents;
+  async loadChunkState(chunkKey: ChunkKey): Promise<PersistedLayerState | null> {
+    if (!this.adapter) return null;
+    try {
+      return await this.adapter.loadChunkState(chunkKey);
+    } catch (error) {
+      console.error('[LayerPersistenceQueue] loadChunkState failed:', error);
+      return null;
+    }
   }
-  
-  /**
-   * Get current queue size.
-   */
+
+  private updateStats(flushedCount: number): void {
+    if (flushedCount <= 0) return;
+
+    this.stats.flushedEvents += flushedCount;
+    this.stats.lastFlushTimestamp = Number(this.currentTick) > 0
+      ? Number(this.currentTick)
+      : this.stats.flushedEvents;
+    // averageFlushDurationMs intentionally stays 0 to keep persistence a
+    // deterministic side-channel (no wall-clock coupling).
+  }
+
   getQueueSize(): number {
     return this.eventQueue.length;
   }
-  
-  /**
-   * Get statistics.
-   */
+
   getStats(): PersistenceQueueStats {
     return { ...this.stats };
   }
-  
-  /**
-   * Set flush interval in ticks.
-   */
+
+  getDriverName(): string {
+    return this.driverName;
+  }
+
+  isDegraded(): boolean {
+    return this.adapter === null || this.stats.degraded;
+  }
+
+  getAdapter(): LayerPersistenceAdapter | null {
+    return this.adapter;
+  }
+
   setFlushInterval(ticks: number): void {
     this.flushIntervalTicks = ticks;
   }
-  
-  /**
-   * Clear all pending events.
-   */
+
   clear(): void {
     this.eventQueue = [];
   }
-  
-  /**
-   * Force immediate flush and wait for completion.
-   */
+
   async forceFlush(): Promise<void> {
     await this.flush();
   }
-  
-  /**
-   * Shutdown the queue gracefully.
-   */
+
   async shutdown(): Promise<void> {
-    // Clear flush timer
     if (this.flushTimer) {
       clearTimeout(this.flushTimer);
       this.flushTimer = null;
     }
-    
-    // Final flush
+
     if (this.eventQueue.length > 0) {
       await this.flush();
     }
   }
 }
 
-/**
- * Global LayerPersistenceQueue instance.
- */
 export const layerPersistenceQueue = new LayerPersistenceQueue();
 
-/**
- * Create a persistence event from chunk state.
- */
 export function createLayerPersistenceEvent(
   chunkKey: ChunkKey,
   tick: TickId,
@@ -229,22 +268,15 @@ export function createLayerPersistenceEvent(
   return {
     chunkKey,
     tick,
-    layerSnapshot: { ...layers }, // Clone to prevent mutation
+    layerSnapshot: { ...layers },
     deltaHash,
-    timestamp: Date.now() // Wall-clock for ops only, not simulation
+    timestamp: Number(tick)
   };
 }
 
-/**
- * ARE-Erhaltung (Memory) constants.
- */
 export const PERSISTENCE_CONSTANTS = {
-  /** Default flush interval (300 ticks = 30 seconds at 10Hz) */
   DEFAULT_FLUSH_INTERVAL_TICKS: 300,
-  
-  /** Maximum queue size before forced flush */
+  DEFAULT_MAX_QUEUE_SIZE: 1000,
   MAX_QUEUE_SIZE: 1000,
-  
-  /** Minimum time between flushes (ms) */
-  MIN_FLUSH_INTERVAL_MS: 100
+  MIN_FLUSH_INTERVAL_MS: 100,
 } as const;

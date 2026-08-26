@@ -45,7 +45,7 @@ permissions:
   pull-requests: read
 
 env:
-  NODE_VERSION: "22"
+  NODE_VERSION: "22.23.2"
   WIKI_SOURCE_DIR: "docs/wiki"
   WIKI_BUILD_DIR: ".wiki-build"
 
@@ -53,6 +53,8 @@ jobs:
   wiki-engine:
     name: Autonomous Wiki Engine
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 15
 
     steps:

@@ -60,8 +60,8 @@ export class ChatChannelRouter {
 
     if (partial.senderType === "npc" && partial.npcId) {
       const now = 0 /* ARE-DETERMINISM-ALLOW: determinism placeholder */;
-      const last = this.npcCooldowns.get(partial.npcId) ?? 0;
-      if (now - last < this.npcCooldownMs) return null;
+      const last = this.npcCooldowns.get(partial.npcId);
+      if (last !== undefined && now - last < this.npcCooldownMs) return null;
       this.npcCooldowns.set(partial.npcId, now);
     }
 

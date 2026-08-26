@@ -1,5 +1,7 @@
 import type { CombatResultPayload } from "../net/protocol";
 
+const COMBAT_TICK_MS = 100;
+
 export interface CombatLogEntry {
   id: string;
   atTick: number;
@@ -20,6 +22,7 @@ export function createCombatLogStore(maxEntries = 30): CombatLogStore {
   return {
     push(result) {
       const amount = result.amount ?? 0;
+      const atTick = Number.isFinite(result.atTick) && result.atTick >= 0 ? Math.trunc(result.atTick) : 0;
 
       const text =
         result.kind === "damage"
@@ -30,10 +33,10 @@ export function createCombatLogStore(maxEntries = 30): CombatLogStore {
 
       entries.unshift({
         id: result.id,
-        atTick: result.atTick,
+        atTick,
         text,
         kind: result.kind,
-        atMs: Date.now()
+        atMs: atTick * COMBAT_TICK_MS
       });
 
       while (entries.length > maxEntries) {

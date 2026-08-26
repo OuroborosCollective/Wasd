@@ -2,7 +2,7 @@
   "version": 2,
   "id": "modular_weapon_atlas",
   "source": "modular_weapon_atlas.zip",
-  "generatedAt": "2026-05-27T11:14:23.820Z",
+  "generatedAt": "2026-08-07T19:01:56.872Z",
   "deterministic": true,
   "basePath": "/2d-assets/weapons/modular",
   "atlas": "atlas.png",

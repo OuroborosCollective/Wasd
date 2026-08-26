@@ -4,7 +4,6 @@ import type { EquipmentSlotId } from "../game/equipment";
 import type { QuestState } from "../game/quests";
 import type { SkillId } from "../game/skills";
 
-// Protocol v7: Identity, Auth Binding & Stable Player Ownership
 export const ARELORIA_PROTOCOL_VERSION = 7 as const;
 
 export type ClientMessageType =
@@ -48,6 +47,7 @@ export type ServerMessageType =
   | "skill_result"
   | "chunk_snapshot"
   | "gameplay_event"
+  | "causal_catchup_summary"
   | "server_error";
 
 export interface InputFrame {
@@ -71,7 +71,6 @@ export interface WorldSnapshot {
   entities: EntityState[];
 }
 
-// Phase 7: Identity Client Fields (optional fields for client_hello and guest_login)
 export interface IdentityClientFields {
   stableGuestId?: string;
   sessionToken?: string;
@@ -79,7 +78,6 @@ export interface IdentityClientFields {
   selectedCharacterId?: string;
 }
 
-// Protocol v7: Client Hello with identity fields
 export interface ClientHelloPayload extends IdentityClientFields {
   client: "REAL_PIXI_CLIENT";
   engine: "PIXI_2D";
@@ -88,18 +86,15 @@ export interface ClientHelloPayload extends IdentityClientFields {
   protocolVersion: typeof ARELORIA_PROTOCOL_VERSION;
 }
 
-// Protocol v7: Guest Login with identity fields
 export interface GuestLoginPayload extends IdentityClientFields {
   displayName: string;
 }
 
-// Protocol v7: Welcome with extended identity fields
 export interface WelcomePayload {
   playerId: string;
   sceneId?: string;
   serverTick?: number;
   protocolVersion?: number;
-  // Phase 7 identity fields
   sessionToken?: string;
   identityId?: string;
   characterId?: string;
@@ -107,7 +102,6 @@ export interface WelcomePayload {
   resumed?: boolean;
 }
 
-// Protocol v7: Character Summary
 export interface CharacterSummaryPayload {
   id: string;
   name: string;
@@ -116,13 +110,11 @@ export interface CharacterSummaryPayload {
   updatedAtMs?: number;
 }
 
-// Protocol v7: Character List
 export interface CharacterListPayload {
   characters: CharacterSummaryPayload[];
   selectedCharacterId?: string;
 }
 
-// Protocol v7: Character Select Result
 export interface CharacterSelectResultPayload {
   ok: boolean;
   reason?: string;
@@ -130,7 +122,6 @@ export interface CharacterSelectResultPayload {
   sessionToken?: string;
 }
 
-// Protocol v7: Character Create Result
 export interface CharacterCreateResultPayload {
   ok: boolean;
   reason?: string;
@@ -138,7 +129,6 @@ export interface CharacterCreateResultPayload {
   sessionToken?: string;
 }
 
-// Protocol v7: Ownership Error
 export interface OwnershipErrorPayload {
   code: string;
   message: string;
@@ -165,13 +155,7 @@ export interface ClientHeartbeatPayload {
 export interface ServerHeartbeatPayload {
   serverTimeMs: number;
   serverTick?: number;
-}
-
-export interface WelcomePayload {
-  playerId: string;
-  sceneId?: string;
-  serverTick?: number;
-  protocolVersion?: number;
+  clientSentAtMs?: number;
 }
 
 export interface ToastPayload {
@@ -197,8 +181,6 @@ export interface CombatResultPayload {
   amount?: number;
   kind: "damage" | "heal" | "miss" | "block";
 }
-
-// Phase 4 Payload Types
 
 export interface LootPickupRequestPayload {
   tickId: number;
@@ -273,6 +255,95 @@ export interface GameplayEventPayload {
   data: Record<string, unknown>;
 }
 
+export type NPCActivityState =
+  | "idle"
+  | "wandering"
+  | "working"
+  | "guarding"
+  | "fleeing"
+  | "attacking";
+
+export type NPCWorkRole =
+  | "blacksmith"
+  | "farmer"
+  | "merchant"
+  | "guard"
+  | "healer"
+  | "scholar"
+  | "tavern_keeper"
+  | "fisherman"
+  | "woodcutter"
+  | "miner"
+  | "craftsman"
+  | "noble"
+  | "citizen";
+
+export type MonsterArchetype = "beast" | "undead" | "elemental" | "demon" | "golem";
+
+export interface NPCActivityEntry {
+  entityId: string;
+  name: string;
+  activity: NPCActivityState;
+  intentTargetId?: string;
+  chunkKey: string;
+  position: { x: number; y: number };
+  facing?: number;
+  movementIntent?: { x: number; y: number };
+  statusTextKey?: string;
+  workRole?: NPCWorkRole;
+  monsterArchetype?: MonsterArchetype;
+  activityHash: string;
+  sourceTick: number;
+}
+
+export interface ActivityMemoryEvent {
+  id: string;
+  entityId: string;
+  tick: number;
+  eventType: string;
+  fromActivity?: string;
+  toActivity?: string;
+  targetId?: string;
+  data?: Record<string, unknown>;
+}
+
+export interface NPCActivitySnapshotPayload {
+  serverTick: number;
+  entries: NPCActivityEntry[];
+  memoryEvents: ActivityMemoryEvent[];
+  entityCount: number;
+  snapshotHash: string;
+}
+
+export type CausalCatchupEventType =
+  | "resource_depleted"
+  | "market_price_changed"
+  | "npc_activity_changed"
+  | "quest_completed"
+  | "combat_result"
+  | "governance_action"
+  | "legend_recorded";
+
+export interface CausalCatchupEventPayload {
+  eventId: string;
+  type: CausalCatchupEventType;
+  tick: number;
+  significancePerMille: number;
+  regionId: string;
+  chunkKey: string;
+  payloadHash: string;
+  eventHash: string;
+}
+
+export interface CausalCatchupSummaryPayload {
+  eventCount: number;
+  firstTick: number | null;
+  lastTick: number | null;
+  events: CausalCatchupEventPayload[];
+  summaryHash: string;
+  sideChannelOnly: true;
+}
+
 export interface ClientEnvelope<TType extends ClientMessageType, TPayload> {
   type: TType;
   payload: TPayload;
@@ -280,7 +351,7 @@ export interface ClientEnvelope<TType extends ClientMessageType, TPayload> {
   protocolVersion: typeof ARELORIA_PROTOCOL_VERSION;
 }
 
-export interface ServerEnvelope<TType extends ServerMessageType, TPayload> {
+export interface ServerEnvelope<TType extends ServerMessageType | unknown, TPayload> {
   type: TType;
   payload: TPayload;
   t?: number;
@@ -289,6 +360,10 @@ export interface ServerEnvelope<TType extends ServerMessageType, TPayload> {
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isNullableNumber(value: unknown): value is number | null {
+  return value === null || typeof value === "number";
 }
 
 function isEntityState(value: unknown): value is EntityState {
@@ -343,25 +418,16 @@ export function isCombatResultPayload(value: unknown): value is CombatResultPayl
   );
 }
 
-export function isServerHeartbeatPayload(
-  value: unknown
-): value is ServerHeartbeatPayload {
+export function isServerHeartbeatPayload(value: unknown): value is ServerHeartbeatPayload {
   return isRecord(value) && typeof value.serverTimeMs === "number";
 }
-
-// Phase 4 Payload Validators
 
 export function isInventorySnapshotPayload(value: unknown): value is InventorySnapshotPayload {
   return isRecord(value) && Array.isArray(value.slots);
 }
 
 export function isEquipmentSnapshotPayload(value: unknown): value is EquipmentSnapshotPayload {
-  return (
-    isRecord(value) &&
-    isRecord(value.slots) &&
-    typeof value.slots.weapon === "string" ||
-    value.slots.weapon === null
-  );
+  return isRecord(value) && isRecord(value.slots);
 }
 
 export function isQuestSnapshotPayload(value: unknown): value is QuestSnapshotPayload {
@@ -382,27 +448,15 @@ export function isNpcDialoguePayload(value: unknown): value is NpcDialoguePayloa
 }
 
 export function isChunkObservePayload(value: unknown): value is ChunkObservePayload {
-  return (
-    isRecord(value) &&
-    typeof value.centerChunkId === "string" &&
-    Array.isArray(value.chunks)
-  );
+  return isRecord(value) && typeof value.centerChunkId === "string" && Array.isArray(value.chunks);
 }
 
 export function isSkillResultPayload(value: unknown): value is SkillResultPayload {
-  return (
-    isRecord(value) &&
-    typeof value.ok === "boolean" &&
-    typeof value.skillId === "string"
-  );
+  return isRecord(value) && typeof value.ok === "boolean" && typeof value.skillId === "string";
 }
 
 export function isServerErrorPayload(value: unknown): value is ServerErrorPayload {
-  return (
-    isRecord(value) &&
-    typeof value.code === "string" &&
-    typeof value.message === "string"
-  );
+  return isRecord(value) && typeof value.code === "string" && typeof value.message === "string";
 }
 
 export function isChunkSnapshotPayload(value: unknown): value is ChunkSnapshotPayload {
@@ -413,8 +467,6 @@ export function isChunkSnapshotPayload(value: unknown): value is ChunkSnapshotPa
     Array.isArray(value.tiles)
   );
 }
-
-// Phase 7 Payload Validators
 
 export function isCharacterListPayload(value: unknown): value is CharacterListPayload {
   return isRecord(value) && Array.isArray(value.characters);
@@ -429,11 +481,59 @@ export function isCharacterCreateResultPayload(value: unknown): value is Charact
 }
 
 export function isOwnershipErrorPayload(value: unknown): value is OwnershipErrorPayload {
+  return isRecord(value) && typeof value.code === "string" && typeof value.message === "string";
+}
+
+function isCausalCatchupEventPayload(value: unknown): value is CausalCatchupEventPayload {
   return (
     isRecord(value) &&
-    typeof value.code === "string" &&
-    typeof value.message === "string"
+    typeof value.eventId === "string" &&
+    typeof value.type === "string" &&
+    typeof value.tick === "number" &&
+    typeof value.significancePerMille === "number" &&
+    typeof value.regionId === "string" &&
+    typeof value.chunkKey === "string" &&
+    typeof value.payloadHash === "string" &&
+    typeof value.eventHash === "string"
   );
+}
+
+export function isCausalCatchupSummaryPayload(value: unknown): value is CausalCatchupSummaryPayload {
+  return (
+    isRecord(value) &&
+    typeof value.eventCount === "number" &&
+    isNullableNumber(value.firstTick) &&
+    isNullableNumber(value.lastTick) &&
+    Array.isArray(value.events) &&
+    value.events.every(isCausalCatchupEventPayload) &&
+    typeof value.summaryHash === "string" &&
+    value.sideChannelOnly === true
+  );
+}
+
+export function isNPCActivitySnapshotPayload(value: unknown): value is NPCActivitySnapshotPayload {
+  if (!isRecord(value)) return false;
+
+  if (typeof value.serverTick !== "number") return false;
+  if (!Array.isArray(value.entries)) return false;
+  if (!Array.isArray(value.memoryEvents)) return false;
+  if (typeof value.entityCount !== "number") return false;
+  if (typeof value.snapshotHash !== "string") return false;
+
+  for (const entry of value.entries) {
+    if (!isRecord(entry)) return false;
+    if (typeof entry.entityId !== "string") return false;
+    if (typeof entry.name !== "string") return false;
+    if (typeof entry.activity !== "string") return false;
+    if (typeof entry.chunkKey !== "string") return false;
+    if (!isRecord(entry.position)) return false;
+    if (typeof entry.position.x !== "number") return false;
+    if (typeof entry.position.y !== "number") return false;
+    if (typeof entry.activityHash !== "string") return false;
+    if (typeof entry.sourceTick !== "number") return false;
+  }
+
+  return true;
 }
 
 export function createClientEnvelope<TType extends ClientMessageType, TPayload>(

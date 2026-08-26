@@ -1,4 +1,4 @@
-/**
+/** @are-telemetry-side-channel Non-deterministic timestamps for identity/persistence only.
  * Phase 7: Session Token Service
  * 
  * Creates and verifies server-side session tokens.
@@ -27,6 +27,10 @@ function createOpaqueToken(): string {
   return `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
 }
 
+function isExpired(record: SessionTokenRecord, nowMs: number): boolean {
+  return record.expiresAtMs <= nowMs;
+}
+
 export function createSessionTokenService(
   repository: IdentityRepository
 ): SessionTokenService {
@@ -48,7 +52,15 @@ export function createSessionTokenService(
     },
 
     async verifyToken(token) {
-      return repository.getSessionToken(token);
+      const record = await repository.getSessionToken(token);
+      if (!record) return null;
+
+      if (isExpired(record, Date.now())) {
+        await repository.deleteSessionToken(token);
+        return null;
+      }
+
+      return record;
     },
 
     async revokeToken(token) {

@@ -5,13 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Areloria Asset Upload</title>
   <style>
-    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:#061009;color:#f7ffe1;font-family:system-ui,sans-serif}main{width:min(760px,100%);border:1px solid rgba(142,255,166,.34);border-radius:24px;padding:22px;background:#020804;box-shadow:0 0 38px rgba(57,255,20,.12)}h1{margin:0 0 8px;font-size:24px}p{color:#c9ffd2;line-height:1.45}label{display:block;margin:18px 0 8px;font-weight:800}input,button{width:100%;box-sizing:border-box;border-radius:14px;border:1px solid rgba(178,255,193,.3);padding:14px;background:#061009;color:#fff;font:inherit}button{margin-top:16px;background:#16813c;font-weight:900;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.hint{font-size:13px;color:#9fe9ad}pre{white-space:pre-wrap;overflow:auto;max-height:310px;min-height:120px;padding:14px;border-radius:14px;background:#010501;border:1px solid rgba(142,255,166,.18);color:#d9ffd9}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:#061009;color:#f7ffe1;font-family:system-ui,sans-serif}main{width:min(760px,100%);border:1px solid rgba(142,255,166,.34);border-radius:24px;padding:22px;background:#020804;box-shadow:0 0 38px rgba(57,255,20,.12)}h1{margin:0 0 8px;font-size:24px}p{color:#c9ffd2;line-height:1.45}label{display:block;margin:18px 0 8px;font-weight:800}input,button{width:100%;box-sizing:border-box;border-radius:14px;border:1px solid rgba(178,255,193,.3);padding:14px;background:#061009;color:#fff;font:inherit}button{margin-top:16px;background:#16813c;font-weight:900;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.hint{font-size:13px;color:#9fe9ad}.row{display:flex;gap:10px;align-items:center;margin-top:10px}.row input{width:auto}.row label{margin:0;font-weight:700}pre{white-space:pre-wrap;overflow:auto;max-height:310px;min-height:120px;padding:14px;border-radius:14px;background:#010501;border:1px solid rgba(142,255,166,.18);color:#d9ffd9}
   </style>
 </head>
 <body>
 <main>
   <h1>Areloria GraphicRiver Iso Upload</h1>
   <p>Wähle das gekaufte ZIP aus. Es wird auf dem VPS gespeichert, entpackt und als Client2D-Manifest bereitgestellt. Die Datei wird nicht ins öffentliche GitHub-Repo geladen.</p>
+  <label for="adminToken">Admin-Token</label>
+  <input id="adminToken" type="password" autocomplete="off" placeholder="ADMIN_PANEL_TOKEN oder GM_PANEL_TOKEN" />
+  <div class="row">
+    <input id="rememberToken" type="checkbox" />
+    <label for="rememberToken">Token nur in diesem Browser merken</label>
+  </div>
   <label for="file">ZIP-Datei</label>
   <input id="file" type="file" accept=".zip,application/zip" />
   <button id="upload">Upload starten</button>
@@ -20,16 +26,23 @@
   <pre id="out">Bereit.</pre>
 </main>
 <script>
+const TOKEN_STORAGE_KEY='areloria.client2dAssetUpload.adminToken';
 const fileInput=document.getElementById('file');
+const adminTokenInput=document.getElementById('adminToken');
+const rememberTokenInput=document.getElementById('rememberToken');
 const uploadButton=document.getElementById('upload');
 const statusButton=document.getElementById('status');
 const out=document.getElementById('out');
 function show(value){out.textContent=typeof value==='string'?value:JSON.stringify(value,null,2)}
-async function readJsonResponse(response){const text=await response.text();try{return JSON.parse(text)}catch{return text}}
-async function checkStatus(){const response=await fetch('/api/client2d-assets/status',{cache:'no-store'});show(await readJsonResponse(response))}
+function readAdminToken(){return String(adminTokenInput.value||'').trim()}
+function persistToken(){const token=readAdminToken();if(rememberTokenInput.checked&&token){localStorage.setItem(TOKEN_STORAGE_KEY,token)}else{localStorage.removeItem(TOKEN_STORAGE_KEY)}}
+function adminHeaders(extra){const token=readAdminToken();if(!token){throw new Error('Admin-Token fehlt. Bitte ADMIN_PANEL_TOKEN oder GM_PANEL_TOKEN eintragen.')}return Object.assign({'X-Admin-Token':token},extra||{})}
+async function readJsonResponse(response){const text=await response.text();let body;try{body=JSON.parse(text)}catch{body=text}return {ok:response.ok,status:response.status,body}}
+async function checkStatus(){persistToken();const response=await fetch('/api/client2d-assets/status',{cache:'no-store',headers:adminHeaders()});show(await readJsonResponse(response))}
+const storedToken=localStorage.getItem(TOKEN_STORAGE_KEY)||'';if(storedToken){adminTokenInput.value=storedToken;rememberTokenInput.checked=true}
 statusButton.addEventListener('click',async()=>{statusButton.disabled=true;try{await checkStatus()}catch(error){show(String(error))}finally{statusButton.disabled=false}});
-uploadButton.addEventListener('click',async()=>{const file=fileInput.files&&fileInput.files[0];if(!file){show('Bitte zuerst eine ZIP-Datei auswählen.');return}uploadButton.disabled=true;statusButton.disabled=true;show('Upload läuft. Bei großem ZIP bitte warten und den Tab offen lassen...');try{const response=await fetch('/api/client2d-assets/upload',{method:'POST',headers:{'content-type':'application/zip'},body:file});show(await readJsonResponse(response))}catch(error){show(String(error))}finally{uploadButton.disabled=false;statusButton.disabled=false}});
-checkStatus().catch(()=>{});
+uploadButton.addEventListener('click',async()=>{const file=fileInput.files&&fileInput.files[0];if(!file){show('Bitte zuerst eine ZIP-Datei auswählen.');return}uploadButton.disabled=true;statusButton.disabled=true;show('Upload läuft. Bei großem ZIP bitte warten und den Tab offen lassen...');try{persistToken();const response=await fetch('/api/client2d-assets/upload',{method:'POST',headers:adminHeaders({'content-type':'application/zip'}),body:file});show(await readJsonResponse(response))}catch(error){show(String(error))}finally{uploadButton.disabled=false;statusButton.disabled=false}});
+if(storedToken){checkStatus().catch(()=>{})}
 </script>
 </body>
 </html>

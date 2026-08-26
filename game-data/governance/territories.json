@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "territories": [
+    {
+      "territoryId": "areloria_kingdom",
+      "kind": "kingdom",
+      "title": "Areloria Crown",
+      "regionId": "areloria",
+      "chunkKey": "0:0",
+      "defaultTaxRatePerMille": 80,
+      "defaultLawFlags": ["market_charter"],
+      "defaultBudgets": { "resourceBudget": 900, "guardBudget": 600, "militiaPool": 250 },
+      "defaultConflictState": "peace"
+    },
+    {
+      "territoryId": "starter_province",
+      "kind": "province",
+      "title": "Starter Province",
+      "parentId": "areloria_kingdom",
+      "regionId": "starter_village",
+      "chunkKey": "0:0",
+      "defaultTaxRatePerMille": 60,
+      "defaultLawFlags": ["market_charter", "resource_commons"],
+      "defaultBudgets": { "resourceBudget": 700, "guardBudget": 400, "militiaPool": 120 },
+      "defaultConflictState": "peace"
+    },
+    {
+      "territoryId": "starter_village_settlement",
+      "kind": "settlement",
+      "title": "Starter Village",
+      "parentId": "starter_province",
+      "regionId": "starter_village",
+      "chunkKey": "0:0",
+      "defaultTaxRatePerMille": 40,
+      "defaultLawFlags": ["market_charter", "resource_commons"],
+      "defaultBudgets": { "resourceBudget": 500, "guardBudget": 250, "militiaPool": 60 },
+      "defaultConflictState": "peace"
+    },
+    {
+      "territoryId": "starter_builders_guild_overlay",
+      "kind": "guild_overlay",
+      "title": "Starter Builders Guild Overlay",
+      "parentId": "starter_village_settlement",
+      "regionId": "starter_village",
+      "chunkKey": "0:0",
+      "guildId": "builders_guild",
+      "defaultTaxRatePerMille": 20,
+      "defaultLawFlags": ["resource_commons"],
+      "defaultBudgets": { "resourceBudget": 300, "guardBudget": 80, "militiaPool": 20 },
+      "defaultConflictState": "peace"
+    }
+  ]
+}

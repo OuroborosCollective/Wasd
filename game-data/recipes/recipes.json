@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "recipes": [
+    {
+      "id": "saw_wood_planks",
+      "title": "Saw Wood Planks",
+      "requiredLevel": 1,
+      "craftingXpReward": 15,
+      "craftTicks": 0,
+      "stationType": "workbench",
+      "ingredients": [{ "itemId": "wood_log", "quantity": 3 }],
+      "outputs": [{ "itemId": "wood_plank", "quantity": 2 }]
+    },
+    {
+      "id": "craft_wood_plank",
+      "title": "Craft Wood Plank",
+      "requiredLevel": 1,
+      "craftingXpReward": 20,
+      "craftTicks": 0,
+      "stationType": "workbench",
+      "ingredients": [{ "itemId": "wood_log", "quantity": 2 }],
+      "outputs": [{ "itemId": "wood_plank", "quantity": 1 }]
+    },
+    {
+      "id": "smelt_copper_ingot",
+      "title": "Smelt Copper Ingot",
+      "requiredLevel": 1,
+      "craftingXpReward": 30,
+      "craftTicks": 0,
+      "stationType": "furnace",
+      "ingredients": [{ "itemId": "copper_ore", "quantity": 2 }],
+      "outputs": [{ "itemId": "copper_ingot", "quantity": 1 }]
+    },
+    {
+      "id": "cook_raw_fish",
+      "title": "Cook Raw Fish",
+      "requiredLevel": 1,
+      "craftingXpReward": 15,
+      "craftTicks": 0,
+      "stationType": "campfire",
+      "ingredients": [{ "itemId": "raw_fish", "quantity": 1 }],
+      "outputs": [{ "itemId": "cooked_fish", "quantity": 1 }]
+    },
+    {
+      "id": "craft_wooden_axe",
+      "title": "Craft Wooden Axe",
+      "requiredLevel": 1,
+      "craftingXpReward": 35,
+      "craftTicks": 0,
+      "stationType": "workbench",
+      "ingredients": [
+        { "itemId": "wood_plank", "quantity": 2 },
+        { "itemId": "copper_ingot", "quantity": 1 }
+      ],
+      "outputs": [{ "itemId": "wooden_axe", "quantity": 1 }]
+    },
+    {
+      "id": "craft_copper_pickaxe",
+      "title": "Craft Copper Pickaxe",
+      "requiredLevel": 1,
+      "craftingXpReward": 40,
+      "craftTicks": 0,
+      "stationType": "workbench",
+      "ingredients": [
+        { "itemId": "wood_plank", "quantity": 1 },
+        { "itemId": "copper_ingot", "quantity": 2 }
+      ],
+      "outputs": [{ "itemId": "copper_pickaxe", "quantity": 1 }]
+    },
+    {
+      "id": "craft_simple_fishing_rod",
+      "title": "Craft Simple Fishing Rod",
+      "requiredLevel": 1,
+      "craftingXpReward": 25,
+      "craftTicks": 0,
+      "stationType": "workbench",
+      "ingredients": [
+        { "itemId": "wood_plank", "quantity": 1 },
+        { "itemId": "raw_fish", "quantity": 1 }
+      ],
+      "outputs": [{ "itemId": "simple_fishing_rod", "quantity": 1 }]
+    },
+    {
+      "id": "craft_copper_axe",
+      "title": "Craft Copper Axe",
+      "requiredLevel": 1,
+      "craftingXpReward": 45,
+      "craftTicks": 0,
+      "stationType": "workbench",
+      "ingredients": [
+        { "itemId": "wooden_axe", "quantity": 1 },
+        { "itemId": "wood_plank", "quantity": 2 },
+        { "itemId": "copper_ingot", "quantity": 1 }
+      ],
+      "outputs": [{ "itemId": "copper_axe", "quantity": 1 }]
+    },
+    {
+      "id": "craft_reinforced_pickaxe",
+      "title": "Craft Reinforced Pickaxe",
+      "requiredLevel": 1,
+      "craftingXpReward": 50,
+      "craftTicks": 0,
+      "stationType": "workbench",
+      "ingredients": [
+        { "itemId": "copper_pickaxe", "quantity": 1 },
+        { "itemId": "wood_plank", "quantity": 2 },
+        { "itemId": "copper_ingot", "quantity": 3 }
+      ],
+      "outputs": [{ "itemId": "reinforced_pickaxe", "quantity": 1 }]
+    },
+    {
+      "id": "craft_reinforced_fishing_rod",
+      "title": "Craft Reinforced Fishing Rod",
+      "requiredLevel": 1,
+      "craftingXpReward": 40,
+      "craftTicks": 0,
+      "stationType": "workbench",
+      "ingredients": [
+        { "itemId": "simple_fishing_rod", "quantity": 1 },
+        { "itemId": "wood_plank", "quantity": 2 },
+        { "itemId": "copper_ingot", "quantity": 2 }
+      ],
+      "outputs": [{ "itemId": "reinforced_fishing_rod", "quantity": 1 }]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "kappa": 1000,
+  "truthSource": "world-truth-to-visual-truth",
+  "rules": {
+    "terrain": {
+      "requiredCategory": "tilesets",
+      "requiredSignatureKind": "terrain",
+      "forbiddenCategories": ["props", "characters", "buildings", "ui"],
+      "selectionInputs": ["worldSeed", "worldTickEpoch", "chunk", "kappa", "biomeId", "terrainType", "stateHash"]
+    },
+    "road": {
+      "requiredCategory": "tilesets",
+      "requiredSignatureKind": "road",
+      "forbiddenCategories": ["props", "characters", "buildings", "ui"],
+      "selectionInputs": ["worldSeed", "worldTickEpoch", "chunk", "kappa", "biomeId", "roadType", "stateHash"]
+    },
+    "building": {
+      "requiredCategory": "buildings",
+      "requiredSignatureKind": "building",
+      "forbiddenCategories": ["props", "tilesets", "characters", "ui"],
+      "selectionInputs": ["worldSeed", "worldTickEpoch", "chunk", "kappa", "buildingType", "settlementTier", "culture", "factionId", "stateHash"]
+    },
+    "prop": {
+      "requiredCategory": "props",
+      "requiredSignatureKind": "prop",
+      "forbiddenCategories": ["tilesets", "characters", "buildings", "ui"],
+      "selectionInputs": ["worldSeed", "worldTickEpoch", "chunk", "kappa", "propType", "biomeId", "stateHash"]
+    },
+    "npc": {
+      "requiredCategory": "characters",
+      "requiredSignatureKind": "npc",
+      "forbiddenCategories": ["props", "tilesets", "buildings", "ui"],
+      "selectionInputs": ["worldSeed", "worldTickEpoch", "chunk", "kappa", "npcRole", "culture", "factionId", "stateHash"]
+    }
+  }
+}

@@ -1,12 +1,3 @@
-/**
- * NPC QUEST SERVICE
- *
- * Server-authoritative quest management for NPC economy quests.
- * Deterministic: No Math.random(), no Date.now() for gameplay state.
- * All quest mutations happen server-side after validation.
- * Integrates with NpcMemoryService for memory event recording.
- */
-
 import {
   VILLAGE_SUPPLY_ORDER_QUEST,
   type NpcQuestDefinition,
@@ -18,14 +9,13 @@ import {
   type ActionResult,
   type NpcDialogueState,
   QuestFailReasons,
-  type QuestFailReason,
 } from "./NpcQuestTypes.js";
-import { type QuestSnapshot } from "./QuestSnapshotTypes.js";
-import { npcMemoryService } from "../npc/NpcMemoryService.js";
+import type { QuestSnapshot } from "./QuestSnapshotTypes.js";
+import {
+  normalizeNpcQuestPlayerState,
+  type PersistedNpcQuestPlayerState,
+} from "./NpcQuestPersistence.js";
 
-/**
- * Active quest state for a player.
- */
 interface ActiveQuestState {
   questId: string;
   objectives: Map<string, { current: number; required: number; completed: boolean }>;
@@ -33,627 +23,441 @@ interface ActiveQuestState {
   started: boolean;
 }
 
-/**
- * Player NPC quest state.
- */
 interface PlayerQuestState {
   activeQuests: Map<string, ActiveQuestState>;
   completedQuestIds: Set<string>;
   rewardClaimed: Set<string>;
 }
 
-/**
- * NPC Reputation state.
- */
 interface NpcReputationState {
   reputation: number;
   completedQuestIds: string[];
 }
 
-/**
- * NPC Quest Service - manages quest state for all players.
- * Singleton pattern with server-authoritative state.
- */
-export class NpcQuestService {
-  private playerQuestStates = new Map<string, PlayerQuestState>();
-  private npcReputations = new Map<string, Map<string, NpcReputationState>>(); // npcId -> playerId -> state
+const NPC_DEFINITIONS = new Map([
+  ["village_trader_001", {
+    id: "village_trader_001",
+    displayName: "Mira the Quartermaster",
+    x: 462,
+    y: 503,
+    interactionRadius: 32,
+  }],
+]);
 
-  // Quest definitions
-  private readonly questDefinitions: Map<string, NpcQuestDefinition> = new Map([
+function createEmptyPlayerState(): PlayerQuestState {
+  return {
+    activeQuests: new Map(),
+    completedQuestIds: new Set(),
+    rewardClaimed: new Set(),
+  };
+}
+
+export class NpcQuestService {
+  private readonly playerQuestStates = new Map<string, PlayerQuestState>();
+  private readonly npcReputations = new Map<string, Map<string, NpcReputationState>>();
+  private readonly questDefinitions = new Map<string, NpcQuestDefinition>([
     [VILLAGE_SUPPLY_ORDER_QUEST.questId, VILLAGE_SUPPLY_ORDER_QUEST],
   ]);
+  private readonly npcDefinitions = NPC_DEFINITIONS;
 
-  // NPC definitions with positions
-  private readonly npcDefinitions = new Map([
-    ["village_trader_001", { id: "village_trader_001", displayName: "Mira the Quartermaster", x: 462, y: 503, interactionRadius: 32 }],
-  ]);
-
-  /**
-   * Get player state, creating if needed.
-   */
   private getOrCreatePlayerState(playerId: string): PlayerQuestState {
     let state = this.playerQuestStates.get(playerId);
     if (!state) {
-      state = {
-        activeQuests: new Map(),
-        completedQuestIds: new Set(),
-        rewardClaimed: new Set(),
-      };
+      state = createEmptyPlayerState();
       this.playerQuestStates.set(playerId, state);
     }
     return state;
   }
 
-  /**
-   * Get or create NPC reputation state for player.
-   */
   private getOrCreateNpcReputation(npcId: string, playerId: string): NpcReputationState {
     let npcStates = this.npcReputations.get(npcId);
     if (!npcStates) {
       npcStates = new Map();
       this.npcReputations.set(npcId, npcStates);
     }
-
     let state = npcStates.get(playerId);
     if (!state) {
-      state = {
-        reputation: 0,
-        completedQuestIds: [],
-      };
+      state = { reputation: 0, completedQuestIds: [] };
       npcStates.set(playerId, state);
     }
     return state;
   }
 
-  /**
-   * Get quest definition by ID.
-   */
-  getQuestDefinition(questId: string): NpcQuestDefinition | undefined {
+  public getQuestDefinition(questId: string): NpcQuestDefinition | undefined {
     return this.questDefinitions.get(questId);
   }
 
-  /**
-   * Get NPC definition by ID.
-   */
-  getNpcDefinition(npcId: string) {
+  public getNpcDefinition(npcId: string) {
     return this.npcDefinitions.get(npcId);
   }
 
-  /**
-   * Calculate distance between two points.
-   */
-  private calculateDistance(x1: number, y1: number, x2: number, y2: number): number {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    return Math.sqrt(dx * dx + dy * dy);
-  }
-
-  /**
-   * Check if player is within interaction radius of NPC.
-   */
-  isPlayerNearNpc(playerX: number, playerY: number, npcId: string): boolean {
+  public isPlayerNearNpc(playerX: number, playerY: number, npcId: string): boolean {
     const npc = this.npcDefinitions.get(npcId);
-    if (!npc) return false;
-
-    const distance = this.calculateDistance(playerX, playerY, npc.x, npc.y);
-    return distance <= npc.interactionRadius;
+    if (!npc || !Number.isFinite(playerX) || !Number.isFinite(playerY)) return false;
+    const dx = npc.x - playerX;
+    const dy = npc.y - playerY;
+    return Math.sqrt(dx * dx + dy * dy) <= npc.interactionRadius;
   }
 
-  /**
-   * Get quest progress snapshot for a quest.
-   */
-  getQuestProgress(playerId: string, questId: string): QuestProgressSnapshot | null {
-    const questDef = this.questDefinitions.get(questId);
-    if (!questDef) return null;
-
-    const playerState = this.getOrCreatePlayerState(playerId);
-    const activeQuest = playerState.activeQuests.get(questId);
-
-    // Determine state
-    let state: QuestProgressSnapshot["state"];
-    if (playerState.completedQuestIds.has(questId)) {
+  public getQuestProgress(playerId: string, questId: string): QuestProgressSnapshot | null {
+    const quest = this.questDefinitions.get(questId);
+    if (!quest) return null;
+    const playerState = this.playerQuestStates.get(playerId);
+    const active = playerState?.activeQuests.get(questId);
+    let state: QuestProgressSnapshot["state"] = "available";
+    if (playerState?.completedQuestIds.has(questId)) {
       state = "completed";
-    } else if (activeQuest) {
-      // Check if all objectives are complete
-      const allComplete = questDef.objectives.every((obj) => {
-        const objState = activeQuest.objectives.get(obj.objectiveId);
-        return objState?.completed ?? false;
+    } else if (active) {
+      const complete = quest.objectives.every(
+        (objective) => active.objectives.get(objective.objectiveId)?.completed === true,
+      );
+      state = complete ? "ready_to_complete" : "active";
+    }
+    const objectives = quest.objectives.map((objective): NpcQuestObjective => {
+      const current = active?.objectives.get(objective.objectiveId);
+      return Object.freeze({
+        objectiveId: objective.objectiveId,
+        title: objective.title,
+        current: current?.current ?? 0,
+        required: objective.required,
+        completed: current?.completed ?? false,
       });
-      state = allComplete ? "ready_to_complete" : "active";
-    } else {
-      state = "available";
-    }
-
-    // Build objectives
-    const objectives: NpcQuestObjective[] = questDef.objectives.map((obj) => {
-      let current = 0;
-      let completed = false;
-
-      if (activeQuest) {
-        const objState = activeQuest.objectives.get(obj.objectiveId);
-        if (objState) {
-          current = objState.current;
-          completed = objState.completed;
-        }
-      }
-
-      return {
-        objectiveId: obj.objectiveId,
-        title: obj.title,
-        current,
-        required: obj.required,
-        completed,
-      };
     });
-
-    return {
-      questId,
-      state,
-      objectives: Object.freeze(objectives),
-    };
+    return Object.freeze({ questId, state, objectives: Object.freeze(objectives) });
   }
 
-  /**
-   * Get all active quests for a player.
-   */
-  getActiveQuests(playerId: string): readonly QuestProgressSnapshot[] {
-    const playerState = this.getOrCreatePlayerState(playerId);
-    const results: QuestProgressSnapshot[] = [];
-
-    for (const questId of playerState.activeQuests.keys()) {
-      const progress = this.getQuestProgress(playerId, questId);
-      if (progress) {
-        results.push(progress);
-      }
-    }
-
-    return Object.freeze(results.sort((a, b) => a.questId.localeCompare(b.questId)));
+  public getActiveQuests(playerId: string): readonly QuestProgressSnapshot[] {
+    const state = this.playerQuestStates.get(playerId);
+    if (!state) return Object.freeze([]);
+    return Object.freeze(
+      [...state.activeQuests.keys()]
+        .map((questId) => this.getQuestProgress(playerId, questId))
+        .filter((quest): quest is QuestProgressSnapshot => quest !== null)
+        .sort((a, b) => a.questId.localeCompare(b.questId)),
+    );
   }
 
-  /**
-   * Get all available quests for a player (not started, not completed).
-   */
-  getAvailableQuests(playerId: string): readonly QuestProgressSnapshot[] {
-    const playerState = this.getOrCreatePlayerState(playerId);
-    const results: QuestProgressSnapshot[] = [];
-
-    for (const [questId, questDef] of this.questDefinitions) {
-      if (!playerState.completedQuestIds.has(questId) && !playerState.activeQuests.has(questId)) {
-        // Create available snapshot
-        const objectives: NpcQuestObjective[] = questDef.objectives.map((obj) => ({
-          objectiveId: obj.objectiveId,
-          title: obj.title,
+  public getAvailableQuests(playerId: string): readonly QuestProgressSnapshot[] {
+    const state = this.playerQuestStates.get(playerId);
+    const result: QuestProgressSnapshot[] = [];
+    for (const [questId, quest] of this.questDefinitions) {
+      if (state?.completedQuestIds.has(questId) || state?.activeQuests.has(questId)) continue;
+      result.push(Object.freeze({
+        questId,
+        state: "available" as const,
+        objectives: Object.freeze(quest.objectives.map((objective) => Object.freeze({
+          objectiveId: objective.objectiveId,
+          title: objective.title,
           current: 0,
-          required: obj.required,
+          required: objective.required,
           completed: false,
-        }));
-
-        results.push({
-          questId,
-          state: "available",
-          objectives: Object.freeze(objectives),
-        });
-      }
+        }))),
+      }));
     }
-
-    return Object.freeze(results.sort((a, b) => a.questId.localeCompare(b.questId)));
+    return Object.freeze(result.sort((a, b) => a.questId.localeCompare(b.questId)));
   }
 
-  /**
-   * Accept a quest for a player.
-   */
-  acceptQuest(playerId: string, questId: string): ActionResult<QuestProgressSnapshot> {
-    if (!playerId) {
-      return { ok: false, reason: QuestFailReasons.MISSING_PLAYER };
-    }
+  public getCompletedQuestIds(playerId: string): readonly string[] {
+    return Object.freeze([...(this.playerQuestStates.get(playerId)?.completedQuestIds ?? [])].sort());
+  }
 
-    const questDef = this.questDefinitions.get(questId);
-    if (!questDef) {
-      return { ok: false, reason: QuestFailReasons.MISSING_QUEST };
-    }
-
-    const playerState = this.getOrCreatePlayerState(playerId);
-
-    // Check if already active
-    if (playerState.activeQuests.has(questId)) {
-      return { ok: false, reason: QuestFailReasons.QUEST_ALREADY_ACTIVE };
-    }
-
-    // Check if already completed
-    if (playerState.completedQuestIds.has(questId)) {
-      return { ok: false, reason: QuestFailReasons.QUEST_ALREADY_COMPLETED };
-    }
-
-    // Create active quest state
+  public acceptQuest(playerId: string, questId: string): ActionResult<QuestProgressSnapshot> {
+    if (!playerId) return { ok: false, reason: QuestFailReasons.MISSING_PLAYER };
+    const quest = this.questDefinitions.get(questId);
+    if (!quest) return { ok: false, reason: QuestFailReasons.MISSING_QUEST };
+    const state = this.getOrCreatePlayerState(playerId);
+    if (state.activeQuests.has(questId)) return { ok: false, reason: QuestFailReasons.QUEST_ALREADY_ACTIVE };
+    if (state.completedQuestIds.has(questId)) return { ok: false, reason: QuestFailReasons.QUEST_ALREADY_COMPLETED };
     const objectives = new Map<string, { current: number; required: number; completed: boolean }>();
-    for (const obj of questDef.objectives) {
-      objectives.set(obj.objectiveId, {
-        current: 0,
-        required: obj.required,
-        completed: false,
-      });
+    for (const objective of quest.objectives) {
+      objectives.set(objective.objectiveId, { current: 0, required: objective.required, completed: false });
     }
-
-    playerState.activeQuests.set(questId, {
-      questId,
-      objectives,
-      rewardClaimed: false,
-      started: true,
-    });
-
-    // Record memory event for quest acceptance (non-blocking)
-    npcMemoryService.recordQuestAccepted(playerId, questDef.npcId, questId).catch((err) => {
-      console.warn("[NpcQuestService] Failed to record quest_accepted memory:", err);
-    });
-
-    const progress = this.getQuestProgress(playerId, questId);
-    return { ok: true, result: progress! };
+    state.activeQuests.set(questId, { questId, objectives, rewardClaimed: false, started: true });
+    return { ok: true, result: this.getQuestProgress(playerId, questId)! };
   }
 
-  /**
-   * Update quest progress based on game events.
-   * Called by game event handlers (gather, craft, sell).
-   */
-  updateQuestProgress(
+  public updateQuestProgress(
     playerId: string,
     eventType: "gather" | "craft" | "sell",
-    targetItemId: string,
-    quantity: number = 1,
+    targetId: string,
+    quantity = 1,
   ): ActionResult<readonly QuestProgressSnapshot[]> {
-    if (!playerId) {
-      return { ok: false, reason: QuestFailReasons.MISSING_PLAYER };
-    }
-
-    const playerState = this.getOrCreatePlayerState(playerId);
-    const updatedQuests: QuestProgressSnapshot[] = [];
-
-    // Find quests that have matching objectives
-    for (const [questId, activeQuest] of playerState.activeQuests) {
-      const questDef = this.questDefinitions.get(questId);
-      if (!questDef) continue;
-
-      for (const obj of questDef.objectives) {
-        // Check if this objective matches the event
-        // For craft events, check targetRecipeId; for gather/sell, check targetItemId
-        let matches = false;
-        if (eventType === "craft") {
-          // Craft events match via targetRecipeId OR targetItemId (output item)
-          matches = obj.targetRecipeId === targetItemId || obj.targetItemId === targetItemId;
-        } else {
-          // Gather and sell events match via targetItemId
-          matches = obj.eventType === eventType && obj.targetItemId === targetItemId;
-        }
-
-        if (matches) {
-          const objState = activeQuest.objectives.get(obj.objectiveId);
-          if (objState && !objState.completed) {
-            // Update progress
-            objState.current = Math.min(objState.current + quantity, objState.required);
-            if (objState.current >= objState.required) {
-              objState.completed = true;
-            }
-          }
-        }
+    if (!playerId) return { ok: false, reason: QuestFailReasons.MISSING_PLAYER };
+    const safeQuantity = Math.max(0, Math.floor(Number(quantity)));
+    if (safeQuantity <= 0) return { ok: true, result: Object.freeze([]) };
+    const state = this.getOrCreatePlayerState(playerId);
+    const updated: QuestProgressSnapshot[] = [];
+    for (const [questId, active] of state.activeQuests) {
+      const quest = this.questDefinitions.get(questId);
+      if (!quest) continue;
+      for (const objective of quest.objectives) {
+        const matches = eventType === "craft"
+          ? objective.eventType === "craft" &&
+            (objective.targetRecipeId === targetId || objective.targetItemId === targetId)
+          : objective.eventType === eventType && objective.targetItemId === targetId;
+        if (!matches) continue;
+        const objectiveState = active.objectives.get(objective.objectiveId);
+        if (!objectiveState || objectiveState.completed) continue;
+        objectiveState.current = Math.min(objectiveState.required, objectiveState.current + safeQuantity);
+        objectiveState.completed = objectiveState.current >= objectiveState.required;
       }
-
       const progress = this.getQuestProgress(playerId, questId);
-      if (progress) {
-        updatedQuests.push(progress);
-      }
+      if (progress) updated.push(progress);
     }
-
-    return { ok: true, result: Object.freeze(updatedQuests) };
+    return { ok: true, result: Object.freeze(updated.sort((a, b) => a.questId.localeCompare(b.questId))) };
   }
 
-  /**
-   * Update talk_to objectives when player talks to NPC.
-   */
-  updateTalkObjective(playerId: string, npcId: string): ActionResult<readonly QuestProgressSnapshot[]> {
-    if (!playerId) {
-      return { ok: false, reason: QuestFailReasons.MISSING_PLAYER };
-    }
-
-    const playerState = this.getOrCreatePlayerState(playerId);
-    const updatedQuests: QuestProgressSnapshot[] = [];
-
-    for (const [questId, activeQuest] of playerState.activeQuests) {
-      const questDef = this.questDefinitions.get(questId);
-      if (!questDef) continue;
-
-      for (const obj of questDef.objectives) {
-        if (obj.eventType === "talk" && obj.targetNpcId === npcId) {
-          const objState = activeQuest.objectives.get(obj.objectiveId);
-          if (objState && !objState.completed) {
-            objState.current = Math.min(objState.current + 1, objState.required);
-            if (objState.current >= objState.required) {
-              objState.completed = true;
-            }
-          }
-        }
+  public updateTalkObjective(playerId: string, npcId: string): ActionResult<readonly QuestProgressSnapshot[]> {
+    if (!playerId) return { ok: false, reason: QuestFailReasons.MISSING_PLAYER };
+    const state = this.getOrCreatePlayerState(playerId);
+    const updated: QuestProgressSnapshot[] = [];
+    for (const [questId, active] of state.activeQuests) {
+      const quest = this.questDefinitions.get(questId);
+      if (!quest) continue;
+      for (const objective of quest.objectives) {
+        if (objective.eventType !== "talk" || objective.targetNpcId !== npcId) continue;
+        const objectiveState = active.objectives.get(objective.objectiveId);
+        if (!objectiveState || objectiveState.completed) continue;
+        objectiveState.current = Math.min(objectiveState.required, objectiveState.current + 1);
+        objectiveState.completed = objectiveState.current >= objectiveState.required;
       }
-
       const progress = this.getQuestProgress(playerId, questId);
-      if (progress) {
-        updatedQuests.push(progress);
-      }
+      if (progress) updated.push(progress);
     }
-
-    return { ok: true, result: Object.freeze(updatedQuests) };
+    return { ok: true, result: Object.freeze(updated.sort((a, b) => a.questId.localeCompare(b.questId))) };
   }
 
-  /**
-   * Complete a quest and grant rewards.
-   */
-  completeQuest(playerId: string, questId: string): ActionResult<{
+  public completeQuest(playerId: string, questId: string): ActionResult<{
     questProgress: QuestProgressSnapshot;
     reward: QuestReward;
     reputation: NpcReputationSnapshot;
   }> {
-    if (!playerId) {
-      return { ok: false, reason: QuestFailReasons.MISSING_PLAYER };
-    }
-
-    const questDef = this.questDefinitions.get(questId);
-    if (!questDef) {
-      return { ok: false, reason: QuestFailReasons.MISSING_QUEST };
-    }
-
-    const playerState = this.getOrCreatePlayerState(playerId);
-    const activeQuest = playerState.activeQuests.get(questId);
-
-    // Check if quest is active
-    if (!activeQuest) {
-      return { ok: false, reason: QuestFailReasons.QUEST_NOT_AVAILABLE };
-    }
-
-    // Check if all objectives are complete
-    const allComplete = questDef.objectives.every((obj) => {
-      const objState = activeQuest.objectives.get(obj.objectiveId);
-      return objState?.completed ?? false;
-    });
-
-    if (!allComplete) {
-      return { ok: false, reason: QuestFailReasons.OBJECTIVE_NOT_COMPLETE };
-    }
-
-    // Check if reward already claimed
-    if (activeQuest.rewardClaimed) {
+    if (!playerId) return { ok: false, reason: QuestFailReasons.MISSING_PLAYER };
+    const quest = this.questDefinitions.get(questId);
+    if (!quest) return { ok: false, reason: QuestFailReasons.MISSING_QUEST };
+    const state = this.getOrCreatePlayerState(playerId);
+    const active = state.activeQuests.get(questId);
+    if (!active) return { ok: false, reason: QuestFailReasons.QUEST_NOT_AVAILABLE };
+    const complete = quest.objectives.every(
+      (objective) => active.objectives.get(objective.objectiveId)?.completed === true,
+    );
+    if (!complete) return { ok: false, reason: QuestFailReasons.OBJECTIVE_NOT_COMPLETE };
+    if (active.rewardClaimed || state.rewardClaimed.has(questId)) {
       return { ok: false, reason: QuestFailReasons.REWARD_ALREADY_CLAIMED };
     }
-
-    // Mark reward as claimed
-    activeQuest.rewardClaimed = true;
-
-    // Move to completed
-    playerState.activeQuests.delete(questId);
-    playerState.completedQuestIds.add(questId);
-    playerState.rewardClaimed.add(questId);
-
-    // Update NPC reputation
-    const npcRep = this.getOrCreateNpcReputation(questDef.npcId, playerId);
-    npcRep.reputation += questDef.reward.reputation;
-    npcRep.completedQuestIds.push(questId);
-
-    // Record memory event for quest completion (non-blocking)
-    // This also triggers helped_village rumor creation
-    npcMemoryService.recordQuestCompleted(
-      playerId,
-      questDef.npcId,
-      questId,
-      questDef.reward.reputation,
-    ).catch((err) => {
-      console.warn("[NpcQuestService] Failed to record quest_completed memory:", err);
-    });
-
-    const progress = this.getQuestProgress(playerId, questId);
-    const reputation = this.getNpcReputation(playerId, questDef.npcId);
-
+    active.rewardClaimed = true;
+    state.activeQuests.delete(questId);
+    state.completedQuestIds.add(questId);
+    state.rewardClaimed.add(questId);
+    const reputationState = this.getOrCreateNpcReputation(quest.npcId, playerId);
+    reputationState.reputation += quest.reward.reputation;
+    if (!reputationState.completedQuestIds.includes(questId)) reputationState.completedQuestIds.push(questId);
+    reputationState.completedQuestIds.sort();
     return {
       ok: true,
       result: {
-        questProgress: progress!,
-        reward: questDef.reward,
-        reputation: reputation!,
+        questProgress: this.getQuestProgress(playerId, questId)!,
+        reward: quest.reward,
+        reputation: this.getNpcReputation(playerId, quest.npcId)!,
       },
     };
   }
 
-  /**
-   * Get NPC dialogue snapshot for player.
-   */
-  getNpcDialogue(playerId: string, npcId: string): NpcDialogueSnapshot {
+  public getNpcDialogue(playerId: string, npcId: string): NpcDialogueSnapshot {
     const npc = this.npcDefinitions.get(npcId);
-    const displayName = npc?.displayName ?? "Unknown NPC";
-
-    const playerState = this.getOrCreatePlayerState(playerId);
-
-    // Determine dialogue state
+    const playerState = this.playerQuestStates.get(playerId);
     let dialogueState: NpcDialogueState = "quest_available";
-
-    // Check for active quest
-    const activeQuest = Array.from(playerState.activeQuests.values()).find(
-      (q) => this.questDefinitions.get(q.questId)?.npcId === npcId,
+    const active = [...(playerState?.activeQuests.values() ?? [])].find(
+      (candidate) => this.questDefinitions.get(candidate.questId)?.npcId === npcId,
     );
-
-    if (playerState.completedQuestIds.has("village_supply_order_001")) {
+    if ([...(playerState?.completedQuestIds ?? [])].some(
+      (questId) => this.questDefinitions.get(questId)?.npcId === npcId,
+    )) {
       dialogueState = "quest_completed";
-    } else if (activeQuest) {
-      const questDef = this.questDefinitions.get(activeQuest.questId);
-      if (questDef) {
-        // Check objective states to determine dialogue
-        const gatherObj = activeQuest.objectives.get("gather_wood_logs");
-        const processObj = activeQuest.objectives.get("process_wood_plank");
-        const sellObj = activeQuest.objectives.get("sell_wood_plank");
-        const returnObj = activeQuest.objectives.get("return_to_mira");
-
-        if (returnObj?.completed) {
-          dialogueState = "quest_ready_to_complete";
-        } else if (sellObj?.completed) {
-          dialogueState = "quest_ready_to_complete";
-        } else if (processObj?.completed) {
-          dialogueState = "quest_active_ready_to_sell";
-        } else if (gatherObj?.completed) {
-          dialogueState = "quest_active_ready_to_process";
-        } else {
-          dialogueState = "quest_active_missing_wood";
-        }
-      }
+    } else if (active) {
+      const quest = this.questDefinitions.get(active.questId);
+      const allComplete = quest?.objectives.every(
+        (objective) => active.objectives.get(objective.objectiveId)?.completed === true,
+      ) ?? false;
+      const gather = active.objectives.get("gather_wood_logs");
+      const process = active.objectives.get("process_wood_plank");
+      const sell = active.objectives.get("sell_wood_plank");
+      if (allComplete) dialogueState = "quest_ready_to_complete";
+      else if (sell?.completed || process?.completed) dialogueState = "quest_active_ready_to_sell";
+      else if (gather?.completed) dialogueState = "quest_active_ready_to_process";
+      else dialogueState = "quest_active_missing_wood";
     }
-
-    // Generate dialogue line based on state
-    const line = this.getDialogueLine(npcId, dialogueState);
-
-    // Get quest IDs
     const availableQuestIds = this.getAvailableQuests(playerId)
-      .filter((q) => this.questDefinitions.get(q.questId)?.npcId === npcId)
-      .map((q) => q.questId);
-
+      .filter((quest) => this.questDefinitions.get(quest.questId)?.npcId === npcId)
+      .map((quest) => quest.questId);
     const activeQuestIds = this.getActiveQuests(playerId)
-      .filter((q) => this.questDefinitions.get(q.questId)?.npcId === npcId)
-      .map((q) => q.questId);
-
-    const completedQuestIds = Array.from(playerState.completedQuestIds).filter(
-      (qId) => this.questDefinitions.get(qId)?.npcId === npcId,
-    );
-
+      .filter((quest) => this.questDefinitions.get(quest.questId)?.npcId === npcId)
+      .map((quest) => quest.questId);
+    const completedQuestIds = [...(playerState?.completedQuestIds ?? [])]
+      .filter((questId) => this.questDefinitions.get(questId)?.npcId === npcId)
+      .sort();
     return Object.freeze({
       npcId,
-      displayName,
+      displayName: npc?.displayName ?? "Unknown NPC",
       dialogueState,
-      line,
-      availableQuestIds: Object.freeze([...availableQuestIds]),
-      activeQuestIds: Object.freeze([...activeQuestIds]),
-      completedQuestIds: Object.freeze([...completedQuestIds]),
+      line: this.getDialogueLine(npcId, dialogueState),
+      availableQuestIds: Object.freeze(availableQuestIds),
+      activeQuestIds: Object.freeze(activeQuestIds),
+      completedQuestIds: Object.freeze(completedQuestIds),
     });
   }
 
-  /**
-   * Get dialogue line based on state.
-   */
   private getDialogueLine(npcId: string, state: NpcDialogueState): string {
-    if (npcId === "village_trader_001") {
-      switch (state) {
-        case "quest_available":
-          return "Greetings, traveler! The village store is in need of wood planks. Could you gather 2 wood logs, process them into planks, and sell one to me?";
-        case "quest_active_missing_wood":
-          return "Still gathering wood logs? You need 2 wood logs for the supply order. Talk to me when you have them!";
-        case "quest_active_ready_to_process":
-          return "Great, you have the wood logs! Now process them into planks at the workbench nearby. Come back when you have 1 plank ready.";
-        case "quest_active_ready_to_sell":
-          return "You have a wood plank? Perfect! Please sell it to me to complete the supply order.";
-        case "quest_ready_to_complete":
-          return "Thank you for the wood plank! The village store is grateful. Here is your payment and some XP for your work.";
-        case "quest_completed":
-          return "Welcome back! Your help with the supply order was invaluable. If you need anything, just ask!";
-      }
+    if (npcId !== "village_trader_001") return "...";
+    switch (state) {
+      case "quest_available": return "Greetings, traveler! The village store needs wood planks. Gather two logs, process a plank, sell it to me, then return for confirmation.";
+      case "quest_active_missing_wood": return "The supply order still needs two wood logs.";
+      case "quest_active_ready_to_process": return "The logs are ready. Process a plank at the workbench.";
+      case "quest_active_ready_to_sell": return "Complete the plank sale if it is still pending, then speak with me again to confirm the order.";
+      case "quest_ready_to_complete": return "Every objective is confirmed. Claim the persisted reward when ready.";
+      case "quest_completed": return "Your completed supply order is recorded.";
     }
-    return "...";
   }
 
-  /**
-   * Get NPC reputation for player.
-   */
-  getNpcReputation(playerId: string, npcId: string): NpcReputationSnapshot | null {
-    const npc = this.npcDefinitions.get(npcId);
-    if (!npc) return null;
-
-    const playerState = this.getOrCreatePlayerState(playerId);
-    const npcRep = this.getOrCreateNpcReputation(npcId, playerId);
-
+  public getNpcReputation(playerId: string, npcId: string): NpcReputationSnapshot | null {
+    if (!this.npcDefinitions.has(npcId)) return null;
+    const state = this.npcReputations.get(npcId)?.get(playerId);
+    if (!state) return null;
     return Object.freeze({
       npcId,
       playerId,
-      reputation: npcRep.reputation,
-      completedQuestIds: Object.freeze([...npcRep.completedQuestIds]),
+      reputation: state.reputation,
+      completedQuestIds: Object.freeze([...state.completedQuestIds].sort()),
     });
   }
 
-  /**
-   * Get all NPC reputations for a player.
-   */
-  getAllNpcReputations(playerId: string): readonly NpcReputationSnapshot[] {
-    const results: NpcReputationSnapshot[] = [];
-
-    for (const npcId of this.npcDefinitions.keys()) {
-      const rep = this.getNpcReputation(playerId, npcId);
-      if (rep) {
-        results.push(rep);
-      }
-    }
-
-    return Object.freeze(results.sort((a, b) => a.npcId.localeCompare(b.npcId)));
+  public getAllNpcReputations(playerId: string): readonly NpcReputationSnapshot[] {
+    return Object.freeze(
+      [...this.npcDefinitions.keys()]
+        .map((npcId) => this.getNpcReputation(playerId, npcId))
+        .filter((snapshot): snapshot is NpcReputationSnapshot => snapshot !== null)
+        .sort((a, b) => a.npcId.localeCompare(b.npcId)),
+    );
   }
 
-  /**
-   * Convert to QuestSnapshot for LiveGameplaySnapshot integration.
-   */
-  toQuestSnapshots(playerId: string): QuestSnapshot[] {
-    const playerState = this.getOrCreatePlayerState(playerId);
-    const results: QuestSnapshot[] = [];
-
-    // Add active quests
-    for (const [questId] of playerState.activeQuests) {
-      const progress = this.getQuestProgress(playerId, questId);
-      if (progress) {
-        const questDef = this.questDefinitions.get(questId);
-        results.push({
-          id: questId,
-          title: questDef?.title ?? questId,
-          description: questDef?.description ?? "",
-          status: progress.state === "ready_to_complete" ? "active" : progress.state,
-          objectives: progress.objectives.map((obj) => ({
-            id: obj.objectiveId,
-            label: obj.title,
-            current: obj.current,
-            required: obj.required,
-            completed: obj.completed,
-          })),
-        });
-      }
+  public toQuestSnapshots(playerId: string): QuestSnapshot[] {
+    const result: QuestSnapshot[] = [];
+    for (const progress of this.getActiveQuests(playerId)) {
+      const definition = this.questDefinitions.get(progress.questId);
+      result.push({
+        id: progress.questId,
+        title: definition?.title ?? progress.questId,
+        description: definition?.description ?? "",
+        status: "active",
+        objectives: progress.objectives.map((objective) => ({
+          id: objective.objectiveId,
+          label: objective.title,
+          current: objective.current,
+          required: objective.required,
+          completed: objective.completed,
+        })),
+      });
     }
-
-    // Add available quests
-    for (const quest of this.getAvailableQuests(playerId)) {
-      const questDef = this.questDefinitions.get(quest.questId);
-      results.push({
-        id: quest.questId,
-        title: questDef?.title ?? quest.questId,
-        description: questDef?.description ?? "",
+    for (const progress of this.getAvailableQuests(playerId)) {
+      const definition = this.questDefinitions.get(progress.questId);
+      result.push({
+        id: progress.questId,
+        title: definition?.title ?? progress.questId,
+        description: definition?.description ?? "",
         status: "available",
-        objectives: quest.objectives.map((obj) => ({
-          id: obj.objectiveId,
-          label: obj.title,
+        objectives: progress.objectives.map((objective) => ({
+          id: objective.objectiveId,
+          label: objective.title,
           current: 0,
-          required: obj.required,
+          required: objective.required,
           completed: false,
         })),
       });
     }
-
-    // Add completed quests
-    for (const questId of playerState.completedQuestIds) {
-      const questDef = this.questDefinitions.get(questId);
-      results.push({
+    for (const questId of this.getCompletedQuestIds(playerId)) {
+      const definition = this.questDefinitions.get(questId);
+      result.push({
         id: questId,
-        title: questDef?.title ?? questId,
-        description: questDef?.description ?? "",
+        title: definition?.title ?? questId,
+        description: definition?.description ?? "",
         status: "completed",
         objectives: [],
       });
     }
-
-    return results.sort((a, b) => a.id.localeCompare(b.id));
+    return result.sort((a, b) => a.id.localeCompare(b.id));
   }
 
-  /**
-   * Reset player quest state (for testing).
-   */
-  resetPlayerState(playerId: string): void {
+  public exportPlayerState(playerId: string): PersistedNpcQuestPlayerState {
+    const state = this.playerQuestStates.get(playerId) ?? createEmptyPlayerState();
+    const reputations = [...this.npcDefinitions.keys()]
+      .map((npcId) => {
+        const reputation = this.npcReputations.get(npcId)?.get(playerId);
+        return reputation ? {
+          npcId,
+          reputation: reputation.reputation,
+          completedQuestIds: [...reputation.completedQuestIds].sort(),
+        } : null;
+      })
+      .filter((entry): entry is { npcId: string; reputation: number; completedQuestIds: string[] } => entry !== null);
+    return normalizeNpcQuestPlayerState({
+      schemaVersion: 1,
+      playerId,
+      activeQuests: [...state.activeQuests.values()].map((quest) => ({
+        questId: quest.questId,
+        rewardClaimed: quest.rewardClaimed,
+        started: quest.started,
+        objectives: [...quest.objectives.entries()].map(([objectiveId, objective]) => ({
+          objectiveId,
+          ...objective,
+        })),
+      })),
+      completedQuestIds: [...state.completedQuestIds],
+      rewardClaimedQuestIds: [...state.rewardClaimed],
+      reputations,
+    }, playerId);
+  }
+
+  public restorePlayerState(input: PersistedNpcQuestPlayerState): void {
+    const state = normalizeNpcQuestPlayerState(input, input.playerId);
+    const playerState = createEmptyPlayerState();
+    for (const quest of state.activeQuests) {
+      if (!this.questDefinitions.has(quest.questId)) continue;
+      playerState.activeQuests.set(quest.questId, {
+        questId: quest.questId,
+        rewardClaimed: quest.rewardClaimed,
+        started: quest.started,
+        objectives: new Map(quest.objectives.map((objective) => [objective.objectiveId, {
+          current: objective.current,
+          required: objective.required,
+          completed: objective.completed,
+        }])),
+      });
+    }
+    playerState.completedQuestIds = new Set(state.completedQuestIds.filter((id) => this.questDefinitions.has(id)));
+    playerState.rewardClaimed = new Set(state.rewardClaimedQuestIds.filter((id) => this.questDefinitions.has(id)));
+    this.playerQuestStates.set(state.playerId, playerState);
+    for (const reputation of state.reputations) {
+      if (!this.npcDefinitions.has(reputation.npcId)) continue;
+      let npcStates = this.npcReputations.get(reputation.npcId);
+      if (!npcStates) {
+        npcStates = new Map();
+        this.npcReputations.set(reputation.npcId, npcStates);
+      }
+      npcStates.set(state.playerId, {
+        reputation: reputation.reputation,
+        completedQuestIds: [...reputation.completedQuestIds],
+      });
+    }
+  }
+
+  public clonePlayerState(playerId: string): PersistedNpcQuestPlayerState {
+    return this.exportPlayerState(playerId);
+  }
+
+  public resetPlayerState(playerId: string): void {
     this.playerQuestStates.delete(playerId);
+    for (const states of this.npcReputations.values()) states.delete(playerId);
   }
 }
 
-/**
- * Global singleton instance.
- */
 export const npcQuestService = new NpcQuestService();

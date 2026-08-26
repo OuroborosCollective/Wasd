@@ -1,11 +1,5 @@
-/**
- * RESOURCE TYPES
- *
- * Server-side deterministic resource node types.
- * No Math.random(), no Date.now() for gameplay state.
- */
-
 import type { SkillId } from "../skills/SkillTypes.js";
+import type { ResourceNodeEcologySnapshot } from "./ResourceEcologyTypes.js";
 
 export type ResourceKind = "tree" | "ore" | "fish_spot";
 
@@ -21,6 +15,8 @@ export type ResourceGatherReason =
   | "level_too_low"
   | "missing_tool"
   | "invalid_player"
+  | "inventory_write_failed"
+  | "transaction_failed"
   | "gathered";
 
 export type RequiredToolSlot = "woodcutting_tool" | "mining_tool" | "fishing_tool";
@@ -40,7 +36,6 @@ export interface ResourceNodeDefinition {
     y: number;
   };
   radius: number;
-  /** Equipment slot ID that must be equipped to gather this node. */
   requiredTool?: RequiredToolSlot;
 }
 
@@ -68,8 +63,48 @@ export interface ResourceNodeSnapshot {
   status: ResourceNodeStatus;
   depletedUntilTick: number | null;
   remainingTicks: number;
-  /** Equipment slot required to gather this node (undefined = no tool required). */
   requiredTool?: RequiredToolSlot;
+  ecology?: ResourceNodeEcologySnapshot;
+}
+
+export type GatheringMomentumTruthStatus =
+  | "runtime_truth"
+  | "runtime_truth_candidate"
+  | "disabled_fallback";
+
+export interface GatheringMomentumRule {
+  schemaVersion: 1;
+  id: string;
+  enabled: boolean;
+  truthStatus: GatheringMomentumTruthStatus;
+  canBecomeTruth: boolean;
+  truthPath: string;
+  truthPromotion: string;
+  appliesToSkillIds: ResourceNodeDefinition["skillId"][];
+  windowTicks: number;
+  streakBonusPermille: number;
+  maxStreak: number;
+  resetOnSkillChange: boolean;
+}
+
+export interface GatheringMomentumState {
+  playerId: string;
+  lastSkillId: ResourceNodeDefinition["skillId"];
+  lastGatherTick: number;
+  streak: number;
+}
+
+export interface GatheringMomentumResult {
+  ruleId: string;
+  truthStatus: GatheringMomentumTruthStatus;
+  skillId: ResourceNodeDefinition["skillId"];
+  streak: number;
+  bonusPermille: number;
+  maxBonusPermille: number;
+  windowTicks: number;
+  xpBeforeMomentum: number;
+  xpReward: number;
+  expiresAtTick: number;
 }
 
 export interface GatherResourceResult {
@@ -77,19 +112,15 @@ export interface GatherResourceResult {
   playerId: string;
   nodeId: string;
   reason?: ResourceGatherReason;
-  /** Which tool slot is required (only set when reason is missing_tool) */
   requiredTool?: RequiredToolSlot;
   skillId?: ResourceNodeDefinition["skillId"];
   xpReward?: number;
   itemRewardId?: string;
   itemRewardName?: string;
-  /** Bonus yield from Tier 2 tool (+1 quantity when applicable) */
+  momentum?: GatheringMomentumResult;
   bonusYield?: number;
-  /** Tier of the equipped tool that provided the bonus (2 if bonusYield > 0) */
   toolTier?: number;
-  /** Whether the item was successfully added to player inventory */
   inventoryAdded?: boolean;
-  /** Quantity added to inventory (0 if failed) */
   inventoryQuantity?: number;
   snapshot?: ResourceNodeSnapshot | null;
 }

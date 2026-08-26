@@ -1282,9 +1282,33 @@ canvas {
 .gameplay-window__header {
   display: flex;
   justify-content: space-between;
-  padding: 10px 12px;
+  align-items: center;
+  padding: 8px 12px;
   border-bottom: 1px solid rgba(147, 164, 170, 0.24);
   background: rgba(0, 229, 255, 0.06);
+}
+
+.gameplay-window__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 36px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid rgba(147, 164, 170, 0.35);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #effcff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--ouro-transition-fast), border-color var(--ouro-transition-fast);
+}
+
+.gameplay-window__close:hover {
+  background: rgba(255, 63, 111, 0.15);
+  border-color: rgba(255, 63, 111, 0.45);
+  color: #ff3f6f;
 }
 
 .gameplay-window__header strong {
@@ -1318,4 +1342,19 @@ canvas {
 
 .character-paperdoll-root {
   width: 100%;
+}
+
+/* ─── Pulse Animation for Low Status States ────────────────────────────── */
+
+@keyframes ouro-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animate-pulse {
+  animation: ouro-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

@@ -36,12 +36,14 @@ permissions:
   checks: write
 
 env:
-  NODE_VERSION: '22'
+  NODE_VERSION: '22.23.2'
 
 jobs:
   system-health-check:
     name: System Health Analysis
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 10
 
     steps:
@@ -78,6 +80,8 @@ jobs:
   npc-civilization-health:
     name: NPC Civilization Health
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 10
 
     steps:
@@ -113,6 +117,8 @@ jobs:
   ui-optimization:
     name: UI/UX Optimization
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 10
 
     steps:
@@ -148,6 +154,8 @@ jobs:
   arelogic-determinism-audit:
     name: ARELogic Determinism Audit
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 15
 
     steps:
@@ -183,6 +191,8 @@ jobs:
   generate-report:
     name: Generate Health Report
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     if: always()
     timeout-minutes: 5
 

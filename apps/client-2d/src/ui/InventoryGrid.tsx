@@ -228,6 +228,13 @@ function InventorySlot({ index, item, isBlocked, onEquip, onMove, onDrop }: Inve
     onEquip?.(index);
   }, [isBlocked, item, index, onEquip]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleClick();
+    }
+  }, [handleClick]);
+
   const classNames = [
     "wow-slot",
     item ? "has-item" : "empty",
@@ -236,14 +243,18 @@ function InventorySlot({ index, item, isBlocked, onEquip, onMove, onDrop }: Inve
     icon ? icon.rarityClass : "",
   ].filter(Boolean).join(" ");
 
+  const slotLabel = item ? `Slot ${index + 1}: ${item.name}` : `Slot ${index + 1}: Empty`;
+
   return (
     <div
       className={classNames}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       role="button"
-      aria-label={item ? `Slot ${index + 1}: ${item.name}` : `Slot ${index + 1}: Empty`}
+      aria-label={slotLabel}
+      title={slotLabel}
       tabIndex={0}
     >
       {isBlocked && <div className="slot-blocked-overlay" />}
@@ -301,6 +312,13 @@ function EquipSlotDisplay({ slot, item, isBlocked, onUnequip }: EquipSlotDisplay
     onUnequip?.(slot);
   }, [isBlocked, item, slot, onUnequip]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleClick();
+    }
+  }, [handleClick]);
+
   const classNames = [
     "wow-equip-slot",
     item ? "has-item" : "empty",
@@ -309,14 +327,18 @@ function EquipSlotDisplay({ slot, item, isBlocked, onUnequip }: EquipSlotDisplay
     icon ? icon.rarityClass : "",
   ].filter(Boolean).join(" ");
 
+  const equipLabel = item ? `${EQUIP_SLOT_LABELS[slot]}: ${item.name}` : `${EQUIP_SLOT_LABELS[slot]}: Empty`;
+
   return (
     <div
       className={classNames}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       role="button"
-      aria-label={item ? `${EQUIP_SLOT_LABELS[slot]}: ${item.name}` : `${EQUIP_SLOT_LABELS[slot]}: Empty`}
+      aria-label={equipLabel}
+      title={equipLabel}
       tabIndex={0}
     >
       <div className="equip-slot-label">{EQUIP_SLOT_LABELS[slot]}</div>
@@ -353,6 +375,18 @@ export function InventoryGrid({ isOpen = true, onClose }: InventoryGridProps) {
   const snapshot = useInventoryGrid();
   const [tooltip, setTooltip] = useState<{ item: ModularItem; x: number; y: number } | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+
+  // Close overlay on Escape keydown
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
 // Handle WebSocket messages - useEffect ensures cleanup on unmount
   useEffect(() => {
@@ -436,7 +470,8 @@ export function InventoryGrid({ isOpen = true, onClose }: InventoryGridProps) {
       <div className="wow-inventory-header">
         <h2>INVENTORY</h2>
         {onClose && (
-          <button className="wow-close-btn" onClick={onClose} aria-label="Close">
+          <button className="wow-close-btn" onClick={onClose} aria-label="Close [ESC]" aria-keyshortcuts="Escape">
+            <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
             ✕
           </button>
         )}

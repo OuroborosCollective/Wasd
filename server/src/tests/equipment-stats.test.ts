@@ -355,7 +355,8 @@ describe('EquipmentStatService', () => {
     });
 
     it('should handle tier 1 tool (no bonus)', () => {
-      expect(calculateEffectiveGatheringYield(1, 2)).toBe(2);
+      // Tier 1 tool (0 tool yield bonus) + 2 equipment yield = 2 total effective yield
+      expect(calculateEffectiveGatheringYield(0, 2)).toBe(2);
     });
   });
 

@@ -1,0 +1,59 @@
+[
+  {
+    "id": "wood_delivery_001",
+    "title": "Wood Delivery",
+    "giverNpcId": "npc_2",
+    "targetNpcId": "npc_2",
+    "objectiveType": "collect",
+    "requiredItemId": "wood_log",
+    "requiredCount": 5,
+    "prerequisiteQuestIds": ["starter_welcome"],
+    "reward": {
+      "gold": 75,
+      "xp": 125,
+      "itemId": "wooden_axe"
+    }
+  },
+  {
+    "id": "plank_delivery_001",
+    "title": "Plank Delivery",
+    "giverNpcId": "npc_3",
+    "targetNpcId": "npc_3",
+    "objectiveType": "collect",
+    "requiredItemId": "wood_plank",
+    "requiredCount": 10,
+    "prerequisiteQuestIds": ["wood_delivery_001"],
+    "reward": {
+      "gold": 150,
+      "xp": 250,
+      "itemId": "copper_axe"
+    }
+  },
+  {
+    "id": "resource_iron_restock",
+    "title": "Iron Restock",
+    "giverNpcId": "npc_4",
+    "targetNpcId": "npc_4",
+    "objectiveType": "collect",
+    "requiredItemId": "iron_scrap",
+    "requiredCount": 2,
+    "prerequisiteQuestIds": ["dummy_slayer"],
+    "reward": {
+      "gold": 110,
+      "xp": 180
+    }
+  },
+  {
+    "id": "resource_alchemist_bundle",
+    "title": "Alchemist's Bundle",
+    "giverNpcId": "npc_8_apprentice",
+    "targetNpcId": "npc_8_apprentice",
+    "objectiveType": "collect",
+    "requiredItemId": "mushroom",
+    "requiredCount": 3,
+    "reward": {
+      "gold": 60,
+      "xp": 95
+    }
+  }
+]

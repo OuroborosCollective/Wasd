@@ -10,6 +10,7 @@
  * - No Date.now()
  * - Stable ordering
  * - No skill locks
+ * - Idempotent grants: repeated application never duplicates starter resources
  */
 
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
@@ -83,6 +84,13 @@ export function getStartPathStarterKit(archetype: CharacterArchetype): StartPath
   return START_PATH_STARTER_KITS[archetype] ?? START_PATH_STARTER_KITS.wanderer;
 }
 
+export function getStarterGrantQuantity(archetype: CharacterArchetype, itemId: string): number {
+  const kit = getStartPathStarterKit(archetype);
+  return kit.grants
+    .filter((grant) => grant.itemId === itemId)
+    .reduce((total, grant) => total + Math.max(0, Math.floor(grant.quantity)), 0);
+}
+
 export async function applyStartPathStarterKit(input: {
   readonly playerId: string;
   readonly archetype: CharacterArchetype;
@@ -91,6 +99,15 @@ export async function applyStartPathStarterKit(input: {
   const inventory = await getInventoryService();
 
   for (const grant of kit.grants) {
+    const alreadyHasGrant = await inventory.hasItems({
+      playerId: input.playerId,
+      items: [{ itemId: grant.itemId, quantity: grant.quantity }],
+    });
+
+    if (alreadyHasGrant) {
+      continue;
+    }
+
     const result = await inventory.addItem({
       playerId: input.playerId,
       itemId: grant.itemId,

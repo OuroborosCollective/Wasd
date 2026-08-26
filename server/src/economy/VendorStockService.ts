@@ -2,13 +2,13 @@
  * VENDOR STOCK SERVICE
  *
  * Server-authoritative vendor stock service with persistence hydration.
- * Deterministic: No Math.random(), no Date.now(), stable ordering.
+ * Deterministic: seeded/tick-safe runtime and stable ordering.
  */
 
 import { VendorStockStore } from "./VendorStockStore.js";
-import type {
-  VendorStockPersistenceAdapter,
-  PersistedVendorStockState,
+import {
+  createPersistedVendorStockState,
+  type VendorStockPersistenceAdapter,
 } from "./VendorStockPersistence.js";
 import type { VendorStockState } from "./VendorStockTypes.js";
 
@@ -20,50 +20,55 @@ export class VendorStockService {
     private readonly persistence: VendorStockPersistenceAdapter,
   ) {}
 
-  /**
-   * Get the stock state for a vendor.
-   */
   async getStock(vendorId: string): Promise<VendorStockState> {
     await this.hydrateVendor(vendorId);
     return this.store.getStock(vendorId);
   }
 
-  /**
-   * Get the quantity of a specific item in vendor stock.
-   */
   async getItemQuantity(vendorId: string, itemId: string): Promise<number> {
     await this.hydrateVendor(vendorId);
     return this.store.getItemQuantity(vendorId, itemId);
   }
 
-  /**
-   * Add items to vendor stock after a player sells them.
-   * Persists the updated state.
-   */
   async addItems(vendorId: string, itemId: string, quantity: number): Promise<VendorStockState> {
     await this.hydrateVendor(vendorId);
     const result = this.store.addItems(vendorId, itemId, quantity);
 
     if (result.items[itemId] !== undefined) {
-      await this.persistence.saveStock(
-        createPersistedVendorStockState(vendorId, result),
-      );
+      await this.persistStock(vendorId, result);
     }
 
     return result;
   }
 
-  /**
-   * Get all stock entries as an array for a vendor.
-   */
+  async removeItems(vendorId: string, itemId: string, quantity: number): Promise<VendorStockState | null> {
+    await this.hydrateVendor(vendorId);
+    const result = this.store.removeItems(vendorId, itemId, quantity);
+    if (!result) return null;
+    await this.persistStock(vendorId, result);
+    return result;
+  }
+
   async getStockEntries(vendorId: string): Promise<Array<{ itemId: string; quantity: number }>> {
     await this.hydrateVendor(vendorId);
     return this.store.getStockEntries(vendorId);
   }
 
-  /**
-   * Hydrate a vendor's stock from persistence.
-   */
+  async persistStock(vendorId: string, state: VendorStockState): Promise<void> {
+    await this.persistence.saveStock(createPersistedVendorStockState(vendorId, state));
+  }
+
+  async restoreStock(vendorId: string, state: VendorStockState): Promise<void> {
+    const restored: VendorStockState = Object.freeze({
+      vendorId,
+      schemaVersion: 1,
+      items: Object.freeze({ ...state.items }),
+    });
+    this.store.replaceStock(vendorId, restored);
+    this.hydratedVendors.add(vendorId);
+    await this.persistStock(vendorId, restored);
+  }
+
   private async hydrateVendor(vendorId: string): Promise<void> {
     if (this.hydratedVendors.has(vendorId)) return;
 
@@ -75,24 +80,7 @@ export class VendorStockService {
     this.hydratedVendors.add(vendorId);
   }
 
-  /**
-   * Clear hydration state for testing.
-   */
   clearForTests(): void {
     this.hydratedVendors.clear();
   }
-}
-
-/**
- * Create a persisted vendor stock state from a runtime state.
- */
-function createPersistedVendorStockState(
-  vendorId: string,
-  state: VendorStockState,
-): PersistedVendorStockState {
-  return {
-    vendorId,
-    schemaVersion: state.schemaVersion,
-    items: { ...state.items },
-  };
 }

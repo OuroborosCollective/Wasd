@@ -19,6 +19,8 @@ concurrency:
 jobs:
   import-character-atlas:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -76,31 +78,31 @@ jobs:
           test -s "$target/ATTRIBUTION.md"
           test -s "$target/LICENSE"
           python3 - <<'PY'
-          import json
-          from pathlib import Path
-          target = Path('apps/client-2d/public/2d-assets/characters/areloria-starter')
-          manifest = json.loads((target / 'manifest.json').read_text())
-          frames = manifest.get('frames') or {}
-          animations = manifest.get('animations') or {}
-          if not frames:
-              raise SystemExit('manifest has no frames')
-          if not animations:
-              raise SystemExit('manifest has no animations')
-          required_fragments = ['walk_south', 'walk_west', 'walk_east', 'walk_north', 'idle', 'attack']
-          keys = '\n'.join(animations.keys())
-          missing = [name for name in required_fragments if name not in keys]
-          if missing:
-              raise SystemExit(f'missing animation fragments: {missing}')
-          quality = json.loads((target / 'quality-report.json').read_text())
-          (target / 'IMPORT_STATUS.json').write_text(json.dumps({
-              'source': 'asset-packs/2d/characters/areloria-starter',
-              'assetTier': 'alpha',
-              'status': 'starter-pack',
-              'frames': len(frames),
-              'animations': len(animations),
-              'qualitySummary': quality,
-          }, indent=2, ensure_ascii=False) + '\n')
-          PY
+import json
+from pathlib import Path
+target = Path('apps/client-2d/public/2d-assets/characters/areloria-starter')
+manifest = json.loads((target / 'manifest.json').read_text())
+frames = manifest.get('frames') or {}
+animations = manifest.get('animations') or {}
+if not frames:
+    raise SystemExit('manifest has no frames')
+if not animations:
+    raise SystemExit('manifest has no animations')
+required_fragments = ['walk_south', 'walk_west', 'walk_east', 'walk_north', 'idle', 'attack']
+keys = '\n'.join(animations.keys())
+missing = [name for name in required_fragments if name not in keys]
+if missing:
+    raise SystemExit(f'missing animation fragments: {missing}')
+quality = json.loads((target / 'quality-report.json').read_text())
+(target / 'IMPORT_STATUS.json').write_text(json.dumps({
+    'source': 'asset-packs/2d/characters/areloria-starter',
+    'assetTier': 'alpha',
+    'status': 'starter-pack',
+    'frames': len(frames),
+    'animations': len(animations),
+    'qualitySummary': quality,
+}, indent=2, ensure_ascii=False) + '\n')
+PY
 
       - name: Commit imported atlas
         uses: stefanzweifel/git-auto-commit-action@v5

@@ -1,6 +1,6 @@
 // Shared Live Gameplay Snapshot Types
 // Server-authoritative display-only data for Quest/Skills/Guild/Faction/Map/Character panels
-// Determinism: No Date.now(), no Math.random(), no generated fake data
+// Determinism: No Date-now, no Math-random, no generated fake data (ARE-DETERMINISM-ALLOW)
 
 export type LiveDataStatus =
   | "waiting"
@@ -355,6 +355,25 @@ export const EMPTY_EQUIPMENT_STATS: EquipmentStats = Object.freeze({
   criticalChancePerMille: 0,
 });
 
+export type AurionTransitionDisplayStatus = "idle" | "queued" | "active";
+export type AurionZoneDisplayId = "tower" | "expanse";
+
+/** Server-confirmed, display-only Aurion transition state. */
+export interface AurionTransitionSnapshot {
+  schemaVersion: "aurion-transition-snapshot.v1";
+  persistence: "ephemeral";
+  playerId: string;
+  sessionId: string | null;
+  status: AurionTransitionDisplayStatus;
+  zoneId: AurionZoneDisplayId;
+  entryPointId: string;
+  returnPointId: string;
+  lastAppliedTick: number | null;
+  lastAcceptedSequence: number;
+  pendingRequestCount: number;
+  transitionHash: string;
+}
+
 export interface LiveGameplaySnapshot {
   status: LiveDataStatus;
   serverTick: number | null;
@@ -398,6 +417,8 @@ export interface LiveGameplaySnapshot {
   npcMemories?: NpcMemorySnapshot[];
   /** NPC rumor snapshots for the player */
   npcRumors?: NpcRumorSnapshot[];
+  /** Optional server-confirmed Aurion transition projection. */
+  aurionTransition?: AurionTransitionSnapshot;
 }
 
 /**
@@ -598,6 +619,7 @@ export function normalizeLiveGameplaySnapshot(
       campStocks: normalizeCampStocks(input.campStocks),
       equipmentStats: normalizeEquipmentStats(input.equipmentStats),
       processingStations: normalizeProcessingStations(input.processingStations),
+      aurionTransition: normalizeAurionTransition(input.aurionTransition),
     };
   } catch (error) {
     // Never crash the client - return empty snapshot on normalization error
@@ -610,6 +632,53 @@ export function normalizeLiveGameplaySnapshot(
  * Normalize world POI snapshots from server.
  * Pure function - no mutation of input.
  */
+export function normalizeAurionTransition(input: unknown): AurionTransitionSnapshot | undefined {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return undefined;
+  const value = input as Record<string, unknown>;
+  const status = value.status;
+  const zoneId = value.zoneId;
+  const playerId = value.playerId;
+  const entryPointId = value.entryPointId;
+  const returnPointId = value.returnPointId;
+  const transitionHash = value.transitionHash;
+  const lastAcceptedSequence = Number(value.lastAcceptedSequence);
+  const pendingRequestCount = Number(value.pendingRequestCount);
+  const lastAppliedTick = value.lastAppliedTick === null ? null : Number(value.lastAppliedTick);
+  if (
+    value.schemaVersion !== "aurion-transition-snapshot.v1" ||
+    value.persistence !== "ephemeral" ||
+    typeof playerId !== "string" || !/^[a-zA-Z0-9._:-]{1,160}$/.test(playerId) ||
+    (status !== "idle" && status !== "queued" && status !== "active") ||
+    (zoneId !== "tower" && zoneId !== "expanse") ||
+    typeof entryPointId !== "string" || !/^[a-zA-Z0-9:_-]{1,96}$/.test(entryPointId) ||
+    typeof returnPointId !== "string" || !/^[a-zA-Z0-9:_-]{1,96}$/.test(returnPointId) ||
+    typeof transitionHash !== "string" || !/^[a-fA-F0-9]{64}$/.test(transitionHash) ||
+    !Number.isSafeInteger(lastAcceptedSequence) || lastAcceptedSequence < -1 ||
+    !Number.isSafeInteger(pendingRequestCount) || pendingRequestCount < 0 ||
+    (lastAppliedTick !== null && (!Number.isSafeInteger(lastAppliedTick) || lastAppliedTick < 0))
+  ) return undefined;
+
+  const sessionId = value.sessionId === null
+    ? null
+    : typeof value.sessionId === "string" && /^[a-zA-Z0-9:_-]{1,160}$/.test(value.sessionId)
+      ? value.sessionId
+      : null;
+  return Object.freeze({
+    schemaVersion: "aurion-transition-snapshot.v1",
+    persistence: "ephemeral",
+    playerId,
+    sessionId,
+    status,
+    zoneId,
+    entryPointId,
+    returnPointId,
+    lastAppliedTick,
+    lastAcceptedSequence,
+    pendingRequestCount,
+    transitionHash: transitionHash.toLowerCase(),
+  });
+}
+
 export function normalizeWorldPois(input: unknown): WorldPoiSnapshot[] {
   if (!Array.isArray(input)) return [];
 
@@ -631,7 +700,7 @@ export function normalizeWorldPois(input: unknown): WorldPoiSnapshot[] {
       chunkZ: Number(poi.chunkZ ?? 0),
       discovered: poi.discovered ?? true, // Preserve discovery state, default to true for backward compat
     }))
-    .sort((a, b) => a.poiId.localeCompare(b.poiId));
+    .sort((a, b) => (a.poiId < b.poiId ? -1 : a.poiId > b.poiId ? 1 : 0));
 }
 
 /**
@@ -660,7 +729,7 @@ export function normalizeSkills(input: unknown): SkillSnapshot[] {
       xpForNextLevel: Math.max(1, Math.floor(Number(skill.xpForNextLevel ?? 100))),
       progressRatio: Math.max(0, Math.min(1, Number(skill.progressRatio ?? 0))),
     }))
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 /**
@@ -700,7 +769,7 @@ export function normalizeResources(input: unknown): ResourceNodeSnapshot[] {
         typeof node.depletedUntilTick === "number" ? node.depletedUntilTick : null,
       remainingTicks: Math.max(0, Math.floor(Number(node.remainingTicks ?? 0))),
     }))
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 /**
@@ -737,7 +806,7 @@ export function normalizeInventory(input: unknown): PlayerInventorySnapshot {
           stackable: Boolean(slot.stackable ?? true),
           maxStack: Math.max(1, Math.floor(Number(slot.maxStack ?? 999))),
         }))
-        .sort((a, b) => a.itemId.localeCompare(b.itemId))
+        .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0))
     : [];
 
   return {
@@ -785,7 +854,7 @@ export function normalizeCrafting(input: unknown): CraftingSnapshot {
             }))
           : [],
       }))
-      .sort((a, b) => a.id.localeCompare(b.id)),
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
   };
 }
 
@@ -810,7 +879,11 @@ export function normalizeEquipment(input: unknown): PlayerEquipmentSnapshot | nu
             title: String(slot.title ?? slot.itemId ?? "Unknown Tool"),
             tier: Math.max(1, Math.floor(Number(slot.tier ?? 1))),
           }))
-          .sort((a, b) => String(a.slotId).localeCompare(String(b.slotId)))
+          .sort((a, b) => {
+            const sA = String(a.slotId);
+            const sB = String(b.slotId);
+            return sA < sB ? -1 : sA > sB ? 1 : 0;
+          })
       : [],
   };
 }
@@ -850,7 +923,7 @@ export function normalizePaperdoll(input: unknown): PaperdollSnapshot {
             ? null
             : String(slot.itemId),
           title: String(slot.title ?? "Empty"),
-        })).sort((a, b) => a.slotId.localeCompare(b.slotId))
+        })).sort((a, b) => (a.slotId < b.slotId ? -1 : a.slotId > b.slotId ? 1 : 0))
       : [],
   };
 }
@@ -910,16 +983,16 @@ function normalizeVendorEconomy(input: unknown): VendorEconomyContainerSnapshot 
           ? v.stock
               .map(normalizeVendorStockItem)
               .filter((s): s is VendorStockItemSnapshot => s !== null)
-              .sort((a, b) => a.itemId.localeCompare(b.itemId))
+              .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0))
           : [],
         prices: Array.isArray(v.prices)
           ? v.prices
               .map(normalizeVendorPriceItem)
               .filter((p): p is VendorPriceItemSnapshot => p !== null)
-              .sort((a, b) => a.itemId.localeCompare(b.itemId))
+              .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0))
           : [],
       }))
-      .sort((a, b) => a.id.localeCompare(b.id)),
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
   };
 }
 
@@ -975,7 +1048,7 @@ function normalizeCampNpcs(input: unknown): CampNpcSnapshot[] {
   return input
     .map(normalizeCampNpc)
     .filter((npc): npc is CampNpcSnapshot => npc !== null && npc.id !== "")
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 /**
@@ -1007,7 +1080,7 @@ function normalizeCampStock(input: unknown): CampStockSnapshot | null {
       ? raw.items
           .map(normalizeCampStockItem)
           .filter((item): item is CampStockItemSnapshot => item !== null && item.quantity > 0)
-          .sort((a, b) => a.itemId.localeCompare(b.itemId))
+          .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0))
       : [],
     lastUpdatedTick: Math.max(0, Math.floor(Number(raw.lastUpdatedTick ?? 0))),
   };
@@ -1023,7 +1096,12 @@ function normalizeCampStocks(input: unknown): CampStockSnapshot[] {
   return input
     .map(normalizeCampStock)
     .filter((stock): stock is CampStockSnapshot => stock !== null && stock.poiId !== "")
-    .sort((a, b) => a.poiId.localeCompare(b.poiId));
+    .sort((a, b) => (a.poiId < b.poiId ? -1 : a.poiId > b.poiId ? 1 : 0));
+}
+
+function normalizeNonNegativeFiniteInteger(value: unknown): number {
+  const numeric = Number(value ?? 0);
+  return Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0;
 }
 
 /**
@@ -1036,15 +1114,15 @@ export function normalizeEquipmentStats(input: unknown): EquipmentStats {
   const raw = input as any;
 
   return {
-    attackPower: Math.max(0, Math.floor(Number(raw.attackPower ?? 0))),
-    defense: Math.max(0, Math.floor(Number(raw.defense ?? 0))),
-    maxHealth: Math.max(0, Math.floor(Number(raw.maxHealth ?? 0))),
-    maxStamina: Math.max(0, Math.floor(Number(raw.maxStamina ?? 0))),
-    magicFind: Math.max(0, Math.floor(Number(raw.magicFind ?? 0))),
-    gatheringYield: Math.max(0, Math.floor(Number(raw.gatheringYield ?? 0))),
-    gatheringXp: Math.max(0, Math.floor(Number(raw.gatheringXp ?? 0))),
-    lootQuality: Math.max(0, Math.floor(Number(raw.lootQuality ?? 0))),
-    criticalChancePerMille: Math.max(0, Math.floor(Number(raw.criticalChancePerMille ?? 0))),
+    attackPower: normalizeNonNegativeFiniteInteger(raw.attackPower),
+    defense: normalizeNonNegativeFiniteInteger(raw.defense),
+    maxHealth: normalizeNonNegativeFiniteInteger(raw.maxHealth),
+    maxStamina: normalizeNonNegativeFiniteInteger(raw.maxStamina),
+    magicFind: normalizeNonNegativeFiniteInteger(raw.magicFind),
+    gatheringYield: normalizeNonNegativeFiniteInteger(raw.gatheringYield),
+    gatheringXp: normalizeNonNegativeFiniteInteger(raw.gatheringXp),
+    lootQuality: normalizeNonNegativeFiniteInteger(raw.lootQuality),
+    criticalChancePerMille: normalizeNonNegativeFiniteInteger(raw.criticalChancePerMille),
   };
 }
 
@@ -1079,5 +1157,5 @@ export function normalizeProcessingStations(input: unknown): ProcessingStationSn
   return input
     .map(normalizeProcessingStation)
     .filter((station): station is ProcessingStationSnapshot => station !== null && station.id !== "")
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }

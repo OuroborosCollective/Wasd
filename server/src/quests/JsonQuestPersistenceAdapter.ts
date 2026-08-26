@@ -51,6 +51,9 @@ export function resolveQuestStateFilePath(): string {
 }
 
 export class JsonQuestPersistenceAdapter implements QuestPersistenceAdapter {
+  /** Serializes complete read-modify-write cycles for each shared state file. */
+  private static readonly saveQueues = new Map<string, Promise<void>>();
+
   constructor(private readonly filePath: string = resolveQuestStateFilePath()) {}
 
   async loadPlayerQuestState(playerId: string): Promise<PersistedQuestPlayerState | null> {
@@ -60,17 +63,34 @@ export class JsonQuestPersistenceAdapter implements QuestPersistenceAdapter {
   }
 
   async savePlayerQuestState(state: PersistedQuestPlayerState): Promise<void> {
-    const file = await this.readStateFile();
-    const normalized = normalizePersistedQuestState(state, state.playerId);
-    const withoutPlayer = file.players.filter((player) => player.playerId !== normalized.playerId);
-    const next = stableQuestStateFile([...withoutPlayer, normalized]);
+    await this.enqueueSave(async () => {
+      const file = await this.readStateFile();
+      const normalized = normalizePersistedQuestState(state, state.playerId);
+      const withoutPlayer = file.players.filter((player) => player.playerId !== normalized.playerId);
+      const next = stableQuestStateFile([...withoutPlayer, normalized]);
 
-    await this.writeStateFile(next);
+      await this.writeStateFile(next);
+    });
   }
 
   async loadAllPlayerQuestStates(): Promise<PersistedQuestPlayerState[]> {
     const file = await this.readStateFile();
     return stableQuestStateFile(file.players).players;
+  }
+
+  private async enqueueSave(operation: () => Promise<void>): Promise<void> {
+    const previous = JsonQuestPersistenceAdapter.saveQueues.get(this.filePath) ?? Promise.resolve();
+    const next = previous.then(operation, operation);
+    const tail = next.catch(() => undefined);
+    JsonQuestPersistenceAdapter.saveQueues.set(this.filePath, tail);
+
+    void tail.finally(() => {
+      if (JsonQuestPersistenceAdapter.saveQueues.get(this.filePath) === tail) {
+        JsonQuestPersistenceAdapter.saveQueues.delete(this.filePath);
+      }
+    });
+
+    return next;
   }
 
   private async readStateFile(): Promise<QuestStateFile> {

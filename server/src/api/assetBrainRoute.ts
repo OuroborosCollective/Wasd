@@ -9,10 +9,12 @@
  * POST   /api/asset-brain/batch         – Start batch job
  * GET    /api/asset-brain/batch/:id     – Get batch job status
  */
-import { Router, Request, Response } from 'express';
-import { authMiddleware } from '../middleware/authMiddleware.js';
+import { Router, type Request, type Response } from 'express';
+import express from 'express';
+import { authRequestHandler, optionalAuthRequestHandler } from '../middleware/authRequestHandler.js';
+import { adminRateLimiter, sensitiveWriteRateLimiter } from '../middleware/rateLimitMiddleware.js';
 import { db as dbInstance } from '../core/Database.js';
-import { AssetBrainDatabase, type AssetRecord } from '../modules/asset-brain/AssetBrainDatabase.js';
+import { AssetBrainDatabase } from '../modules/asset-brain/AssetBrainDatabase.js';
 import { generateAssetSpecification, generateVariants } from '../modules/asset-brain/assetBrainEngine.js';
 
 export function createAssetBrainRouter(dbParam?: unknown): Router {
@@ -20,17 +22,16 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
   const assetBrainDb = new AssetBrainDatabase(db as typeof dbInstance);
   const router = Router();
 
-  // Initialize tables on startup
+  router.use(express.json({ limit: '1mb' }));
   assetBrainDb.initializeTables().catch(console.error);
 
-  /**
-   * POST /api/asset-brain/generate
-   * Generate asset specification from text input
-   */
-  router.post('/generate', authMiddleware, async (req: Request, res: Response) => {
+  router.post('/generate', sensitiveWriteRateLimiter, authRequestHandler, async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = (req as any).userId || (req as any).playerId;
-      if (!userId) return res.status(401).json({ error: 'User ID required' });
+      if (!userId) {
+        res.status(401).json({ error: 'User ID required' });
+        return;
+      }
 
       const { assetInput, name, style, tags, description, isPublic } = req.body as {
         assetInput?: string;
@@ -42,13 +43,11 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
       };
 
       if (!assetInput || typeof assetInput !== 'string') {
-        return res.status(400).json({ error: 'assetInput is required and must be a string' });
+        res.status(400).json({ error: 'assetInput is required and must be a string' });
+        return;
       }
 
-      // Generate specification using Asset Brain Engine
       const specification = await generateAssetSpecification(assetInput);
-
-      // Save to database (store full spec as JSON blob)
       const savedSpec = await assetBrainDb.createSpecification({
         userId,
         assetName: name ?? specification.assetName,
@@ -61,10 +60,7 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
         isPublic: isPublic ?? false,
       });
 
-      // Generate variants
       const variants = generateVariants(specification);
-
-      // Save variants
       const savedVariants: unknown[] = [];
       for (const [variantType, variantData] of Object.entries(variants)) {
         const topology = (variantData as any).topology;
@@ -89,114 +85,101 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
       });
     } catch (error: any) {
       console.error('Asset generation error:', error);
-      res.status(500).json({ error: error.message || 'Failed to generate asset specification' });
+      res.status(500).json({ error: 'Failed to generate asset specification' });
     }
   });
 
-  /**
-   * GET /api/asset-brain/my-specs
-   * Get user's asset specifications
-   */
-  router.get('/my-specs', authMiddleware, async (req: Request, res: Response) => {
+  router.get('/my-specs', adminRateLimiter, authRequestHandler, async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = (req as any).userId || (req as any).playerId;
-      if (!userId) return res.status(401).json({ error: 'User ID required' });
+      if (!userId) {
+        res.status(401).json({ error: 'User ID required' });
+        return;
+      }
       const specs = await assetBrainDb.getUserSpecifications(userId);
       res.json({ specifications: specs });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Error fetching user specifications:', error);
+      res.status(500).json({ error: 'Failed to retrieve specifications' });
     }
   });
 
-  /**
-   * GET /api/asset-brain/specs/:id
-   * Get specification details
-   */
-  router.get('/specs/:id', async (req: Request, res: Response) => {
+  router.get('/specs/:id', adminRateLimiter, optionalAuthRequestHandler, async (req: Request, res: Response): Promise<void> => {
     try {
       const id = String(req.params['id']);
       const spec = await assetBrainDb.getSpecification(id);
       if (!spec) {
-        return res.status(404).json({ error: 'Specification not found' });
+        res.status(404).json({ error: 'Specification not found' });
+        return;
       }
       const userId = (req as any).userId || (req as any).playerId;
       if (!spec.isPublic && spec.userId !== userId) {
-        return res.status(403).json({ error: 'Access denied' });
+        res.status(403).json({ error: 'Access denied' });
+        return;
       }
       res.json({ specification: spec });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Error fetching specification:', error);
+      res.status(500).json({ error: 'Failed to retrieve specification' });
     }
   });
 
-  /**
-   * GET /api/asset-brain/variants/:id
-   * Get variants for a specification
-   */
-  router.get('/variants/:id', async (req: Request, res: Response) => {
+  router.get('/variants/:id', adminRateLimiter, optionalAuthRequestHandler, async (req: Request, res: Response): Promise<void> => {
     try {
       const id = String(req.params['id']);
       const userId = (req as any).userId || (req as any).playerId;
-      
-      // Get the specification to check authorization
       const spec = await assetBrainDb.getSpecification(id);
       if (!spec) {
-        return res.status(404).json({ error: 'Specification not found' });
+        res.status(404).json({ error: 'Specification not found' });
+        return;
       }
-      
-      // Only allow access to public specs or user's own specs
       if (!spec.isPublic && spec.userId !== userId) {
-        return res.status(403).json({ error: 'Access denied' });
+        res.status(403).json({ error: 'Access denied' });
+        return;
       }
-      
       const variants = await assetBrainDb.getVariants(id);
       res.json({ variants });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Error fetching variants:', error);
+      res.status(500).json({ error: 'Failed to retrieve variants' });
     }
   });
 
-  /**
-   * GET /api/asset-brain/search
-   * Search public specifications
-   */
-  router.get('/search', async (req: Request, res: Response) => {
+  router.get('/search', adminRateLimiter, async (req: Request, res: Response): Promise<void> => {
     try {
       const assetClass = typeof req.query.assetClass === 'string' ? req.query.assetClass : undefined;
       const style = typeof req.query.style === 'string' ? req.query.style : undefined;
       const specs = await assetBrainDb.searchSpecifications(assetClass, style);
       res.json({ specifications: specs });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Error searching specifications:', error);
+      res.status(500).json({ error: 'Failed to search specifications' });
     }
   });
 
-  /**
-   * GET /api/asset-brain/library
-   * Browse asset library
-   */
-  router.get('/library', async (req: Request, res: Response) => {
+  router.get('/library', adminRateLimiter, async (req: Request, res: Response): Promise<void> => {
     try {
       const assetClass = typeof req.query.assetClass === 'string' ? req.query.assetClass : undefined;
       const style = typeof req.query.style === 'string' ? req.query.style : undefined;
       const entries = await assetBrainDb.searchLibrary(assetClass, style);
       res.json({ library: entries });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Error searching library:', error);
+      res.status(500).json({ error: 'Failed to search library' });
     }
   });
 
-  /**
-   * POST /api/asset-brain/batch
-   * Start batch job for CSV/JSON import
-   */
-  router.post('/batch', authMiddleware, async (req: Request, res: Response) => {
+  router.post('/batch', sensitiveWriteRateLimiter, authRequestHandler, async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = (req as any).userId || (req as any).playerId;
-      if (!userId) return res.status(401).json({ error: 'User ID required' });
+      if (!userId) {
+        res.status(401).json({ error: 'User ID required' });
+        return;
+      }
       const { jobType, inputFile } = req.body as { jobType?: string; inputFile?: string };
       if (!jobType || !['csv-import', 'json-import', 'batch-generate'].includes(jobType)) {
-        return res.status(400).json({ error: 'Invalid job type' });
+        res.status(400).json({ error: 'Invalid job type' });
+        return;
       }
       const job = await assetBrainDb.createBatchJob({
         userId,
@@ -208,20 +191,18 @@ export function createAssetBrainRouter(dbParam?: unknown): Router {
       });
       res.json({ success: true, jobId: job.id });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Error creating batch job:', error);
+      res.status(500).json({ error: 'Failed to create batch job' });
     }
   });
 
-  /**
-   * GET /api/asset-brain/batch/:id
-   * Get batch job status
-   */
-  router.get('/batch/:id', authMiddleware, async (req: Request, res: Response) => {
+  router.get('/batch/:id', adminRateLimiter, authRequestHandler, async (req: Request, res: Response): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = String(req.params['id'] ?? '');
       res.json({ jobId: id, status: 'pending', assetsGenerated: 0 });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error('Error getting batch job status:', error);
+      res.status(500).json({ error: 'Failed to retrieve batch job status' });
     }
   });
 

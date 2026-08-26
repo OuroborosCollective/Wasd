@@ -1,0 +1,82 @@
+name: Client 2D Render Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/client-2d/**'
+      - 'game-data/visual/presentation_bindings.json'
+      - 'packages/shared/**'
+      - 'release.json'
+      - 'server/src/api/healthRoutes.ts'
+      - 'server/src/tests/client-2d-presentation-truth.test.ts'
+      - 'scripts/audit-client-2d-renderer.mjs'
+      - 'scripts/extract-biome-atlas-v2.mjs'
+      - 'scripts/extract-2d-weapon-pool.mjs'
+      - 'scripts/extract-forest-biome-pack.mjs'
+      - 'scripts/are-asset-forge.mjs'
+      - 'scripts/enrich-stitch-atlas-frames.mjs'
+      - 'scripts/validate-client-2d-assets.mjs'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/client-2d-render-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: client-2d-render-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-2d:
+    name: Build Client 2D
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+      CI: 'true'
+      NODE_OPTIONS: '--max-old-space-size=4096'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install repository-pinned pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.2'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
+
+      - name: Audit 2D renderer wiring
+        run: node scripts/audit-client-2d-renderer.mjs
+
+      - name: Build shared package
+        run: pnpm --filter @wasd/shared build
+
+      - name: Generate and validate deterministic 2D assets
+        run: pnpm --filter @wasd/client-2d validate:assets
+
+      - name: Prove production 2D presentation truth
+        run: pnpm exec vitest run server/src/tests/client-2d-presentation-truth.test.ts
+
+      - name: Build 2D client
+        run: |
+          set -o pipefail
+          pnpm --filter @wasd/client-2d build 2>&1 | tee client-2d-render-build.log
+
+      - name: Upload render build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-2d-render-build-log
+          path: client-2d-render-build.log
+          retention-days: 3

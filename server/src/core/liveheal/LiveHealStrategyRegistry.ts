@@ -5,7 +5,6 @@
  * Provides selection based on error signature, learning scores, and policy.
  */
 
-import { deterministicNow } from "../determinism/AREDeterminism.js";
 import type {
   HealingStrategy,
   HealingResult,
@@ -25,11 +24,13 @@ interface StrategyEntry {
 
 export class LiveHealStrategyRegistry {
   private readonly strategies = new Map<string, StrategyEntry>();
-  private logicalClock = deterministicNow("liveheal-strategy-registry:init");
+  private logicalClock = 0;
 
-  private now(seed: string): number {
+  private now(_seed: string): number {
+    // Cooldowns require an ordered simulation timeline, not hash-derived
+    // pseudo-times that can move backwards between calls.
     this.logicalClock += 1;
-    return deterministicNow(`${seed}:${this.logicalClock}`);
+    return this.logicalClock;
   }
 
   register(strategy: HealingStrategy): void {
@@ -78,13 +79,16 @@ export class LiveHealStrategyRegistry {
       return { ok: false, reason: `Max attempts (${strategy.maxAttempts}) reached for ${subsystemId}.` };
     }
 
-    const lastRun = entry.lastRunAt.get(subsystemId) ?? 0;
-    const elapsed = this.now(`${strategy.name}:${subsystemId}:can-run`) - lastRun;
-    if (elapsed < strategy.cooldownMs) {
-      return {
-        ok: false,
-        reason: `Cooldown active (${strategy.cooldownMs - elapsed}ms remaining).`,
-      };
+    const lastRun = entry.lastRunAt.get(subsystemId);
+    const now = this.now(`${strategy.name}:${subsystemId}:can-run`);
+    if (lastRun !== undefined) {
+      const elapsed = now - lastRun;
+      if (elapsed < strategy.cooldownMs) {
+        return {
+          ok: false,
+          reason: `Cooldown active (${strategy.cooldownMs - elapsed}ms remaining).`,
+        };
+      }
     }
 
     return { ok: true, reason: "" };

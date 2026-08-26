@@ -10,9 +10,9 @@
   },
   "dependencies": {
     "vite": "^6.4.2",
-    "typescript": "^6.0.3",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
+    "typescript": "^5.8.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "@wasd/core-logic": "workspace:*"
   },
   "devDependencies": {}

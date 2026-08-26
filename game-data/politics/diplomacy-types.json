@@ -1,7 +1,62 @@
 {
-  "alliance": {},
-  "trade": {},
-  "non_aggression": {},
-  "tribute": {},
-  "sanction": {}
+  "alliance": {
+    "id": "alliance",
+    "label": "Alliance",
+    "relationDelta": 35,
+    "tradeModifier": 0.15,
+    "warRiskModifier": -0.3,
+    "tributeModifier": 0,
+    "minimumTrust": 65,
+    "defaultDurationTicks": 108000,
+    "breakPenalty": 25,
+    "description": "Mutual-defense pact that reduces war pressure and improves trade confidence."
+  },
+  "trade": {
+    "id": "trade",
+    "label": "Trade Pact",
+    "relationDelta": 20,
+    "tradeModifier": 0.35,
+    "warRiskModifier": -0.1,
+    "tributeModifier": 0,
+    "minimumTrust": 45,
+    "defaultDurationTicks": 72000,
+    "breakPenalty": 12,
+    "description": "Economic treaty for safer trade routes, tariffs, and shared market access."
+  },
+  "non_aggression": {
+    "id": "non_aggression",
+    "label": "Non-Aggression Pact",
+    "relationDelta": 15,
+    "tradeModifier": 0.05,
+    "warRiskModifier": -0.45,
+    "tributeModifier": 0,
+    "minimumTrust": 35,
+    "defaultDurationTicks": 54000,
+    "breakPenalty": 18,
+    "description": "Limited peace treaty that strongly reduces conflict escalation without requiring alliance duties."
+  },
+  "tribute": {
+    "id": "tribute",
+    "label": "Tribute Treaty",
+    "relationDelta": -5,
+    "tradeModifier": -0.05,
+    "warRiskModifier": -0.2,
+    "tributeModifier": 0.25,
+    "minimumTrust": 10,
+    "defaultDurationTicks": 36000,
+    "breakPenalty": 8,
+    "description": "Asymmetric settlement where one side pays tribute to delay war or secure protection."
+  },
+  "sanction": {
+    "id": "sanction",
+    "label": "Sanction",
+    "relationDelta": -25,
+    "tradeModifier": -0.4,
+    "warRiskModifier": 0.2,
+    "tributeModifier": 0,
+    "minimumTrust": 0,
+    "defaultDurationTicks": 36000,
+    "breakPenalty": 0,
+    "description": "Hostile diplomatic pressure that damages trade and increases escalation risk."
+  }
 }

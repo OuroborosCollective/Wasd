@@ -13,31 +13,22 @@ describe('SessionHeartbeat', () => {
     vi.useRealTimers();
   });
 
-  it('should return the correct sessionId and heartbeatAt timestamp', () => {
-    const mockTimestamp = 1625097600000;
-    vi.setSystemTime(mockTimestamp);
-
+  it('should return the correct sessionId and deterministic heartbeatAt tick', () => {
     const sessionId = 'test-session-id';
     const result = sessionHeartbeat.ping(sessionId);
 
     expect(result).toEqual({
       sessionId,
-      heartbeatAt: mockTimestamp
+      heartbeatAt: 0,
     });
   });
 
-  it('should update timestamp on subsequent pings', () => {
-    const initialTimestamp = 1625097600000;
-    vi.setSystemTime(initialTimestamp);
-
+  it('keeps the deterministic heartbeat tick on subsequent pings', () => {
     const sessionId = 'test-session-id';
     const result1 = sessionHeartbeat.ping(sessionId);
-    expect(result1.heartbeatAt).toBe(initialTimestamp);
-
-    const updatedTimestamp = initialTimestamp + 5000;
-    vi.setSystemTime(updatedTimestamp);
-
     const result2 = sessionHeartbeat.ping(sessionId);
-    expect(result2.heartbeatAt).toBe(updatedTimestamp);
+
+    expect(result1.heartbeatAt).toBe(0);
+    expect(result2.heartbeatAt).toBe(0);
   });
 });

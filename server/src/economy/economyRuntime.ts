@@ -2,7 +2,6 @@
  * ECONOMY RUNTIME
  *
  * Singleton economy service instances for the server.
- * Provides lazy initialization and access to EconomyService, WalletService, and VendorStockService.
  */
 
 import { EconomyService } from "./EconomyService.js";
@@ -13,6 +12,8 @@ import { VendorStockService } from "./VendorStockService.js";
 import { VendorStockStore } from "./VendorStockStore.js";
 import { JsonVendorStockPersistenceAdapter } from "./JsonVendorStockPersistenceAdapter.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
+import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
+import { createLocalMarketSnapshot } from "./EconomySnapshotAdapter.js";
 
 const walletStore = new WalletStore();
 const walletAdapter = new JsonWalletPersistenceAdapter();
@@ -28,7 +29,7 @@ async function getOrCreateService(): Promise<EconomyService> {
   if (servicePromise) return servicePromise;
 
   const inventoryService = await getInventoryService();
-  servicePromise = Promise.resolve(new EconomyService(inventoryService, walletService, vendorStockService));
+  servicePromise = Promise.resolve(new EconomyService(inventoryService, walletService, vendorStockService, runtimeHistoryLog));
   return servicePromise;
 }
 
@@ -49,8 +50,6 @@ export { walletStore as walletStore };
 export { vendorStockService };
 export { vendorStockStore as vendorStockStore };
 
-// Singleton economyService interface for route handlers
-// Uses lazy initialization to avoid circular dependency issues
 export const economyService = {
   sellResource: async (input: {
     playerId: string;
@@ -58,6 +57,7 @@ export const economyService = {
     quantity: number;
     playerPosition?: { x: number; y: number };
     vendorId?: string;
+    currentTick?: number;
   }) => {
     const service = await getEconomyService();
     return service.sellResource(input);
@@ -66,8 +66,21 @@ export const economyService = {
     playerId: string;
     playerPosition?: { x: number; y: number };
     vendorId?: string;
+    currentTick?: number;
   }) => {
     const service = await getEconomyService();
     return service.sellAllResources(input);
   },
+  buyResource: async (input: {
+    playerId: string;
+    itemId: string;
+    quantity: number;
+    playerPosition?: { x: number; y: number };
+    vendorId?: string;
+    currentTick?: number;
+  }) => {
+    const service = await getEconomyService();
+    return service.buyResource(input);
+  },
+  marketSnapshot: async () => createLocalMarketSnapshot({ vendorStockService }),
 };

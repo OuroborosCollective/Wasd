@@ -3,6 +3,12 @@ export interface PixelUpdate {
   txId: string;
 }
 
+/**
+ * Socket service for pixel art WebSocket updates
+ * @deprecated Art server endpoint /api/art/ws is not currently implemented.
+ *             This service will attempt to connect but no server handles these connections.
+ *             Track in issue #XXXX for art server implementation.
+ */
 export class SocketService {
   private socket: WebSocket | null = null;
   private listeners: ((data: PixelUpdate) => void)[] = [];
@@ -11,6 +17,7 @@ export class SocketService {
 
   constructor(url?: string) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    // @deprecated - /api/art/ws endpoint not mounted on server
     this.url = url || `${protocol}//${window.location.host}/api/art/ws`;
   }
 

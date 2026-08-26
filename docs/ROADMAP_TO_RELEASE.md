@@ -1,16 +1,44 @@
 # Roadmap to release — current implementation alignment
 
-This roadmap tracks the gap between what is already live in the repository and what still needs to be completed for a stable public release.
+This roadmap tracks what is live in the repository and what still needs to be completed for a stable public release.
 
 Read order:
 
 1. `README_START_HERE.md` — entry point and current-document hierarchy.
-2. `docs/PROJECT_STATUS_2026.md` — authoritative implementation snapshot.
+2. `docs/PROJECT_STATUS_2026.md` — current implementation snapshot.
 3. `docs/ROADMAP_TO_RELEASE.md` — this release backlog.
-4. `docs/MASTER_DESIGN_BIBLE.md` — vision and pillars only.
-5. `docs/DOCUMENTATION_INDEX.md` — current vs historical documentation map.
+4. `docs/RELEASE_CHECKLIST.md` — release sign-off checklist.
+5. `docs/KNOWN_GAPS.md` — compact open-gap index.
+6. `docs/DOCUMENTATION_INDEX.md` — current vs historical documentation map.
 
 Any PR or commit that changes runtime behavior must update `docs/PROJECT_STATUS_2026.md` and this roadmap if release scope changes.
+
+---
+
+## ARE Green-State release rule
+
+Release work must follow the Areloria truth-path rule:
+
+```text
+No mock truth.
+No fake snapshots.
+No workflow tricks.
+No stub systems in the truth path.
+No facade that replaces real runtime causality.
+```
+
+Allowed truth sources:
+
+```text
+Kappa1000
+Tick / logicalIndex
+Chunk / world position
+Hash / manifest / seed input
+Journal / delta / replay
+Real runtime providers
+Deterministic calculation
+Side-channel separation for IO, telemetry, repair and persistence
+```
 
 ---
 
@@ -18,22 +46,31 @@ Any PR or commit that changes runtime behavior must update `docs/PROJECT_STATUS_
 
 **Current state:** working browser-MMORPG foundation, not a finished commercial MMO.
 
-The repo now contains a serious live foundation: authoritative 10 Hz Node/WebSocket simulation, Vite/Babylon 3D client, PixiJS/React 2D client, server-authoritative gameplay modules, Supabase/Postgres/file persistence paths, optional Redis, deterministic manifest checks, admin content tools, autonomous playtester monitoring, and multiple live world systems.
+The repo now contains a serious live foundation: authoritative 10 Hz Node/WebSocket simulation, Vite/Babylon 3D client, PixiJS/React 2D client, server-authoritative gameplay modules, Supabase/Postgres/file persistence paths, optional Redis, deterministic manifest checks, admin content tools, autonomous playtester monitoring, and live world systems.
 
-The release focus is therefore no longer “prove the engine exists”. The focus is:
+Recent release-relevant progress:
 
-1. harden deterministic gameplay correctness,
-2. finish production deploy and backup discipline,
+- VPS game-data mount was fixed and live `/health` was verified.
+- NPC lineage now has journal, replay, surface projection and 2D worldSurface visibility.
+- Snapshot-time lineage birth bridge exists and can consume real runtime state.
+- Visible POI/Camp NPC data can feed lineage runtime state without fake NPCs.
+- Deterministic hardcode cleanup removed several runtime `Date.now()` / `Math.random()` violations.
+- Legacy loot table generation is quarantined; production loot truth remains `LootDirector -> ProceduralLootMachine -> loot_delta`. Inventory-Consumer verwenden persistente Loot-Origin-Deduplizierung; vollständig abgelehnte Inventar-Deltas fallen ausschließlich an den serverseitigen WorldDrop-Consumer zurück.
+- PR #2036 is open to remove the public legacy-loot boolean bypass after Codex review.
+- The #2042 mobile/browser performance budget now has explicit 2D and 3D release measurements in `docs/RELEASE_CHECKLIST.md`.
+
+The release focus is now:
+
+1. finish deterministic correctness and hardcode cleanup,
+2. prove deploy, persistence, backup and live verification,
 3. complete player-facing UI coverage,
-4. stabilize mobile performance,
-5. replace placeholder content with audited assets,
-6. validate the whole loop through CI, E2E, replay, and live VPS verification.
+4. collect real mobile/browser performance evidence against the documented #2042 budgets,
+5. ship an audited release content pack,
+6. promote full-loop E2E/live smoke into a required release gate.
 
 ---
 
 ## Completed / live integrations
-
-These are considered implemented or wired enough to be tracked as live foundations. They can still need balancing, UI polish, load testing, or ops hardening.
 
 | Area | Status | Notes |
 |---|---:|---|
@@ -41,35 +78,21 @@ These are considered implemented or wired enough to be tracked as live foundatio
 | WebSocket networking | DONE | Server networking is wired through `server/src/networking/WebSocketServer.ts`. |
 | 3D client foundation | DONE | Vite + Babylon.js client remains the primary 3D path. |
 | 2D client foundation | DONE | PixiJS v7 + React client is active under `apps/client-2d/`. |
-| 2D interpolation | DONE | `InterpolatedSpriteManager` smooths 10 Hz server state toward render FPS with teleport snap and precision locking. |
 | Manifest system | DONE | Server-authoritative hash-chain state under `server/src/core/manifest/`, client divergence detection under `apps/client-2d/src/manifest/`, resync API at `/api/manifest/*`. |
-| Supabase auth path | DONE | Supabase JWT flow and client auth provider are documented as the active production path. |
-| Persistence drivers | DONE | `PERSISTENCE_DRIVER=auto/postgres/file`, JSON fallback, and health summary are wired. |
-| Redis optional path | DONE | Optional Redis cache/chat relay paths degrade gracefully when unset. |
-| Health endpoint | DONE | `/health` summarizes auth, persistence, playtester, self-healing, and content-root status. |
-| Player movement/combat | DONE | Movement, target selection, attacks, skills, cooldown/mana, death/respawn are wired. |
-| Inventory/equipment/loot | DONE | Inventory stacks, equip/unequip, loot drops, pickup, and sync are active. |
-| Anti-Ninja Loot Lock | DONE | Loot ownership lock is active via `LootDirector` with 60-second / 600 tick kill lock. |
-| Player stats sync | DONE | `PlayerStatsDirector` broadcasts server-authoritative XP/level snapshots. |
-| Quest system | DONE | Quest start, progression, sync, talk/collect/combat updates are active. |
-| Questline system | DONE | Questline engine, bridge, and unlock propagation are wired. |
-| NPC runtime | DONE | `NPCSystem`, memory cache/persistence, relationships, and proactive chat are wired. |
-| Ouroboros agents | DONE | `OuroborosEngine` is instantiated and ticked from `WorldTick`. |
-| Chunk/world foundations | DONE | Chunks, observers, objects, weather/time, and terrain adapters are wired. |
-| Resource entities | DONE | Deterministic resource nodes are aligned through `ChunkModificationDirector` and `ResourcePopulator`. |
-| Storage system | DONE | `StorageEntity`, inventory, `open_storage`, and `transfer_item` handlers are wired. |
-| Warfront | DONE | `WarfrontSystem` lifecycle, status pushes, and reward claims are wired. |
-| World boss | DONE | `WorldBossDungeonSystem` encounter flow and ranking summaries are wired. |
-| Vote system | DONE | Vote banner/session/status and reward claims are wired. |
-| Crafting | DONE | Crafting handlers are wired through server message flow. |
-| Admin content tools | DONE | `/api/admin/content/*` routes and `/admin-content.html` are active. |
-| Playtester monitor | DONE | WebRTC monitor, signaling, viewer page, and publisher page are shipped. |
-| Gameplay Fusion Director | DONE | Quest echo beacons, adaptive quest scene profiles, and construction contracts are active. |
-| Content publish path | DONE | `pnpm run content:publish`, model-path audit, admin model needs, and GLB registry/pools are present. |
-| Pixi asset import scripts | DONE | Cozy/2D asset workflows are represented through import/validate scripts in root `package.json`. |
-| Monorepo/architecture guards | DONE | `guard:monorepo`, `guard:architecture`, `guard:worldtick`, and `guard:all` scripts exist. |
-| ARE deterministic primitives | DONE | `AREClock`, `SystemAREClock`, `FixedAREClock`, `ARERng`, `SeededARERng`, and `createARESeed` are documented primitives. |
-| Determinism gate | DONE / HARDENING | Gate exists; Level A/B simulation paths still need strict migration verification before public release. |
+| Persistence drivers | DONE / HARDENING | `PERSISTENCE_DRIVER=auto/postgres/file`, JSON fallback, and health summary are wired; backup/restore proof remains open in #2039. |
+| VPS game-data mount | DONE | `docker-compose.yml` mounts `./game-data:/app/game-data:ro`; live VPS health reported content root `/app/game-data`. |
+| Player movement/combat | DONE / BALANCING | Movement, target selection, attacks, skills, cooldown/mana, death/respawn are wired. |
+| Inventory/equipment/loot | DONE / HARDENING | Inventory stacks, equip/unequip, loot drops, pickup, and sync are active; loot legacy path is quarantined. |
+| Canonical loot truth | DONE / HARDENING | `LootDirector -> ProceduralLootMachine -> loot_delta`; PR #2036 restricts legacy construction further. |
+| Quest and questlines | DONE / CONTENT | Quest start, progression, sync, talk/collect/combat updates and questline unlock propagation are active. |
+| NPC runtime | DONE / EXPANDING | NPC memory, relationships, proactive chat, game-data loading, Living Duden speech, lineage journal/replay and POI-driven lineage runtime state exist. |
+| Lineage worldSurface | DONE / 3D IN PROGRESS | Server journal/replay projects lineage houses/nodes into `worldSurface`; 2D consumes es. PR #2484 bindet denselben read-only Vertrag in den Babylon-Pfad ein; #2046 bleibt offen, bis Browser-Paritätsevidence vorliegt. |
+| Chunk/world foundations | DONE / HARDENING | Chunks, observers, objects, weather/time, terrain adapters and deterministic resource nodes are wired. |
+| Crafting/storage | DONE / UI HARDENING | Crafting and storage handlers are wired; full player-facing flow remains part of #2043 and #2048. |
+| Admin content tools | DONE / HARDENING | `/api/admin/content/*`, content publish path and model-path audit exist; release content pack tracked by #2044. |
+| Playtester monitor | DONE / REPORTING | WebRTC monitor, signaling, viewer page and publisher page are shipped; release observability tracked by #2049. |
+| ARE deterministic primitives | DONE | `AREClock`, fixed clocks, seeded RNG and `createARESeed` exist; remaining audit cleanup tracked by #2041. |
+| Performance budget | DONE / EVIDENCE REQUIRED | #2042 budgets are documented in `docs/RELEASE_CHECKLIST.md`; release sign-off requires real 2D and 3D runtime metrics plus fallback proof when needed. |
 
 ---
 
@@ -77,36 +100,28 @@ These are considered implemented or wired enough to be tracked as live foundatio
 
 These block a public release tag.
 
-| ID | Area | Release gap | Required outcome |
+| ID | Issue | Area | Required outcome |
 |---|---|---|---|
-| A1 | Production deploy verification | VPS Docker deploy, Nginx routing, `/`, `/portal`, `/health`, `/client-config.json`, and WebSocket upgrade must be proven after each deploy. | One green deploy workflow plus one green final verification workflow against `arelorian.de`. |
-| A2 | Persistence + backups | Postgres migration, backup, restore, and rollback story must be operational, not only configurable. | Documented migration SOP, automated backup check, restore drill, and JSON fallback policy. |
-| A3 | Auth/session hardening | Supabase is the live path, but public launch needs strict session rules and dev bypass lockdown. | Production env rejects unintended guest/dev auth; rate limits and session expiry are tested. |
-| A4 | Deterministic simulation hardening | All Level A/B combat, loot, oracle, warfront, boss, and gameplay-result paths must avoid hidden wall-clock/randomness. | Determinism gate passes for simulation-critical paths; exceptions are documented and reviewed. |
-| A5 | Mobile performance | Android/tablet/browser startup and runtime cost must stay stable with real assets. | Measured FPS/memory/startup budget, chunk loading budget, and fallback quality levels. |
-| A6 | Player-facing UI coverage | Many systems exist server-side, but not every critical action has clear player UI. | Quest tracker, map, settings, combat log, inventory/equipment, storage, crafting, voting, warfront, boss, and death/respawn flows usable without dev knowledge. |
-| A7 | Release content pack | Placeholder or broken assets must not be part of the first public impression. | Audited `published-content/current` pack with model-path audit green and asset licenses tracked. |
-| A8 | Smoke/E2E release gate | Public release must not depend on manual hope. | `pnpm run build`, `pnpm run guard:all`, model audit, unit tests, E2E smoke, and deploy verification are green. |
+| A1 | #2038 | Production deploy verification | One green deploy workflow plus live verification against `/`, `/2d`, `/portal`, `/health`, `/client-config.json`, and WebSocket upgrade. |
+| A2 | #2039 | Persistence + backups | Migration SOP, backup proof, restore proof and JSON fallback policy. |
+| A3 | #2040 | Auth/session hardening | Production env rejects unintended guest/dev auth; sessions and rate limits are tested. |
+| A4 | #2041 | Deterministic simulation hardening | Stateless Hardcode Audit and ARE Determinism Gate pass for runtime-critical paths. |
+| A5 | #2042 | Mobile/browser performance | 2D and 3D startup, FPS, p95 frame, memory and chunk-load budgets are documented; release sign-off is blocked unless real metrics meet standard budget or record a real fallback tier and reason. |
+| A6 | #2043 | Player-facing UI coverage | Critical systems are usable through server-backed UI flows without dev knowledge. |
+| A7 | #2044 | Release content pack | Audited `published-content/current` pack with licenses and model-path audit proof. |
+| A8 | #2045 | Full-loop release gate | Build, guards, model audit, unit tests, E2E, deploy verify and live health are green on release commit. |
 
 ---
 
-## Tier B — major open work
+## Tier B — open integration work
 
-These do not necessarily block a closed alpha, but they define whether the project feels like a real MMORPG instead of a tech demo.
-
-| System | Current | Remaining |
+| Issue | Integration | Required direction |
 |---|---|---|
-| Combat and skills | Server-authoritative combat, skills, cooldown/mana, loot and respawn are wired. | Balance stamina/mana/XP curves, improve combat feedback, revive/party edge cases, boss telegraphs, and combat log clarity. |
-| Quest and questlines | Quest/questline systems are active, with fusion echo hooks. | Add richer objective summaries, map pins, quest tracker, branching outcomes, and QA fixtures for multi-step chains. |
-| NPC autonomy | NPC system, memory, relationships, proactive chat, and personality beta exist. | Expand deterministic behavior scenarios, bounded shared memory, reputation effects, refusal/help rules, genealogy, faction memory, and large-NPC load budgets. |
-| Civilization | Bible defines guild -> village -> city -> kingdom -> nation and equal NPC/player civic rights. | Implement settlement lifecycle, law/tax/election flows, NPC/player political parity, territory/biome borders, and protected structure policies. |
-| Economy and Matrix Energy | Economy/Matrix are design pillars; construction contracts are active. | Implement deterministic local markets, scarcity pricing, taxes, trade routes, Matrix Energy sinks/sources, and public works budget flow. |
-| World systems | Chunks, resources, weather/time, terrain adapters, world objects, warfronts, and bosses are wired. | Expand biome depth, dungeon templates, ecological pressure, migration triggers, world boss distance constraints, and streaming boundary tests. |
-| Crafting/storage/trading | Crafting and storage handlers are wired. | Finish UI, permissions, recipe discovery, item provenance, player trading, anti-duplication checks, and audit logs. |
-| Admin/GM content | Admin content API, content page, model needs, publish pack, and audits are active. | Improve audit transparency, content rollback, live moderation tools, edit history, and safe publish preview. |
-| Playtester monitor | WebRTC viewer/publisher and signaling are shipped. | Add stream-health dashboard, alerting, run history, deterministic scenario packs, and release-report export. |
-| Self-healing/runtime safeguards | Health endpoint includes self-healing summary; liveheal docs and patterns exist. | Tie safeguards to release dashboards, quarantine broken GLB/assets, add city-layout validators, and keep repair telemetry outside simulation truth. |
-| Observability | `/health` exists; deploy verification can check endpoints and logs. | Add SLOs for tick duration, WebSocket load, manifest divergence, playtester stream health, persistence failures, and asset audit failures. |
+| #2046 | 3D lineage worldSurface rendering | 3D client consumes the same server `worldSurface.groups/points` contract as 2D. PR #2484 implementiert den Adapterpfad; Browser-Paritätsevidence steht noch aus. |
+| #2050 | Runtime civic state | Shared world state derives from tick, house data, population counters and server snapshot. |
+| #2047 | Runtime market pricing | Prices derive from live resource counters, tick and deterministic hash logic. |
+| #2048 | Item provenance / trading / anti-duplication | Item movement uses real uid, source delta, tick/hash audit and server-authoritative inventory. |
+| #2049 | Runtime observability and release SLOs | Tick duration, WS load, manifest divergence, persistence failures, asset audit failures and playtester status are visible. |
 
 ---
 
@@ -123,20 +138,19 @@ These do not necessarily block a closed alpha, but they define whether the proje
 
 ## Planned / vision integrations after release foundation
 
-These belong after the release blockers are controlled, unless a small isolated PR can land safely.
+These belong after release blockers are controlled, unless a small isolated PR can land safely.
 
-| Integration | Target direction |
-|---|---|
-| Genealogy and houses | NPC family lines, inheritance, house reputation, and deterministic lineage history. |
-| Full NPC politics | NPCs vote, tax, declare war, negotiate peace, appoint rulers, rebel, and join/found factions. |
-| Guild/village/city/kingdom/nation hierarchy | Rule-bound civilization growth from player/NPC organizations through biome-bounded territories. |
-| Deep economy simulation | Supply/demand, scarcity, taxes, trade routes, public works, war pressure, and NPC merchant personality. |
-| Matrix Energy | Player-facing world/building energy loop with deterministic accounting and protected paid-asset policy. |
-| Housing and protected structures | Build permissions, placement validation, road/wall/gate constraints, ownership, protection tiers, and PvP/world-event policy. |
-| Procedural dungeons | Deterministic dungeon generation, boss distance rules, reward tables, replay-safe seeds, and party flow. |
-| ARE research extensions | Kappa-field replay, AREGuard proof reports, state compression, resonance/plexity scheduling, and deterministic anomaly zones. |
-| 13-point World Brain | Global directive vector from resources, population, conflict, environment, politics, market, culture, threats, opportunities, echoes, oracle resonance, and center aggregator. |
-| Future event layers | Aetheric Leylines, Chronos Anomaly zones, Void Swarm incursions, reality fissures, and oracle-driven world events. |
+| Integration | Target direction | Status |
+|---|---|---|
+| Genealogy and houses | NPC family lines, inheritance, house reputation and deterministic lineage history. | Implemented foundation; 3D rendering open in #2046. |
+| Full NPC politics | NPCs and players participate in shared civic rules. | Future; must build on #2050, not a mock layer. |
+| Guild/village/city/kingdom/nation hierarchy | Rule-bound civilization growth through biome-bounded territories. | Future; must derive from server runtime state. |
+| Deep economy simulation | Supply/demand, scarcity, taxes, trade routes, public works and merchant behavior. | Open foundation in #2047. |
+| Matrix Energy | Player-facing world/building energy loop with deterministic accounting. | Future; must share accounting rules with #2047. |
+| Housing and protected structures | Build permissions, placement validation, ownership and protection tiers. | Future; must not bypass layout validation. |
+| Procedural dungeons | Deterministic dungeon generation, boss distance rules, reward tables and party flow. | Future; must use tick/chunk/hash seeds. |
+| ARE research extensions | Kappa-field replay, AREGuard proof reports, state compression and anomaly scheduling. | Future. |
+| 13-point World Brain | Global directive vector from resources, population, conflict, environment, market and culture. | Future; must consume real runtime signals only. |
 
 ---
 
@@ -161,12 +175,15 @@ node scripts/check-are-determinism.mjs
 Release CI should additionally include:
 
 - model-path audit,
-- E2E smoke test,
+- full-loop E2E smoke test,
 - manifest divergence/resync test,
 - WebSocket guest/login flow test,
 - content publish dry-run,
 - VPS deploy verification,
-- restore-drill proof for persistence backups.
+- live `/health` verification that reports content root `/app/game-data`,
+- real 2D and 3D performance evidence for startup, FPS, p95 frame time, memory and chunk loading,
+- fallback-tier evidence when either client exceeds the standard #2042 budget,
+- backup/restore proof for persistence.
 
 ---
 
@@ -180,8 +197,8 @@ Any auth, persistence, infra, deploy, gameplay, or architecture change must be r
 - `README_START_HERE.md`
 - `docs/PROJECT_STATUS_2026.md`
 - `docs/ROADMAP_TO_RELEASE.md`
+- `docs/RELEASE_CHECKLIST.md`
 - `docs/DOCUMENTATION_INDEX.md`
-- `docs/MASTER_DESIGN_BIBLE.md` only when the vision changes
 - `DEPLOYMENT.md`
 - `deploy/ENV_SETUP.md`
 - `.env.example` / production env templates when config changes
@@ -190,15 +207,16 @@ Any auth, persistence, infra, deploy, gameplay, or architecture change must be r
 
 ## Immediate next release sequence
 
-1. Green local build + guards.
-2. Green deterministic gate for Level A/B simulation paths.
-3. Green content/model/asset audits.
-4. Green E2E smoke with guest/login, movement, interaction, combat, loot, quest sync, and WebSocket reconnect.
-5. Green VPS Docker deploy to `/opt/areloria`.
-6. Green host verification for `arelorian.de`, `/`, `/portal`, `/health`, `/client-config.json`, and WebSocket upgrade.
-7. Backup and restore drill recorded.
-8. Public alpha release notes prepared.
+1. Merge #2036 if CI is green to close the legacy-loot constructor bypass.
+2. Finish #2041 deterministic audit cleanup.
+3. Prove #2038 deploy/live verification.
+4. Prove #2039 backup/restore.
+5. Harden #2040 production auth/session rules.
+6. Collect #2042 real 2D/3D performance evidence against the documented budgets.
+7. Make #2045 full-loop E2E and live smoke a required release gate.
+8. Complete #2044 release content pack audit.
+9. Prepare public alpha release notes.
 
 ---
 
-Last refreshed: 2026-06-05
+Last refreshed: 2026-06-15

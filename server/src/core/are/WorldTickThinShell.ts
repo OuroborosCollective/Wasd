@@ -1,273 +1,381 @@
 /**
  * WorldTickThinShell - Phase 10: Extremely Slim World Brain Scheduler
- * 
- * WorldTick wird zum extrem schlanken "World Brain Scheduler".
- * Er iteriert über aktive Chunks, evaluiert die 13 Punkte deterministisch
- * gegeneinander und berechnet den neuen Erdős-Attraktor-Zustand.
- * 
- * OHNE tiefere Fachlogik selbst auszuführen.
- * Die TickSystems führen die Logik aus, Brain koordiniert nur.
- * 
- * 10-Hz Taktung: 100ms intervals
+ *
+ * WorldTick is the 10-Hz coordinator. TickSystems perform runtime logic.
+ * WorldBrain runtime truth is wired through WorldBrainTickSystem ports.
+ *
+ * ARE Determinism:
+ * - WorldStateProvider registry with strict validation
+ * - No EMPTY_WORLD_STATE fallback - MISSING_RUNTIME_SOURCE if no providers
+ * - Stable merge order by provider ID
  */
 
-import { 
-  tickSystemRegistry, 
-  createDefaultTickContext,
-  WorldBrainScheduler,
-  SnapshotComposer,
-  LayerPersistenceQueue,
-  layerPersistenceQueue,
-  registerOuroborosTickSystem,
-  type TickSystemContext 
-} from './index.js';
+import { tickSystemRegistry, type TickSystemRegistry } from "./TickSystemRegistry.js";
+import { createDefaultTickContext, type TickSystemContext } from "./TickSystem.js";
+import { SnapshotComposer } from "./SnapshotComposer.js";
+import { LayerPersistenceQueue, layerPersistenceQueue } from "./LayerPersistenceQueue.js";
+import { registerCoreTickSystems } from "./CoreTickSystemRegistration.js";
+import { stableSort } from "./DeterministicEventFactory.js";
+import { coerceChunkKey } from "./types.js";
+import type { CanonicalLayerSeedResult } from "./CanonicalLayerSeed.js";
+import {
+  SnapshotComposerWorldBrainSink,
+  registerWorldBrainTickSystem,
+} from "./WorldBrainTickSystem.js";
+import {
+  LayerPersistenceWorldBrainReplaySink,
+  RuntimeWorldBrainStatePort,
+} from "./WorldBrainRuntimePort.js";
+import {
+  registerTickFailureFamilyProbeSystem,
+  type FailureFamilyProbeRunStatus,
+  type TickFailureFamilyProbeSystem,
+} from "./TickFailureFamilyProbeSystem.js";
+import type { TickFailureFamilySnapshot } from "./TickFailureFamilyRuntime.js";
 
 /**
- * WorldTickThinShell - The slim coordinator that:
- * 1. Iterates active chunks at 10-Hz
- * 2. Evaluates 13 layers deterministically
- * 3. Computes Ω_E attractor states
- * 4. Aggregates into WorldHash
- * 5. Coordinates SnapshotComposer + PersistenceQueue
- * 6. Integrates Ouroboros autonomous NPC behavior
+ * World state slice provided by a single provider.
+ *
+ * Every field is optional because a provider is allowed to expose only the
+ * runtime source it owns. Missing fields are normalized to empty readonly arrays
+ * after provider registration has already proved at least one real source exists.
  */
+export interface WorldStateProviderSlice {
+  readonly npcs?: readonly unknown[];
+  readonly players?: readonly unknown[];
+  readonly loot?: readonly unknown[];
+  readonly inventory?: readonly unknown[];
+  readonly equipment?: readonly unknown[];
+  readonly resources?: readonly unknown[];
+  readonly warfronts?: readonly unknown[];
+  readonly economy?: readonly unknown[];
+  readonly factions?: readonly unknown[];
+  readonly quests?: readonly unknown[];
+  readonly housing?: readonly unknown[];
+  readonly kingdoms?: readonly unknown[];
+  readonly population?: readonly unknown[];
+  readonly help?: readonly unknown[];
+  readonly worldEvents?: readonly unknown[];
+}
+
+/**
+ * Full world state merged from all providers.
+ */
+export interface TickContextWorldState {
+  readonly npcs: readonly unknown[];
+  readonly players: readonly unknown[];
+  readonly loot: readonly unknown[];
+  readonly inventory: readonly unknown[];
+  readonly equipment: readonly unknown[];
+  readonly resources: readonly unknown[];
+  readonly warfronts: readonly unknown[];
+  readonly economy: readonly unknown[];
+  readonly factions: readonly unknown[];
+  readonly quests: readonly unknown[];
+  readonly housing: readonly unknown[];
+  readonly kingdoms: readonly unknown[];
+  readonly population: readonly unknown[];
+  readonly help: readonly unknown[];
+  readonly worldEvents: readonly unknown[];
+}
+
+/**
+ * World state provider interface.
+ * Each provider contributes a slice of world state.
+ */
+export interface WorldStateProvider {
+  /** Stable, non-empty provider ID for deterministic ordering */
+  readonly id: string;
+  /** Get this provider's slice of world state for the given tick context */
+  getWorldState(context: TickSystemContext): WorldStateProviderSlice;
+}
+
+export interface ThinShellWorldState extends TickContextWorldState {}
+
+export type ThinShellWorldStateProvider = () => WorldStateProviderSlice;
+
+export interface WorldTickThinShellOptions {
+  readonly worldSeed?: string | number | null;
+  readonly registry?: TickSystemRegistry;
+}
+
+class WorldStateProviderFailure extends Error {
+  readonly code = 'WORLD_STATE_PROVIDER_FAILURE';
+  readonly providerId: string;
+
+  constructor(providerId: string, cause: unknown) {
+    const message = cause instanceof Error ? cause.message : String(cause ?? 'unknown provider failure');
+    super(`WorldStateProvider "${providerId}" failed: ${message}`, { cause });
+    this.name = 'WorldStateProviderFailure';
+    this.providerId = providerId;
+  }
+}
+
+const EMPTY_WORLD_STATE: ThinShellWorldState = Object.freeze({
+  npcs: Object.freeze([]),
+  players: Object.freeze([]),
+  loot: Object.freeze([]),
+  inventory: Object.freeze([]),
+  equipment: Object.freeze([]),
+  resources: Object.freeze([]),
+  warfronts: Object.freeze([]),
+  economy: Object.freeze([]),
+  factions: Object.freeze([]),
+  quests: Object.freeze([]),
+  housing: Object.freeze([]),
+  kingdoms: Object.freeze([]),
+  population: Object.freeze([]),
+  help: Object.freeze([]),
+  worldEvents: Object.freeze([]),
+});
+
+function normalizeWorldState(value: WorldStateProviderSlice | null | undefined): ThinShellWorldState {
+  if (!value) return EMPTY_WORLD_STATE;
+  return {
+    npcs: Array.isArray(value.npcs) ? value.npcs : EMPTY_WORLD_STATE.npcs,
+    players: Array.isArray(value.players) ? value.players : EMPTY_WORLD_STATE.players,
+    loot: Array.isArray(value.loot) ? value.loot : EMPTY_WORLD_STATE.loot,
+    inventory: Array.isArray(value.inventory) ? value.inventory : EMPTY_WORLD_STATE.inventory,
+    equipment: Array.isArray(value.equipment) ? value.equipment : EMPTY_WORLD_STATE.equipment,
+    resources: Array.isArray(value.resources) ? value.resources : EMPTY_WORLD_STATE.resources,
+    warfronts: Array.isArray(value.warfronts) ? value.warfronts : EMPTY_WORLD_STATE.warfronts,
+    economy: Array.isArray(value.economy) ? value.economy : EMPTY_WORLD_STATE.economy,
+    factions: Array.isArray(value.factions) ? value.factions : EMPTY_WORLD_STATE.factions,
+    quests: Array.isArray(value.quests) ? value.quests : EMPTY_WORLD_STATE.quests,
+    housing: Array.isArray(value.housing) ? value.housing : EMPTY_WORLD_STATE.housing,
+    kingdoms: Array.isArray(value.kingdoms) ? value.kingdoms : EMPTY_WORLD_STATE.kingdoms,
+    population: Array.isArray(value.population) ? value.population : EMPTY_WORLD_STATE.population,
+    help: Array.isArray(value.help) ? value.help : EMPTY_WORLD_STATE.help,
+    worldEvents: Array.isArray(value.worldEvents) ? value.worldEvents : EMPTY_WORLD_STATE.worldEvents,
+  };
+}
+
+/** Append items from source to target. */
+function appendStable(target: unknown[], source: readonly unknown[] | undefined): void {
+  if (!source || source.length === 0) return;
+  for (const item of source) target.push(item);
+}
+
+function missingRuntimeSourceError(): Error & { code: string } {
+  const error = new Error(
+    "MISSING_RUNTIME_SOURCE: no WorldStateProvider registered for ARE truth path. " +
+    "Register at least one WorldStateProvider before ticking."
+  ) as Error & { code: string };
+  error.code = 'MISSING_RUNTIME_SOURCE';
+  return error;
+}
+
 export class WorldTickThinShell {
-  /** Current tick count */
-  private tickCount: number = 0;
-  
-  /** TICK_INTERVAL_MS - 10-Hz tick rate */
+  private tickCount = 0;
   static readonly TICK_INTERVAL_MS = 100;
-  
-  /** World Brain Scheduler for 13-layer evaluation */
-  private worldBrain: WorldBrainScheduler;
-  
-  /** Snapshot Composer for world state */
+
   private snapshotComposer: SnapshotComposer;
-  
-  /** Persistence Queue for async writes */
   private persistenceQueue: LayerPersistenceQueue;
-  
-  /** Is the shell running */
-  private isRunning: boolean = false;
-  
-  /** Timer handle */
+  private worldBrainState: RuntimeWorldBrainStatePort;
+  private readonly registry: TickSystemRegistry;
+  private readonly failureProbe: TickFailureFamilyProbeSystem;
+  private isRunning = false;
   private timer: ReturnType<typeof setInterval> | null = null;
-  
-  constructor() {
-    this.worldBrain = new WorldBrainScheduler();
+  private worldStateProviders = new Map<string, WorldStateProvider>();
+
+  constructor(options: WorldTickThinShellOptions = {}) {
+    this.registry = options.registry ?? tickSystemRegistry;
     this.snapshotComposer = new SnapshotComposer();
     this.persistenceQueue = layerPersistenceQueue;
-    
-    // Phase 11: Register OuroborosTickSystem for autonomous NPC behavior
-    registerOuroborosTickSystem({
-      engineConfig: {
-        tickInterval: 10,        // 1 Hz at 10 ticks/sec
-        conflictCheckInterval: 100,
-        enableNPCBrain: true,
-        npcBrainInterval: 10,
-      },
-    });
+    this.worldBrainState = new RuntimeWorldBrainStatePort({ worldSeed: options.worldSeed });
+    this.worldBrainState.setReadbackProvider((chunkKey) => this.persistenceQueue.loadChunkState(chunkKey));
+
+    registerCoreTickSystems({}, this.registry);
+    this.failureProbe = registerTickFailureFamilyProbeSystem(this.registry);
+    this.registerWorldBrainRuntimeSystem();
   }
-  
-  /**
-   * Start the World Brain tick loop.
-   * 10-Hz tick rate (100ms intervals).
-   */
+
   start(): void {
     if (this.isRunning) return;
-    
-    console.log('[WorldTickThinShell] Starting - 10-Hz brain tick');
+    console.log("[WorldTickThinShell] Starting - 10-Hz brain tick");
     this.isRunning = true;
-    
-    // Notify all registered systems
-    tickSystemRegistry.notifyStart();
-    
-    // Start the tick loop
+    this.registry.notifyStart();
     this.timer = setInterval(() => this.tick(), WorldTickThinShell.TICK_INTERVAL_MS);
   }
-  
-  /**
-   * Stop the World Brain tick loop.
-   */
+
   async stop(): Promise<void> {
     if (!this.isRunning) return;
-    
-    console.log('[WorldTickThinShell] Stopping');
+    console.log("[WorldTickThinShell] Stopping");
     this.isRunning = false;
-    
-    // Stop timer
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
     }
-    
-    // Shutdown brain
-    this.worldBrain.onShutdown();
-    
-    // Graceful persistence shutdown
     await this.persistenceQueue.shutdown();
-    
-    // Notify all systems
-    tickSystemRegistry.notifyShutdown();
+    this.registry.notifyShutdown();
   }
-  
-  /**
-   * Main tick - the extremely slim coordinator.
-   */
+
   tick(): void {
     this.tickCount++;
-    
-    // 1. PRE-TICK: Create tick context
-    const context: TickSystemContext = createDefaultTickContext(this.tickCount);
-    
-    // 2. EXECUTE REGISTERED SYSTEMS via TickSystemRegistry
-    // The Brain does NOT execute domain logic - it coordinates
-    tickSystemRegistry.executeAll(context);
-    
-    // 3. WORLD BRAIN: Evaluate 13 layers for active chunks
-    // This computes the Ω_E attractor states
-    this.worldBrain.tick(context);
-    
-    // 4. SNAPSHOT COMPOSER: Compose world snapshot
-    // WorldHash = Hash(ChunkID + EntityStates + IARELogicLayers)
-    this.composeWorldSnapshot();
-    
-    // 5. PERSISTENCE: Queue layer states for async write
-    // Non-blocking - happens asynchronously
-    this.queuePersistenceEvents();
-    
-    // 6. POST-TICK: Check if flush needed
-    this.persistenceQueue.tick(this.tickCount as any);
+    const tick = this.tickCount;
+    const context: TickSystemContext = createDefaultTickContext(tick);
+    let worldState: ThinShellWorldState;
+
+    try {
+      worldState = this.getWorldStateForTick(context);
+    } catch (error) {
+      this.registry.getFailureRuntime().recordFailure({
+        tick,
+        stage: 'world_state',
+        provider: (error as any)?.providerId ?? null,
+        error,
+      });
+      throw error;
+    }
+
+    Object.defineProperty(context, "world", {
+      value: worldState,
+      writable: false,
+      enumerable: true,
+    });
+
+    const execution = this.registry.executeAll(context);
+
+    try {
+      this.finalizeWorldBrainSnapshot();
+    } catch (error) {
+      this.registry.getFailureRuntime().recordFailure({ tick, stage: 'snapshot_finalize', error });
+      throw error;
+    }
+
+    try {
+      this.persistenceQueue.tick(tick as any);
+    } catch (error) {
+      this.registry.getFailureRuntime().recordFailure({ tick, stage: 'persistence_tick', error });
+      throw error;
+    }
+
+    const organicSystemFailure = execution.failures.some((failure) => failure.failure.origin === 'runtime');
+    if (!organicSystemFailure) {
+      this.registry.getFailureRuntime().recordHealthyTick(tick);
+    }
   }
-  
-  /**
-   * Compose world snapshot from brain state.
-   */
-  private composeWorldSnapshot(): void {
-    const snapshot = this.worldBrain.getSnapshot();
-    
-    // Add each chunk's layer state to snapshot composer
-    for (const chunkKey of snapshot.active_chunks) {
-      const layerState = this.worldBrain.getChunkLayerState(chunkKey);
-      if (layerState) {
-        // Convert ChunkLayerState to IARELogicLayers format
-        const iareLayers = this.convertToIARELayers(layerState);
-        
-        this.snapshotComposer.addChunk(
-          chunkKey,
-          this.tickCount as any,
-          [], // Entity states would come from other systems
-          iareLayers
-        );
+
+  private getWorldStateForTick(context: TickSystemContext): ThinShellWorldState {
+    if (this.worldStateProviders.size === 0) throw missingRuntimeSourceError();
+
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+    const providers = [...this.worldStateProviders.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const merged: Record<keyof TickContextWorldState, unknown[]> = {
+      npcs: [], players: [], loot: [], inventory: [], equipment: [], resources: [],
+      warfronts: [], economy: [], factions: [], quests: [], housing: [], kingdoms: [],
+      population: [], help: [], worldEvents: [],
+    };
+
+    for (const provider of providers) {
+      let slice: ThinShellWorldState;
+      try {
+        slice = normalizeWorldState(provider.getWorldState(context));
+      } catch (error) {
+        throw new WorldStateProviderFailure(provider.id, error);
       }
+      appendStable(merged.npcs, slice.npcs);
+      appendStable(merged.players, slice.players);
+      appendStable(merged.loot, slice.loot);
+      appendStable(merged.inventory, slice.inventory);
+      appendStable(merged.equipment, slice.equipment);
+      appendStable(merged.resources, slice.resources);
+      appendStable(merged.warfronts, slice.warfronts);
+      appendStable(merged.economy, slice.economy);
+      appendStable(merged.factions, slice.factions);
+      appendStable(merged.quests, slice.quests);
+      appendStable(merged.housing, slice.housing);
+      appendStable(merged.kingdoms, slice.kingdoms);
+      appendStable(merged.population, slice.population);
+      appendStable(merged.help, slice.help);
+      appendStable(merged.worldEvents, slice.worldEvents);
     }
-    
-    // Finalize snapshot
-    if (this.snapshotComposer.getChunkCount() > 0) {
-      this.snapshotComposer.finalizeWorldSnapshot(this.tickCount as any);
-    }
+
+    return Object.freeze({
+      npcs: stableSort(merged.npcs), players: stableSort(merged.players), loot: stableSort(merged.loot),
+      inventory: stableSort(merged.inventory), equipment: stableSort(merged.equipment), resources: stableSort(merged.resources),
+      warfronts: stableSort(merged.warfronts), economy: stableSort(merged.economy), factions: stableSort(merged.factions),
+      quests: stableSort(merged.quests), housing: stableSort(merged.housing), kingdoms: stableSort(merged.kingdoms),
+      population: stableSort(merged.population), help: stableSort(merged.help), worldEvents: stableSort(merged.worldEvents),
+    });
   }
-  
-  /**
-   * Convert ChunkLayerState to IARELogicLayers format.
-   */
-  private convertToIARELayers(chunkLayerState: any): any {
-    return {
-      ecology: chunkLayerState.ecology,
-      market: chunkLayerState.economy, // Note: mapping
-      physiology: chunkLayerState.npc_vitality,
-      trade: chunkLayerState.trade,
-      memory: chunkLayerState.social_memory,
-      politics: chunkLayerState.politics,
-      conflict: chunkLayerState.aggression,
-      economy: chunkLayerState.conjuncture,
-      kingdoms: chunkLayerState.kingdom,
-      faith: chunkLayerState.faith,
-      dungeon: chunkLayerState.dungeon,
-      fear: chunkLayerState.fear,
-      cycles: chunkLayerState.resurrection
+
+  registerWorldStateProvider(provider: WorldStateProvider): () => void {
+    if (!provider.id || provider.id.trim().length === 0) throw new Error("WorldStateProvider requires a stable non-empty id");
+    if (this.worldStateProviders.has(provider.id)) throw new Error(`Duplicate WorldStateProvider id: ${provider.id}`);
+    this.worldStateProviders.set(provider.id, provider);
+    console.log(`[WorldTickThinShell] WorldStateProvider registered: ${provider.id}`);
+    return () => {
+      if (this.worldStateProviders.has(provider.id)) {
+        this.worldStateProviders.delete(provider.id);
+        console.log(`[WorldTickThinShell] WorldStateProvider unregistered: ${provider.id}`);
+      }
     };
   }
-  
-  /**
-   * Queue persistence events for write-behind.
-   */
-  private queuePersistenceEvents(): void {
-    const snapshot = this.worldBrain.getSnapshot();
-    
-    for (const chunkKey of snapshot.active_chunks) {
-      const layerState = this.worldBrain.getChunkLayerState(chunkKey);
-      if (layerState) {
-        const iareLayers = this.convertToIARELayers(layerState);
-        
-        const event = {
-          chunkKey,
-          tick: this.tickCount as any,
-          layerSnapshot: iareLayers,
-          deltaHash: snapshot.world_hash,
-          // Legacy compatibility field. Keep deterministic until this shell is replaced.
-          timestamp: this.tickCount
-        };
-        
-        this.persistenceQueue.enqueue(event);
+
+  getProviderCount(): number { return this.worldStateProviders.size; }
+  hasProviders(): boolean { return this.worldStateProviders.size > 0; }
+  getFailureFamilyStatus(): TickFailureFamilySnapshot { return this.registry.getFailureRuntime().getSnapshot(); }
+  armFailureFamilyRun(requestedRunId?: string | null): FailureFamilyProbeRunStatus {
+    return this.failureProbe.armFullRun({ requestedRunId, currentTick: this.tickCount });
+  }
+  getFailureFamilyProbeStatus(): FailureFamilyProbeRunStatus { return this.failureProbe.getStatus(); }
+
+  registerChunk(chunkKey: string): void { this.worldBrainState.registerChunk(coerceChunkKey(chunkKey)); }
+  unregisterChunk(chunkKey: string): void { this.worldBrainState.unregisterChunk(coerceChunkKey(chunkKey)); }
+  setActorStateProvider(provider: (() => readonly import('./WorldBrainRuntimePort.js').ActorHashEntry[]) | null): void {
+    this.worldBrainState.setActorStateProvider(provider);
+  }
+  getWorldBrainSeedRecord(chunkKey: string): CanonicalLayerSeedResult | null {
+    return this.worldBrainState.getCanonicalSeedRecord(coerceChunkKey(chunkKey));
+  }
+  getTickCount(): number { return this.tickCount; }
+  getWorldBrainSnapshot(): any { return this.worldBrainState.getSnapshot(); }
+  getPersistenceStats() { return this.persistenceQueue.getStats(); }
+  setPersistenceAdapter(adapter: import('./LayerPersistencePort.js').LayerPersistenceAdapter): void {
+    this.persistenceQueue.setAdapter(adapter);
+  }
+  async ensurePersistenceAdapter(factory: () => Promise<import('./LayerPersistencePort.js').LayerPersistenceAdapter>): Promise<void> {
+    await this.persistenceQueue.ensureAdapter(factory);
+  }
+  async rehydrateAllChunkStates(): Promise<number> {
+    const adapter = this.persistenceQueue.getAdapter();
+    if (!adapter || !adapter.loadAllChunkStates) return 0;
+    return this.worldBrainState.rehydrateAll(() => adapter.loadAllChunkStates!());
+  }
+  getSnapshotStats() { return { chunkCount: this.snapshotComposer.getChunkCount() }; }
+
+  private runScheduledTick(): void {
+    try {
+      this.tick();
+    } catch (error) {
+      const runtime = this.registry.getFailureRuntime();
+      let snapshot = runtime.getSnapshot();
+      if (snapshot.lastFailureTick !== this.tickCount) {
+        runtime.recordFailure({ tick: this.tickCount, stage: 'scheduled_tick', error });
+        snapshot = runtime.getSnapshot();
+      }
+      const latest = snapshot.records.find((record) => record.lastTick === this.tickCount) ?? null;
+      if (latest) {
+        console.error(`[WorldTickThinShell] scheduled tick failure tick=${this.tickCount} stage=${latest.stage} family=${latest.family} fingerprint=${latest.fingerprint}`);
+      } else {
+        console.error(`[WorldTickThinShell] scheduled tick failure tick=${this.tickCount} family=unknown`);
       }
     }
   }
-  
-  /**
-   * Register a chunk as active.
-   */
-  registerChunk(chunkKey: string): void {
-    this.worldBrain.registerChunk(chunkKey as any);
+
+  private registerWorldBrainRuntimeSystem(): void {
+    registerWorldBrainTickSystem({
+      state: this.worldBrainState,
+      snapshot: new SnapshotComposerWorldBrainSink(this.snapshotComposer),
+      replay: new LayerPersistenceWorldBrainReplaySink(this.persistenceQueue),
+    }, this.registry);
   }
-  
-  /**
-   * Unregister a chunk.
-   */
-  unregisterChunk(chunkKey: string): void {
-    this.worldBrain.unregisterChunk(chunkKey as any);
-  }
-  
-  /**
-   * Get current tick count.
-   */
-  getTickCount(): number {
-    return this.tickCount;
-  }
-  
-  /**
-   * Get world brain snapshot.
-   */
-  getWorldBrainSnapshot(): any {
-    return this.worldBrain.getSnapshot();
-  }
-  
-  /**
-   * Get persistence queue stats.
-   */
-  getPersistenceStats() {
-    return this.persistenceQueue.getStats();
-  }
-  
-  /**
-   * Get snapshot composer stats.
-   */
-  getSnapshotStats() {
-    return {
-      chunkCount: this.snapshotComposer.getChunkCount()
-    };
+
+  private finalizeWorldBrainSnapshot(): void {
+    if (this.snapshotComposer.getChunkCount() > 0) this.snapshotComposer.finalizeWorldSnapshot(this.tickCount as any);
   }
 }
 
-/**
- * Global WorldTickThinShell instance.
- */
 export const worldTickThinShell = new WorldTickThinShell();
-
-/**
- * Register WorldTickThinShell with the global registry.
- */
-export function registerWorldTickThinShell(): WorldTickThinShell {
-  // This is the final integration point - WorldTickThinShell IS the tick system
-  return worldTickThinShell;
-}
+export function registerWorldTickThinShell(): WorldTickThinShell { return worldTickThinShell; }

@@ -58,10 +58,16 @@ describe("CampNpcService buyStock", () => {
     service.clearForTests();
   });
 
+  function seedCampStock(pois: readonly WorldPoiSnapshot[], currentTick: number): void {
+    for (const poi of pois) {
+      service.commitStockState(poi.id, service.projectStockState(poi, currentTick));
+    }
+  }
+
   describe("buyStock validation", () => {
     it("should fail for invalid quantity (0)", () => {
       // Add some stock first
-      service.updateCampStock([loggingCampPoi], 39);
+      seedCampStock([loggingCampPoi], 39);
 
       const result = service.buyStock({
         poiId: loggingCampPoi.id,
@@ -74,7 +80,7 @@ describe("CampNpcService buyStock", () => {
     });
 
     it("should fail for negative quantity", () => {
-      service.updateCampStock([loggingCampPoi], 39);
+      seedCampStock([loggingCampPoi], 39);
 
       const result = service.buyStock({
         poiId: loggingCampPoi.id,
@@ -87,7 +93,7 @@ describe("CampNpcService buyStock", () => {
     });
 
     it("should fail for float quantity", () => {
-      service.updateCampStock([loggingCampPoi], 39);
+      seedCampStock([loggingCampPoi], 39);
 
       const result = service.buyStock({
         poiId: loggingCampPoi.id,
@@ -111,7 +117,7 @@ describe("CampNpcService buyStock", () => {
     });
 
     it("should fail for invalid item", () => {
-      service.updateCampStock([loggingCampPoi], 39);
+      seedCampStock([loggingCampPoi], 39);
 
       const result = service.buyStock({
         poiId: loggingCampPoi.id,
@@ -124,7 +130,9 @@ describe("CampNpcService buyStock", () => {
     });
 
     it("should fail for item not in camp stock", () => {
-      // Don't add any stock, logging camp has no stock
+      // Register the camp with an empty projected state; unknown POIs are a
+      // different validation error from a known camp with no available item.
+      seedCampStock([loggingCampPoi], 0);
       const result = service.buyStock({
         poiId: loggingCampPoi.id,
         itemId: "wood_log",
@@ -137,7 +145,7 @@ describe("CampNpcService buyStock", () => {
 
     it("should fail when quantity exceeds camp stock", () => {
       // Add only 1 stock
-      service.updateCampStock([loggingCampPoi], 39);
+      seedCampStock([loggingCampPoi], 39);
 
       const result = service.buyStock({
         poiId: loggingCampPoi.id,
@@ -153,8 +161,8 @@ describe("CampNpcService buyStock", () => {
   describe("buyStock success", () => {
     it("should successfully buy wood_log from logging camp", () => {
       // Add stock first
-      service.updateCampStock([loggingCampPoi], 39);
-      service.updateCampStock([loggingCampPoi], 79); // Add another
+      seedCampStock([loggingCampPoi], 39);
+      seedCampStock([loggingCampPoi], 79); // Add another
 
       const result = service.buyStock({
         poiId: loggingCampPoi.id,
@@ -171,7 +179,7 @@ describe("CampNpcService buyStock", () => {
     });
 
     it("should successfully buy copper_ore from mining camp", () => {
-      service.updateCampStock([miningCampPoi], 39);
+      seedCampStock([miningCampPoi], 39);
 
       const result = service.buyStock({
         poiId: miningCampPoi.id,
@@ -188,7 +196,7 @@ describe("CampNpcService buyStock", () => {
     });
 
     it("should successfully buy raw_fish from fishing camp", () => {
-      service.updateCampStock([fishingCampPoi], 39);
+      seedCampStock([fishingCampPoi], 39);
 
       const result = service.buyStock({
         poiId: fishingCampPoi.id,
@@ -207,7 +215,7 @@ describe("CampNpcService buyStock", () => {
     it("should buy multiple quantity", () => {
       // Add 5 stock
       for (let i = 0; i < 5; i++) {
-        service.updateCampStock([loggingCampPoi], 39 + i * 40);
+        seedCampStock([loggingCampPoi], 39 + i * 40);
       }
 
       const result = service.buyStock({
@@ -225,8 +233,8 @@ describe("CampNpcService buyStock", () => {
 
     it("should reduce camp stock after purchase", () => {
       // Add stock
-      service.updateCampStock([loggingCampPoi], 39);
-      service.updateCampStock([loggingCampPoi], 79);
+      seedCampStock([loggingCampPoi], 39);
+      seedCampStock([loggingCampPoi], 79);
 
       // Buy 1
       service.buyStock({
@@ -244,7 +252,7 @@ describe("CampNpcService buyStock", () => {
 
     it("should remove item from camp stock when quantity reaches 0", () => {
       // Add only 1 stock
-      service.updateCampStock([loggingCampPoi], 39);
+      seedCampStock([loggingCampPoi], 39);
 
       // Buy 1
       const result = service.buyStock({
@@ -268,8 +276,8 @@ describe("CampNpcService buyStock", () => {
   describe("buyStock no mutation on failure", () => {
     it("should not mutate stock when quantity is invalid", () => {
       // Add stock
-      service.updateCampStock([loggingCampPoi], 39);
-      service.updateCampStock([loggingCampPoi], 79);
+      seedCampStock([loggingCampPoi], 39);
+      seedCampStock([loggingCampPoi], 79);
 
       // Try invalid buy
       service.buyStock({
@@ -286,7 +294,7 @@ describe("CampNpcService buyStock", () => {
 
     it("should not mutate stock when item not in stock", () => {
       // Add stock for different item
-      service.updateCampStock([miningCampPoi], 39);
+      seedCampStock([miningCampPoi], 39);
 
       // Try to buy wood_log from mining camp (not available)
       service.buyStock({

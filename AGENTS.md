@@ -47,6 +47,14 @@ Primary source-of-truth docs:
   - Validate content: `pnpm run validate --prefix server`
   - Model-path audit: `pnpm run audit:model-paths`
 
+### AutoHeal Module System (ARE)
+- **Scanner:** `pnpm modules:scan` / `pnpm modules:scan:ci` (fails on D,E categories)
+- **Safe Autofix:** `pnpm modules:fix` / `pnpm modules:fix:dry` (type typos, category typos)
+- **AutoHeal Plan:** `pnpm autoheal:plan` / `pnpm autoheal:plan:verbose`
+- **AutoHeal Apply:** `pnpm autoheal:apply` (SAFE_MECHANICAL) / `pnpm autoheal:apply:low` (LOW_SEMANTIC)
+- **Risk levels:** SAFE_MECHANICAL → LOW_SEMANTIC → MEDIUM_SEMANTIC → HIGH_SEMANTIC → FORBIDDEN
+- **Core rule:** Green only through proof. No stub filling, no fake determinism, no Math.random without ctx.rng.
+
 ### Environment variables (important)
 - General defaults and descriptions: `.env.example`
 - Production template: `deploy/.env.production.template`
@@ -209,6 +217,8 @@ When working on specific topics, check the skills in `docs/ai-skills/`:
 - `wasd-health-endpoint-verification.md` - Health check patterns for VPS verification
 - `wasd-production-activation-workflow.md` - Complete workflow for production activation
 - `wasd-npc-autonomous-brain.md` - NPC autonomous brain system (memory, decisions, learning)
+- `wasd-autoheal-system.md` - AutoHeal module system (4-phase pipeline, risk levels, policy)
+- `wasd-autoheal-best-practices.md` - AutoHeal best practices (workflow patterns, anti-patterns, verification)
 
 ### VPS & Deployment Skills
 - `vps-ssh-paramiko-patterns.md` - SSH access to VPS via Paramiko
@@ -310,3 +320,10 @@ Der MiniMax-M2.7 Agent ist für autonome System-Gesundheit, Bug-Fixing und ARELo
 - Manual triggers: system_health, npc_health, ui_optimization, full_analysis, fix_issue
 
 **Mehr Info:** `docs/MiniMax-Autonomous-Agent.md`
+
+### Player Movement Truth Path (AIM-103)
+- **Rule:** Player movement must go through the deterministic tick, never direct WebSocket mutation. The WS handler enqueues a `RuntimeMoveIntent` via `RuntimePlayerSystem.enqueueMoveIntent(...)`; the tick's `applyQueuedMoveIntents` (wired in `WorldTickThinShellAdapter` `adapter-internal` WorldStateProvider) applies it deterministically with stable sort + tick-gating.
+- **Maps:** `WorldTickAdapter` owns BOTH `playerToSocket` and `socketToPlayer` Maps. The old bridge accessed `socketToPlayer` via `(tick as any)` and silently no-op'd because the map was missing — keep both declared.
+- **Client feedback:** Send a truthful `move_intent_ack` (accepted tick + pending count) — do NOT claim the position already moved. The heartbeat reflects the current (pre-move) position; the queued move shows up after the tick applies it.
+- **Follow-up (not done):** `CollectiveIngressRuntime.updateFromInput` still mutates `peer.position` directly and its `advanceTick` is never called — same anti-pattern, separate system, needs its own issue.
+- **Sequence:** AIM-103 (movement into tick) → AIM-104 (worldhash over actor state) → AIM-77 (unified intents) → AIM-48 (worldSurface 3D parity).

@@ -1,327 +1,470 @@
-/**
- * WorldTickThinShellAdapter - Phase 11: Complete Migration Adapter
- * 
- * This adapter wraps WorldTickThinShell and provides the complete
- * backward-compatible API that all existing routes and modules expect.
- * 
- * MIGRATION STRATEGY:
- * - All tick-related logic uses WorldTickThinShell (10-Hz brain tick)
- * - Domain systems are gradually migrated to TickSystemRegistry
- * - This adapter ensures zero downtime during migration
- * 
- * Once ALL modules are migrated to use TickSystemRegistry directly,
- * this adapter can be removed and WorldTickThinShell used directly.
- */
-
 import type { WorldLogicalState } from './ChunkLayerState.js';
 import { worldTickThinShell, type WorldTickThinShell } from './WorldTickThinShell.js';
-import { areValidationState } from '../are/AREValidationState.js';
-import { deterministicTickRecorder } from '../are/DeterministicTickRecorder.js';
-import { areAutoRepairService } from '../are/AREAutoRepairService.js';
-import type { AutoRepairStatus } from '../are/AREAutoRepairService.js';
-import type { DeterministicRecorderStats, DeterministicReplaySnapshot } from '../are/DeterministicTickRecorder.js';
-import type { WorldHashSnapshot } from '../are/WorldHashSnapshot.js';
-import type { AREInvariantGuardStatus } from '../are/AREInvariantGuard.js';
-import type { GameWebSocketServer } from '../networking/WebSocketServer.js';
+import { RuntimePlayerSystem, RuntimeWarfrontPort, createRuntimeWarfrontSystem } from './RuntimeDomainPorts.js';
+import { registerWarfrontSystem, type WarfrontTickSystem } from './WarfrontTickSystem.js';
+import { registerNPCSystem } from './NPCTickSystem.js';
+import { registerSpatialBroadcastTickSystem } from './SpatialBroadcastTickSystem.js';
+import { registerAurionTransitionTickSystem } from './AurionTransitionTickSystem.js';
+import { sharedWorldEventBus } from '../../modules/ouroboros/sharedWorldEventBus.js';
+import { ChatChannelRouter, type ChatRecipient } from '../../modules/chat/ChatChannelRouter.js';
+import { StatusEmitter } from '../../modules/chat/StatusEmitter.js';
+import { getOuroborosTickSystem } from './OuroborosTickSystem.js';
+import { getActiveGameWebSocketServer } from '../../networking/WebSocketServer.js';
+import type { NPCSystem } from '../../modules/npc/NPCSystem.js';
+import { NPCSystem as RealNPCSystem } from '../../modules/npc/NPCSystem.js';
+import { loadGameDataNpcsIntoSystem, type NpcGameDataLoadReport } from '../../modules/npc/NPCGameDataStore.js';
+import type { LootEntity } from '../../modules/world/LootDirector.js';
+import { lootDirector as deterministicLootDirector } from '../../modules/world/LootDirector.js';
+import { canonicalIntentIntake } from '../../intents/CanonicalIntentIntake.js';
 
-/**
- * Stub implementations for domain systems not yet migrated to TickSystem.
- * These will be gradually replaced as modules migrate.
- */
-class StubChunkSystem {
-  getChunk(x: number, z: number) { return null; }
-}
-class StubObserverEngine {
-  broadcastToAll(data: unknown) {}
-}
-class StubPlayerSystem {
-  getPlayer(id: string) { return null; }
-  getAllPlayers() { return []; }
-}
-class StubCombatSystem {}
-class StubCombatService {}
-class StubInventorySystem {}
-class StubNPCSystem {
-  getNPC(id: string) { return null; }
-  getAllNPCs() { return []; }
-}
-class StubGuildSystem {}
-class StubEconomySystem {}
-class StubQuestEngine {}
-class StubWorldSystem {}
-class StubPersistenceManager {
-  getStats() { return {}; }
-}
-class StubGLBRegistry {
-  scanModels() { return []; }
-  getLinks() { return []; }
-}
-class StubWarfrontSystem {
-  getCycleSnapshot(tick: number) { return null; }
-  getRewardTiers() { return []; }
-  getFrontBossSpawnPoint() { return null; }
-}
-class StubAssetPoolResolver {
-  getDocument() { return {}; }
+type AutoRepairStatus = { ok: boolean; status: string; reason?: string };
+type DeterministicRecorderStats = { available: boolean; recordedTicks: number; replayBufferSize: number; reason?: string };
+type DeterministicReplaySnapshot = { tick: number; snapshot: unknown };
+type AREInvariantGuardStatus = { ok: boolean; invariant: string; available?: boolean; reason?: string };
+type NetworkBridge = { broadcast(data: unknown): void; sendToPlayer(id: string, data: unknown): void };
+type WorldHashSnapshot = {
+  tick: number;
+  worldHash: string;
+  chunkCount: number;
+  entityCount: number;
+  timestamp: number;
+};
+type WorldHashComparison = {
+  ok: boolean;
+  portalHash: string | null;
+  worldHash: string | null;
+  matches: boolean;
+  reason?: string;
+};
+
+type RuntimePortStatus = {
+  id: string;
+  available: boolean;
+  reason?: string;
+  authority: 'runtime' | 'transport_side_channel' | 'unavailable';
+};
+
+const ZERO_WORLD_HASH = '0'.repeat(64);
+const REPLAY_UNAVAILABLE_REASON = 'No canonical replay recorder is registered on WorldTickThinShell.';
+const AUTO_REPAIR_UNAVAILABLE_REASON = 'No canonical auto-repair runtime is registered on WorldTickThinShell.';
+
+function isCanonicalStateHash(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/i.test(value);
 }
 
-/**
- * WorldTickAdapter - Provides complete WorldTick-compatible interface
- */
-export class WorldTickAdapter {
-  /** Reference to the thin shell */
-  readonly thinShell: WorldTickThinShell = worldTickThinShell;
-  
-  /** Current tick count (delegated to thin shell) */
-  get tickCount(): number {
-    return this.thinShell.getTickCount();
+function normalizePortalHash(value: unknown): string | null {
+  if (isCanonicalStateHash(value)) return value.toLowerCase();
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  const nested = record.worldHash ?? record.world_hash ?? record.hash;
+  return isCanonicalStateHash(nested) ? nested.toLowerCase() : null;
+}
+
+class UnavailableRuntimePort {
+  constructor(readonly id: string, readonly reason: string) {}
+
+  getStatus(): RuntimePortStatus { return { id: this.id, available: false, reason: this.reason, authority: 'unavailable' }; }
+  getDiagnostics(): RuntimePortStatus { return this.getStatus(); }
+  assertAvailable(): never { throw new Error(`${this.id} unavailable: ${this.reason}`); }
+  getChunk(): never { return this.assertAvailable(); }
+  scanModels(): never { return this.assertAvailable(); }
+  getLinks(): never { return this.assertAvailable(); }
+  getDocument(): never { return this.assertAvailable(); }
+  getStats(): RuntimePortStatus { return this.getStatus(); }
+}
+
+class TransportObserverEngine {
+  private readonly positions = new Map<string, unknown>();
+
+  broadcastToAll(_data: unknown): void {
+    // Transport-only compatibility hook. Simulation truth is emitted by tick providers.
   }
-  
-  // ═══════════════════════════════════════════════════════════════
-  // STUB DOMAIN SYSTEMS (gradually migrated to TickSystemRegistry)
-  // ═══════════════════════════════════════════════════════════════
-  
-  readonly chunkSystem = new StubChunkSystem();
-  readonly observerEngine = new StubObserverEngine();
-  readonly playerSystem = new StubPlayerSystem();
-  readonly combatSystem = new StubCombatSystem();
-  readonly combatService = new StubCombatService();
-  readonly inventorySystem = new StubInventorySystem();
-  readonly npcSystem = new StubNPCSystem();
-  readonly guildSystem = new StubGuildSystem();
-  readonly economySystem = new StubEconomySystem();
-  readonly questSystem = new StubQuestEngine();
-  readonly worldSystem = new StubWorldSystem();
-  readonly persistence = new StubPersistenceManager();
-  readonly glbRegistry = new StubGLBRegistry();
-  readonly warfrontSystem = new StubWarfrontSystem();
-  
-  readonly assetPoolResolver = new StubAssetPoolResolver();
-  readonly placementEngine = {};
-  readonly placementEnginePort = { type: 'NullPlacementPort' as const };
-  
-  // ═══════════════════════════════════════════════════════════════
-  // VOTING SYSTEM STUBS
-  // ═══════════════════════════════════════════════════════════════
-  
-  listActiveVoteBanners(): any[] { return []; }
-  handleVoteProviderCallback(data: any): any { return { ok: true }; }
-  getAdminVoteBanners(): any[] { return []; }
-  upsertVoteBanner(data: any): any { return { ok: true, banner: {} }; }
-  deleteVoteBanner(id: string): any { return { ok: true }; }
-  setVoteBannerOrder(data: any): any { return { ok: true }; }
-  getVoteAdminDiagnostics(): any { return {}; }
-  
-  // ═══════════════════════════════════════════════════════════════
-  // PERSISTENCE & HEALTH
-  // ═══════════════════════════════════════════════════════════════
-  
-  getPersistenceStats(): any {
-    return this.thinShell.getPersistenceStats();
+
+  register(id: string, value: unknown = {}): void { this.positions.set(id, value); }
+  updatePosition(id: string, position: unknown): void { this.positions.set(id, position); }
+  getStatus(): RuntimePortStatus & { trackedSockets: number } {
+    return { id: 'TransportObserverEngine', available: true, authority: 'transport_side_channel', trackedSockets: this.positions.size };
   }
-  
-  debouncedSave(): void {}
-  
-  // ═══════════════════════════════════════════════════════════════
-  // CRAFTING & SKILLS STUBS
-  // ═══════════════════════════════════════════════════════════════
-  
-  readonly craftingSystem = { type: 'NullCraftingPort' };
-  readonly skillSystem = { type: 'NullSkillPort' };
-  
-  // ═══════════════════════════════════════════════════════════════
-  // WORLD STATE
-  // ═══════════════════════════════════════════════════════════════
-  
-  worldState: any = { customDialogues: {} };
-  
-  // ═══════════════════════════════════════════════════════════════
-  // NPC & PLAYER MANAGEMENT
-  // ═══════════════════════════════════════════════════════════════
-  
-  createNPC(id: string, name: string, x: number, y: number): void {
-    // TODO: Migrate to NPC TickSystem via TickSystemRegistry
-  }
-  
-  playerToSocket = new Map<string, string>();
-  
-  // ═══════════════════════════════════════════════════════════════
-  // LOOT SYSTEM STUB
-  // ═══════════════════════════════════════════════════════════════
-  
-  updateLootCache(): void {}
-  
-  readonly npcRespawnTimers = new Map<string, any>();
-  
-  // ═══════════════════════════════════════════════════════════════
-  // RESOURCE SYSTEM STUB
-  // ═══════════════════════════════════════════════════════════════
-  
-  resourceSystem: any = { nodes: new Map() };
-  
-  // ═══════════════════════════════════════════════════════════════
-  // CHAT SYSTEM STUB
-  // ═══════════════════════════════════════════════════════════════
-  
-  chatSystem: any = {
-    getRecentMessages: () => [],
-    systemMessage: () => {},
-    sendMessage: () => ({})
+}
+
+function unavailablePort(id: string, reason: string): UnavailableRuntimePort {
+  return new UnavailableRuntimePort(id, reason);
+}
+
+function createManifestManager(adapter: WorldTickAdapter) {
+  const replayGuard = { getHighestTick: () => adapter.tickCount, getNonceCount: () => 0 };
+  return {
+    getLastStateHash: () => adapter.getWorldHashSnapshot()?.worldHash ?? ZERO_WORLD_HASH,
+    getLastSnapshotTick: () => adapter.tickCount,
+    getReplayGuard: () => replayGuard,
   };
-  
-  // ═══════════════════════════════════════════════════════════════
-  // LOOT SYSTEM STUB
-  // ═══════════════════════════════════════════════════════════════
-  
-  lootSystem: any = { rollLoot: () => ({ items: [], gold: 0 }) };
-  
-  // ═══════════════════════════════════════════════════════════════
-  // LIVE HEAL (ARE Status)
-  // ═══════════════════════════════════════════════════════════════
-  
+}
+
+function emptyNpcLoadReport(): NpcGameDataLoadReport {
+  return Object.freeze({
+    npcDefinitionsRead: 0,
+    spawnRowsRead: 0,
+    npcsLoaded: 0,
+    missingSpawnDefinitions: Object.freeze([]),
+    duplicateSpawnNpcIds: Object.freeze([]),
+  });
+}
+
+export class WorldTickAdapter {
+  readonly thinShell: WorldTickThinShell = worldTickThinShell;
+  get tickCount(): number { return this.thinShell.getTickCount(); }
+
+  readonly eventBus = sharedWorldEventBus;
+  readonly chatRouter = new ChatChannelRouter();
+  readonly players: ChatRecipient[] = [];
+  private readonly statusEmitter: StatusEmitter;
+  private networkBridge: NetworkBridge | null = null;
+
+  private readonly warfrontDomain = createRuntimeWarfrontSystem();
+  readonly warfrontTickSystem: WarfrontTickSystem;
+
+  // Real game systems - wired for ARE truth path
+  private readonly realNPCSystem: NPCSystem;
+  /** Backward-compatible public surface used by combat/persistence/skill integrations. */
+  readonly npcSystem: NPCSystem;
+  readonly deterministicLootDirector: { getAllLoot(): LootEntity[] };
+  private npcGameDataReport: NpcGameDataLoadReport = emptyNpcLoadReport();
+  private appliedMoveIntentTotal = 0;
+
+  readonly chunkSystem = unavailablePort('ChunkRuntimePort', 'No canonical chunk runtime provider is registered on this adapter yet. Use WorldTickThinShell world-brain snapshots for chunk truth.');
+  readonly observerEngine = new TransportObserverEngine();
+  readonly playerSystem = new RuntimePlayerSystem();
+  readonly combatSystem = unavailablePort('CombatRuntimePort', 'Combat runtime is not registered on this adapter. Do not infer combat truth from an empty object.');
+  readonly combatService = unavailablePort('CombatServicePort', 'Combat service is not registered on this adapter.');
+  readonly inventorySystem = unavailablePort('InventoryRuntimePort', 'Inventory runtime must be wired from the canonical inventory service before use.');
+  readonly guildSystem = unavailablePort('GuildRuntimePort', 'Guild runtime must be wired from the canonical guild/governance service before use.');
+  readonly economySystem = unavailablePort('EconomyRuntimePort', 'Economy runtime must be wired from the transaction ledger before use.');
+  readonly questSystem = unavailablePort('QuestRuntimePort', 'Quest runtime must be wired from the quest progression store before use.');
+  readonly worldSystem = unavailablePort('WorldRuntimePort', 'World runtime truth is currently exposed by WorldTickThinShell providers.');
+  readonly persistence = unavailablePort('PersistenceRuntimePort', 'Persistence stats must come from WorldTickThinShell persistence diagnostics.');
+  readonly glbRegistry = unavailablePort('GLBRegistryPort', 'GLB registry is not registered on this adapter.');
+  readonly warfrontSystem = new RuntimeWarfrontPort(this.warfrontDomain, () => this.tickCount * 100);
+  readonly assetPoolResolver = unavailablePort('AssetPoolResolverPort', 'Asset pool resolver is not registered on this adapter.');
+  readonly placementEngine = unavailablePort('PlacementRuntimePort', 'Placement engine is not registered on this adapter.');
+  readonly placementEnginePort = unavailablePort('PlacementRuntimePort', 'Placement engine port is not registered on this adapter.');
+  readonly craftingSystem = unavailablePort('CraftingRuntimePort', 'Crafting runtime must be wired from the canonical crafting service before use.');
+  readonly skillSystem = unavailablePort('SkillRuntimePort', 'Skill runtime must be wired from the canonical skill progression service before use.');
+  worldState: any = { customDialogues: {} };
+  playerToSocket = new Map<string, string>();
+  socketToPlayer = new Map<string, string>();
+  readonly npcRespawnTimers = new Map<string, any>();
+  resourceSystem: any = { nodes: new Map(), getDiagnostics: () => ({ id: 'ResourceRuntimePort', available: false, reason: 'Resource runtime provider not registered', authority: 'unavailable' }) };
+  readonly chatSystem = {
+    chatRouter: this.chatRouter,
+    getRecentMessages: () => this.chatRouter.getRecentAll(),
+    systemMessage: (text: string) => this.broadcast({ type: 'chat_message', channel: 'global', senderType: 'system', senderName: '[SYSTEM]', text, ts: this.tickCount }),
+    sendMessage: (text: string) => this.chatRouter.publish(
+      { channel: 'global', senderType: 'system', senderId: 'system', senderName: '[SYSTEM]', text },
+      this.players,
+      this.sendToPlayer,
+      this.broadcast,
+      this.resolveSocketId,
+    ),
+  };
+  readonly ws = {
+    broadcast: (payload: unknown) => this.broadcast(payload),
+    sendToPlayer: (socketId: string, payload: unknown) => this.sendToPlayer(socketId, payload),
+  };
+
   readonly liveHeal = {
     getStatus: () => ({
       tickCount: this.tickCount,
-      autoRepair: areAutoRepairService.getStatus(),
+      autoRepair: this.getAutoRepairStatus(),
       usage: { prompt_tokens: 0, completion_tokens: 0 },
-      areShadow: { replayBufferSize: 0, lastSnapshot: null },
+      areShadow: {
+        available: false,
+        replayBufferSize: 0,
+        lastSnapshot: null,
+        reason: REPLAY_UNAVAILABLE_REASON,
+      },
       electroweakPruning: { ttlTicks: 1200, stats: {} },
-      emergence: { events: [] }
+      emergence: { events: [] },
+      npcGameData: this.npcGameDataReport,
+      runtimePorts: this.getRuntimePortDiagnostics(),
+      playerRuntime: this.playerSystem.getDiagnostics(),
+      appliedMoveIntentTotal: this.appliedMoveIntentTotal,
+      canonicalIntents: canonicalIntentIntake.getDiagnostics(),
     }),
-    flush: () => {}
+    flush: () => {},
   };
-  
-  // ═══════════════════════════════════════════════════════════════
-  // PLAYTESTER STUBS
-  // ═══════════════════════════════════════════════════════════════
-  
+  readonly assetHealthService = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
+
+  constructor() {
+    // Ouroboros is registered by WorldTickThinShell before this adapter starts.
+    // Bind it to the same runtime chat authority used by the adapter before the
+    // first active tick, so NPC state signalling cannot dereference a null port.
+    this.statusEmitter = new StatusEmitter(
+      this.chatRouter,
+      () => this.players,
+      this.sendToPlayer,
+      this.resolveSocketId,
+    );
+    getOuroborosTickSystem().setChatIntegration(
+      this.chatRouter,
+      this.statusEmitter,
+      this.players,
+      this.sendToPlayer,
+      this.broadcast,
+      this.resolveSocketId,
+    );
+
+    // Create real NPC system for ARE truth path and preserve legacy adapter alias.
+    this.realNPCSystem = new RealNPCSystem();
+    this.npcSystem = this.realNPCSystem;
+    this.npcGameDataReport = loadGameDataNpcsIntoSystem(this.npcSystem);
+
+    const npcTickSystem = registerNPCSystem(this.npcSystem);
+    npcTickSystem.setPlayersProvider(() => this.playerSystem.getAllPlayers());
+    npcTickSystem.setWorldTimeProvider(() => this.tickCount);
+
+    // Wire deterministic LootDirector for ARE truth path
+    // This is the ARE-style loot system from modules/world/LootDirector
+    this.deterministicLootDirector = deterministicLootDirector;
+
+    this.warfrontTickSystem = registerWarfrontSystem(this.warfrontDomain);
+    registerAurionTransitionTickSystem();
+
+    // Phase 12: Register Spatial Broadcast System for periodic client updates
+    const spatialSystem = registerSpatialBroadcastTickSystem();
+    spatialSystem.setPlayerPositionProvider(() => this.playerSystem.getAllPlayers().map(p => ({ id: p.id, x: p.position.x, y: p.position.y, isOffline: p.isOffline })));
+    spatialSystem.setNpcPositionProvider(() => this.npcSystem.getAllNPCs().map(n => ({ id: n.id, x: n.position.x, y: n.position.y, name: n.name, health: n.health, maxHealth: n.maxHealth, role: n.role, state: n.state })));
+    spatialSystem.setLootProvider(() => this.deterministicLootDirector.getAllLoot());
+    spatialSystem.setPlayerToSocketProvider(() => this.playerToSocket);
+    spatialSystem.setSocketToPlayerProvider(() => (this as any).socketToPlayer || new Map());
+    spatialSystem.setBroadcastHandler((socketId, snapshot) => {
+      const uid = (this as any).socketToPlayer?.get(socketId);
+      const player = uid ? this.playerSystem.getPlayer(uid) : null;
+      if (player) {
+        this.sendToPlayer(socketId, {
+          type: "WORLD_HEARTBEAT",
+          payload: {
+            tick: this.tickCount,
+            serverTick: this.tickCount,
+            self: { id: player.id, name: player.name, x: player.position.x, y: player.position.y, z: player.position.z },
+            npcs: (snapshot as any).entities.filter((e: any) => e.kind === 'npc').reduce((acc: any, e: any) => {
+              acc[e.id] = { ...e.data.npc, x: e.tileX, y: e.tileZ, z: e.data.npc.z ?? 0 };
+              return acc;
+            }, {}),
+            players: (snapshot as any).entities.filter((e: any) => e.kind === 'player').reduce((acc: any, e: any) => {
+              acc[e.id] = { ...e.data.player, x: e.tileX, y: e.tileZ, z: e.data.player.z ?? 0 };
+              return acc;
+            }, {})
+          }
+        });
+      }
+    });
+
+    // Register adapter's systems as WorldStateProvider for ARE truth path
+    // This ensures WorldTickThinShell.getWorldStateForTick() always has data
+    this.thinShell.registerWorldStateProvider({
+      id: 'adapter-internal',
+      getWorldState: (_context) => {
+        this.appliedMoveIntentTotal += this.playerSystem.applyQueuedMoveIntents(this.tickCount, Number((this as any).client2DMoveSpeed ?? 5));
+        return {
+          npcs: this.npcSystem.getAllNPCs(),
+          players: this.playerSystem.getAllPlayers(),
+          loot: this.deterministicLootDirector.getAllLoot(),
+        };
+      },
+    });
+
+    // AIM-104: fold authoritative actor (player) state into the canonical world
+    // hash so it can detect actor-state divergence. Players are deterministically
+    // mutated inside the tick (AIM-103 movement + hydration), so the provider
+    // reads live RuntimePlayerSystem state that the tick has already advanced.
+    this.thinShell.setActorStateProvider(() => this.playerSystem.getAllPlayers());
+
+    console.log(`[WorldTickAdapter] Initialized with RealNPCSystem, game-data NPCs=${this.npcGameDataReport.npcsLoaded}, NPCTickSystem, deterministicLootDirector, and explicit unavailable runtime ports`);
+  }
+
+  attachNetworkBridge(networkBridge: NetworkBridge): void {
+    this.networkBridge = networkBridge;
+  }
+
+  private resolveNetworkBridge(): NetworkBridge | null {
+    return this.networkBridge ?? getActiveGameWebSocketServer();
+  }
+
+  sendToPlayer = (socketId: string, payload: unknown): void => {
+    this.resolveNetworkBridge()?.sendToPlayer(socketId, payload);
+  };
+
+  broadcast = (payload: unknown): void => {
+    this.resolveNetworkBridge()?.broadcast(payload);
+  };
+
+  resolveSocketId = (playerId: string): string | undefined => this.playerToSocket.get(playerId);
+
+  /**
+   * Get the real NPC system for external access.
+   */
+  getRealNPCSystem(): NPCSystem {
+    return this.realNPCSystem;
+  }
+
+  getNpcGameDataLoadReport(): NpcGameDataLoadReport {
+    return this.npcGameDataReport;
+  }
+
+  getRuntimePortDiagnostics(): RuntimePortStatus[] {
+    return [
+      { id: 'NPCSystem', available: true, authority: 'runtime' },
+      { id: 'DeterministicLootDirector', available: true, authority: 'runtime' },
+      { id: 'RuntimePlayerSystem', available: true, authority: 'runtime' },
+      { id: 'WarfrontRuntimePort', available: true, authority: 'runtime' },
+      this.observerEngine.getStatus(),
+      this.chunkSystem.getStatus(),
+      this.combatSystem.getStatus(),
+      this.combatService.getStatus(),
+      this.inventorySystem.getStatus(),
+      this.guildSystem.getStatus(),
+      this.economySystem.getStatus(),
+      this.questSystem.getStatus(),
+      this.worldSystem.getStatus(),
+      this.persistence.getStatus(),
+      this.glbRegistry.getStatus(),
+      this.assetPoolResolver.getStatus(),
+      this.placementEngine.getStatus(),
+      this.craftingSystem.getStatus(),
+      this.skillSystem.getStatus(),
+      this.resourceSystem.getDiagnostics(),
+    ];
+  }
+
+  async init(): Promise<void> {
+    this.warfrontDomain.initialize(this.tickCount * 100);
+  }
+  start(): void { this.thinShell.start(); }
+  async stop(): Promise<void> { await this.thinShell.stop(); }
+
+  listActiveVoteBanners(): any[] { return []; }
+  handleVoteProviderCallback(_data: any): any { return { ok: false, error: 'vote_banner_runtime_unavailable' }; }
+  getAdminVoteBanners(): any[] { return []; }
+  upsertVoteBanner(_data: any): any { return { ok: false, error: 'vote_banner_runtime_unavailable' }; }
+  deleteVoteBanner(_id: string): any { return { ok: false, error: 'vote_banner_runtime_unavailable' }; }
+  setVoteBannerOrder(_data: any): any { return { ok: false, error: 'vote_banner_runtime_unavailable' }; }
+  getVoteAdminDiagnostics(): any { return { available: false, reason: 'vote banner runtime not registered' }; }
+  getPersistenceStats(): any { return this.thinShell.getPersistenceStats(); }
+  setPersistenceAdapter(adapter: import('./LayerPersistencePort.js').LayerPersistenceAdapter): void {
+    this.thinShell.setPersistenceAdapter(adapter);
+  }
+  async ensurePersistenceAdapter(): Promise<void> {
+    const { createLayerPersistenceAdapter } = await import('./createLayerPersistenceAdapter.js');
+    await this.thinShell.ensurePersistenceAdapter(createLayerPersistenceAdapter);
+  }
+  async rehydrateAllChunkStates(): Promise<number> {
+    return this.thinShell.rehydrateAllChunkStates();
+  }
+  debouncedSave(): void {}
+  createNPC(id: string, name: string, x: number, y: number): void { this.npcSystem.createNPC(id, name, x, y); }
+  updateLootCache(): void {}
   getPlaytesterDebugLogPath(): string { return ''; }
-  buildPlaytesterMonitorPayload(options?: any): any { return {}; }
+  buildPlaytesterMonitorPayload(_options?: any): any { return { ok: false, error: 'playtester_runtime_unavailable' }; }
   getPlaytesterMemoryStats(): null { return null; }
-  
-  // ═══════════════════════════════════════════════════════════════
-  // ASSET HEALTH STUB
-  // ═══════════════════════════════════════════════════════════════
-  
-  readonly assetHealthService = {
-    getStatus: () => ({}),
-    getStats: () => null,
-    flush: () => {}
-  };
-  
-  // ═══════════════════════════════════════════════════════════════
-  // INITIALIZATION
-  // ═══════════════════════════════════════════════════════════════
-  
-  async init(): Promise<void> {}
-  
-  // ═══════════════════════════════════════════════════════════════
-  // SPATIAL BROADCAST (delegated to thin shell)
-  // ═══════════════════════════════════════════════════════════════
-  
+
   getSpatialBroadcastStats(): { chunkCount: number; entityCount: number } {
     const snapshot = this.thinShell.getWorldBrainSnapshot();
-    return {
-      chunkCount: snapshot?.active_chunks?.length ?? 0,
-      entityCount: 0 // Will be populated as entities migrate
-    };
+    return { chunkCount: snapshot?.active_chunks?.length ?? 0, entityCount: this.npcSystem.getAllNPCs().length + this.deterministicLootDirector.getAllLoot().length };
   }
-  
-  // ═══════════════════════════════════════════════════════════════
-  // ARE METHODS (delegated to validation state)
-  // ═══════════════════════════════════════════════════════════════
-  
+
   getAREGuardStatus(): AREInvariantGuardStatus | null {
-    return areValidationState.getSnapshot().guard;
+    return null;
   }
-  
+
   getWorldHashSnapshot(): WorldHashSnapshot | null {
     const snapshot = this.thinShell.getWorldBrainSnapshot();
     if (!snapshot) return null;
+
+    const activeChunks = Array.isArray(snapshot.active_chunks) ? snapshot.active_chunks : [];
+    const worldHash = isCanonicalStateHash(snapshot.world_hash) ? snapshot.world_hash.toLowerCase() : null;
+    if (activeChunks.length === 0 || !worldHash || worldHash === ZERO_WORLD_HASH) return null;
+
     return {
       tick: this.tickCount,
-      worldHash: snapshot.world_hash ?? '0'.repeat(64),
-      chunkCount: snapshot.active_chunks?.length ?? 0,
-      entityCount: 0,
-      timestamp: Date.now()
+      worldHash,
+      chunkCount: activeChunks.length,
+      entityCount: this.npcSystem.getAllNPCs().length + this.deterministicLootDirector.getAllLoot().length,
+      timestamp: this.tickCount,
     };
   }
-  
+
   getReplayRecorderStats(): DeterministicRecorderStats {
-    return deterministicTickRecorder.stats();
-  }
-  
-  getReplaySnapshot(tick: number): DeterministicReplaySnapshot | null {
-    return deterministicTickRecorder.replay(tick);
-  }
-  
-  getAutoRepairStatus(): AutoRepairStatus {
-    return areAutoRepairService.getStatus();
-  }
-  
-  // ═══════════════════════════════════════════════════════════════
-  // ORACLE REPORT (delegated to thin shell snapshot)
-  // ═══════════════════════════════════════════════════════════════
-  
-  getOracleReport(): any {
-    const snapshot = this.thinShell.getWorldBrainSnapshot();
-    return snapshot ?? null;
-  }
-  
-  // ═══════════════════════════════════════════════════════════════
-  // WORLD STATE VECTORS FOR 2D CLIENT (NEW - Phase 11)
-  // ═══════════════════════════════════════════════════════════════
-  
-  /**
-   * Get WorldLogicalState for an entity.
-   * Used by 2D client's AutonomousResonanceRouter for visual asset selection.
-   */
-  getWorldLogicalState(entityId: string, entityType: 'player' | 'npc' | 'loot'): WorldLogicalState {
-    // Calculate based on current tick and entity characteristics
-    const seasonTicks = 1000;
-    const tick = Date.now() % (seasonTicks * 4);
-    const season = tick < seasonTicks ? 'spring' 
-                 : tick < seasonTicks * 2 ? 'summer'
-                 : tick < seasonTicks * 3 ? 'autumn' : 'winter';
-    
-    const baseState: WorldLogicalState = {
-      baseType: entityType,
-      season,
-      decayLevel: 'none',
-      culture: 'universal',
-      biome: 'plains',
-      environment: 'outdoor'
+    return {
+      available: false,
+      recordedTicks: 0,
+      replayBufferSize: 0,
+      reason: REPLAY_UNAVAILABLE_REASON,
     };
-    
-    // Customize based on entity type
-    if (entityType === 'npc') {
-      // NPCs can have culture-specific visuals
-      baseState.culture = 'arcane';
-    } else if (entityType === 'loot') {
-      baseState.baseType = 'loot';
-      baseState.decayLevel = 'low';
-    }
-    
-    return baseState;
   }
-  
-  // ═══════════════════════════════════════════════════════════════
-  // SNAPSHOT COMPOSER (delegated to thin shell)
-  // ═══════════════════════════════════════════════════════════════
-  
-  getSnapshotStats(): { chunkCount: number } {
-    return this.thinShell.getSnapshotStats();
+
+  getReplaySnapshot(_tick: number): DeterministicReplaySnapshot | null {
+    return null;
+  }
+
+  getAutoRepairStatus(): AutoRepairStatus {
+    return { ok: false, status: 'unavailable', reason: AUTO_REPAIR_UNAVAILABLE_REASON };
+  }
+
+  getOracleReport(): any { return this.thinShell.getWorldBrainSnapshot() ?? null; }
+  getSnapshotStats(): { chunkCount: number } { return this.thinShell.getSnapshotStats(); }
+  getDeterministicUsageStats(): { hashesInWindow: number } { return { hashesInWindow: 0 }; }
+
+  comparePortalWorldHash(portalHashInput: unknown): WorldHashComparison {
+    const portalHash = normalizePortalHash(portalHashInput);
+    const world = this.getWorldHashSnapshot();
+
+    if (!portalHash) {
+      return {
+        ok: false,
+        portalHash: null,
+        worldHash: world?.worldHash ?? null,
+        matches: false,
+        reason: 'invalid_portal_hash',
+      };
+    }
+
+    if (!world) {
+      return {
+        ok: false,
+        portalHash,
+        worldHash: null,
+        matches: false,
+        reason: 'world_hash_unavailable',
+      };
+    }
+
+    const matches = portalHash === world.worldHash;
+    return {
+      ok: matches,
+      portalHash,
+      worldHash: world.worldHash,
+      matches,
+      ...(matches ? {} : { reason: 'world_hash_mismatch' }),
+    };
+  }
+
+  getManifestManager(): ReturnType<typeof createManifestManager> { return createManifestManager(this); }
+  handleClientDivergence(clientTick: number, clientStateHash: string) {
+    const serverHash = this.getManifestManager().getLastStateHash();
+    if (clientStateHash === serverHash) return null;
+    return { divergence: { clientTick, serverTick: this.tickCount, clientStateHash, serverStateHash: serverHash, divergedComponents: ['world_hash'] } };
+  }
+  buildFullState(): unknown { return this.thinShell.getWorldBrainSnapshot() ?? {}; }
+
+  getWorldLogicalState(_entityId: string, entityType: 'player' | 'npc' | 'loot'): WorldLogicalState {
+    const seasonIndex = Math.floor((this.tickCount % 4000) / 1000);
+    const season = (['spring', 'summer', 'autumn', 'winter'] as const)[seasonIndex] ?? 'spring';
+    const baseState: WorldLogicalState = { baseType: entityType, season, decayLevel: 'none', culture: 'universal', biome: 'plains', environment: 'outdoor' };
+    if (entityType === 'npc') baseState.culture = 'arcane';
+    if (entityType === 'loot') baseState.decayLevel = 'low';
+    return baseState;
   }
 }
 
-/**
- * Global WorldTickAdapter instance.
- * This replaces the old WorldTick instance in ServerBootstrap.
- */
 export const worldTickAdapter = new WorldTickAdapter();
-
-/**
- * Type alias for backward compatibility.
- * All existing code using 'WorldTick' type will now use this adapter.
- */
 export type WorldTick = WorldTickAdapter;

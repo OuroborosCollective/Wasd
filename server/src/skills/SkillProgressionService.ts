@@ -28,17 +28,11 @@ export class SkillProgressionService {
     private readonly persistence: SkillPersistenceAdapter
   ) {}
 
-  /**
-   * Get player skill state (hydrated from persistence if needed).
-   */
   async getPlayerSkillState(playerId: string): Promise<PlayerSkillState> {
     await this.hydratePlayer(playerId);
     return this.store.getPlayerSkillState(playerId);
   }
 
-  /**
-   * Apply a skill event and persist the result.
-   */
   async applyEvent(event: SkillEvent): Promise<PlayerSkillState> {
     await this.hydratePlayer(event.playerId);
 
@@ -51,9 +45,14 @@ export class SkillProgressionService {
     return state;
   }
 
-  /**
-   * Hydrate player state from persistence if not already done.
-   */
+  async restorePlayerSkillState(playerId: string, state: PlayerSkillState): Promise<void> {
+    this.store.replacePlayerSkillState(playerId, state);
+    this.hydratedPlayers.add(playerId);
+    await this.persistence.savePlayerSkillState(
+      createPersistedPlayerSkillState(playerId, state),
+    );
+  }
+
   async hydratePlayer(playerId: string): Promise<void> {
     if (this.hydratedPlayers.has(playerId)) return;
 
@@ -65,18 +64,12 @@ export class SkillProgressionService {
     this.hydratedPlayers.add(playerId);
   }
 
-  /**
-   * Get persistence info for health checks.
-   */
   getPersistenceInfo(): { driver: string } {
     return {
       driver: this.persistence?.constructor?.name ?? "unknown",
     };
   }
 
-  /**
-   * Clear hydration state (for testing only).
-   */
   clearForTests(): void {
     this.hydratedPlayers.clear();
   }

@@ -12,6 +12,8 @@ import {
     pruneNPCGoalsForTick,
     type NPCGoalPruningRuntimeReport,
 } from './NPCGoalPruningRuntime.js';
+import { canonicalizeActorMoveIntent } from '../../intents/ServerCanonicalIntent.js';
+import { canonicalIntentIntake } from '../../intents/CanonicalIntentIntake.js';
 
 const NPC_CHAT_COOLDOWN_TICKS = 300;
 const NPC_CHAT_ROLL_MODULO = 997;
@@ -434,23 +436,49 @@ export class NPCSystem {
                     if (moveChance < 60) { // 60% chance to move
                         const directionIdx = (hash >> 8) % 4;
                         const WANDER_SPEED = 0.05; // Kappa units per tick
-                        
+
                         // Directions: 0=North(-z), 1=East(+x), 2=South(+z), 3=West(-x)
+                        let wanderDx = 0;
+                        let wanderDy = 0;
                         switch (directionIdx) {
                             case 0: // North
                                 npc.position.z -= WANDER_SPEED;
+                                wanderDy = -WANDER_SPEED;
                                 break;
                             case 1: // East
                                 npc.position.x += WANDER_SPEED;
+                                wanderDx = WANDER_SPEED;
                                 break;
                             case 2: // South
                                 npc.position.z += WANDER_SPEED;
+                                wanderDy = WANDER_SPEED;
                                 break;
                             case 3: // West
                                 npc.position.x -= WANDER_SPEED;
+                                wanderDx = -WANDER_SPEED;
                                 break;
                         }
-                        
+
+                        // AIM-77: stamp the NPC move as a ServerCanonicalIntent so
+                        // NPC movement shares the SAME canonical path as player
+                        // movement and routes. Purely an integrity record — the
+                        // position mutation above is unchanged and deterministic.
+                        // (Wander uses x/z; we project onto the 2D intake plane as
+                        // x/y since that is the canonical WorldPosition2D.)
+                        try {
+                            const canonical = canonicalizeActorMoveIntent({
+                                actorId: `npc:${npc.id}`,
+                                fromPosition: { x: npc.position.x - wanderDx, y: (npc.position.z ?? 0) - wanderDy },
+                                delta: { dx: wanderDx, dy: wanderDy },
+                                tickId: currentTick,
+                                logicalIndex: currentTick,
+                                receivedOrder: directionIdx,
+                            });
+                            canonicalIntentIntake.record(canonical);
+                        } catch {
+                            // Canonical stamping must never alter NPC wander determinism.
+                        }
+
                         // Update rotation to face movement direction
                         const rotations = [Math.PI, Math.PI / 2, 0, -Math.PI / 2];
                         npc.rotation = rotations[directionIdx];

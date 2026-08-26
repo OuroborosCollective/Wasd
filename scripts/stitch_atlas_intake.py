@@ -1,38 +1,36 @@
 #!/usr/bin/env python3
 """
-stitch-atlas-intake.py
+scripts/stitch_atlas_intake.py
 
-Deterministic Stitch 2.5D asset atlas intake pipeline for Areloria/WASD.
+Deterministic Stitch 2.5D asset intake pipeline for Areloria/WASD.
 
-ZIP input OR directory input → inspect → classify → validate → 
-alpha cleanup → slice frames → generate atlas JSON → 
-generate runtime manifest → quarantine bad sheets → 
-create preview contact sheets → wire into /2d client.
-
-Usage:
-    python scripts/stitch_atlas_intake.py --input ./assets/raw/stitch/stitch_2.5d_enemy_sprite_atlas.zip
-    python scripts/stitch_atlas_intake.py --input ./.asset-inbox/stitch/biomes
-    python scripts/stitch_atlas_intake.py --input ./.asset-inbox/stitch --output ./assets/runtime/stitch
-
-Requirements:
-    pip install Pillow
-
-No Canva for runtime processing. No Date.now, no Math.random, no UUIDs.
+Runtime law:
+- no wall-clock timestamps
+- no randomness
+- no UUIDs
+- no blind alpha trust
+- no dirty catalog sheets in accepted runtime assets
 """
 
-import sys
-import os
-import json
+from __future__ import annotations
+
+import argparse
 import hashlib
-import struct
+import io
+import json
+import math
+import os
+import re
+import shutil
+import sys
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
-from PIL import Image
 from typing import Optional
 
-# -----------------------------------------------------------------------------
-# Paths
-# -----------------------------------------------------------------------------
+import cv2
+import numpy as np
+from PIL import Image, UnidentifiedImageError
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
 ROOT = SCRIPT_DIR.parent
@@ -40,230 +38,447 @@ ROOT = SCRIPT_DIR.parent
 DEFAULT_INPUT_DIR = ROOT / "assets" / "raw" / "stitch"
 DEFAULT_OUTPUT_DIR = ROOT / "assets" / "runtime" / "stitch"
 DEFAULT_QUARANTINE_DIR = ROOT / "assets" / "quarantine" / "stitch"
-DEFAULT_RAW_DIR = ROOT / "assets" / "raw" / "stitch"
 CLIENT_STITCH_DIR = ROOT / "apps" / "client-2d" / "public" / "2d-assets" / "stitch"
 
-# -----------------------------------------------------------------------------
-# Deterministic naming helpers
-# -----------------------------------------------------------------------------
+SUPPORTED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+SUPPORTED_ARCHIVE_EXTENSIONS = {".zip"}
 
-def stable_hash(data: bytes) -> str:
-    """SHA-256 content hash - deterministic, no randomness."""
-    return hashlib.sha256(data).hexdigest()
+MAX_SOURCE_PIXELS = 96_000_000
+MAX_FRAME_COUNT = 4096
+PACK_SCHEMA_VERSION = 3
+MIN_CONTOUR_AREA = 50
+OPAQUE_RATIO_MANUAL_REVIEW_THRESHOLD = 0.85
+BACKGROUND_TOLERANCE = 28
 
-def slugify_name(name: str) -> str:
-    """Convert filename to lower-case snake_case slug."""
-    # Remove extension
-    name = os.path.splitext(name)[0]
-    # Replace non-alphanumeric with underscore
-    result = ""
-    for c in name.lower():
-        if c.isalnum():
-            result += c
-        elif c in "-_ ":
-            result += "_"
-    # Collapse multiple underscores
-    while "__" in result:
-        result = result.replace("__", "_")
-    return result.strip("_")
-
-# -----------------------------------------------------------------------------
-# Category classification
-# -----------------------------------------------------------------------------
-
-CATEGORY_KEYWORDS = {
-    "enemy": ["enemy", "monster", "skeleton", "ghost", "demon", "beast", "creature", "ghoul", "shadow_mage", "ravager"],
-    "boss": ["boss", "king", "lord", "dragon", "titan"],
-    "hero": ["hero", "warrior", "knight", "paladin", "ranger"],
-    "npc": ["npc", "villager", "merchant", "guard", "guard_"],
-    "vfx": ["vfx", "effect", "magic", "spell", "fire", "ice", "lightning", "heal", "burst", "slash", "impact"],
-    "tile": ["tile", "floor", "ground", "grass", "stone", "dirt", "path", "ground_tiles"],
-    "prop": ["prop", "decor", "tree", "rock", "furniture", "object", "gate", "pillar", "obelisk", "vegetation"],
-    "item": ["item", "loot", "pickup", "treasure", "chest", "key"],
-    "equipment_overlay": ["helmet", "armor", "weapon", "shield", "overlay", "equip"],
-    "ui": ["ui", "icon", "button", "panel", "hud", "menu", "cursor"],
-}
-
-def classify_asset(filename: str) -> str:
-    """Classify asset based on filename keywords."""
-    lower = filename.lower()
-    for category, keywords in CATEGORY_KEYWORDS.items():
-        for kw in keywords:
-            if kw in lower:
-                return category
-    return "unknown"
-
-def classify_from_zip_path(zip_path: str) -> str:
-    """Classify asset based on ZIP internal path (more descriptive)."""
-    lower = zip_path.lower()
-    
-    # Equipment overlay (specific path segment)
-    if "equipment_overlay" in lower:
-        return "equipment_overlay"
-    
-    # Boss enemies (specific keyword)
-    if "/boss_enemy_" in lower or "_boss_" in lower:
-        return "boss"
-    
-    # Hero keywords (character paths)
-    if any(kw in lower for kw in ["hero_character", "_hero_", "_rogue_", "_mystic_", "_veteran_", "_agile_"]):
-        return "hero"
-    
-    # Tile keywords (floor tiles paths)
-    if any(kw in lower for kw in ["floor_tiles", "transition_floor_tiles"]):
-        return "tile"
-    
-    # VFX keywords (attack/effect paths)
-    if any(kw in lower for kw in ["magic_attack", "melee_attack", "visceral_attack", "defense_shield", "attack_vfx"]):
-        return "vfx"
-    
-    # Prop keywords (environment objects paths)
-    if any(kw in lower for kw in ["environment_objects", "ancient_pillars", "frozen_obelisks", "massive_iron_gates", "destructible_environment"]):
-        return "prop"
-    
-    # Enemy keywords (remaining enemies)
-    if any(kw in lower for kw in ["/enemy_", "_enemy_", "_ghoulish", "_shadow_mage", "_skeleton_warrior", "_ravager"]):
-        return "enemy"
-    
-    return "unknown"
-
-# -----------------------------------------------------------------------------
-# Grid detection
-# -----------------------------------------------------------------------------
-
-SUPPORTED_SIZES = [
-    (1024, 128),  # 1024x1024 → 8x8 grid → 128x128 frames
-    (768, 128),   # 768x768 → 6x6 grid → 128x128 frames  
-    (512, 128),   # 512x512 → 4x4 grid → 128x128 frames
-    (1024, 64),   # 1024x1024 → 16x16 grid → 64x64 frames
-    (512, 64),    # 512x512 → 8x8 grid → 64x64 frames
-    (256, 64),    # 256x256 → 4x4 grid → 64x64 frames
-    (1024, 256),  # 1024x1024 → 4x4 grid → 256x256 frames
-    (768, 256),   # 768x768 ...
-    (1536, 256),  # 1536x1536 → 6x6 grid → 256x256 frames (Areloria manual drop 2026-06-10)
+LEGACY_SUPPORTED_SIZES = [
+    (1024, 128),
+    (768, 128),
+    (512, 128),
+    (1024, 64),
+    (512, 64),
+    (256, 64),
+    (1024, 256),
+    (768, 256),
+    (1536, 256),
 ]
 
-def detect_grid(width: int, height: int) -> Optional[dict]:
-    """Detect grid configuration from image dimensions. Returns None if invalid."""
-    if width != height:
+CATEGORY_KEYWORDS = {
+    "boss": ["boss", "king", "lord", "dragon", "titan", "world_boss"],
+    "enemy": ["enemy", "monster", "skeleton", "ghost", "demon", "beast", "creature", "ghoul", "ravager", "zombie", "undead"],
+    "hero": ["hero", "player", "warrior", "knight", "paladin", "ranger", "mage", "rogue", "worker"],
+    "npc": ["npc", "villager", "merchant", "guard", "blacksmith", "farmer", "civilian"],
+    "building": ["building", "buildings", "house", "houses", "cottage", "inn", "dwelling", "village", "city", "kingdom", "architecture", "architectural", "doorway", "window", "street_lamp", "conduit"],
+    "vfx": ["vfx", "effect", "magic", "spell", "fire", "ice", "lightning", "heal", "burst", "slash", "impact", "projectile", "elemental"],
+    "tile": ["tile", "tileset", "floor", "ground", "grass", "stone", "dirt", "path", "road", "wall", "terrain", "swamp", "biome"],
+    "prop": ["prop", "props", "decor", "tree", "rock", "furniture", "object", "gate", "pillar", "obelisk", "vegetation", "bush", "mushroom", "sign", "dungeon", "gothic"],
+    "item": ["item", "loot", "pickup", "treasure", "chest", "key", "potion", "sword", "axe", "staff", "bow", "ring", "amulet"],
+    "equipment_overlay": ["equipment_overlay", "equipment_overlays", "overlay", "helmet", "armor", "weapon", "shield", "boots", "gloves", "plate"],
+    "ui": ["ui", "icon", "button", "panel", "hud", "menu", "cursor", "slot"],
+}
+
+CLASSIFY_PRIORITY = ["equipment_overlay", "boss", "enemy", "hero", "npc", "building", "vfx", "tile", "prop", "item", "ui"]
+
+CATEGORY_TARGET_FRAME_SIZE = {
+    "boss": 256,
+    "enemy": 128,
+    "hero": 128,
+    "npc": 128,
+    "vfx": 128,
+    "tile": 128,
+    "building": 256,
+    "prop": 128,
+    "item": 64,
+    "equipment_overlay": 128,
+    "ui": 64,
+    "unknown": 128,
+}
+
+PIVOT_MAP = {
+    "boss": {"x": 0.5, "y": 1.0},
+    "enemy": {"x": 0.5, "y": 1.0},
+    "hero": {"x": 0.5, "y": 1.0},
+    "npc": {"x": 0.5, "y": 1.0},
+    "vfx": {"x": 0.5, "y": 0.5},
+    "tile": {"x": 0.5, "y": 0.5},
+    "building": {"x": 0.5, "y": 1.0},
+    "prop": {"x": 0.5, "y": 1.0},
+    "item": {"x": 0.5, "y": 0.5},
+    "equipment_overlay": {"x": 0.5, "y": 0.5},
+    "ui": {"x": 0.5, "y": 0.5},
+    "unknown": {"x": 0.5, "y": 0.5},
+}
+
+MANUAL_REVIEW_HINTS = [
+    "catalog", "collection", "overview", "assembly", "set", "sheet_with_labels", "labeled", "labels",
+    "type_1", "type_2", "type_3", "front_walk", "front_attack", "front_defend", "front_die",
+    "back_walk", "back_attack", "back_defend", "back_die", "side_left", "side_right",
+    "view_front", "view_back", "view_left", "view_right", "mobile_overview", "screenshot",
+]
+
+REFERENCE_ONLY_HINTS = ["mobile_overview", "screenshot", "asset_collection", "catalog_overview"]
+SHEET_TOKENS = ["sheet", "atlas", "spritesheet", "sprite_sheet", "walk", "run", "attack", "idle", "death", "die", "anim", "animation"]
+
+
+@dataclass(frozen=True)
+class SourceAsset:
+    source_path: str
+    display_source_path: str
+    data: bytes
+    extension: str
+
+
+def stable_hash(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def slugify_name(name: str) -> str:
+    stem = os.path.splitext(name)[0].lower()
+    stem = stem.replace("2.5d", "25d").replace("2_5d", "25d")
+    chars = []
+    for c in stem:
+        if c.isalnum():
+            chars.append(c)
+        elif c in {"-", "_", " ", ".", "/", "\\"}:
+            chars.append("_")
+    return re.sub(r"_+", "_", "".join(chars)).strip("_") or "asset"
+
+
+def has_hint(value: str, hints: list[str]) -> bool:
+    normalized = slugify_name(value)
+    tokens = set(normalized.split("_"))
+    for hint in hints:
+        if "_" in hint:
+            if hint in normalized:
+                return True
+        elif hint in tokens:
+            return True
+    return False
+
+
+def is_manual_review_source(source_path: str) -> bool:
+    return has_hint(source_path, MANUAL_REVIEW_HINTS)
+
+
+def is_reference_only_source(source_path: str) -> bool:
+    return has_hint(source_path, REFERENCE_ONLY_HINTS)
+
+
+def clean_asset_slug(source_path: str, category: str) -> str:
+    normalized = source_path.replace("\\", "/")
+    parts = [p for p in normalized.split("/") if p]
+    candidate = Path(parts[-1]).stem if parts else Path(normalized).stem
+    if candidate.lower() in {"screen", "image", "sprite", "atlas", "sheet", "spritesheet", "output"} and len(parts) >= 2:
+        candidate = parts[-2]
+    candidate = candidate.lower()
+    for prefix in [
+        "sprite_atlas_sheet_for_a_2.5d_isometric_",
+        "sprite_atlas_sheet_for_2.5d_isometric_",
+        "sprite_sheet_for_a_2.5d_isometric_",
+        "sprite_sheet_for_2.5d_isometric_",
+        "a_2_5d_isometric_",
+        "2_5d_isometric_",
+        "25d_isometric_",
+        "isometric_",
+        "game_asset_",
+        "asset_",
+    ]:
+        candidate = candidate.replace(prefix, "")
+    candidate = re.sub(r"_style_[a-z0-9_\-\.]+$", "", candidate)
+    slug = slugify_name(candidate)
+    for prefix in (category, f"stitch_{category}", "stitch"):
+        if slug.startswith(prefix + "_"):
+            slug = slug[len(prefix) + 1:]
+    return slugify_name(slug)
+
+
+def classify_asset(filename: str) -> str:
+    lower = filename.replace("\\", "/").lower()
+    for category in CLASSIFY_PRIORITY:
+        if any(keyword in lower for keyword in CATEGORY_KEYWORDS[category]):
+            return category
+    return "unknown"
+
+
+def classify_from_zip_path(zip_path: str) -> str:
+    lower = zip_path.replace("\\", "/").lower()
+    priority_keywords = {
+        "equipment_overlay": ["equipment_overlay", "equipment_overlays", "overlay_", "_overlay", "helmet", "armor", "shield"],
+        "building": ["building", "buildings", "house", "cottage", "inn", "dwelling", "village", "city", "kingdom", "architecture", "architectural", "doorway", "window", "street_lamp", "conduit"],
+        "tile": ["floor_tiles", "transition_floor_tiles", "ground_tiles", "tileset", "/tile", "_tile", "terrain", "swamp_ground"],
+        "vfx": ["magic_attack", "melee_attack", "visceral_attack", "defense_shield", "attack_vfx", "vfx", "spell", "effect"],
+        "hero": ["hero_character", "_hero_", "_rogue_", "_mystic_", "_veteran_", "_agile_", "player_character"],
+        "prop": ["environment_objects", "ancient_pillars", "frozen_obelisks", "massive_iron_gates", "destructible_environment", "props", "prop_"],
+        "boss": ["boss_enemy", "/boss_", "_boss_", "skeleton_king", "dragon", "titan"],
+        "enemy": ["/enemy_", "_enemy_", "_ghoulish", "_shadow_mage", "_skeleton_warrior", "_ravager", "monster", "creature"],
+    }
+    for category in ["equipment_overlay", "building", "tile", "vfx", "hero", "prop", "boss", "enemy"]:
+        if any(keyword in lower for keyword in priority_keywords[category]):
+            return category
+    return classify_asset(zip_path)
+
+
+def target_frame_size_for_category(category: str) -> int:
+    return CATEGORY_TARGET_FRAME_SIZE.get(category, CATEGORY_TARGET_FRAME_SIZE["unknown"])
+
+
+def is_image_path(path: str | Path) -> bool:
+    return Path(str(path)).suffix.lower() in SUPPORTED_IMAGE_EXTENSIONS
+
+
+def is_archive_path(path: str | Path) -> bool:
+    return Path(str(path)).suffix.lower() in SUPPORTED_ARCHIVE_EXTENSIONS
+
+
+def safe_relative_path(path: Path, root_path: Path) -> str:
+    try:
+        return path.relative_to(root_path).as_posix()
+    except ValueError:
+        return path.name
+
+
+def detect_grid(width: int, height: int, category: str = "unknown", source_path: str = "") -> Optional[dict]:
+    if width <= 0 or height <= 0:
         return None
-    
-    for sheet_size, frame_size in SUPPORTED_SIZES:
-        if width == sheet_size:
-            cols = sheet_size // frame_size
-            rows = sheet_size // frame_size
-            return {
-                "columns": cols,
-                "rows": rows,
-                "frameWidth": frame_size,
-                "frameHeight": frame_size,
-                "sheetSize": sheet_size,
-                "frameCount": cols * rows,
-            }
-    return None
+    if not source_path and width == height:
+        for sheet_size, frame_size in LEGACY_SUPPORTED_SIZES:
+            if width == sheet_size:
+                cols = sheet_size // frame_size
+                rows = sheet_size // frame_size
+                return {"columns": cols, "rows": rows, "frameWidth": frame_size, "frameHeight": frame_size, "sheetSize": sheet_size, "frameCount": cols * rows}
 
-# -----------------------------------------------------------------------------
-# Alpha cleanup (checkerboard background removal)
-# -----------------------------------------------------------------------------
+    lower = source_path.lower()
+    normalized = slugify_name(source_path)
+    explicit = re.search(r"(?:^|[_\-. /])(\d{1,3})x(\d{1,3})(?:[_\-. /]|$)", lower)
+    if explicit:
+        cols = int(explicit.group(1))
+        rows = int(explicit.group(2))
+        if cols > 0 and rows > 0 and width % cols == 0 and height % rows == 0:
+            frame_width = width // cols
+            frame_height = height // rows
+            frame_count = cols * rows
+            if 1 < frame_count <= MAX_FRAME_COUNT:
+                return {"columns": cols, "rows": rows, "frameWidth": frame_width, "frameHeight": frame_height, "sheetSize": width if width == height else None, "sheetWidth": width, "sheetHeight": height, "frameCount": frame_count, "source": "filename_grid"}
 
-def detect_checkerboard_colors(img: Image.Image) -> tuple:
-    """
-    Detect the two primary checkerboard background colors.
-    Returns (color1_rgb, color2_rgb) or None if not detected.
-    """
-    pixels = img.load()
-    width, height = img.size
-    
-    # Sample corners and edges
-    corners = [
-        pixels[0, 0],
-        pixels[width-1, 0],
-        pixels[0, height-1],
-        pixels[width-1, height-1],
-        pixels[width//2, 0],
-        pixels[width//2, height-1],
-        pixels[0, height//2],
-        pixels[width-1, height//2],
-    ]
-    
-    # Group by similar colors
-    color_buckets = {}
-    for c in corners:
-        key = (c[0] // 32, c[1] // 32, c[2] // 32)  # Quantize to 8 levels
-        if key not in color_buckets:
-            color_buckets[key] = []
-        color_buckets[key].append(c)
-    
-    if len(color_buckets) >= 2:
-        # Get the two most common buckets
-        sorted_buckets = sorted(color_buckets.items(), key=lambda x: -len(x[1]))
-        c1_avg = tuple(sum(c[i] for c in sorted_buckets[0][1]) // len(sorted_buckets[0][1]) for i in range(3))
-        c2_avg = tuple(sum(c[i] for c in sorted_buckets[1][1]) // len(sorted_buckets[1][1]) for i in range(3))
-        return (c1_avg, c2_avg)
-    
-    return None
+    explicit_frame = re.search(r"(?:frame|cell|sprite)[_\-. ]?(\d{2,4})", lower)
+    if explicit_frame:
+        frame = int(explicit_frame.group(1))
+        if frame > 0 and width % frame == 0 and height % frame == 0:
+            cols = width // frame
+            rows = height // frame
+            frame_count = cols * rows
+            if 1 < frame_count <= MAX_FRAME_COUNT:
+                return {"columns": cols, "rows": rows, "frameWidth": frame, "frameHeight": frame, "sheetSize": width if width == height else None, "sheetWidth": width, "sheetHeight": height, "frameCount": frame_count, "source": "filename_frame"}
 
-def cleanup_checkerboard_alpha(img: Image.Image, threshold: float = 0.85) -> Image.Image:
-    """
-    Convert RGB checkerboard background to alpha channel.
-    Returns RGBA image with checkerboard pixels made transparent.
-    
-    threshold: confidence required to consider a pixel as background
-    """
-    width, height = img.size
-    
-    # Create RGBA output
-    rgba = img.convert("RGBA")
-    r_pixels = rgba.load()
-    
-    # Detect checkerboard colors
-    bg_colors = detect_checkerboard_colors(img)
-    
-    if not bg_colors:
-        # No clear checkerboard - return as-is with full alpha
-        return rgba
-    
-    c1, c2 = bg_colors
-    
-    # Calculate threshold distances
-    for y in range(height):
-        for x in range(width):
-            p = r_pixels[x, y]
-            r, g, b, a = p
-            
-            # Check if pixel is close to either background color
-            dist1 = abs(r - c1[0]) + abs(g - c1[1]) + abs(b - c1[2])
-            dist2 = abs(r - c2[0]) + abs(g - c2[1]) + abs(b - c2[2])
-            
-            # If close to either background color, make transparent
-            if dist1 < 60 or dist2 < 60:
-                r_pixels[x, y] = (r, g, b, 0)
-            else:
-                # Keep pixel but ensure it's opaque
-                r_pixels[x, y] = (r, g, b, 255)
-    
-    return rgba
+    if is_manual_review_source(source_path):
+        return None
 
-# -----------------------------------------------------------------------------
-# Report structures
-# -----------------------------------------------------------------------------
+    has_sheet_token = any(token in normalized for token in SHEET_TOKENS)
+    if width == height and has_sheet_token:
+        for sheet_size, frame_size in LEGACY_SUPPORTED_SIZES:
+            if width == sheet_size and width % frame_size == 0:
+                cols = width // frame_size
+                rows = height // frame_size
+                frame_count = cols * rows
+                if 1 < frame_count <= MAX_FRAME_COUNT:
+                    return {"columns": cols, "rows": rows, "frameWidth": frame_size, "frameHeight": frame_size, "sheetSize": sheet_size, "sheetWidth": width, "sheetHeight": height, "frameCount": frame_count, "source": "legacy_supported_sheet"}
+    if not has_sheet_token:
+        return None
 
-def create_source_report(
-    source_path: str,
-    asset_id: str,
-    category: str,
-    width: int,
-    height: int,
-    mode: str,
-    has_alpha: bool,
-    detected_grid: Optional[dict],
-    alpha_cleanup: dict,
-    status: str,
-    warnings: list,
-    source_sha: str,
-    processed_sha: str,
-) -> dict:
-    """Create a StitchSourceImageReport structure."""
+    preferred = [256, 128, 64, 32]
+    target = target_frame_size_for_category(category)
+    if target not in preferred:
+        preferred.insert(0, target)
+    candidates = []
+    for frame in preferred:
+        if width % frame == 0 and height % frame == 0:
+            cols = width // frame
+            rows = height // frame
+            frame_count = cols * rows
+            if 1 < frame_count <= MAX_FRAME_COUNT:
+                candidates.append((abs(frame - target), frame_count, frame, cols, rows))
+    if not candidates:
+        return None
+    _, frame_count, frame, cols, rows = sorted(candidates, key=lambda v: (v[0], v[1], v[2]))[0]
+    return {"columns": cols, "rows": rows, "frameWidth": frame, "frameHeight": frame, "sheetSize": width if width == height else None, "sheetWidth": width, "sheetHeight": height, "frameCount": frame_count, "source": "heuristic_sheet"}
+
+
+def decode_image_bgr(data: bytes) -> np.ndarray:
+    arr = np.frombuffer(data, dtype=np.uint8)
+    image = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError("OpenCV could not decode image bytes")
+    return image
+
+
+def smart_background_floodfill_alpha(bgr: np.ndarray, tolerance: int = BACKGROUND_TOLERANCE) -> np.ndarray:
+    """Ignore source alpha, flood-fill connected background from all four corners, return BGRA."""
+    if bgr.ndim != 3 or bgr.shape[2] != 3:
+        raise ValueError("Expected BGR image with three channels")
+    height, width = bgr.shape[:2]
+    fill_image = bgr.copy()
+    mask = np.zeros((height + 2, width + 2), dtype=np.uint8)
+    flags = 4 | cv2.FLOODFILL_MASK_ONLY | (255 << 8)
+    lo = (tolerance, tolerance, tolerance)
+    hi = (tolerance, tolerance, tolerance)
+    for seed in [(0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1)]:
+        cv2.floodFill(fill_image, mask, seedPoint=seed, newVal=(0, 0, 0), loDiff=lo, upDiff=hi, flags=flags)
+    bg_mask = mask[1:-1, 1:-1] > 0
+    alpha = np.full((height, width), 255, dtype=np.uint8)
+    alpha[bg_mask] = 0
+    return np.dstack([bgr, alpha])
+
+
+def opaque_ratio(bgra: np.ndarray) -> float:
+    if bgra.size == 0:
+        return 0.0
+    return float(np.count_nonzero(bgra[:, :, 3] > 0)) / float(bgra.shape[0] * bgra.shape[1])
+
+
+def crop_valid_contours(bgra: np.ndarray, min_area: int = MIN_CONTOUR_AREA) -> np.ndarray:
+    """Keep only meaningful contours; tiny text/noise/watermark contours are ignored."""
+    if bgra.size == 0:
+        return np.zeros((0, 0, 4), dtype=np.uint8)
+    alpha = bgra[:, :, 3]
+    binary = np.where(alpha > 0, 255, 0).astype(np.uint8)
+    contours, _hierarchy = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    boxes = []
+    for contour in contours:
+        if cv2.contourArea(contour) < min_area:
+            continue
+        x, y, w, h = cv2.boundingRect(contour)
+        boxes.append((x, y, x + w, y + h))
+    if not boxes:
+        return np.zeros((0, 0, 4), dtype=np.uint8)
+    x1 = min(box[0] for box in boxes)
+    y1 = min(box[1] for box in boxes)
+    x2 = max(box[2] for box in boxes)
+    y2 = max(box[3] for box in boxes)
+    return bgra[y1:y2, x1:x2].copy()
+
+
+def bottom_anchor_on_canvas(cropped: np.ndarray, target_w: int, target_h: int) -> np.ndarray:
+    canvas = np.zeros((target_h, target_w, 4), dtype=np.uint8)
+    if cropped.size == 0 or cropped.shape[0] == 0 or cropped.shape[1] == 0:
+        return canvas
+    h, w = cropped.shape[:2]
+    if w > target_w or h > target_h:
+        raise ValueError(f"cropped sprite {w}x{h} exceeds deterministic canvas {target_w}x{target_h}")
+    x = (target_w - w) // 2
+    y = target_h - h
+    canvas[y:y + h, x:x + w] = cropped
+    return canvas
+
+
+def normalize_cell_to_frame(cell_bgr: np.ndarray, target: int) -> tuple[np.ndarray, float]:
+    bgra = smart_background_floodfill_alpha(cell_bgr)
+    ratio = opaque_ratio(bgra)
+    cropped = crop_valid_contours(bgra)
+    return bottom_anchor_on_canvas(cropped, target, target), ratio
+
+
+def extract_normalized_frames(bgr: np.ndarray, grid: Optional[dict], category: str) -> tuple[list[Image.Image], dict, dict]:
+    target = target_frame_size_for_category(category)
+    frame_arrays: list[np.ndarray] = []
+    ratios: list[float] = []
+    if grid:
+        for row in range(grid["rows"]):
+            for col in range(grid["columns"]):
+                left = col * grid["frameWidth"]
+                top = row * grid["frameHeight"]
+                cell = bgr[top:top + grid["frameHeight"], left:left + grid["frameWidth"]]
+                frame, ratio = normalize_cell_to_frame(cell, target)
+                frame_arrays.append(frame)
+                ratios.append(ratio)
+        source = grid.get("source", "detected")
+    else:
+        frame, ratio = normalize_cell_to_frame(bgr, target)
+        frame_arrays.append(frame)
+        ratios.append(ratio)
+        source = "single_image_normalized"
+
+    frames = [Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGRA2RGBA)) for frame in frame_arrays]
+    columns = grid["columns"] if grid else 1
+    rows = grid["rows"] if grid else 1
+    normalized_grid = {
+        "columns": columns,
+        "rows": rows,
+        "frameWidth": target,
+        "frameHeight": target,
+        "sourceFrameWidth": grid["frameWidth"] if grid else bgr.shape[1],
+        "sourceFrameHeight": grid["frameHeight"] if grid else bgr.shape[0],
+        "source": source,
+        "frameCount": len(frames),
+    }
+    diagnostics = {
+        "opaqueRatioMax": round(max(ratios) if ratios else 0.0, 6),
+        "opaqueRatioAvg": round(sum(ratios) / max(1, len(ratios)), 6),
+    }
+    return frames, normalized_grid, diagnostics
+
+
+def create_contact_sheet(frames: list[Image.Image], frame_width: int, frame_height: int, cols: int = 4) -> Image.Image:
+    if not frames:
+        return Image.new("RGBA", (frame_width, frame_height), (0, 0, 0, 0))
+    rows = math.ceil(len(frames) / cols)
+    sheet = Image.new("RGBA", (cols * frame_width, rows * frame_height), (0, 0, 0, 0))
+    for idx, frame in enumerate(frames):
+        sheet.alpha_composite(frame.convert("RGBA"), ((idx % cols) * frame_width, (idx // cols) * frame_height))
+    return sheet
+
+
+def build_sheet(frames: list[Image.Image], frame_w: int, frame_h: int) -> tuple[Image.Image, int, int]:
+    if not frames:
+        frames = [Image.new("RGBA", (frame_w, frame_h), (0, 0, 0, 0))]
+    frame_count = len(frames)
+    cols = min(frame_count, max(1, math.ceil(math.sqrt(frame_count))))
+    rows = math.ceil(frame_count / cols)
+    sheet = Image.new("RGBA", (cols * frame_w, rows * frame_h), (0, 0, 0, 0))
+    for idx, frame in enumerate(frames):
+        sheet.alpha_composite(frame.convert("RGBA"), ((idx % cols) * frame_w, (idx // cols) * frame_h))
+    return sheet, cols, rows
+
+
+def generate_atlas_json(asset_id: str, category: str, sheet_width: int, sheet_height: int, frame_width: int, frame_height: int, columns: int, frame_count: int, source_sha: str, processed_sha: str) -> dict:
+    """Atlas metadata is strictly frameCount-bound; padded sheet cells are never runtime frames."""
+    pivot = PIVOT_MAP.get(category, PIVOT_MAP["unknown"])
+    frames = {}
+    for frame_idx in range(frame_count):
+        col = frame_idx % columns
+        row = frame_idx // columns
+        frames[f"{asset_id}_frame_{frame_idx:04d}"] = {
+            "frame": {"x": col * frame_width, "y": row * frame_height, "w": frame_width, "h": frame_height},
+            "rotated": False,
+            "trimmed": False,
+            "spriteSourceSize": {"x": 0, "y": 0, "w": frame_width, "h": frame_height},
+            "sourceSize": {"w": frame_width, "h": frame_height},
+            "pivot": pivot,
+        }
+    return {
+        "meta": {
+            "app": "areloria-stitch-atlas-intake",
+            "version": PACK_SCHEMA_VERSION,
+            "image": f"{asset_id}.png",
+            "format": "RGBA8888",
+            "size": {"w": sheet_width, "h": sheet_height},
+            "scale": "1",
+            "assetId": asset_id,
+            "category": category,
+            "sourceSha256": source_sha,
+            "processedSha256": processed_sha,
+            "frameCount": frame_count,
+        },
+        "frames": frames,
+    }
+
+
+def write_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, sort_keys=True)
+        f.write("\n")
+
+
+def create_source_report(source_path: str, asset_id: str, category: str, width: int, height: int, mode: str, has_alpha: bool, detected_grid: Optional[dict], normalized_grid: Optional[dict], alpha_cleanup: dict, status: str, warnings: list[str], source_sha: str, processed_sha: str) -> dict:
     return {
         "sourcePath": source_path,
         "assetId": asset_id,
@@ -273,6 +488,7 @@ def create_source_report(
         "mode": mode,
         "hasAlpha": has_alpha,
         "detectedGrid": detected_grid,
+        "normalizedGrid": normalized_grid,
         "alphaCleanup": alpha_cleanup,
         "status": status,
         "warnings": warnings,
@@ -280,716 +496,276 @@ def create_source_report(
         "processedSha256": processed_sha,
     }
 
-# -----------------------------------------------------------------------------
-# Slice frames from sheet
-# -----------------------------------------------------------------------------
 
-def slice_frames(
-    img: Image.Image,
-    frame_width: int,
-    frame_height: int,
-    columns: int,
-    rows: int,
-    asset_id: str,
-) -> list:
-    """
-    Slice a sprite sheet into individual frames.
-    Returns list of (frame_index, frame_image) tuples.
-    Frame order: row-major, top-left to bottom-right.
-    """
-    frames = []
-    for row in range(rows):
-        for col in range(columns):
-            frame_idx = row * columns + col
-            left = col * frame_width
-            top = row * frame_height
-            frame = img.crop((left, top, left + frame_width, top + frame_height))
-            frames.append((frame_idx, frame))
-    return frames
+def save_quarantine(quarantine_dir: Path, asset_id: str, source: SourceAsset, reason: str, warnings: list[str], source_sha: str) -> None:
+    qdir = quarantine_dir / asset_id
+    qdir.mkdir(parents=True, exist_ok=True)
+    safe_ext = source.extension if source.extension in SUPPORTED_IMAGE_EXTENSIONS else ".bin"
+    with open(qdir / f"original{safe_ext}", "wb") as f:
+        f.write(source.data)
+    write_json(qdir / "reason.json", {"assetId": asset_id, "sourcePath": source.display_source_path, "reason": reason, "warnings": warnings, "sourceSha256": source_sha})
 
-# -----------------------------------------------------------------------------
-# Generate atlas JSON (TexturePacker/Pixi compatible)
-# -----------------------------------------------------------------------------
 
-def generate_atlas_json(
-    asset_id: str,
-    category: str,
-    sheet_width: int,
-    sheet_height: int,
-    frame_width: int,
-    frame_height: int,
-    columns: int,
-    rows: int,
-    source_sha: str,
-    processed_sha: str,
-) -> dict:
-    """Generate TexturePacker/Pixi-compatible atlas JSON."""
-    
-    # Pivot by category
-    pivot_map = {
-        "enemy": {"x": 0.5, "y": 0.82},
-        "boss": {"x": 0.5, "y": 0.82},
-        "hero": {"x": 0.5, "y": 0.82},
-        "npc": {"x": 0.5, "y": 0.82},
-        "vfx": {"x": 0.5, "y": 0.5},
-        "tile": {"x": 0.5, "y": 0.5},
-        "prop": {"x": 0.5, "y": 0.9},
-        "item": {"x": 0.5, "y": 0.5},
-        "equipment_overlay": {"x": 0.5, "y": 0.5},
-        "ui": {"x": 0.5, "y": 0.5},
-        "unknown": {"x": 0.5, "y": 0.5},
-    }
-    pivot = pivot_map.get(category, {"x": 0.5, "y": 0.5})
-    
-    frames = {}
-    for row in range(rows):
-        for col in range(columns):
-            frame_idx = row * columns + col
-            frame_id = f"{asset_id}_frame_{frame_idx:03d}"
-            frame_name = f"{asset_id}.png"  # Single sheet, same image
-            
-            frames[frame_id] = {
-                "frame": {
-                    "x": col * frame_width,
-                    "y": row * frame_height,
-                    "w": frame_width,
-                    "h": frame_height,
-                },
-                "rotated": False,
-                "trimmed": False,
-                "spriteSourceSize": {
-                    "x": 0,
-                    "y": 0,
-                    "w": frame_width,
-                    "h": frame_height,
-                },
-                "sourceSize": {
-                    "w": frame_width,
-                    "h": frame_height,
-                },
-                "pivot": pivot,
-            }
-    
-    return {
-        "meta": {
-            "app": "areloria-stitch-atlas-intake",
-            "version": 1,
-            "image": f"{asset_id}.png",
-            "format": "RGBA8888",
-            "size": {"w": sheet_width, "h": sheet_height},
-            "scale": "1",
-            "assetId": asset_id,
-            "category": category,
-            "sourceSha256": source_sha,
-            "processedSha256": processed_sha,
-        },
-        "frames": frames,
-    }
-
-# -----------------------------------------------------------------------------
-# Process a single PNG file
-# -----------------------------------------------------------------------------
-
-def process_png(
-    png_path: Path,
-    output_dir: Path,
-    quarantine_dir: Path,
-    category_override: Optional[str] = None,
-    zip_path: Optional[str] = None,
-    seen_ids: Optional[dict] = None,
-) -> dict:
-    """Process a single PNG file. Returns report dict."""
-    
-    # Use ZIP path for classification, naming, and sourcePath (stable across runs)
-    classification_source = zip_path or png_path.name
-    
-    # Stable source path: prefer ZIP-internal path, fallback to filename
-    source_path = zip_path if zip_path else png_path.name
-    
-    if category_override:
-        category = category_override
-    else:
-        category = classify_from_zip_path(classification_source)
-        if category == "unknown":
-            category = classify_asset(classification_source)
-    
-    # Extract meaningful name from ZIP path
-    if zip_path:
-        # e.g., "stitch_2.5d_enemy_sprite_atlas/sprite_atlas_sheet_for_a_2.5d_isometric_enemy_skeleton_warrior._style_dark_1/screen.png"
-        parts = zip_path.split("/")
-        folder = parts[1] if len(parts) > 1 else parts[0]  # folder name
-        
-        # Extract variant number if present (_style_dark_1, _style_dark_2)
-        variant = ""
-        import re
-        variant_match = re.search(r'_style_dark_(\d+)$', folder)
-        if variant_match:
-            variant = f"_{variant_match.group(1)}"
-        
-        # Remove common prefixes
-        name = folder
-        name = name.replace("sprite_atlas_sheet_for_a_2.5d_isometric_", "")
-        name = name.replace("sprite_atlas_sheet_for_2.5d_isometric_", "")
-        name = re.sub(r'_style_dark.*$', '', name)  # Remove all _style_dark* suffixes
-        name = name.replace("a_2_5d_isometric_", "")
-        name = name.replace("2_5d_", "")
-        name = name.replace("_", " ")
-        name = name.strip()
-        # Create slug
-        asset_slug = slugify_name(name.replace(" ", "_"))
-        # Remove category prefix from slug if present (avoid "enemy_enemy_...", "overlay_overlay_...")
-        if asset_slug.startswith(category + "_"):
-            asset_slug = asset_slug[len(category) + 1:]
-        # Also remove "equipment_overlays" -> just "equipment" 
-        if asset_slug.startswith("equipment_overlays_"):
-            asset_slug = asset_slug[len("equipment_overlays_"):]
-        # Add variant suffix if present
-        if variant:
-            asset_slug = f"{asset_slug}{variant}"
-    else:
-        asset_slug = slugify_name(png_path.stem)
-    
-    asset_id = f"stitch_{category}_{asset_slug}"
-    
-    # Handle duplicates by appending a counter suffix
-    if seen_ids is not None:
-        if asset_id in seen_ids:
-            seen_ids[asset_id] += 1
-            asset_id = f"{asset_id}_{seen_ids[asset_id]}"
-        else:
-            seen_ids[asset_id] = 0
-    
-    # Read source data for SHA
-    with open(png_path, "rb") as f:
-        source_data = f.read()
-    source_sha = stable_hash(source_data)
-    
-    # Open image
+def image_has_alpha_from_pillow(data: bytes) -> tuple[str, bool]:
     try:
-        img = Image.open(png_path)
-    except Exception as e:
-        return create_source_report(
-            source_path=str(png_path),
-            asset_id=asset_id,
-            category="unknown",
-            width=0,
-            height=0,
-            mode="UNKNOWN",
-            has_alpha=False,
-            detected_grid=None,
-            alpha_cleanup={"attempted": False, "method": "none", "success": False, "remainingCheckerboardScore": 0},
-            status="quarantined",
-            warnings=[f"Failed to open image: {str(e)}"],
-            source_sha=source_sha,
-            processed_sha=source_sha,  # Same as source since no processing happened
-        )
-    
-    width, height = img.size
-    mode = img.mode
-    has_alpha = mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info)
-    
-    # Detect grid
-    grid = detect_grid(width, height)
-    
-    warnings = []
-    if not grid:
-        warnings.append(f"No valid grid detected for {width}x{height}")
-        # Quarantine
-        quarantine_path = quarantine_dir / asset_id
-        quarantine_path.mkdir(parents=True, exist_ok=True)
-        
-        # Copy original
-        img.save(quarantine_path / "original.png")
-        
-        # Write reason
-        reason = {
-            "assetId": asset_id,
-            "sourcePath": str(png_path),
-            "reason": "invalid_grid",
-            "warnings": warnings,
-            "suggestedFix": "manual_crop_or_regenerate",
-        }
-        with open(quarantine_path / "reason.json", "w") as f:
-            json.dump(reason, f, indent=2)
-        
-        return create_source_report(
-            source_path=str(png_path),
-            asset_id=asset_id,
-            category=category_override or classify_asset(png_path.name),
-            width=width,
-            height=height,
-            mode=mode,
-            has_alpha=has_alpha,
-            detected_grid=None,
-            alpha_cleanup={"attempted": False, "method": "none", "success": False, "remainingCheckerboardScore": 0},
-            status="quarantined",
-            warnings=warnings,
-            source_sha=source_sha,
-            processed_sha=source_sha,  # Same as source since no processing happened
-        )
-    
-    # Category (already determined above)
-    
-    # Alpha cleanup if RGB
-    alpha_cleanup_result = {"attempted": False, "method": "none", "success": False, "remainingCheckerboardScore": 0}
-    processed_img = img
-    
-    if mode == "RGB":
-        # Attempt alpha cleanup
-        alpha_cleanup_result["attempted"] = True
-        alpha_cleanup_result["method"] = "checkerboard_detection"
-        try:
-            processed_img = cleanup_checkerboard_alpha(img)
-            alpha_cleanup_result["success"] = True
-        except Exception as e:
-            alpha_cleanup_result["success"] = False
-            warnings.append(f"Alpha cleanup failed: {str(e)}")
-    elif mode == "RGBA":
-        alpha_cleanup_result["method"] = "native_rgba"
-        alpha_cleanup_result["success"] = True
-    else:
-        alpha_cleanup_result["method"] = f"mode_{mode}_unsupported"
-        warnings.append(f"Image mode {mode} may have issues")
-    
-    # Calculate processed SHA BEFORE quarantine check
-    # (needed for both accepted and quarantined assets)
-    import io
+        img = Image.open(io.BytesIO(data))
+        return img.mode, img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info)
+    except Exception:
+        return "UNKNOWN", False
+
+
+def process_asset(source: SourceAsset, output_dir: Path, quarantine_dir: Path) -> dict:
+    source_sha = stable_hash(source.data)
+    category = classify_from_zip_path(source.display_source_path) if "!/" in source.display_source_path or ".zip:" in source.display_source_path else classify_asset(source.display_source_path)
+    slug = clean_asset_slug(source.display_source_path, category)
+    asset_id = f"stitch_{category}_{slug}_{source_sha[:10]}"
+    mode, has_alpha = image_has_alpha_from_pillow(source.data)
+    empty_alpha = {"method": "opencv_corner_floodfill", "success": False, "opaqueRatio": 0.0, "opaqueRatioMax": 0.0, "opaqueRatioAvg": 0.0}
+
+    try:
+        bgr = decode_image_bgr(source.data)
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        warnings = [f"Failed to open image: {exc}"]
+        save_quarantine(quarantine_dir, asset_id, source, "unreadable_image", warnings, source_sha)
+        return create_source_report(source.display_source_path, asset_id, category, 0, 0, mode, has_alpha, None, None, empty_alpha, "quarantined", warnings, source_sha, source_sha)
+
+    height, width = bgr.shape[:2]
+    warnings: list[str] = []
+    if width <= 0 or height <= 0:
+        warnings.append("Image has invalid dimensions")
+    if width * height > MAX_SOURCE_PIXELS:
+        warnings.append(f"Image too large: {width}x{height} > {MAX_SOURCE_PIXELS} pixels")
+    if warnings:
+        save_quarantine(quarantine_dir, asset_id, source, "invalid_dimensions", warnings, source_sha)
+        return create_source_report(source.display_source_path, asset_id, category, width, height, mode, has_alpha, None, None, empty_alpha, "quarantined", warnings, source_sha, source_sha)
+
+    whole_bgra = smart_background_floodfill_alpha(bgr)
+    whole_opaque_ratio = opaque_ratio(whole_bgra)
+    detected_grid = detect_grid(width, height, category=category, source_path=source.display_source_path)
+
+    status = "accepted"
+    if is_reference_only_source(source.display_source_path):
+        status = "reference_only"
+        warnings.append("Reference-only overview image. Not used directly as runtime atlas.")
+    elif is_manual_review_source(source.display_source_path):
+        status = "manual_review"
+        warnings.append("Manual-review catalog or labeled assembly sheet. Crop/classify before runtime use.")
+    elif category == "unknown":
+        status = "manual_review"
+        warnings.append("Unknown category is not allowed in runtime manifest.")
+    elif whole_opaque_ratio > OPAQUE_RATIO_MANUAL_REVIEW_THRESHOLD:
+        status = "manual_review"
+        warnings.append(f"Opaque ratio {whole_opaque_ratio:.3f} exceeds {OPAQUE_RATIO_MANUAL_REVIEW_THRESHOLD:.2f}; likely catalog/UI sheet.")
+    elif detected_grid is None and width != height:
+        status = "manual_review"
+        warnings.append("Non-square image without deterministic grid. Manual crop recommended.")
+
+    try:
+        frames, normalized_grid, cv_diagnostics = extract_normalized_frames(bgr, detected_grid, category)
+    except ValueError as exc:
+        status = "manual_review" if status == "accepted" else status
+        warnings.append(str(exc))
+        target = target_frame_size_for_category(category)
+        frames = [Image.new("RGBA", (target, target), (0, 0, 0, 0))]
+        normalized_grid = {"columns": 1, "rows": 1, "frameWidth": target, "frameHeight": target, "sourceFrameWidth": width, "sourceFrameHeight": height, "source": "manual_review_empty_frame", "frameCount": 1}
+        cv_diagnostics = {"opaqueRatioMax": 0.0, "opaqueRatioAvg": 0.0}
+
+    normalized_grid = dict(normalized_grid)
+    normalized_grid["frameCount"] = len(frames)
+    alpha_cleanup = {
+        "method": "opencv_corner_floodfill_contour_crop_bottom_anchor",
+        "success": True,
+        "opaqueRatio": round(whole_opaque_ratio, 6),
+        "opaqueRatioMax": cv_diagnostics.get("opaqueRatioMax", 0.0),
+        "opaqueRatioAvg": cv_diagnostics.get("opaqueRatioAvg", 0.0),
+        "minContourArea": MIN_CONTOUR_AREA,
+    }
+
+    sheet, columns, rows = build_sheet(frames, normalized_grid["frameWidth"], normalized_grid["frameHeight"])
+    normalized_grid.update({"columns": columns, "rows": rows, "sheetWidth": sheet.width, "sheetHeight": sheet.height})
     buf = io.BytesIO()
-    processed_img.save(buf, format="PNG")
-    processed_sha = stable_hash(buf.getvalue())
-    
-    # ─── Strict quarantine validation ─────────────────────────────────────
-    # Validate after processing to catch issues before marking as "accepted"
-    
-    # 1. Check remaining checkerboard score (stricter threshold: 0.15)
-    checkerboard_score = alpha_cleanup_result.get("remainingCheckerboardScore", 0)
-    if checkerboard_score > 0.15:
-        warnings.append(f"High checkerboard residual: {checkerboard_score:.2f} (threshold: 0.15)")
-    
-    # 2. Check for suspicious uniform regions (potential blank/corrupt sheets)
-    pixels = processed_img.load()
-    w, h = processed_img.size
-    color_counts = {}
-    sample_step = max(1, min(w, h) // 32)
-    for y in range(0, h, sample_step):
-        for x in range(0, w, sample_step):
-            c = pixels[x, y]
-            if processed_img.mode == "RGBA":
-                c = c[:3]
-            color_counts[c] = color_counts.get(c, 0) + 1
-    max_color_pct = 0
-    if color_counts:
-        max_color_pct = max(color_counts.values()) / sum(color_counts.values())
-        if max_color_pct > 0.85:
-            warnings.append(f"Suspicious uniform color region: {max_color_pct:.1%} single color (threshold: 85%)")
-    
-    # 3. Check for category mismatch
-    if category == "unknown" and warnings:
-        warnings.append("Category is unknown with warnings - manual review recommended")
-    
-    # 4. Edge transparency check for RGBA images
-    if processed_img.mode == "RGBA":
-        edge_transparent = 0
-        edge_total = w * 2 + h * 2 - 4
-        for x in range(w):
-            if pixels[x, 0][3] < 128: edge_transparent += 1
-            if pixels[x, h-1][3] < 128: edge_transparent += 1
-        for y in range(1, h-1):
-            if pixels[0, y][3] < 128: edge_transparent += 1
-            if pixels[w-1, y][3] < 128: edge_transparent += 1
-        if edge_total > 0:
-            edge_transparent_pct = edge_transparent / edge_total
-            if edge_transparent_pct > 0.30 and edge_transparent_pct < 0.70:
-                warnings.append(f"Unusual edge transparency pattern: {edge_transparent_pct:.1%} transparent")
-    
-    # If warnings exceed threshold, quarantine instead of accepting
-    if len(warnings) >= 2:
-        quarantine_path = quarantine_dir / asset_id
-        quarantine_path.mkdir(parents=True, exist_ok=True)
-        processed_img.save(quarantine_path / "processed.png")
-        reason = {
-            "assetId": asset_id,
-            "sourcePath": source_path,
-            "reason": "validation_warnings",
-            "warnings": warnings,
-            "checkerboardScore": checkerboard_score,
-            "maxColorPct": max_color_pct,
-            "suggestedFix": "review_and_reprocess",
-        }
-        with open(quarantine_path / "reason.json", "w") as f:
-            json.dump(reason, f, indent=2)
-        
-        return create_source_report(
-            source_path=source_path,
-            asset_id=asset_id,
-            category=category,
-            width=width,
-            height=height,
-            mode=mode,
-            has_alpha=has_alpha,
-            detected_grid=grid,
-            alpha_cleanup=alpha_cleanup_result,
-            status="quarantined",
-            warnings=warnings,
-            source_sha=source_sha,
-            processed_sha=processed_sha,
-        )
-    
-    # Slice frames
-    frames = slice_frames(
-        processed_img,
-        grid["frameWidth"],
-        grid["frameHeight"],
-        grid["columns"],
-        grid["rows"],
-        asset_id,
-    )
-    
-    # Save processed sheet
+    sheet.save(buf, format="PNG", optimize=True)
+    processed_bytes = buf.getvalue()
+    processed_sha = stable_hash(processed_bytes)
+
     asset_dir = output_dir / category / asset_id
     asset_dir.mkdir(parents=True, exist_ok=True)
-    
-    processed_img.save(asset_dir / f"{asset_id}.png")
-    
-    # Save atlas JSON
-    atlas = generate_atlas_json(
-        asset_id=asset_id,
-        category=category,
-        sheet_width=width,
-        sheet_height=height,
-        frame_width=grid["frameWidth"],
-        frame_height=grid["frameHeight"],
-        columns=grid["columns"],
-        rows=grid["rows"],
-        source_sha=source_sha,
-        processed_sha=processed_sha,
-    )
-    
-    with open(asset_dir / f"{asset_id}.atlas.json", "w") as f:
-        json.dump(atlas, f, indent=2)
-    
-    # Save preview (first 4 frames in a contact sheet)
-    preview = create_contact_sheet(frames[:min(16, len(frames))], grid["frameWidth"], grid["frameHeight"])
-    preview.save(asset_dir / f"{asset_id}.preview.png")
-    
-    return create_source_report(
-        source_path=source_path,
-        asset_id=asset_id,
-        category=category,
-        width=width,
-        height=height,
-        mode=mode,
-        has_alpha=has_alpha,
-        detected_grid=grid,
-        alpha_cleanup=alpha_cleanup_result,
-        status="accepted",
-        warnings=warnings,
-        source_sha=source_sha,
-        processed_sha=processed_sha,
-    )
+    with open(asset_dir / f"{asset_id}.png", "wb") as f:
+        f.write(processed_bytes)
+    atlas = generate_atlas_json(asset_id, category, sheet.width, sheet.height, normalized_grid["frameWidth"], normalized_grid["frameHeight"], columns, len(frames), source_sha, processed_sha)
+    write_json(asset_dir / f"{asset_id}.atlas.json", atlas)
+    preview = create_contact_sheet(frames[: min(16, len(frames))], normalized_grid["frameWidth"], normalized_grid["frameHeight"])
+    preview.save(asset_dir / f"{asset_id}.preview.png", optimize=True)
 
-# -----------------------------------------------------------------------------
-# Create contact sheet
-# -----------------------------------------------------------------------------
+    return create_source_report(source.display_source_path, asset_id, category, width, height, mode, has_alpha, detected_grid, normalized_grid, alpha_cleanup, status, warnings, source_sha, processed_sha)
 
-def create_contact_sheet(frames: list, frame_width: int, frame_height: int, cols: int = 4) -> Image.Image:
-    """Create a contact sheet from a list of frames."""
-    rows = (len(frames) + cols - 1) // cols
-    
-    sheet_width = cols * frame_width
-    sheet_height = rows * frame_height
-    
-    sheet = Image.new("RGBA", (sheet_width, sheet_height), (0, 0, 0, 255))
-    
-    for idx, (frame_idx, frame) in enumerate(frames):
-        row = idx // cols
-        col = idx % cols
-        x = col * frame_width
-        y = row * frame_height
-        sheet.paste(frame, (x, y))
-    
-    return sheet
 
-# -----------------------------------------------------------------------------
-# Generate runtime manifest
-# -----------------------------------------------------------------------------
+def collect_sources(input_path: Path) -> list[SourceAsset]:
+    sources: list[SourceAsset] = []
 
-def generate_runtime_manifest(
-    reports: list,
-    schema_version: int = 1,
-    pack_id: str = "stitch_25d_atlas_pack_001",
-) -> dict:
-    """Generate the StitchRuntimeManifest."""
-    
-    accepted = [r for r in reports if r["status"] == "accepted"]
-    quarantined = [r for r in reports if r["status"] == "quarantined"]
-    
-    # Sort entries by category, then assetId, then sourcePath
-    def sort_key(r):
-        return (r["category"], r["assetId"], r["sourcePath"])
-    
-    accepted_sorted = sorted(accepted, key=sort_key)
-    
-    # Build assets list
+    def add_image_file(path: Path, display_path: str) -> None:
+        sources.append(SourceAsset(str(path), display_path, path.read_bytes(), path.suffix.lower()))
+
+    def add_zip_file(path: Path, display_prefix: str = "") -> None:
+        with zipfile.ZipFile(path, "r") as zf:
+            for name in sorted(zf.namelist()):
+                if name.endswith("/"):
+                    continue
+                suffix = Path(name).suffix.lower()
+                if suffix not in SUPPORTED_IMAGE_EXTENSIONS:
+                    continue
+                display = f"{display_prefix}{path.name}!/{name}" if display_prefix else f"{path.name}!/{name}"
+                sources.append(SourceAsset(f"{path}!/{name}", display, zf.read(name), suffix))
+
+    if input_path.is_file():
+        if is_archive_path(input_path):
+            add_zip_file(input_path)
+        elif is_image_path(input_path):
+            add_image_file(input_path, input_path.name)
+        else:
+            raise ValueError(f"Unsupported input file: {input_path}")
+    elif input_path.is_dir():
+        for path in sorted(input_path.rglob("*"), key=lambda p: p.as_posix().lower()):
+            if not path.is_file():
+                continue
+            rel = safe_relative_path(path, input_path)
+            if is_image_path(path):
+                add_image_file(path, rel)
+            elif is_archive_path(path):
+                add_zip_file(path, display_prefix=f"{rel}:")
+    else:
+        raise ValueError(f"Input path does not exist: {input_path}")
+
+    unique: dict[str, SourceAsset] = {}
+    for source in sources:
+        key = f"{source.display_source_path.lower()}|{stable_hash(source.data)}"
+        unique[key] = source
+    return [unique[key] for key in sorted(unique.keys(), key=lambda h: unique[h].display_source_path.lower())]
+
+
+def generate_runtime_manifest(reports: list[dict], schema_version: int = PACK_SCHEMA_VERSION, pack_id: str = "stitch_25d_atlas_pack_001") -> dict:
+    accepted = sorted([r for r in reports if r["status"] == "accepted"], key=lambda r: (r["category"], r["assetId"], r["sourcePath"]))
+    manual_review = sorted([r for r in reports if r["status"] == "manual_review"], key=lambda r: (r["category"], r["assetId"], r["sourcePath"]))
+    reference_only = sorted([r for r in reports if r["status"] == "reference_only"], key=lambda r: (r["category"], r["assetId"], r["sourcePath"]))
+    quarantined = sorted([r for r in reports if r["status"] == "quarantined"], key=lambda r: (r["category"], r["assetId"], r["sourcePath"]))
     assets = []
-    for r in accepted_sorted:
-        grid = r["detectedGrid"]
-        # Determine image/atlas/preview paths
-        category = r["category"]
-        asset_id = r["assetId"]
-        
-        # Path relative to output dir
-        image_path = f"{category}/{asset_id}/{asset_id}.png"
-        atlas_path = f"{category}/{asset_id}/{asset_id}.atlas.json"
-        preview_path = f"{category}/{asset_id}/{asset_id}.preview.png"
-        
+    for report in accepted:
+        category = report["category"]
+        asset_id = report["assetId"]
+        grid = report["normalizedGrid"] or report["detectedGrid"] or {}
+        tags = sorted(set([category] + [token for token in slugify_name(report["sourcePath"]).split("_") if len(token) > 2]))
         assets.append({
-            "assetId": r["assetId"],
-            "category": r["category"],
-            "displayName": r["assetId"].replace("stitch_", "").replace("_", " ").title(),
-            "sourcePath": r["sourcePath"],
-            "imagePath": image_path,
-            "atlasPath": atlas_path,
-            "previewPath": preview_path,
-            "width": r["width"],
-            "height": r["height"],
-            "frameWidth": grid["frameWidth"] if grid else 0,
-            "frameHeight": grid["frameHeight"] if grid else 0,
-            "columns": grid["columns"] if grid else 0,
-            "rows": grid["rows"] if grid else 0,
-            "frameCount": grid["frameCount"] if grid else 0,
-            "pivot": {"x": 0.5, "y": 0.5},  # Will be updated per category
-            "tags": [r["category"]],
-            "sourceSha256": r["sourceSha256"],
-            "processedSha256": r.get("processedSha256", r["sourceSha256"]),
+            "assetId": asset_id,
+            "category": category,
+            "displayName": asset_id.replace("stitch_", "").replace("_", " ").title(),
+            "sourcePath": report["sourcePath"],
+            "imagePath": f"{category}/{asset_id}/{asset_id}.png",
+            "atlasPath": f"{category}/{asset_id}/{asset_id}.atlas.json",
+            "previewPath": f"{category}/{asset_id}/{asset_id}.preview.png",
+            "width": report["width"],
+            "height": report["height"],
+            "frameWidth": grid.get("frameWidth", 0),
+            "frameHeight": grid.get("frameHeight", 0),
+            "columns": grid.get("columns", 0),
+            "rows": grid.get("rows", 0),
+            "frameCount": grid.get("frameCount", 0),
+            "pivot": PIVOT_MAP.get(category, PIVOT_MAP["unknown"]),
+            "tags": tags,
+            "sourceSha256": report["sourceSha256"],
+            "processedSha256": report["processedSha256"],
             "status": "accepted",
         })
-    
-    # Update pivots by category
-    pivot_map = {
-        "enemy": {"x": 0.5, "y": 0.82},
-        "boss": {"x": 0.5, "y": 0.82},
-        "hero": {"x": 0.5, "y": 0.82},
-        "npc": {"x": 0.5, "y": 0.82},
-        "vfx": {"x": 0.5, "y": 0.5},
-        "tile": {"x": 0.5, "y": 0.5},
-        "prop": {"x": 0.5, "y": 0.9},
-    }
-    for a in assets:
-        if a["category"] in pivot_map:
-            a["pivot"] = pivot_map[a["category"]]
-    
-    # Quarantine summary
-    quarantine_summary = []
-    for r in quarantined:
-        quarantine_summary.append({
-            "assetId": r["assetId"],
-            "sourcePath": r["sourcePath"],
-            "reason": "invalid_grid",
-            "warnings": r["warnings"],
-        })
-    
-    return {
-        "schemaVersion": schema_version,
-        "packId": pack_id,
-        "generatedBy": "scripts/stitch_atlas_intake.py",
-        "deterministic": True,
-        "assets": assets,
-        "quarantine": quarantine_summary,
-    }
 
-# -----------------------------------------------------------------------------
-# Main processing
-# -----------------------------------------------------------------------------
+    def review_summary(rows: list[dict]) -> list[dict]:
+        return [{"assetId": r["assetId"], "category": r["category"], "sourcePath": r["sourcePath"], "warnings": r["warnings"], "sourceSha256": r["sourceSha256"], "alphaCleanup": r.get("alphaCleanup", {})} for r in rows]
 
-def process_zip(input_path: Path, output_dir: Path, quarantine_dir: Path) -> list:
-    """Process a ZIP file containing PNG assets."""
-    reports = []
-    seen_ids = {}  # Track asset IDs to handle duplicates
-    
-    with zipfile.ZipFile(input_path, "r") as zf:
-        for name in sorted(zf.namelist()):  # Stable sorted traversal
-            if not name.lower().endswith(".png"):
-                continue
-            
-            try:
-                data = zf.read(name)
-                import io
-                img = Image.open(io.BytesIO(data))
-                
-                # Save to temp file for processing
-                import tempfile
-                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-                    tmp.write(data)
-                    tmp_path = Path(tmp.name)
-                
-                try:
-                    report = process_png(tmp_path, output_dir, quarantine_dir, zip_path=name, seen_ids=seen_ids)
-                    reports.append(report)
-                finally:
-                    os.unlink(tmp_path)
-                    
-            except Exception as e:
-                reports.append({
-                    "sourcePath": name,
-                    "assetId": f"stitch_unknown_{slugify_name(name)}",
-                    "category": "unknown",
-                    "width": 0,
-                    "height": 0,
-                    "mode": "UNKNOWN",
-                    "hasAlpha": False,
-                    "detectedGrid": None,
-                    "alphaCleanup": {"attempted": False, "method": "none", "success": False, "remainingCheckerboardScore": 0},
-                    "status": "quarantined",
-                    "warnings": [f"Failed to process: {str(e)}"],
-                    "sourceSha256": stable_hash(b"error"),
-                })
-    
-    return reports
+    quarantine_summary = [{"assetId": r["assetId"], "category": r["category"], "sourcePath": r["sourcePath"], "reason": "not_processable", "warnings": r["warnings"], "sourceSha256": r["sourceSha256"]} for r in quarantined]
+    manual_review_summary = review_summary(manual_review)
+    reference_only_summary = review_summary(reference_only)
+    return {"schemaVersion": schema_version, "packId": pack_id, "generatedBy": "scripts/stitch_atlas_intake.py", "deterministic": True, "assetCount": len(assets), "manualReviewCount": len(manual_review_summary), "referenceOnlyCount": len(reference_only_summary), "quarantineCount": len(quarantine_summary), "assets": assets, "manualReview": manual_review_summary, "referenceOnly": reference_only_summary, "quarantine": quarantine_summary}
 
-def process_directory(input_path: Path, output_dir: Path, quarantine_dir: Path) -> list:
-    """Process a directory containing PNG assets."""
-    reports = []
-    
-    # Find all PNG files
-    # Find all image files (PNG, JPG, JPEG)
-    png_files = list(input_path.rglob("*.png")) + list(input_path.rglob("*.jpg")) + list(input_path.rglob("*.jpeg"))
-    png_files.sort()  # Stable sorted traversal
-    
-    for png_path in png_files:
-        try:
-            report = process_png(png_path, output_dir, quarantine_dir)
-            reports.append(report)
-        except Exception as e:
-            reports.append({
-                "sourcePath": str(png_path),
-                "assetId": f"stitch_unknown_{slugify_name(png_path.name)}",
-                "category": "unknown",
-                "width": 0,
-                "height": 0,
-                "mode": "UNKNOWN",
-                "hasAlpha": False,
-                "detectedGrid": None,
-                "alphaCleanup": {"attempted": False, "method": "none", "success": False, "remainingCheckerboardScore": 0},
-                "status": "quarantined",
-                "warnings": [f"Failed to process: {str(e)}"],
-                "sourceSha256": stable_hash(b"error"),
-            })
-    
-    return reports
 
-# -----------------------------------------------------------------------------
-# CLI
-# -----------------------------------------------------------------------------
+def copy_runtime_to_client(output_dir: Path, client_dir: Path) -> None:
+    client_dir.mkdir(parents=True, exist_ok=True)
+    for item in sorted(output_dir.iterdir(), key=lambda p: p.name):
+        target = client_dir / item.name
+        if item.is_dir():
+            shutil.copytree(item, target, dirs_exist_ok=True)
+        else:
+            shutil.copy2(item, target)
 
-def main():
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Stitch 2.5D Atlas Intake Pipeline")
-    parser.add_argument("--input", type=str, help="Input ZIP or directory path")
-    parser.add_argument("--output", type=str, help="Output directory (default: assets/runtime/stitch)")
-    parser.add_argument("--pack-id", type=str, default="stitch_25d_atlas_pack_001", help="Pack ID for manifest")
-    
-    args = parser.parse_args()
-    
-    # Determine input path
-    if args.input:
-        input_path = Path(args.input).resolve()
-    else:
-        input_path = DEFAULT_INPUT_DIR
-    
-    # Output directory
-    output_dir = Path(args.output).resolve() if args.output else DEFAULT_OUTPUT_DIR
-    
-    # Quarantine directory
-    quarantine_dir = DEFAULT_QUARANTINE_DIR
-    
-    # Create directories
-    output_dir.mkdir(parents=True, exist_ok=True)
-    quarantine_dir.mkdir(parents=True, exist_ok=True)
-    
+
+def write_report(output_dir: Path, reports: list[dict]) -> None:
+    write_json(output_dir / "report.json", {"schemaVersion": PACK_SCHEMA_VERSION, "generatedBy": "scripts/stitch_atlas_intake.py", "deterministic": True, "reports": sorted(reports, key=lambda r: (r["status"], r["category"], r["assetId"], r["sourcePath"]))})
+
+
+def run_intake(input_path: Path, output_dir: Path, quarantine_dir: Path, client_dir: Path, pack_id: str) -> int:
     print(f"Input: {input_path}")
     print(f"Output: {output_dir}")
     print(f"Quarantine: {quarantine_dir}")
-    print()
-    
-    # Process
-    if input_path.suffix.lower() == ".zip":
-        print("Processing ZIP file...")
-        reports = process_zip(input_path, output_dir, quarantine_dir)
-    elif input_path.is_dir():
-        print("Processing directory...")
-        reports = process_directory(input_path, output_dir, quarantine_dir)
-    else:
-        print(f"Error: Input path {input_path} is neither a ZIP nor a directory")
-        return 1
-    
-    # Generate manifest
-    manifest = generate_runtime_manifest(reports, pack_id=args.pack_id)
-    
-    # Save manifest
-    manifest_path = output_dir / "manifest.json"
-    with open(manifest_path, "w") as f:
-        json.dump(manifest, f, indent=2)
-    
-    # Save report
-    report_path = output_dir / "report.json"
-    with open(report_path, "w") as f:
-        json.dump({"schemaVersion": 1, "generatedBy": "scripts/stitch_atlas_intake.py", "reports": reports}, f, indent=2)
-    
-    # Copy to client directory (manifest + all processed assets)
-    client_dir = CLIENT_STITCH_DIR
+    print(f"Client: {client_dir}")
+    print(f"Pack ID: {pack_id}\n")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    quarantine_dir.mkdir(parents=True, exist_ok=True)
     client_dir.mkdir(parents=True, exist_ok=True)
-    import shutil
-    
-    # Copy manifest
-    shutil.copy(manifest_path, client_dir / "manifest.json")
-    
-    # Copy all processed assets by category
-    for category_dir in output_dir.iterdir():
-        if category_dir.is_dir() and category_dir.name not in ["manifest.json", "report.json"]:
-            target_category = client_dir / category_dir.name
-            target_category.mkdir(parents=True, exist_ok=True)
-            for asset_dir in category_dir.iterdir():
-                if asset_dir.is_dir():
-                    target_asset = target_category / asset_dir.name
-                    target_asset.mkdir(parents=True, exist_ok=True)
-                    for f in asset_dir.iterdir():
-                        shutil.copy2(f, target_asset / f.name)
-    
-    # Summary
+    sources = collect_sources(input_path)
+    print(f"Discovered processable source images: {len(sources)}")
+    reports: list[dict] = []
+    for source in sources:
+        print(f"  -> {source.display_source_path}")
+        reports.append(process_asset(source, output_dir, quarantine_dir))
+    manifest = generate_runtime_manifest(reports, pack_id=pack_id)
+    write_json(output_dir / "manifest.json", manifest)
+    write_report(output_dir, reports)
+    copy_runtime_to_client(output_dir, client_dir)
     accepted = [r for r in reports if r["status"] == "accepted"]
+    manual_review = [r for r in reports if r["status"] == "manual_review"]
+    reference_only = [r for r in reports if r["status"] == "reference_only"]
     quarantined = [r for r in reports if r["status"] == "quarantined"]
-    
-    print()
+    print("\n" + "=" * 60)
+    print("STITCH INTAKE SUMMARY")
     print("=" * 60)
-    print("INTAKE SUMMARY")
-    print("=" * 60)
-    print(f"Total processed: {len(reports)}")
+    print(f"Total discovered: {len(sources)}")
     print(f"Accepted: {len(accepted)}")
+    print(f"Manual review: {len(manual_review)}")
+    print(f"Reference only: {len(reference_only)}")
     print(f"Quarantined: {len(quarantined)}")
-    print()
-    print(f"Manifest: {manifest_path}")
-    print(f"Report: {report_path}")
+    print(f"Manifest: {output_dir / 'manifest.json'}")
     print(f"Client manifest: {client_dir / 'manifest.json'}")
-    print()
-    
-    if accepted:
+    if not sources:
+        print("No supported images found. Nothing to process.")
+        return 1
+    by_category: dict[str, int] = {}
+    for report in accepted:
+        by_category[report["category"]] = by_category.get(report["category"], 0) + 1
+    if by_category:
         print("Accepted assets by category:")
-        by_cat = {}
-        for r in accepted:
-            cat = r["category"]
-            if cat not in by_cat:
-                by_cat[cat] = []
-            by_cat[cat].append(r["assetId"])
-        for cat, assets in sorted(by_cat.items()):
-            print(f"  {cat}: {len(assets)} assets")
-            for a in assets[:3]:
-                print(f"    - {a}")
-            if len(assets) > 3:
-                print(f"    ... and {len(assets) - 3} more")
-    
+        for category in sorted(by_category):
+            print(f"  {category}: {by_category[category]}")
+    for title, rows in [("Manual-review assets", manual_review), ("Reference-only assets", reference_only), ("Quarantined assets", quarantined)]:
+        if rows:
+            print(f"{title}:")
+            for report in rows[:20]:
+                print(f"  - {report['sourcePath']}: {'; '.join(report['warnings'])}")
+            if len(rows) > 20:
+                print(f"  ... and {len(rows) - 20} more")
     return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Deterministic Stitch 2.5D Asset Intake Pipeline")
+    parser.add_argument("--input", type=str, help="Input image, ZIP, or directory path")
+    parser.add_argument("--output", type=str, help="Output directory")
+    parser.add_argument("--pack-id", type=str, default="stitch_25d_atlas_pack_001", help="Pack ID for manifest")
+    args = parser.parse_args()
+    input_path = Path(args.input).resolve() if args.input else DEFAULT_INPUT_DIR
+    output_dir = Path(args.output).resolve() if args.output else DEFAULT_OUTPUT_DIR
+    try:
+        return run_intake(input_path=input_path, output_dir=output_dir, quarantine_dir=DEFAULT_QUARANTINE_DIR, client_dir=CLIENT_STITCH_DIR, pack_id=args.pack_id)
+    except Exception as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

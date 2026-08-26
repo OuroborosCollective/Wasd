@@ -21,6 +21,10 @@
     "./items/itemSignature": {
       "types": "./dist/items/itemSignature.d.ts",
       "import": "./dist/items/itemSignature.js"
+    },
+    "./world": {
+      "types": "./dist/world/index.d.ts",
+      "import": "./dist/world/index.js"
     }
   },
   "scripts": {
@@ -32,16 +36,16 @@
     "cannon-es": "^0.20.0",
     "eventemitter3": "^5.0.4",
     "ioredis": "^5.11.0",
-    "nanoid": "^5.1.11",
+    "nanoid": "^5.1.16",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@babylonjs/core": "^9.10.1",
-    "@types/node": "^25.9.1",
-    "typescript": "^6.0.3",
+    "@babylonjs/core": "^9.19.1",
+    "@types/node": "^22.20.1",
+    "typescript": "^5.8.0",
     "vitest": "^4.1.8"
   },
   "peerDependencies": {
-    "typescript": "^6.0.3"
+    "typescript": "^5.8.0"
   }
 }

@@ -12,8 +12,8 @@
 
 import React, { useState } from "react";
 import {
-  DEFAULT_GAMEPLAY_PLAYER_ID,
   fetchGameplaySnapshot,
+  getDefaultGameplayPlayerId,
   liveGameplayStore,
 } from "../../game/liveGameplayStore";
 
@@ -38,44 +38,44 @@ interface StartPathInfo {
 
 const START_PATH_INFO: Record<StartPath, StartPathInfo> = {
   wanderer: {
-    label: "Wanderer — neutraler Start",
+    label: "Wanderer — Neutral Start",
     shortLabel: "Wanderer",
-    starterKit: ["Reiseration", "Trainingsspeer", "Wegmarke"],
-    tutorialFocus: "Bewegen, NPC ansprechen, erste Quest, erster Kampf.",
-    firstResourceSpot: "Dorfplatz, Übungsfeld und erster NPC am Wegstein.",
-    firstGoal: "Sprich mit dem ersten NPC und sichere den Außenposten.",
+    starterKit: ["Travel Ration", "Training Spear", "Waymark"],
+    tutorialFocus: "Movement, talking to NPCs, first quest, and first combat.",
+    firstResourceSpot: "Village square, training field, and first NPC at the waystone.",
+    firstGoal: "Speak with the first NPC and secure the outpost.",
   },
   forager: {
-    label: "Forager — Sammeln-Tutorial",
+    label: "Forager — Gathering Tutorial",
     shortLabel: "Forager",
-    starterKit: ["Sammelbeutel", "Kräutermesser", "Feldnotiz"],
-    tutorialFocus: "Kräuter, Beeren, Pilze und einfache Naturmaterialien finden.",
-    firstResourceSpot: "Kräuterwiese am Waldrand mit Foraging-Knoten.",
-    firstGoal: "Sammle 3 Kräuter und bringe sie zur Vorratskiste.",
+    starterKit: ["Gathering Bag", "Herb Knife", "Field Note"],
+    tutorialFocus: "Finding herbs, berries, mushrooms, and simple natural materials.",
+    firstResourceSpot: "Herb meadow at the edge of the forest with foraging nodes.",
+    firstGoal: "Collect 3 herbs and bring them to the supply crate.",
   },
   miner: {
-    label: "Miner — Erz & Spitzhacke",
+    label: "Miner — Ore & Pickaxe",
     shortLabel: "Miner",
-    starterKit: ["Einfache Spitzhacke", "Erzbeutel", "Kupfermarke"],
-    tutorialFocus: "Stein, Kupfer, Erzadern und robuste Materialien abbauen.",
-    firstResourceSpot: "Felsnase nördlich des Starts mit Stein- und Kupferadern.",
-    firstGoal: "Baue 3 Kupfererz ab und prüfe den ersten Schmelzauftrag.",
+    starterKit: ["Simple Pickaxe", "Ore Bag", "Copper Mark"],
+    tutorialFocus: "Mining stone, copper, ore veins, and robust materials.",
+    firstResourceSpot: "Rock ridge north of the start with stone and copper veins.",
+    firstGoal: "Mine 3 copper ore and check the first smelting order.",
   },
   angler: {
-    label: "Angler — Wasser & Angel",
+    label: "Angler — Water & Fishing Rod",
     shortLabel: "Angler",
-    starterKit: ["Einfache Angel", "Köderbeutel", "Kleines Netz"],
-    tutorialFocus: "Fishing-Spots erkennen, Fisch fangen und später Kochen lernen.",
-    firstResourceSpot: "Ufersteg am nahen Wasser mit markiertem Fishing-Spot.",
-    firstGoal: "Fange 3 Fische und bereite den ersten Kochauftrag vor.",
+    starterKit: ["Simple Fishing Rod", "Bait Bag", "Small Net"],
+    tutorialFocus: "Identifying fishing spots, catching fish, and learning to cook.",
+    firstResourceSpot: "Pier at the nearby water with a marked fishing spot.",
+    firstGoal: "Catch 3 fish and prepare the first cooking order.",
   },
   artisan: {
-    label: "Artisan — Werkbank & Crafting",
+    label: "Artisan — Workbench & Crafting",
     shortLabel: "Artisan",
-    starterKit: ["Werkzeugrolle", "Holzplanke", "Rezeptkarte"],
-    tutorialFocus: "Werkbank, erste Rezepte, einfache Verarbeitung und Reparatur.",
-    firstResourceSpot: "Werkbank-Zelt beim Startlager mit Crafting-Auftrag.",
-    firstGoal: "Fertige eine Holzplanke oder repariere ein einfaches Werkzeug.",
+    starterKit: ["Tool Roll", "Wood Plank", "Recipe Card"],
+    tutorialFocus: "Workbench use, first recipes, simple processing, and repair.",
+    firstResourceSpot: "Workbench tent at the start camp with a crafting order.",
+    firstGoal: "Craft a wood plank or repair a simple tool.",
   },
 };
 
@@ -83,9 +83,18 @@ interface Props {
   onCreated?: () => void;
 }
 
+function readStoredDisplayName(): string {
+  try {
+    return localStorage.getItem("wasd:2d:name")?.trim() ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export function CharacterSelectPanel({ onCreated }: Props) {
-  const [displayName, setDisplayName] = useState("");
+  const [displayName, setDisplayName] = useState(() => readStoredDisplayName());
   const [startPath, setStartPath] = useState<StartPath>("wanderer");
+  const [isCreating, setIsCreating] = useState(false);
   const [status, setStatus] = useState<string>("");
   const selectedPath = START_PATH_INFO[startPath];
 
@@ -93,26 +102,29 @@ export function CharacterSelectPanel({ onCreated }: Props) {
     <section data-testid="character-select" className="are-window character-select-panel">
       <h2>Character Creation</h2>
       <p>
-        Erstelle deinen ersten Areloria-Charakter. Areloria ist klassenlos: Skills wachsen durch Nutzung,
-        nicht durch eine feste Klasse.
+        Create your first Areloria character. Areloria is classless: skills grow through use,
+        not through a fixed class.
       </p>
 
-      <label className="character-form-label">
+      <label htmlFor="char-name-input" className="character-form-label">
         Name
         <input
+          id="char-name-input"
           type="text"
           value={displayName}
           onChange={(event) => setDisplayName(event.target.value)}
           placeholder="Wanderer"
           minLength={3}
           maxLength={32}
+          autoFocus
           className="character-form-input"
         />
       </label>
 
-      <label className="character-form-label">
-        Startpfad
+      <label htmlFor="char-start-path-select" className="character-form-label">
+        Start Path
         <select
+          id="char-start-path-select"
           value={startPath}
           onChange={(event) => setStartPath(event.target.value as StartPath)}
           className="character-form-select"
@@ -128,46 +140,50 @@ export function CharacterSelectPanel({ onCreated }: Props) {
       <article className="character-start-path-card" data-testid="character-start-path-card">
         <header>
           <strong>{selectedPath.shortLabel}</strong>
-          <span>Startpfad · keine Klasse</span>
+          <span>Start Path · No Class</span>
         </header>
         <dl>
           <div>
-            <dt>Starter-Kit</dt>
+            <dt>Starter Kit</dt>
             <dd>{selectedPath.starterKit.join(" · ")}</dd>
           </div>
           <div>
-            <dt>Tutorial-Fokus</dt>
+            <dt>Tutorial Focus</dt>
             <dd>{selectedPath.tutorialFocus}</dd>
           </div>
           <div>
-            <dt>Erster Ressourcen-Spot</dt>
+            <dt>First Resource Spot</dt>
             <dd>{selectedPath.firstResourceSpot}</dd>
           </div>
           <div>
-            <dt>Erstes Ziel</dt>
+            <dt>First Goal</dt>
             <dd>{selectedPath.firstGoal}</dd>
           </div>
         </dl>
       </article>
 
       <p className="character-form-hint">
-        Keine Klasse, keine Sperren: Der Startpfad bestimmt nur Startausrüstung, Tutorial-Fokus und den ersten
-        Ressourcen-Spot. Danach kannst du alle Skills frei trainieren.
+        No classes, no locks: The start path only determines starting equipment, tutorial focus, and the first
+        resource spot. Afterwards, you can train all skills freely.
       </p>
 
       <button
         type="button"
         className="character-form-button"
+        disabled={isCreating}
+        aria-busy={isCreating}
+        aria-label={isCreating ? "Creating character on server" : "Create new character"}
         onClick={async () => {
           if (displayName.trim().length < 3) {
             setStatus("Name must be at least 3 characters.");
             return;
           }
 
+          setIsCreating(true);
           setStatus("Creating character...");
 
           try {
-            const playerId = DEFAULT_GAMEPLAY_PLAYER_ID;
+            const playerId = getDefaultGameplayPlayerId();
             const response = await fetch(`/api/character/create?playerId=${encodeURIComponent(playerId)}`, {
               method: "POST",
               headers: {
@@ -187,25 +203,27 @@ export function CharacterSelectPanel({ onCreated }: Props) {
               ? await response.json()
               : { ok: false, error: `Server returned non-JSON response (${response.status})` };
 
-            if (result.ok) {
-              setStatus("Character created. Syncing world snapshot...");
+            if (result.ok || result.result?.reason === "already_exists") {
+              try {
+                localStorage.setItem("wasd:2d:name", displayName.trim());
+              } catch {}
+
+              setStatus(result.result?.reason === "already_exists" ? "Character already exists. Syncing world snapshot..." : "Character created. Syncing world snapshot...");
               const snapshot = await fetchGameplaySnapshot(playerId);
               if (snapshot) {
                 liveGameplayStore.setSnapshot(snapshot);
               }
-              setStatus("Character created.");
+              setStatus("Character ready.");
               onCreated?.();
 
-              // Dispatch character-created event to pause polling briefly
               window.dispatchEvent(new CustomEvent("wasd:character-created", {
                 detail: { playerId },
               }));
 
-              // Dispatch toast notification
               window.dispatchEvent(new CustomEvent("wasd:toast", {
                 detail: {
                   type: "success",
-                  message: "Character created",
+                  message: result.result?.reason === "already_exists" ? "Character loaded" : "Character created",
                 },
               }));
             } else {
@@ -213,10 +231,12 @@ export function CharacterSelectPanel({ onCreated }: Props) {
             }
           } catch (err) {
             setStatus(`Error: ${err instanceof Error ? err.message : "unknown"}`);
+          } finally {
+            setIsCreating(false);
           }
         }}
       >
-        Create Character
+        {isCreating ? "Creating..." : "Create Character"}
       </button>
 
       {status && <p className="character-form-status">{status}</p>}

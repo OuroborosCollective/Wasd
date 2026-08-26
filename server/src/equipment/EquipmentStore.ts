@@ -7,7 +7,9 @@
 
 import {
   EQUIPMENT_DEFINITIONS,
+  compareEquipmentSlotIds,
   createDefaultEquipmentState,
+  createEquippedSlotFromDefinition,
   isEquipmentItemId,
   normalizeEquipmentState,
   type EquipItemResult,
@@ -67,13 +69,8 @@ export class EquipmentStore {
         ...state,
         slots: [
           ...state.slots.filter((slot) => slot.slotId !== definition.slotId),
-          {
-            slotId: definition.slotId,
-            itemId: definition.itemId,
-            title: definition.title,
-            tier: definition.tier,
-          },
-        ],
+          createEquippedSlotFromDefinition(definition),
+        ].sort((a, b) => compareEquipmentSlotIds(a.slotId, b.slotId)),
       },
       input.playerId,
     );
@@ -114,7 +111,6 @@ export class EquipmentStore {
       };
     }
 
-    // Remove the slot
     const nextState = normalizeEquipmentState(
       {
         ...state,

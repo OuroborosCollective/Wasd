@@ -23,6 +23,8 @@ jobs:
   import-stitch-assets:
     name: Validate Stitch loot UI assets
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     steps:
       - name: Checkout repository
@@ -31,7 +33,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22.23.2'
 
       - name: Enable pnpm
         run: corepack enable

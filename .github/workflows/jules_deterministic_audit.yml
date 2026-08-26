@@ -19,26 +19,45 @@ jobs:
   audit_logic:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Quiet checkout
+        run: |
+          set -euo pipefail
+          git init -q .
+          git remote add origin "https://github.com/${{ github.repository }}"
+          git -c protocol.version=2 fetch -q --no-tags --depth=1 origin "${{ github.sha }}"
+          git checkout -q --force FETCH_HEAD
+          git config --global --add safe.directory "$PWD"
+
+      - name: Detect server relevant changes
+        id: changes
+        run: |
+          set -euo pipefail
+          git -c protocol.version=2 fetch -q --no-tags --depth=1 origin "${{ github.base_ref }}"
+          changed="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD || true)"
+          printf '%s\n' "$changed"
+          if printf '%s\n' "$changed" | grep -E '^(server/|packages/shared/|packages/core-logic/|package\.json$|pnpm-lock\.yaml$|tsconfig\.base\.json$)' >/dev/null; then
+            echo "server_relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "server_relevant=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-                    run_install: false
+          run_install: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22.23.2'
           cache: 'pnpm'
 
       - name: Install Dependencies
         run: |
-          pnpm install --no-frozen-lockfile --ignore-scripts --loglevel info || pnpm install --no-frozen-lockfile
+          pnpm install --no-frozen-lockfile --ignore-scripts --loglevel warn || pnpm install --no-frozen-lockfile --loglevel warn
         env:
           NODE_OPTIONS: "--max-old-space-size=3072"
 
-      # Deterministic gates: shared + server must stay type-clean.
       - name: Build @wasd/shared
         run: |
           pnpm --filter @wasd/shared build
@@ -52,18 +71,23 @@ jobs:
           NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/core-logic run typecheck
 
       - name: Typecheck @wasd/server (tsc --noEmit)
+        if: steps.changes.outputs.server_relevant == 'true'
         run: |
-          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/server exec tsc --noEmit
+          set -o pipefail
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/server exec tsc --noEmit --pretty false 2>&1 | tee /tmp/wasd-server-tsc.log
+
+      - name: Skip server typecheck for non-server PR
+        if: steps.changes.outputs.server_relevant != 'true'
+        run: echo "No server/shared/core changes detected; skipping server tsc gate for this PR."
 
       - name: Typecheck @wasd/portal
         run: |
-          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/portal exec tsc --noEmit
+          NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/portal exec tsc --noEmit --pretty false
 
       - name: Test @wasd/portal (vitest)
         run: |
           NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @wasd/portal run test
 
-      # ARE Core Reality Alignment Audit (Phase 8-10)
       - name: Run Core Reality Alignment Audit
         run: |
           echo "=== Core Reality Alignment Audit ==="

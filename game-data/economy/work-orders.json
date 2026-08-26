@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "regions": [
+    {
+      "regionId": "starter_village",
+      "title": "Starter Village",
+      "population": 24,
+      "buildings": [
+        { "buildingId": "storehouse", "type": "storage", "needMultiplierPermille": 1200 },
+        { "buildingId": "workshop", "type": "crafting", "needMultiplierPermille": 1100 },
+        { "buildingId": "cookfire", "type": "provision", "needMultiplierPermille": 900 }
+      ],
+      "workOrders": [
+        {
+          "id": "outpost_wood_order",
+          "title": "Wood for the Watch",
+          "npcId": "npc_2",
+          "itemId": "wood_plank",
+          "requiredCount": 50,
+          "rewardGold": 250,
+          "rewardXp": 150,
+          "rewardSkillId": "crafting",
+          "unlocks": ["storehouse_repaired"]
+        },
+        {
+          "id": "outpost_copper_order",
+          "title": "Copper for the Smith",
+          "npcId": "npc_4",
+          "itemId": "copper_ore",
+          "requiredCount": 30,
+          "rewardGold": 180,
+          "rewardXp": 100,
+          "rewardSkillId": "mining",
+          "unlocks": ["smithy_supply_restocked"]
+        },
+        {
+          "id": "outpost_fish_order",
+          "title": "Fish for the Cookfires",
+          "npcId": "npc_7_merchant",
+          "itemId": "raw_fish",
+          "requiredCount": 40,
+          "rewardGold": 160,
+          "rewardXp": 90,
+          "rewardSkillId": "fishing",
+          "unlocks": ["camp_meals_stocked"]
+        }
+      ]
+    }
+  ]
+}

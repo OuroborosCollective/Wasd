@@ -1,5 +1,6 @@
 import { type AREClock, SystemAREClock } from "../../core/determinism/AREDeterminism.js";
 import { ComboValidator, type ComboResult } from "./ComboValidator.js";
+import { runtimeValidation, validate } from "../../core/are/RuntimeValidation.js";
 
 export interface CombatState {
     comboIndex: number;
@@ -29,6 +30,35 @@ export class CombatService {
         skill: Skill,
         currentState: CombatState
     ): CombatExecutionResult {
+        // ─── Runtime Validation: Combat Skill Request ──────────────────────────────
+        if (!playerId || typeof playerId !== "string" || playerId.length === 0) {
+            console.warn("[RuntimeValidation] CombatService.handleSkillRequest: invalid playerId");
+            return { damage: 0, newState: { comboIndex: 0, lastSkillId: null, lastTimestamp: 0 } };
+        }
+        
+        if (!skill || typeof skill !== "object") {
+            console.warn("[RuntimeValidation] CombatService.handleSkillRequest: invalid skill");
+            return { damage: 0, newState: { comboIndex: 0, lastSkillId: null, lastTimestamp: 0 } };
+        }
+        
+        if (!skill.id || typeof skill.id !== "string") {
+            console.warn("[RuntimeValidation] CombatService.handleSkillRequest: missing skill.id");
+        }
+        
+        if (typeof skill.baseDamage !== "number" || skill.baseDamage < 0) {
+            console.warn(`[RuntimeValidation] CombatService.handleSkillRequest: invalid baseDamage ${skill.baseDamage}`);
+        }
+        
+        if (!currentState || typeof currentState !== "object") {
+            console.warn("[RuntimeValidation] CombatService.handleSkillRequest: invalid currentState");
+            return { damage: 0, newState: { comboIndex: 0, lastSkillId: null, lastTimestamp: 0 } };
+        }
+        
+        if (typeof currentState.comboIndex !== "number" || currentState.comboIndex < 0) {
+            console.warn(`[RuntimeValidation] CombatService.handleSkillRequest: invalid comboIndex ${currentState.comboIndex}`);
+        }
+        // ─── End Runtime Validation ──────────────────────────────────────────────
+
         const entityState = {
             entityId: playerId,
             logicalIndex: currentState.comboIndex,
@@ -54,6 +84,11 @@ export class CombatService {
         }
 
         const finalDamage = skill.baseDamage * damageMultiplier;
+        
+        // Validate computed damage
+        if (!Number.isFinite(finalDamage) || finalDamage < 0) {
+            console.warn(`[RuntimeValidation] CombatService: computed invalid damage ${finalDamage}`);
+        }
 
         const newState: CombatState = {
             comboIndex: nextIndex,

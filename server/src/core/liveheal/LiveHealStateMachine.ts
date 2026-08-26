@@ -5,7 +5,7 @@
  * Enforces that at most one healing operation runs per subsystem.
  */
 
-import { deterministicNow } from "../determinism/AREDeterminism.js";
+import { ARE_SIMULATION_TICK_MS } from "../determinism/AREDeterminism.js";
 import type {
   SubSystemState,
   StateTransitionTrigger,
@@ -79,8 +79,11 @@ export interface SubSystemStateMachine {
   healingStartedAt: number;
 }
 
-function stateMachineNow(sm: SubSystemStateMachine, label: string): number {
-  return deterministicNow(`${sm.id}:${label}:${sm.transitionLog.length}`);
+function stateMachineNow(sm: SubSystemStateMachine, _label: string): number {
+  // A transition count gives every state machine a reproducible, monotonic
+  // simulation timeline. Hash-derived values are deterministic but do not
+  // preserve elapsed-time ordering and therefore cannot drive time windows.
+  return sm.transitionLog.length * ARE_SIMULATION_TICK_MS;
 }
 
 export function createStateMachine(id: string): SubSystemStateMachine {
@@ -88,7 +91,7 @@ export function createStateMachine(id: string): SubSystemStateMachine {
     id,
     state: "healthy",
     previousState: "healthy",
-    lastTransitionAt: deterministicNow(id),
+    lastTransitionAt: 0,
     transitionLog: [],
     healingLocked: false,
     healingStartedAt: 0,

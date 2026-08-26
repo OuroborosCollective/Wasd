@@ -1,16 +1,17 @@
-import {
-  ARE_SIMULATION_TICK_HZ,
-  ARE_SIMULATION_TICK_MS,
-  areTicksToMs,
-  msToARETicks,
-} from '@wasd/shared';
+import { createHash } from 'node:crypto';
 
-export {
-  ARE_SIMULATION_TICK_HZ,
-  ARE_SIMULATION_TICK_MS,
-  areTicksToMs,
-  msToARETicks,
-};
+export const ARE_SIMULATION_TICK_HZ = 10;
+export const ARE_SIMULATION_TICK_MS = 1000 / ARE_SIMULATION_TICK_HZ;
+
+export function msToARETicks(ms: number): number {
+  if (!Number.isFinite(ms) || ms <= 0) return 1;
+  return Math.max(1, Math.ceil(ms / ARE_SIMULATION_TICK_MS));
+}
+
+export function areTicksToMs(ticks: number): number {
+  if (!Number.isFinite(ticks) || ticks <= 0) return 0;
+  return Math.trunc(ticks) * ARE_SIMULATION_TICK_MS;
+}
 
 export interface AREClock {
   now(): number;
@@ -24,12 +25,25 @@ export interface ARERng {
 }
 
 /**
- * Deterministic simulation clock.
+ * Canonical key for a stateless ARE pseudo-random sample.
  *
- * The historical class name is kept for compatibility, but it intentionally no
- * longer reads wall-clock time. Simulation code must derive time from tick/seed
- * input so replays and CI checks stay stable.
+ * Every sample is derived only from this explicit key. There is no cursor,
+ * hidden sequence counter, wall-clock input, or prior RNG consumption.
+ * `lane` names independent decisions inside the same action (for example
+ * `hit`, `critical`, `pellet:7`, or `loot:iron:amount`).
  */
+export interface AREStatelessRandomKey {
+  readonly worldSeed: string | number | bigint;
+  readonly tick: number | string | bigint;
+  readonly channel: string;
+  readonly chunkKey?: string;
+  readonly actorId?: string;
+  readonly targetId?: string;
+  readonly actionId?: string;
+  readonly lane?: string;
+  readonly counter?: number;
+}
+
 export class SystemAREClock implements AREClock {
   constructor(private readonly tickNow = 0) {}
 
@@ -47,10 +61,9 @@ export class FixedAREClock implements AREClock {
 }
 
 /**
- * Small deterministic PRNG for server simulation paths.
- *
- * This uses a 32-bit FNV-1a seed and Mulberry32 step. It is intended for
- * reproducible gameplay decisions, not cryptography or security tokens.
+ * Deterministic sequence RNG for local algorithms that intentionally consume
+ * an ordered sequence. Canonical truth paths that need evaluation-order
+ * independence should prefer statelessAREFloat/statelessAREInt below.
  */
 export class SeededARERng implements ARERng {
   private state: number;
@@ -98,14 +111,87 @@ export function deterministicRandom(seed: string | number | bigint = 0): number 
   return new SeededARERng(typeof seed === 'bigint' ? seed.toString() : seed).nextFloat();
 }
 
-/**
- * Stable 32-bit FNV-1a hash for deterministic ordering, replay IDs, and memory hashes.
- *
- * This is intentionally small and non-cryptographic. Do not use it for auth,
- * signatures, secrets, or any security boundary.
- */
 export function stableHash32(seed: string | number | bigint): number {
   return hashSeed(String(seed));
+}
+
+/**
+ * SHA-256 digest of a canonical stateless-random key.
+ *
+ * The digest is useful as evidence/debug material when a deterministic roll
+ * needs to be reproduced independently. It is not an authorization token and
+ * must not be treated as a secret.
+ */
+export function deriveAREStatelessRandomDigest(key: AREStatelessRandomKey): string {
+  return createHash('sha256')
+    .update('are-stateless-rng-v1\0')
+    .update(encodeStatelessRandomKey(key))
+    .digest('hex');
+}
+
+/**
+ * Pure deterministic sample in [0, 1). Re-evaluating the same key always
+ * yields the same value, irrespective of which other samples were evaluated
+ * before or after it.
+ */
+export function statelessAREFloat(key: AREStatelessRandomKey): number {
+  const digest = deriveAREStatelessRandomDigest(key);
+  // Use the first 53 bits so the conversion is exactly representable by a JS
+  // number. 13 hex digits provide 52 bits; the result remains in [0, 1).
+  const numerator = Number.parseInt(digest.slice(0, 13), 16);
+  return numerator / 0x10000000000000;
+}
+
+/**
+ * Pure deterministic integer in [0, maxExclusive).
+ */
+export function statelessAREInt(key: AREStatelessRandomKey, maxExclusive: number): number {
+  if (!Number.isSafeInteger(maxExclusive) || maxExclusive <= 0) {
+    throw new Error('maxExclusive must be a positive safe integer');
+  }
+  return Math.floor(statelessAREFloat(key) * maxExclusive);
+}
+
+function encodeStatelessRandomKey(key: AREStatelessRandomKey): string {
+  const counter = key.counter ?? 0;
+  if (!Number.isSafeInteger(counter) || counter < 0) {
+    throw new Error('counter must be a non-negative safe integer');
+  }
+  if (!key.channel || typeof key.channel !== 'string') {
+    throw new Error('channel must be a non-empty deterministic identifier');
+  }
+
+  const fields: readonly [string, string][] = [
+    ['worldSeed', scalarKeyPart(key.worldSeed)],
+    ['tick', scalarKeyPart(key.tick)],
+    ['channel', key.channel],
+    ['chunkKey', key.chunkKey ?? ''],
+    ['actorId', key.actorId ?? ''],
+    ['targetId', key.targetId ?? ''],
+    ['actionId', key.actionId ?? ''],
+    ['lane', key.lane ?? ''],
+    ['counter', String(counter)],
+  ];
+
+  // Length prefixes make the encoding unambiguous even when identifiers
+  // themselves contain punctuation or delimiter-like characters.
+  return fields
+    .map(([name, value]) => `${name.length}:${name}${value.length}:${value}`)
+    .join('');
+}
+
+function scalarKeyPart(value: string | number | bigint): string {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new Error('stateless random key contains a non-finite number');
+    }
+    if (!Number.isSafeInteger(value)) {
+      throw new Error('numeric stateless random key parts must be safe integers');
+    }
+    return `number:${Object.is(value, -0) ? '-0' : String(value)}`;
+  }
+  if (typeof value === 'bigint') return `bigint:${value.toString()}`;
+  return `string:${value}`;
 }
 
 function stablePart(part: unknown): string {

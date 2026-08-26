@@ -45,6 +45,8 @@ client intent
 
 `server/src/core/WorldTick.ts` is legacy mass, not the new extension point. New systems must target `WorldTickScheduler`, `TickSystemRegistry`, ports, deltas, replay sinks and snapshot/runtime-manifest output.
 
+For agent-assisted GitHub work, PR review, CI interpretation, issue closure, and merge discipline, use the [Areloria Green-State Agent Playbook](docs/AGENT_GREEN_STATE_PLAYBOOK.md).
+
 ---
 
 ## Current project state
@@ -541,10 +543,7 @@ recent engine logs
 Host-level Nginx can be installed/updated with:
 
 ```bash
-sudo ARELORIAN_DOMAIN=arelorian.de \
-  ARELORIAN_WWW_DOMAIN=www.arelorian.de \
-  ARELORIAN_PORT=3001 \
-  bash scripts/install-nginx-host-gateway.sh
+sudo ARELORIAN_DOMAIN=arelorian.de ARELORIAN_WWW_DOMAIN=www.arelorian.de ARELORIAN_PORT=3001 bash scripts/install-nginx-host-gateway.sh
 ```
 
 ---
@@ -556,6 +555,7 @@ Automated agents must follow:
 ```text
 docs/AGENT_FEATURE_PR_POLICY.md
 docs/AGENT_ARE_SKILL_PLAYBOOK.md
+docs/AGENT_GREEN_STATE_PLAYBOOK.md
 ```
 
 Hard rules:
@@ -593,6 +593,7 @@ docs/START_HERE.md
 docs/ARELORIA_CODE_TRUTH_MANIFEST_2026_06.md
 docs/ARE_MODULE_IMPLEMENTATION_STANDARD.md
 docs/AGENT_ARE_SKILL_PLAYBOOK.md
+docs/AGENT_GREEN_STATE_PLAYBOOK.md
 docs/CONVERSATION_ARCHIVE_SYNTHESIS_2026_06.md
 docs/PROJECT_STATUS_2026.md
 docs/ROADMAP_TO_RELEASE.md

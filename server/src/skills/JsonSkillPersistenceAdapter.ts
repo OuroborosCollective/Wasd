@@ -1,14 +1,8 @@
 /**
  * JSON SKILL PERSISTENCE ADAPTER
  *
- * File-based persistence for skill state.
- * Atomic writes, stable sorting.
- *
- * Rules:
- * - No Date.now() for gameplay state
- * - No Math.random()
- * - Atomic file writes
- * - Graceful degradation on errors
+ * File-based persistence for skill state. Reads legacy schema 1 and always
+ * writes exact cap-free schema 2.
  */
 
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
@@ -17,20 +11,24 @@ import {
   createPersistedPlayerSkillState,
   type PersistedPlayerSkillState,
   type SkillPersistenceAdapter,
-} from "./SkillPersistence";
-import { normalizePlayerSkillState } from "./SkillTypes";
+} from "./SkillPersistence.js";
+import { normalizePlayerSkillState } from "./SkillTypes.js";
 
 interface SkillStateFile {
-  schemaVersion: 1;
+  schemaVersion: 2;
   players: PersistedPlayerSkillState[];
+}
+
+function binaryCompare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 function stableFile(players: PersistedPlayerSkillState[]): SkillStateFile {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     players: [...players]
       .map((player) => createPersistedPlayerSkillState(player.playerId, player))
-      .sort((a, b) => a.playerId.localeCompare(b.playerId)),
+      .sort((a, b) => binaryCompare(a.playerId, b.playerId)),
   };
 }
 
@@ -72,19 +70,22 @@ export class JsonSkillPersistenceAdapter implements SkillPersistenceAdapter {
   private async readFileSafe(): Promise<SkillStateFile> {
     try {
       const raw = await readFile(this.filePath, "utf8");
-      const parsed = JSON.parse(raw) as Partial<SkillStateFile>;
+      const parsed = JSON.parse(raw) as { players?: unknown[]; schemaVersion?: number };
 
       return stableFile(
         Array.isArray(parsed.players)
-          ? parsed.players.map((player) =>
-              normalizePlayerSkillState(player, player.playerId)
-            )
-          : []
+          ? parsed.players
+              .filter((player): player is Record<string, unknown> => Boolean(player && typeof player === "object"))
+              .map((player) => normalizePlayerSkillState(
+                player as any,
+                typeof player.playerId === "string" ? player.playerId : "",
+              ))
+              .filter((player) => player.playerId.length > 0)
+          : [],
       );
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       if (code === "ENOENT") return stableFile([]);
-
       return stableFile([]);
     }
   }

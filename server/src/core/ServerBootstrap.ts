@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { shutdownPostHog } from "../services/posthog.js";
 import express, { type Request } from "express";
 import { createServer } from "node:http";
@@ -10,6 +11,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { mcpRoute } from "../api/mcpRoute.js";
 import { adminContentRouter } from "../api/adminContentRoute.js";
+import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
+import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { voteRouter } from "../api/voteRoute.js";
 import { leaderboardRouter } from "../api/leaderboardRoute.js";
 import { questlineRouter } from "../api/questlineRoute.js";
@@ -21,6 +24,7 @@ import { areReplayRouter } from "../api/areReplayRoute.js";
 import { financeRouter } from "../api/financeRoute.js";
 import { createAREHeartbeatRouter } from "../routes/areHeartbeat.js";
 import { createGameplaySnapshotRouter } from "../routes/gameplaySnapshot.js";
+import { aurionTransitionRouter } from "../routes/aurionTransitionRoute.js";
 import { questEventRouter } from "../routes/questEventRoute.js";
 import { default as skillEventRouter } from "../routes/skillEventRoute.js";
 import { default as resourceGatherRouter } from "../routes/resourceGatherRoute.js";
@@ -51,7 +55,11 @@ import { PlaytesterMonitorStream } from "../modules/playtester/PlaytesterMonitor
 import { PlaytesterWebRTCSignaling } from "../modules/playtester/PlaytesterWebRTCSignaling.js";
 import { initRedisClient } from "./RedisClient.js";
 import { installARELootIntegration } from "../modules/loot/installARELootIntegration.js";
+import { installOracleChatBridge } from "../modules/oracle/index.js";
+import { initializeLivingLanguageSystem } from "./language/LivingLanguageInitializer.js";
 import { URL } from "node:url";
+import { createAssetBrainRouter } from "../api/assetBrainRoute.js";
+import { createGLBUploadRouter } from "../api/glbUploadRoute.js";
 
 const currentDir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 
@@ -128,7 +136,9 @@ export function buildClientPublicConfigJson(req?: Request): string {
 
 function envTruthy(key: string): boolean { const v = process.env[key]?.trim().toLowerCase(); return v === "true" || v === "1" || v === "yes"; }
 function shouldProxyBody(method: string): boolean { return ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase()); }
-function canAccessPlaytesterMonitor(req: Request): boolean { const token = PlaytesterConfig.monitorToken; if (!token) return true; return req.query.token as string === token; }
+function hashBuffer(value: string): Buffer { return createHash("sha256").update(value, "utf8").digest(); }
+function safeEqualText(a: string, b: string): boolean { const left = hashBuffer(a); const right = hashBuffer(b); return left.length === right.length && timingSafeEqual(left, right); }
+function canAccessPlaytesterMonitor(req: Request): boolean { const token = PlaytesterConfig.monitorToken; if (!token) return true; const provided = typeof req.query.token === "string" ? req.query.token.trim() : ""; return provided.length > 0 && safeEqualText(provided, token); }
 function safeHealthValue<T>(fn: () => T, fallback: T): T { try { return fn(); } catch { return fallback; } }
 
 export class ServerBootstrap {
@@ -140,9 +150,9 @@ export class ServerBootstrap {
     const selfHealingRuntime: any = { getStatus: () => ({ featuresProtected: 0, config: {}, active: false, totalErrors: 0, totalHealed: 0, healingRate: 0 }) };
     const supabaseProxyBaseUrl = resolveSupabaseProxyBaseUrl();
     await initRedisClient();
-    app.use("/api/mcp", mcpRoute());
+    app.use("/api/mcp", adminRateLimiter, mcpRoute());
     app.use("/api/v1", scienceMascotRouter());
-    app.use("/api/client2d-assets", client2dAssetUploadRouter());
+    app.use("/api/client2d-assets", adminRateLimiter, adminAuthMiddleware, client2dAssetUploadRouter());
     app.use("/api/leaderboard", leaderboardRouter());
     app.use("/api/questlines", questlineRouter());
     app.use("/api/lore", loreRouter());
@@ -197,12 +207,30 @@ export class ServerBootstrap {
     installClient2DPublicKeyLoginBridge(ws, tick);
     (this as any)._tick = tick;
     await tick.init();
+
+    // Wire the real layer persistence adapter into the write-behind queue and
+    // rehydrate chunk layer states from real persisted data (issue #2457).
+    // This is fail-closed: errors here degrade the queue but never crash boot.
+    try {
+      await tick.ensurePersistenceAdapter();
+      const rehydrated = await tick.rehydrateAllChunkStates();
+      if (rehydrated > 0) {
+        console.log(`[ServerBootstrap] Rehydrated ${rehydrated} chunk layer states from persistence.`);
+      }
+    } catch (error) {
+      console.error('[ServerBootstrap] Layer persistence adapter init/rehydrate failed (degraded):', error);
+    }
+    
+    // Initialize Living Language System (NPC dialogue + speech generation)
+    await initializeLivingLanguageSystem();
+    
     this.initializing = false;
     app.use("/api/v1/warfront", warfrontRouter(tick));
     app.use("/api/are/validation", areValidationRouter(tick));
     app.use("/api/are/replay", areReplayRouter(tick));
     app.use("/api/are", createAREHeartbeatRouter(tick, ws));
     app.use("/api/gameplay", createGameplaySnapshotRouter());
+    app.use("/api/aurion", aurionTransitionRouter);
     app.use("/api/quest", questEventRouter);
     app.use("/api/skill", skillEventRouter);
     app.use("/api/resource", resourceGatherRouter);
@@ -216,11 +244,13 @@ export class ServerBootstrap {
     app.use("/api/npc", campNpcRouter);
     app.use("/api/npc", npcQuestRouter);
     app.use("/api/quests", npcQuestRouter);
-    app.use("/api/self-healing", createSelfHealWorkshopRouter());
-    app.use("/api/manifest", createManifestResyncRouter(tick));
-    app.use("/api/finance", express.json({ limit: "1mb" }), financeRouter());
-    app.use("/api/are-shadow", areShadowLogRouter());
-    app.use("/api/sovereign/deploy", sovereignDeployRouter(tick));
+    app.use("/api/self-healing", adminRateLimiter, adminAuthMiddleware, createSelfHealWorkshopRouter());
+    app.use("/api/manifest", adminRateLimiter, createManifestResyncRouter(tick));
+    app.use("/api/finance", adminRateLimiter, express.json({ limit: "1mb" }), financeRouter());
+    app.use("/api/are-shadow", adminRateLimiter, adminAuthMiddleware, areShadowLogRouter());
+    app.use("/api/asset-brain", adminRateLimiter, createAssetBrainRouter());
+    app.use("/api/glb", adminRateLimiter, createGLBUploadRouter());
+    app.use("/api/sovereign/deploy", adminRateLimiter, adminAuthMiddleware, sovereignDeployRouter(tick));
     const monitorStream = new PlaytesterMonitorStream(httpServer, (options) => tick.buildPlaytesterMonitorPayload(options));
     monitorStream.start();
     const playtesterSignaling = new PlaytesterWebRTCSignaling(httpServer);
@@ -231,7 +261,7 @@ export class ServerBootstrap {
     if (monitorHtmlPath) app.get("/playtester-monitor.html", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.sendFile(monitorHtmlPath); });
     if (publisherHtmlPath) app.get("/playtester-render-publisher.html", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.sendFile(publisherHtmlPath); });
     app.get("/api/playtester/debug-log", (req, res) => { if (!canAccessPlaytesterMonitor(req)) return res.status(403).json({ error: "forbidden" }); res.json({ ok: Boolean(tick.getPlaytesterDebugLogPath()), enabled: PlaytesterConfig.enabled, streamEnabled: PlaytesterConfig.streamEnabled, monitorMode: PlaytesterConfig.monitorMode, monitorPath: PlaytesterConfig.monitorPath, monitorSignalPath: PlaytesterConfig.monitorSignalPath, monitorPublisherPath: PlaytesterConfig.monitorPublisherPath, monitorTokenRequired: PlaytesterConfig.monitorToken.length > 0, stream: { width: PlaytesterConfig.streamWidth, height: PlaytesterConfig.streamHeight, fps: PlaytesterConfig.streamFps, quality: PlaytesterConfig.streamQuality, shadows: PlaytesterConfig.streamShadows, particles: PlaytesterConfig.streamParticles, renderDistance: PlaytesterConfig.streamRenderDistance, iceServers: PlaytesterConfig.streamIceServers }, debugLogPath: tick.getPlaytesterDebugLogPath() }); });
-    app.use("/api/admin/content", adminContentRouter(tick));
+    app.use("/api/admin/content", adminRateLimiter, adminAuthMiddleware, adminContentRouter(tick));
     // ARE Infinite Loot Machine Admin Routes
     createLootRoutes(app);
     app.use("/api/vote", voteRouter(tick));
@@ -315,6 +345,9 @@ export class ServerBootstrap {
         
         // Install ARE Infinite Loot Machine
         installARELootIntegration(tick);
+        
+        // Install Oracle Chat Bridge for prophecy broadcasts
+        installOracleChatBridge(tick);
         
         const shutdownHandler = async () => { 
           console.log("[Shutdown] Flushing data..."); 

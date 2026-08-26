@@ -37,6 +37,8 @@ jobs:
   client-2d-smoke:
     name: Validate and build client-2d
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     timeout-minutes: 20
 
     steps:
@@ -53,7 +55,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.2'
           cache: 'pnpm'
 
       - name: Install dependencies

@@ -22,12 +22,20 @@ export interface ClientWorld {
   getTickId(): number;
 }
 
-function createGuestPlayerId(): string {
-  return `guest_${Math.random().toString(36).slice(2, 10)}`;
+function createGuestPlayerId(options: ClientWorldOptions): string {
+  const seed = `${options.spawnX}|${options.spawnY}|${options.playerSpeed}`;
+  let hash = 0x811c9dc5;
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+
+  return `guest_${hash.toString(36).padStart(7, "0")}`;
 }
 
 export function createClientWorld(options: ClientWorldOptions): ClientWorld {
-  let localPlayerId = options.localPlayerId ?? createGuestPlayerId();
+  let localPlayerId = options.localPlayerId ?? createGuestPlayerId(options);
   let tickId = 0;
 
   const entities = new Map<string, EntityState>();

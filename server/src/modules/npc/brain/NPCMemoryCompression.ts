@@ -230,6 +230,9 @@ export function compressNPCMemory(
     );
   }
 
+  // Enforce semantic-memory bounds even when no new episodic summary was created.
+  updatedMemory.semantic = updatedMemory.semantic.slice(0, config.maxSemanticMemories);
+
   // ─── Update Episodic Memory ─────────────────────────────────────────────────
 
   updatedMemory.episodic = importantEvents;

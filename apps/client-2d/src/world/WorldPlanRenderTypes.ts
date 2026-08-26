@@ -1,14 +1,11 @@
 import type { Container, Texture } from "pixi.js";
 import type { AssetEntry } from "../assetManifest";
 import type { BuildingType, NpcRole, PropType, RoadType } from "@wasd/shared/world";
-import type { AssetBindingContext, BindingOptions, LodLevel } from "./AssetBindingContext";
-import type { BindingDebug } from "./AssetBindingDirector";
+import type { BindingOptions } from "./AssetBindingContext";
+import type { VisualSignature } from "./VisualSignature";
 
 export type RenderLayerName = "terrain" | "roads" | "buildings" | "props" | "actors";
 
-/**
- * Debug information for asset binding decisions.
- */
 export interface AssetBindingDebug {
   readonly seed: string;
   readonly semanticType: string;
@@ -19,13 +16,11 @@ export interface AssetBindingDebug {
   readonly finalScore: number;
 }
 
-/**
- * Extended bound asset with debug info.
- */
 export interface BoundAsset {
-  readonly semanticType: BuildingType | PropType | RoadType | NpcRole | "terrain";
+  readonly semanticType: BuildingType | PropType | RoadType | NpcRole | "terrain" | string;
   readonly entry: AssetEntry | null;
   readonly texture: Texture | null;
+  readonly visualSignature?: VisualSignature;
   readonly debug?: AssetBindingDebug;
 }
 
@@ -36,20 +31,24 @@ export interface WorldPlanRenderContext {
   readonly props: Container;
   readonly actors: Container;
   readonly textureFor: (entry: AssetEntry | null | undefined) => Texture | null;
-  readonly addNpcActor: (input: { readonly id: string; readonly tileX: number; readonly tileZ: number; readonly name: string; readonly role: NpcRole; readonly characterVisualId: string | null }) => void;
+  readonly addNpcActor: (input: {
+    readonly id: string;
+    readonly tileX: number;
+    readonly tileZ: number;
+    readonly name: string;
+    readonly role: NpcRole;
+    readonly characterVisualId: string | null;
+    readonly visualSignature?: VisualSignature | null;
+  }) => void;
 }
 
-/**
- * Extended binder interface with context-aware binding and debug support.
- */
 export interface WorldPlanAssetBinder {
-  // Basic binding (backwards compatible)
+  readonly bindTerrain: (terrainType: string, seed: string) => BoundAsset;
   readonly bindRoad: (roadType: RoadType, seed?: string) => BoundAsset;
   readonly bindBuilding: (buildingType: BuildingType, seed: string) => BoundAsset;
   readonly bindProp: (propType: PropType, seed: string) => BoundAsset;
   readonly bindNpc: (role: NpcRole, seed: string) => BoundAsset;
-  
-  // Context-aware binding (new deterministic system)
+  readonly bindTerrainWithContext: (terrainType: string, context: BindingOptions) => BoundAsset;
   readonly bindRoadWithContext: (roadType: RoadType, context: BindingOptions) => BoundAsset;
   readonly bindBuildingWithContext: (buildingType: BuildingType, context: BindingOptions) => BoundAsset;
   readonly bindPropWithContext: (propType: PropType, context: BindingOptions) => BoundAsset;

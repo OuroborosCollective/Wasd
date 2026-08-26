@@ -39,7 +39,13 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
 
   if (snapshot.status === "waiting") {
     return (
-      <aside className="quest-preview-panel" data-testid="quest-preview-waiting" aria-label="Quest preview">
+      <aside
+        className="quest-preview-panel"
+        data-testid="quest-preview-waiting"
+        aria-label="Quest preview"
+        aria-busy="true"
+        aria-live="polite"
+      >
         <small>Quest Sync</small>
         <strong>Waiting for server snapshot…</strong>
       </aside>
@@ -48,16 +54,33 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
 
   if (!quest) {
     return (
-      <aside className="quest-preview-panel" data-testid="quest-preview-empty" aria-label="Quest preview">
+      <aside
+        className="quest-preview-panel"
+        data-testid="quest-preview-empty"
+        aria-label="Quest preview"
+        aria-busy="false"
+      >
         <small>Quest Preview</small>
         <strong>No active quest</strong>
-        <button type="button" onClick={onOpenJournal}>Quest Journal</button>
+        <button
+          type="button"
+          onClick={onOpenJournal}
+          aria-label="Open Quest Journal [Q]"
+          aria-keyshortcuts="q"
+        >
+          <kbd className="cz-kbd" aria-hidden="true">Q</kbd> Quest Journal
+        </button>
       </aside>
     );
   }
 
   return (
-    <aside className="quest-preview-panel" data-testid="quest-preview-live" aria-label="Quest preview">
+    <aside
+      className="quest-preview-panel"
+      data-testid="quest-preview-live"
+      aria-label="Quest preview"
+      aria-busy="false"
+    >
       <header>
         <small>{quest.status}</small>
         <strong>{quest.title}</strong>
@@ -66,12 +89,31 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
       {objective && (
         <div className="quest-preview-objective">
           <span>{objective.label}</span>
-          <b>{objective.current}/{objective.required}{objective.completed ? " ✓" : ""}</b>
-          <i aria-hidden="true"><em style={{ width: `${progress}%` }} /></i>
+          <b>
+            {objective.current}/{objective.required}
+            {objective.completed ? " ✓" : ""}
+          </b>
+          <i
+            role="progressbar"
+            aria-label={`${objective.label} progress`}
+            aria-valuenow={objective.current}
+            aria-valuemin={0}
+            aria-valuemax={objective.required}
+            aria-valuetext={`${objective.current} of ${objective.required} ${objective.label}`}
+          >
+            <em style={{ width: `${progress}%` }} aria-hidden="true" />
+          </i>
         </div>
       )}
 
-      <button type="button" onClick={onOpenJournal}>Quest Journal</button>
+      <button
+        type="button"
+        onClick={onOpenJournal}
+        aria-label="Open Quest Journal [Q]"
+        aria-keyshortcuts="q"
+      >
+        <kbd className="cz-kbd" aria-hidden="true">Q</kbd> Quest Journal
+      </button>
     </aside>
   );
 }

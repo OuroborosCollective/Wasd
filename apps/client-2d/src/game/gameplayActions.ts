@@ -5,8 +5,7 @@
  * After each action, refetches the gameplay snapshot to update UI.
  *
  * Rules:
- * - No Math.random()
- * - No Date.now() for gameplay state
+ * - No client-generated nondeterministic gameplay state
  * - Server-authoritative: all decisions made server-side
  * - Client only sends action request and refetches state
  */
@@ -25,6 +24,42 @@ export interface ActionResult {
 export interface GameplayWorldPosition {
   x: number;
   y: number;
+}
+
+/**
+ * Request the single server-defined Aurion gate. The client cannot select a
+ * zone, spawn point, return point, actor or tick; it only supplies a bounded
+ * request identity and the next observed sequence number.
+ */
+export async function dispatchAurionTransition(playerId: string = DEFAULT_GAMEPLAY_PLAYER_ID): Promise<ActionResult> {
+  const transition = liveGameplayStore.getSnapshot().aurionTransition;
+  if (!transition || transition.status !== "idle") {
+    return { ok: false, error: "aurion_transition_unavailable" };
+  }
+
+  const sequenceId = transition.lastAcceptedSequence + 1;
+  const requestId = `aurion_transition_${sequenceId}`;
+  try {
+    const response = await fetch("/api/aurion/transition", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-player-id": playerId,
+      },
+      body: JSON.stringify({ requestId, sequenceId }),
+    });
+    const json = await response.json().catch(() => null);
+    if (!response.ok || !json?.ok) {
+      return { ok: false, error: String(json?.error ?? json?.code ?? "aurion_transition_failed") };
+    }
+
+    const next = await fetchGameplaySnapshot(playerId);
+    if (next) liveGameplayStore.setSnapshot(next, playerId);
+    return { ok: true };
+  } catch (error) {
+    console.error("[dispatchAurionTransition] failed:", error);
+    return { ok: false, error: "network_error" };
+  }
 }
 
 /**
@@ -120,8 +155,14 @@ export async function dispatchCraft(input: {
   }
 }
 
+function equipmentActionError(json: unknown, fallback: string): string {
+  const raw = json && typeof json === "object" ? (json as Record<string, any>) : {};
+  return String(raw.result?.reason ?? raw.error ?? fallback);
+}
+
 /**
  * Dispatch an equip action and refresh the live snapshot.
+ * The client sends only an item intent; server decides slot compatibility and ownership.
  */
 export async function dispatchEquip(input: {
   playerId?: string;
@@ -145,10 +186,10 @@ export async function dispatchEquip(input: {
     const json = await response.json().catch(() => null);
 
     if (!response.ok || !json?.ok) {
-      return { ok: false, error: String(json?.error ?? "equip_failed") };
+      return { ok: false, error: equipmentActionError(json, "equip_failed") };
     }
 
-    // Refetch snapshot to update equipment/paperdoll display
+    // Refetch snapshot to update equipment/paperdoll display from the authoritative server state.
     const next = await fetchGameplaySnapshot(playerId);
     if (next) {
       liveGameplayStore.setSnapshot(next);
@@ -157,6 +198,48 @@ export async function dispatchEquip(input: {
     return { ok: true };
   } catch (error) {
     console.error("[dispatchEquip] failed:", error);
+    return { ok: false, error: "network_error" };
+  }
+}
+
+/**
+ * Dispatch an unequip action and refresh the live snapshot.
+ * The client sends only a slot intent; server validates and applies the state transition.
+ */
+export async function dispatchUnequip(input: {
+  playerId?: string;
+  slotId: string;
+}): Promise<ActionResult> {
+  const playerId = input.playerId ?? DEFAULT_GAMEPLAY_PLAYER_ID;
+
+  try {
+    const response = await fetch("/api/equipment/unequip", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-player-id": playerId,
+      },
+      body: JSON.stringify({
+        playerId,
+        slotId: input.slotId,
+      }),
+    });
+
+    const json = await response.json().catch(() => null);
+
+    if (!response.ok || !json?.ok) {
+      return { ok: false, error: equipmentActionError(json, "unequip_failed") };
+    }
+
+    // Refetch snapshot to update equipment/paperdoll display from the authoritative server state.
+    const next = await fetchGameplaySnapshot(playerId);
+    if (next) {
+      liveGameplayStore.setSnapshot(next);
+    }
+
+    return { ok: true };
+  } catch (error) {
+    console.error("[dispatchUnequip] failed:", error);
     return { ok: false, error: "network_error" };
   }
 }

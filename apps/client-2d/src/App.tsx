@@ -19,7 +19,98 @@ interface Quest { id: string; title: string; obj: string; p: number; t: number; 
 interface Skill { id: string; name: string; cooldownTicksRemaining: number; ready: boolean; ico: string }
 interface ChatMsg { ch: string; from: string; txt: string }
 interface Item { id: string; name: string; cnt: number; ico: string }
-interface Equip { head: Item; chest: Item; weapon: Item }
+type EquipmentSlots = Record<string, Item>;
+interface SkillBookEntry { id: string; xp: number; level: number; nextLevelXP: number; progressPercent: number }
+interface PlayerStatsSnapshot {
+  playerId: string;
+  skills: Record<string, { xp: number; level: number; nextLevelXP: number; progressPercent: number }>;
+  unspentStatPoints: number;
+  totalLevel: number;
+  hp: number;
+  maxHp: number;
+  mana: number;
+  maxMana: number;
+  gold: number;
+  level: number;
+}
+
+const PENDING_CHAR: CharData = { name: "Snapshot pending", lvl: 0, hp: 0, mp: 0, maxHp: 0, maxMp: 0, xp: 0, gold: 0 };
+const DEFAULT_ACTION_SKILLS: Skill[] = [
+  { id: "atk", name: "Attack", cooldownTicksRemaining: 0, ready: true, ico: "⚔️" },
+  { id: "def", name: "Defend", cooldownTicksRemaining: msToHudCooldownTicks(5000), ready: false, ico: "🛡️" },
+  { id: "mag", name: "Magic", cooldownTicksRemaining: msToHudCooldownTicks(3000), ready: false, ico: "✨" },
+  { id: "int", name: "Interact", cooldownTicksRemaining: 0, ready: true, ico: "👆" },
+];
+
+function asNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function asItem(value: any): Item | null {
+  if (!value || typeof value !== "object") return null;
+  const id = String(value.id ?? value.uid ?? value.itemId ?? "").trim();
+  if (!id) return null;
+  return {
+    id,
+    name: String(value.name ?? value.baseType ?? value.itemId ?? id),
+    cnt: Math.max(1, Math.floor(asNumber(value.cnt ?? value.count ?? value.quantity, 1))),
+    ico: String(value.ico ?? value.icon ?? value.iconId ?? "◇"),
+  };
+}
+
+function normalizeInventory(payload: any): Item[] {
+  const source = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : [];
+  return source.map(asItem).filter((item): item is Item => Boolean(item));
+}
+
+function normalizeEquipment(payload: any): EquipmentSlots {
+  const source = payload?.equipment ?? payload?.slots ?? payload;
+  if (!source || typeof source !== "object") return {};
+  const slots: EquipmentSlots = {};
+  for (const [slot, value] of Object.entries(source)) {
+    const item = asItem(value);
+    if (item) slots[slot] = item;
+  }
+  return slots;
+}
+
+function normalizeQuests(payload: any): Quest[] {
+  const source = Array.isArray(payload?.quests) ? payload.quests : Array.isArray(payload) ? payload : [];
+  return source.map((quest: any) => ({
+    id: String(quest.id ?? quest.questId ?? ""),
+    title: String(quest.title ?? quest.name ?? quest.id ?? "Quest"),
+    obj: String(quest.obj ?? quest.objective ?? quest.description ?? "Awaiting server objective"),
+    p: Math.max(0, Math.floor(asNumber(quest.p ?? quest.progress, 0))),
+    t: Math.max(1, Math.floor(asNumber(quest.t ?? quest.target, 1))),
+    done: Boolean(quest.done ?? quest.completed),
+  })).filter((quest: Quest) => quest.id.length > 0);
+}
+
+function skillBookFromSnapshot(snapshot: PlayerStatsSnapshot | null): SkillBookEntry[] {
+  if (!snapshot) return [];
+  return Object.entries(snapshot.skills ?? {})
+    .map(([id, skill]) => ({
+      id,
+      xp: Math.max(0, Math.floor(asNumber(skill.xp, 0))),
+      level: Math.max(1, Math.floor(asNumber(skill.level, 1))),
+      nextLevelXP: Math.max(1, Math.floor(asNumber(skill.nextLevelXP, 1))),
+      progressPercent: Math.max(0, Math.min(100, asNumber(skill.progressPercent, 0))),
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function charFromStats(snapshot: PlayerStatsSnapshot): CharData {
+  return {
+    name: "Player",
+    lvl: Math.max(1, Math.floor(asNumber(snapshot.level, 1))),
+    hp: Math.max(0, Math.floor(asNumber(snapshot.hp, 0))),
+    mp: Math.max(0, Math.floor(asNumber(snapshot.mana, 0))),
+    maxHp: Math.max(1, Math.floor(asNumber(snapshot.maxHp, 1))),
+    maxMp: Math.max(0, Math.floor(asNumber(snapshot.maxMana, 0))),
+    xp: skillBookFromSnapshot(snapshot).reduce((total, skill) => total + skill.xp, 0),
+    gold: Math.max(0, Math.floor(asNumber(snapshot.gold, 0))),
+  };
+}
 
 export function App() {
   const cRef = useRef<HTMLDivElement>(null);
@@ -42,30 +133,16 @@ export function App() {
   const [chatTxt, setChatTxt] = useState("");
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [ch, setCh] = useState("local");
-  const [char, setChar] = useState<CharData>({ name: "Player", lvl: 1, hp: 100, mp: 50, maxHp: 100, maxMp: 50, xp: 0, gold: 0 });
-  const [quests] = useState<Quest[]>([
-    { id: "q1", title: "Welcome to Millbrook", obj: "Talk to the Elder", p: 0, t: 1, done: false },
-    { id: "q2", title: "Village Tour", obj: "Explore the village", p: 0, t: 3, done: false },
-  ]);
-  const [skills, setSkills] = useState<Skill[]>([
-    { id: "atk", name: "Attack", cooldownTicksRemaining: 0, ready: true, ico: "⚔️" },
-    { id: "def", name: "Defend", cooldownTicksRemaining: msToHudCooldownTicks(5000), ready: false, ico: "🛡️" },
-    { id: "mag", name: "Magic", cooldownTicksRemaining: msToHudCooldownTicks(3000), ready: false, ico: "✨" },
-    { id: "int", name: "Interact", cooldownTicksRemaining: 0, ready: true, ico: "👆" },
-  ]);
-  const [inv, setInv] = useState<Item[]>([
-    { id: "p_hp", name: "HP Potion", cnt: 5, ico: "❤️" },
-    { id: "p_mp", name: "MP Potion", cnt: 3, ico: "💙" },
-    { id: "coin", name: "Gold", cnt: 100, ico: "💰" },
-    { id: "herb", name: "Healing Herb", cnt: 2, ico: "🌿" },
-    { id: "wood", name: "Wood", cnt: 10, ico: "🪵" },
-    { id: "stone", name: "Stone", cnt: 5, ico: "🪨" },
-  ]);
-  const [equip] = useState<Equip>({
-    head: { id: "h_iron", name: "Iron Helm", cnt: 1, ico: "⛑️" },
-    chest: { id: "a_leath", name: "Leather Armor", cnt: 1, ico: "👕" },
-    weapon: { id: "s_wood", name: "Wooden Sword", cnt: 1, ico: "🗡️" },
-  });
+  const [char, setChar] = useState<CharData | null>(null);
+  const [quests, setQuests] = useState<Quest[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [inv, setInv] = useState<Item[]>([]);
+  const [equip, setEquip] = useState<EquipmentSlots>({});
+  const [playerStats, setPlayerStats] = useState<PlayerStatsSnapshot | null>(null);
+  const [hasAuthoritativeSnapshot, setHasAuthoritativeSnapshot] = useState(false);
+
+  const hudChar = char ?? PENDING_CHAR;
+  const hudSkills = skills.length > 0 ? skills : DEFAULT_ACTION_SKILLS.map((skill) => ({ ...skill, ready: false, cooldownTicksRemaining: 0 }));
 
   useEffect(() => {
     const detectMobile = () => window.innerWidth < 768 || "ontouchstart" in window;
@@ -81,11 +158,11 @@ export function App() {
 
   useEffect(() => {
     hudRef.current?.updateState(mapToArelorianHudState({
-      character: char,
-      skills,
+      character: hudChar,
+      skills: hudSkills,
       connected: conn,
     }));
-  }, [char, skills, conn]);
+  }, [hudChar, hudSkills, conn]);
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
@@ -114,8 +191,8 @@ export function App() {
       .then(() => {
         cRef.current?.appendChild(app.canvas);
         const hud = createArelorianHud(mapToArelorianHudState({
-          character: char,
-          skills,
+          character: hudChar,
+          skills: hudSkills,
           connected: conn,
         }), {}, {
           onSkillSlot: (slotIndex) => {
@@ -139,16 +216,18 @@ export function App() {
   }, []);
 
   function applyServerSkills(nextSkills: HudSkillSource[]): void {
-    setSkills((currentSkills) => currentSkills.map((skill, index) => {
-      const incoming = nextSkills.find((next) => next.id === skill.id) ?? nextSkills[index];
-      if (!incoming) return skill;
+    const normalized = nextSkills.map((incoming, index) => {
       const cooldownTicksRemaining = getSkillCooldownTicks(incoming);
       return {
-        ...skill,
+        id: String(incoming.id ?? index),
+        name: String((incoming as any).name ?? incoming.id ?? `Skill ${index + 1}`),
         cooldownTicksRemaining,
         ready: incoming.ready ?? cooldownTicksRemaining <= 0,
+        ico: String((incoming as any).ico ?? (incoming as any).icon ?? "◇"),
       };
-    }));
+    });
+
+    if (normalized.length > 0) setSkills(normalized);
   }
 
   function applyHeartbeatSkills(payload: any): void {
@@ -162,14 +241,32 @@ export function App() {
   }
 
   function runClientTick(): void {
+    if (!hasAuthoritativeSnapshot) return;
     setSkills((currentSkills) => currentSkills.map((skill) => {
       const nextTicks = Math.max(0, skill.cooldownTicksRemaining - 1);
       return { ...skill, cooldownTicksRemaining: nextTicks, ready: nextTicks <= 0 };
     }));
   }
 
+  function applyPlayerStatsSnapshot(payload: any): void {
+    if (!payload || typeof payload !== "object") return;
+    const snapshot = payload as PlayerStatsSnapshot;
+    setPlayerStats(snapshot);
+    setChar((current) => ({ ...charFromStats(snapshot), name: current?.name && current.name !== PENDING_CHAR.name ? current.name : "Player" }));
+    setHasAuthoritativeSnapshot(true);
+  }
+
+  function applyPlayerSnapshot(payload: any): void {
+    if (!payload || typeof payload !== "object") return;
+    if (payload.stats) applyPlayerStatsSnapshot(payload.stats);
+    if (payload.character) setChar((current) => ({ ...(current ?? PENDING_CHAR), ...payload.character }));
+    if (payload.inventory) setInv(normalizeInventory(payload.inventory));
+    if (payload.equipment) setEquip(normalizeEquipment(payload.equipment));
+    if (payload.quests) setQuests(normalizeQuests(payload.quests));
+    setHasAuthoritativeSnapshot(true);
+  }
+
   function startNetwork(app: Application) {
-    // Use environment variable for WebSocket URL, fallback to current origin
     const wsUrl = (import.meta.env.VITE_WS_URL as string | undefined) || window.location.origin;
     const client = createClient({ url: wsUrl, heartbeatInterval: 30000 });
     cliRef.current = client;
@@ -177,8 +274,9 @@ export function App() {
     client.on("connect", () => setConn(true));
     client.on("disconnect", () => setConn(false));
     client.on("WORLD_HEARTBEAT", (e: any) => {
-      updateEntities(app, e.payload?.players ?? {}, e.payload?.agents ?? {});
+      updateEntities(app, e.payload?.players ?? {}, e.payload?.agents ?? e.payload?.npcs ?? {});
       applyHeartbeatSkills(e.payload);
+      if (e.payload?.self) applyPlayerSnapshot(e.payload.self);
     });
     client.on("PLAYER_JOINED", (e: any) => addChatMsg("system", "system", `${e.payload?.name || "Player"} joined`));
     client.on("PLAYER_LEFT", (e: any) => removeEntity(e.payload?.playerId));
@@ -190,7 +288,8 @@ export function App() {
     client.on("QUEST_DONE", (e: any) => addChatMsg("system", "system", `Quest completed: ${e.payload?.title}!`));
     client.on("CHAR_UPDATE", (e: any) => {
       if (e.payload) {
-        setChar((p) => ({ ...p, ...e.payload }));
+        setChar((p) => ({ ...(p ?? PENDING_CHAR), ...e.payload }));
+        setHasAuthoritativeSnapshot(true);
         if (Array.isArray(e.payload.skills)) applyServerSkills(e.payload.skills);
       }
     });
@@ -198,10 +297,13 @@ export function App() {
       if (Array.isArray(e.payload?.skills)) applyServerSkills(e.payload.skills);
       else if (e.payload?.skill) applyServerSkills([e.payload.skill]);
     });
-    client.on("INV_UPDATE", (e: any) => { if (e.payload?.items) setInv(e.payload.items); });
+    client.on("INV_UPDATE", (e: any) => { setInv(normalizeInventory(e.payload)); setHasAuthoritativeSnapshot(true); });
+    client.on("EQUIPMENT_SNAPSHOT", (e: any) => { setEquip(normalizeEquipment(e.payload)); setHasAuthoritativeSnapshot(true); });
+    client.on("QUEST_SNAPSHOT", (e: any) => { setQuests(normalizeQuests(e.payload)); setHasAuthoritativeSnapshot(true); });
+    client.on("PLAYER_SNAPSHOT", (e: any) => applyPlayerSnapshot(e.payload));
+    client.on("player_stats_snapshot", (e: any) => applyPlayerStatsSnapshot(e.payload));
 
     client.connect();
-    addChatMsg("system", "system", "Welcome to Millbrook!");
 
     app.ticker.add((ticker) => {
       clientTickAccumulator.current += ticker.deltaMS;
@@ -286,7 +388,7 @@ export function App() {
   function sendChatMsg() {
     if (!chatTxt.trim()) return;
     if (cliRef.current?.connected) cliRef.current.sendPlayerAction("CHAT", { channel: ch, text: chatTxt });
-    addChatMsg(ch, char.name, chatTxt);
+    addChatMsg(ch, char?.name ?? "Player", chatTxt);
     setChatTxt("");
   }
 
@@ -327,15 +429,16 @@ export function App() {
     if (joyKnob.current) joyKnob.current.style.transform = "translate(0px, 0px)";
   }
 
-  const panelStyle: React.CSSProperties = { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: mobile ? "90%" : 400, maxHeight: "70%", background: "rgba(15,15,26,0.95)", border: "2px solid rgba(100,150,255,0.5)", borderRadius: 12, padding: 16, overflow: "auto", zIndex: 200, color: "#fff", fontFamily: "monospace" };
+  const panelStyle: React.CSSProperties = { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: mobile ? "90%" : 440, maxHeight: "70%", background: "rgba(15,15,26,0.95)", border: "2px solid rgba(100,150,255,0.5)", borderRadius: 12, padding: 16, overflow: "auto", zIndex: 200, color: "#fff", fontFamily: "monospace" };
   const closeBtn: React.CSSProperties = { marginTop: 16, width: "100%", padding: 12, background: "#f44", border: "none", borderRadius: 4, color: "#fff", cursor: "pointer", fontWeight: "bold" };
+  const emptyState = (label: string) => <div style={{ opacity: 0.7 }}>Awaiting authoritative {label} snapshot…</div>;
 
   const renderPanel = () => {
     if (!panel) return null;
-    if (panel === "character") return <div style={panelStyle}><h2>⚔️ Character</h2><div>Name: {char.name}</div><div>Level: {char.lvl}</div><div>XP: {char.xp}</div><div>Gold: 💰 {char.gold}</div><div>❤️ HP: {char.hp}/{char.maxHp}</div><div>💙 MP: {char.mp}/{char.maxMp}</div><h3>Equipment</h3>{Object.entries(equip).map(([slot, item]) => <div key={slot}>{slot}: {item.ico} {item.name}</div>)}<button onClick={() => togglePanel("character")} style={closeBtn}>Close</button></div>;
-    if (panel === "inventory") return <div style={panelStyle}><h2>🎒 Inventory</h2>{inv.map((item) => <div key={item.id}>{item.ico} {item.name} x{item.cnt}</div>)}<button onClick={() => togglePanel("inventory")} style={closeBtn}>Close</button></div>;
-    if (panel === "quests") return <div style={panelStyle}><h2>📜 Quests</h2>{quests.map((q) => <div key={q.id}>{q.done ? "✅" : "◻"} {q.title}: {q.obj} ({q.p}/{q.t})</div>)}<button onClick={() => togglePanel("quests")} style={closeBtn}>Close</button></div>;
-    if (panel === "skills") return <div style={panelStyle}><h2>✨ Skills</h2>{skills.map((sk) => <button key={sk.id} onClick={() => useSkill(sk.id)} disabled={!sk.ready}>{sk.ico} {sk.name} {sk.cooldownTicksRemaining > 0 ? formatCooldownTicks(sk.cooldownTicksRemaining) : ""}</button>)}<button onClick={() => togglePanel("skills")} style={closeBtn}>Close</button></div>;
+    if (panel === "character") return <div style={panelStyle}><h2>⚔️ Character</h2>{!hasAuthoritativeSnapshot && emptyState("player")}<div>Name: {hudChar.name}</div><div>Level: {hudChar.lvl}</div><div>XP: {hudChar.xp}</div><div>Gold: 💰 {hudChar.gold}</div><div>❤️ HP: {hudChar.hp}/{hudChar.maxHp}</div><div>💙 MP: {hudChar.mp}/{hudChar.maxMp}</div>{playerStats && <><h3>Stats</h3><div>Total Level: {playerStats.totalLevel}</div><div>Unspent Stat Points: {playerStats.unspentStatPoints}</div></>}<h3>Paperdoll</h3>{Object.keys(equip).length === 0 ? emptyState("equipment") : Object.entries(equip).map(([slot, item]) => <div key={slot}>{slot}: {item.ico} {item.name}</div>)}<button onClick={() => togglePanel("character")} style={closeBtn}>Close</button></div>;
+    if (panel === "inventory") return <div style={panelStyle}><h2>🎒 Inventory</h2>{inv.length === 0 ? emptyState("inventory") : inv.map((item) => <div key={item.id}>{item.ico} {item.name} x{item.cnt}</div>)}<button onClick={() => togglePanel("inventory")} style={closeBtn}>Close</button></div>;
+    if (panel === "quests") return <div style={panelStyle}><h2>📜 Quests</h2>{quests.length === 0 ? emptyState("quest") : quests.map((q) => <div key={q.id}>{q.done ? "✅" : "◻"} {q.title}: {q.obj} ({q.p}/{q.t})</div>)}<button onClick={() => togglePanel("quests")} style={closeBtn}>Close</button></div>;
+    if (panel === "skills") return <div style={panelStyle}><h2>✨ Skills</h2>{skillBookFromSnapshot(playerStats).length === 0 ? emptyState("skill") : skillBookFromSnapshot(playerStats).map((sk) => <div key={sk.id} style={{ marginBottom: 8 }}><strong>{sk.id}</strong> Lv.{sk.level} XP {sk.xp} → next {sk.nextLevelXP} ({sk.progressPercent.toFixed(1)}%)</div>)}<h3>Action Bar</h3>{skills.length === 0 ? emptyState("action skill") : skills.map((sk) => <button key={sk.id} onClick={() => useSkill(sk.id)} disabled={!sk.ready}>{sk.ico} {sk.name} {sk.cooldownTicksRemaining > 0 ? formatCooldownTicks(sk.cooldownTicksRemaining) : ""}</button>)}<button onClick={() => togglePanel("skills")} style={closeBtn}>Close</button></div>;
     if (panel === "chat") return <div style={panelStyle}><h2>💬 Chat</h2><div>{["local", "trade", "world"].map((c) => <button key={c} onClick={() => setCh(c)}>{c}</button>)}</div><div>{msgs.filter((m) => m.ch === ch).map((m, i) => <div key={i}>[{m.from}] {m.txt}</div>)}</div><input value={chatTxt} onChange={(e) => setChatTxt(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendChatMsg()} /><button onClick={() => togglePanel("chat")} style={closeBtn}>Close</button></div>;
     return null;
   };
@@ -351,9 +454,10 @@ export function App() {
 
   return <div ref={cRef} style={{ width: "100%", height: "100%", position: "relative" }}>
     {!conn && !err && <div style={status}>Connecting...</div>}
+    {conn && !hasAuthoritativeSnapshot && !err && <div style={status}>Connected. Awaiting ARE snapshot…</div>}
     {err && <div style={{ ...status, color: "#f55" }}>Error: {err}</div>}
-    <div style={topBar}><div>❤️ {char.hp}/{char.maxHp}</div><div>💙 {char.mp}/{char.maxMp}</div><div>⭐ Lv.{char.lvl}</div><div>💰 {char.gold}</div></div>
-    <div style={skillBar}>{skills.slice(0, 4).map((sk) => <button key={sk.id} onClick={() => useSkill(sk.id)} disabled={!sk.ready}>{sk.ico}</button>)}</div>
+    <div style={topBar}><div>❤️ {hudChar.hp}/{hudChar.maxHp}</div><div>💙 {hudChar.mp}/{hudChar.maxMp}</div><div>⭐ Lv.{hudChar.lvl}</div><div>💰 {hudChar.gold}</div></div>
+    <div style={skillBar}>{hudSkills.slice(0, 4).map((sk) => <button key={sk.id} onClick={() => useSkill(sk.id)} disabled={!sk.ready}>{sk.ico}</button>)}</div>
     <div style={actionBtns}><button onClick={() => togglePanel("character")} style={actionBtn}>👤</button><button onClick={() => togglePanel("inventory")} style={actionBtn}>🎒</button><button onClick={() => togglePanel("quests")} style={actionBtn}>📜</button><button onClick={() => togglePanel("skills")} style={actionBtn}>✨</button><button onClick={() => togglePanel("chat")} style={actionBtn}>💬</button></div>
     {showJoy && <div ref={joyBase} onTouchStart={onJoyStart} onTouchMove={onJoyMove} onTouchEnd={onJoyEnd} style={joyBaseStyle}><div ref={joyKnob} style={joyKnobStyle} /></div>}
     {!mobile && conn && <div style={hint}>E:Char I:Inv Q:Quest K:Skills C:Chat</div>}

@@ -18,10 +18,30 @@ export interface LootTable {
   goldMax?: number;
 }
 
+const INTERNAL_LEGACY_KEY: unique symbol = Symbol("areloria.legacy.loot.key");
+type InternalLegacyKey = typeof INTERNAL_LEGACY_KEY;
+
+export interface LootSystemOptions {
+  readonly usage?: "migration" | "test";
+  readonly internalKey?: InternalLegacyKey;
+}
+
+function assertLegacyAllowed(options: LootSystemOptions): void {
+  if (options.internalKey === INTERNAL_LEGACY_KEY) return;
+  throw new Error("legacy_loot_system_disabled: use LootDirector + ProceduralLootMachine");
+}
+
+export function createLegacyLootSystemForMigration(usage: "migration" | "test"): LootSystem {
+  return new LootSystem({ internalKey: INTERNAL_LEGACY_KEY, usage });
+}
+
 export class LootSystem {
   private lootTables: Map<string, LootTable> = new Map();
+  private readonly options: LootSystemOptions;
 
-  constructor() {
+  constructor(options: LootSystemOptions = {}) {
+    this.options = Object.freeze({ ...options });
+    assertLegacyAllowed(this.options);
     this.loadLootTables();
   }
 
@@ -48,7 +68,8 @@ export class LootSystem {
   rollLoot(
     dropTable: LootTableEntry[],
     rng: ARERng = new SeededARERng(createARESeed([
-      "loot-table-inline",
+      "legacy-loot-table-inline",
+      this.options.usage ?? "unscoped",
       dropTable.map((entry) => `${entry.itemId}:${entry.chance}:${entry.minCount ?? 1}:${entry.maxCount ?? entry.minCount ?? 1}`).join(","),
     ]))
   ): { items: ItemDefinition[]; gold: number } {
@@ -66,7 +87,7 @@ export class LootSystem {
           if (item) {
             const seededItem = {
               ...item,
-              seed: item.seed ?? createARESeed(["loot-visual", entry.itemId, dropIndex, item.rarity ?? "common"]),
+              seed: item.seed ?? createARESeed(["legacy-loot-visual", entry.itemId, dropIndex, item.rarity ?? "common"]),
             };
             items.push((seededItem.type === "weapon"
               ? applyWeaponVisual(seededItem, { rng: rng.fork(`visual:${entry.itemId}:${dropIndex}`), dropIndex })
@@ -80,13 +101,12 @@ export class LootSystem {
     return { items, gold };
   }
 
-  rollFromTable(tableId: string, rng: ARERng = new SeededARERng(createARESeed(["loot-table", tableId]))): { items: ItemDefinition[]; gold: number } {
+  rollFromTable(tableId: string, rng: ARERng = new SeededARERng(createARESeed(["legacy-loot-table", this.options.usage ?? "unscoped", tableId]))): { items: ItemDefinition[]; gold: number } {
     const table = this.lootTables.get(tableId);
     if (!table) return { items: [], gold: 0 };
 
     const result = this.rollLoot(table.entries, rng.fork(`${tableId}:entries`));
 
-    // Roll gold
     if (table.goldMin !== undefined && table.goldMax !== undefined) {
       result.gold = rng.nextRange(table.goldMin, table.goldMax);
     }

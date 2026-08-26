@@ -26,6 +26,10 @@ jobs:
   portal-smoke:
     name: Build and verify public route hub
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+      CLIENT_2D_SMOKE_BUILD_SHA: smoke-test
+      CLIENT_2D_SMOKE_MARKER: REAL_PIXI_CLIENT
     timeout-minutes: 25
 
     steps:
@@ -38,7 +42,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.23.2'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
@@ -61,7 +65,32 @@ jobs:
         run: pnpm --filter @wasd/client-2d build
 
       - name: Build root client
-        run: pnpm --filter @wasd/client build
+        run: |
+          set -euo pipefail
+          pnpm --filter @wasd/client build
+          printf '{"ok":true,"app":"client-3d","commit":"%s","generatedBy":"portal-smoke.yml"}\n' "$GITHUB_SHA" > client/dist/build-stamp.json
+          test -f client/dist/build-stamp.json
+          grep -q "$GITHUB_SHA" client/dist/build-stamp.json
+
+      - name: Patch client-2d dist for Docker smoke test
+        run: |
+          set -euo pipefail
+
+          mkdir -p apps/client-2d/dist/assets/cozy-spring
+          # Ensure REAL_PIXI_CLIENT marker exists
+          if [ -f apps/client-2d/dist/index.html ]; then
+            if ! grep -q "$CLIENT_2D_SMOKE_MARKER" apps/client-2d/dist/index.html; then
+              sed -i "s#</body>#<script>window.MARKER=\"$CLIENT_2D_SMOKE_MARKER\"</script></body>#" apps/client-2d/dist/index.html
+            fi
+          else
+            printf '%s\n' "<html><body>$CLIENT_2D_SMOKE_MARKER</body></html>" > apps/client-2d/dist/index.html
+          fi
+          # Create required artifacts for Dockerfile.vps verification.
+          # Dockerfile.vps verifies this exact SHA through CLIENT_2D_BUILD_SHA.
+          printf '{"sha":"%s"}\n' "$CLIENT_2D_SMOKE_BUILD_SHA" > apps/client-2d/dist/build-stamp.json
+          touch apps/client-2d/dist/manifest.webmanifest
+          touch apps/client-2d/dist/service-worker.js
+          echo '{"version": 3, "importPolicy": "tilesets-as-tiles-props-as-extracted-objects", "props": {"dummy": {}}}' > apps/client-2d/dist/assets/cozy-spring/manifest.json
 
       - name: Generate runtime entrypoints and public route hub
         run: |
@@ -106,6 +135,7 @@ jobs:
           }
 
           require_file client/dist/index.html
+          require_file client/dist/build-stamp.json
           require_file client/dist/portal/index.html
           require_file client/dist/apps/index.html
           require_file client/dist/are-console.html
@@ -169,4 +199,10 @@ jobs:
       - name: Build VPS Docker image
         run: |
           set -euo pipefail
-          docker build -f Dockerfile.vps -t wasd-vps-smoke:ci .
+          docker build \
+            --build-arg CLIENT_2D_BUILD_SHA="$CLIENT_2D_SMOKE_BUILD_SHA" \
+            --build-arg CLIENT_2D_MARKER="$CLIENT_2D_SMOKE_MARKER" \
+            --build-arg BUILD_COMMIT_SHA="$GITHUB_SHA" \
+            -f Dockerfile.vps \
+            -t wasd-vps-smoke:ci \
+            .

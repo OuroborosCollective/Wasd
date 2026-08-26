@@ -88,9 +88,23 @@ const LOADOUTS: Record<Role, string[]> = {
 };
 
 const CHARACTER_STORAGE_KEY = "wasd:2d:character.v1";
+const GAMEPLAY_PLAYER_ID_KEY = "wasd:2d:playerId";
 const LEGACY_NAME_KEY = "wasd:2d:name";
 const LEGACY_ENTERED_KEY = "wasd:2d:entered";
+const WORLD_SEED_STORAGE_KEY = "wasd:2d:worldSeed";
 const DEFAULT_CHARACTER_NAME = "Wanderer";
+const KAPPA_INVARIANT = 1000;
+
+function resolveRuntimeWorldSeed(): string {
+  const params = new URLSearchParams(globalThis.location?.search ?? "");
+  const fromUrl = params.get("worldSeed")?.trim();
+  if (fromUrl) return fromUrl;
+  const fromDataset = document.documentElement.dataset.worldSeed?.trim() || document.body.dataset.worldSeed?.trim();
+  if (fromDataset) return fromDataset;
+  const fromStorage = localStorage.getItem(WORLD_SEED_STORAGE_KEY)?.trim();
+  if (fromStorage) return fromStorage;
+  return ["ARELORIA", "COLLECTIVE", "ALPHA"].join("|");
+}
 
 function stableHash(parts: Array<string | number>): string {
   let h1 = 0x811c9dc5;
@@ -155,6 +169,7 @@ function persistIdentity(identity: GateIdentity): PersistedCharacterV1 {
   localStorage.setItem(CHARACTER_STORAGE_KEY, JSON.stringify(character));
   localStorage.setItem(LEGACY_NAME_KEY, character.name);
   localStorage.setItem("wasd:2d:handle", character.handle);
+  localStorage.setItem(GAMEPLAY_PLAYER_ID_KEY, character.publicKey);
   localStorage.setItem("wasd:2d:publicKey", character.publicKey);
   localStorage.setItem("wasd:2d:role", character.role);
   localStorage.setItem("wasd:2d:identityHash", character.identityHash);
@@ -168,12 +183,10 @@ function persistIdentity(identity: GateIdentity): PersistedCharacterV1 {
 function deriveIdentity(handleRaw: string): GateIdentity {
   const displayName = normalizeDisplayName(handleRaw);
   const handle = normalizeHandle(displayName);
-  const tick = Math.floor(performance.now() / 100);
-  const phase = tick % 10;
-  const kappa = 1000;
-  const worldSeed = "ARELORIA|COLLECTIVE|ALPHA";
-  const identityHash = stableHash(["ARE_COLLECTIVE_GATE", worldSeed, handle, tick, phase, kappa]);
-  const role = ROLES[hashInt(identityHash, 0, ROLES.length)];
+  const identityHash = stableHash(["ARE_COLLECTIVE_GATE", resolveRuntimeWorldSeed(), handle, KAPPA_INVARIANT]);
+  const phase = hashInt(identityHash, 0, 10);
+  const tick = hashInt(identityHash, 8, 1_000_000);
+  const role = ROLES[hashInt(identityHash, 16, ROLES.length)];
   return {
     handle,
     displayName,
@@ -182,10 +195,10 @@ function deriveIdentity(handleRaw: string): GateIdentity {
     tick,
     phase,
     spawn: {
-      chunkX: hashInt(identityHash, 8, 32) - 16,
-      chunkY: hashInt(identityHash, 16, 32) - 16,
-      x: hashInt(identityHash, 24, 64),
-      y: hashInt(identityHash, 32, 64),
+      chunkX: hashInt(identityHash, 24, 32) - 16,
+      chunkY: hashInt(identityHash, 32, 32) - 16,
+      x: hashInt(identityHash, 40, 64),
+      y: hashInt(identityHash, 48, 64),
     },
     loadout: LOADOUTS[role],
     identityHash,
@@ -231,7 +244,7 @@ export function CyberZenLoginGate({ children }: Props): React.ReactElement {
         <h1>Cyber-Zen Gateway</h1>
         <p>
           Deterministischer Einstieg ohne klassische Nutzerdaten. Dein Public-Key, deine Rolle, Spawn-Position und
-          Startausrüstung entstehen aus Handle, Kappa=1000 und der aktuellen 10-Hz-Tickphase.
+          Startausrüstung entstehen stabil aus Handle, Kappa=1000 und runtime-resolved World-Seed.
         </p>
         <label className="cz-field">
           <span>Architect Handle</span>
@@ -240,10 +253,10 @@ export function CyberZenLoginGate({ children }: Props): React.ReactElement {
         <div className="cz-keybox"><span>Public-Key</span><strong>{identity.publicKey}</strong></div>
         <div className="cz-keybox"><span>Name</span><strong>{identity.displayName}</strong></div>
         <div className="cz-keybox"><span>Role</span><strong>{identity.role}</strong></div>
-        <div className="cz-keybox"><span>10-Hz Tick</span><strong>{identity.tick} · phase {identity.phase}/9</strong></div>
+        <div className="cz-keybox"><span>Stable 10-Hz Identity</span><strong>{identity.tick} · phase {identity.phase}/9</strong></div>
         <div className="cz-keybox"><span>Spawn</span><strong>{identity.spawn.chunkX}:{identity.spawn.chunkY} · {identity.spawn.x},{identity.spawn.y}</strong></div>
         <button className="cz-enter" type="button" onClick={enter}>Collective betreten</button>
-        <div className="cz-hints"><span>Kappa 1000</span><span>Hash Identity</span><span>10-Hz Seed</span></div>
+        <div className="cz-hints"><span>Kappa 1000</span><span>Hash Identity</span><span>Stable Seed</span></div>
       </section>
     </main>
   );

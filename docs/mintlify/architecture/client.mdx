@@ -1,0 +1,154 @@
+---
+title: Client Architecture
+description: 2D and 3D rendering client design
+---
+
+# Client Architecture
+
+Areloria supports two rendering clients: a **2D isometric client** (primary) and a **3D client** (extended visualization).
+
+## 2D Client (Primary)
+
+The 2D client is the active release path, built with **PixiJS v7** and **React**.
+
+### Entry Point
+
+```
+apps/client-2d/src/
+├── App.tsx                      # Main React component
+├── DeterministicWorldIsoApp.tsx  # Core rendering app
+├── ui/
+│   └── UIManager.tsx            # UI overlay system
+└── manifest/
+    └── ClientManifestTracker.ts # Divergence detection
+```
+
+### Rendering Pipeline
+
+```
+Server Snapshot (10Hz)
+  → Client receives WebSocket packet
+  → Parse and validate
+  → Store in interpolation buffer
+  → Render at 60 FPS (lerp between snapshots)
+```
+
+The client interpolates between server states for smooth 60 FPS rendering while server updates at 10 Hz.
+
+### State Management
+
+Uses React's `useSyncExternalStore` for reactive UI updates:
+
+```typescript
+const gameState = useSyncExternalStore(
+  subscribe,    // WebSocket event subscription
+  getSnapshot,  // Current state snapshot
+);
+```
+
+### Key Features
+
+| Feature | Implementation |
+|---------|---------------|
+| Sprite rendering | PixiJS Sprites with atlas textures |
+| Animation | Sprite sheet interpolation |
+| UI overlay | React components with CSS |
+| Network | WebSocket via `wasd:network-packet` events |
+| Debug HUD | Chunk visibility overlay |
+
+## 3D Client (Extended)
+
+The 3D client uses **Babylon.js** with **Vite** for builds:
+
+```
+client/src/
+├── main.ts              # Entry point
+├── scene/              # Scene setup
+├── entities/           # 3D entity types
+├── materials/          # Shader/materials
+└── networking/        # Client-side network
+```
+
+**Note:** The 3D client is not the current release gate but remains part of the repository for extended visualization needs.
+
+## Client Network Protocol
+
+### WebSocket Events
+
+Client listens for `wasd:network-packet`:
+
+```typescript
+interface NetworkPacket {
+  type: 'snapshot' | 'event' | 'player_join' | 'player_leave';
+  tickId: number;
+  data: unknown;
+}
+```
+
+### Sending Intents
+
+```typescript
+client.send({
+  type: 'intent',
+  action: 'move',
+  position: { x: 100, y: 200 },
+  timestamp: Date.now(),
+});
+```
+
+## Build Configuration
+
+### Vite Configuration
+
+```typescript
+// vite.config.ts
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+  },
+});
+```
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_AUTH_PROVIDER` | `supabase` or `none` |
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key |
+
+## Public Assets
+
+Static assets in `apps/client-2d/public/` must be explicitly copied to `dist/` during Docker builds:
+
+```dockerfile
+RUN mkdir -p apps/client-2d/dist/assets && \
+    cp -a apps/client-2d/public/assets/. apps/client-2d/dist/assets/
+```
+
+## Debug Tools
+
+| Tool | Route | Purpose |
+|------|-------|---------|
+| Chunk Debug HUD | Built into 2D client | Show chunk loading |
+| Playtester Monitor | `/playtester-monitor.html` | WebRTC stream viewer |
+| Admin Content | `/admin-content.html` | Content management |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture Overview" icon="layers" href="/mintlify/architecture/overview">
+    System design summary
+  </Card>
+  <Card title="Determinism" icon="hash" href="/mintlify/architecture/determinism">
+    Deterministic simulation rules
+  </Card>
+  <Card title="Gameplay Systems" icon="gamepad-2" href="/mintlify/gameplay/overview">
+    Core gameplay mechanics
+  </Card>
+  <Card title="Deployment" icon="cloud" href="/mintlify/deployment/vps">
+    Deploy to production
+  </Card>
+</CardGroup>

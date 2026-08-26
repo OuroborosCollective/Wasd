@@ -7,9 +7,7 @@
 
 import type {
   LayoutValidationResult,
-  LayoutIssue,
   SpatialEntity,
-  LayoutRuleContext,
   WorldLayoutConfig,
 } from "./WorldLayoutTypes.js";
 import { WorldLayoutSpatialIndex } from "./WorldLayoutSpatialIndex.js";
@@ -27,6 +25,7 @@ export class WorldLayoutValidator {
   private readonly registry = new WorldLayoutConstraintRegistry();
   private readonly spatialIndex: WorldLayoutSpatialIndex;
   private readonly config: WorldLayoutConfig;
+  private validationSequence = 0;
 
   constructor(config: WorldLayoutConfig, spatialIndex?: WorldLayoutSpatialIndex) {
     this.config = config;
@@ -58,9 +57,9 @@ export class WorldLayoutValidator {
   /**
    * Run all validation rules against the current spatial index.
    */
-  validate(entities?: SpatialEntity[]): LayoutValidationResult {
+  validate(entities?: SpatialEntity[], deterministicTimestamp?: number): LayoutValidationResult {
     const allEntities = entities ?? this.spatialIndex.getAll();
-    const context: LayoutRuleContext = {
+    const context = {
       allEntities,
       chunkSize: this.config.chunkSize,
     };
@@ -82,7 +81,10 @@ export class WorldLayoutValidator {
       ok: issues.length === 0,
       issues,
       score,
-      timestamp: Date.now(),
+      timestamp: normalizeDeterministicTimestamp(
+        deterministicTimestamp,
+        () => ++this.validationSequence,
+      ),
     };
   }
 
@@ -99,4 +101,10 @@ export class WorldLayoutValidator {
   getRules(): Array<{ id: string; name: string }> {
     return this.registry.getAll().map((r) => ({ id: r.id, name: r.name }));
   }
+}
+
+function normalizeDeterministicTimestamp(value: unknown, fallback: () => number): number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+    ? value
+    : fallback();
 }

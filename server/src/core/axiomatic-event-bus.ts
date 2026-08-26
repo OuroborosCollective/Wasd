@@ -6,7 +6,7 @@ import {
   normalizePositiveInteger,
   sanitizeText,
   stableStringify,
-} from './watchdog-determinism';
+} from './watchdog-determinism.js';
 
 export const AXIOMATIC_EVENT_SCHEMA_VERSION = 2 as const;
 export const KAPPA_INVARIANT = 1000 as const;
@@ -33,6 +33,7 @@ export interface IAxiomaticEvent<TPayload = unknown> {
     tickHz: typeof WATCHDOG_TICK_HZ;
     tickMs: typeof WATCHDOG_TICK_MS;
     deterministic: true;
+    violation?: string;
   };
   version: typeof AXIOMATIC_EVENT_SCHEMA_VERSION;
 }
@@ -45,6 +46,7 @@ export interface AxiomaticPublishOptions {
   metadata?: Record<string, unknown>;
   violationPolicy?: DeterminismViolationPolicy;
   silent?: boolean;
+  observerLog?: boolean;
 }
 
 interface ListenerEntry {
@@ -63,8 +65,16 @@ export interface AxiomaticLedgerStats {
   currentTickSequence: number;
   currentResonance: number;
   lastSequenceId: number;
+  listenerCount: number;
   tickHz: typeof WATCHDOG_TICK_HZ;
   tickMs: typeof WATCHDOG_TICK_MS;
+  deterministic: true;
+}
+
+export interface AxiomaticLedgerIntegrityReport {
+  ok: boolean;
+  checked: number;
+  failures: Array<{ index: number; eventId: string; reason: string }>;
   deterministic: true;
 }
 
@@ -108,6 +118,7 @@ export class AxiomaticEventBus {
   }
 
   public beginTick(tick: number): void {
+    if (!isNonNegativeSafeInteger(tick)) throw new Error(`[AxiomaticEventBus] Invalid world tick: ${String(tick)}.`);
     const nextTick = normalizePositiveInteger(tick, this.currentTick);
     if (nextTick < this.currentTick) throw new Error(`[AxiomaticEventBus] Refused backwards world tick: ${nextTick} < ${this.currentTick}.`);
     if (nextTick !== this.currentTick) {
@@ -117,21 +128,40 @@ export class AxiomaticEventBus {
   }
 
   public publish<TPayload = unknown>(type: string, payload?: TPayload, options: AxiomaticPublishOptions = {}): IAxiomaticEvent<TPayload> {
-    const eventType = sanitizeText(type, 'axiomatic.event');
+    const eventType = normalizeEventType(type, 'axiomatic.event');
+    const policy = options.violationPolicy ?? 'reject';
     const requestedTick = options.tick ?? readNumericField(payload, 'tick') ?? this.currentTick;
     let tick = normalizePositiveInteger(requestedTick, this.currentTick);
     let violation: string | undefined;
 
+    if (!isNonNegativeSafeInteger(requestedTick)) {
+      violation = `invalid_tick:${String(requestedTick)}->${tick}`;
+      if (policy === 'reject') throw new Error(`[AxiomaticEventBus] Refused invalid tick for "${eventType}".`);
+    }
+
     if (tick < this.currentTick) {
       violation = `backwards_tick:${tick}<${this.currentTick}`;
-      if ((options.violationPolicy ?? 'reject') === 'reject') throw new Error(`[AxiomaticEventBus] Refused non-monotonic event "${eventType}".`);
+      if (policy === 'reject') throw new Error(`[AxiomaticEventBus] Refused non-monotonic event "${eventType}".`);
       tick = this.currentTick;
     }
 
     this.beginTick(tick);
 
-    const tickSequence = options.tickSequence ?? ++this.currentTickSequence;
-    this.currentTickSequence = Math.max(this.currentTickSequence, tickSequence);
+    const requestedTickSequence = options.tickSequence ?? this.currentTickSequence + 1;
+    let tickSequence = normalizePositiveInteger(requestedTickSequence, this.currentTickSequence + 1);
+
+    if (!isNonNegativeSafeInteger(requestedTickSequence)) {
+      violation = violation ?? `invalid_tick_sequence:${String(requestedTickSequence)}->${tickSequence}`;
+      if (policy === 'reject') throw new Error(`[AxiomaticEventBus] Refused invalid tickSequence for "${eventType}".`);
+    }
+
+    if (tickSequence <= this.currentTickSequence) {
+      violation = violation ?? `non_monotonic_tick_sequence:${tickSequence}<=${this.currentTickSequence}`;
+      if (policy === 'reject') throw new Error(`[AxiomaticEventBus] Refused non-monotonic tickSequence for "${eventType}".`);
+      tickSequence = this.currentTickSequence + 1;
+    }
+
+    this.currentTickSequence = tickSequence;
 
     const sequenceId = this.globalSequenceId++;
     const canonicalPayload = stableStringify(payload ?? {});
@@ -149,7 +179,7 @@ export class AxiomaticEventBus {
       actorId: options.actorId ?? readStringField(payload, 'actorId'),
       source: options.source ?? readStringField(payload, 'source') ?? readStringField(payload, 'origin'),
       metadata: {
-        ...(options.metadata ?? {}),
+        ...sanitizeMetadata(options.metadata),
         resonance: 0,
         kappa: [],
         payloadHash,
@@ -168,10 +198,10 @@ export class AxiomaticEventBus {
     event.id = `evt_${tick}_${tickSequence}_${sequenceId}_${payloadHash}`;
 
     this.globalResonanceState = (this.globalResonanceState + resonance) % 2147483647;
-    this.eventLedger.push(event);
+    this.eventLedger.push(Object.freeze(event));
     if (this.eventLedger.length > this.maxLedgerSize) this.eventLedger.shift();
 
-    if (!options.silent) console.log(`[AxiomaticEventBus] #${sequenceId} tick=${tick}.${tickSequence} ${eventType}`, { id: event.id, payloadHash });
+    if (options.observerLog === true && !options.silent) console.log(`[AxiomaticEventBus] #${sequenceId} tick=${tick}.${tickSequence} ${eventType}`, { id: event.id, payloadHash });
     this.dispatch(event);
     return event;
   }
@@ -185,7 +215,7 @@ export class AxiomaticEventBus {
   }
 
   public getHistory(type?: string): IAxiomaticEvent[] {
-    const events = type ? this.eventLedger.filter((event) => event.type === type) : this.eventLedger;
+    const events = type ? this.eventLedger.filter((event) => event.type === normalizeEventType(type, 'axiomatic.event')) : this.eventLedger;
     return [...events].sort((a, b) => a.sequenceId - b.sequenceId);
   }
 
@@ -198,10 +228,31 @@ export class AxiomaticEventBus {
       currentTickSequence: this.currentTickSequence,
       currentResonance: this.globalResonanceState,
       lastSequenceId: this.globalSequenceId - 1,
+      listenerCount: this.listenerCount(),
       tickHz: WATCHDOG_TICK_HZ,
       tickMs: WATCHDOG_TICK_MS,
       deterministic: true,
     };
+  }
+
+  public listenerCount(type?: string): number {
+    if (type) return this.listeners.get(normalizeEventType(type, AXIOMATIC_WILDCARD_EVENT))?.length ?? 0;
+    let count = 0;
+    for (const list of this.listeners.values()) count += list.length;
+    return count;
+  }
+
+  public verifyLedger(): AxiomaticLedgerIntegrityReport {
+    const failures: AxiomaticLedgerIntegrityReport['failures'] = [];
+    for (let index = 0; index < this.eventLedger.length; index += 1) {
+      const event = this.eventLedger[index];
+      const payloadHash = deterministicPayloadHash(event.payload ?? {});
+      const expectedId = `evt_${event.tick}_${event.tickSequence}_${event.sequenceId}_${payloadHash}`;
+      if (event.id !== expectedId || event.metadata.payloadHash !== payloadHash || event.timestamp !== event.tick * WATCHDOG_TICK_MS) {
+        failures.push({ index, eventId: event.id, reason: 'deterministic_integrity_mismatch' });
+      }
+    }
+    return { ok: failures.length === 0, checked: this.eventLedger.length, failures, deterministic: true };
   }
 
   public clearLedger(): void {
@@ -213,8 +264,9 @@ export class AxiomaticEventBus {
   }
 
   private addListener(type: string, listener: AxiomaticListener, once: boolean, priority: number): () => void {
-    const safeType = sanitizeText(type, AXIOMATIC_WILDCARD_EVENT);
-    const entry: ListenerEntry = { id: ++this.listenerSequenceId, type: safeType, listener, once, priority: normalizePositiveInteger(priority, 0) };
+    if (typeof listener !== 'function') throw new Error('[AxiomaticEventBus] Listener must be a function.');
+    const safeType = normalizeEventType(type, AXIOMATIC_WILDCARD_EVENT);
+    const entry: ListenerEntry = { id: ++this.listenerSequenceId, type: safeType, listener, once, priority: normalizePriority(priority) };
     const list = this.listeners.get(safeType) ?? [];
     list.push(entry);
     list.sort(compareListeners);
@@ -231,7 +283,10 @@ export class AxiomaticEventBus {
   }
 
   private dispatch(event: IAxiomaticEvent): void {
-    const executionList = [...(this.listeners.get(event.type) ?? []), ...(this.listeners.get(AXIOMATIC_WILDCARD_EVENT) ?? [])].sort(compareListeners);
+    const executionMap = new Map<number, ListenerEntry>();
+    for (const entry of this.listeners.get(event.type) ?? []) executionMap.set(entry.id, entry);
+    for (const entry of this.listeners.get(AXIOMATIC_WILDCARD_EVENT) ?? []) executionMap.set(entry.id, entry);
+    const executionList = [...executionMap.values()].sort(compareListeners);
     for (const entry of executionList) {
       try { entry.listener(event); } catch (err) { console.error(`[AxiomaticEventBus] Listener failed for ${event.type}`, err); }
       if (entry.once) this.unsubscribeById(entry.type, entry.id);
@@ -242,6 +297,33 @@ export class AxiomaticEventBus {
 function compareListeners(a: ListenerEntry, b: ListenerEntry): number {
   if (b.priority !== a.priority) return b.priority - a.priority;
   return a.id - b.id;
+}
+
+function normalizePriority(value: number): number {
+  return Number.isFinite(value) ? Math.trunc(value) : 0;
+}
+
+function normalizeEventType(type: string, fallback: string): string {
+  const raw = typeof type === 'string' ? type.trim() : '';
+  if (raw === AXIOMATIC_WILDCARD_EVENT) return AXIOMATIC_WILDCARD_EVENT;
+  return sanitizeText(raw, fallback);
+}
+
+function sanitizeMetadata(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const metadata = { ...(value as Record<string, unknown>) };
+  delete metadata.resonance;
+  delete metadata.kappa;
+  delete metadata.payloadHash;
+  delete metadata.canonicalSize;
+  delete metadata.tickHz;
+  delete metadata.tickMs;
+  delete metadata.deterministic;
+  return metadata;
+}
+
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
 function readNumericField(value: unknown, key: string): number | undefined {

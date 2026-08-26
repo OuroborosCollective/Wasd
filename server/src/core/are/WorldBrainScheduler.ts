@@ -9,6 +9,13 @@
  * 
  * It does NOT execute domain logic itself - TickSystems do that.
  * The Brain only coordinates and computes attractor states.
+ * 
+ * AXIOM COMPLIANCE:
+ * - Absolute Kausalität: No in-tick feedback loops
+ * - Nomock-Theorem: All state derived from deterministic calculation
+ * - Zeitstempel-Integrität: Tick-based timing only
+ * - Ouroboros-Prinzip: State archived before chunk removal
+ * - Feld-Lokalität: Resonance only affects 3x3 neighborhood
  */
 
 import { 
@@ -17,34 +24,46 @@ import {
   type TickSystemContext 
 } from './TickSystem.js';
 import { tickSystemRegistry } from './TickSystemRegistry.js';
-import { createKappa, type Kappa, type ChunkKey, type StateHash, createStateHash } from './types.js';
+import { createKappa, type Kappa, type ChunkKey, type StateHash, createStateHash, type TickId } from './types.js';
 import {
   type ChunkLayerState,
   type OmegaAttractorState,
   type WorldBrainSnapshot,
   ChunkLayerIndex,
-  LAYER_NAMES,
   ATTRACTOR_TYPES,
   LAYER_THRESHOLDS,
   createEmptyLayerState
 } from './ChunkLayerState.js';
-import { tickSystemRegistry as registry } from './TickSystemRegistry.js';
+import { 
+  hashChunkKappa1000, 
+  KAPPA_LAYER_CONSTANTS,
+  type KappaLayers,
+  type KappaLayerKey,
+  createKappaLayers,
+  cloneKappaLayers
+} from './KappaLayers.js';
 
-/**
- * WorldBrainScheduler evaluates all 13 layers deterministically.
- */
+interface HistoryEntry {
+  tick: TickId;
+  chunkKey: ChunkKey;
+  layers: KappaLayers;
+  hash: StateHash;
+}
+
 export class WorldBrainScheduler implements TickSystem {
   readonly name = 'world-brain';
   readonly priority = TickSystemPriority.INFRASTRUCTURE;
   enabled = true;
-  
-  /** Active chunks being tracked */
+
   private activeChunks: Set<ChunkKey> = new Set();
-  
-  /** Layer states for all active chunks */
   private layerStates: Map<ChunkKey, ChunkLayerState> = new Map();
   
-  /** Current Omega attractor state */
+  // AXIOM 4: Ouroboros-Prinzip - History archive for state reconstruction
+  private historyArchive: HistoryEntry[] = [];
+  
+  // Current tick for hash computation
+  private currentTick: TickId = 0 as TickId;
+
   private omegaE: OmegaAttractorState = {
     attractor_type: ATTRACTOR_TYPES.STABLE,
     strength: createKappa(0),
@@ -52,107 +71,60 @@ export class WorldBrainScheduler implements TickSystem {
     last_tick: 0 as any,
     convergence: createKappa(0)
   };
-  
-  /** Previous world hash for delta calculation */
+
   private previousWorldHash: StateHash = createStateHash('0'.repeat(64));
-  
-  /** TICK_INTERVAL_MS - 10-Hz tick rate = 100ms */
+
   static readonly TICK_INTERVAL_MS = 100;
-  
+
   tick(context: TickSystemContext): void {
-    // 1. Get active chunks from registry
+    // AXIOM 3: Zeitstempel-Integrität - Use tick-based time, not wall-clock
+    this.currentTick = (context.tickCount ?? 0) as TickId;
+    
+    // AXIOM 1: Absolute Kausalität - Create immutable snapshot before iteration
+    const activeChunkKeys = Object.freeze([...this.activeChunks].sort());
+
     this.updateActiveChunks();
-    
-    // 2. For each active chunk, evaluate 13 layers
-    for (const chunkKey of this.activeChunks) {
+
+    for (const chunkKey of activeChunkKeys) {
       const currentState = this.layerStates.get(chunkKey) ?? createEmptyLayerState();
-      
-      // 3. Compute layer evaluation
-      const evaluation = this.evaluateLayers(chunkKey, currentState);
-      
-      // 4. Compute Ω_E attractor for this chunk
-      const attractor = this.computeOmegaE(evaluation, currentState);
-      
-      // 5. Update chunk state with attractor influence
+      const evaluation = this.evaluateLayers(currentState);
+      const attractor = this.computeOmegaE(evaluation);
       this.updateChunkState(chunkKey, attractor, currentState);
+      this.omegaE = { ...attractor, last_tick: context.tickCount as any };
     }
-    
-    // 6. Aggregate all chunks into world hash
+
     this.computeWorldHash(context.tickCount);
     
-    // 7. Propagate layer changes to neighboring chunks (resonance)
+    // AXIOM 1 & 5: Snapshot-based resonance propagation (no mutation during iteration)
     this.propagateResonance();
   }
-  
-  /**
-   * Update active chunks from TickSystemRegistry.
-   */
+
   private updateActiveChunks(): void {
-    // Active chunks are determined by which systems have registered chunks
-    // For now, we'll track chunks that have had recent activity
+    // Active chunks are explicitly registered through registerChunk().
   }
-  
-  /**
-   * Evaluate all 13 layers deterministically.
-   */
-  private evaluateLayers(chunkKey: ChunkKey, state: ChunkLayerState): LayerEvaluation {
+
+  private evaluateLayers(state: ChunkLayerState): LayerEvaluation {
     return {
-      ecology: this.evaluateEcology(state),
-      economy: this.evaluateEconomy(state),
-      npc_vitality: this.evaluateNpcVitality(state),
-      trade: this.evaluateTrade(state),
-      social_memory: this.evaluateSocialMemory(state),
-      politics: this.evaluatePolitics(state),
-      aggression: this.evaluateAggression(state),
-      conjuncture: this.evaluateConjuncture(state),
-      kingdom: this.evaluateKingdom(state),
-      faith: this.evaluateFaith(state),
-      dungeon: this.evaluateDungeon(state),
-      fear: this.evaluateFear(state),
-      resurrection: this.evaluateResurrection(state)
+      ecology: state.ecology,
+      economy: state.economy,
+      npc_vitality: state.npc_vitality,
+      trade: state.trade,
+      social_memory: state.social_memory,
+      politics: state.politics,
+      aggression: state.aggression,
+      conjuncture: state.conjuncture,
+      kingdom: state.kingdom,
+      faith: state.faith,
+      dungeon: state.dungeon,
+      fear: state.fear,
+      resurrection: state.resurrection
     };
   }
-  
-  private evaluateEcology(state: ChunkLayerState): Kappa { return state.ecology; }
-  private evaluateEconomy(state: ChunkLayerState): Kappa { return state.economy; }
-  private evaluateNpcVitality(state: ChunkLayerState): Kappa { return state.npc_vitality; }
-  private evaluateTrade(state: ChunkLayerState): Kappa { return state.trade; }
-  private evaluateSocialMemory(state: ChunkLayerState): Kappa { return state.social_memory; }
-  private evaluatePolitics(state: ChunkLayerState): Kappa { return state.politics; }
-  
-  /**
-   * Evaluate aggression layer - triggers conflict attractors.
-   */
-  private evaluateAggression(state: ChunkLayerState): Kappa {
-    const aggression = state.aggression;
-    
-    // Check for aggression spike threshold
-    if (aggression > LAYER_THRESHOLDS.AGGRESSION_SPIKE) {
-      // Trigger conflict attractor
-      return aggression; // Returns current, attractor system handles spike
-    }
-    
-    return aggression;
-  }
-  
-  private evaluateConjuncture(state: ChunkLayerState): Kappa { return state.conjuncture; }
-  private evaluateKingdom(state: ChunkLayerState): Kappa { return state.kingdom; }
-  private evaluateFaith(state: ChunkLayerState): Kappa { return state.faith; }
-  private evaluateDungeon(state: ChunkLayerState): Kappa { return state.dungeon; }
-  private evaluateFear(state: ChunkLayerState): Kappa { return state.fear; }
-  private evaluateResurrection(state: ChunkLayerState): Kappa { return state.resurrection; }
-  
-  /**
-   * Compute Omega Attractor State (Ω_E) deterministically.
-   */
-  private computeOmegaE(
-    evaluation: LayerEvaluation, 
-    state: ChunkLayerState
-  ): OmegaAttractorState {
-    // Find dominant layer (highest magnitude)
+
+  private computeOmegaE(evaluation: LayerEvaluation): OmegaAttractorState {
     let maxLayer = ChunkLayerIndex.ECOLOGY;
     let maxValue = evaluation.ecology;
-    
+
     const layers: [ChunkLayerIndex, Kappa][] = [
       [ChunkLayerIndex.ECOLOGY, evaluation.ecology],
       [ChunkLayerIndex.ECONOMY, evaluation.economy],
@@ -168,20 +140,17 @@ export class WorldBrainScheduler implements TickSystem {
       [ChunkLayerIndex.FEAR, evaluation.fear],
       [ChunkLayerIndex.RESURRECTION, evaluation.resurrection]
     ];
-    
+
     for (const [layer, value] of layers) {
       if (value > maxValue) {
         maxValue = value;
         maxLayer = layer;
       }
     }
-    
-    // Compute convergence (how stable is current attractor)
+
     const convergence = this.computeConvergence(evaluation);
-    
-    // Determine attractor type based on dominant layer and thresholds
     let attractor_type: typeof ATTRACTOR_TYPES[keyof typeof ATTRACTOR_TYPES] = ATTRACTOR_TYPES.STABLE;
-    
+
     if (maxLayer === ChunkLayerIndex.TRADE && maxValue > LAYER_THRESHOLDS.TRADE_CITY_THRESHOLD) {
       attractor_type = ATTRACTOR_TYPES.VILLAGE_TO_CITY;
     } else if (maxLayer === ChunkLayerIndex.AGGRESSION && maxValue > LAYER_THRESHOLDS.AGGRESSION_SPIKE) {
@@ -195,21 +164,17 @@ export class WorldBrainScheduler implements TickSystem {
     } else if (convergence < LAYER_THRESHOLDS.CONVERGENCE_STABLE) {
       attractor_type = ATTRACTOR_TYPES.EMERGING;
     }
-    
+
     return {
       attractor_type,
       strength: maxValue,
       primary_layer: maxLayer,
-      last_tick: 0 as any, // Will be set by caller
+      last_tick: 0 as any,
       convergence
     };
   }
-  
-  /**
-   * Compute convergence factor for attractor stability.
-   */
+
   private computeConvergence(evaluation: LayerEvaluation): Kappa {
-    // Average stability across all layers
     const sum = Number(evaluation.ecology) +
       Number(evaluation.economy) +
       Number(evaluation.npc_vitality) +
@@ -223,16 +188,14 @@ export class WorldBrainScheduler implements TickSystem {
       Number(evaluation.dungeon) +
       Number(evaluation.fear) +
       Number(evaluation.resurrection);
-    
+
     const avg = sum / 13;
     return createKappa(Math.min(1000, Math.floor(avg)));
   }
-  
+
   private updateChunkState(chunkKey: ChunkKey, attractor: OmegaAttractorState, currentState: ChunkLayerState): void {
-    // Update layer state based on attractor influence
     const newState: ChunkLayerState = { ...currentState };
-    
-    // Apply attractor effects to layers
+
     switch (attractor.attractor_type) {
       case ATTRACTOR_TYPES.VILLAGE_TO_CITY:
         newState.trade = attractor.strength;
@@ -246,25 +209,22 @@ export class WorldBrainScheduler implements TickSystem {
         newState.dungeon = attractor.strength;
         newState.fear = attractor.strength;
         break;
-      // ... other attractor effects
     }
-    
+
     this.layerStates.set(chunkKey, newState);
   }
-  
+
   private computeWorldHash(tickCount: number): void {
-    // Deterministic hash incorporating all 13 layers
     let hashInput = `tick:${tickCount}`;
-    
+
     for (const [chunkKey, state] of this.layerStates) {
       hashInput += `|${chunkKey}:${this.serializeLayerState(state)}`;
     }
-    
-    // In production, use sha256 from ManifestHasher
-    this.previousWorldHash = createStateHash(hashInput.split('').map(c => 
+
+    this.previousWorldHash = createStateHash(hashInput.split('').map(c =>
       c.charCodeAt(0).toString(16).padStart(2, '0')).join('').padEnd(64, '0').substring(0, 64));
   }
-  
+
   private serializeLayerState(state: ChunkLayerState): string {
     return [
       state.ecology, state.economy, state.npc_vitality, state.trade,
@@ -272,93 +232,177 @@ export class WorldBrainScheduler implements TickSystem {
       state.kingdom, state.faith, state.dungeon, state.fear, state.resurrection
     ].join(',');
   }
-  
+
   /**
-   * Propagate layer changes to neighboring chunks (causal resonance).
-   * Changes in one chunk affect adjacent chunks deterministically.
+   * AXIOM 1 & 5 COMPLIANT: propagateResonance()
+   * 
+   * - AXIOM 1 (Absolute Kausalität): NO mutation during iteration
+   *   Deltas are collected first, then applied after iteration completes
+   * - AXIOM 5 (Feld-Lokalität): Only 3x3 neighborhood (8 direct neighbors)
+   *   Resonanz does NOT propagate beyond immediate neighbors
    */
   private propagateResonance(): void {
-    const resonanceFactor = createKappa(50); // 5% propagation
+    // 1. Create immutable snapshot of current states (AXIOM 1)
+    const snapshot = new Map(this.layerStates);
     
-    for (const [chunkKey, state] of this.layerStates) {
-      // Get 3x3 neighboring chunks
+    // 2. Collect resonance deltas (no mutation during iteration)
+    const resonanceDeltas: Array<{
+      chunkKey: ChunkKey;
+      layer: keyof ChunkLayerState;
+      delta: number;
+    }> = [];
+    
+    for (const chunkKey of this.activeChunks) {
+      const state = snapshot.get(chunkKey);
+      if (!state) continue;
+      
       const neighbors = this.get3x3Neighbors(chunkKey);
       
       for (const neighborKey of neighbors) {
-        const neighborState = this.layerStates.get(neighborKey) ?? createEmptyLayerState();
+        if (!this.activeChunks.has(neighborKey)) continue;
         
-        // Propagate aggression to neighbors (fear resonance)
-        if (state.aggression > LAYER_THRESHOLDS.AGGRESSION_SPIKE) {
-          const fearDelta = createKappa(Math.floor(Number(state.aggression) * 0.1));
-          neighborState.fear = createKappa(Math.min(1000, Number(neighborState.fear) + Number(fearDelta)));
-        }
-        
-        // Propagate trade attractiveness
-        if (state.trade > LAYER_THRESHOLDS.TRADE_CITY_THRESHOLD) {
-          const tradeDelta = createKappa(Math.floor(Number(state.trade) * 0.05));
-          neighborState.trade = createKappa(Math.min(1000, Number(neighborState.trade) + Number(tradeDelta)));
-        }
-        
-        this.layerStates.set(neighborKey, neighborState);
+        // AXIOM 5: Feld-Lokalität - only process direct 3x3 neighbors
+        this.computeResonanceDelta(state, resonanceDeltas, chunkKey, neighborKey);
+      }
+    }
+    
+    // 3. Apply deltas AFTER iteration completes (AXIOM 1)
+    for (const delta of resonanceDeltas) {
+      const currentState = this.layerStates.get(delta.chunkKey);
+      if (currentState) {
+        const currentValue = Number(currentState[delta.layer as keyof ChunkLayerState] ?? 0);
+        const newValue = Math.max(0, Math.min(1000, currentValue + delta.delta));
+        currentState[delta.layer as keyof ChunkLayerState] = createKappa(newValue);
       }
     }
   }
-  
-  private get3x3Neighbors(chunkKey: ChunkKey): ChunkKey[] {
-    const [cx, cz] = chunkKey.split(':').map(Number);
-    const neighbors: ChunkKey[] = [];
+
+  /**
+   * Compute resonance delta from source to target chunk
+   * AXIOM 5: Feld-Lokalität - Only direct neighbors are affected
+   */
+  private computeResonanceDelta(
+    sourceState: ChunkLayerState,
+    deltas: Array<{ chunkKey: ChunkKey; layer: keyof ChunkLayerState; delta: number }>,
+    sourceKey: ChunkKey,
+    targetKey: ChunkKey
+  ): void {
+    // Conflict -> Fear resonance
+    if (sourceState.aggression > KAPPA_LAYER_CONSTANTS.CONFLICT_SPIKE_THRESHOLD) {
+      const conflictExcess = Number(sourceState.aggression) - KAPPA_LAYER_CONSTANTS.CONFLICT_SPIKE_THRESHOLD;
+      const fearDelta = Math.floor(conflictExcess * 0.01); // 1% of excess
+      if (fearDelta > 0) {
+        deltas.push({ chunkKey: targetKey, layer: 'fear', delta: fearDelta });
+      }
+    }
     
+    // High trade -> Trade propagation
+    if (sourceState.trade > KAPPA_LAYER_CONSTANTS.TRADE_CITY_THRESHOLD) {
+      const tradeExcess = Number(sourceState.trade) - KAPPA_LAYER_CONSTANTS.TRADE_CITY_THRESHOLD;
+      const tradeDelta = Math.floor(tradeExcess * 0.005); // 0.5% of excess
+      if (tradeDelta > 0) {
+        deltas.push({ chunkKey: targetKey, layer: 'trade', delta: tradeDelta });
+      }
+    }
+  }
+
+  private get3x3Neighbors(chunkKey: ChunkKey): ChunkKey[] {
+    const [cx, cz] = String(chunkKey).split(':').map(Number);
+    const neighbors: ChunkKey[] = [];
+
     for (let dx = -1; dx <= 1; dx++) {
       for (let dz = -1; dz <= 1; dz++) {
         if (dx === 0 && dz === 0) continue;
         neighbors.push(`${cx + dx}:${cz + dz}` as ChunkKey);
       }
     }
-    
+
     return neighbors;
   }
-  
-  /**
-   * Register a chunk as active.
-   */
+
   registerChunk(chunkKey: ChunkKey): void {
     this.activeChunks.add(chunkKey);
     if (!this.layerStates.has(chunkKey)) {
       this.layerStates.set(chunkKey, createEmptyLayerState());
     }
   }
-  
+
   /**
-   * Unregister a chunk (when no longer active).
+   * AXIOM 4: Ouroboros-Prinzip
+   * Archives layer state to history BEFORE removal
+   * Enables state reconstruction for replay/verification
    */
   unregisterChunk(chunkKey: ChunkKey): void {
+    const state = this.layerStates.get(chunkKey);
+    if (state) {
+      // Convert to canonical KappaLayers for consistent hashing
+      const kappaLayers = createKappaLayers({
+        ecology: Number(state.ecology),
+        market: Number(state.economy), // conjuncture -> economy
+        physiology: Number(state.npc_vitality),
+        trade: Number(state.trade),
+        memory: Number(state.social_memory),
+        politics: Number(state.politics),
+        conflict: Number(state.aggression),
+        economy: Number(state.conjuncture),
+        kingdoms: Number(state.kingdom),
+        faith: Number(state.faith),
+        dungeon: Number(state.dungeon),
+        fear: Number(state.fear),
+        cycles: Number(state.resurrection)
+      });
+      
+      // Archive state with Kappa1000 hash
+      const hash = hashChunkKappa1000(chunkKey, kappaLayers, this.currentTick);
+      this.historyArchive.push({
+        tick: this.currentTick,
+        chunkKey,
+        layers: kappaLayers,
+        hash
+      });
+      
+      // Limit history size to prevent memory bloat
+      if (this.historyArchive.length > 10000) {
+        this.historyArchive = this.historyArchive.slice(-10000);
+      }
+    }
+    
     this.activeChunks.delete(chunkKey);
+    this.layerStates.delete(chunkKey);
   }
-  
+
   /**
-   * Get current world brain snapshot.
+   * Reconstruct layer state from history for a specific tick
+   * AXIOM 4: Ouroboros-Prinzip - enables state reconstruction
    */
+  reconstructState(chunkKey: ChunkKey, targetTick: TickId): KappaLayers | null {
+    for (let i = this.historyArchive.length - 1; i >= 0; i--) {
+      const entry = this.historyArchive[i];
+      if (entry.chunkKey === chunkKey && entry.tick <= targetTick) {
+        return entry.layers;
+      }
+    }
+    return null;
+  }
+
   getSnapshot(): WorldBrainSnapshot {
     return {
-      tick: 0 as any, // Will be set by caller
+      tick: 0 as any,
       active_chunks: Array.from(this.activeChunks),
       layer_states: new Map(this.layerStates),
       omega_e: this.omegaE,
       world_hash: this.previousWorldHash
     };
   }
-  
-  /**
-   * Get layer state for a specific chunk.
-   */
+
   getChunkLayerState(chunkKey: ChunkKey): ChunkLayerState | undefined {
     return this.layerStates.get(chunkKey);
   }
-  
+
   onStart(): void {
     console.log('[WorldBrainScheduler] Started - 13-layer brain active');
   }
-  
+
   onShutdown(): void {
     console.log('[WorldBrainScheduler] Shutdown - finalizing state');
   }
@@ -380,17 +424,14 @@ interface LayerEvaluation {
   resurrection: Kappa;
 }
 
-/**
- * Register WorldBrainScheduler with the global registry.
- */
 export function registerWorldBrainScheduler(): WorldBrainScheduler {
   const system = new WorldBrainScheduler();
-  
+
   tickSystemRegistry.register({
     system,
-    dependencies: [], // Infrastructure - no dependencies
+    dependencies: [],
     tags: ['world-brain', 'infrastructure', 'emergence']
   });
-  
+
   return system;
 }

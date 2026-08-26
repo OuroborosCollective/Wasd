@@ -1,0 +1,348 @@
+import type { ChunkKey, StateHash, TickId, Kappa, KappaInt } from './types.js';
+import { createKappa, createStateHash } from './types.js';
+import {
+  ATTRACTOR_TYPES,
+  ChunkLayerIndex,
+  type ChunkLayerState,
+  type OmegaAttractorState,
+  type WorldBrainSnapshot,
+} from './ChunkLayerState.js';
+import type { IARELogicLayers } from './IARELogicLayers.js';
+import {
+  createLayerPersistenceEvent,
+  type LayerPersistenceQueue,
+} from './LayerPersistenceQueue.js';
+import {
+  deriveCanonicalLayerSeed,
+  type CanonicalLayerSeedResult,
+} from './CanonicalLayerSeed.js';
+import { deriveCanonicalWorldgenSeedSignals } from './CanonicalLayerSeedSignals.js';
+import {
+  canonicalArrayToLayers,
+  type PersistedLayerState,
+} from './LayerPersistencePort.js';
+import type {
+  WorldBrainCanonicalStatePort,
+  WorldBrainDelta,
+  WorldBrainReplaySink,
+} from './WorldBrainTickSystem.js';
+
+const ZERO_STATE_HASH = createStateHash('0'.repeat(64));
+
+/**
+ * Actor (player) hash entry. Only the fields that are deterministically
+ * mutated inside the authoritative tick are folded into the canonical world
+ * hash (AIM-104): id + quantized position + movement state. Inventory,
+ * equipment and other volatile fields are intentionally excluded to keep the
+ * hash stable and focused on the spatial/movement truth path.
+ */
+export interface ActorHashEntry {
+  readonly id: string;
+  readonly position: { readonly x: number; readonly y: number; readonly z: number };
+  readonly state: string;
+}
+
+/** Quantize a position component to millitiles so float drift can't split hashes. */
+function quantizeTile(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 1000);
+}
+
+function buildActorSegment(actors: readonly ActorHashEntry[] | null): string {
+  if (!actors || actors.length === 0) return '';
+  return [...actors]
+    .map((a) => ({ id: String(a?.id ?? ''), qx: quantizeTile(a?.position?.x), qy: quantizeTile(a?.position?.y), qz: quantizeTile(a?.position?.z), state: String(a?.state ?? '') }))
+    .filter((a) => a.id.length > 0)
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .map((a) => `${a.id}:${a.qx},${a.qy},${a.qz}:${a.state}`)
+    .join(';');
+}
+
+function fnv1aStateHash(input: string): StateHash {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  const hex = hash.toString(16).padStart(8, '0');
+  return createStateHash(hex.repeat(8).slice(0, 64));
+}
+
+function hashRuntimeSnapshot(tick: TickId, layerStates: Map<ChunkKey, ChunkLayerState>, actorSegment = ''): StateHash {
+  const parts = [...layerStates.entries()]
+    .sort(([a], [b]) => String(a).localeCompare(String(b)))
+    .map(([chunkKey, state]) => `${String(chunkKey)}:${Object.values(chunkLayerStateToIARELayers(state)).join(',')}`)
+    .join('|');
+
+  const input = actorSegment
+    ? `tick:${Number(tick)}|${parts}|actors:${actorSegment}`
+    : `tick:${Number(tick)}|${parts}`;
+
+  return fnv1aStateHash(input);
+}
+
+function toKappa(value: KappaInt): Kappa {
+  return createKappa(Number(value));
+}
+
+function toKappaInt(value: Kappa): KappaInt {
+  return Number(value) as KappaInt;
+}
+
+export function chunkLayerStateToIARELayers(state: ChunkLayerState): IARELogicLayers {
+  return Object.freeze({
+    ecology: toKappaInt(state.ecology),
+    market: toKappaInt(state.economy),
+    physiology: toKappaInt(state.npc_vitality),
+    trade: toKappaInt(state.trade),
+    memory: toKappaInt(state.social_memory),
+    politics: toKappaInt(state.politics),
+    conflict: toKappaInt(state.aggression),
+    economy: toKappaInt(state.conjuncture),
+    kingdoms: toKappaInt(state.kingdom),
+    faith: toKappaInt(state.faith),
+    dungeon: toKappaInt(state.dungeon),
+    fear: toKappaInt(state.fear),
+    cycles: toKappaInt(state.resurrection),
+  });
+}
+
+export function iareLayersToChunkLayerState(layers: IARELogicLayers): ChunkLayerState {
+  return {
+    ecology: toKappa(layers.ecology),
+    economy: toKappa(layers.market),
+    npc_vitality: toKappa(layers.physiology),
+    trade: toKappa(layers.trade),
+    social_memory: toKappa(layers.memory),
+    politics: toKappa(layers.politics),
+    aggression: toKappa(layers.conflict),
+    conjuncture: toKappa(layers.economy),
+    kingdom: toKappa(layers.kingdoms),
+    faith: toKappa(layers.faith),
+    dungeon: toKappa(layers.dungeon),
+    fear: toKappa(layers.fear),
+    resurrection: toKappa(layers.cycles),
+  };
+}
+
+function cloneChunkLayerState(state: ChunkLayerState): ChunkLayerState {
+  return iareLayersToChunkLayerState(chunkLayerStateToIARELayers(state));
+}
+
+function createStableOmega(tick: TickId): OmegaAttractorState {
+  return Object.freeze({
+    attractor_type: ATTRACTOR_TYPES.STABLE,
+    strength: createKappa(0),
+    primary_layer: ChunkLayerIndex.ECOLOGY,
+    last_tick: tick,
+    convergence: createKappa(0),
+  });
+}
+
+export interface RuntimeWorldBrainStatePortOptions {
+  readonly worldSeed?: string | number | null;
+  /**
+   * Optional readback provider for rehydrate-on-register. When set, the port
+   * asks it for persisted layer state; if present, that real persisted state
+   * overrides the canonical seed (issue #2457 rehydrate truth path).
+   */
+  readonly readback?: ((chunkKey: ChunkKey) => Promise<PersistedLayerState | null>) | null;
+}
+
+/**
+ * Runtime state owner for WorldBrainTickSystem.
+ *
+ * It is not a fake adapter: registerChunk/unregisterChunk mutate the actual
+ * active chunk set used by WorldBrainTickSystem, while deltas commit back into
+ * the same layer-state map that backs getWorldBrainSnapshot().
+ */
+export class RuntimeWorldBrainStatePort implements WorldBrainCanonicalStatePort {
+  private readonly activeChunks = new Set<ChunkKey>();
+  private readonly layerStates = new Map<ChunkKey, ChunkLayerState>();
+  private readonly seedRecords = new Map<ChunkKey, CanonicalLayerSeedResult>();
+  private currentTick = 0 as TickId;
+  private worldHash: StateHash = ZERO_STATE_HASH;
+  private omegaE: OmegaAttractorState = createStableOmega(0 as TickId);
+  private actorStateProvider: (() => readonly ActorHashEntry[]) | null = null;
+  private readbackProvider: ((chunkKey: ChunkKey) => Promise<PersistedLayerState | null>) | null;
+
+  constructor(private readonly options: RuntimeWorldBrainStatePortOptions = {}) {
+    this.readbackProvider = options.readback ?? null;
+  }
+
+  /**
+   * Wire a readback provider so registerChunk can rehydrate from real
+   * persisted layer state (issue #2457). Passing null disables rehydrate.
+   */
+  setReadbackProvider(
+    provider: ((chunkKey: ChunkKey) => Promise<PersistedLayerState | null>) | null,
+  ): void {
+    this.readbackProvider = provider;
+  }
+
+  /**
+   * Wire the authoritative actor (player) state source so the canonical world
+   * hash folds in actor positions/movement (AIM-104). Must return a
+   * deterministically-mutable snapshot; the port quantizes + sorts before
+   * hashing, so provider order does not matter.
+   */
+  setActorStateProvider(provider: (() => readonly ActorHashEntry[]) | null): void {
+    this.actorStateProvider = provider;
+  }
+
+  private computeActorSegment(): string {
+    return buildActorSegment(this.actorStateProvider ? this.actorStateProvider() : null);
+  }
+
+  private recomputeHash(tick: TickId): void {
+    this.worldHash = hashRuntimeSnapshot(tick, this.layerStates, this.computeActorSegment());
+  }
+
+  listActiveChunkKeys(): readonly ChunkKey[] {
+    return Object.freeze([...this.activeChunks].sort((a, b) => String(a).localeCompare(String(b))));
+  }
+
+  readChunkLayers(chunkKey: ChunkKey): IARELogicLayers | null {
+    const state = this.layerStates.get(chunkKey);
+    return state ? chunkLayerStateToIARELayers(state) : null;
+  }
+
+  commitWorldBrainDelta(delta: WorldBrainDelta): void {
+    this.currentTick = delta.tick;
+    this.activeChunks.add(delta.chunkKey);
+    this.layerStates.set(delta.chunkKey, iareLayersToChunkLayerState(delta.nextLayers));
+    this.recomputeHash(delta.tick);
+    this.omegaE = Object.freeze({
+      attractor_type: delta.attractor.type,
+      strength: createKappa(Number(delta.attractor.strength)),
+      primary_layer: layerKeyToChunkLayerIndex(delta.attractor.primaryLayer),
+      last_tick: delta.tick,
+      convergence: createKappa(Number(delta.attractor.convergence)),
+    });
+  }
+
+  registerChunk(chunkKey: ChunkKey): void {
+    this.activeChunks.add(chunkKey);
+    if (!this.layerStates.has(chunkKey)) {
+      const signals = deriveCanonicalWorldgenSeedSignals({
+        worldSeed: this.options.worldSeed,
+        chunkKey,
+        activationTick: this.currentTick,
+      });
+      const seed = deriveCanonicalLayerSeed({
+        worldSeed: this.options.worldSeed,
+        chunkKey,
+        activationTick: this.currentTick,
+        signals,
+      });
+      this.seedRecords.set(chunkKey, seed);
+      this.layerStates.set(chunkKey, iareLayersToChunkLayerState(seed.layers));
+
+      // Trigger async rehydrate from real persisted state (issue #2457). The
+      // canonical seed is a placeholder until a real persisted state arrives,
+      // then it is overwritten with the rehydrated truth.
+      if (this.readbackProvider) {
+        this.rehydrateChunk(chunkKey).catch((error) => {
+          console.error('[RuntimeWorldBrainStatePort] rehydrate failed:', error);
+        });
+      }
+    }
+    this.recomputeHash(this.currentTick);
+  }
+
+  /**
+   * Rehydrate a chunk's layer state from real persisted data (issue #2457).
+   * Only overwrites when persisted state exists; otherwise the canonical seed
+   * stays. Returns true when rehydrate was applied.
+   */
+  async rehydrateChunk(chunkKey: ChunkKey): Promise<boolean> {
+    if (!this.readbackProvider) return false;
+    const persisted = await this.readbackProvider(chunkKey);
+    if (!persisted) return false;
+
+    const layers = canonicalArrayToLayers(persisted.layers);
+    this.layerStates.set(chunkKey, iareLayersToChunkLayerState(layers));
+    this.activeChunks.add(chunkKey);
+    this.currentTick = Number(persisted.tick) > Number(this.currentTick)
+      ? persisted.tick
+      : this.currentTick;
+    this.recomputeHash(this.currentTick);
+    return true;
+  }
+
+  /**
+   * Rehydrate all chunks at once (e.g. on restart). Returns the count of chunks
+   * whose layer state was restored from real persisted data.
+   */
+  async rehydrateAll(
+    loadAll: () => Promise<PersistedLayerState[]>,
+  ): Promise<number> {
+    let count = 0;
+    const all = await loadAll();
+    for (const persisted of all) {
+      const layers = canonicalArrayToLayers(persisted.layers);
+      this.layerStates.set(persisted.chunkKey, iareLayersToChunkLayerState(layers));
+      this.activeChunks.add(persisted.chunkKey);
+      count++;
+    }
+    this.recomputeHash(this.currentTick);
+    return count;
+  }
+
+  unregisterChunk(chunkKey: ChunkKey): void {
+    this.activeChunks.delete(chunkKey);
+    this.layerStates.delete(chunkKey);
+    this.seedRecords.delete(chunkKey);
+    this.recomputeHash(this.currentTick);
+  }
+
+  getCanonicalSeedRecord(chunkKey: ChunkKey): CanonicalLayerSeedResult | null {
+    return this.seedRecords.get(chunkKey) ?? null;
+  }
+
+  getSnapshot(): WorldBrainSnapshot {
+    return Object.freeze({
+      tick: this.currentTick,
+      active_chunks: [...this.listActiveChunkKeys()],
+      layer_states: new Map([...this.layerStates.entries()].map(([key, value]) => [key, cloneChunkLayerState(value)])),
+      omega_e: this.omegaE,
+      world_hash: this.worldHash,
+    });
+  }
+}
+
+export class LayerPersistenceWorldBrainReplaySink implements WorldBrainReplaySink {
+  constructor(private readonly queue: LayerPersistenceQueue) {}
+
+  recordWorldBrainDelta(delta: WorldBrainDelta): void {
+    this.queue.enqueue(createLayerPersistenceEvent(
+      delta.chunkKey,
+      delta.tick,
+      delta.nextLayers,
+      delta.nextHash,
+    ));
+  }
+}
+
+function layerKeyToChunkLayerIndex(layer: keyof IARELogicLayers): ChunkLayerIndex {
+  switch (layer) {
+    case 'ecology': return ChunkLayerIndex.ECOLOGY;
+    case 'market': return ChunkLayerIndex.ECONOMY;
+    case 'physiology': return ChunkLayerIndex.NPC_VITALITY;
+    case 'trade': return ChunkLayerIndex.TRADE;
+    case 'memory': return ChunkLayerIndex.SOCIAL_MEMORY;
+    case 'politics': return ChunkLayerIndex.POLITICS;
+    case 'conflict': return ChunkLayerIndex.AGGRESSION;
+    case 'economy': return ChunkLayerIndex.CONJUNCTURE;
+    case 'kingdoms': return ChunkLayerIndex.KINGDOM;
+    case 'faith': return ChunkLayerIndex.FAITH;
+    case 'dungeon': return ChunkLayerIndex.DUNGEON;
+    case 'fear': return ChunkLayerIndex.FEAR;
+    case 'cycles': return ChunkLayerIndex.RESURRECTION;
+    default: {
+      const unreachable: never = layer;
+      throw new Error(`Unsupported world-brain layer: ${String(unreachable)}`);
+    }
+  }
+}

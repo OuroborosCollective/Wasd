@@ -1,8 +1,14 @@
 // QuestJournalPanel
 // Live snapshot-based quest display for ArelorianStitchHud
-// Server-authoritative, display-only
+// Server-authoritative, display-only except explicit reward claim action
 
-import type { LiveGameplaySnapshot, QuestObjectiveSnapshot } from "../../game/liveGameplaySnapshot";
+import { useState } from "react";
+import type { LiveGameplaySnapshot, QuestObjectiveSnapshot, QuestSnapshot } from "../../game/liveGameplaySnapshot";
+import {
+  fetchGameplaySnapshot,
+  getDefaultGameplayPlayerId,
+  liveGameplayStore,
+} from "../../game/liveGameplayStore";
 
 interface QuestJournalPanelProps {
   snapshot: LiveGameplaySnapshot;
@@ -12,10 +18,76 @@ function objectiveProgressPercent(objective: QuestObjectiveSnapshot): number {
   return Math.max(0, Math.min(100, Math.round((objective.current / objective.required) * 100)));
 }
 
+function hasRewardClaimed(quest: QuestSnapshot): boolean {
+  return quest.objectives.some((objective) => objective.id === "reward_claimed" && objective.completed);
+}
+
+function canClaimReward(quest: QuestSnapshot): boolean {
+  return quest.status === "completed" && !hasRewardClaimed(quest);
+}
+
 export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
+  const [claimingQuestId, setClaimingQuestId] = useState<string | null>(null);
+  const [lastInteractedQuestId, setLastInteractedQuestId] = useState<string | null>(null);
+  const [claimStatus, setClaimStatus] = useState<string>("");
+
+  async function claimReward(questId: string): Promise<void> {
+    const playerId = getDefaultGameplayPlayerId();
+    setClaimingQuestId(questId);
+    setLastInteractedQuestId(questId);
+    setClaimStatus("Claiming reward...");
+
+    try {
+      const response = await fetch("/api/quest/claim-reward", {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "content-type": "application/json",
+          "x-player-id": playerId,
+        },
+        body: JSON.stringify({ questId, playerId }),
+      });
+
+      const contentType = response.headers.get("content-type") ?? "";
+      const result = contentType.includes("application/json")
+        ? await response.json()
+        : { ok: false, error: `Server returned non-JSON response (${response.status})` };
+
+      if (!result.ok) {
+        setClaimStatus(`Reward failed: ${result.error ?? result.result?.reason ?? "unknown"}`);
+        return;
+      }
+
+      const nextSnapshot = await fetchGameplaySnapshot(playerId);
+      if (nextSnapshot) {
+        liveGameplayStore.setSnapshot(nextSnapshot);
+      }
+
+      setClaimStatus(result.changed === false ? "Reward already claimed." : "Reward claimed.");
+
+      window.dispatchEvent(new CustomEvent("wasd:toast", {
+        detail: {
+          type: "success",
+          message: result.changed === false ? "Reward already claimed" : "Reward claimed",
+        },
+      }));
+    } catch (error) {
+      setClaimStatus(`Reward error: ${error instanceof Error ? error.message : "unknown"}`);
+    } finally {
+      setClaimingQuestId(null);
+    }
+  }
+
   if (snapshot.status === "waiting") {
     return (
-      <div className="stitch-grid-panel" data-testid="quest-panel-waiting">
+      <div
+        className="stitch-grid-panel"
+        data-testid="quest-panel-waiting"
+        role="region"
+        aria-label="Quest Sync"
+        aria-busy="true"
+        aria-live="polite"
+      >
         <article className="stitch-info">
           <small>Quest Sync</small>
           <b>waiting for server snapshot</b>
@@ -26,7 +98,12 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
 
   if (snapshot.quests.length === 0) {
     return (
-      <div className="stitch-grid-panel" data-testid="quest-panel-empty">
+      <div
+        className="stitch-grid-panel"
+        data-testid="quest-panel-empty"
+        role="region"
+        aria-label="Quest Journal"
+      >
         <article className="stitch-info">
           <small>Quest Journal</small>
           <b>no active quests</b>
@@ -36,30 +113,110 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
   }
 
   return (
-    <div className="quest-journal-panel" data-testid="quest-panel-live">
-      {snapshot.quests.map((quest) => (
-        <article key={quest.id} className={`quest-journal-card quest-journal-card--${quest.status}`}>
-          <header>
-            <small>{quest.status}</small>
-            <b>{quest.title}</b>
-          </header>
+    <div
+      className="quest-journal-panel"
+      data-testid="quest-panel-live"
+      role="region"
+      aria-label="Active Quests"
+    >
+      {snapshot.quests.map((quest) => {
+        const rewardClaimable = canClaimReward(quest);
+        const rewardClaimed = hasRewardClaimed(quest);
 
-          {quest.description && <p>{quest.description}</p>}
+        return (
+          <article
+            key={quest.id}
+            className={`quest-journal-card quest-journal-card--${quest.status}`}
+            aria-label={`Quest: ${quest.title}`}
+          >
+            <header>
+              <small>{rewardClaimed ? "claimed" : quest.status}</small>
+              <b>{quest.title}</b>
+            </header>
 
-          <div className="quest-journal-objectives">
-            {quest.objectives.map((objective) => {
-              const progress = objectiveProgressPercent(objective);
-              return (
-                <div key={objective.id} className="quest-journal-objective">
-                  <span>{objective.label}</span>
-                  <b>{objective.current}/{objective.required}{objective.completed ? " ✓" : ""}</b>
-                  <i aria-hidden="true"><em style={{ width: `${progress}%` }} /></i>
-                </div>
-              );
-            })}
-          </div>
-        </article>
-      ))}
+            {quest.description && <p>{quest.description}</p>}
+
+            <div className="quest-journal-objectives">
+              {quest.objectives.map((objective) => {
+                const progress = objectiveProgressPercent(objective);
+                return (
+                  <div key={objective.id} className="quest-journal-objective">
+                    <span>{objective.label}</span>
+                    <b>
+                      {objective.current}/{objective.required}
+                      {objective.completed ? " ✓" : ""}
+                    </b>
+                    <i
+                      role="progressbar"
+                      aria-label={`${objective.label} progress`}
+                      aria-valuenow={objective.current}
+                      aria-valuemin={0}
+                      aria-valuemax={objective.required}
+                      aria-valuetext={`${objective.current} of ${objective.required} ${objective.label}`}
+                      title={`${objective.label}: ${objective.current}/${objective.required} (${progress}%)`}
+                    >
+                      <em style={{ width: `${progress}%` }} aria-hidden="true" />
+                    </i>
+                  </div>
+                );
+              })}
+            </div>
+
+            {rewardClaimable && (
+              <button
+                type="button"
+                className="quest-journal-claim-button"
+                data-testid={`quest-claim-${quest.id}`}
+                aria-label={`Claim reward for ${quest.title}`}
+                title={`Claim reward for ${quest.title}`}
+                aria-busy={claimingQuestId === quest.id}
+                disabled={claimingQuestId === quest.id}
+                onClick={() => void claimReward(quest.id)}
+              >
+                {claimingQuestId === quest.id ? "Claiming…" : "Claim Reward"}
+              </button>
+            )}
+
+            {lastInteractedQuestId === quest.id && claimStatus && (
+              <div
+                role="status"
+                aria-live="polite"
+                data-testid="quest-claim-status"
+                style={{
+                  marginTop: "8px",
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  background: claimStatus.includes("failed") || claimStatus.includes("error")
+                    ? "rgba(224, 86, 86, 0.12)"
+                    : claimStatus.includes("Claiming")
+                    ? "rgba(255, 215, 106, 0.12)"
+                    : "rgba(57, 255, 20, 0.12)",
+                  border: `1px solid ${
+                    claimStatus.includes("failed") || claimStatus.includes("error")
+                      ? "rgba(224, 86, 86, 0.3)"
+                      : claimStatus.includes("Claiming")
+                      ? "rgba(255, 215, 106, 0.3)"
+                      : "rgba(57, 255, 20, 0.3)"
+                  }`,
+                  fontSize: "12px",
+                  color: claimStatus.includes("failed") || claimStatus.includes("error")
+                    ? "#ff4a4a"
+                    : claimStatus.includes("Claiming")
+                    ? "#ffd76a"
+                    : "#39ff14",
+                  fontWeight: "bold",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}
+              >
+                <span>{claimStatus.includes("Claiming") ? "⏳" : claimStatus.includes("failed") || claimStatus.includes("error") ? "❌" : "✅"}</span>
+                <span>{claimStatus}</span>
+              </div>
+            )}
+          </article>
+        );
+      })}
     </div>
   );
 }

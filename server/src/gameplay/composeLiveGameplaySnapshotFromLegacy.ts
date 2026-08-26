@@ -1,18 +1,23 @@
-import { LiveGameplaySnapshotComposer, buildVendorEconomySnapshot, createEmptyVendorEconomySnapshot } from "./LiveGameplaySnapshotComposer.js";
-import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery, LiveGameplayCampNpc, LiveGameplayCampStock, LiveGameplayNpcMemory, LiveGameplayNpcRumor } from "./LiveGameplaySnapshotTypes.js";
+import { LiveGameplaySnapshotComposer, buildVendorEconomySnapshot } from "./LiveGameplaySnapshotComposer.js";
+import type { LiveGameplaySnapshot, DiscoveryStats, RecentDiscovery, LiveGameplayCampNpc, LiveGameplayCampStock, LiveGameplayQuestProgress, LiveGameplayNpcMemory, LiveGameplayNpcRumor } from "./LiveGameplaySnapshotTypes.js";
 import { toLiveEquipmentSlots } from "./adapters/EquipmentSnapshotAdapter.js";
 import { toLiveInventoryItems } from "./adapters/InventorySnapshotAdapter.js";
+import { toLiveSkillStateFromLegacy, type LegacySkillSnapshotLike } from "./adapters/LegacySkillSnapshotAdapter.js";
 import { getWalletService, getVendorStockService } from "../economy/economyRuntime.js";
 import { getVillageResourceVendor } from "../economy/VillageVendors.js";
 import { campNpcService } from "../npc/CampNpcService.js";
+import { campStockRuntime } from "../npc/CampStockRuntime.js";
 import { worldDiscoveryService } from "../world/WorldDiscoveryService.js";
 import type { WorldPoiSnapshot } from "../world/WorldPoiTypes.js";
 import { createDefaultStatBlock, statKeyToPropertyName, isEquipmentStatKey, capStatValue } from "../equipment/EquipmentStatTypes.js";
 import type { EquipmentStatBlock } from "../equipment/EquipmentStatTypes.js";
 import { getStarterProcessingStations } from "../crafting/ProcessingStations.js";
 import { npcQuestService } from "../quests/NpcQuestService.js";
+import { generateCampQuestOffers } from "../quests/CampQuestDirector.js";
+import { campQuestRuntime } from "../quests/campQuestRuntime.js";
 import { npcMemoryService } from "../npc/NpcMemoryService.js";
 import { npcRumorService } from "../npc/NpcRumorService.js";
+import { getNpcLineageWorldSurface } from "../modules/npc/NpcLineageWorldSurfaceRuntime.js";
 
 interface LegacyInventorySlot {
   readonly itemId?: string;
@@ -35,12 +40,7 @@ interface LegacyEquipmentSnapshot {
   readonly slots?: readonly LegacyEquipmentSlot[];
 }
 
-interface LegacySkillSnapshot {
-  readonly id?: string;
-  readonly skillId?: string;
-  readonly xp?: number;
-  readonly level?: number;
-}
+type LegacySkillSnapshot = LegacySkillSnapshotLike;
 
 interface LegacyResourceNodeSnapshot {
   readonly id?: string;
@@ -57,6 +57,18 @@ interface LegacyResourceNodeSnapshot {
   };
   readonly available?: boolean;
   readonly status?: string;
+}
+
+interface NpcQuestProgressSource {
+  readonly questId: string;
+  readonly state: "available" | "active" | "ready_to_complete" | "completed";
+  readonly objectives: readonly {
+    readonly objectiveId: string;
+    readonly title: string;
+    readonly current: number;
+    readonly required: number;
+    readonly completed: boolean;
+  }[];
 }
 
 export interface ComposeLiveGameplaySnapshotFromLegacyInput {
@@ -88,6 +100,35 @@ export interface ComposeLiveGameplaySnapshotFromLegacyInput {
   }[];
 }
 
+function toLiveNpcQuestProgress(quest: NpcQuestProgressSource): LiveGameplayQuestProgress {
+  const definition = npcQuestService.getQuestDefinition(quest.questId);
+  const base = {
+    questId: quest.questId,
+    title: definition?.title ?? quest.questId,
+    description: definition?.description ?? "",
+    npcId: definition?.npcId ?? "",
+    state: quest.state,
+    objectives: quest.objectives.map((obj) => ({
+      objectiveId: obj.objectiveId,
+      title: obj.title,
+      current: obj.current,
+      required: obj.required,
+      completed: obj.completed,
+    })),
+  } satisfies Omit<LiveGameplayQuestProgress, "reward">;
+
+  if (!definition) return base;
+  return {
+    ...base,
+    reward: {
+      coins: definition.reward.coins,
+      gatheringXp: definition.reward.gatheringXp,
+      craftingXp: definition.reward.craftingXp,
+      reputation: definition.reward.reputation,
+    },
+  };
+}
+
 export async function composeLiveGameplaySnapshotFromLegacy(
   input: ComposeLiveGameplaySnapshotFromLegacyInput,
 ): Promise<LiveGameplaySnapshot> {
@@ -101,11 +142,7 @@ export async function composeLiveGameplaySnapshotFromLegacy(
         itemId: slot.itemId ?? null,
       })),
     ),
-    getSkillStates: () => input.skills.map((skill) => ({
-      skillId: String(skill.skillId ?? skill.id ?? "unknown_skill"),
-      xp: Math.max(0, Math.floor(Number(skill.xp ?? 0))),
-      level: Math.max(1, Math.floor(Number(skill.level ?? 1))),
-    })),
+    getSkillStates: () => input.skills.map(toLiveSkillStateFromLegacy),
     getResourceNodes: () => input.resourceNodes.map((node) => ({
       nodeId: String(node.nodeId ?? node.id ?? "unknown_node"),
       resourceId: String(node.resourceId ?? node.itemRewardId ?? node.kind ?? "resource"),
@@ -120,14 +157,11 @@ export async function composeLiveGameplaySnapshotFromLegacy(
       return { coin: wallet.balances.coin };
     },
     getWorldPois: () => input.worldPois ?? [],
+    getWorldSurface: (playerId: string, logicalIndex: number) => getNpcLineageWorldSurface(playerId, logicalIndex),
     getVendorEconomy: async () => {
-      try {
-        const vendorStockService = await getVendorStockService();
-        const stockEntries = await vendorStockService.getStockEntries(vendor.id);
-        return buildVendorEconomySnapshot(vendor.id, vendor.name, stockEntries);
-      } catch {
-        return createEmptyVendorEconomySnapshot();
-      }
+      const vendorStockService = await getVendorStockService();
+      const stockEntries = await vendorStockService.getStockEntries(vendor.id);
+      return buildVendorEconomySnapshot(vendor.id, vendor.name, stockEntries);
     },
     getDiscoveryStats: () => input.discoveryStats ?? {
       discoveredPoiCount: 0,
@@ -138,16 +172,15 @@ export async function composeLiveGameplaySnapshotFromLegacy(
     getEquipmentStats: (_playerId: string): EquipmentStatBlock => {
       const eq = input.equipment as { slots?: readonly { slotId?: string; itemId?: string | null }[] } | null;
       if (!eq?.slots) return createDefaultStatBlock();
-
-      // Aggregate stats from equipped items (deterministic: sorted by slotId)
       const aggregated: Record<string, number> = {};
-      const sortedSlots = [...eq.slots].sort((a, b) =>
-        String(a.slotId ?? "").localeCompare(String(b.slotId ?? "")),
-      );
-
+      // Bolt: Optimized sort comparator replacing slow localeCompare with direct relational comparisons
+      const sortedSlots = [...eq.slots].sort((a, b) => {
+        const sa = String(a.slotId ?? "");
+        const sb = String(b.slotId ?? "");
+        return sa < sb ? -1 : sa > sb ? 1 : 0;
+      });
       for (const slot of sortedSlots) {
         if (!slot.itemId) continue;
-        // Known gathering tool tier bonuses (deterministic, no Math.random)
         const tierMap: Record<string, Partial<Record<string, number>>> = {
           wooden_axe: { gatheringXp: 100 },
           copper_pickaxe: { gatheringXp: 100 },
@@ -163,10 +196,7 @@ export async function composeLiveGameplaySnapshotFromLegacy(
           }
         }
       }
-
-      // Build capped stat block
-      const result = createDefaultStatBlock();
-      const capped: EquipmentStatBlock = { ...result };
+      const capped: EquipmentStatBlock = { ...createDefaultStatBlock() };
       for (const [key, value] of Object.entries(aggregated)) {
         if (isEquipmentStatKey(key)) {
           const propName = statKeyToPropertyName(key);
@@ -175,98 +205,74 @@ export async function composeLiveGameplaySnapshotFromLegacy(
       }
       return Object.freeze(capped);
     },
-    getProcessingStations: () => {
-      const stations = getStarterProcessingStations();
-      return stations.map((s) => ({
-        id: s.id,
-        type: s.type,
-        title: s.title,
-        x: s.position.x,
-        y: s.position.y,
-        interactionRadius: s.interactionRadius,
-      }));
+    getProcessingStations: () => getStarterProcessingStations().map((station) => ({
+      id: station.id,
+      type: station.type,
+      title: station.title,
+      x: station.position.x,
+      y: station.position.y,
+      interactionRadius: station.interactionRadius,
+    })),
+    getActiveQuests: (playerId: string) => npcQuestService.getActiveQuests(playerId).map(toLiveNpcQuestProgress),
+    getAvailableQuests: async (playerId: string) => {
+      const npcQuests = npcQuestService.getAvailableQuests(playerId).map(toLiveNpcQuestProgress);
+      const npcCompletedQuestIds = npcQuestService.getCompletedQuestIds(playerId);
+      const campCompletedQuestIds = await campQuestRuntime.getCompletedQuestIds(playerId);
+      const completedQuestIds = [...npcCompletedQuestIds, ...campCompletedQuestIds];
+      const campQuests = generateCampQuestOffers({
+        playerId,
+        logicalIndex: input.logicalIndex,
+        worldPois: input.worldPois ?? [],
+        discoveredPoiIds: worldDiscoveryService.getDiscoveredPoiIds(playerId),
+        completedQuestIds,
+      });
+      // Bolt: Optimized sort comparator replacing slow localeCompare with direct relational comparisons
+      return [...npcQuests, ...campQuests].sort((a, b) => {
+        const qa = a.questId;
+        const qb = b.questId;
+        return qa < qb ? -1 : qa > qb ? 1 : 0;
+      });
     },
-    // NPC Quest system integration
-    getActiveQuests: (playerId: string) => {
-      const activeQuests = npcQuestService.getActiveQuests(playerId);
-      return activeQuests.map((q) => ({
-        questId: q.questId,
-        state: q.state,
-        objectives: q.objectives.map((obj) => ({
-          objectiveId: obj.objectiveId,
-          title: obj.title,
-          current: obj.current,
-          required: obj.required,
-          completed: obj.completed,
-        })),
-      }));
+    getCompletedQuestIds: async (playerId: string) => {
+      const npcCompletedQuestIds = npcQuestService.getCompletedQuestIds(playerId);
+      const campCompletedQuestIds = await campQuestRuntime.getCompletedQuestIds(playerId);
+      return [...new Set([...npcCompletedQuestIds, ...campCompletedQuestIds])].sort();
     },
-    getAvailableQuests: (playerId: string) => {
-      const availableQuests = npcQuestService.getAvailableQuests(playerId);
-      return availableQuests.map((q) => ({
-        questId: q.questId,
-        state: q.state,
-        objectives: q.objectives.map((obj) => ({
-          objectiveId: obj.objectiveId,
-          title: obj.title,
-          current: obj.current,
-          required: obj.required,
-          completed: obj.completed,
-        })),
-      }));
-    },
-    getCompletedQuestIds: (playerId: string) => {
-      // Use public NPC dialogue method to get completed quest IDs
-      const dialogue = npcQuestService.getNpcDialogue(playerId, "village_trader_001");
-      return [...dialogue.completedQuestIds];
-    },
-    getNpcDialogues: (playerId: string) => {
-      // Return dialogues for all known NPCs (village_trader_001)
-      const npcIds = ["village_trader_001"];
-      return npcIds.map((npcId) => npcQuestService.getNpcDialogue(playerId, npcId));
-    },
-    getNpcReputations: (playerId: string) => {
-      return npcQuestService.getAllNpcReputations(playerId);
-    },
+    getNpcDialogues: (playerId: string) => [npcQuestService.getNpcDialogue(playerId, "village_trader_001")],
+    getNpcReputations: (playerId: string) => npcQuestService.getAllNpcReputations(playerId),
     getNpcMemories: async (playerId: string) => {
       const snapshots = await npcMemoryService.getAllMemorySnapshots(playerId);
-      return snapshots.map((s): LiveGameplayNpcMemory => ({
-        npcId: s.npcId,
-        playerId: s.playerId,
-        reputation: s.reputation,
-        trustTier: s.trustTier,
-        memoryEventCount: s.memoryEventCount,
-        recentMemoryNotes: s.recentMemoryNotes,
-        knownRumorCount: s.knownRumorCount,
+      return snapshots.map((snapshot): LiveGameplayNpcMemory => ({
+        npcId: snapshot.npcId,
+        playerId: snapshot.playerId,
+        reputation: snapshot.reputation,
+        trustTier: snapshot.trustTier,
+        memoryEventCount: snapshot.memoryEventCount,
+        recentMemoryNotes: snapshot.recentMemoryNotes,
+        knownRumorCount: snapshot.knownRumorCount,
       }));
     },
     getNpcRumors: async (playerId: string) => {
       const rumors = await npcRumorService.getRumorSnapshots(playerId);
-      return rumors.map((r): LiveGameplayNpcRumor => ({
-        rumorId: r.rumorId,
-        npcId: r.npcId,
-        playerId: r.playerId,
-        kind: r.kind,
-        weight: r.weight,
-        note: r.note,
-        sourceNpcId: r.sourceNpcId,
+      return rumors.map((rumor): LiveGameplayNpcRumor => ({
+        rumorId: rumor.rumorId,
+        npcId: rumor.npcId,
+        playerId: rumor.playerId,
+        kind: rumor.kind,
+        weight: rumor.weight,
+        note: rumor.note,
+        sourceNpcId: rumor.sourceNpcId,
       }));
     },
   });
 
   const baseSnapshot = await composer.compose(input.playerId, input.logicalIndex);
-
-  // Get camp NPCs and stocks for discovered gathering camp POIs
   const currentTick = input.logicalIndex;
   const discoveredPoiIds = worldDiscoveryService.getDiscoveredPoiIds(input.playerId);
-  
-  // Filter worldPois to only discovered gathering camps
   const worldPois = input.worldPois ?? [];
   const discoveredCamps = worldPois.filter(
-    (poi) => discoveredPoiIds.includes(poi.poiId) && isGatheringCampPoi(poi.type)
+    (poi) => discoveredPoiIds.includes(poi.poiId) && isGatheringCampPoi(poi.type),
   );
-
-  // Convert to WorldPoiSnapshot format for camp NPC service
   const campPois: WorldPoiSnapshot[] = discoveredCamps.map((poi) => ({
     id: poi.poiId,
     type: poi.type as any,
@@ -277,16 +283,10 @@ export async function composeLiveGameplaySnapshotFromLegacy(
     tags: [],
   }));
 
-  // Update camp stock
-  campNpcService.updateCampStock(campPois, currentTick);
-
-  // Generate camp NPCs
+  await campStockRuntime.hydratePois(campPois.map((poi) => poi.id));
   const campNpcs = campNpcService.generateCampNpcs(campPois, currentTick);
-
-  // Get camp stocks
   const campStocks = campNpcService.getCampStockSnapshots(campPois, currentTick);
 
-  // Return snapshot with camp NPCs and stocks
   return Object.freeze({
     ...baseSnapshot,
     campNpcs: Object.freeze(campNpcs),
@@ -294,9 +294,6 @@ export async function composeLiveGameplaySnapshotFromLegacy(
   });
 }
 
-/**
- * Check if a POI type is a gathering camp.
- */
 function isGatheringCampPoi(poiType: string): boolean {
   return poiType === "logging_camp" || poiType === "mining_camp" || poiType === "fishing_camp";
 }

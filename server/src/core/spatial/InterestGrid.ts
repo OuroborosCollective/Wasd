@@ -25,6 +25,7 @@ export interface ObserverInterest {
   tileX: number;
   tileY: number;
   subscribedChunks: Set<string>;
+  /** Deterministic update revision, not wall-clock time. */
   lastUpdate: number;
 }
 
@@ -43,8 +44,14 @@ export class InterestGrid {
   private chunkToObservers = new Map<string, Set<string>>();
   
   private readonly contract = UNIFIED_CHUNK_CONTRACT;
+  private revision = 0;
 
   constructor() {
+  }
+
+  private nextRevision(): number {
+    this.revision += 1;
+    return this.revision;
   }
 
   /**
@@ -61,7 +68,7 @@ export class InterestGrid {
       tileX,
       tileY,
       subscribedChunks,
-      lastUpdate: Date.now()
+      lastUpdate: this.nextRevision(),
     });
 
     // Update reverse index
@@ -112,7 +119,7 @@ export class InterestGrid {
     if (oldCx === newCx && oldCy === newCy) {
       interest.tileX = tileX;
       interest.tileY = tileY;
-      interest.lastUpdate = Date.now();
+      interest.lastUpdate = this.nextRevision();
       return;
     }
 
@@ -143,7 +150,7 @@ export class InterestGrid {
     interest.tileX = tileX;
     interest.tileY = tileY;
     interest.subscribedChunks = new Set(newChunks);
-    interest.lastUpdate = Date.now();
+    interest.lastUpdate = this.nextRevision();
   }
 
   /**
@@ -202,6 +209,7 @@ export class InterestGrid {
   clear(): void {
     this.observers.clear();
     this.chunkToObservers.clear();
+    this.revision = 0;
   }
 
   /**
