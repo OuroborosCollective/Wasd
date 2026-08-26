@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { CraftingSystem, Recipe } from "../modules/crafting/CraftingSystem.js";
 import { RecipeRegistry } from "../modules/crafting/RecipeRegistry.js";
 import { RecipeMatcher } from "../modules/crafting/RecipeMatcher.js";
+import { CraftingService } from "../crafting/CraftingService.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -131,6 +132,33 @@ describe("CraftingSystem", () => {
     expect(player.inventory[0].id).toBe("iron_sword");
   });
 
+});
+
+// ---------------------------------------------------------------------------
+// CraftingService Performance Benchmark
+// ---------------------------------------------------------------------------
+describe("CraftingService Optimization Benchmark", () => {
+  it("listRecipes() returns correctly sorted recipes with pre-cached performance", () => {
+    const mockRecipes = [
+      { id: "iron_sword", title: "Iron Sword", requiredLevel: 1, craftingXpReward: 10, craftTicks: 1, ingredients: [], outputs: [] },
+      { id: "copper_dagger", title: "Copper Dagger", requiredLevel: 1, craftingXpReward: 5, craftTicks: 1, ingredients: [], outputs: [] },
+      { id: "bronze_shield", title: "Bronze Shield", requiredLevel: 1, craftingXpReward: 15, craftTicks: 1, ingredients: [], outputs: [] },
+    ] as any;
+
+    const service = new CraftingService(mockRecipes);
+    const recipes = service.listRecipes();
+
+    // Verify correct sorting (bronze_shield, copper_dagger, iron_sword)
+    expect(recipes.map((r) => r.id)).toEqual(["bronze_shield", "copper_dagger", "iron_sword"]);
+
+    // Benchmark 10,000 listRecipes calls
+    const start = performance.now();
+    for (let i = 0; i < 10000; i++) {
+      service.listRecipes();
+    }
+    const duration = performance.now() - start;
+    expect(duration).toBeLessThan(100);
+  });
 });
 
 // ---------------------------------------------------------------------------

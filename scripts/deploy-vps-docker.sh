@@ -13,14 +13,21 @@ ARELORIAN_ENV_FILE="${ARELORIAN_ENV_FILE:-.env.docker}"
 ARELORIAN_ENABLE_DOCKER_INGRESS="${ARELORIAN_ENABLE_DOCKER_INGRESS:-false}"
 ARELORIAN_INGRESS_HTTP_BIND="${ARELORIAN_INGRESS_HTTP_BIND:-0.0.0.0}"
 ARELORIAN_INGRESS_HTTP_PORT="${ARELORIAN_INGRESS_HTTP_PORT:-80}"
+CLIENT_2D_ARCHIVE="${CLIENT_2D_ARCHIVE:-}"
+CLIENT_3D_ARCHIVE="${CLIENT_3D_ARCHIVE:-}"
 CLIENT_2D_MARKER="${CLIENT_2D_MARKER:-REAL_PIXI_CLIENT}"
 CLIENT_2D_BUILD_SHA="${CLIENT_2D_BUILD_SHA:-}"
+CLIENT_3D_BUILD_SHA="${CLIENT_3D_BUILD_SHA:-}"
 NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=8192}"
-export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK ARELORIAN_ENABLE_DOCKER_INGRESS ARELORIAN_INGRESS_HTTP_BIND ARELORIAN_INGRESS_HTTP_PORT CLIENT_2D_MARKER CLIENT_2D_BUILD_SHA NODE_OPTIONS
+export ARELORIAN_PORT ARELORIAN_DOCKER_NETWORK ARELORIAN_ENABLE_DOCKER_INGRESS ARELORIAN_INGRESS_HTTP_BIND ARELORIAN_INGRESS_HTTP_PORT CLIENT_2D_ARCHIVE CLIENT_3D_ARCHIVE CLIENT_2D_MARKER CLIENT_2D_BUILD_SHA CLIENT_3D_BUILD_SHA NODE_OPTIONS
 cd "$REPO_ROOT"
 
 LOCK_PATH="${DEPLOY_LOCK_PATH:-/tmp/wasd-vps-docker-deploy.lock}"
-DEPLOY_LOCK_WAIT_SECONDS="${DEPLOY_LOCK_WAIT_SECONDS:-1800}"
+# A stale remote deployment must not silently consume the entire workflow budget.
+# Five minutes is sufficient for a healthy hand-off on the provisioned VPS.
+DEPLOY_LOCK_WAIT_SECONDS="${DEPLOY_LOCK_WAIT_SECONDS:-300}"
+DEPLOY_ENGINE_BUILD_TIMEOUT_SECONDS="${DEPLOY_ENGINE_BUILD_TIMEOUT_SECONDS:-720}"
+DEPLOY_MONITOR_BUILD_TIMEOUT_SECONDS="${DEPLOY_MONITOR_BUILD_TIMEOUT_SECONDS:-300}"
 if command -v flock >/dev/null 2>&1; then
   exec 9>"$LOCK_PATH"
   echo "Acquiring VPS deploy lock: $LOCK_PATH (wait ${DEPLOY_LOCK_WAIT_SECONDS}s)"
@@ -51,6 +58,30 @@ compose_cmd() {
     "${DC[@]}" --env-file "$ARELORIAN_ENV_FILE" "${files[@]}" "$@"
   else
     "${DC[@]}" "${files[@]}" "$@"
+  fi
+}
+
+compose_build_with_deadline() {
+  local service="$1"
+  local timeout_seconds="$2"
+  local files=(-f docker-compose.yml)
+  if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
+    files+=(-f docker-compose.ingress.yml --profile ingress)
+  fi
+
+  echo "[$(date -Is)] Building ${service}; deadline=${timeout_seconds}s"
+  if ! command -v timeout >/dev/null 2>&1; then
+    echo "WARN: timeout utility unavailable; running ${service} build without a local deadline."
+    compose_cmd --progress plain build "$service"
+    return
+  fi
+
+  if [ -f "$ARELORIAN_ENV_FILE" ]; then
+    timeout --foreground --signal=TERM --kill-after=30s "${timeout_seconds}s" \
+      "${DC[@]}" --env-file "$ARELORIAN_ENV_FILE" "${files[@]}" --progress plain build "$service"
+  else
+    timeout --foreground --signal=TERM --kill-after=30s "${timeout_seconds}s" \
+      "${DC[@]}" "${files[@]}" --progress plain build "$service"
   fi
 }
 
@@ -131,7 +162,17 @@ validate_client_2d_dockerfile_gate() {
     echo "WARN: CLIENT_2D_BUILD_SHA is empty; deploy can only prove marker, not exact client bundle freshness."
   fi
 
-  echo "Client-2D Dockerfile gate OK: ${CLIENT_2D_MARKER} enforced with PWA support."
+  test -f client/dist/index.html || { echo "ERROR: prebuilt client-3d index.html missing before Docker build."; exit 1; }
+  test -d client/dist/assets || { echo "ERROR: prebuilt client-3d assets missing before Docker build."; exit 1; }
+  if grep -q 'Areloria 3D unavailable' client/dist/index.html; then
+    echo "ERROR: prebuilt client-3d contains the unavailable placeholder."
+    exit 1
+  fi
+  if [ -n "$CLIENT_3D_BUILD_SHA" ]; then
+    test -f client/dist/build-stamp.json || { echo "ERROR: prebuilt client-3d build-stamp.json missing before Docker build."; exit 1; }
+    grep -q "$CLIENT_3D_BUILD_SHA" client/dist/build-stamp.json || { echo "ERROR: prebuilt client-3d build stamp does not match ${CLIENT_3D_BUILD_SHA}."; exit 1; }
+  fi
+  echo "Client Dockerfile gates OK: 2D ${CLIENT_2D_MARKER} plus verified real 3D artifact."
 }
 
 ensure_external_network() {
@@ -240,9 +281,9 @@ fetch_and_reset() {
   local temp_ref="refs/wasd-deploy/${DEPLOY_BRANCH}"
   echo "[1/4] git fetch + hard reset via temporary deploy ref"
   git reset --hard >/dev/null 2>&1 || true
-  # Always wipe dist/ so we start fresh. The GitHub workflow uploads a freshly-built
-  # client-2d artifact, so we must NOT preserve a stale dist/ from git history.
-  git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e .asset-inbox/ >/dev/null 2>&1 || true
+  # Always wipe dist/ so we start fresh. Preserve only the current runner-built
+  # archives, then re-extract verified 2D and 3D dists after the reset.
+  git clean -fd -e .env -e .env.local -e .env.docker -e data/ -e logs/ -e .asset-inbox/ -e "$CLIENT_2D_ARCHIVE" -e "$CLIENT_3D_ARCHIVE" >/dev/null 2>&1 || true
   git update-ref -d "$temp_ref" >/dev/null 2>&1 || true
   if ! git -c remote.origin.fetch= fetch --no-tags origin "+refs/heads/${DEPLOY_BRANCH}:${temp_ref}"; then
     echo "WARN: fetch failed; healing stale origin ref and retrying once."
@@ -252,6 +293,26 @@ fetch_and_reset() {
   fi
   git reset --hard "$temp_ref"
   git update-ref -d "$temp_ref" >/dev/null 2>&1 || true
+}
+
+restore_prebuilt_client_artifacts() {
+  echo "=== Restore verified prebuilt client artifacts ==="
+  test -n "$CLIENT_2D_ARCHIVE" && test -f "$CLIENT_2D_ARCHIVE" || { echo "ERROR: client-2d archive missing after reset."; exit 1; }
+  test -n "$CLIENT_3D_ARCHIVE" && test -f "$CLIENT_3D_ARCHIVE" || { echo "ERROR: client-3d archive missing after reset."; exit 1; }
+  rm -rf apps/client-2d/dist client/dist
+  mkdir -p apps/client-2d client
+  tar -xzf "$CLIENT_2D_ARCHIVE" -C apps/client-2d
+  tar -xzf "$CLIENT_3D_ARCHIVE" -C client
+  test -f apps/client-2d/dist/index.html
+  grep -q "$CLIENT_2D_MARKER" apps/client-2d/dist/index.html
+  test -f apps/client-2d/dist/build-stamp.json
+  grep -q "$CLIENT_2D_BUILD_SHA" apps/client-2d/dist/build-stamp.json
+  test -f client/dist/index.html
+  test -d client/dist/assets
+  ! grep -q 'Areloria 3D unavailable' client/dist/index.html
+  test -f client/dist/build-stamp.json
+  grep -q "$CLIENT_3D_BUILD_SHA" client/dist/build-stamp.json
+  echo "Verified prebuilt client-2d and client-3d artifacts restored."
 }
 
 import_cozy_assets_after_reset() {
@@ -362,6 +423,7 @@ if [ "$ARELORIAN_ENABLE_DOCKER_INGRESS" = "true" ]; then
 fi
 
 fetch_and_reset
+restore_prebuilt_client_artifacts
 export BUILD_COMMIT_SHA="$(git rev-parse HEAD)"
 import_cozy_assets_after_reset
 validate_client_2d_dockerfile_gate
@@ -380,8 +442,8 @@ docker builder prune -f --filter 'until=24h' >/dev/null 2>&1 || true
 docker image prune -f >/dev/null 2>&1 || true
 
 echo "[2/4] Build images (monorepo context, sequential to avoid OOM)"
-compose_cmd --progress plain build arelorian-engine
-compose_cmd --progress plain build monitor-bridge
+compose_build_with_deadline arelorian-engine "$DEPLOY_ENGINE_BUILD_TIMEOUT_SECONDS"
+compose_build_with_deadline monitor-bridge "$DEPLOY_MONITOR_BUILD_TIMEOUT_SECONDS"
 
 echo "[3/4] Recreate containers"
 compose_cmd down --remove-orphans || true
@@ -420,10 +482,11 @@ ok=0
 for i in $(seq 1 36); do
   if container_http_ready; then
     echo "  container HTTP ready ($i/36)"
-    if client_shell_ready && client_2d_shell_ready && client_3d_shell_ready && client_2d_build_stamp_ready && portal_shell_ready; then
+    # 2D-first release gate: 3D may be built and diagnosed separately, but it
+    # must not block a confirmed Pixi 2D client, portal, and server runtime.
+    if client_shell_ready && client_2d_shell_ready && client_2d_build_stamp_ready && portal_shell_ready; then
       echo "  client shell ready"
       echo "  client-2d shell ready (${CLIENT_2D_MARKER})"
-      echo "  client-3d shell ready"
       echo "  client-2d build stamp ready (${CLIENT_2D_BUILD_SHA:-not-required})"
       echo "  portal shell ready"
       if host_http_ready; then echo "  host HTTP mapping ready"; else echo "  WARN: host mapping not responding yet"; fi
@@ -431,21 +494,22 @@ for i in $(seq 1 36); do
       ok=1
       break
     fi
-    echo "  waiting for client/2d/3d/portal shell/build stamp... ($i/36)"
+    echo "  waiting for client/2d/portal shell/build stamp... ($i/36)"
   fi
   if [ "$i" -ge 12 ] && runtime_activity_ready; then
     echo "  runtime activity ready ($i/36): node process and world events detected"
-    if client_shell_ready && client_2d_shell_ready && client_3d_shell_ready && client_2d_build_stamp_ready && portal_shell_ready; then
+    # 2D-first release gate: 3D may be built and diagnosed separately, but it
+    # must not block a confirmed Pixi 2D client, portal, and server runtime.
+    if client_shell_ready && client_2d_shell_ready && client_2d_build_stamp_ready && portal_shell_ready; then
       echo "  client shell ready"
       echo "  client-2d shell ready (${CLIENT_2D_MARKER})"
-      echo "  client-3d shell ready"
       echo "  client-2d build stamp ready (${CLIENT_2D_BUILD_SHA:-not-required})"
       echo "  portal shell ready"
       if ingress_http_ready; then echo "  ingress HTTP ready"; else echo "  WARN: ingress HTTP not responding yet"; fi
       ok=1
       break
     fi
-    echo "  waiting for client/2d/3d/portal shell/build stamp... ($i/36)"
+    echo "  waiting for client/2d/portal shell/build stamp... ($i/36)"
   fi
   echo "  waiting... ($i/36)"
   sleep 5

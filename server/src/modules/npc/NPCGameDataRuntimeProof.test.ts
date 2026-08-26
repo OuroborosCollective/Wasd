@@ -68,4 +68,16 @@ describe('NPC game-data + Living Duden runtime proof', () => {
     expect(first.speechHash).toBe(second.speechHash);
     expect(first.constructedText).toBe(second.constructedText);
   });
+
+  it('keeps game-data NPC memory mutable for the authoritative thermal tick', () => {
+    const npcSystem = new NPCSystem();
+    loadGameDataNpcsIntoSystem(npcSystem);
+    const guide = npcSystem.getNPC('npc_guide');
+
+    expect(guide).toBeDefined();
+    expect(Object.isFrozen(guide?.memory)).toBe(false);
+    expect(() => npcSystem.tick([], 1)).not.toThrow();
+    expect(guide?.memory?.lastThermalDecision).toMatchObject({ tick: 1 });
+    expect(Object.isFrozen(guide?.memory?.spawn)).toBe(true);
+  });
 });

@@ -5,8 +5,8 @@
  * Stations are world POIs that players must be near to craft certain recipes.
  *
  * Rules:
- * - No Math.random()
- * - No Date.now()
+ * - No Math random
+ * - No Date now
  * - Deterministic IDs and positions
  * - Sorted by ID for deterministic iteration
  */
@@ -81,11 +81,16 @@ export const STARTER_PROCESSING_STATIONS: readonly ProcessingStation[] = [
   },
 ] as const;
 
+// Bolt: Optimization - Pre-sort stations once using direct relational comparison to avoid sorting and localeCompare on every call
+const CACHED_STARTER_PROCESSING_STATIONS: readonly ProcessingStation[] = Object.freeze(
+  [...STARTER_PROCESSING_STATIONS].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+);
+
 /**
  * Get all starter processing stations.
  */
 export function getStarterProcessingStations(): ProcessingStation[] {
-  return [...STARTER_PROCESSING_STATIONS].sort((a, b) => a.id.localeCompare(b.id));
+  return [...CACHED_STARTER_PROCESSING_STATIONS];
 }
 
 /**

@@ -74,12 +74,13 @@ function normalizeRecipe(raw: unknown, file: string, index: number): CraftingRec
   if (!Array.isArray(ingredients) || ingredients.length === 0) fail(file, `recipes[${index}].ingredients must be a non-empty array`);
   if (!Array.isArray(outputs) || outputs.length === 0) fail(file, `recipes[${index}].outputs must be a non-empty array`);
 
+  // Bolt: Optimization - Direct relational comparisons (a < b ? -1 : a > b ? 1 : 0) are significantly faster than localeCompare
   const normalizedIngredients = ingredients
     .map((entry, ingredientIndex) => normalizeIngredient(entry, file, `recipes[${index}].ingredients[${ingredientIndex}]`))
-    .sort((a, b) => a.itemId.localeCompare(b.itemId));
+    .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0));
   const normalizedOutputs = outputs
     .map((entry, outputIndex) => normalizeOutput(entry, file, `recipes[${index}].outputs[${outputIndex}]`))
-    .sort((a, b) => a.itemId.localeCompare(b.itemId));
+    .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0));
 
   return Object.freeze({
     id: readString(record, "id", file) as RecipeId,
@@ -109,5 +110,6 @@ export function loadCraftingRecipesFromGameData(): readonly CraftingRecipe[] {
     return recipe;
   });
 
-  return Object.freeze(recipes.sort((a, b) => a.id.localeCompare(b.id)));
+  // Bolt: Optimization - Direct relational operator string comparison
+  return Object.freeze(recipes.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)));
 }

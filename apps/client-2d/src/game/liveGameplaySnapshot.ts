@@ -355,6 +355,25 @@ export const EMPTY_EQUIPMENT_STATS: EquipmentStats = Object.freeze({
   criticalChancePerMille: 0,
 });
 
+export type AurionTransitionDisplayStatus = "idle" | "queued" | "active";
+export type AurionZoneDisplayId = "tower" | "expanse";
+
+/** Server-confirmed, display-only Aurion transition state. */
+export interface AurionTransitionSnapshot {
+  schemaVersion: "aurion-transition-snapshot.v1";
+  persistence: "ephemeral";
+  playerId: string;
+  sessionId: string | null;
+  status: AurionTransitionDisplayStatus;
+  zoneId: AurionZoneDisplayId;
+  entryPointId: string;
+  returnPointId: string;
+  lastAppliedTick: number | null;
+  lastAcceptedSequence: number;
+  pendingRequestCount: number;
+  transitionHash: string;
+}
+
 export interface LiveGameplaySnapshot {
   status: LiveDataStatus;
   serverTick: number | null;
@@ -398,6 +417,8 @@ export interface LiveGameplaySnapshot {
   npcMemories?: NpcMemorySnapshot[];
   /** NPC rumor snapshots for the player */
   npcRumors?: NpcRumorSnapshot[];
+  /** Optional server-confirmed Aurion transition projection. */
+  aurionTransition?: AurionTransitionSnapshot;
 }
 
 /**
@@ -598,6 +619,7 @@ export function normalizeLiveGameplaySnapshot(
       campStocks: normalizeCampStocks(input.campStocks),
       equipmentStats: normalizeEquipmentStats(input.equipmentStats),
       processingStations: normalizeProcessingStations(input.processingStations),
+      aurionTransition: normalizeAurionTransition(input.aurionTransition),
     };
   } catch (error) {
     // Never crash the client - return empty snapshot on normalization error
@@ -610,6 +632,53 @@ export function normalizeLiveGameplaySnapshot(
  * Normalize world POI snapshots from server.
  * Pure function - no mutation of input.
  */
+export function normalizeAurionTransition(input: unknown): AurionTransitionSnapshot | undefined {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return undefined;
+  const value = input as Record<string, unknown>;
+  const status = value.status;
+  const zoneId = value.zoneId;
+  const playerId = value.playerId;
+  const entryPointId = value.entryPointId;
+  const returnPointId = value.returnPointId;
+  const transitionHash = value.transitionHash;
+  const lastAcceptedSequence = Number(value.lastAcceptedSequence);
+  const pendingRequestCount = Number(value.pendingRequestCount);
+  const lastAppliedTick = value.lastAppliedTick === null ? null : Number(value.lastAppliedTick);
+  if (
+    value.schemaVersion !== "aurion-transition-snapshot.v1" ||
+    value.persistence !== "ephemeral" ||
+    typeof playerId !== "string" || !/^[a-zA-Z0-9._:-]{1,160}$/.test(playerId) ||
+    (status !== "idle" && status !== "queued" && status !== "active") ||
+    (zoneId !== "tower" && zoneId !== "expanse") ||
+    typeof entryPointId !== "string" || !/^[a-zA-Z0-9:_-]{1,96}$/.test(entryPointId) ||
+    typeof returnPointId !== "string" || !/^[a-zA-Z0-9:_-]{1,96}$/.test(returnPointId) ||
+    typeof transitionHash !== "string" || !/^[a-fA-F0-9]{64}$/.test(transitionHash) ||
+    !Number.isSafeInteger(lastAcceptedSequence) || lastAcceptedSequence < -1 ||
+    !Number.isSafeInteger(pendingRequestCount) || pendingRequestCount < 0 ||
+    (lastAppliedTick !== null && (!Number.isSafeInteger(lastAppliedTick) || lastAppliedTick < 0))
+  ) return undefined;
+
+  const sessionId = value.sessionId === null
+    ? null
+    : typeof value.sessionId === "string" && /^[a-zA-Z0-9:_-]{1,160}$/.test(value.sessionId)
+      ? value.sessionId
+      : null;
+  return Object.freeze({
+    schemaVersion: "aurion-transition-snapshot.v1",
+    persistence: "ephemeral",
+    playerId,
+    sessionId,
+    status,
+    zoneId,
+    entryPointId,
+    returnPointId,
+    lastAppliedTick,
+    lastAcceptedSequence,
+    pendingRequestCount,
+    transitionHash: transitionHash.toLowerCase(),
+  });
+}
+
 export function normalizeWorldPois(input: unknown): WorldPoiSnapshot[] {
   if (!Array.isArray(input)) return [];
 

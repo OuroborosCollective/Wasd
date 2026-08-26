@@ -65,7 +65,12 @@ jobs:
         run: pnpm --filter @wasd/client-2d build
 
       - name: Build root client
-        run: pnpm --filter @wasd/client build
+        run: |
+          set -euo pipefail
+          pnpm --filter @wasd/client build
+          printf '{"ok":true,"app":"client-3d","commit":"%s","generatedBy":"portal-smoke.yml"}\n' "$GITHUB_SHA" > client/dist/build-stamp.json
+          test -f client/dist/build-stamp.json
+          grep -q "$GITHUB_SHA" client/dist/build-stamp.json
 
       - name: Patch client-2d dist for Docker smoke test
         run: |
@@ -130,6 +135,7 @@ jobs:
           }
 
           require_file client/dist/index.html
+          require_file client/dist/build-stamp.json
           require_file client/dist/portal/index.html
           require_file client/dist/apps/index.html
           require_file client/dist/are-console.html
@@ -196,6 +202,7 @@ jobs:
           docker build \
             --build-arg CLIENT_2D_BUILD_SHA="$CLIENT_2D_SMOKE_BUILD_SHA" \
             --build-arg CLIENT_2D_MARKER="$CLIENT_2D_SMOKE_MARKER" \
+            --build-arg BUILD_COMMIT_SHA="$GITHUB_SHA" \
             -f Dockerfile.vps \
             -t wasd-vps-smoke:ci \
             .

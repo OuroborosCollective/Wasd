@@ -4,8 +4,11 @@ import { RuntimePlayerSystem, RuntimeWarfrontPort, createRuntimeWarfrontSystem }
 import { registerWarfrontSystem, type WarfrontTickSystem } from './WarfrontTickSystem.js';
 import { registerNPCSystem } from './NPCTickSystem.js';
 import { registerSpatialBroadcastTickSystem } from './SpatialBroadcastTickSystem.js';
+import { registerAurionTransitionTickSystem } from './AurionTransitionTickSystem.js';
 import { sharedWorldEventBus } from '../../modules/ouroboros/sharedWorldEventBus.js';
 import { ChatChannelRouter, type ChatRecipient } from '../../modules/chat/ChatChannelRouter.js';
+import { StatusEmitter } from '../../modules/chat/StatusEmitter.js';
+import { getOuroborosTickSystem } from './OuroborosTickSystem.js';
 import { getActiveGameWebSocketServer } from '../../networking/WebSocketServer.js';
 import type { NPCSystem } from '../../modules/npc/NPCSystem.js';
 import { NPCSystem as RealNPCSystem } from '../../modules/npc/NPCSystem.js';
@@ -114,6 +117,7 @@ export class WorldTickAdapter {
   readonly eventBus = sharedWorldEventBus;
   readonly chatRouter = new ChatChannelRouter();
   readonly players: ChatRecipient[] = [];
+  private readonly statusEmitter: StatusEmitter;
   private networkBridge: NetworkBridge | null = null;
 
   private readonly warfrontDomain = createRuntimeWarfrontSystem();
@@ -191,6 +195,24 @@ export class WorldTickAdapter {
   readonly assetHealthService = { getStatus: () => ({}), getStats: () => null, flush: () => {} };
 
   constructor() {
+    // Ouroboros is registered by WorldTickThinShell before this adapter starts.
+    // Bind it to the same runtime chat authority used by the adapter before the
+    // first active tick, so NPC state signalling cannot dereference a null port.
+    this.statusEmitter = new StatusEmitter(
+      this.chatRouter,
+      () => this.players,
+      this.sendToPlayer,
+      this.resolveSocketId,
+    );
+    getOuroborosTickSystem().setChatIntegration(
+      this.chatRouter,
+      this.statusEmitter,
+      this.players,
+      this.sendToPlayer,
+      this.broadcast,
+      this.resolveSocketId,
+    );
+
     // Create real NPC system for ARE truth path and preserve legacy adapter alias.
     this.realNPCSystem = new RealNPCSystem();
     this.npcSystem = this.realNPCSystem;
@@ -205,6 +227,7 @@ export class WorldTickAdapter {
     this.deterministicLootDirector = deterministicLootDirector;
 
     this.warfrontTickSystem = registerWarfrontSystem(this.warfrontDomain);
+    registerAurionTransitionTickSystem();
 
     // Phase 12: Register Spatial Broadcast System for periodic client updates
     const spatialSystem = registerSpatialBroadcastTickSystem();

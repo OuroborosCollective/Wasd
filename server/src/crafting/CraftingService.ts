@@ -89,6 +89,7 @@ function sameReceiptContract(
 export class CraftingService {
   private readonly recipes = new Map<string, CraftingRecipe>();
   private readonly playerLocks = new Map<string, Promise<void>>();
+  private cachedSortedRecipes: CraftingRecipe[] = [];
   /** Compatibility test hooks; production resolves through injected/runtime services. */
   private _inventoryService?: InventoryService;
   private _skillService?: CraftingSkillRuntime;
@@ -99,10 +100,17 @@ export class CraftingService {
     private readonly dependencies: CraftingServiceDependencies = {},
   ) {
     for (const recipe of recipes) this.recipes.set(recipe.id, recipe);
+    this.updateRecipeCache();
+  }
+
+  private updateRecipeCache(): void {
+    // Bolt: Optimization - Pre-sort recipes once using fast relational string comparisons (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+    // to eliminate O(N log N) sorting and localeCompare overhead on every listRecipes() call.
+    this.cachedSortedRecipes = [...this.recipes.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   public listRecipes(): CraftingRecipe[] {
-    return [...this.recipes.values()].sort((a, b) => a.id.localeCompare(b.id));
+    return [...this.cachedSortedRecipes];
   }
 
   public async listRecipeSnapshots(

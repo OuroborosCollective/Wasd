@@ -266,6 +266,7 @@ function projectComposerSnapshot(input: Record<string, unknown>): Partial<LiveGa
     discoveryStats: input.discoveryStats as LiveGameplaySnapshot["discoveryStats"],
     recentDiscoveries: copyArrayField(input.recentDiscoveries) as LiveGameplaySnapshot["recentDiscoveries"],
     worldSurface: input.worldSurface as LiveGameplaySnapshot["worldSurface"],
+    aurionTransition: input.aurionTransition,
   };
 }
 
