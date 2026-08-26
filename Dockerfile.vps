@@ -179,9 +179,13 @@ RUN test -f server/dist/core/watchdog-determinism.js && \
 
 RUN node scripts/sync-world-assets.mjs || true
 
-RUN pnpm --filter @wasd/client --if-present build && \
-    test -f client/dist/index.html && \
+# Client-3D is built on the GitHub runner and extracted on the VPS before docker build.
+# The installer-managed VPS Docker builder is cgroup-constrained, so fail closed
+# on a missing, stale, or placeholder 3D artifact rather than recompiling it here.
+RUN test -f client/dist/index.html && \
     test -d client/dist/assets && \
+    test -f client/dist/build-stamp.json && \
+    grep -q "$BUILD_COMMIT_SHA" client/dist/build-stamp.json && \
     ! grep -q 'Areloria 3D unavailable' client/dist/index.html
 
 RUN rm -rf /tmp/wasd-3d-dist && mkdir -p /tmp/wasd-3d-dist && cp -a client/dist/. /tmp/wasd-3d-dist/

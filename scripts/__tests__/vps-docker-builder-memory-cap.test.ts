@@ -17,8 +17,11 @@ describe('VPS Docker builder memory contract', () => {
     expect(builderSection).not.toContain('ENV NODE_OPTIONS=--max-old-space-size=1024');
   });
 
-  it('keeps the real 3D client build mandatory', () => {
-    expect(dockerfile).toContain('RUN pnpm --filter @wasd/client --if-present build &&');
+  it('requires a verified runner-built 3D artifact instead of recompiling on the VPS', () => {
+    expect(dockerfile).toContain('Client-3D is built on the GitHub runner and extracted on the VPS before docker build.');
+    expect(dockerfile).toContain('test -f client/dist/build-stamp.json');
+    expect(dockerfile).toContain('grep -q "$BUILD_COMMIT_SHA" client/dist/build-stamp.json');
     expect(dockerfile).toContain("! grep -q 'Areloria 3D unavailable' client/dist/index.html");
+    expect(dockerfile).not.toContain('RUN pnpm --filter @wasd/client --if-present build &&');
   });
 });
