@@ -33,3 +33,7 @@
 ## 2028-02-20 - [Standardizing Skill Window with ESC Navigation, ARIA Attributes, and Low-Vitals Pulse Animations]
 **Learning:** Standing HUD containers such as the SkillWindow can have purely visual progressbars and close buttons that aren't natively accessible. Wrapping visual progress bars in `role="progressbar"` with exact ARIA bounds and values ensures screen readers can parse player vital states correctly. Additionally, pairing this with a conditional, self-contained pulse animation class for HP/Stamina levels below 20% dramatically enhances situational awareness for sighted users without performance overhead.
 **Action:** Always implement a dedicated Escape-key event listener on overlay modal panels to support keyboard dismissal, and accompany vital state progress bars with semantic progressbar attributes, dynamic tooltips, and non-blocking pulse animations for low thresholds.
+
+## 2028-02-21 - [Modal Dialog vs Landmark Region Semantics]
+**Learning:** Pop-up/overlay panels (like CraftingWindow) with headers and close controls must retain `role="dialog"` rather than generic `role="region"`. Changing overlay containers to `role="region"` strips the dialog focus context from screen reader users when pop-up panels open.
+**Action:** Always maintain `role="dialog"` on pop-up overlay window containers and use `role="region"` only for inline, non-modal content sections.

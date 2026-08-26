@@ -220,7 +220,7 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
                         aria-label={tooltip}
                         title={tooltip}
                       >
-                        {requestPending ? "REQUEST PENDING" : buttonLabel(recipe.craftable, recipe.blockedReason)}
+                        {requestPending ? "CRAFTING..." : buttonLabel(recipe.craftable, recipe.blockedReason)}
                       </button>
                     );
                   })()}
