@@ -54,6 +54,20 @@ describe("MapStatusPanel UX & Accessibility", () => {
     gatherTools: [],
     workOrders: [],
     tradeOrders: [],
+    aurionTransition: {
+      schemaVersion: "aurion-transition-snapshot.v1",
+      persistence: "ephemeral",
+      playerId: "player_test",
+      sessionId: "aurion:player_test",
+      status: "active",
+      zoneId: "expanse",
+      entryPointId: "expanse:arrival",
+      returnPointId: "tower:threshold",
+      lastAppliedTick: 8,
+      lastAcceptedSequence: 1,
+      pendingRequestCount: 0,
+      transitionHash: "a".repeat(64),
+    },
   };
 
   it("renders live map status metrics with role and aria-label", async () => {
@@ -73,6 +87,21 @@ describe("MapStatusPanel UX & Accessibility", () => {
     expect(container!.textContent).toContain("Ironpine Wilderness");
     expect(container!.textContent).toContain("5, -3");
     expect(container!.textContent).toContain("9");
+  });
+
+  it("renders the server-confirmed Aurion transition status without introducing a client action", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(<MapStatusPanel snapshot={mockSnapshot} activeChunkCount={9} />);
+    });
+
+    const aurion = container!.querySelector('[data-testid="aurion-transition-status"]');
+    expect(aurion).toBeTruthy();
+    expect(aurion!.textContent).toContain("expanse · active");
+    expect(aurion!.textContent).toContain("ephemeral");
   });
 
   it("provides hover title tooltips and screen reader aria-labels on metric cards", async () => {

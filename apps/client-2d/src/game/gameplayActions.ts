@@ -28,6 +28,42 @@ export interface GameplayWorldPosition {
 }
 
 /**
+ * Request the single server-defined Aurion gate. The client cannot select a
+ * zone, spawn point, return point, actor or tick; it only supplies a bounded
+ * request identity and the next observed sequence number.
+ */
+export async function dispatchAurionTransition(playerId: string = DEFAULT_GAMEPLAY_PLAYER_ID): Promise<ActionResult> {
+  const transition = liveGameplayStore.getSnapshot().aurionTransition;
+  if (!transition || transition.status !== "idle") {
+    return { ok: false, error: "aurion_transition_unavailable" };
+  }
+
+  const sequenceId = transition.lastAcceptedSequence + 1;
+  const requestId = `aurion_transition_${sequenceId}`;
+  try {
+    const response = await fetch("/api/aurion/transition", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-player-id": playerId,
+      },
+      body: JSON.stringify({ requestId, sequenceId }),
+    });
+    const json = await response.json().catch(() => null);
+    if (!response.ok || !json?.ok) {
+      return { ok: false, error: String(json?.error ?? json?.code ?? "aurion_transition_failed") };
+    }
+
+    const next = await fetchGameplaySnapshot(playerId);
+    if (next) liveGameplayStore.setSnapshot(next, playerId);
+    return { ok: true };
+  } catch (error) {
+    console.error("[dispatchAurionTransition] failed:", error);
+    return { ok: false, error: "network_error" };
+  }
+}
+
+/**
  * Dispatch a gather action and refresh the live snapshot.
  */
 export async function dispatchGather(input: {

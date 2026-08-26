@@ -4,6 +4,7 @@ import { RuntimePlayerSystem, RuntimeWarfrontPort, createRuntimeWarfrontSystem }
 import { registerWarfrontSystem, type WarfrontTickSystem } from './WarfrontTickSystem.js';
 import { registerNPCSystem } from './NPCTickSystem.js';
 import { registerSpatialBroadcastTickSystem } from './SpatialBroadcastTickSystem.js';
+import { registerAurionTransitionTickSystem } from './AurionTransitionTickSystem.js';
 import { sharedWorldEventBus } from '../../modules/ouroboros/sharedWorldEventBus.js';
 import { ChatChannelRouter, type ChatRecipient } from '../../modules/chat/ChatChannelRouter.js';
 import { getActiveGameWebSocketServer } from '../../networking/WebSocketServer.js';
@@ -205,6 +206,7 @@ export class WorldTickAdapter {
     this.deterministicLootDirector = deterministicLootDirector;
 
     this.warfrontTickSystem = registerWarfrontSystem(this.warfrontDomain);
+    registerAurionTransitionTickSystem();
 
     // Phase 12: Register Spatial Broadcast System for periodic client updates
     const spatialSystem = registerSpatialBroadcastTickSystem();

@@ -24,6 +24,7 @@ import { areReplayRouter } from "../api/areReplayRoute.js";
 import { financeRouter } from "../api/financeRoute.js";
 import { createAREHeartbeatRouter } from "../routes/areHeartbeat.js";
 import { createGameplaySnapshotRouter } from "../routes/gameplaySnapshot.js";
+import { aurionTransitionRouter } from "../routes/aurionTransitionRoute.js";
 import { questEventRouter } from "../routes/questEventRoute.js";
 import { default as skillEventRouter } from "../routes/skillEventRoute.js";
 import { default as resourceGatherRouter } from "../routes/resourceGatherRoute.js";
@@ -229,6 +230,7 @@ export class ServerBootstrap {
     app.use("/api/are/replay", areReplayRouter(tick));
     app.use("/api/are", createAREHeartbeatRouter(tick, ws));
     app.use("/api/gameplay", createGameplaySnapshotRouter());
+    app.use("/api/aurion", aurionTransitionRouter);
     app.use("/api/quest", questEventRouter);
     app.use("/api/skill", skillEventRouter);
     app.use("/api/resource", resourceGatherRouter);
