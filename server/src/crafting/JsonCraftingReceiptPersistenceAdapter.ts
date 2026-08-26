@@ -46,7 +46,8 @@ function stableFile(receipts: readonly PersistedCraftingReceipt[]): CraftingRece
     receipts: Object.freeze(
       receipts
         .map(normalizeReceipt)
-        .sort((a, b) => a.operationId.localeCompare(b.operationId)),
+        // Bolt: Optimization - Direct relational comparison (a < b ? -1 : a > b ? 1 : 0) is faster than localeCompare
+        .sort((a, b) => (a.operationId < b.operationId ? -1 : a.operationId > b.operationId ? 1 : 0)),
     ),
   });
 }

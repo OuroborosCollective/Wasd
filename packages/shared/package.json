@@ -21,6 +21,10 @@
     "./items/itemSignature": {
       "types": "./dist/items/itemSignature.d.ts",
       "import": "./dist/items/itemSignature.js"
+    },
+    "./world": {
+      "types": "./dist/world/index.d.ts",
+      "import": "./dist/world/index.js"
     }
   },
   "scripts": {

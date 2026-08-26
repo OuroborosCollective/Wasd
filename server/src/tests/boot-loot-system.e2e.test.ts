@@ -181,3 +181,76 @@ describe('booted canonical NPC-defeat loot runtime', () => {
     expect((await inventory.getPlayerInventory('player_boot_e2e')).slots).toEqual([]);
   });
 });
+
+describe('booted canonical NPC-defeat adapter validation regressions', () => {
+  afterEach(() => {
+    resetLootSystemForTests();
+  });
+
+  it('fails closed for each missing canonical identity, world, chunk, Kappa, tick, or spatial input', async () => {
+    const persistence = new MemoryInventoryPersistence();
+    const inventory = new InventoryService(new InventoryStore(), persistence);
+    const { eventBus } = bootLootSystem({
+      db: createDeterministicLootCatalog(),
+      inventoryService: inventory,
+    });
+    const deltas: LootDelta[] = [];
+    eventBus.onSafe('loot.delta', async ({ delta }: { delta: LootDelta }) => {
+      deltas.push(delta);
+    });
+
+    const invalidDefeats = [
+      { ...confirmedKill, player: { ...confirmedKill.player, id: ' ' } },
+      { ...confirmedKill, npc: { ...confirmedKill.npc, id: '' } },
+      { ...confirmedKill, world: { ...confirmedKill.world, worldHash: ' ' } },
+      { ...confirmedKill, zone: { ...confirmedKill.zone, chunkHash: '' } },
+      { ...confirmedKill, world: { ...confirmedKill.world, kappa: '' } },
+      { ...confirmedKill, tickIndex: -1 },
+      { ...confirmedKill, tickIndex: 1.5 },
+      {
+        ...confirmedKill,
+        zone: { ...confirmedKill.zone, chunkKey: '' },
+        npc: { ...confirmedKill.npc, position: { x: Number.NaN, y: 0, z: Number.POSITIVE_INFINITY } },
+      },
+    ];
+
+    for (const defeat of invalidDefeats) {
+      expect(emitNpcKilledLootEvent(defeat)).toBe(false);
+    }
+    await drainEventLoop();
+
+    expect(deltas).toEqual([]);
+    expect((await inventory.getPlayerInventory('player_boot_e2e')).slots).toEqual([]);
+  });
+
+  it('uses an explicit World-Boss fallback and a finite derived chunk key when optional values are absent', async () => {
+    const persistence = new MemoryInventoryPersistence();
+    const inventory = new InventoryService(new InventoryStore(), persistence);
+    const { eventBus } = bootLootSystem({
+      db: createDeterministicLootCatalog(),
+      inventoryService: inventory,
+    });
+    const deltas: LootDelta[] = [];
+    eventBus.onSafe('loot.delta', async ({ delta }: { delta: LootDelta }) => {
+      deltas.push(delta);
+    });
+
+    expect(emitNpcKilledLootEvent({
+      ...confirmedKill,
+      npc: {
+        ...confirmedKill.npc,
+        rank: undefined,
+        worldBoss: true,
+        treasureClassId: 'TC_BOOT_E2E',
+        position: { x: 130, y: 0, z: -70 },
+      },
+      zone: { ...confirmedKill.zone, chunkKey: undefined },
+    })).toBe(true);
+    await waitForDelta(deltas);
+
+    expect(deltas[0]?.lootRollContext).toMatchObject({
+      sourceRank: 'WORLD_BOSS',
+      chunkKey: 'tile:2:-2',
+    });
+  });
+});

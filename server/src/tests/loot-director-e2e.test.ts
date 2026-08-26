@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { GameEventBus } from '../core/events/GameEventBus.js';
 import { RuntimeHistoryLog } from '../history/RuntimeHistoryLog.js';
 import { InventoryPersistenceAdapter, PersistedPlayerInventoryState, createPersistedPlayerInventoryState } from '../inventory/InventoryPersistence.js';
@@ -166,5 +166,128 @@ describe('LootDirector canonical E2E', () => {
     expect(delta?.items).toHaveLength(1);
     expect((await inventory.getPlayerInventory('player_loot_e2e')).slots).toEqual([]);
     expect(worldDrops.deltas).toEqual([delta]);
+  });
+});
+
+class DeferredWorldDropService {
+  readonly payloads: unknown[] = [];
+  private releaseSpawn: (() => void) | null = null;
+  private readonly firstSpawnPromise: Promise<void>;
+
+  constructor() {
+    this.firstSpawnPromise = new Promise((resolve) => {
+      this.releaseSpawn = resolve;
+    });
+  }
+
+  async spawnItem(payload: unknown): Promise<void> {
+    this.payloads.push(payload);
+    await this.firstSpawnPromise;
+  }
+
+  release(): void {
+    this.releaseSpawn?.();
+  }
+
+  async waitForFirstSpawn(): Promise<void> {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      if (this.payloads.length > 0) return;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    throw new Error('world-drop consumer was not reached');
+  }
+}
+
+describe('LootDirector edge-case regressions', () => {
+  it('reserves an in-flight defeat before an async world-drop consumer can admit a duplicate', async () => {
+    const worldDrops = new DeferredWorldDropService();
+    const director = new LootDirector({
+      db: createDeterministicLootCatalog(),
+      eventBus: new GameEventBus(),
+      worldDropService: worldDrops,
+    });
+
+    const first = director.handleDefeatEvent(createContext());
+    await worldDrops.waitForFirstSpawn();
+
+    const duplicate = await director.handleDefeatEvent(createContext());
+    expect(duplicate).toBeNull();
+
+    worldDrops.release();
+    const delta = await first;
+
+    expect(delta?.items).toHaveLength(1);
+    expect(worldDrops.payloads).toHaveLength(1);
+    expect(director.getStatus().telemetry.idempotencyHits).toBe(1);
+  });
+
+  it('keeps the committed inventory delta and downstream event truthful when audit recording fails', async () => {
+    const persistence = new MemoryInventoryPersistence();
+    const inventory = new InventoryService(new InventoryStore(), persistence);
+    const eventBus = new GameEventBus();
+    const emitted: LootDelta[] = [];
+    eventBus.onSafe('loot.delta', async ({ delta }: { delta: LootDelta }) => {
+      emitted.push(delta);
+    });
+    const auditStore = {
+      recordDrop: vi.fn().mockRejectedValue(new Error('audit_store_unavailable')),
+    };
+    const director = new LootDirector({
+      db: createDeterministicLootCatalog(),
+      eventBus,
+      inventoryService: inventory,
+      auditStore,
+    });
+
+    const delta = await director.handleDefeatEvent(createContext());
+
+    expect(delta?.items).toHaveLength(1);
+    expect((await inventory.getPlayerInventory('player_loot_e2e')).slots).toEqual([
+      expect.objectContaining({ itemId: 'wood_log', quantity: 1 }),
+    ]);
+    expect(emitted).toEqual([delta]);
+    expect(auditStore.recordDrop).toHaveBeenCalledTimes(1);
+    expect(director.getStatus().telemetry.auditFailures).toBe(1);
+    expect(director.getStatus().telemetry.failedRolls).toBe(0);
+  });
+
+  it('releases an in-flight reservation after a policy-load failure so a deterministic retry can succeed', async () => {
+    const db = createDeterministicLootCatalog();
+    let failPolicyLoad = true;
+    db.models.LootPolicy.findOne = async () => {
+      if (failPolicyLoad) {
+        failPolicyLoad = false;
+        throw new Error('policy_store_temporarily_unavailable');
+      }
+      return { version: 'test-loot-policy-v1', config: { minAreaLevel: 1, maxAreaLevel: 100, maxMagicFind: 500 } };
+    };
+    const worldDrops = new InMemoryWorldDropService();
+    const director = new LootDirector({
+      db,
+      eventBus: new GameEventBus(),
+      worldDropService: worldDrops,
+    });
+
+    expect(await director.handleDefeatEvent(createContext())).toBeNull();
+
+    const retry = await director.handleDefeatEvent(createContext());
+    expect(retry?.items).toHaveLength(1);
+    expect(worldDrops.deltas).toEqual([retry]);
+  });
+
+  it('does not emit a loot success when neither inventory nor a world-drop consumer is available', async () => {
+    const eventBus = new GameEventBus();
+    const emitted: LootDelta[] = [];
+    eventBus.onSafe('loot.delta', async ({ delta }: { delta: LootDelta }) => {
+      emitted.push(delta);
+    });
+    const director = new LootDirector({
+      db: createDeterministicLootCatalog(),
+      eventBus,
+    });
+
+    expect(await director.handleDefeatEvent(createContext())).toBeNull();
+    expect(emitted).toEqual([]);
+    expect(director.getStatus().telemetry.noConsumerDeltas).toBe(1);
   });
 });
