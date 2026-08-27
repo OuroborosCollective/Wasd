@@ -11,6 +11,20 @@
 import { Router, Request, Response } from "express";
 import { LandSystem } from "../modules/land/LandSystem.js";
 import { db as dbInstance } from "../core/Database.js";
+import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
+
+function resolvePlayer(req: Request, res: Response): string | null {
+  const identity = resolveHttpPlayerIdentity(req);
+  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+    res.status(401).json({ error: "authenticated_player_required" });
+    return null;
+  }
+  if (!identity.playerId || identity.playerId === "anonymous") {
+    res.status(401).json({ error: "Player ID required" });
+    return null;
+  }
+  return identity.playerId;
+}
 
 export function createLandRouter(landSystem: LandSystem, dbParam?: any): Router {
   const db = dbParam || dbInstance;
@@ -32,8 +46,8 @@ export function createLandRouter(landSystem: LandSystem, dbParam?: any): Router 
 
   // ── My Land ────────────────────────────────────────────────────────────────
   router.get("/mine", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
-    if (!playerId) return res.status(401).json({ error: "Player ID required" });
+    const playerId = resolvePlayer(req, res);
+    if (!playerId) return;
 
     const land = landSystem.getLandByOwner(playerId);
     if (!land) return res.json({ land: null });
@@ -43,9 +57,9 @@ export function createLandRouter(landSystem: LandSystem, dbParam?: any): Router 
 
   // ── Claim Land ─────────────────────────────────────────────────────────────
   router.post("/claim", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
-    const { x, y, name } = req.body;
-    if (!playerId) return res.status(401).json({ error: "Player ID required" });
+    const playerId = resolvePlayer(req, res);
+    if (!playerId) return;
+    const { x, y, name } = req.body || {};
     if (x === undefined || y === undefined) return res.status(400).json({ error: "x and y required" });
 
     try {
@@ -84,8 +98,8 @@ export function createLandRouter(landSystem: LandSystem, dbParam?: any): Router 
 
   // ── Abandon Land ───────────────────────────────────────────────────────────
   router.post("/abandon", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
-    if (!playerId) return res.status(401).json({ error: "Player ID required" });
+    const playerId = resolvePlayer(req, res);
+    if (!playerId) return;
 
     const success = await landSystem.abandonLand(playerId);
     res.json({ success });
@@ -93,9 +107,9 @@ export function createLandRouter(landSystem: LandSystem, dbParam?: any): Router 
 
   // ── Add Structure ──────────────────────────────────────────────────────────
   router.post("/structure", async (req: Request, res: Response) => {
-    const playerId = req.headers["x-player-id"] as string;
-    const { landId, type, x, y, z, rotY, scale, glbPath, name } = req.body;
-    if (!playerId) return res.status(401).json({ error: "Player ID required" });
+    const playerId = resolvePlayer(req, res);
+    if (!playerId) return;
+    const { landId, type, x, y, z, rotY, scale, glbPath, name } = req.body || {};
     if (!landId || !type) return res.status(400).json({ error: "landId and type required" });
 
     // If placing a GLB model, check subscription
@@ -129,11 +143,10 @@ export function createLandRouter(landSystem: LandSystem, dbParam?: any): Router 
 
   // ── Remove Structure ───────────────────────────────────────────────────────
   router.delete("/structure/:structId", async (req: Request, res: Response) => {
-    const playerIdRaw = req.headers["x-player-id"];
-    const playerId = Array.isArray(playerIdRaw) ? playerIdRaw[0] : (playerIdRaw as string);
+    const playerId = resolvePlayer(req, res);
+    if (!playerId) return;
     const { structId } = req.params;
-    const { landId } = req.body;
-    if (!playerId) return res.status(401).json({ error: "Player ID required" });
+    const { landId } = req.body || {};
 
     const success = await landSystem.removeStructure(landId as string, playerId, structId as string);
     res.json({ success });

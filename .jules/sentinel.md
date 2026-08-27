@@ -42,3 +42,8 @@
 **Vulnerability:** The Playtester monitor WebSocket stream (`PlaytesterMonitorStream`), WebRTC signaling server (`PlaytesterWebRTCSignaling`), and HTTP route access checks (`ServerBootstrap`) used relational `===` string comparisons to validate incoming query/header tokens against `PLAYTESTER_MONITOR_TOKEN`, exposing internal monitoring credentials to timing attacks.
 **Learning:** Custom WebSocket upgrade handlers and streaming endpoints often implement token authorization checks independently of standard Express auth middlewares, creating timing side-channel risks.
 **Prevention:** Always use SHA-256 digest hashing and `crypto.timingSafeEqual` via a `safeEqualText` helper for token comparisons in custom HTTP upgrade and WebSocket handlers.
+
+## 2026-09-15 - [High] Direct Header Identity Spoofing in Land API
+**Vulnerability:** The Land API routes (`server/src/api/landRoute.ts`) directly extracted `req.headers["x-player-id"]` without validating player authentication or checking environment production constraints, allowing unauthenticated clients to manipulate or query land state belonging to other players.
+**Learning:** Legacy endpoints often directly parse header strings instead of leveraging centralized identity resolvers, missing production authentication enforcement and user input sanitization.
+**Prevention:** Use `resolveHttpPlayerIdentity` from `PlayerIdentityResolver.ts` for all user-facing HTTP routes to enforce server-authoritative player identity and production authentication requirements.
