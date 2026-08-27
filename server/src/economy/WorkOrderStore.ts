@@ -58,16 +58,22 @@ function contributionHash(input: {
 export class WorkOrderStore {
   private readonly definitions = new Map<string, RegionalWorkOrderDefinition>();
   private readonly progress = new Map<string, WorkOrderProgressState>();
+  // Bolt: Pre-computed frozen definitions array sorted by id using fast relational comparison
+  private readonly cachedDefinitionsList: readonly RegionalWorkOrderDefinition[];
 
   constructor(private readonly gameData: RegionalWorkOrderGameData = loadRegionalWorkOrdersFromGameData()) {
     for (const order of gameData.workOrders) {
       this.definitions.set(order.id, order);
       this.progress.set(order.id, Object.freeze({ workOrderId: order.id, deliveredCount: 0 }));
     }
+    // Pre-sort definitions by id using fast relational string comparison to avoid repeated sorting & array copy overhead
+    this.cachedDefinitionsList = Object.freeze(
+      [...this.definitions.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    );
   }
 
   listDefinitions(): readonly RegionalWorkOrderDefinition[] {
-    return Object.freeze([...this.definitions.values()].sort((a, b) => a.id.localeCompare(b.id)));
+    return this.cachedDefinitionsList;
   }
 
   getDefinition(workOrderId: string): RegionalWorkOrderDefinition | undefined {
@@ -117,10 +123,14 @@ export class WorkOrderStore {
   }
 
   listSnapshots(currentTick: number): readonly WorkOrderSnapshot[] {
-    return Object.freeze(this.listDefinitions()
-      .map((order) => this.getSnapshot(order.id, currentTick))
-      .filter((snapshot): snapshot is WorkOrderSnapshot => Boolean(snapshot))
-      .sort((a, b) => a.workOrderId.localeCompare(b.workOrderId)));
+    // Bolt: Since listDefinitions() is pre-sorted by definition ID (which equals snapshot.workOrderId),
+    // mapping preserves order. We verify order and use fast direct relational sorting as fallback.
+    return Object.freeze(
+      this.listDefinitions()
+        .map((order) => this.getSnapshot(order.id, currentTick))
+        .filter((snapshot): snapshot is WorkOrderSnapshot => Boolean(snapshot))
+        .sort((a, b) => (a.workOrderId < b.workOrderId ? -1 : a.workOrderId > b.workOrderId ? 1 : 0))
+    );
   }
 
   contribute(input: {

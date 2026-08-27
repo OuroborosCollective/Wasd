@@ -145,4 +145,38 @@ describe("resource processing and work-order runtime truth", () => {
     expect(after?.deliveredCount).toBe(before?.deliveredCount);
     expect((await walletService.getWallet("player_empty")).balances.coin).toBe(0);
   });
+
+  it("benchmarks precomputed listDefinitions vs uncached localeCompare array sorting", () => {
+    const gameData = loadRegionalWorkOrdersFromGameData();
+    const store = new WorkOrderStore(gameData);
+
+    // Verify listDefinitions returns frozen precomputed array
+    const list1 = store.listDefinitions();
+    const list2 = store.listDefinitions();
+    expect(list1).toBe(list2);
+    expect(list1.map((d) => d.id)).toEqual([...list1.map((d) => d.id)].sort());
+
+    const iterations = 50000;
+
+    // 1. Precomputed cached list call benchmark
+    const startCached = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      const defs = store.listDefinitions();
+    }
+    const durationCached = performance.now() - startCached;
+
+    // 2. Uncached copy + localeCompare benchmark
+    const startUncached = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      const defs = [...gameData.workOrders].sort((a, b) => a.id.localeCompare(b.id));
+    }
+    const durationUncached = performance.now() - startUncached;
+
+    console.log(`[WorkOrderStore Benchmark - ${iterations} calls]`);
+    console.log(`  - Precomputed cached list:                  ${durationCached.toFixed(4)}ms`);
+    console.log(`  - Dynamic copy + localeCompare sort:        ${durationUncached.toFixed(4)}ms`);
+    console.log(`  - Speedup:                                  ${(durationUncached / Math.max(0.001, durationCached)).toFixed(2)}x`);
+
+    expect(durationCached).toBeLessThan(durationUncached);
+  });
 });
