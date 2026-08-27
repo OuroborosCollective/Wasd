@@ -93,6 +93,44 @@ describe("GameChatWindow UX & Accessibility", () => {
     // Check Drag Handle has description title
     const dragHandle = container!.querySelector('[title*="Double-click"]');
     expect(dragHandle).toBeTruthy();
+
+    // Check main container has region role and label
+    const region = container!.querySelector('[role="region"]');
+    expect(region).toBeTruthy();
+    expect(region?.getAttribute("aria-label")).toBe("Game Chat Window");
+
+    // Check close button has aria-keyshortcuts="Escape"
+    const closeBtn = container!.querySelector('button[aria-label="Close chat window [ESC]"]');
+    expect(closeBtn).toBeTruthy();
+    expect(closeBtn?.getAttribute("aria-keyshortcuts")).toBe("Escape");
+  });
+
+  it("calls onClose when Escape key is pressed", async () => {
+    const handleClose = vi.fn();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(
+        <GameChatWindow
+          state={defaultState}
+          currentPlayerId="player2"
+          currentPlayerName="Bob"
+          onSendMessage={() => {}}
+          onClose={handleClose}
+          onTabChange={() => {}}
+          onMinimize={() => {}}
+          onMaximize={() => {}}
+        />
+      );
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+
+    expect(handleClose).toHaveBeenCalledTimes(1);
   });
 
   it("handles unread messages correctly with singular and plural aria-labels", async () => {

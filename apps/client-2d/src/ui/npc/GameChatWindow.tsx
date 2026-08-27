@@ -242,10 +242,30 @@ export function GameChatWindow({ state, currentPlayerId, onSendMessage, onClose,
     if (dy < -30) onMaximize();
   }, [onMinimize, onMaximize]);
 
+  // Listen for Escape key to close the window
+  useEffect(() => {
+    if (!state.isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [state.isOpen, onClose]);
+
   if (!state.isOpen) return null;
 
   return (
-    <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: state.isMinimized ? 48 : "45vh", maxHeight: state.isMinimized ? 48 : 400, display: "flex", flexDirection: "column", backgroundColor: "rgba(13,21,22,0.94)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderTop: "1px solid rgba(0,229,255,0.3)", zIndex: 900 }}>
+    <div
+      role="region"
+      aria-label="Game Chat Window"
+      style={{ position: "fixed", left: 0, right: 0, bottom: 0, height: state.isMinimized ? 48 : "45vh", maxHeight: state.isMinimized ? 48 : 400, display: "flex", flexDirection: "column", backgroundColor: "rgba(13,21,22,0.94)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderTop: "1px solid rgba(0,229,255,0.3)", zIndex: 900 }}
+    >
       <DragHandle onDrag={handleDrag} onDoubleClick={state.isMinimized ? onMaximize : onMinimize} />
       <TabBar activeTab={state.activeTab} unreadCounts={state.unreadCounts} onTabChange={onTabChange} />
       {!state.isMinimized ? <MessageList messages={state.messages} activeTab={state.activeTab} currentPlayerId={currentPlayerId} /> : <div style={{ flex: 1, display: "flex", alignItems: "center", padding: "0 12px", gap: 12, color: COLORS[state.activeTab], fontWeight: 700, letterSpacing: "0.12em" }}>{LABELS[state.activeTab]} · {state.messages.filter((message) => message.channel === state.activeTab).length} messages</div>}
@@ -253,7 +273,8 @@ export function GameChatWindow({ state, currentPlayerId, onSendMessage, onClose,
       <button
         type="button"
         onClick={onClose}
-        aria-label="Close chat window"
+        aria-label="Close chat window [ESC]"
+        aria-keyshortcuts="Escape"
         title="Close chat window"
         style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, background: "transparent", border: "1px solid rgba(132,147,150,0.3)", color: "rgba(132,147,150,0.74)", cursor: "pointer" }}
       >
