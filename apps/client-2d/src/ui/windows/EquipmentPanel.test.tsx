@@ -108,6 +108,44 @@ describe("EquipmentPanel UX & Accessibility", () => {
     expect(helmetSlot.getAttribute("role")).toBe("button");
     expect(helmetSlot.getAttribute("tabIndex")).toBe("0");
     expect(helmetSlot.getAttribute("aria-label")).toBe("Empty Helmet slot");
+
+    // Title tooltip matching aria-label
+    expect(weaponSlot.getAttribute("title")).toBe("Unequip Iron Sword from Weapon");
+    expect(helmetSlot.getAttribute("title")).toBe("Empty Helmet slot");
+
+    // Container landmark accessibility attributes
+    const panelSection = container!.querySelector('[data-testid="equipment-panel-live"]');
+    expect(panelSection).toBeTruthy();
+    expect(panelSection!.getAttribute("role")).toBe("region");
+    expect(panelSection!.getAttribute("aria-label")).toBe("Player Equipment");
+  });
+
+  it("triggers onClose callback when Escape key is pressed", async () => {
+    const handleClose = vi.fn();
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(
+        <DnDProvider>
+          <EquipmentPanel
+            playerId="test-player-1"
+            equipment={mockEquipment}
+            inventory={mockInventory}
+            paperdoll={mockPaperdoll}
+            onClose={handleClose}
+          />
+        </DnDProvider>
+      );
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+
+    expect(handleClose).toHaveBeenCalledTimes(1);
   });
 
   it("triggers unequip callback when the slot card itself is clicked", async () => {

@@ -178,6 +178,8 @@ function PaperdollSlotCard({
       role="button"
       tabIndex={0}
       aria-label={ariaLabel}
+      title={ariaLabel}
+      aria-busy={isPending}
     >
       <div className="equip-slot-silhouette">{slotIcon(slot.slotId)}</div>
       {iconPath ? (
@@ -353,10 +355,29 @@ export function EquipmentPanel({
     void handleEquip(item.itemId);
   }, [handleEquip]);
 
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="equipment-panel wow-panel" data-player-id={resolvedPlayerId} data-testid="equipment-panel-live">
+    <section
+      className="equipment-panel wow-panel"
+      role="region"
+      aria-label="Player Equipment"
+      data-player-id={resolvedPlayerId}
+      data-testid="equipment-panel-live"
+    >
       <div className="equipment-header">
         <h2>Equipment</h2>
         {onClose && (
@@ -374,7 +395,12 @@ export function EquipmentPanel({
       </div>
 
       {rejection && (
-        <p className="are-text-muted" data-testid="equipment-intent-rejected">
+        <p
+          className="are-text-muted"
+          role="alert"
+          aria-live="assertive"
+          data-testid="equipment-intent-rejected"
+        >
           Rejected: {rejection}
         </p>
       )}
@@ -426,6 +452,6 @@ export function EquipmentPanel({
           </p>
         )}
       </div>
-    </div>
+    </section>
   );
 }
