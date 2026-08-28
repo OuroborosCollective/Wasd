@@ -35,6 +35,11 @@ export function NetworkQualityHud({
 }: Props) {
   return (
     <div
+      role="region"
+      aria-label="Network Performance Monitor"
+      aria-live="polite"
+      aria-atomic="true"
+      title={`Network Status: ${quality.toUpperCase()} (${rttMs}ms RTT)`}
       style={{
         position: "fixed",
         right: 10,
