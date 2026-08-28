@@ -58,8 +58,14 @@ function escapeHtml(text: string): string {
  * Individual event row component.
  */
 function CausalCatchupEventRow({ event }: { event: CausalCatchupEventPayload }): React.ReactElement {
+  const rowLabel = `Event: ${getEventTypeLabel(event.type)} at tick ${event.tick} in region ${event.regionId}`;
   return (
-    <div className="causal-catchup-event" data-event-type={event.type}>
+    <div
+      className="causal-catchup-event"
+      data-event-type={event.type}
+      aria-label={rowLabel}
+      title={rowLabel}
+    >
       <span className="causal-catchup-event-type">{getEventTypeLabel(event.type)}</span>
       <span className="causal-catchup-event-tick">tick {event.tick}</span>
       <span className="causal-catchup-event-region">{escapeHtml(event.regionId)}</span>
@@ -95,8 +101,11 @@ export function CausalCatchupPanel({ summary, className }: CausalCatchupPanelPro
 
   return (
     <aside
+      role="region"
+      aria-label="Causal Catchup Summary"
       className={`causal-catchup-panel ${className ?? ""}`}
       aria-live="polite"
+      aria-atomic="true"
       data-event-count={typedSummary.eventCount}
     >
       <header className="causal-catchup-header">
@@ -122,7 +131,7 @@ export function CausalCatchupPanel({ summary, className }: CausalCatchupPanelPro
       </ul>
 
       <footer className="causal-catchup-footer">
-        Hash: <code>{escapeHtml(typedSummary.summaryHash.substring(0, 8))}...</code>
+        Hash: <code title={`Summary Digest Hash: ${typedSummary.summaryHash}`}>{escapeHtml(typedSummary.summaryHash.substring(0, 8))}...</code>
       </footer>
     </aside>
   );
