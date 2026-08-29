@@ -90,7 +90,7 @@ describe("GatheringToolsPanel UX & Accessibility", () => {
     ],
   };
 
-  it("renders with correct heading and list of equipped tools", async () => {
+  it("renders with correct heading, landmark ARIA attributes, and list of equipped tools", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -106,6 +106,8 @@ describe("GatheringToolsPanel UX & Accessibility", () => {
 
     const panel = container!.querySelector('[data-testid="gathering-tools-panel"]');
     expect(panel).toBeTruthy();
+    expect(panel!.getAttribute("role")).toBe("region");
+    expect(panel!.getAttribute("aria-label")).toBe("Gathering Tools Equipment");
     expect(panel!.textContent).toContain("🪓 Woodcutting");
     expect(panel!.textContent).toContain("Wooden Axe");
   });

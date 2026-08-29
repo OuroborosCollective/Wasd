@@ -193,6 +193,8 @@ export function GatheringToolsPanel({ equipment, inventory, onEquip }: Props) {
 
   return (
     <section
+      role="region"
+      aria-label="Gathering Tools Equipment"
       data-testid="gathering-tools-panel"
       className="are-window gathering-tools-panel"
     >
