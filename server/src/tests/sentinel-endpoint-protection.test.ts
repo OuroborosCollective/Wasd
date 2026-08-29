@@ -14,6 +14,7 @@ import { leaderboardRouter } from "../api/leaderboardRoute.js";
 import { areReplayRouter } from "../api/areReplayRoute.js";
 import { sdkBillingRouter } from "../api/sdkBillingRoute.js";
 import { adminRoute } from "../api/adminRoute.js";
+import { chatRoute } from "../api/chatRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -395,6 +396,47 @@ describe("Sentinel Endpoint Protection", () => {
         .send({ command: "ping" });
       expect(r2.status).toBe(200);
       expect(r2.body.data.command).toBe("ping");
+    });
+  });
+
+  describe("/api/chat/send security", () => {
+    it("resolves authenticated player identity over client body author", async () => {
+      const mockSendMessage = vi.fn().mockReturnValue({ accepted: true });
+      const def = chatRoute({ sendMessage: mockSendMessage });
+      const app = express();
+      app.use(express.json());
+      app.post(def.path, def.handler);
+
+      const r = await request(app)
+        .post("/api/chat/send")
+        .set("X-Player-Id", "player_validated_123")
+        .send({ channel: "global", text: "Hello world!", author: "spoofed_author" });
+
+      expect(r.status).toBe(200);
+      expect(mockSendMessage).toHaveBeenCalledWith({
+        channel: "global",
+        text: "Hello world!",
+        author: "player_validated_123",
+      });
+    });
+
+    it("falls back to body author or system if no player identity is present", async () => {
+      const mockSendMessage = vi.fn().mockReturnValue({ accepted: true });
+      const def = chatRoute({ sendMessage: mockSendMessage });
+      const app = express();
+      app.use(express.json());
+      app.post(def.path, def.handler);
+
+      const r = await request(app)
+        .post("/api/chat/send")
+        .send({ channel: "global", text: "Hello world!", author: "guest_user" });
+
+      expect(r.status).toBe(200);
+      expect(mockSendMessage).toHaveBeenCalledWith({
+        channel: "global",
+        text: "Hello world!",
+        author: "guest_user",
+      });
     });
   });
 
