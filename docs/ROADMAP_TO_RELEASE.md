@@ -142,6 +142,7 @@ These belong after release blockers are controlled, unless a small isolated PR c
 
 | Integration | Target direction | Status |
 |---|---|---|
+| WASD → Aurion source ledger | Revision-bound WASD source inventory is available to Aurion through a pinned reusable workflow and a hash-only artifact. | Implemented as a read-only coordination gate; it must not be interpreted as production migration or persistence evidence. |
 | Genealogy and houses | NPC family lines, inheritance, house reputation and deterministic lineage history. | Implemented foundation; 3D rendering open in #2046. |
 | Full NPC politics | NPCs and players participate in shared civic rules. | Future; must build on #2050, not a mock layer. |
 | Guild/village/city/kingdom/nation hierarchy | Rule-bound civilization growth through biome-bounded territories. | Future; must derive from server runtime state. |

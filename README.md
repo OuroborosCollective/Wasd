@@ -80,6 +80,7 @@ Recent high-value systems:
 | UI style | Cyber-Zen / Arelorian Stitch dark-neon HUD language |
 | Assets | Stitch 2.5D sprite atlas intake, manifest generation and quarantine-first QA |
 | Deployment | VPS-oriented flow; production Docker file is `Dockerfile.vps` |
+| WASD → Aurion evidence | `.github/workflows/wasd-aurion-source-ledger.yml` emits a revision-bound, hash-only source ledger; it cannot access production databases or deploy runtime code |
 
 ---
 
