@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { QuestlineEngine } from "../modules/questline/questlineEngine.js";
 import { registeredProceduralQuestIdsByQuestline } from "../modules/questline/questlineBridge.js";
 import {
@@ -22,20 +23,10 @@ function paramStr(v: string | string[] | undefined): string {
   return typeof v === "string" ? v : "";
 }
 
-function parseBearer(req: Request): string | null {
-  const h = req.headers.authorization;
-  if (!h || typeof h !== "string") return null;
-  const m = /^Bearer\s+(.+)$/i.exec(h.trim());
-  return m ? m[1].trim() : null;
-}
-
-/** Minimal auth: trust `x-player-id` in dev or Bearer token as player id when no JWT middleware. */
-function resolvePlayerId(req: Request): string | null {
-  const headerId = typeof req.headers["x-player-id"] === "string" ? req.headers["x-player-id"].trim() : "";
-  if (headerId) return headerId;
-  const token = parseBearer(req);
-  if (token && token.length < 200) return token;
-  return null;
+function getPlayerId(req: Request): string | null {
+  const identity = resolveHttpPlayerIdentity(req);
+  if (!identity.playerId || identity.playerId === "anonymous") return null;
+  return identity.playerId;
 }
 
 export function questlineRouter() {
@@ -56,7 +47,7 @@ export function questlineRouter() {
   });
 
   r.post("/crossroads/:id/resolve", (req: Request, res: Response) => {
-    const playerId = resolvePlayerId(req);
+    const playerId = getPlayerId(req);
     if (!playerId) return res.status(401).json({ error: "player_id_required" });
     const choiceId = typeof req.body?.choiceId === "string" ? req.body.choiceId.trim() : "";
     if (!choiceId) return res.status(400).json({ error: "choiceId_required" });
@@ -81,7 +72,7 @@ export function questlineRouter() {
   });
 
   r.post("/:questlineId/start", async (req: Request, res: Response) => {
-    const playerId = resolvePlayerId(req);
+    const playerId = getPlayerId(req);
     if (!playerId) return res.status(401).json({ error: "player_id_required" });
     const qid = paramStr(req.params.questlineId);
     const state = engine.startQuestline(qid);
@@ -101,7 +92,7 @@ export function questlineRouter() {
   });
 
   r.post("/:questlineId/choose", async (req: Request, res: Response) => {
-    const playerId = resolvePlayerId(req);
+    const playerId = getPlayerId(req);
     if (!playerId) return res.status(401).json({ error: "player_id_required" });
     const choiceId = typeof req.body?.choiceId === "string" ? req.body.choiceId.trim() : "";
     if (!choiceId) return res.status(400).json({ error: "choiceId_required" });
@@ -136,7 +127,7 @@ export function questlineRouter() {
   });
 
   r.get("/player/me", async (req: Request, res: Response) => {
-    const playerId = resolvePlayerId(req);
+    const playerId = getPlayerId(req);
     if (!playerId) return res.status(401).json({ error: "player_id_required" });
     if (!isDatabaseConfigured()) {
       return res.json({ playerId, questlines: [], note: "database_not_configured" });
