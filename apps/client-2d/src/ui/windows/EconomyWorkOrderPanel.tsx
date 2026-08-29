@@ -464,19 +464,54 @@ export function EconomyWorkOrderPanel() {
         <b>{evidenceSummary}</b>
       </article>
 
-      {data.orders.map((order) => (
-        <article key={order.orderId} className="quest-journal-card quest-journal-card--active">
-          <header>
-            <small>
-              {order.kind} · {order.vendorId}
-            </small>
-            <b>{order.title}</b>
-          </header>
-          <p>
-            {itemLabel(order.itemId)} stock is {order.currentStock}. Server state needs{' '}
-            {order.requiredQuantity} more.
-          </p>
-          <div className="stitch-grid-panel">
+      {data.orders.map((order) => {
+        const totalRequired = order.currentStock + order.requiredQuantity;
+        const progressPercent =
+          totalRequired > 0
+            ? Math.min(100, Math.round((order.currentStock / totalRequired) * 100))
+            : 0;
+
+        return (
+          <article key={order.orderId} className="quest-journal-card quest-journal-card--active">
+            <header>
+              <small>
+                {order.kind} · {order.vendorId}
+              </small>
+              <b>{order.title}</b>
+            </header>
+            <p>
+              {itemLabel(order.itemId)} stock is {order.currentStock}. Server state needs{' '}
+              {order.requiredQuantity} more.
+            </p>
+
+            <div
+              role="progressbar"
+              aria-label={`${itemLabel(order.itemId)} stock level`}
+              aria-valuenow={order.currentStock}
+              aria-valuemin={0}
+              aria-valuemax={totalRequired}
+              aria-valuetext={`${order.currentStock} of ${totalRequired} (${progressPercent}%)`}
+              title={`${itemLabel(order.itemId)} stock: ${order.currentStock}/${totalRequired} (${progressPercent}%)`}
+              style={{
+                height: 6,
+                background: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: 3,
+                overflow: 'hidden',
+                margin: '8px 0',
+              }}
+            >
+              <div
+                aria-hidden="true"
+                style={{
+                  width: `${progressPercent}%`,
+                  height: '100%',
+                  background: progressPercent >= 100 ? '#39ff14' : '#00e5ff',
+                  transition: 'width 0.2s ease',
+                }}
+              />
+            </div>
+
+            <div className="stitch-grid-panel">
             <article className="stitch-info">
               <small>State Hash</small>
               <b>{order.stateHash.slice(0, 10)}</b>
@@ -511,7 +546,8 @@ export function EconomyWorkOrderPanel() {
             </small>
           )}
         </article>
-      ))}
+        );
+      })}
 
       {state.actionStatus === 'error' && (
         <article className="stitch-info" data-testid="economy-work-order-action-error" role="alert">
