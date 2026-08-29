@@ -1,0 +1,89 @@
+name: WASD to Aurion source ledger
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/wasd-aurion-source-ledger.yml"
+      - "scripts/build-wasd-aurion-source-ledger.mjs"
+      - "scripts/__tests__/build-wasd-aurion-source-ledger.test.mjs"
+      - "docs/PROJECT_STATUS_2026.md"
+      - "docs/ROADMAP_TO_RELEASE.md"
+      - "README.md"
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Immutable Wasd ref to inventory; defaults to the triggering revision.
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      source_ref:
+        description: Immutable Wasd ref to inventory; the checked-out SHA is returned as evidence.
+        required: false
+        default: main
+        type: string
+    outputs:
+      source_sha:
+        description: Exact WASD revision hashed by the ledger.
+        value: ${{ jobs.source-ledger.outputs.source_sha }}
+      source_manifest_sha256:
+        description: Canonical hash of the source ledger.
+        value: ${{ jobs.source-ledger.outputs.source_manifest_sha256 }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wasd-aurion-source-ledger-${{ github.workflow }}-${{ inputs.source_ref || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  source-ledger:
+    name: Read-only WASD source evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    outputs:
+      source_sha: ${{ steps.ledger.outputs.source_sha }}
+      source_manifest_sha256: ${{ steps.ledger.outputs.source_manifest_sha256 }}
+    steps:
+      - name: Checkout the requested WASD source revision
+        uses: actions/checkout@v4
+        with:
+          repository: OuroborosCollective/Wasd
+          ref: ${{ inputs.source_ref || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify the source-ledger builder
+        run: node --test scripts/__tests__/build-wasd-aurion-source-ledger.test.mjs
+
+      - name: Build an immutable, database-free source ledger
+        id: ledger
+        run: |
+          set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          WASD_SOURCE_SHA="$source_sha" node scripts/build-wasd-aurion-source-ledger.mjs --out .wasd-evidence/aurion-source-ledger
+          (
+            cd .wasd-evidence/aurion-source-ledger
+            sha256sum --strict -c checksums.sha256
+          )
+          node --input-type=module <<'NODE' >> "$GITHUB_OUTPUT"
+          import fs from "node:fs";
+          const ledger = JSON.parse(fs.readFileSync(".wasd-evidence/aurion-source-ledger/source-ledger.json", "utf8"));
+          if (ledger.schemaVersion !== "wasd.aurion-source-ledger.v1" || ledger.recordType !== "wasd_aurion_source_ledger") throw new Error("unexpected source ledger schema");
+          if (!/^[a-f0-9]{40}$/.test(ledger.source?.revision ?? "") || !/^[a-f0-9]{64}$/.test(ledger.manifestSha256 ?? "")) throw new Error("source ledger identity missing");
+          if (ledger.policy?.databaseConnectionsOpened !== false || ledger.policy?.prohibitedActions?.includes("database_write") !== true) throw new Error("source ledger policy is not read-only");
+          console.log(`source_sha=${ledger.source.revision}`);
+          console.log(`source_manifest_sha256=${ledger.manifestSha256}`);
+          NODE
+
+      - name: Upload source-ledger evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasd-aurion-source-ledger-${{ steps.ledger.outputs.source_sha }}
+          path: .wasd-evidence/aurion-source-ledger
+          if-no-files-found: error
+          retention-days: 30
