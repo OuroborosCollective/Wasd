@@ -13,13 +13,15 @@ export class TradeRouteGraph {
   private readonly marketsById = new Map<string, LocalMarketDefinition>();
 
   constructor(markets: readonly LocalMarketDefinition[]) {
-    for (const market of [...markets].sort((a, b) => a.marketId.localeCompare(b.marketId))) {
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+    for (const market of [...markets].sort((a, b) => (a.marketId < b.marketId ? -1 : a.marketId > b.marketId ? 1 : 0))) {
       this.marketsById.set(market.marketId, market);
     }
   }
 
   listMarkets(): readonly LocalMarketDefinition[] {
-    return Object.freeze([...this.marketsById.values()].sort((a, b) => a.marketId.localeCompare(b.marketId)));
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+    return Object.freeze([...this.marketsById.values()].sort((a, b) => (a.marketId < b.marketId ? -1 : a.marketId > b.marketId ? 1 : 0)));
   }
 
   getMarket(marketId: string): LocalMarketDefinition | null {
