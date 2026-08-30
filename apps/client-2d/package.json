@@ -20,14 +20,14 @@
     "@pixi/tilemap": "^5.0.2",
     "@wasd/shared": "workspace:*",
     "pixi-filters": "^6.1.5",
-    "pixi.js": "^8.18.1",
+    "pixi.js": "^8.20.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
+    "@types/react-dom": "^19.2.5",
     "@vitejs/plugin-react": "^6.0.2",
     "typescript": "^5.8.0",
     "vite": "^8.0.14"
