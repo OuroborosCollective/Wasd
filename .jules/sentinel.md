@@ -42,3 +42,8 @@
 **Vulnerability:** The Playtester monitor WebSocket stream (`PlaytesterMonitorStream`), WebRTC signaling server (`PlaytesterWebRTCSignaling`), and HTTP route access checks (`ServerBootstrap`) used relational `===` string comparisons to validate incoming query/header tokens against `PLAYTESTER_MONITOR_TOKEN`, exposing internal monitoring credentials to timing attacks.
 **Learning:** Custom WebSocket upgrade handlers and streaming endpoints often implement token authorization checks independently of standard Express auth middlewares, creating timing side-channel risks.
 **Prevention:** Always use SHA-256 digest hashing and `crypto.timingSafeEqual` via a `safeEqualText` helper for token comparisons in custom HTTP upgrade and WebSocket handlers.
+
+## 2026-09-08 - [High] Unconfigured Governance Key Directive Enactment Auth Bypass
+**Vulnerability:** The `/governance/directives/:id/enact` endpoint in `areReplayRoute.ts` evaluated `if (adminKey && !safeEqualText(provided, adminKey))`, allowing unauthenticated clients to enact governance directives when `SOVEREIGN_LAUNCH_KEY` and `ARE_GOVERNANCE_ADMIN_KEY` environment variables were empty or missing.
+**Learning:** Truthy checks on secret keys before validation (`if (key && !safeEqualText(...))`) cause auth checks to be completely bypassed when environment variables are omitted, failing open instead of failing closed.
+**Prevention:** Always check `!adminKey || !safeEqualText(provided, adminKey)` so that missing or empty secrets cause authorization checks to fail securely.
