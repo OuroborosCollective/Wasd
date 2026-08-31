@@ -14,6 +14,7 @@ import { leaderboardRouter } from "../api/leaderboardRoute.js";
 import { areReplayRouter } from "../api/areReplayRoute.js";
 import { sdkBillingRouter } from "../api/sdkBillingRoute.js";
 import { adminRoute } from "../api/adminRoute.js";
+import { areValidationRouter } from "../api/areValidationRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -181,6 +182,41 @@ describe("Sentinel Endpoint Protection", () => {
         .get("/api/are-shadow/log")
         .set("X-Admin-Token", "secret");
       expect(r2.status).toBe(200);
+    });
+  });
+
+  describe("/api/are/validation failure-families routes", () => {
+    it("failure-families/status and failure-families/run are protected by adminAuthMiddleware", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      const app = express();
+      const mockTick = {
+        thinShell: {
+          getFailureFamilyStatus: () => ({ records: [] }),
+          getFailureFamilyProbeStatus: () => ({ active: false }),
+          armFailureFamilyRun: vi.fn(),
+        },
+      } as any;
+      app.use("/api/are/validation", areValidationRouter(mockTick));
+
+      // 1. GET /failure-families/status without token -> 401
+      const r1 = await request(app).get("/api/are/validation/failure-families/status");
+      expect(r1.status).toBe(401);
+
+      // 2. GET /failure-families/status with valid token -> 200
+      const r2 = await request(app)
+        .get("/api/are/validation/failure-families/status")
+        .set("X-Admin-Token", "secret");
+      expect(r2.status).toBe(200);
+
+      // 3. POST /failure-families/run without token -> 401
+      const r3 = await request(app).post("/api/are/validation/failure-families/run");
+      expect(r3.status).toBe(401);
+
+      // 4. POST /failure-families/run with valid token -> 202
+      const r4 = await request(app)
+        .post("/api/are/validation/failure-families/run")
+        .set("X-Admin-Token", "secret");
+      expect(r4.status).toBe(202);
     });
   });
 
