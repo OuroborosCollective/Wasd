@@ -20,7 +20,12 @@ export function PaperdollPanel({ paperdoll }: Props) {
   const character = paperdoll.character;
 
   return (
-    <section data-testid="paperdoll-panel-live" className="are-window paperdoll-panel">
+    <section
+      data-testid="paperdoll-panel-live"
+      className="are-window paperdoll-panel"
+      role="region"
+      aria-label="Character Equipment Paperdoll"
+    >
       {character ? (
         <div className="paperdoll-character">
           <strong>{character.displayName}</strong>
@@ -33,17 +38,24 @@ export function PaperdollPanel({ paperdoll }: Props) {
       <h3>Paperdoll</h3>
 
       <div className="paperdoll-slots">
-        {(paperdoll.slots ?? []).map((slot) => (
-          <article
-            key={slot.slotId}
-            className="paperdoll-slot"
-            data-slot-id={slot.slotId}
-            data-item-id={slot.itemId ?? "empty"}
-          >
-            <span className="paperdoll-slot-label">{formatSlotLabel(slot.slotId)}</span>
-            <strong className="paperdoll-slot-title">{slot.title}</strong>
-          </article>
-        ))}
+        {(paperdoll.slots ?? []).map((slot) => {
+          const slotLabel = formatSlotLabel(slot.slotId);
+          const accessibleText = `${slotLabel}: ${slot.title}`;
+
+          return (
+            <article
+              key={slot.slotId}
+              className="paperdoll-slot"
+              data-slot-id={slot.slotId}
+              data-item-id={slot.itemId ?? "empty"}
+              aria-label={accessibleText}
+              title={accessibleText}
+            >
+              <span className="paperdoll-slot-label">{slotLabel}</span>
+              <strong className="paperdoll-slot-title">{slot.title}</strong>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
