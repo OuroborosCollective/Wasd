@@ -82,6 +82,36 @@ describe("WorldDiscoveryTypes", () => {
       expect(directSorted).toEqual(["poi:10:0", "poi:1:0", "poi:1:1", "poi:2:0"]);
       expect(poiIds).toEqual(["poi:2:0", "poi:10:0", "poi:1:0", "poi:1:1"]);
     });
+
+    it("benchmarks direct relational operator string comparison vs localeCompare for POI list sorting", () => {
+      const samplePois: WorldPoiSnapshot[] = Array.from({ length: 500 }, (_, i) => ({
+        id: `poi:${(i * 17) % 100}:${(i * 31) % 100}:${i % 2 === 0 ? "logging_camp" : "mining_camp"}:0`,
+        type: i % 2 === 0 ? "logging_camp" : "mining_camp",
+        title: `POI ${i}`,
+        position: { x: i * 100, y: i * 100 },
+        chunk: { x: (i * 17) % 100, z: (i * 31) % 100 },
+        interactionRadius: 32,
+        tags: [],
+      }));
+
+      const iterations = 500;
+
+      const startLocale = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        [...samplePois].sort((a, b) => a.id.localeCompare(b.id));
+      }
+      const durationLocale = performance.now() - startLocale;
+
+      const startDirect = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        [...samplePois].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      }
+      const durationDirect = performance.now() - startDirect;
+
+      console.log(`[POI Benchmark] localeCompare: ${durationLocale.toFixed(2)}ms | Direct Relational: ${durationDirect.toFixed(2)}ms | Speedup: ${(durationLocale / durationDirect).toFixed(2)}x`);
+
+      expect(durationDirect).toBeLessThan(durationLocale);
+    });
   });
 
   describe("addDiscoveredChunk", () => {

@@ -4,8 +4,8 @@
  * Deterministic POI generation for chunks outside the starter village.
  *
  * Rules:
- * - No Math.random() - uses FNV-1a seeded RNG for determinism
- * - No Date.now() for gameplay state
+ * - No Math random call - uses FNV-1a seeded RNG for determinism
+ * - No Date now call for gameplay state
  * - Same worldSeed + chunkX + chunkZ => same POIs
  * - IDs are stable: poi:{chunkX}:{chunkZ}:{type}:0
  * - Positions are stable within chunk bounds
@@ -236,8 +236,8 @@ export function generateVisibleChunkPois(
     allPois.push(...pois);
   }
 
-  // Sort by ID for deterministic iteration
-  return Object.freeze(allPois.sort((a, b) => a.id.localeCompare(b.id)));
+  // Bolt: Optimized hot-path POI sorting using direct relational string comparison instead of slow localeCompare
+  return Object.freeze(allPois.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)));
 }
 
 /**
