@@ -59,7 +59,8 @@ function safeIdList(value: unknown): string[] {
     const identifier = safeId(candidate, "");
     if (identifier) identifiers.push(identifier);
   }
-  return [...new Set<string>(identifiers)].sort((a, b) => a.localeCompare(b));
+  // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+  return [...new Set<string>(identifiers)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 function safeCount(value: unknown, minimum = 0): number {
@@ -87,6 +88,7 @@ export function normalizeNpcQuestPlayerState(
   fallbackPlayerId: string,
 ): PersistedNpcQuestPlayerState {
   const playerId = safeId(input?.playerId, fallbackPlayerId);
+  // Bolt: Optimization - Direct relational string comparisons are significantly faster than localeCompare
   const activeQuests: PersistedNpcQuestActiveState[] = Array.isArray(input?.activeQuests)
     ? input.activeQuests
         .map((quest): PersistedNpcQuestActiveState => ({
@@ -105,11 +107,11 @@ export function normalizeNpcQuestPlayerState(
                     completed: Boolean(objective?.completed) || current >= required,
                   };
                 })
-                .sort((a, b) => a.objectiveId.localeCompare(b.objectiveId))
+                .sort((a, b) => (a.objectiveId < b.objectiveId ? -1 : a.objectiveId > b.objectiveId ? 1 : 0))
             : [],
         }))
         .filter((quest) => quest.questId !== "unknown_quest")
-        .sort((a, b) => a.questId.localeCompare(b.questId))
+        .sort((a, b) => (a.questId < b.questId ? -1 : a.questId > b.questId ? 1 : 0))
     : [];
 
   const completedQuestIds = safeIdList(input?.completedQuestIds);
@@ -122,14 +124,14 @@ export function normalizeNpcQuestPlayerState(
           completedQuestIds: safeIdList(entry?.completedQuestIds),
         }))
         .filter((entry) => entry.npcId !== "unknown_npc")
-        .sort((a, b) => a.npcId.localeCompare(b.npcId))
+        .sort((a, b) => (a.npcId < b.npcId ? -1 : a.npcId > b.npcId ? 1 : 0))
     : [];
   const appliedSourceMutations = Array.isArray(input?.appliedSourceMutations)
     ? input.appliedSourceMutations
         .map(safeSourceMutation)
         .filter((entry): entry is PersistedNpcQuestSourceMutation => entry !== null)
         .filter((entry, index, entries) => entries.findIndex((candidate) => candidate.intentHash === entry.intentHash) === index)
-        .sort((a, b) => a.intentHash.localeCompare(b.intentHash))
+        .sort((a, b) => (a.intentHash < b.intentHash ? -1 : a.intentHash > b.intentHash ? 1 : 0))
     : [];
 
   return Object.freeze({
