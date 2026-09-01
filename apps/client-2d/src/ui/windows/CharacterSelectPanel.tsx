@@ -99,7 +99,12 @@ export function CharacterSelectPanel({ onCreated }: Props) {
   const selectedPath = START_PATH_INFO[startPath];
 
   return (
-    <section data-testid="character-select" className="are-window character-select-panel">
+    <section
+      data-testid="character-select"
+      className="are-window character-select-panel"
+      role="region"
+      aria-label="Character Creation"
+    >
       <h2>Character Creation</h2>
       <p>
         Create your first Areloria character. Areloria is classless: skills grow through use,
@@ -173,6 +178,7 @@ export function CharacterSelectPanel({ onCreated }: Props) {
         disabled={isCreating}
         aria-busy={isCreating}
         aria-label={isCreating ? "Creating character on server" : "Create new character"}
+        title={isCreating ? "Creating character on server" : "Create new character"}
         onClick={async () => {
           if (displayName.trim().length < 3) {
             setStatus("Name must be at least 3 characters.");
@@ -239,7 +245,11 @@ export function CharacterSelectPanel({ onCreated }: Props) {
         {isCreating ? "Creating..." : "Create Character"}
       </button>
 
-      {status && <p className="character-form-status">{status}</p>}
+      {status && (
+        <p className="character-form-status" role="status" aria-live="polite">
+          {status}
+        </p>
+      )}
     </section>
   );
 }
