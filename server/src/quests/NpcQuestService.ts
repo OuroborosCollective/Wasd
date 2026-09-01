@@ -129,11 +129,12 @@ export class NpcQuestService {
   public getActiveQuests(playerId: string): readonly QuestProgressSnapshot[] {
     const state = this.playerQuestStates.get(playerId);
     if (!state) return Object.freeze([]);
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
     return Object.freeze(
       [...state.activeQuests.keys()]
         .map((questId) => this.getQuestProgress(playerId, questId))
         .filter((quest): quest is QuestProgressSnapshot => quest !== null)
-        .sort((a, b) => a.questId.localeCompare(b.questId)),
+        .sort((a, b) => (a.questId < b.questId ? -1 : a.questId > b.questId ? 1 : 0)),
     );
   }
 
@@ -154,7 +155,8 @@ export class NpcQuestService {
         }))),
       }));
     }
-    return Object.freeze(result.sort((a, b) => a.questId.localeCompare(b.questId)));
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+    return Object.freeze(result.sort((a, b) => (a.questId < b.questId ? -1 : a.questId > b.questId ? 1 : 0)));
   }
 
   public getCompletedQuestIds(playerId: string): readonly string[] {
@@ -204,7 +206,8 @@ export class NpcQuestService {
       const progress = this.getQuestProgress(playerId, questId);
       if (progress) updated.push(progress);
     }
-    return { ok: true, result: Object.freeze(updated.sort((a, b) => a.questId.localeCompare(b.questId))) };
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+    return { ok: true, result: Object.freeze(updated.sort((a, b) => (a.questId < b.questId ? -1 : a.questId > b.questId ? 1 : 0))) };
   }
 
   public updateTalkObjective(playerId: string, npcId: string): ActionResult<readonly QuestProgressSnapshot[]> {
@@ -224,7 +227,8 @@ export class NpcQuestService {
       const progress = this.getQuestProgress(playerId, questId);
       if (progress) updated.push(progress);
     }
-    return { ok: true, result: Object.freeze(updated.sort((a, b) => a.questId.localeCompare(b.questId))) };
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+    return { ok: true, result: Object.freeze(updated.sort((a, b) => (a.questId < b.questId ? -1 : a.questId > b.questId ? 1 : 0))) };
   }
 
   public completeQuest(playerId: string, questId: string): ActionResult<{
@@ -332,11 +336,12 @@ export class NpcQuestService {
   }
 
   public getAllNpcReputations(playerId: string): readonly NpcReputationSnapshot[] {
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
     return Object.freeze(
       [...this.npcDefinitions.keys()]
         .map((npcId) => this.getNpcReputation(playerId, npcId))
         .filter((snapshot): snapshot is NpcReputationSnapshot => snapshot !== null)
-        .sort((a, b) => a.npcId.localeCompare(b.npcId)),
+        .sort((a, b) => (a.npcId < b.npcId ? -1 : a.npcId > b.npcId ? 1 : 0)),
     );
   }
 
@@ -384,7 +389,8 @@ export class NpcQuestService {
         objectives: [],
       });
     }
-    return result.sort((a, b) => a.id.localeCompare(b.id));
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+    return result.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   public exportPlayerState(playerId: string): PersistedNpcQuestPlayerState {
