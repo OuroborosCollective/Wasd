@@ -1,4 +1,6 @@
 import express from 'express';
+import { adminAuthMiddleware } from '../middleware/adminAuthMiddleware.js';
+import { adminRateLimiter } from '../middleware/rateLimitMiddleware.js';
 
 function safeLimit(raw: unknown): number {
   const n = Number(raw);
@@ -8,7 +10,7 @@ function safeLimit(raw: unknown): number {
 
 export function dudenReportRouter() {
   const router = express.Router();
-  router.get('/', async (req, res) => {
+  router.get('/', adminRateLimiter, adminAuthMiddleware, async (req, res) => {
     try {
       const limit = safeLimit(req.query.limit);
       const module = await import('../core/language/LanguageShadowTelemetry.js');
