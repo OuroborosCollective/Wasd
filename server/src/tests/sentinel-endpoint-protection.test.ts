@@ -100,6 +100,20 @@ describe("Sentinel Endpoint Protection", () => {
 
       delete process.env.SOVEREIGN_LAUNCH_KEY;
     });
+
+    it("fails closed (403) when no admin key is configured on /governance/directives/:id/enact", async () => {
+      delete process.env.SOVEREIGN_LAUNCH_KEY;
+      delete process.env.ARE_GOVERNANCE_ADMIN_KEY;
+      const mockTick = {} as any;
+      const app = express();
+      app.use("/api/are-replay", areReplayRouter(mockTick));
+
+      const r = await request(app)
+        .post("/api/are-replay/governance/directives/dir1/enact")
+        .send({ key: "" });
+      expect(r.status).toBe(403);
+      expect(r.body.error).toBe("forbidden");
+    });
   });
 
   describe("/api/sovereign/deploy", () => {
