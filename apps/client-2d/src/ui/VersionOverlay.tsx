@@ -7,8 +7,13 @@ interface Props {
 }
 
 export function VersionOverlay({ config }: Props) {
+  const versionTitle = `Client ${CLIENT_VERSION.client} - ${CLIENT_VERSION.phase} (${config.logicHz}Hz) [${CLIENT_VERSION.buildMode}]`;
+
   return (
     <div
+      role="region"
+      aria-label="Client Version and System Info"
+      title={versionTitle}
       style={{
         position: "fixed",
         right: 10,
