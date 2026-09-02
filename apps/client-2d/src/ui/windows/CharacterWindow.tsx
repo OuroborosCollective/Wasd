@@ -227,6 +227,7 @@ function StatBar({ label, current, max, color = "#c8b878" }: StatBarProps) {
   const safeMax = Math.max(1, clampNumber(max, 1));
   const safeCurrent = Math.min(safeMax, clampNumber(current, 0));
   const percent = Math.min(100, Math.max(0, (safeCurrent / safeMax) * 100));
+  const valueText = `${label}: ${Math.floor(safeCurrent)} / ${Math.floor(safeMax)}`;
 
   return (
     <div className="char-bar-container">
@@ -244,6 +245,8 @@ function StatBar({ label, current, max, color = "#c8b878" }: StatBarProps) {
         aria-valuemin={0}
         aria-valuemax={Math.floor(safeMax)}
         aria-valuenow={Math.floor(safeCurrent)}
+        aria-valuetext={valueText}
+        title={valueText}
       >
         <div
           className="char-bar-fill"
@@ -265,6 +268,7 @@ interface ProgressBarProps {
 
 function ProgressBar({ label, percent, color = "#9ac0ff" }: ProgressBarProps) {
   const safePercent = Math.min(100, Math.max(0, clampNumber(percent, 0)));
+  const valueText = `${label}: ${safePercent.toFixed(0)}%`;
 
   return (
     <div className="char-bar-container">
@@ -280,6 +284,8 @@ function ProgressBar({ label, percent, color = "#9ac0ff" }: ProgressBarProps) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.floor(safePercent)}
+        aria-valuetext={valueText}
+        title={valueText}
       >
         <div
           className="char-bar-fill"
@@ -335,6 +341,21 @@ export function CharacterWindow({
       window.clearTimeout(timeout);
     };
   }, [allocating]);
+
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   const handleAllocate = useCallback(
     (stat: CoreStatKey) => {
