@@ -82,6 +82,27 @@ describe("WorldDiscoveryTypes", () => {
       expect(directSorted).toEqual(["poi:10:0", "poi:1:0", "poi:1:1", "poi:2:0"]);
       expect(poiIds).toEqual(["poi:2:0", "poi:10:0", "poi:1:0", "poi:1:1"]);
     });
+
+    it("benchmarks direct relational string comparison vs localeCompare for POI sorting", () => {
+      const testPois = Array.from({ length: 1000 }, (_, i) => `poi:${(i * 17) % 50}:${(i * 31) % 50}:logging_camp:${i}`);
+
+      const startLocale = performance.now();
+      for (let run = 0; run < 100; run++) {
+        [...testPois].sort((a, b) => a.localeCompare(b));
+      }
+      const localeDuration = performance.now() - startLocale;
+
+      const startRelational = performance.now();
+      for (let run = 0; run < 100; run++) {
+        [...testPois].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      }
+      const relationalDuration = performance.now() - startRelational;
+
+      const speedup = localeDuration / Math.max(relationalDuration, 0.001);
+      console.log(`[WorldDiscovery Benchmark] localeCompare: ${localeDuration.toFixed(2)}ms, relational: ${relationalDuration.toFixed(2)}ms (${speedup.toFixed(2)}x speedup)`);
+
+      expect(relationalDuration).toBeLessThanOrEqual(localeDuration + 5);
+    });
   });
 
   describe("addDiscoveredChunk", () => {

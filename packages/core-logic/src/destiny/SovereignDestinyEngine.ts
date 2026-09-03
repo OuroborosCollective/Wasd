@@ -219,7 +219,8 @@ export class SovereignDestinyEngine {
       })
       .sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
-        return a.sHash.localeCompare(b.sHash);
+        // Bolt: Optimized tie-breaker hash sorting using fast direct relational comparison instead of slow localeCompare
+        return a.sHash < b.sHash ? -1 : a.sHash > b.sHash ? 1 : 0;
       })
       .slice(0, maxQuests);
 

@@ -236,8 +236,8 @@ export function generateVisibleChunkPois(
     allPois.push(...pois);
   }
 
-  // Sort by ID for deterministic iteration
-  return Object.freeze(allPois.sort((a, b) => a.id.localeCompare(b.id)));
+  // Bolt: Optimized hot-path POI sorting using direct relational string comparisons instead of slow localeCompare
+  return Object.freeze(allPois.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)));
 }
 
 /**
