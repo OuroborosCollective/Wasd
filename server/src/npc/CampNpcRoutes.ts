@@ -96,8 +96,9 @@ function poiIdFromNpcId(npcId: string): string | null {
 function visiblePois(position: { x: number; y: number }): WorldPoiSnapshot[] {
   const tileX = Math.floor(position.x / 1000);
   const tileZ = Math.floor(position.y / 1000);
+  // Bolt: Optimized hot-path POI sorting using fast direct relational string comparison instead of slow localeCompare
   return [...getStarterVillagePois(), ...generateVisibleChunkPois(getVisibleChunkCoords(tileX, tileZ))]
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 function resolveCampActor(
