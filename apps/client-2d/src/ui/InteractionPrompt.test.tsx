@@ -56,6 +56,7 @@ describe("InteractionPrompt UX & Accessibility", () => {
     // The button must have correct aria attributes for high-fidelity micro-UX and accessibility
     expect(button!.getAttribute("aria-label")).toBe("Interact with Talk to Chest");
     expect(button!.getAttribute("aria-keyshortcuts")).toBe("e");
+    expect(button!.getAttribute("title")).toBe("Press [E] to talk to chest");
 
     // Must render the <kbd> visual element to prompt the player with keybind hint
     const kbd = container!.querySelector("kbd");
