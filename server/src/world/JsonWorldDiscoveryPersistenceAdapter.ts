@@ -164,7 +164,7 @@ export class JsonWorldDiscoveryPersistenceAdapter {
     await mkdir(path.dirname(this.filePath), { recursive: true });
 
     const tmp = `${this.filePath}.tmp`;
-    const timestamp = Date.now();
+    const timestamp = Date.now(); // ARE-DETERMINISM-ALLOW
     const tmpWithTimestamp = `${this.filePath}.${timestamp}.tmp`;
     await writeFile(tmpWithTimestamp, `${JSON.stringify(file, null, 2)}\n`, "utf8");
     await rename(tmpWithTimestamp, this.filePath);

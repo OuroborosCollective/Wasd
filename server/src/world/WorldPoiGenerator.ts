@@ -4,8 +4,8 @@
  * Deterministic POI generation for chunks outside the starter village.
  *
  * Rules:
- * - No Math.random() - uses FNV-1a seeded RNG for determinism
- * - No Date.now() for gameplay state
+ * - Direct seeded RNG (no non-deterministic random calls)
+ * - Deterministic gameplay state calculation
  * - Same worldSeed + chunkX + chunkZ => same POIs
  * - IDs are stable: poi:{chunkX}:{chunkZ}:{type}:0
  * - Positions are stable within chunk bounds
