@@ -15,7 +15,21 @@ import {
   GLB_SUBSCRIPTION,
 } from "../modules/payment/PayPalService.js";
 import { db as dbInstance } from "../core/Database.js";
+import { resolveHttpPlayerIdentity, isDevPlayerIdentityFallbackEnabled } from "../auth/PlayerIdentityResolver.js";
+import { optionalAuthRequestHandler } from "../middleware/authRequestHandler.js";
+import { sensitiveWriteRateLimiter } from "../middleware/rateLimitMiddleware.js";
+
 type Database = typeof dbInstance;
+
+function isGuestHttpAllowed(): boolean {
+  const allowGuest = !["0", "false", "no"].includes(
+    process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase() || "",
+  );
+  const allowDev = !["0", "false", "no"].includes(
+    process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || "",
+  );
+  return allowGuest || allowDev || process.env.ALLOW_DEV_PLAYER_ID === "true";
+}
 
 export function createPayPalRouter(dbParam?: any): Router {
   const db = dbParam || dbInstance;
@@ -36,10 +50,17 @@ export function createPayPalRouter(dbParam?: any): Router {
   });
 
   // ── Create Order ───────────────────────────────────────────────────────────
-  router.post("/create-order", async (req: Request, res: Response) => {
+  router.post("/create-order", sensitiveWriteRateLimiter, optionalAuthRequestHandler, async (req: Request, res: Response) => {
     try {
-      const { productId, playerId, playerName } = req.body;
-      if (!productId || !playerId) {
+      const identity = resolveHttpPlayerIdentity(req);
+      if (process.env.NODE_ENV === "production" && !identity.authenticated && !isGuestHttpAllowed()) {
+        return res.status(401).json({ error: "authenticated_player_required" });
+      }
+
+      const { productId, playerName } = req.body || {};
+      const targetPlayerId = identity.playerId !== "anonymous" ? identity.playerId : (req.body?.playerId || "anonymous");
+
+      if (!productId || !targetPlayerId || targetPlayerId === "anonymous") {
         return res.status(400).json({ error: "productId and playerId required" });
       }
 
@@ -50,7 +71,7 @@ export function createPayPalRouter(dbParam?: any): Router {
 
       const { orderId, approveUrl } = await createPayPalOrder(
         productId,
-        playerId,
+        targetPlayerId,
         playerName || "Adventurer",
         returnUrl,
         cancelUrl
@@ -61,7 +82,7 @@ export function createPayPalRouter(dbParam?: any): Router {
         `INSERT INTO paypal_orders (order_id, player_id, product_id, status, created_at)
          VALUES ($1, $2, $3, 'PENDING', NOW())
          ON CONFLICT (order_id) DO NOTHING`,
-        [orderId, playerId, productId]
+        [orderId, targetPlayerId, productId]
       ).catch(() => {}); // Table may not exist yet, handled in init
 
       res.json({ orderId, approveUrl });
@@ -72,7 +93,7 @@ export function createPayPalRouter(dbParam?: any): Router {
   });
 
   // ── Capture Order ──────────────────────────────────────────────────────────
-  router.post("/capture", async (req: Request, res: Response) => {
+  router.post("/capture", sensitiveWriteRateLimiter, optionalAuthRequestHandler, async (req: Request, res: Response) => {
     try {
       const { orderId } = req.body;
       if (!orderId) return res.status(400).json({ error: "orderId required" });
