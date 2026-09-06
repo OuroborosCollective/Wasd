@@ -55,9 +55,12 @@ function runIdAlreadyObserved(shell: any, runId: string): boolean {
 
 export function areValidationRouter(tick: WorldTick) {
   const router = express.Router();
+
+  // SECURITY: Protect all ARE validation and failure-family diagnostic endpoints
+  // with rate limiting and admin authentication to prevent unauthorized probing.
   router.use(adminRateLimiter, adminAuthMiddleware);
 
-  router.get("/status", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
+  router.get("/status", (_req, res) => {
     const guard = tick.getAREGuardStatus?.() ?? null;
     if (!guard) {
       res.status(503).json({
@@ -77,7 +80,7 @@ export function areValidationRouter(tick: WorldTick) {
     });
   });
 
-  router.get("/world-hash", adminRateLimiter, adminAuthMiddleware, (_req, res) => {
+  router.get("/world-hash", (_req, res) => {
     const world = tick.getWorldHashSnapshot?.() ?? null;
     if (!world) {
       res.status(503).json({ ok: false, error: "world_hash_snapshot_not_ready" });
@@ -135,7 +138,7 @@ export function areValidationRouter(tick: WorldTick) {
     });
   });
 
-  router.post("/compare", adminRateLimiter, adminAuthMiddleware, express.json({ limit: "1mb" }), (req, res) => {
+  router.post("/compare", express.json({ limit: "1mb" }), (req, res) => {
     const portalHash = extractPortalWorldHash(req.body);
     if (!portalHash) {
       res.status(400).json({
