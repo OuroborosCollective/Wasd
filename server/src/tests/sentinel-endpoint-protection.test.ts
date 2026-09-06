@@ -14,6 +14,7 @@ import { leaderboardRouter } from "../api/leaderboardRoute.js";
 import { areReplayRouter } from "../api/areReplayRoute.js";
 import { sdkBillingRouter } from "../api/sdkBillingRoute.js";
 import { adminRoute } from "../api/adminRoute.js";
+import { dudenReportRouter } from "../api/dudenReportRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -165,6 +166,22 @@ describe("Sentinel Endpoint Protection", () => {
         .send({ launchKey: "sovereign-secret-key-999" });
       expect(r3.status).toBe(202);
       expect(mockWorkflow).toHaveBeenCalled();
+    });
+  });
+
+  describe("/api/duden-report", () => {
+    it("is protected by adminAuthMiddleware", async () => {
+      process.env.ADMIN_PANEL_TOKEN = "secret";
+      const app = express();
+      app.use("/api/duden-report", dudenReportRouter());
+
+      const r = await request(app).get("/api/duden-report");
+      expect(r.status).toBe(401);
+
+      const r2 = await request(app)
+        .get("/api/duden-report")
+        .set("X-Admin-Token", "secret");
+      expect(r2.status).toBe(200);
     });
   });
 
