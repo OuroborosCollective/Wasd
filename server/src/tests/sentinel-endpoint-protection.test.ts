@@ -431,6 +431,20 @@ describe("Sentinel Endpoint Protection", () => {
       delete process.env.SOVEREIGN_LAUNCH_KEY;
     });
 
+    it("denies directive enactment when no admin key is configured in environment", async () => {
+      delete process.env.SOVEREIGN_LAUNCH_KEY;
+      delete process.env.ARE_GOVERNANCE_ADMIN_KEY;
+      const mockTick = {} as any;
+      const app = express();
+      app.use("/api/are-replay", areReplayRouter(mockTick));
+
+      const r = await request(app)
+        .post("/api/are-replay/governance/directives/dir1/enact")
+        .set("X-Sovereign-Key", "any-key");
+      expect(r.status).toBe(403);
+      expect(r.body.error).toBe("forbidden");
+    });
+
     it("verifies admin key via constant-time comparison in /api/sdk-billing/credit", async () => {
       process.env.SOVEREIGN_LAUNCH_KEY = "sdk-billing-secret-888";
       const app = express();
