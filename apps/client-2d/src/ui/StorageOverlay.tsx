@@ -219,6 +219,14 @@ function StorageSlot({ slotIndex, item, isBlocked, isStorageSide, onTransfer }: 
     }
   }, [isBlocked, slotIndex, onTransfer]);
 
+  const destinationName = isStorageSide ? "inventory" : "storage";
+  const ariaText = item
+    ? `Item in slot ${slotIndex + 1}: ${item.name} (${item.rarity})${isBlocked ? " (Transferring...)" : ` - Click to transfer to ${destinationName}`}`
+    : `Empty slot ${slotIndex + 1}`;
+  const tooltip = item
+    ? `${item.name} (${item.rarity})${isBlocked ? " - Transferring..." : ` - Click to transfer to ${destinationName}`}`
+    : `Empty slot ${slotIndex + 1}`;
+
   return (
     <div
       className={[
@@ -231,7 +239,8 @@ function StorageSlot({ slotIndex, item, isBlocked, isStorageSide, onTransfer }: 
       onKeyDown={handleKeyDown}
       role="button"
       tabIndex={item && !isBlocked ? 0 : -1}
-      aria-label={item ? `Item in slot ${slotIndex + 1}, ${item.name}` : `Empty slot ${slotIndex + 1}`}
+      aria-label={ariaText}
+      title={tooltip}
     >
       {isBlocked && <span className="slot-spinner">⟳</span>}
       {item && (
