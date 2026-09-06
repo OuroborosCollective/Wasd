@@ -14,14 +14,14 @@
     "test:coverage": "vitest --passWithNoTests run --coverage"
   },
   "dependencies": {
-    "@babylonjs/core": "^9.22.2",
-    "@babylonjs/loaders": "^9.22.2",
-    "@babylonjs/materials": "^9.22.2",
+    "@babylonjs/core": "^9.23.0",
+    "@babylonjs/loaders": "^9.23.0",
+    "@babylonjs/materials": "^9.23.0",
     "@wasd/database": "workspace:*",
     "@wasd/shared": "workspace:*",
     "@wasd/types": "workspace:*",
     "framer-motion": "^12.43.0",
-    "lucide-react": "^1.34.0",
+    "lucide-react": "^1.39.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "three": "0.185.1",
@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^22.20.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",

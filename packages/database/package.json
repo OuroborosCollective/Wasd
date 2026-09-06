@@ -18,9 +18,9 @@
     "@prisma/client": "^7.10.0",
     "@wasd/types": "workspace:*",
     "@wasd/utils": "workspace:*",
-    "p-retry": "^8.0.0",
+    "p-retry": "^8.0.1",
     "pg": "^8.23.0",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
