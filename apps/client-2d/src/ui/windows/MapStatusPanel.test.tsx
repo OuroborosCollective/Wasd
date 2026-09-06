@@ -124,4 +124,29 @@ describe("MapStatusPanel UX & Accessibility", () => {
     expect(chunkArticle.getAttribute("title")).toBe("Chunk coordinates: 5, -3");
     expect(chunkArticle.getAttribute("aria-label")).toBe("Chunk: 5, -3");
   });
+
+  it("renders accessible transition request button when Aurion status is idle", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    const idleSnapshot: LiveGameplaySnapshot = {
+      ...mockSnapshot,
+      aurionTransition: {
+        ...mockSnapshot.aurionTransition!,
+        status: "idle",
+      },
+    };
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(<MapStatusPanel snapshot={idleSnapshot} activeChunkCount={9} />);
+    });
+
+    const button = container!.querySelector<HTMLButtonElement>('[data-testid="aurion-transition-request"]');
+    expect(button).toBeTruthy();
+    expect(button!.getAttribute("aria-label")).toBe("Request entry into Aurion Expanse");
+    expect(button!.getAttribute("title")).toBe("Request entry into Aurion Expanse");
+    expect(button!.getAttribute("aria-busy")).toBe("false");
+    expect(button!.disabled).toBe(false);
+  });
 });
