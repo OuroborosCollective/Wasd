@@ -82,6 +82,43 @@ describe("WorldDiscoveryTypes", () => {
       expect(directSorted).toEqual(["poi:10:0", "poi:1:0", "poi:1:1", "poi:2:0"]);
       expect(poiIds).toEqual(["poi:2:0", "poi:10:0", "poi:1:0", "poi:1:1"]);
     });
+
+    it("runs a benchmark comparing localeCompare vs direct relational operator string comparison for POIs and chunk keys", () => {
+      const samplePoiIds: string[] = [];
+      const sampleChunkKeys: string[] = [];
+      for (let i = 0; i < 500; i++) {
+        const x = (i * 37) % 100;
+        const z = (i * 73) % 100;
+        samplePoiIds.push(`poi:${x}:${z}:logging_camp:${i}`);
+        sampleChunkKeys.push(`${x}:${z}`);
+      }
+
+      const iterations = 1000;
+
+      // 1. Benchmarking localeCompare sort
+      const startLocale = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        [...samplePoiIds].sort((a, b) => a.localeCompare(b));
+        [...sampleChunkKeys].sort((a, b) => a.localeCompare(b));
+      }
+      const durationLocale = performance.now() - startLocale;
+
+      // 2. Benchmarking direct relational operator comparison
+      const startDirect = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        [...samplePoiIds].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+        [...sampleChunkKeys].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+      }
+      const durationDirect = performance.now() - startDirect;
+
+      const speedup = durationLocale / (durationDirect || 1);
+      console.log(`World discovery sorting benchmark over ${iterations} runs (500 items):`);
+      console.log(`  - localeCompare sort:          ${durationLocale.toFixed(2)}ms`);
+      console.log(`  - Direct relational sort:      ${durationDirect.toFixed(2)}ms`);
+      console.log(`  - Speedup factor:              ${speedup.toFixed(2)}x faster`);
+
+      expect(durationDirect).toBeLessThanOrEqual(durationLocale + 10);
+    });
   });
 
   describe("addDiscoveredChunk", () => {
