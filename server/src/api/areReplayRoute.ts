@@ -161,7 +161,7 @@ export function areReplayRouter(tick: WorldTick) {
     try {
       const adminKey = process.env.SOVEREIGN_LAUNCH_KEY || process.env.ARE_GOVERNANCE_ADMIN_KEY || "";
       const provided = String(req.headers["x-sovereign-key"] || req.body?.key || "");
-      if (adminKey && !safeEqualText(provided, adminKey)) return res.status(403).json({ ok: false, error: "forbidden" });
+      if (!adminKey || !safeEqualText(provided, adminKey)) return res.status(403).json({ ok: false, error: "forbidden" });
       const directive = sovereignGovernance.enact(req.params.id, Number(tickContextProvider.getContext().tickId));
       const report = sovereignGovernance.getReport(Number(tickContextProvider.getContext().tickId));
       broadcastCouncil(tick, report);
