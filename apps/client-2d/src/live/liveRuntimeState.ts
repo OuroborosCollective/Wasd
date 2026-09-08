@@ -252,9 +252,9 @@ import { useSyncExternalStore } from "react";
 
 export function useLiveRuntimeState(): LiveRuntimeState {
   return useSyncExternalStore(
-    liveRuntimeState.subscribe,
-    liveRuntimeState.getState,
-    liveRuntimeState.getState,
+    (cb) => liveRuntimeState.subscribe(cb),
+    () => liveRuntimeState.getState(),
+    () => liveRuntimeState.getState(),
   );
 }
 

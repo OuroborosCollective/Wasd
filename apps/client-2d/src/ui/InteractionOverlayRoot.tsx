@@ -22,6 +22,17 @@ export function InteractionOverlayRoot() {
   const { OverlayComponent } = useOverlayRenderer();
 
   useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape' && overlay.type !== 'NONE') {
+        event.preventDefault();
+        interactionUI.closeUI();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [overlay.type]);
+
+  useEffect(() => {
     const onNetworkPacket = (event: Event): void => {
       const packetName = eventNameOf(event);
       const payload = payloadOf(event);
@@ -88,7 +99,9 @@ export function InteractionOverlayRoot() {
                   type="button"
                   className="interaction-close"
                   onClick={() => interactionUI.closeUI()}
-                  aria-label="Close interaction"
+                  aria-label="Close interaction [ESC]"
+                  title="Close interaction [ESC]"
+                  aria-keyshortcuts="Escape"
                 >
                   ✕
                 </button>
