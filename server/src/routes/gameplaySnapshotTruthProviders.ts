@@ -79,10 +79,11 @@ export function buildRuntimeNpcActivityContexts(input: RuntimeTruthProviderInput
   }
 
   const discovered = new Set(input.discoveredPoiIds);
+  // Bolt: Optimized hot-path POI and context sorting using fast relational string comparisons instead of slow localeCompare
   const campPois = input.worldPois
     .filter((poi) => discovered.has(poi.id) && isGatheringCampPoi(poi.type))
     .map(toRuntimePoi)
-    .sort((a, b) => a.id.localeCompare(b.id));
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
   const campNpcs = campNpcService.generateCampNpcs(campPois, input.tick);
   for (const npc of campNpcs) {
@@ -101,7 +102,11 @@ export function buildRuntimeNpcActivityContexts(input: RuntimeTruthProviderInput
     ));
   }
 
-  const sorted = contexts.sort((a, b) => a.chunkKey.localeCompare(b.chunkKey) || a.entityId.localeCompare(b.entityId));
+  const sorted = contexts.sort(
+    (a, b) =>
+      (a.chunkKey < b.chunkKey ? -1 : a.chunkKey > b.chunkKey ? 1 : 0) ||
+      (a.entityId < b.entityId ? -1 : a.entityId > b.entityId ? 1 : 0)
+  );
   if (!input.playerPosition) return Object.freeze(sorted);
   return Object.freeze(filterVisibleEntities(sorted, input.playerPosition, 256000));
 }
