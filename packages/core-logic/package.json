@@ -60,13 +60,13 @@
     "events": "^3.3.0",
     "nanoid": "^5.1.16",
     "rxjs": "^7.8.2",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/events": "^3.0.3",
     "@types/node": "^22.20.1",
-    "@typescript-eslint/eslint-plugin": "^8.68.0",
-    "@typescript-eslint/parser": "^8.68.0",
+    "@typescript-eslint/eslint-plugin": "^8.69.0",
+    "@typescript-eslint/parser": "^8.69.0",
     "eslint": "^10.4.1",
     "react": "^19.2.8",
     "tsup": "^8.5.1",

@@ -67,6 +67,7 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
           onClick={onOpenJournal}
           aria-label="Open Quest Journal [Q]"
           aria-keyshortcuts="q"
+          title="Open Quest Journal [Q]"
         >
           <kbd className="cz-kbd" aria-hidden="true">Q</kbd> Quest Journal
         </button>
@@ -100,6 +101,7 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
             aria-valuemin={0}
             aria-valuemax={objective.required}
             aria-valuetext={`${objective.current} of ${objective.required} ${objective.label}`}
+            title={`${objective.label}: ${objective.current}/${objective.required} (${progress}%)`}
           >
             <em style={{ width: `${progress}%` }} aria-hidden="true" />
           </i>
@@ -111,6 +113,7 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
         onClick={onOpenJournal}
         aria-label="Open Quest Journal [Q]"
         aria-keyshortcuts="q"
+        title="Open Quest Journal [Q]"
       >
         <kbd className="cz-kbd" aria-hidden="true">Q</kbd> Quest Journal
       </button>

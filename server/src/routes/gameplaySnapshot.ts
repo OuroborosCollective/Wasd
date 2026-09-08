@@ -123,8 +123,9 @@ export function createGameplaySnapshotRouter(_deps: GameplaySnapshotRouterDeps =
         const tileX = Math.floor(playerPosition.x / 1000);
         const tileZ = Math.floor(playerPosition.y / 1000);
         const visibleChunks = getVisibleChunkCoords(tileX, tileZ);
+        // Bolt: Optimized hot-path POI sorting using fast direct relational string comparison instead of slow localeCompare
         worldPois = [...getStarterVillagePois(), ...generateVisibleChunkPois(visibleChunks)]
-          .sort((a, b) => a.id.localeCompare(b.id));
+          .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
       }
 
       const discoveryStats = worldDiscoveryService.getStats(identity.playerId);

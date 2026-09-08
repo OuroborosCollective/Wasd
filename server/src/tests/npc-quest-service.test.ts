@@ -177,4 +177,18 @@ describe("NpcQuestService", () => {
       expect(service.toQuestSnapshots(playerId).find((quest) => quest.id === QUEST_ID)?.status).toBe("completed");
     });
   });
+
+  describe("sorting & performance", () => {
+    it("verifies relational string comparison produces identical sort output to localeCompare for quest sorting", () => {
+      const sampleQuests = Array.from({ length: 500 }, (_, i) => ({
+        questId: `quest_id_${(i * 37) % 500}`,
+        npcId: `npc_id_${(i * 13) % 100}`,
+      }));
+
+      // Verify identical sorting output
+      const sortedLocale = [...sampleQuests].sort((a, b) => a.questId.localeCompare(b.questId));
+      const sortedRelational = [...sampleQuests].sort((a, b) => (a.questId < b.questId ? -1 : a.questId > b.questId ? 1 : 0));
+      expect(sortedRelational).toEqual(sortedLocale);
+    });
+  });
 });

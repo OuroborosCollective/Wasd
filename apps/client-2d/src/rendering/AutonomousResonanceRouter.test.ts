@@ -264,3 +264,56 @@ describe("Integer Math Enforcement", () => {
     expect(result.resonanceScore % 1).toBe(0);
   });
 });
+
+describe("sorting performance benchmark", () => {
+  it("benchmarks fast relational comparison vs localeCompare for ResonanceAsset sorting", () => {
+    const sampleAssets: Array<{ assetId: string; category: string; path: string }> = [];
+    const categories = ["enemy", "npc", "building", "prop", "vfx", "tile"];
+    for (let i = 0; i < 2000; i++) {
+      const idNum = String(i % 500).padStart(4, "0");
+      const category = categories[i % categories.length]!;
+      sampleAssets.push({
+        assetId: `stitch_${category}_asset_${idNum}`,
+        category,
+        path: `/2d-assets/stitch/${category}_${idNum}.png`,
+      });
+    }
+
+    // 1. Benchmark legacy localeCompare sorting
+    const itemsForLocale = [...sampleAssets];
+    const startLocale = performance.now();
+    for (let iter = 0; iter < 10; iter++) {
+      itemsForLocale.sort(
+        (a, b) =>
+          a.assetId.localeCompare(b.assetId) ||
+          a.category.localeCompare(b.category) ||
+          a.path.localeCompare(b.path),
+      );
+    }
+    const durationLocale = performance.now() - startLocale;
+
+    // 2. Benchmark fast relational sorting
+    const itemsForRelational = [...sampleAssets];
+    const startRelational = performance.now();
+    for (let iter = 0; iter < 10; iter++) {
+      itemsForRelational.sort((a, b) => {
+        if (a.assetId !== b.assetId) return a.assetId < b.assetId ? -1 : 1;
+        if (a.category !== b.category) return a.category < b.category ? -1 : 1;
+        if (a.path !== b.path) return a.path < b.path ? -1 : 1;
+        return 0;
+      });
+    }
+    const durationRelational = performance.now() - startRelational;
+
+    // Ensure identical sort order
+    expect(itemsForRelational).toEqual(itemsForLocale);
+
+    const speedup = durationLocale / (durationRelational || 0.001);
+    console.log(`\n⚡ AutonomousResonanceRouter Sort Benchmark (2000 items, 10 iterations):`);
+    console.log(`  - localeCompare sort:    ${durationLocale.toFixed(4)}ms`);
+    console.log(`  - fast relational sort:  ${durationRelational.toFixed(4)}ms`);
+    console.log(`  - Speedup factor:        ${speedup.toFixed(2)}x faster\n`);
+
+    expect(speedup).toBeGreaterThan(1.0);
+  });
+});

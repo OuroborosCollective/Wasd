@@ -118,11 +118,11 @@ export class WorldDiscoveryService {
     // Get currently discovered POIs
     const currentlyDiscovered = this.store.getDiscoveredPoiIds(playerId);
 
-    // Find new discoveries
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
     const newPoiIds = nearbyPois
       .map((poi) => poi.id)
       .filter((id) => !currentlyDiscovered.includes(id))
-      .sort((left, right) => left.localeCompare(right));
+      .sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
 
     if (newPoiIds.length > 0) {
       // Update store with new discoveries
@@ -132,7 +132,7 @@ export class WorldDiscoveryService {
       const newChunkKeys = nearbyPois
         .filter((poi) => !currentlyDiscovered.includes(poi.id))
         .map((poi) => createChunkKey(poi.chunk.x, poi.chunk.z));
-      this.store.discoverChunks(playerId, [...new Set(newChunkKeys)].sort((left, right) => left.localeCompare(right)));
+      this.store.discoverChunks(playerId, [...new Set(newChunkKeys)].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0)));
     }
 
     return newPoiIds;

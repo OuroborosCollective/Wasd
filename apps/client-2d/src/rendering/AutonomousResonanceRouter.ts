@@ -177,11 +177,17 @@ function stableWorldStateKey(state: WorldLogicalState): string {
 }
 
 function sortResonanceAssets(a: ResonanceAsset, b: ResonanceAsset): number {
-  return (
-    a.assetId.localeCompare(b.assetId) ||
-    a.category.localeCompare(b.category) ||
-    a.path.localeCompare(b.path)
-  );
+  // Bolt: Optimized asset sorting using fast direct relational string comparisons instead of slow localeCompare
+  if (a.assetId !== b.assetId) {
+    return a.assetId < b.assetId ? -1 : 1;
+  }
+  if (a.category !== b.category) {
+    return a.category < b.category ? -1 : 1;
+  }
+  if (a.path !== b.path) {
+    return a.path < b.path ? -1 : 1;
+  }
+  return 0;
 }
 
 function makeFallbackResult(): MaterializationResult {
