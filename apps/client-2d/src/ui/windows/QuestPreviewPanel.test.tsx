@@ -82,6 +82,7 @@ describe("QuestPreviewPanel UX & Accessibility", () => {
     expect(button).toBeTruthy();
     expect(button.getAttribute("aria-label")).toBe("Open Quest Journal [Q]");
     expect(button.getAttribute("aria-keyshortcuts")).toBe("q");
+    expect(button.getAttribute("title")).toBe("Open Quest Journal [Q]");
 
     await act(async () => {
       button.click();
@@ -140,11 +141,13 @@ describe("QuestPreviewPanel UX & Accessibility", () => {
     expect(progressBar.getAttribute("aria-valuemin")).toBe("0");
     expect(progressBar.getAttribute("aria-valuemax")).toBe("5");
     expect(progressBar.getAttribute("aria-valuetext")).toBe("3 of 5 Wood Log");
+    expect(progressBar.getAttribute("title")).toBe("Wood Log: 3/5 (60%)");
 
     const button = container!.querySelector("button") as HTMLButtonElement;
     expect(button).toBeTruthy();
     expect(button.getAttribute("aria-label")).toBe("Open Quest Journal [Q]");
     expect(button.getAttribute("aria-keyshortcuts")).toBe("q");
+    expect(button.getAttribute("title")).toBe("Open Quest Journal [Q]");
 
     await act(async () => {
       button.click();
