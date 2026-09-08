@@ -25,9 +25,17 @@ export function SyncStateOverlay({ latestServerTick, renderTick }: SyncStateOver
   const state = classifySyncFreshness(latestServerTick, renderTick);
   if (state === "fresh") return null;
 
+  const label = labelForState(state);
+
   return (
-    <aside className={`sync-state-overlay sync-state-overlay--${state}`} aria-live="polite">
-      {labelForState(state)}
+    <aside
+      className={`sync-state-overlay sync-state-overlay--${state}`}
+      role="status"
+      aria-live="polite"
+      aria-label="Network Synchronization State"
+      title={`Network Synchronization State: ${label}`}
+    >
+      {label}
     </aside>
   );
 }
