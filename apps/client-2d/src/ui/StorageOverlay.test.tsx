@@ -168,4 +168,21 @@ describe("StorageOverlay UX & Accessibility", () => {
 
     window.removeEventListener("wasd:client-action", actionSpy);
   });
+
+  it("renders descriptive aria-label and title tooltips on inventory and storage slots", async () => {
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(<StorageOverlay isOpen={true} />);
+    });
+
+    const playerSlots = container!.querySelectorAll('.player-panel .storage-slot');
+    const playerSlot1 = playerSlots[0] as HTMLDivElement;
+    expect(playerSlot1.getAttribute("aria-label")).toBe("Item in slot 1: Iron Sword (common) - Click to transfer to storage");
+    expect(playerSlot1.getAttribute("title")).toBe("Iron Sword (common) - Click to transfer to storage");
+
+    const storageSlots = container!.querySelectorAll('.container-panel .storage-slot');
+    const storageSlot1 = storageSlots[0] as HTMLDivElement;
+    expect(storageSlot1.getAttribute("aria-label")).toBe("Item in slot 1: Health Potion (uncommon) - Click to transfer to inventory");
+    expect(storageSlot1.getAttribute("title")).toBe("Health Potion (uncommon) - Click to transfer to inventory");
+  });
 });
