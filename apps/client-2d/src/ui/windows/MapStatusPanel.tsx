@@ -18,6 +18,7 @@ interface MapStatusPanelProps {
 export function MapStatusPanel({ snapshot, activeChunkCount, worldSeed = "areloria:earth_1_1" }: MapStatusPanelProps) {
   const map = snapshot.map;
   const [aurionRequestError, setAurionRequestError] = useState<string | null>(null);
+  const [isPendingAurionRequest, setIsPendingAurionRequest] = useState(false);
 
   // Derive biome from chunk coordinates for debug display
   // This matches the deterministic biome derivation in ChunkManager
@@ -52,8 +53,13 @@ export function MapStatusPanel({ snapshot, activeChunkCount, worldSeed = "arelor
   const canRequestAurionTransition = aurionTransition?.status === "idle";
 
   const requestAurionTransition = async () => {
-    const result = await dispatchAurionTransition();
-    setAurionRequestError(result.ok ? null : result.error ?? "aurion_transition_failed");
+    setIsPendingAurionRequest(true);
+    try {
+      const result = await dispatchAurionTransition();
+      setAurionRequestError(result.ok ? null : result.error ?? "aurion_transition_failed");
+    } finally {
+      setIsPendingAurionRequest(false);
+    }
   };
 
   return (
@@ -148,11 +154,23 @@ export function MapStatusPanel({ snapshot, activeChunkCount, worldSeed = "arelor
           <b>{`${aurionTransition.zoneId} · ${aurionTransition.status}`}</b>
           <span style={{ fontSize: "9px", opacity: 0.7 }}>{aurionTransition.persistence}</span>
           {canRequestAurionTransition && (
-            <button type="button" data-testid="aurion-transition-request" onClick={() => { void requestAurionTransition(); }}>
-              Expanse betreten
+            <button
+              type="button"
+              data-testid="aurion-transition-request"
+              onClick={() => { void requestAurionTransition(); }}
+              disabled={isPendingAurionRequest}
+              aria-busy={isPendingAurionRequest}
+              aria-label={isPendingAurionRequest ? "Entering Expanse..." : "Request entry into Aurion Expanse"}
+              title={isPendingAurionRequest ? "Entering Expanse..." : "Request entry into Aurion Expanse"}
+            >
+              {isPendingAurionRequest ? "Betrete Expanse..." : "Expanse betreten"}
             </button>
           )}
-          {aurionRequestError && <span role="status" style={{ fontSize: "9px" }}>{aurionRequestError}</span>}
+          {aurionRequestError && (
+            <span role="alert" aria-live="assertive" style={{ fontSize: "9px", color: "var(--st-fire, #ff4d4d)" }}>
+              {aurionRequestError}
+            </span>
+          )}
         </article>
       )}
       {process.env.NODE_ENV !== "production" && (
