@@ -63,9 +63,10 @@ export class VendorStockStore {
       delete nextItems[itemId];
     }
 
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
     const nextState: VendorStockState = {
       ...state,
-      items: Object.freeze(Object.fromEntries(Object.entries(nextItems).sort(([a], [b]) => a.localeCompare(b)))),
+      items: Object.freeze(Object.fromEntries(Object.entries(nextItems).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))),
     };
 
     this.stocks.set(vendorId, nextState);
@@ -73,19 +74,21 @@ export class VendorStockStore {
   }
 
   replaceStock(vendorId: string, state: VendorStockState): void {
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
     this.stocks.set(vendorId, Object.freeze({
       vendorId: state.vendorId,
       schemaVersion: state.schemaVersion,
-      items: Object.freeze(Object.fromEntries(Object.entries(state.items).sort(([a], [b]) => a.localeCompare(b)))),
+      items: Object.freeze(Object.fromEntries(Object.entries(state.items).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))),
     }));
   }
 
   getStockEntries(vendorId: string): Array<{ itemId: string; quantity: number }> {
     const state = this.getStock(vendorId);
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
     return Object.entries(state.items)
       .filter(([, qty]) => qty > 0)
       .map(([itemId, quantity]) => ({ itemId, quantity }))
-      .sort((a, b) => a.itemId.localeCompare(b.itemId));
+      .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0));
   }
 
   clearForTests(): void {
