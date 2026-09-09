@@ -150,6 +150,27 @@ test("AX1 projection contains only confirmed bounded readmodel fields", () => {
   for(const field of ["semantic","episodic","provenance","raw","token","working"])assert.equal(field in view,false);
 });
 
+test("retained facts require their actual source receipts even after coordinated state rehashing", () => {
+  const receipt=fixture(1).confirmed;
+  const memory=npc.replayNpcMemoryV4("lyra",[receipt]);
+  assert.deepEqual(npc.verifyNpcMemoryEvidence(memory,[receipt]),memory);
+  assert.deepEqual(npc.npcMemoryReceiptIds(memory),[receipt.receiptId]);
+  assert.throws(()=>npc.verifyNpcMemoryEvidence(memory,[]),/EVIDENCE_REQUIRED/);
+  assert.throws(()=>npc.verifyNpcMemoryEvidence(memory,[{...receipt}]),/EVIDENCE_INVALID/);
+  const changed=structuredClone(memory),fact=changed.semantic.find(f=>f.predicate==="current_hub");
+  fact.value="unproven_hub";
+  const {id:_,status:__,conflictsWith:___,...factPayload}=fact;fact.id=npc.npcHash(factPayload);
+  changed.semantic.sort((a,b)=>b.validFromIndex-a.validFromIndex||(a.id<b.id?-1:a.id>b.id?1:0));
+  const {memoryHash:____,...unsigned}=changed;changed.memoryHash=npc.npcHash(unsigned);
+  assert.ok(npc.parseNpcMemoryV4(changed)); // A consistent self-hash is not external evidence.
+  assert.throws(()=>npc.verifyNpcMemoryEvidence(changed,[receipt]),/EVIDENCE_MISMATCH/);
+  const history=Array.from({length:70},(_,i)=>fixture(i).confirmed),long=npc.replayNpcMemoryV4("lyra",history);
+  const ids=npc.npcMemoryReceiptIds(long),needed=history.filter(r=>ids.includes(r.receiptId));
+  assert.ok(ids.includes(history[0].receiptId)); // Configured competency retains full old provenance.
+  assert.ok(ids.length<=npc.NPC_MULTI_MEMORY_LIMITS.evidenceReceipts);
+  assert.deepEqual(npc.verifyNpcMemoryEvidence(long,needed),long);
+});
+
 test("coordinated outer rehash cannot hide noncanonical order, false plan or inconsistent provenance", () => {
   const memory=npc.replayNpcMemoryV4("lyra",[fixture(1).confirmed,fixture(2).confirmed]);
   const rehash=value=>{const {memoryHash:_,...unsigned}=value;value.memoryHash=npc.npcHash(unsigned);return value;};

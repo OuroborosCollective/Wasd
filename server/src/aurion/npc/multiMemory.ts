@@ -6,7 +6,7 @@ import { npcLifeGoals, npcLifePlanSchema } from "./npcLifeProtocol.js";
 import { decodeNpcReceipt, NPC_LIFE_RECEIPT_VERSION, npcHash, type NpcLifeSnapshot } from "./npcPersistenceProtocol.js";
 
 export const NPC_MULTI_MEMORY_VERSION = "wasd-npc-multi-memory.v4" as const;
-export const NPC_MULTI_MEMORY_LIMITS = Object.freeze({ episodes: 24, facts: 64, competencies: 8, seenReceipts: 64, horizon: 3500, bytes: 262144, replayReceipts: 4096 });
+export const NPC_MULTI_MEMORY_LIMITS = Object.freeze({ episodes: 24, facts: 64, competencies: 8, seenReceipts: 64, evidenceReceipts: 160, horizon: 3500, bytes: 262144, replayReceipts: 4096 });
 const id = z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/);
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const revision = z.string().regex(/^[a-f0-9]{40}$/);
@@ -183,6 +183,46 @@ export function replayNpcMemoryV4(npcId: string, receipts: readonly ConfirmedNpc
   if (receipts.length > NPC_MULTI_MEMORY_LIMITS.replayReceipts) throw new Error("NPC_MULTI_MEMORY_REPLAY_LIMIT");
   let memory = createNpcMemoryV4(npcId);
   for (const receipt of [...receipts].sort((a,b) => a.snapshot.decision.resolutionIndex-b.snapshot.decision.resolutionIndex || compare(a.receiptId,b.receiptId))) memory = commitNpcMemoryV4(memory,receipt).memory;
+  return memory;
+}
+
+/** Exact bounded database lookup set, including provenance older than the recent delivery window. */
+export function npcMemoryReceiptIds(value: NpcMemoryV4): readonly string[] {
+  const memory = parseNpcMemoryV4(value);
+  return Object.freeze([...new Set([...memory.seenReceipts.map(r=>r.receiptId),...memory.episodic.map(e=>e.source.receiptId),
+    ...memory.semantic.flatMap(f=>f.provenance.map(p=>p.receiptId)),...memory.procedural.flatMap(c=>c.provenance.map(p=>p.receiptId))])].sort(compare));
+}
+
+/** Recheck every retained assertion against actual source receipt readbacks, without relabelling historical authority. */
+export function verifyNpcMemoryEvidence(value: NpcMemoryV4, receipts: readonly ConfirmedNpcDecision[]): NpcMemoryV4 {
+  const memory = parseNpcMemoryV4(value), ids = npcMemoryReceiptIds(memory);
+  if (receipts.length > NPC_MULTI_MEMORY_LIMITS.evidenceReceipts) throw new Error("NPC_MULTI_MEMORY_EVIDENCE_LIMIT");
+  const byId = new Map<string, ConfirmedNpcDecision>();
+  for (const receipt of receipts) {
+    if (!verifiedDecisions.has(receipt) || receipt.snapshot.npcId !== memory.npcId || byId.has(receipt.receiptId)) throw new Error("NPC_MULTI_MEMORY_EVIDENCE_INVALID");
+    byId.set(receipt.receiptId,receipt);
+  }
+  if (byId.size !== ids.length || ids.some(id=>!byId.has(id))) throw new Error("NPC_MULTI_MEMORY_EVIDENCE_REQUIRED");
+  for (const source of [...memory.episodic.map(e=>e.source),...memory.semantic.flatMap(f=>f.provenance),...memory.procedural.flatMap(c=>c.provenance)]) {
+    const receipt = byId.get(source.receiptId)!;
+    if (receipt.receiptSha256 !== source.receiptSha256 || receipt.snapshot.decision.decisionHash !== source.decisionHash || receipt.snapshot.decision.resolutionIndex !== source.logicalIndex) throw new Error("NPC_MULTI_MEMORY_EVIDENCE_MISMATCH");
+  }
+  for (const seen of memory.seenReceipts) {
+    const receipt = byId.get(seen.receiptId)!;
+    if (receipt.receiptSha256 !== seen.receiptSha256 || receipt.snapshot.decision.resolutionIndex !== seen.logicalIndex) throw new Error("NPC_MULTI_MEMORY_EVIDENCE_MISMATCH");
+  }
+  for (const episode of memory.episodic) {
+    const snapshot = byId.get(episode.source.receiptId)!.snapshot;
+    if (episode.goal !== snapshot.decision.goal || episode.regionId !== snapshot.regionId) throw new Error("NPC_MULTI_MEMORY_EVIDENCE_MISMATCH");
+  }
+  for (const fact of memory.semantic) {
+    const snapshot = byId.get(fact.provenance[0]!.receiptId)!.snapshot;
+    if (fact.value !== (fact.predicate === "selected_goal" ? snapshot.decision.goal : snapshot.lifeState.economy?.currentHubId)) throw new Error("NPC_MULTI_MEMORY_EVIDENCE_MISMATCH");
+  }
+  if (memory.lastReceiptId) {
+    const latest = byId.get(memory.lastReceiptId)!.snapshot;
+    if (memory.working.goal !== latest.decision.goal || stableCatalogStringify(memory.working.plan) !== stableCatalogStringify(latest.lifeState.plan)) throw new Error("NPC_MULTI_MEMORY_EVIDENCE_MISMATCH");
+  }
   return memory;
 }
 
