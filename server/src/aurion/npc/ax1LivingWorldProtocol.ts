@@ -89,6 +89,11 @@ export function marketPriceCopper(input: Readonly<{ commodity: CommodityId; stoc
   return Math.max(1, Math.round(beforeTax * (1 + tax)));
 }
 
+/** Explicit hub topology for authority checks; this is not a physical position proof. */
+export function hasLivingWorldRoute(from: HubId, to: HubId): boolean {
+  return from !== to && (routeSecurity[`${from}:${to}`] !== undefined || routeSecurity[`${to}:${from}`] !== undefined);
+}
+
 export function caravanSecurityIndex(from: HubId, to: HubId, polityStability: number, rememberedThreat: number): number {
   const direct = routeSecurity[`${from}:${to}`] ?? routeSecurity[`${to}:${from}`] ?? 50;
   return Math.round(clamp(direct + clamp(polityStability, -100, 100) * 0.15 - clamp(rememberedThreat, 0, 100) * 0.35, 5, 100));

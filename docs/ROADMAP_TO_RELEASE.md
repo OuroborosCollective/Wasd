@@ -143,7 +143,7 @@ These belong after release blockers are controlled, unless a small isolated PR c
 | Integration | Target direction | Status |
 |---|---|---|
 | WASD → Aurion source ledger | Revision-bound WASD source inventory is available to Aurion through a pinned reusable workflow and a hash-only artifact. | Implemented as a read-only coordination gate; it must not be interpreted as production migration or persistence evidence. |
-| Aurion multi-memory (AIM-292) | WASD source and reproducible compiled capsule are implemented with legacy v2/v3 compatibility and confirmed-receipt-only reducers. | Remains open until the merged source is consumed by Aurion, canonical schema/runtime readbacks pass and AX1 displays actual persisted v4 counts. Typed action validation/consent and evidence graphs remain AIM-293/294. |
+| Aurion multi-memory (AIM-292) | WASD source and reproducible compiled capsule are implemented with legacy v2/v3 compatibility and confirmed-receipt-only reducers. | Complete: the merged source is consumed by Aurion, canonical schema/runtime readbacks pass and AX1 displays actual persisted v4 counts. Rule-gated action validation and editorial consent remain AIM-293; evidence graphs remain AIM-294. |
 | Genealogy and houses | NPC family lines, inheritance, house reputation and deterministic lineage history. | Implemented foundation; 3D rendering open in #2046. |
 | Full NPC politics | NPCs and players participate in shared civic rules. | Future; must build on #2050, not a mock layer. |
 | Guild/village/city/kingdom/nation hierarchy | Rule-bound civilization growth through biome-bounded territories. | Future; must derive from server runtime state. |

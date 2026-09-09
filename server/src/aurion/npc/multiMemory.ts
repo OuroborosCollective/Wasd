@@ -134,6 +134,11 @@ export function createNpcMemoryV4(npcId: string): NpcMemoryV4 {
 export type ConfirmedNpcDecision = Readonly<{ receiptId: string; receiptSha256: string; snapshot: NpcLifeSnapshot; authority: ReturnType<typeof npcAuthority> }>;
 const verifiedDecisions = new WeakSet<object>();
 
+/** Gateway-only brand check; a matching JSON shape is never confirmed evidence. */
+export function isConfirmedNpcDecision(value: unknown): value is ConfirmedNpcDecision {
+  return !!value && typeof value === "object" && verifiedDecisions.has(value as object);
+}
+
 /** Called on the actual persisted receipt readback, before a memory commit is permitted. */
 export function verifyConfirmedNpcDecision(raw: string, expected: Parameters<typeof decodeNpcReceipt>[1] & { receiptId: string }): ConfirmedNpcDecision {
   const snapshot = decodeNpcReceipt(raw, expected);

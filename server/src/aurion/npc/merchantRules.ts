@@ -2,8 +2,18 @@ import { resolveLivingWorldTick, socialMasteryEvidence, type LivingWorldSocialAc
 import type { NpcLifeOpportunity } from "./npcLifeProtocol.js";
 import type { NpcNeedEvent } from "./npcNeeds.js";
 import type { NpcRequest, NpcSnapshot } from "./npcPersistenceProtocol.js";
+import type { PolityGovernmentType, WorldSignal } from "./worldPolityRules.js";
 
-const baseMarkets: Readonly<Record<HubId, MarketState>> = Object.freeze({
+export type MerchantDecisionRequests = Readonly<{
+  resolution: ReturnType<typeof resolveLivingWorldTick>;
+  npcRequest: NpcRequest;
+  worldRequest: Readonly<{ worldSeed: string; regionId: HubId; resolutionIndex: number; signals: readonly WorldSignal[] }>;
+  polityRequest: Readonly<{ polityId: string; governmentType: PolityGovernmentType; territoryIds: readonly string[]; stability: number; activeDiplomacy: readonly ("alliance" | "trade" | "non_aggression" | "tribute" | "sanction")[]; warSignals: readonly WorldSignal[] }> ;
+  socialEvidence?: ReturnType<typeof socialMasteryEvidence>;
+  receiptId: string;
+}>;
+
+export const merchantBootstrapMarkets: Readonly<Record<HubId, MarketState>> = Object.freeze({
   observatory_threshold: Object.freeze({ hubId: "observatory_threshold", controllingGuild: "Order of Aurion", taxRateBasisPoints: 400, treasuryCopper: 500_000, stock: Object.freeze({ grain: 150, sandstone: 100, bronze: 80, aether: 40, salve: 60, rune_core: 25 }) }),
   windhollow: Object.freeze({ hubId: "windhollow", controllingGuild: "Aethelgard Pioneers", taxRateBasisPoints: 250, treasuryCopper: 280_000, stock: Object.freeze({ grain: 600, sandstone: 120, bronze: 30, aether: 15, salve: 40, rune_core: 5 }) }),
   emberfall: Object.freeze({ hubId: "emberfall", controllingGuild: "Bronze Syndicate", taxRateBasisPoints: 550, treasuryCopper: 420_000, stock: Object.freeze({ grain: 80, sandstone: 450, bronze: 350, aether: 20, salve: 25, rune_core: 10 }) }),
@@ -18,7 +28,7 @@ function defaultNpc(regionId: HubId): NpcEconomyState {
   return Object.freeze({ npcId: npcIdentity(regionId), name: npcName(regionId), currentHubId: regionId, wealthCopper: 1_500, hungerBps: 2_000, fatigueBps: 1_500, tradeProwessBps: 10_500, harvestYieldBps: 10_000, memory: Object.freeze([]) });
 }
 
-function confirmedNpcEconomy(homeRegionId: HubId, snapshot: NpcSnapshot | null): NpcEconomyState {
+export function confirmedNpcEconomy(homeRegionId: HubId, snapshot: NpcSnapshot | null): NpcEconomyState {
   if (!snapshot || !("lifeState" in snapshot) || !snapshot.lifeState.economy) return defaultNpc(homeRegionId);
   const economy = snapshot.lifeState.economy;
   if (!isHubId(economy.currentHubId)) throw new Error("NPC_LIFE_HUB_INVALID");
@@ -45,24 +55,29 @@ export function prepareMerchantNpcDecision(input: { worldSeed: string; resolutio
   const npcId = npcIdentity(input.regionId);
   const prior = input.prior;
   const npc = confirmedNpcEconomy(input.regionId,prior);
-  const market = baseMarkets[npc.currentHubId];
+  const market = merchantBootstrapMarkets[npc.currentHubId];
   const preferredGoal = prior?.decision.goal;
   const resolution = resolveLivingWorldTick({ worldSeed: input.worldSeed, resolutionIndex: input.resolutionIndex, market, npc, polityStability: 72, ...(preferredGoal ? { preferredGoal } : {}) });
+  return merchantRequestsFromResolution(input.worldSeed,resolution,input.social);
+}
+
+/** Source-only compatibility helper for golden fixtures; never exported by the shipping capsule entry. */
+function merchantRequestsFromResolution(worldSeed: string, resolution: ReturnType<typeof resolveLivingWorldTick>, social?: Readonly<{ action: LivingWorldSocialAction; sourceReceiptId: string }>): MerchantDecisionRequests {
   const receiptId = `ax1living:${resolution.deterministicHash.slice(0, 40)}`;
   // Needs are satisfaction values: beneficial outcomes increase them; harm decreases them.
   const needEvents: NpcNeedEvent[] = [
-    { id: `${receiptId}:wealth`, need: "wealth", delta: resolution.action === "trade" || resolution.action === "caravan" ? 0.08 : resolution.action === "consume" ? -0.04 : 0, sourceReceiptId: receiptId, resolutionIndex: input.resolutionIndex },
-    { id: `${receiptId}:safety`, need: "safety", delta: resolution.caravan.ambushed ? -0.18 : resolution.action === "patrol" ? 0.05 : 0, sourceReceiptId: receiptId, resolutionIndex: input.resolutionIndex },
-    { id: `${receiptId}:resources`, need: "resources", delta: resolution.action === "produce" ? 0.07 : resolution.action === "consume" ? -0.04 : 0, sourceReceiptId: receiptId, resolutionIndex: input.resolutionIndex },
-    { id: `${receiptId}:belonging`, need: "belonging", delta: resolution.action === "socialize" ? 0.08 : 0, sourceReceiptId: receiptId, resolutionIndex: input.resolutionIndex },
-    { id: `${receiptId}:status`, need: "status", delta: resolution.action === "patrol" ? 0.03 : resolution.action === "caravan" && !resolution.caravan.ambushed ? 0.02 : 0, sourceReceiptId: receiptId, resolutionIndex: input.resolutionIndex },
-    { id: `${receiptId}:power`, need: "power", delta: resolution.action === "caravan" && !resolution.caravan.ambushed ? 0.02 : 0, sourceReceiptId: receiptId, resolutionIndex: input.resolutionIndex },
+    { id: `${receiptId}:wealth`, need: "wealth", delta: resolution.action === "trade" || resolution.action === "caravan" ? 0.08 : resolution.action === "consume" ? -0.04 : 0, sourceReceiptId: receiptId, resolutionIndex: resolution.resolutionIndex },
+    { id: `${receiptId}:safety`, need: "safety", delta: resolution.caravan.ambushed ? -0.18 : resolution.action === "patrol" ? 0.05 : 0, sourceReceiptId: receiptId, resolutionIndex: resolution.resolutionIndex },
+    { id: `${receiptId}:resources`, need: "resources", delta: resolution.action === "produce" ? 0.07 : resolution.action === "consume" ? -0.04 : 0, sourceReceiptId: receiptId, resolutionIndex: resolution.resolutionIndex },
+    { id: `${receiptId}:belonging`, need: "belonging", delta: resolution.action === "socialize" ? 0.08 : 0, sourceReceiptId: receiptId, resolutionIndex: resolution.resolutionIndex },
+    { id: `${receiptId}:status`, need: "status", delta: resolution.action === "patrol" ? 0.03 : resolution.action === "caravan" && !resolution.caravan.ambushed ? 0.02 : 0, sourceReceiptId: receiptId, resolutionIndex: resolution.resolutionIndex },
+    { id: `${receiptId}:power`, need: "power", delta: resolution.action === "caravan" && !resolution.caravan.ambushed ? 0.02 : 0, sourceReceiptId: receiptId, resolutionIndex: resolution.resolutionIndex },
   ];
   const newestMemory = resolution.nextMemory.length ? [resolution.nextMemory[resolution.nextMemory.length - 1]!] : [];
   const npcRequest = {
     npcId: resolution.npc.npcId,
     regionId: resolution.npc.currentHubId,
-    resolutionIndex: input.resolutionIndex,
+    resolutionIndex: resolution.resolutionIndex,
     roleId: "merchant",
     needEvents,
     observationIds: Object.freeze([receiptId, `market:${resolution.market.hubId}:${resolution.commodity}:${resolution.unitPriceCopper}`]),
@@ -73,14 +88,14 @@ export function prepareMerchantNpcDecision(input: { worldSeed: string; resolutio
   const economySignal = {
     id: `${receiptId}:economy`, kind: "economy" as const, regionId: resolution.market.hubId,
     magnitude: Math.max(-1, Math.min(1, (resolution.taxCopper - (resolution.caravan.ambushed ? 100 : 0)) / 500)),
-    sourceReceiptId: receiptId, resolutionIndex: input.resolutionIndex,
+    sourceReceiptId: receiptId, resolutionIndex: resolution.resolutionIndex,
   };
   const politicsSignal = {
     id: `${receiptId}:politics`, kind: resolution.caravan.ambushed ? "war" as const : "politics" as const, regionId: resolution.market.hubId,
     magnitude: Math.max(-1, Math.min(1, resolution.stabilityDelta / 10)),
-    sourceReceiptId: receiptId, resolutionIndex: input.resolutionIndex,
+    sourceReceiptId: receiptId, resolutionIndex: resolution.resolutionIndex,
   };
-  const worldRequest = Object.freeze({ worldSeed: input.worldSeed, regionId: resolution.market.hubId, resolutionIndex: input.resolutionIndex, signals: [economySignal, politicsSignal] });
+  const worldRequest = Object.freeze({ worldSeed, regionId: resolution.market.hubId, resolutionIndex: resolution.resolutionIndex, signals: [economySignal, politicsSignal] });
   const polityRequest = Object.freeze({
     polityId: `polity:${resolution.market.hubId}`,
     governmentType: resolution.market.hubId === "emberfall" ? "trade_republic" as const : resolution.market.hubId === "cinder_vault" ? "warband" as const : "council" as const,
@@ -89,6 +104,6 @@ export function prepareMerchantNpcDecision(input: { worldSeed: string; resolutio
     activeDiplomacy: resolution.action === "caravan" ? ["trade" as const] : ["non_aggression" as const],
     warSignals: resolution.caravan.ambushed ? [politicsSignal] : [],
   });
-  const socialEvidence = input.social ? socialMasteryEvidence(input.social.action, input.social.sourceReceiptId, input.resolutionIndex) : undefined;
+  const socialEvidence = social ? socialMasteryEvidence(social.action, social.sourceReceiptId, resolution.resolutionIndex) : undefined;
   return Object.freeze({ resolution, npcRequest: Object.freeze(npcRequest) as NpcRequest, worldRequest, polityRequest, socialEvidence, receiptId });
 }
