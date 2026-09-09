@@ -1,0 +1,48 @@
+{
+  "sourceRevision": "9d0ba427387e0c46b23312bac1fef9516fdf1405",
+  "kind": "local-legacy-protocol-regression-fixtures-not-production-receipts",
+  "input": {
+    "npcId": "lyra",
+    "regionId": "observatory_threshold",
+    "resolutionIndex": 7,
+    "needEvents": [],
+    "observationIds": [
+      "world:7"
+    ],
+    "memory": [
+      "danger:road"
+    ],
+    "languageProfileId": "aurion-common-v1",
+    "roleId": "seer",
+    "relationshipEvents": [],
+    "opportunities": [
+      {
+        "id": "safe:7",
+        "kind": "safe_hub",
+        "regionId": "observatory_threshold",
+        "targetId": "hub:observatory_threshold",
+        "benefitBps": 8000,
+        "riskBps": 500,
+        "distanceBps": 0,
+        "sourceReceiptId": "world:7",
+        "resolutionIndex": 7
+      }
+    ],
+    "economy": {
+      "currentHubId": "observatory_threshold",
+      "wealthCopper": 1200,
+      "hungerBps": 2000,
+      "fatigueBps": 1500,
+      "tradeProwessBps": 10500,
+      "harvestYieldBps": 10000
+    }
+  },
+  "v2": {
+    "raw": "{\"requestHash\":\"eaf3ea962361eaf8ed5b7dfc1c826295cfcad2c897d8e1f7ad8bffa1e6b806de\",\"snapshot\":{\"decision\":{\"decisionHash\":\"7aacc708699c3c34c6a353f26af7c5d87b511a33ecbf195350e897b5695e3a8f\",\"goal\":\"expand_influence\",\"needs\":{\"belonging\":0.4,\"power\":0.2,\"resources\":0.5,\"safety\":0.8,\"status\":0.3,\"wealth\":0.3},\"npcId\":\"lyra\",\"observationIds\":[\"receipt:1\"],\"resolutionIndex\":2},\"memory\":[\"remember\"],\"memoryState\":{\"entries\":[{\"id\":\"97eddad0ffbb142dd5f21855cd2829d9b241901d9daf5ba46693062fef2a1d7d\",\"lastSeenIndex\":2,\"text\":\"remember\"}],\"version\":\"aurion-npc-memory.v2\"},\"needs\":{\"belonging\":0.4,\"power\":0.2,\"resources\":0.5,\"safety\":0.8,\"status\":0.3,\"wealth\":0.3},\"npcId\":\"lyra\",\"regionId\":\"observatory_threshold\"},\"snapshotHash\":\"97a3bec97f445151b8c19320484f724119922ea41acccd1b205be092fd8968d8\",\"version\":\"aurion-npc-decision.v2\"}",
+    "snapshotHash": "97a3bec97f445151b8c19320484f724119922ea41acccd1b205be092fd8968d8"
+  },
+  "v3": {
+    "raw": "{\"requestHash\":\"8357ac42975cf4e3eac528f71e0ba6e3f17fc6b352a9e37aa836363795bb21a6\",\"snapshot\":{\"decision\":{\"decisionHash\":\"5db24242125999753a1c8a8d1e3cab903bac731f79bd140cd30424d8f7c42c90\",\"goal\":\"expand_influence\",\"longTermGoal\":\"expand_influence\",\"needs\":{\"belonging\":0.4,\"power\":0.2,\"resources\":0.5,\"safety\":0.8,\"status\":0.3,\"wealth\":0.3},\"npcId\":\"lyra\",\"observationIds\":[\"world:7\"],\"plan\":{\"goal\":\"expand_influence\",\"opportunityId\":null,\"planHash\":\"606cdfddd17139a82bae20cc02bbf01323acddb19e4f28dec04856af41f5e2dd\",\"status\":\"blocked\",\"steps\":[]},\"resolutionIndex\":7,\"utilityBps\":{\"expand_influence\":19650,\"gain_reputation\":16755,\"gather_resources\":12890,\"seek_safety\":13311,\"socialize\":13604,\"trade\":16890}},\"lifeState\":{\"currentGoal\":\"expand_influence\",\"currentGoalSinceResolutionIndex\":7,\"decisionCount\":1,\"economy\":{\"currentHubId\":\"observatory_threshold\",\"fatigueBps\":1500,\"harvestYieldBps\":10000,\"hungerBps\":2000,\"tradeProwessBps\":10500,\"wealthCopper\":1200},\"homeRegionId\":\"observatory_threshold\",\"lastResolutionIndex\":7,\"longTermGoal\":\"expand_influence\",\"longTermGoalSinceResolutionIndex\":7,\"npcId\":\"lyra\",\"personality\":{\"ambitionBps\":7270,\"courageBps\":2544,\"curiosityBps\":2159,\"empathyBps\":2667,\"loyaltyBps\":3750,\"prudenceBps\":4290},\"plan\":{\"goal\":\"expand_influence\",\"opportunityId\":null,\"planHash\":\"606cdfddd17139a82bae20cc02bbf01323acddb19e4f28dec04856af41f5e2dd\",\"status\":\"blocked\",\"steps\":[]},\"relationships\":[],\"roleId\":\"seer\",\"stateHash\":\"7cf73b4defba3af5c94ce66f0d9819bd0df9d5d70ee6bb2fec77f8b30f5c7db7\",\"version\":\"aurion-npc-life.v1\"},\"memory\":[\"danger:road\"],\"memoryState\":{\"entries\":[{\"id\":\"a6928d5d15c937ad0e909c39ac8b55d5b5f32b5eb71539fd9bf2decc52b72532\",\"lastSeenIndex\":7,\"text\":\"danger:road\"}],\"version\":\"aurion-npc-memory.v2\"},\"needs\":{\"belonging\":0.4,\"power\":0.2,\"resources\":0.5,\"safety\":0.8,\"status\":0.3,\"wealth\":0.3},\"npcId\":\"lyra\",\"regionId\":\"observatory_threshold\"},\"snapshotHash\":\"0157ca32166248d07bcce802641cfccf7c2c2a4b88829673f6a26e55a728b48a\",\"version\":\"aurion-npc-decision.v3\"}",
+    "snapshotHash": "0157ca32166248d07bcce802641cfccf7c2c2a4b88829673f6a26e55a728b48a"
+  }
+}

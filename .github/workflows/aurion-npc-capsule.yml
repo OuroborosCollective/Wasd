@@ -1,0 +1,88 @@
+name: Aurion NPC WASD capsule
+
+on:
+  pull_request:
+    paths:
+      - "server/src/aurion/npc/**"
+      - "server/src/tests/aurion-npc/**"
+      - "server/tsconfig.aurion-npc.json"
+      - "scripts/*aurion-npc-capsule.mjs"
+      - "scripts/__tests__/aurion-npc-capsule.test.mjs"
+      - "vitest.aurion-npc.config.ts"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/aurion-npc-capsule.yml"
+  push:
+    branches: [main]
+    paths:
+      - "server/src/aurion/npc/**"
+      - "server/src/tests/aurion-npc/**"
+      - "server/tsconfig.aurion-npc.json"
+      - "scripts/*aurion-npc-capsule.mjs"
+      - "scripts/__tests__/aurion-npc-capsule.test.mjs"
+      - "vitest.aurion-npc.config.ts"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/aurion-npc-capsule.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurion-npc-capsule-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capsule:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Install the frozen server toolchain
+        run: pnpm install --frozen-lockfile --filter @wasd/server...
+      - name: Build shared types and check the complete server
+        run: |
+          pnpm --filter @wasd/shared build
+          pnpm --filter @wasd/server exec tsc --noEmit --pretty false
+      - name: Prove original NPC regressions
+        run: pnpm exec vitest run --config vitest.aurion-npc.config.ts
+      - name: Build the actual capsule twice from the exact source commit
+        run: |
+          node scripts/build-aurion-npc-capsule.mjs .aurion-npc-evidence/a
+          node scripts/build-aurion-npc-capsule.mjs .aurion-npc-evidence/b
+          diff --recursive .aurion-npc-evidence/a .aurion-npc-evidence/b
+      - name: Test compiled memory, rehydration and artifact rejection
+        env:
+          WASD_NPC_CAPSULE_DIR: .aurion-npc-evidence/a
+        run: node --test scripts/__tests__/aurion-npc-capsule.test.mjs
+      - name: Independently verify artifact bytes against the exact identity
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, writeFile } from 'node:fs/promises';
+          import { execFileSync } from 'node:child_process';
+          import { verifyNpcCapsule } from './scripts/verify-aurion-npc-capsule.mjs';
+          const directory='.aurion-npc-evidence/a';
+          const manifest=JSON.parse(await readFile(`${directory}/manifest.json`,'utf8'));
+          const sourceRevision=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
+          const receipt=await verifyNpcCapsule(directory,{sourceRevision,manifestSha256:manifest.manifestSha256});
+          await writeFile('.aurion-npc-evidence/verification.json',JSON.stringify({...receipt,reproduction:'BYTE_IDENTICAL',scope:'WASD source and compiled protocol tests; no Aurion deployment claim'})+'\n');
+          console.log(JSON.stringify(receipt));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aurion-npc-capsule-${{ github.event.pull_request.head.sha || github.sha }}
+          path: .aurion-npc-evidence
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30

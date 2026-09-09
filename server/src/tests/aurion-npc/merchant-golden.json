@@ -1,0 +1,735 @@
+{
+  "scope": "Isolated original-code compatibility fixture; persistence IO replaced; no production receipt claim",
+  "sourceRepository": "OuroborosCollective/Echoes_of_Aurion",
+  "sourceRevision": "3e51b5f21d55b2b7f549d24fc15526980f41a109",
+  "sourceFiles": {
+    "server/ax1LivingWorldRuntime.ts": "b79ba5f3c3519ea6b0d298c41a2ef38d2351655bbaea96928bb1631fe3bf4cd4",
+    "server/ax1LivingWorldProtocol.ts": "1b53d0cef6e9a4db8ee3f8f4e05c7f0166e3d679067a7923eed65fe0fb12a3b0",
+    "server/npcLifeProtocol.ts": "f6355c185e8901c307a7ceee3df065c63e4d0a37bbf208f89748c3913370bbe9",
+    "server/npcPersistenceProtocol.ts": "3ebb483a82b685ca5362fb405aaf16b60af4ab4dc7feaf3a60a248e8a4928f46",
+    "server/wasdAurionProtocol.ts": "1e206c3798f1c29fed9dcbeb5989e66e76e9bf4c2df558b812ec43ff7fd94a58"
+  },
+  "worldSeed": "isolated-legacy-merchant-golden",
+  "rows": [
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 0,
+      "resolutionHash": "0b25b6ff840f0579c32cb89fb4fa653977c52e8ce957667330f79e170e856abe",
+      "npcRequestHash": "f6a657259634eeab571acf4b7296ea4262ab336886b01ac7026f750b875b44cc",
+      "worldRequestHash": "86a206329c49510c0d3a602e190f0c810f36e4353cfae216a21ecc7031d2cdbe",
+      "polityRequestHash": "218b873e927527ea1e80d088bd84cc5cfdc3f12f346d69b184a8de03f331768c",
+      "snapshotHash": "d3135e48504d097e1494414c4803ac222eb4bc0536112143eeae74a58595d2e6"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 1,
+      "resolutionHash": "44c7df91ee571c82f47d1ea39785665580f6612c74d3bfa67623c3341a9a0062",
+      "npcRequestHash": "928aeab2fb04a3203d3be29f86155eb8c4de900cf34aa8d1856d676e58d922d4",
+      "worldRequestHash": "e4a35db02bd60e11814bd7d70b3a8dc0dea775002a05bfc8dfac9ed1d74b7742",
+      "polityRequestHash": "5000f813a3f20b62ce70d97fdf888f60500049eca3de56fd7b10ffd54443bde7",
+      "snapshotHash": "9ab23997661ce886ae24e0ab35a3a9a59a1e13d588fce79b355e398e72db1f61"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 2,
+      "resolutionHash": "71c8c513a19edfb8418877a98decbfe97406ebfcca9e8e50e30322beea9cb0ae",
+      "npcRequestHash": "730adea6fbe6fee035485e6598548cb5641abfb7e2cf855a23a1f3904524d2b6",
+      "worldRequestHash": "83da13da591d037201c48b4d385bdd48332f74a1710375e2df35e0a682c13b87",
+      "polityRequestHash": "64b39c843231ffcc4585bdccf49e4ada2a233da1eb4aca16d991f6867f088662",
+      "snapshotHash": "40faa287a41d72f9dddaecc11209424bf5bed3102af095c9dc0ace36b1d58a03"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 3,
+      "resolutionHash": "5b075162b2413011671ea945167cffa0b382843dd83a4d9ef090627b5c22d0e2",
+      "npcRequestHash": "ec325ac802fa31ae73610fc2996dcdc4b8e8b5f5444ee7113d4a81948bfc7bf1",
+      "worldRequestHash": "67b961b8fbbc07f024e359cfb2a7553925ce9e06f210a0a7c02c85bc60fd9748",
+      "polityRequestHash": "ead6d35f8c4f62e1303ceacfc91b1f0bc7e32ddcdba114db3dc894035c697239",
+      "snapshotHash": "228466f7f6a25c052de06e5cfc6e339cc37e2197fa188f40dd374b037394de3b"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 4,
+      "resolutionHash": "a4ea990522f0abd453f271662eac1d3e7ee9df8a0d67dd343601aa8b6520ab9d",
+      "npcRequestHash": "722a9e9a373b608b6ea102acb864b67c2d0ac15e3fd2d0adcb5b18b447357172",
+      "worldRequestHash": "ec240d6430c2e2555a05ccdd409c70a4a69e43ce50a972dff0229b86ab768783",
+      "polityRequestHash": "5000f813a3f20b62ce70d97fdf888f60500049eca3de56fd7b10ffd54443bde7",
+      "snapshotHash": "0db2440cfefe04549d7af7cbc3fa1f13543d605761d5646ca1614ac35dc2667b"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 5,
+      "resolutionHash": "75dd73b81bf430cce6337d493ca18eb194278b15abd0d7114338ab6c7a29278a",
+      "npcRequestHash": "9722c188ebf18a53ffd11a15d528e956695a7e29436daa32baf94b822c27ec3c",
+      "worldRequestHash": "86c4e57a3cf6e2c7e5897f3f1b58950ca099a23570506131f049f2b93359b3aa",
+      "polityRequestHash": "0f7b8368ba8a7d491f5c2c67bd39635b8bb3d5e5fe415ddfa4cb7976d203bc6f",
+      "snapshotHash": "4bb516ff59981271a9659c5861f96495a7d65e956321a2788917b9e71f411aca"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 6,
+      "resolutionHash": "4e08495a1a4ebaffbde846532c2203268d6bb849e4a2754b06441de84f361140",
+      "npcRequestHash": "c6a6042cdbedcacdaa9ad951a7d0cedd03ef7d6129d6d513a346d0cdb8279378",
+      "worldRequestHash": "b8466309fc5311d069f705e5ffd5c0790d667def335a6b90f6a8bbe0bb687866",
+      "polityRequestHash": "cc6c6420bdb8e793fd5da224b764aa960d054f3971c6c7b95b72478f6e2e23b3",
+      "snapshotHash": "33061c62320a9046f230e087ba1f3558894c14785f0a96ff3977d7440540b255"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 7,
+      "resolutionHash": "736baf9294da790d94ded6af31f1dc076ee783099145e1fc80fd5ae50e4267c0",
+      "npcRequestHash": "fa7ad047ca351bbf4cc733eaa0e481a1096aa6f579e9df45b70081e9d8d6b4ae",
+      "worldRequestHash": "36d38eb24f70f7c90503676ada8d285ae2f1af81902730f6e54edf2d087a1204",
+      "polityRequestHash": "ead6d35f8c4f62e1303ceacfc91b1f0bc7e32ddcdba114db3dc894035c697239",
+      "snapshotHash": "7e6202f219629472dc6d26c4ba83a12bdf507728de69dd593684e7d6ade13989"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 8,
+      "resolutionHash": "d7bf416065a50b8a192ff5d08233842156c96e2dfd6057dca0bb686f4f66a9f5",
+      "npcRequestHash": "daefffbd6f8100c3a6f2257662ac4df4770ff3f87de7d0878c60900043586b95",
+      "worldRequestHash": "b90fb31d36e50a578fb65b0aac6e92375b5fa73c223c7be7c8e9b069d2165a17",
+      "polityRequestHash": "5000f813a3f20b62ce70d97fdf888f60500049eca3de56fd7b10ffd54443bde7",
+      "snapshotHash": "b9d5987b6f1cb7f4c0bc3498ff1c17354bfe0d727bd3d524aa306fe2f5a1c5c2"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 9,
+      "resolutionHash": "69fd83e788ca4ebfc3acc566483faa3f2a88cc5ee610b721176b09ba752813e9",
+      "npcRequestHash": "7ce62e0945f4f2ea75002ceb72ef1822f94bc8e27caea2911dacb45675c15d7c",
+      "worldRequestHash": "cfaec4b55a5f7597e17f732dd2a69e4f9ddaa3c25b459325a9fb84ffc2ca9496",
+      "polityRequestHash": "64b39c843231ffcc4585bdccf49e4ada2a233da1eb4aca16d991f6867f088662",
+      "snapshotHash": "1da49a01a41c76ef6102aca2ad1ddc11fb975a773bcb0fe7ead9dfb574a88c34"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 10,
+      "resolutionHash": "74fdb4300cc02bafea3da1ab1ea63957585e0febcb4e30cc6e27fa87df937935",
+      "npcRequestHash": "10421582e765dd642d031f965a0d8895da3c15330b93a6bf1da06e12d83dd11e",
+      "worldRequestHash": "34a60b29dca9d9edcb1db67b98436585ff3a064008dd9056a210f41ae7d4d9c1",
+      "polityRequestHash": "5000f813a3f20b62ce70d97fdf888f60500049eca3de56fd7b10ffd54443bde7",
+      "snapshotHash": "4c7244675b1688a64e811c26210eb70072438265832e42fd579d25baa659b09a"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 11,
+      "resolutionHash": "43bb58f057cdcf90f165d683906ce3f5d4221e999ab55fc46c3fc6c910b8f865",
+      "npcRequestHash": "d410b45b2889a2efc6a6e8e4ef564298c37b4d9634a49600a78b211753167451",
+      "worldRequestHash": "bd16772bc15410354484e8b4a94579ca4f3920befcbb7152131d795d7e604881",
+      "polityRequestHash": "89ea5328825bd17c010226139c26159b905e9460d27a717274031f1f304bb744",
+      "snapshotHash": "18a9c10e89123e70c9a619b1299207059b92463fa1182599ced44606b93516c9"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 12,
+      "resolutionHash": "16017626c2eb15198fa589e2ec5df2457722c88503749a240b18d6efcff781c8",
+      "npcRequestHash": "e4ffe21077f2f957e97f0ac0577e7d15098b377b0b3352d8a6f5980bee6d68ea",
+      "worldRequestHash": "86ee91942e6190d304aa18e5508fe1dda03c89e97b87e80ecfd40d00496fb123",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "5194ecfdb5763846248f1146055a719e4741739a171231b2c9a4d3b3cd76eb9e"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 13,
+      "resolutionHash": "d4a638806cb92b78fecd575bef9a0275caa7ff4f3d0f36c20020a653aee7b2d6",
+      "npcRequestHash": "4df55cfbb736e01251f3424db04e13362cda2653552c3c9dc51aa839f5360f8b",
+      "worldRequestHash": "ad79135899a26f7542d7c9f47cb2ea4d5aea361b6d1d66ddd62fece6d586d087",
+      "polityRequestHash": "91662858a7b3f1228c64d879f30ab5f0f6fd3ddeb174c009cc53d006f13873af",
+      "snapshotHash": "0903ffe6bbfadee3466750603cbdbf1c2cc865289658b45c4ab2bd40af244ea9"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 14,
+      "resolutionHash": "d5a5254c11c2bbc63fbcb53cdeffa0ee656311d9d8c16515a44ce9d7976ed202",
+      "npcRequestHash": "1a36d9dd4b567fe248cd06ffb97c0d7285f6089bac5235e5f03c42477be4d720",
+      "worldRequestHash": "d84c58d638dcf5b7f9e50628499e81b4b75a9e1fc141d23e67a256323b3fc5a2",
+      "polityRequestHash": "91662858a7b3f1228c64d879f30ab5f0f6fd3ddeb174c009cc53d006f13873af",
+      "snapshotHash": "240cab370a43307917eddce67eb008a53714185c56c2ddd4c0a11cf9f634a599"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 15,
+      "resolutionHash": "92a82375a16f334bc4c568969a837cfd04bfe3e26359d8a27c94f9b87fb3f189",
+      "npcRequestHash": "4faced0e73c8fff27e72aaae54c6e031af643833ec21245abc20b8568cdda896",
+      "worldRequestHash": "b063114f616e2245dd37fd1b3ceb6e701eba7e1495f5e6cd9e42bdf6943ac074",
+      "polityRequestHash": "91662858a7b3f1228c64d879f30ab5f0f6fd3ddeb174c009cc53d006f13873af",
+      "snapshotHash": "3fc41c71d5f09482859a8c93bb9d11db46bd51dff18998b5df84bc9f506b0964"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 16,
+      "resolutionHash": "a268819b10b117a92893e76766e990561b865221e6ec0330ef549f7a241ede4d",
+      "npcRequestHash": "e80e6a5d0a2f91ff067bad3b64bb7088eace78e7a0fced3b3a551d4098ccbc38",
+      "worldRequestHash": "2ee534c4834c02a68c50b1716162ec625155a17d72761b522ecce6bde71b8a1f",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "b1d803a32b1b383deb642cc7040d1c356269df09ad067f0fb46907af44739016"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 17,
+      "resolutionHash": "325296b42f173337dd7da695fd961da9d005c945765cc00182b4c7bafe939d8a",
+      "npcRequestHash": "5a44678299c842882ce8c32eca46286e79334499df5562fccdeb8cf7848f7fa4",
+      "worldRequestHash": "63f51234dc50e6a207d72a0dcdefdac02dab67a808896fe01debef62739c5185",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "a10be95ba09612205192843b3e7bcdc3ba7e0247c1b88c35625d17f0f6a848a5"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 18,
+      "resolutionHash": "02783f8a68900cebb27aee4b959617e0345168b7a47a1132caee653b57dd87bf",
+      "npcRequestHash": "318fea8e92a952e159207fd4f1d3525c234cf826f330da9103bf70976f3cdda5",
+      "worldRequestHash": "f4af5cebc03983766e255cb6fdbe7d0c7a373f61b9414d50859286360df7168e",
+      "polityRequestHash": "a9660688f1ca30cb38182f69428f0161e0764bc844ae8c78e9253e85d74b151a",
+      "snapshotHash": "32b45abb4502c984e448cafd2746557f369eda924d39888a9fa2cb1f86e214e6"
+    },
+    {
+      "regionId": "observatory_threshold",
+      "resolutionIndex": 19,
+      "resolutionHash": "2bc16a6e73814fa34ca6c9f8d12196d7eb4fdf0ebaef31fe39699885f1325b79",
+      "npcRequestHash": "c3846b8f3a42d520508be86f9172279ee994d7358c7cdaee0ec4171d95352ce9",
+      "worldRequestHash": "269a4cfe0d98a9a23c17cc00d5d39e6d26eb229fc624e99a3e2f8ee6d1dcf813",
+      "polityRequestHash": "4dd9fa0cee6f5279c234b6eb8280d486ad4561497b2c8f68ec2291645560d57d",
+      "snapshotHash": "3e2ba1ab0081331de9fbc28fde570fc04fa7f8124a4409ddb4d39dfb5e197ae6"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 0,
+      "resolutionHash": "177ecec48b0fb71704c16df78ecec5d532d32a19e7cd542ecb3f3acb0cd2914c",
+      "npcRequestHash": "8cc9430672d8e760c9089355c441b7afb28151e0ed35382d69c1f91003ffd958",
+      "worldRequestHash": "00632f3b736c1f186d0077789868eba382ed8e20c1ae4cf400490478b7bf4e98",
+      "polityRequestHash": "91662858a7b3f1228c64d879f30ab5f0f6fd3ddeb174c009cc53d006f13873af",
+      "snapshotHash": "0adcb3a53478f0c1030caaaf5879caf44e4b246a471ef4118cf5c558263ebe37"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 1,
+      "resolutionHash": "1c284c680013896e936e09672ed1c51bb9e3a543b0d916db2fe5c5c35d44bf32",
+      "npcRequestHash": "c8b8d7d0841faedee925c9a36996656db72cb72153a4933b56e995959797263e",
+      "worldRequestHash": "4d043123113fa98ce78e6dc11f77203edee8159ebc510d1aebb8731a628c0436",
+      "polityRequestHash": "a9660688f1ca30cb38182f69428f0161e0764bc844ae8c78e9253e85d74b151a",
+      "snapshotHash": "ed2ad2b44d40a4a73c5c5a54e7179ff646c2fa953595bf6caaa69b357dee1dba"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 2,
+      "resolutionHash": "88ac6e6adf4f07f2afeaf1c837f6033b6a7986a321214ad58146ae47c6757392",
+      "npcRequestHash": "727162422caf6b69e43a105e7f8a0431d073542acab775ba8ea93f8b990d20ff",
+      "worldRequestHash": "d70ffb35f0fe5988025354314689f64df77d41b647cc3f5351481e0cf8b0505b",
+      "polityRequestHash": "218b873e927527ea1e80d088bd84cc5cfdc3f12f346d69b184a8de03f331768c",
+      "snapshotHash": "1c3a7322c450f1a45cd1c219bb068b3dd1e8614e7a896fef01cd9cef1fe571b1"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 3,
+      "resolutionHash": "9d59cf7c4bb5eb12c79854a2ca3e0b5f73fb65efd70e9b9b015def257163a38d",
+      "npcRequestHash": "033e2e7da6766483c1e56b349b34136597fca604bd1620d831dd2a86f9cb3663",
+      "worldRequestHash": "ca5237b4ad96596fccabdcbc65b0afb395431a31966ff9a7e98d4508f04eab4f",
+      "polityRequestHash": "218b873e927527ea1e80d088bd84cc5cfdc3f12f346d69b184a8de03f331768c",
+      "snapshotHash": "a83ac1dd1d617e44be3f701780e900792bdfb536fe6a192a20697000fea5b654"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 4,
+      "resolutionHash": "493a7739108592c4a893c01d6558587dac59965ec0f656248aecf7ea703f78e6",
+      "npcRequestHash": "4862af390140f65e0b6aae83c78a7f947b27c1e1515b62996677924522502298",
+      "worldRequestHash": "09108dd20e4788cee5d81da21ea1647f2bc7c65792c5de212c8fdb8e473b478f",
+      "polityRequestHash": "5cf1557c8d2523e2aaf67f175593b4d9f50dcdd6aa7390a6a2833fac80b70593",
+      "snapshotHash": "569213731e8c697c180b837fbef0a0ba19526919434289bec22bdb618481015c"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 5,
+      "resolutionHash": "067dd6ae5077e622888adb15e05fd3c9c06b91e0f3da4c7281c9fd9cbe070625",
+      "npcRequestHash": "7cc3786a816d4c0a0c278c595c0d2bc162a7cd27b6535dd54b7ee59b643ff1b6",
+      "worldRequestHash": "ee499ba9a8f3e71c8b13f3201ec86fa5129751f572d60d4e129df7b96ebbff06",
+      "polityRequestHash": "5000f813a3f20b62ce70d97fdf888f60500049eca3de56fd7b10ffd54443bde7",
+      "snapshotHash": "140dbe96f87d6c948bef76c28b8ef5e850c297371af81cccd7f03a6d742eed00"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 6,
+      "resolutionHash": "9aaa0c97a0d098202ffc154861988187c15ed5828fdb316c75bbd5cddef5acaa",
+      "npcRequestHash": "ba406cb07df6486ad12478ac7af4974b0d306cd2567be4900e1093cc7d4600bd",
+      "worldRequestHash": "2cf1db4c91f269425ce9eddc4d247a707984769c0cfa306857a1aa79ee1b4f86",
+      "polityRequestHash": "a9660688f1ca30cb38182f69428f0161e0764bc844ae8c78e9253e85d74b151a",
+      "snapshotHash": "e2cbafe88a8f8603216ce98650e5cd9c1cf4d594782d829e4e6e88cab60e02df"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 7,
+      "resolutionHash": "d046c04168dc943dcf7bb426483316bf0cc750968dbeada3cc47497f736863a2",
+      "npcRequestHash": "e2331f3f1c876e0af7452bb1f34ad5817a5e6f2a14b8f2fcd51dcbd2783442b0",
+      "worldRequestHash": "839f8da0596aa00b3969824b8089cb379c452644d262466af5825bf6311fb315",
+      "polityRequestHash": "f1a40c6b485f86e9c488f32801c87b1105712c0cb53caf0e6261c4dd8b20f704",
+      "snapshotHash": "9119ed61d3a5d5fde2dcfc699f73d393c1c891d9a503c6e7d301568e58d3b34e"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 8,
+      "resolutionHash": "51a2decbcc7153ad756e463decfc6315ef67e42c28205ae01db64f82a2a27b89",
+      "npcRequestHash": "ffd1e6fba6350dca5627dea725af47cc19723490f042c24dcd118ec2418aa0b9",
+      "worldRequestHash": "63e0d2d660352068abd34abbf64fdab8ccf82161166dc72958fc58aacb24b633",
+      "polityRequestHash": "64b39c843231ffcc4585bdccf49e4ada2a233da1eb4aca16d991f6867f088662",
+      "snapshotHash": "8653a84e0303a9d5ca3068e4f3d661d7702f2f31bf0a985e884dff81e30dd720"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 9,
+      "resolutionHash": "441b64fe86aa4b3ca8b42275b89126f807a7e7bf1a40814eca436791a30d5269",
+      "npcRequestHash": "d82dde6f1f0efab945b7d60b22b430c4dacb2c50c1f0f779394baf1aad065b81",
+      "worldRequestHash": "2faf8ffac646495d03537cad8defc2e8b9f65dbffeebc353751c277c6dfdc687",
+      "polityRequestHash": "b9dc239df20a4b1263e66a15e7d980fa0d977f98fd2eb67bd25e38573edb3d57",
+      "snapshotHash": "a5c656abb14bcc2949ba499069f0e88c93bf39dd8d00504ba4a0fa5661ed5e0c"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 10,
+      "resolutionHash": "97184875445a90c7db4aab09756fa496bc9153f61cc4fe55e31df2b29874747b",
+      "npcRequestHash": "49e2e296a9ee3245930fc3c98436dceee87c40d964acf8159c70ddf85c096d92",
+      "worldRequestHash": "f546db228f16f705802af749484436761d56de7d67b92e10e00999490fd6195f",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "7838f145a7e82c5e06e1c4421c06f9a2002769900b9c00634c0f20e36fcf9983"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 11,
+      "resolutionHash": "285c3f90cab8384ef16690112cc4a1169fd369065c746f9235e3fa8710d797f0",
+      "npcRequestHash": "5876d2d91f1f22ba5607be3fcc09b4c5295a86f62215f9ca0d66e3f608d25b61",
+      "worldRequestHash": "a9f0d471f8163bac0b7a474402087bae03462c4cea268584c2bd2fc38079c05d",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "0e04d10f80f06abcc897fd9a329addc9e8f21b3e1d2b06d21ebb1dedbadd0437"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 12,
+      "resolutionHash": "40c42abaef0692db85b9a5c38dedc61758ded1b282129264b6fab898c2a3bbb1",
+      "npcRequestHash": "167d8b12e8afb94455f52fd2ad832e8f68e53c0ca33a29e823da3b65b29a9d4a",
+      "worldRequestHash": "43a6e631b748c0144f0335f1f431c0e4945795aa850a5e35251c46c6c541805a",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "8cfd9a03e603eb8d4ce524f538101671d19978d2a47d37d3a455c8dea2ea409f"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 13,
+      "resolutionHash": "188105b7b17febcd0e4c08f244b759a25520401127b595aa67296b3c9162f9d3",
+      "npcRequestHash": "4e908c19199cb2696137e17296f863d7a8ef286f2b6cb7f91e9b3ba7021945ef",
+      "worldRequestHash": "1246c82f382c1eacb6f231b3e47dcba53d15d343ebf97b84dcba301d7159308b",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "6e582bd26871fca474df6718abbfe8c958e8ce58518b22ac75cbf5bbe4471fc3"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 14,
+      "resolutionHash": "bc64d2ac036114962d5ed6b88ba0dfcb0a9a58c4bd69f03b7b3868a5f43fbbe4",
+      "npcRequestHash": "8ec5f86d7e030c059315c680e123e3dee39dfd5919736543c7e671bf1fba27c6",
+      "worldRequestHash": "dc891b93a778de192d0aedf94c97d027876be8dcc96e21cbda1f17786c0442e7",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "66565fa42ba897c7dc2813c4ab7aa6285b19371e33c27dd68ff38594862ba209"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 15,
+      "resolutionHash": "f9bb8437ae5a5146fc7f3e52ee901c5e669f3566608f10e054c73cba35ed6fb8",
+      "npcRequestHash": "4911a59d4805a9af10fffa6efad239b8a8105ba75d22b6fdae678363e5745355",
+      "worldRequestHash": "26f0cfa08b6e107f398e5becbb6696ffcfbcfb66001a9911b67adf40adda2122",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "0f912b21fd634638e5f5bee4e0ca7e10b907adebe8985cf1706e6a8c107e4303"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 16,
+      "resolutionHash": "8bcbaadc69187dd9edf21af1a18dca52796b3bc7f602ff7506a0b8cedb7b5d1d",
+      "npcRequestHash": "95413bb9e5a0dafbde8769bc85449089051d86545f36b27eca15860ebf1c89bd",
+      "worldRequestHash": "e15cb145e73c0d499e35dae9c25e35aced01aeb6020044f69929b00d6dfee628",
+      "polityRequestHash": "91662858a7b3f1228c64d879f30ab5f0f6fd3ddeb174c009cc53d006f13873af",
+      "snapshotHash": "f4c7bd2b4e5debd6e9f29bdf4d8e8ccdcd790ef1ea1f506670aee1e85e5f65b0"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 17,
+      "resolutionHash": "6cf79c9e07957af9dea73d239d13a7bb04302c79a6545d224ec91b40acadf059",
+      "npcRequestHash": "36c951cb0a0717fba2633a7e14e229f799479fca1dfc3e7ca6a1aa7f063ef5cd",
+      "worldRequestHash": "870afca2136cf3fd92a3bd72ce5d351c556101d76bbeaf07fcd0a2b9e0972348",
+      "polityRequestHash": "91662858a7b3f1228c64d879f30ab5f0f6fd3ddeb174c009cc53d006f13873af",
+      "snapshotHash": "e6a652d3c243c0cb1a7ccf6ee9556960f0f6877bacd903e5e19e109a63ba01a7"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 18,
+      "resolutionHash": "2a2a9c980cf3bf9750c55fe95da32e4b54e5e9fc473ab13b73b6765882696605",
+      "npcRequestHash": "2f832138cf12b96c96fbb6a54e4d21da75e6a34fcf446ae908f02419bbec29f5",
+      "worldRequestHash": "84ef64d8dff2d9c4ce1a0964a0950dfc160dce5e7839536abedd839c2f231e7e",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "24f2c7d8eb1619ace907a468d8d0ee87a378dd278fec1085d960e5c5fe921f44"
+    },
+    {
+      "regionId": "windhollow",
+      "resolutionIndex": 19,
+      "resolutionHash": "2bde8b4d72af72a799d662a7ae3f34cd4ed148c4260fcb89d6c260679a52f286",
+      "npcRequestHash": "6091620574550b4cfee429c1f2d2d9e536900359e7befccaa375a93f6553501d",
+      "worldRequestHash": "958d95fed6cd5f779de8b0a7f7abaad46457a056e3ede9b90f95ba46f665c575",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "75d1d685e2e07e67fc91056c7fb55f2cecce5d24964bef479eba636ebf7cce4b"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 0,
+      "resolutionHash": "efd1785d39565bb612a0ea8cb4b768fec19b499e65a1f159db0630ec3e400d70",
+      "npcRequestHash": "15c660b4a8acd39d5ad70d325ba08d2d680b4edf28dc5704979b28125edc59e6",
+      "worldRequestHash": "bcecc389aa0b4243aff66a9825c09b4e84b4a07de15495aafaea13955a8bbd1f",
+      "polityRequestHash": "3504cd59482018d5f4e769aac17ef3882197b9fd3380bc674345363c33a8440f",
+      "snapshotHash": "5cc29a41c7742d0d17a01cf8ee254dcfcdd78481e837b34eea05476a64c6d636"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 1,
+      "resolutionHash": "fc68b901b581cbdd585822c28a80c4733841f654359a57887367087bad738f61",
+      "npcRequestHash": "690b4037885baf70e7aec37fbee6a950f8920277e7035e4ac1272d7c59f3d71a",
+      "worldRequestHash": "83b7f30173365abaa7a2cadc0a7cb0145d2ed86b70c7af5cbbb88ae7c2640f56",
+      "polityRequestHash": "64b39c843231ffcc4585bdccf49e4ada2a233da1eb4aca16d991f6867f088662",
+      "snapshotHash": "c48f736511a503159db99dfd9bca6c7a33db64d81da74c1444d37db787c75150"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 2,
+      "resolutionHash": "ba034c6f025a832c00496a62a2910c6e1edc9ff23d0fbc71f68344276faf9299",
+      "npcRequestHash": "949535a12098e63ba02145123ac5342ab2f0b6725ac8cada46f1c89d06980327",
+      "worldRequestHash": "f3baa9b638ec86bad7628f0feafce112812ea46225ff2e812681947c51a5f349",
+      "polityRequestHash": "f2bb55f594a1ec01551d760aeb4827af80a525e4f91f5872ab509c8e827305c1",
+      "snapshotHash": "107a3ac9bf10bc272a5525ddcc18b3b3192905fbc0116cfbb7535cee1b03be6b"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 3,
+      "resolutionHash": "16acbcefa184303cfcc231c5a1d27625663464f8718f3fcb5950ef8eb03542fd",
+      "npcRequestHash": "bebf06ac4bfbf4ff9c0f4fb9e0692cccab94a23f0db71b0d988c555ceeff051a",
+      "worldRequestHash": "bae1bc89dca6cf49313e896e2065518175423a2f0e331ce3613ad9bc29121788",
+      "polityRequestHash": "af82b410d4a1cc4fd6338812c8ce47514d6f5ee942f8c3536b01e97e74f20cb7",
+      "snapshotHash": "1422f50af743a14200a9896912ba21d5d0c1969a1fc9d5c81ab94195c72f2691"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 4,
+      "resolutionHash": "259eda6e0bf933493986d3cdae0a2b6085d47a570d6ae85008db35d9df9bba4e",
+      "npcRequestHash": "4bbb92e762277942a3f208d869d2608f208dce72b0732de8243c772fc3c2ce08",
+      "worldRequestHash": "9f27349907199d693b80e37cc0ab47b8c1d36cf91a17357efc7ec4ab310c3706",
+      "polityRequestHash": "ead6d35f8c4f62e1303ceacfc91b1f0bc7e32ddcdba114db3dc894035c697239",
+      "snapshotHash": "dc178f2da087661bba2a519adb8ec13bdd27629614b97cfbdf014e30af016089"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 5,
+      "resolutionHash": "c077776bbe74a1cd96b88e0d11a244937e1aa65177db89fab4a71f3b9d1d9485",
+      "npcRequestHash": "68fd1c9fea691da153d202193f259d01e16a531e7e1792fec2696f8b860dcd73",
+      "worldRequestHash": "6ddd168ad6ba2d09475e75fd71aa059fab9c6edd9397bbc1a15eee178987f228",
+      "polityRequestHash": "5000f813a3f20b62ce70d97fdf888f60500049eca3de56fd7b10ffd54443bde7",
+      "snapshotHash": "4e02284945578219b0351f3846f9d0c206d575127d03b3bcfad61fb8385cbd12"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 6,
+      "resolutionHash": "dccc691421b0cbfb591bb44c64ec7e0743ec68d555bde5a8b0b187625b44dea5",
+      "npcRequestHash": "a7c2ce03a19f641c6d2de521e57f7203271a91c176a4055a5bc7280350adfa25",
+      "worldRequestHash": "7fd761a15db00e04311b0fdecf93858f204d35d92ed5268ae2484cce322cab9a",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "ec8df214c4f4a21ef5eda529e8114bf4ab04c679cd3dfc22a16b206fc659f340"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 7,
+      "resolutionHash": "4e0ba812722f1aa40dd4cb20283c03aef8b578b755edf090cc2d6af7e1ac3f7f",
+      "npcRequestHash": "d745886f10609bfd7650743b0b6ba0f317cbbe98f55dedf430d52442e5a67a4a",
+      "worldRequestHash": "feb8ee18a06623aeb0edd77588e0388fa2ade6624765eb0d37b62e204cbb38cf",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "59d7e7cfeeed80d677ddd841424a5ae24d5911f39528c730b4994b78825c5b66"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 8,
+      "resolutionHash": "e8e015c687d98ad810c6f087d6ec9d817fbad9082c75e21acc34880fa385c7db",
+      "npcRequestHash": "af6a411d92067fb0f1f02c4b25e094a1ba009fdccee398824f0f0d4921876ba0",
+      "worldRequestHash": "3d80ced76ed3f0262e3581749c4301e985675e681a5429b2b68b721563a19ba3",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "994d89e7a2495e79dd540fcefc3a24ccaa5a16e9c112b53980c0d30a6fb1c451"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 9,
+      "resolutionHash": "fa0f0016679eeb146c15ab1d35ea882e6ece0b1910039c4d8a36ad4c8aa3ea27",
+      "npcRequestHash": "665dbbe4ef0e2069769c718772d95cc700731b6e67e07a4b2cdfe1c6c6ce705d",
+      "worldRequestHash": "8d4fa1b607652743f2ebcf2c9cc5332f67484e0ca230569c230d38f239579e00",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "8a1eaae4df4bca73a85463834461a70546cff39882c064981141d62d107dd487"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 10,
+      "resolutionHash": "14a8ee4483003bd2e805627b908de17c6095144fe2a59ea61f8add2dd949ce5f",
+      "npcRequestHash": "0be96d980ed8bc4212d75b53aee4137483a12eed185bf4f1a4339f0c69a9e13a",
+      "worldRequestHash": "5e0b080f773044ea28c11bc8d96a3f8015b61e3ae55ca4f3c6195077dbc5797d",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "3893174f2634cce36452190189979ddf9d06817a543b5b26576bcfaacdb547e5"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 11,
+      "resolutionHash": "4da61a34d8dbdbcc2b7af8aa98c0d78e19331a2123d6862b801f00bb3c29efe9",
+      "npcRequestHash": "e1df5618f37e4b2ad2adf9dabaaab01afaec265daadd76f7950bde40dd1fca4b",
+      "worldRequestHash": "bbcefd7e68b9f8036af611611242dce6dccd9b6844598e2c176925c160140a04",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "ee70f83ef9c5a5901440abae938625b779407d50ef5fe0a3f7b5bd121dbeebb5"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 12,
+      "resolutionHash": "54e2cd3b605b2442f3a5723e5618108591c4b7f797c3d27112410f1f642d81b6",
+      "npcRequestHash": "4ac12f2104e7bf9cfaedde82904a636ce2c64b99533818a7cea33a3b76fff939",
+      "worldRequestHash": "ecc2d95958fbcc3e1ec4a3adad7d7bcaebe8e6afe9d68fd4fefa4d52a5a70c02",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "f89863ceacc86ec9fe13a990ec1f7273bfcf2e249b236d9eb28d7f259f4c90e6"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 13,
+      "resolutionHash": "05e50a6c5fab7a02f07dc9e32027e95d6b638f42b340db9276663823ccee525d",
+      "npcRequestHash": "d13f89675c7d9c7ea9c2f9d5f98156145162e3e1024ec79d0af09fc79914a6cb",
+      "worldRequestHash": "67b66111b859ad769ddf05bbfcb22c1d4de05e083fe3bfc6a2148e3f69ad5668",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "618f1f5366f1602e8b6d1484af880bfd95ae91ae173e8588848a63d34be6249a"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 14,
+      "resolutionHash": "a0ed73a3ef2706ea1734d190744805e42fcf385fc5de396957fb5accfc9390fb",
+      "npcRequestHash": "f31bdebb507168971aa2ddca77019201f8012eeb6d4d46ca1733b2b45b58494c",
+      "worldRequestHash": "0e193a864a212f28a4140a05b6bbb8a8295b3bdaf2055f554693389b6e54c9e6",
+      "polityRequestHash": "0f7b8368ba8a7d491f5c2c67bd39635b8bb3d5e5fe415ddfa4cb7976d203bc6f",
+      "snapshotHash": "6133ecfe4b553679a0d8c2eef4fc066d0a15734929bbf4e9d8f023959e91e081"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 15,
+      "resolutionHash": "84ab25a9514832bf7b7fe3f6129c7ae5af40ab05971a40347e40d8769e9877ef",
+      "npcRequestHash": "29d4967b20554d588f0387ce12cd17ed918c7366696a921c96bd4c3e3649a0cd",
+      "worldRequestHash": "4f1880ff39fd08aa02eb9c5c9af805ebef0678be7df339963588266c39b107a3",
+      "polityRequestHash": "c8ae40b38562c9746299cf98882dac4610a730f5d960019d6144cf23537ce726",
+      "snapshotHash": "8343e39401850c9ee7569b4b4990781b3ae51d374ecf79dd1f751041ee27deb8"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 16,
+      "resolutionHash": "879fc6c1727a878ac0be35fbe9fb5a94dea88b8576136f5c6ef16c6951e7e894",
+      "npcRequestHash": "9d0cfec1fa8edcc2aeb8a639a0e00052c08096c934f367a40dde53813c3524d6",
+      "worldRequestHash": "72b9559c15cf5a934ec038011f2a31dad9821bdf35fbc06b842c6e416a625232",
+      "polityRequestHash": "5000f813a3f20b62ce70d97fdf888f60500049eca3de56fd7b10ffd54443bde7",
+      "snapshotHash": "dabb20d59ccc5a5018889d61bb72e111d56a9431ff71ca0a629e6227681391d2"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 17,
+      "resolutionHash": "51080edcc4a88d9b9c61a828d87a2a57afc71c276a7585013b879b0425208c97",
+      "npcRequestHash": "6cb44172facd2add803ce816e40162bb0c2df1b90b307aa9fd8a016ba78c2d82",
+      "worldRequestHash": "dd573cc0533532f6eeda4f8bb438eb8b3a9402888333205e1ad446f845f824fb",
+      "polityRequestHash": "a0a1dc4ae1e8178d1528f9486c4a8608a6cd6e238b9f7c0c264f8169bd45f5e0",
+      "snapshotHash": "c0890d7a2f291e6324df14deb463141a49c176bab999304de02b8895e38972e4"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 18,
+      "resolutionHash": "967fc14036cae12ba18527e8d805942000c153a04382b82fb17ce1ebde6a450a",
+      "npcRequestHash": "4a5bea3b74978b8bc7346b56787c4b4dbeb96a703f71e8d642d2def4cbe16b02",
+      "worldRequestHash": "30485c50a2527d5f67ca208e2a37ce52f5de7822ef9157b99df3686f3c25866f",
+      "polityRequestHash": "64b39c843231ffcc4585bdccf49e4ada2a233da1eb4aca16d991f6867f088662",
+      "snapshotHash": "8843ce4ada797f6df9123bc35407ff41fd81bf8df9e194930444df9f2ce6c16e"
+    },
+    {
+      "regionId": "emberfall",
+      "resolutionIndex": 19,
+      "resolutionHash": "049a1a9d1f9e47d961ec65087de979450f31f16d7c4776450d996ee10f8076ad",
+      "npcRequestHash": "08c39872e6307841f5f54c15409355df09ad51b230b2b4a7b201e3f6200bafd8",
+      "worldRequestHash": "45c1c42e0cae8e3cf07b0dbf634d0cf4960dd37ab81cacbebca6922093880def",
+      "polityRequestHash": "0f7b8368ba8a7d491f5c2c67bd39635b8bb3d5e5fe415ddfa4cb7976d203bc6f",
+      "snapshotHash": "fb7a0fe8e08f4153f4badf1b3c635bc717a5e8c24a7ca354be481fbe14ad927e"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 0,
+      "resolutionHash": "42bd86924cd12da5d0c1f4e8088402d5c330c885b8d636c653ed36e82dfd2bcb",
+      "npcRequestHash": "ae1b5f9844abc8da725e68530be6bfc81542f9ec47b8f39432591933119ac4c8",
+      "worldRequestHash": "2fcfc050033e66ec717cfc7010552855a872baf34372f9d62bd5f6cc3573fbad",
+      "polityRequestHash": "cc6c6420bdb8e793fd5da224b764aa960d054f3971c6c7b95b72478f6e2e23b3",
+      "snapshotHash": "85be236e9f33eba93e19bf16804f79805d9d095d67abe9312114c671f129b85c"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 1,
+      "resolutionHash": "0fe7674c0503aedb882916441ce4f7a967ee7dfaaa63549442beff083378aafc",
+      "npcRequestHash": "c390206e7a2e3e7309845e7bc31db2fc244e186b7a88bf07277af08c2881808d",
+      "worldRequestHash": "8f9b8aa3f1ed986914067fcb69c3bac37f58438bedbfe441964b323f43cad998",
+      "polityRequestHash": "ead6d35f8c4f62e1303ceacfc91b1f0bc7e32ddcdba114db3dc894035c697239",
+      "snapshotHash": "53ad3b6db26d4b81acca60b4f391fa1e1fd53b522f33135461e20413f042915f"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 2,
+      "resolutionHash": "15172c8a61da84c95176886783dfbdf36a6d1154db931ea3d2d02de670872dab",
+      "npcRequestHash": "4824daf69dce980ceedd851b3fde85ee10f2a910d491286716a5d5b574573528",
+      "worldRequestHash": "e3ea3d63b977f0490b1f36d59c4e97938ef35edb097df40c139c2892f635aa2e",
+      "polityRequestHash": "91662858a7b3f1228c64d879f30ab5f0f6fd3ddeb174c009cc53d006f13873af",
+      "snapshotHash": "e40fc42c55cde42e9a32465ba7b3045711a8effb5d4dafbb374fb2b0479f2c50"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 3,
+      "resolutionHash": "628d0ba6d451757c4314a22d44c4e9ffaea32073ae11894278257f10ccb81736",
+      "npcRequestHash": "fbd1fedcccfb1a8a8e358b229b10ffe6aea0eae1f68bea92987ab65a948d6bb8",
+      "worldRequestHash": "2d43264332c90713554630af0bca0f789f8f7bf374f36eb4613b7650b749f500",
+      "polityRequestHash": "2baed054298dfdb8bc8643d01272ddd12bf525a0c373612bee66cdf43d4bedc1",
+      "snapshotHash": "05edeef5a27ef3e5bd080fc980b50a55d65df3766eb6b200fea391bd1cabbad0"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 4,
+      "resolutionHash": "890a122d9f473d8d6c3c9f740d68e76c7ad2bd9c0c38a32c9e449284603fd970",
+      "npcRequestHash": "20f65610ebe8d19537a5cce705bc3c0d5f7096c3b653eb8fc4859a3f4d4e2f65",
+      "worldRequestHash": "716a3d508614ba17d09917df4decd08400378304564e650b904a92e95f5cac17",
+      "polityRequestHash": "a9660688f1ca30cb38182f69428f0161e0764bc844ae8c78e9253e85d74b151a",
+      "snapshotHash": "a79c8a9241229ce64794080a80064948969340d838b2f597801d4b8ff8352987"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 5,
+      "resolutionHash": "bd14cd9c8b2b9c96bf6be1fb450d77332ba3df18974dc578e19ae7647cacee10",
+      "npcRequestHash": "7f1250ac461290a182ce968ef1ea0a9ebf6125932206ecb93ee824ad4df93478",
+      "worldRequestHash": "0564b02feb4b9cd70f369e10493f0ad73592c3ff6d95046cff5b66f0a1285e6b",
+      "polityRequestHash": "64b39c843231ffcc4585bdccf49e4ada2a233da1eb4aca16d991f6867f088662",
+      "snapshotHash": "822d30e294ccf7173523e777ef8dec6d87f251b0333242186734716f4b2b6b56"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 6,
+      "resolutionHash": "644fc359bde4eb5b2ccc771ed18c1b576c2e01435e13d3cba3f90338bf06610e",
+      "npcRequestHash": "16d4b9c515587519d54df6e98720c235bd10879541003034aaac1cef5b480607",
+      "worldRequestHash": "873843e87aa441801bdea86719e0837efc8b407f1aa376e63fe22fa6802f6608",
+      "polityRequestHash": "218b873e927527ea1e80d088bd84cc5cfdc3f12f346d69b184a8de03f331768c",
+      "snapshotHash": "053f783b95c9ce515da449d4baf47d1bdcf7663570113fd4f54cc85903b73869"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 7,
+      "resolutionHash": "abb690d0b0ba59dddd4c10aab0954ea293f1a4912659c2d991d886ff90b46d53",
+      "npcRequestHash": "dadf462f7c6d43c5852aa2773f40770f14d533af4dac540eba7ed10d9f660f49",
+      "worldRequestHash": "84670ec2781edeb34109d19d02a5278bc2cae8102eb481e1d939f7908a27cac1",
+      "polityRequestHash": "218b873e927527ea1e80d088bd84cc5cfdc3f12f346d69b184a8de03f331768c",
+      "snapshotHash": "fa90894e404ac5707c4f7dd8540a31b934258513ab1016a661c52140fca6a4d8"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 8,
+      "resolutionHash": "913bdd3974239a8654381ba793fa69130fc9c417cc2bb6c31bbb58501298e35d",
+      "npcRequestHash": "6f5585715f66016ac57078bae194a5483ea04f9ebbecd0ebe2f4df5e08a20cad",
+      "worldRequestHash": "a9dfb68cb15e15ce11a10dc6aa183457c6ccfc70ed0933e9935fbb2d417c855b",
+      "polityRequestHash": "5000f813a3f20b62ce70d97fdf888f60500049eca3de56fd7b10ffd54443bde7",
+      "snapshotHash": "15507106d8829be124d7ed154fce731bbe9cb9aace5486ba356c0c7ee57222ab"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 9,
+      "resolutionHash": "2ea0940d72887c85d415f8d1a7514d19f8f3530d3658c62c49200bedd4d6d21f",
+      "npcRequestHash": "75890c71756de1d01cd8113c421087837160befa0c4fe2f0a30ac917ad259071",
+      "worldRequestHash": "07fe752f88e2bee54d746d61449f5126cadc0319f945a274eff9b7ca85002345",
+      "polityRequestHash": "bed8356a794a2ecd1053105559210a3fdc6dbfccf088f32b647577a862697bd6",
+      "snapshotHash": "90baba68938d5406a5f364b505fb56ad7d6d097b949d468f1f92adce36f39c43"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 10,
+      "resolutionHash": "893ce4795016e4e0a00ecff424df707f22dd3637bd7e43a66dbedea4eb015147",
+      "npcRequestHash": "bfd1037d18a38933ffdefccafd1f782d10fbee2b87a0d06a4074a8755e9bb364",
+      "worldRequestHash": "e60603d25c01c9ecf2dc113ff4e1082f0625e25bcf50318e1832aa83003dde21",
+      "polityRequestHash": "64b39c843231ffcc4585bdccf49e4ada2a233da1eb4aca16d991f6867f088662",
+      "snapshotHash": "07382dadd333e4d4151390fe471f4e4361868b112a02f14343db43cbb1bf53b0"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 11,
+      "resolutionHash": "2f1cf5fa6c34dc9aa177129622afdb67a19ba92d749a0bd35ef01abb97e38eca",
+      "npcRequestHash": "f4335909c64bbe3e0581499bab345627f53ed679f3dc00ff53643b6b3d52b0b8",
+      "worldRequestHash": "91236a32338a4eea91e9f6476fc444ad27a305640c8fc36454344e529445ac0a",
+      "polityRequestHash": "ead6d35f8c4f62e1303ceacfc91b1f0bc7e32ddcdba114db3dc894035c697239",
+      "snapshotHash": "8af89988e1f02889bed8fdaf7473f3fa869296055c93de85e7fd3b37c38d14c1"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 12,
+      "resolutionHash": "70727498ecb8d9357a13be2c972b49306686905199b99e532e03972a1550ef50",
+      "npcRequestHash": "bf100367d4a653d279afc7332106e8df9a8165ce59ada230af24706c316bb3ee",
+      "worldRequestHash": "c0887394f1795dc1f3f3fe2ec48c9ebb507d4549b8ed9f3a54612e58e436e4bc",
+      "polityRequestHash": "5000f813a3f20b62ce70d97fdf888f60500049eca3de56fd7b10ffd54443bde7",
+      "snapshotHash": "6533e54f60e3a9dec1c111fbcc13defd0eea40951111a326694b08dc8f95713a"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 13,
+      "resolutionHash": "34fbd40fb876779820789efbba41b69343c6ccaaab8171bde0c4ce580e3fa513",
+      "npcRequestHash": "3ac871aa1f6caab6debc67e6905f1ad1aefe3b2d57515c4e960851d15ce332da",
+      "worldRequestHash": "b83b0aa823f7fa94454e04d91c59665b332dcd9622a3c0869ef3aaf3764794de",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "e1ba9a90d04d748861be49189837e99ef0e401266f38d275bd1b3279cc86056e"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 14,
+      "resolutionHash": "85fa2c94af82d0d20bc29a502ae222ec42f3a6982d9b08cc5af7d5822e610aa3",
+      "npcRequestHash": "17cd1e133fc3962a48b5f88f1464918ab05a1771c8543f1eb2182d6e8703c4a2",
+      "worldRequestHash": "66df2175c836b781ee161858a1261db37a17fb739a6d9ad2f5f29c8edfd45dba",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "631fcc8114fe99aaab1121678da7e637c1c82a8b8dd2956b18f218d1c89816b2"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 15,
+      "resolutionHash": "1929ac047f1991ed4111688db0b83044c8d23ccebe5b2efca0a3826337f6e02b",
+      "npcRequestHash": "cdf562f7ba530f2d8e2853fcfd2688541bdfa1d6af6251c4be001a59ecc48a77",
+      "worldRequestHash": "aaf2d53e3910808a4dab7c5230fd9b2a7dfa138e538b1344d82eb3712e7f2c7b",
+      "polityRequestHash": "91662858a7b3f1228c64d879f30ab5f0f6fd3ddeb174c009cc53d006f13873af",
+      "snapshotHash": "d7cac9747674354c2c378e173aea967f2a637a5d7eb6966cf07e196ab4f1ccea"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 16,
+      "resolutionHash": "9d9847b1478c07d60edbde2a5980a9256d40498be23defb116b47d47778a8b6f",
+      "npcRequestHash": "da5d7862fb48f42816f5be6b5e9b0f5ac0a69197983bed4b9f09c75931ef29ec",
+      "worldRequestHash": "a6aae17c599d3b564b9418551326efc0bffee0e74bcb378de3b9e89a8005eff1",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "c4e7e8f51c018aa9f1063b9e1ff763aa60026599a7c1432092889c5b3af677ac"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 17,
+      "resolutionHash": "88dd31e0d862cd498393762ceeff8eb66cb53f48e0b318868d4077fb2da50c86",
+      "npcRequestHash": "8dbd12122860a036063ca2e7651f7449562640b846642ebd3ab9a3dd123b655c",
+      "worldRequestHash": "da9ea78efffa3a43a698e9f12c26b7aa6fc4c7594fd22b1e7a8804832e23a1fc",
+      "polityRequestHash": "91662858a7b3f1228c64d879f30ab5f0f6fd3ddeb174c009cc53d006f13873af",
+      "snapshotHash": "91a468933725cfaf156fa81749031ac45c97a06dce1c1ba908f39735c6b76786"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 18,
+      "resolutionHash": "0783566e763754f109d818ff78e9aa400d70f3764f83a3366bfbdecca6adf695",
+      "npcRequestHash": "159eb0a1b536f1720b4fea0f9ff626ab266044638ff47864242fcd7c0a4c1a05",
+      "worldRequestHash": "c6e153bf4787b0e56d3467684a9cd248e15315596ab24e5fe014dcee6e55fbf9",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "18349e5b07d7e8147a9b641b0600cc2433e74202818e9c3ec077f08c47cd9dde"
+    },
+    {
+      "regionId": "cinder_vault",
+      "resolutionIndex": 19,
+      "resolutionHash": "1646c8ef59cf5b8f11cbbc5c87e60001fe20829e010f8dcfaacd2bb2f12b426d",
+      "npcRequestHash": "06d80035d5d66ba5b68c5ca37dc33d22b48f94d16a7efae3614b70d666131b3a",
+      "worldRequestHash": "7dbf461e68c7bd03ebe9f3a64e0a3284c6ac13f07e7609e1e4266e3ac9858bba",
+      "polityRequestHash": "bcab6f7fa90b9f302dd95719f5b4ba33c75d0b8dc3c0aff7ddc5162a6eb9745b",
+      "snapshotHash": "a1472efbb3e23d9d39e7199851cf72e75e554aca945261a02b7031b4a89a7fd8"
+    }
+  ]
+}
