@@ -81,6 +81,7 @@ Recent high-value systems:
 | Assets | Stitch 2.5D sprite atlas intake, manifest generation and quarantine-first QA |
 | Deployment | VPS-oriented flow; production Docker file is `Dockerfile.vps` |
 | WASD → Aurion evidence | `.github/workflows/wasd-aurion-source-ledger.yml` emits a revision-bound, hash-only source ledger; it cannot access production databases or deploy runtime code |
+| Aurion NPC memory source | `server/src/aurion/npc` owns the migrated NPC/merchant rules and four-class confirmed memory; [capsule contract](docs/AURION_NPC_MEMORY_CAPSULE.md) documents exact-source builds and the separate Aurion integration gate |
 
 ---
 
