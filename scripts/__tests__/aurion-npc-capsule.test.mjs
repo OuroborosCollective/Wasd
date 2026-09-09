@@ -14,9 +14,9 @@ const manifest = JSON.parse(await readFile(path.join(directory,"manifest.json"),
 const golden = JSON.parse(await readFile(new URL("../../server/src/tests/aurion-npc/legacy-golden.json",import.meta.url),"utf8"));
 
 // Explicit isolated protocol fixtures, never production or external provider evidence.
-function fixture(tick, { name = "lyra", safety = 1, wealth = 0, memory = [], hub = "observatory_threshold" } = {}) {
+function fixture(tick, { name = "lyra", safety = 1, wealth = 0, memory = [], hub = "observatory_threshold", opportunities = [] } = {}) {
   const request = npc.normalizeNpcRequest({ npcId:name, regionId:hub, resolutionIndex:tick, needEvents:[], observationIds:[`test-event:${tick}`], memory, roleId:"merchant",
-    economy:{ currentHubId:hub, wealthCopper:1200, hungerBps:2000, fatigueBps:1500, tradeProwessBps:10500, harvestYieldBps:10000 } });
+    economy:{ currentHubId:hub, wealthCopper:1200, hungerBps:2000, fatigueBps:1500, tradeProwessBps:10500, harvestYieldBps:10000 },opportunities });
   const snapshot = npc.createNpcLifeSnapshot({ ...request,
     needs:npc.resolveNpcNeeds({ current:{ safety, resources:1, belonging:1, status:1, wealth, power:1 }, events:[] }),
     memoryState:npc.advanceNpcMemory(npc.parseNpcMemory("[]",-1),memory,tick),
@@ -39,24 +39,6 @@ test("original v2/v3 golden receipts retain their exact bytes after source migra
   assert.equal(npc.encodeNpcLifeReceipt(npc.npcRequestHash(input,npc.NPC_LIFE_RECEIPT_VERSION),v3),golden.v3.raw);
   assert.equal(npc.npcHash(v2),golden.v2.snapshotHash);
   assert.equal(npc.npcHash(v3),golden.v3.snapshotHash);
-});
-
-test("80 original merchant decisions across all four hubs preserve requests, economy, polity and snapshot hashes", async () => {
-  const baseline=JSON.parse(await readFile(new URL("../../server/src/tests/aurion-npc/merchant-golden.json",import.meta.url),"utf8"));
-  const previous=new Map();
-  for(const expected of baseline.rows){
-    const prior=previous.get(expected.regionId)??null;
-    const prepared=npc.prepareMerchantNpcDecision({worldSeed:baseline.worldSeed,regionId:expected.regionId,resolutionIndex:expected.resolutionIndex,prior});
-    assert.equal(npc.npcHash(prepared.resolution),expected.resolutionHash);
-    assert.equal(npc.npcHash(prepared.npcRequest),expected.npcRequestHash);
-    assert.equal(npc.npcHash(prepared.worldRequest),expected.worldRequestHash);
-    assert.equal(npc.npcHash(prepared.polityRequest),expected.polityRequestHash);
-    const input=npc.normalizeNpcRequest(prepared.npcRequest);
-    const snapshot=npc.createNpcLifeSnapshot({...input,needs:npc.resolveNpcNeeds({current:prior?.needs,events:input.needEvents}),
-      memoryState:npc.advanceNpcMemory(prior?.memoryState??npc.parseNpcMemory("[]",-1),input.memory,input.resolutionIndex),...(prior&&"lifeState"in prior?{previousLifeState:prior.lifeState}:{})});
-    assert.equal(npc.npcHash(snapshot),expected.snapshotHash);
-    previous.set(expected.regionId,snapshot);
-  }
 });
 
 test("a real verified decision populates four distinct bounded memory classes", () => {
@@ -198,4 +180,105 @@ test("artifact verifier rejects tampered bytes, wrong revision, extra files, sym
       await assert.rejects(verifyNpcCapsule(temporary,expected),/NPC_CAPSULE_/);
     }finally{await rm(temporary,{recursive:true,force:true});}
   }
+});
+
+function merchantOpportunities(tick, hub) {
+  return [
+    ["safe_hub","safe"],["resource","resource"],["social","social"],
+    ["reputation","reputation"],["market","market"],["influence","influence"],
+  ].map(([kind,suffix])=>({id:`op:${tick}:${suffix}`,kind,regionId:hub,targetId:`target:${suffix}`,benefitBps:8_000,riskBps:0,distanceBps:0,sourceReceiptId:`evidence:${tick}`,resolutionIndex:tick}));
+}
+function inventoryFor(market, capacity=1_000_000) {
+  const ownerId=`market:${market.hubId}`;
+  const entries=Object.entries(market.stock).map(([itemId,quantity])=>({itemId,quantity,capacity}));
+  return {ownerId,entries,stateHash:npc.merchantInventoryStateHash({ownerId,market,entries})};
+}
+function polityFor(market, version=3, stability=72) {
+  const polityId=`polity:${market.hubId}`;
+  return {polityId,version,stability,stateHash:npc.merchantPolityStateHash({polityId,version,stability})};
+}
+function merchantGatewayFixture(tick=0) {
+  const homeHubId="observatory_threshold";
+  const source=fixture(tick,{name:npc.npcIdentity(homeHubId),hub:homeHubId,safety:1,wealth:0,opportunities:merchantOpportunities(tick,homeHubId)});
+  const merchant=npc.confirmedNpcEconomy(homeHubId,source.confirmed.snapshot);
+  const market=npc.merchantBootstrapMarkets[merchant.currentHubId];
+  const marketEvidence={version:7,stateHash:npc.merchantMarketStateHash(market)};
+  const targets=Object.values(npc.merchantBootstrapMarkets).map(value=>({id:`market:${value.hubId}`,kind:"market",market:value,version:marketEvidence.version,active:true}));
+  return { source, context:{worldSeed:"aim293-confirmed-world",homeHubId,logicalIndex:tick+1,confirmedDecision:source.confirmed,
+    epoch:{npcResolutionIndex:tick,marketVersion:marketEvidence.version,polityVersion:3},npc:merchant,market,marketEvidence,polity:polityFor(market),inventory:inventoryFor(market),targets} };
+}
+function withMarket(context, market) {
+  const marketEvidence={...context.marketEvidence,stateHash:npc.merchantMarketStateHash(market)};
+  return {...context,market,marketEvidence,polity:polityFor(market,context.polity.version,context.polity.stability),inventory:inventoryFor(market),
+    targets:context.targets.map(target=>target.market.hubId===market.hubId?{...target,market}:target)};
+}
+
+test("WASD action gateway uses confirmed evidence and emits an immutable receipt-bound effect", async () => {
+  assert.equal("prepareMerchantNpcDecision" in npc,false);
+  assert.equal((await readFile(path.join(directory,"index.js"),"utf8")).includes("prepareMerchantNpcDecision"),false);
+  const {context}=merchantGatewayFixture();
+  const first=npc.planMerchantAction(context);
+  assert.equal(first.status,"ready");
+  assert.equal(first.resolution.action,"caravan");
+  const reordered=npc.planMerchantAction({...context,targets:[...context.targets].reverse(),inventory:{...context.inventory,entries:[...context.inventory.entries].reverse()}});
+  assert.deepEqual(reordered,first);
+  const accepted=npc.validateMerchantAction({context,intent:first.intent,lease:first.proposedLease});
+  assert.equal(accepted.status,"validated");
+  assert.equal(accepted.receipt.sourceDecision.receiptId,context.confirmedDecision.receiptId);
+  assert.equal(accepted.receipt.authority.sourceRevision,manifest.sourceRevision);
+  assert.equal(accepted.requests.receiptId,accepted.receipt.id);
+  assert.equal(accepted.requests.npcRequest.resolutionIndex,context.logicalIndex);
+  assert.ok(accepted.requests.npcRequest.needEvents.every(event=>event.sourceReceiptId===accepted.receipt.id));
+  assert.ok(accepted.requests.worldRequest.signals.every(signal=>signal.sourceReceiptId===accepted.receipt.id));
+  assert.equal(accepted.receipt.effectsHash,npc.merchantActionEffectsHash(accepted.requests));
+  const {receiptHash,...unsigned}=accepted.receipt;
+  assert.equal(receiptHash,npc.merchantActionReceiptHash(unsigned));
+  assert.throws(()=>{accepted.requests.npcRequest.economy.wealthCopper=0;},TypeError);
+  assert.throws(()=>{accepted.requests.npcRequest.needEvents[0].delta=1;},TypeError);
+  assert.throws(()=>{accepted.requests.worldRequest.signals[0].magnitude=1;},TypeError);
+  assert.deepEqual(npc.validateMerchantAction({context,intent:first.intent,lease:first.proposedLease}),accepted);
+});
+
+test("WASD action gateway blocks source, epoch, target, inventory, polity and lease drift before requests exist", () => {
+  const {source,context}=merchantGatewayFixture();
+  const ready=npc.planMerchantAction(context); assert.equal(ready.status,"ready");
+  const validate=(input={})=>npc.validateMerchantAction({context,intent:ready.intent,lease:ready.proposedLease,...input});
+  const block=result=>{assert.equal(result.status,"blocked");assert.equal("requests" in result,false);return result;};
+  assert.throws(()=>npc.planMerchantAction({...context,confirmedDecision:{...context.confirmedDecision}}),/CONFIRMED_SOURCE_REQUIRED/);
+  const unplanned=fixture(0,{name:npc.npcIdentity(context.homeHubId),hub:context.homeHubId,safety:1,wealth:0});
+  assert.equal(block(npc.planMerchantAction({...context,confirmedDecision:unplanned.confirmed})).code,"SOURCE_PLAN_BLOCKED");
+  const stale=block(validate({intent:{...ready.intent,expectedEpoch:{...ready.intent.expectedEpoch,npcResolutionIndex:ready.intent.expectedEpoch.npcResolutionIndex+1}}}));
+  assert.equal(stale.code,"EPOCH_MISMATCH");
+  const drift=block(validate({intent:{...ready.intent,authority:{...ready.intent.authority,sourceRevision:"0".repeat(40)}}}));
+  assert.equal(drift.code,"REVISION_MISMATCH");
+  const missing=block(npc.planMerchantAction({...context,targets:context.targets.filter(target=>target.id!==ready.intent.target.id)}));
+  assert.equal(missing.code,"TARGET_MISSING");
+  const substituted=block(npc.planMerchantAction({...context,targets:context.targets.map(target=>target.id===ready.intent.target.id?{...target,id:"market:emberfall"}:target)}));
+  assert.equal(substituted.code,"TARGET_STATE_MISMATCH");
+  const badMarket=block(npc.planMerchantAction({...context,marketEvidence:{...context.marketEvidence,version:0}}));
+  assert.equal(badMarket.code,"MARKET_STATE_MISMATCH");
+  const badPolity=block(npc.planMerchantAction({...context,polity:{...context.polity,stability:71}}));
+  assert.equal(badPolity.code,"POLITY_STATE_MISMATCH");
+  const badCapacity=block(npc.planMerchantAction({...context,inventory:{...context.inventory,entries:context.inventory.entries.map(entry=>({...entry,capacity:entry.capacity-1}))}}));
+  assert.equal(badCapacity.code,"INVENTORY_STATE_MISMATCH");
+  const zeroMarket={...context.market,stock:{grain:0,sandstone:0,bronze:0,aether:0,salve:0,rune_core:0}};
+  const unavailable=block(npc.planMerchantAction(withMarket(context,zeroMarket)));
+  assert.equal(unavailable.code,"INVENTORY_UNAVAILABLE");
+  assert.equal(block(validate({lease:{...ready.proposedLease,state:"revoked"}})).code,"LEASE_REVOKED");
+  assert.equal(block(validate({lease:{...ready.proposedLease,issuedAtLogicalIndex:0,expiresAtLogicalIndex:0}})).code,"LEASE_EXPIRED");
+  assert.equal(block(validate({lease:{...ready.proposedLease,id:"npl_forged",issuedAtLogicalIndex:0,expiresAtLogicalIndex:2_147_483_647}})).code,"LEASE_CONFLICT");
+  assert.equal(block(validate({lease:{...ready.proposedLease,state:"consumed"}})).code,"LEASE_CONFLICT");
+  assert.equal(source.confirmed.snapshot.lifeState.plan.status,"planned");
+});
+
+test("moved WASD world and polity rules preserve deterministic signal and diplomacy ordering", () => {
+  const signals=[
+    {id:"world:b",kind:"economy",regionId:"emberfall",magnitude:.3,sourceReceiptId:"receipt:b",resolutionIndex:9},
+    {id:"world:a",kind:"war",regionId:"emberfall",magnitude:.2,sourceReceiptId:"receipt:a",resolutionIndex:9},
+  ];
+  const ordered=npc.resolveWorldReaction({worldSeed:"aim293-world",regionId:"emberfall",resolutionIndex:9,signals});
+  assert.deepEqual(ordered,npc.resolveWorldReaction({worldSeed:"aim293-world",regionId:"emberfall",resolutionIndex:9,signals:[...signals].reverse()}));
+  assert.equal(ordered.deterministicHash,"28533b0a193b91b93bc72c8a53e7e1f2b4a30d48d913eb9bab8a81cb1d3cd12f");
+  const polity=npc.resolvePolityState({polityId:"polity:emberfall",governmentType:"trade_republic",territoryIds:["windhollow","emberfall"],stability:72,activeDiplomacy:["trade","alliance"],warSignals:signals});
+  assert.equal(polity.reactionHash,"69ffa961ac718922b7b54e93713dd5b3925775ad061e3944446a7a1aee9115bc");
 });

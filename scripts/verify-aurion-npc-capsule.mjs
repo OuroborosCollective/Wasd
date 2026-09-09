@@ -7,7 +7,7 @@ const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 const canonical = value => JSON.stringify(value, (_key, child) => child && typeof child === "object" && !Array.isArray(child)
   ? Object.fromEntries(Object.entries(child).sort(([a],[b]) => a < b ? -1 : a > b ? 1 : 0)) : child);
 const hashPattern = /^[a-f0-9]{64}$/;
-const modules = ["authority","ax1LivingWorldProtocol","canonical","index","merchantRules","multiMemory","npcLifeProtocol","npcNeeds","npcPersistenceProtocol"];
+const modules = ["actionGateway","authority","ax1LivingWorldProtocol","canonical","index","merchantRules","multiMemory","npcLifeProtocol","npcNeeds","npcPersistenceProtocol","worldPolityRules"];
 const sourceNames = modules.map(name=>`server/src/aurion/npc/${name}.ts`).sort();
 const outputNames = ["index.js","LICENSE.zod","package.json",...modules.map(name=>`${name}.d.ts`)].sort();
 function exactKeys(value, names) {
