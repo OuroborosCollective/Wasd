@@ -39,7 +39,7 @@
     "rimraf": "^6.1.3",
     "tsx": "^4.23.13",
     "typescript": "^5.8.0",
-    "vitest": "^4.1.8"
+    "vitest": "^5.0.0"
   },
   "peerDependencies": {
     "@babylonjs/core": "*",
