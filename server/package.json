@@ -20,7 +20,7 @@
     "@nestjs/common": "^11.2.3",
     "@opentelemetry/resources": "^2.11.0",
     "@opentelemetry/sdk-node": "^0.222.0",
-    "@posthog/ai": "^7.20.0",
+    "@posthog/ai": "^8.10.3",
     "@supabase/supabase-js": "^2.114.0",
     "@traceloop/instrumentation-google-generativeai": "^0.27.0",
     "@wasd/core-logic": "workspace:*",
