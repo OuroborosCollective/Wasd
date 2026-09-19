@@ -288,8 +288,8 @@ function linkRef(link: NpcActionMemoryLinkEvidence, authority: ReturnType<typeof
     sourceSha256:authority.sourceSha256,
   });
 }
-function graphNodeId(npcId: string, kind: NpcSemanticNodeKind, key: string): string {
-  return `smn_${digest([NPC_SEMANTIC_GRAPH_VERSION,npcId,kind,key]).slice(0,60)}`;
+function graphNodeId(npcId: string, kind: NpcSemanticNodeKind, key: string, provenance: readonly NpcSemanticProvenanceRef[]): string {
+  return `smn_${digest([NPC_SEMANTIC_GRAPH_VERSION,npcId,kind,key,provenance]).slice(0,60)}`;
 }
 function graphEdgeId(npcId: string, kind: NpcSemanticEdgeKind, relationKey: string, fromNodeId: string, toNodeId: string): string {
   return `sme_${digest([NPC_SEMANTIC_GRAPH_VERSION,npcId,kind,relationKey,fromNodeId,toNodeId]).slice(0,60)}`;
@@ -299,7 +299,7 @@ function sealNode(input: Omit<NpcSemanticGraphNode,"id"|"payloadHash">, npcId: s
     ...input,
     provenance:mergeProvenance(input.provenance),
   };
-  const id = graphNodeId(npcId,normalized.kind,normalized.key);
+  const id = graphNodeId(npcId,normalized.kind,normalized.key,normalized.provenance);
   return deepFreeze({...normalized,id,payloadHash:digest(normalized)});
 }
 function sealEdge(input: Omit<NpcSemanticGraphEdge,"id"|"payloadHash">, npcId: string): NpcSemanticGraphEdge {
@@ -529,10 +529,12 @@ function buildNpcSemanticMemoryGraph(input: NpcSemanticGraphBuildInput): NpcSema
     const actionNode=ensureIdentityNode("action",action.id,provenance,action.resolutionIndex,null);
     const outcomeNode=ensureIdentityNode("outcome",`${action.id}:committed`,provenance,action.resolutionIndex,null);
     const targetNode=ensureIdentityNode("location",action.target.hubId,provenance,action.resolutionIndex,null);
+    const polityNode=ensureIdentityNode("polity",performedAction.effectReadback.polityId,provenance,action.resolutionIndex,null);
     const goalNode=ensureIdentityNode("goal",action.sourceDecision.goal,provenance,action.sourceDecision.resolutionIndex,null);
     edges.push(sealEdge({version:NPC_SEMANTIC_GRAPH_VERSION,kind:"performed_action",relationKey:action.id,fromNodeId:actor.id,toNodeId:actionNode.id,status:"active",validFromIndex:action.resolutionIndex,validUntilIndex:null,provenance},memory.npcId));
     edges.push(sealEdge({version:NPC_SEMANTIC_GRAPH_VERSION,kind:"affected",relationKey:action.id,fromNodeId:actionNode.id,toNodeId:outcomeNode.id,status:"active",validFromIndex:action.resolutionIndex,validUntilIndex:null,provenance},memory.npcId));
     edges.push(sealEdge({version:NPC_SEMANTIC_GRAPH_VERSION,kind:"affected",relationKey:`${action.id}:target`,fromNodeId:actionNode.id,toNodeId:targetNode.id,status:"active",validFromIndex:action.resolutionIndex,validUntilIndex:null,provenance},memory.npcId));
+    edges.push(sealEdge({version:NPC_SEMANTIC_GRAPH_VERSION,kind:"affected",relationKey:`${action.id}:polity`,fromNodeId:actionNode.id,toNodeId:polityNode.id,status:"active",validFromIndex:action.resolutionIndex,validUntilIndex:null,provenance},memory.npcId));
     edges.push(sealEdge({version:NPC_SEMANTIC_GRAPH_VERSION,kind:"derived_from",relationKey:`${action.id}:goal`,fromNodeId:actionNode.id,toNodeId:goalNode.id,status:"active",validFromIndex:action.resolutionIndex,validUntilIndex:null,provenance},memory.npcId));
   }
 
@@ -600,7 +602,7 @@ function parseNode(raw: unknown, npcId:string): NpcSemanticGraphNode {
   if (!same(node.provenance,[...node.provenance].sort(provenanceOrder)) || new Set(node.provenance.map(ref=>`${ref.kind}:${ref.id}:${ref.hash}`)).size!==node.provenance.length) throw new Error("NPC_SEMANTIC_GRAPH_PROVENANCE_ORDER");
   assertHash(node.payloadHash,"NPC_SEMANTIC_GRAPH_NODE_INVALID");
   const {id,payloadHash,...payload}=node;
-  if (id!==graphNodeId(npcId,node.kind,node.key)||payloadHash!==digest(payload)) throw new Error("NPC_SEMANTIC_GRAPH_NODE_HASH_INVALID");
+  if (id!==graphNodeId(npcId,node.kind,node.key,node.provenance)||payloadHash!==digest(payload)) throw new Error("NPC_SEMANTIC_GRAPH_NODE_HASH_INVALID");
   return node;
 }
 function parseEdge(raw: unknown, npcId:string): NpcSemanticGraphEdge {
@@ -681,6 +683,7 @@ function activeAt(status:NpcSemanticValidity,from:number,until:number|null,index
 export function retrieveNpcSemanticMemoryGraph(graphValue:NpcSemanticMemoryGraph, queryValue:NpcSemanticGraphQuery):NpcSemanticGraphQueryResult {
   if(!verifiedGraphs.has(graphValue))throw new Error("NPC_SEMANTIC_GRAPH_VERIFIED_SOURCE_REQUIRED");
   const graph=parseNpcSemanticMemoryGraph(graphValue),query=normalizeQuery(queryValue);
+  if(query.logicalIndex>graph.generation)throw new Error("NPC_SEMANTIC_RETRIEVAL_QUERY_AFTER_GRAPH_GENERATION");
   const activeNodes=graph.nodes.filter(node=>activeAt(node.status,node.validFromIndex,node.validUntilIndex,query.logicalIndex));
   const activeById=new Map(activeNodes.map(node=>[node.id,node]));
   const allowedEdges=graph.edges.filter(edge=>activeAt(edge.status,edge.validFromIndex,edge.validUntilIndex,query.logicalIndex)&&activeById.has(edge.fromNodeId)&&activeById.has(edge.toNodeId)&&(!query.edgeKinds.length||query.edgeKinds.includes(edge.kind)));
