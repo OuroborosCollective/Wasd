@@ -4,7 +4,7 @@ AIM-292 moves the touched NPC and merchant rules into `server/src/aurion/npc` in
 
 ## Build and consume
 
-Use the frozen pnpm 11.8.0 server workspace. The builder requires committed source and pins esbuild 0.28.2, TypeScript 5.9.3 and Zod 4.5.4. It bundles the actual Zod-v3 validation runtime and its license, then emits strict declarations. The manifest binds the WASD commit, every source module, compiler configuration, lockfile and every output file. The compiled module contains immutable source revision and source hash literals; runtime environment variables cannot substitute an authority.
+Use the frozen pnpm 11.8.0 server workspace. The builder requires committed source and pins esbuild 0.28.2, TypeScript 5.9.3 and Zod 4.6.1. It bundles the actual Zod-v3 validation runtime and its license, then emits strict declarations. The manifest binds the WASD commit, every source module, compiler configuration, lockfile and every output file. The compiled module contains immutable source revision and source hash literals; runtime environment variables cannot substitute an authority.
 
 ```sh
 pnpm install --frozen-lockfile --filter @wasd/server...
