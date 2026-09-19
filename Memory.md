@@ -238,3 +238,13 @@ Next safe step: Consumer integration must bind the exact merged WASD revision an
 ## Backfill boundary
 
 This bootstrap covers retrievable integration history that materially affects present WASD architecture. It is not a transcript. When older blocks are recovered, append `Historical recovery` entries rather than rewriting the chronology.
+### 2026-09-19 — AIM-293 capsule toolchain repair
+Status: VERIFIED
+Task: Restore reproducible AIM-293 capsule builds after the dependency bump moved the frozen server Zod runtime from 4.5.4 to 4.6.1.
+Decisions: Change only builder/verifier/documented toolchain identity; preserve all NPC/action-gateway source rules byte-for-byte.
+Touched surfaces: Capsule builder, independent verifier, capsule contract.
+Evidence: PR #2855 pre-memory head `f898e7560d406cfa13b9c3a51336c96ba3b0882e`; workflow `35446606774` PASS; server typecheck + NPC regressions + compiled capsule tests + two byte-identical builds + independent verification; source SHA-256 `7a524e3d329dd34205c41fdc00dc088e3b3187ab39c9f17a42a0c2cd8294e82f`; manifest SHA-256 `e39ae3bcfdde64387e2acf24e7d6883cecf534344a4045567f260ebed500efac`.
+Learned: Consumer revision pinning must include the actual frozen toolchain; unchanged gameplay source alone does not prove a rebuildable capsule.
+Open: Aurion Step 26 host transaction/runtime proof remains separate.
+Next safe step: Re-run exact-head capsule evidence, merge #2855, then consume the merged WASD revision in Aurion.
+
