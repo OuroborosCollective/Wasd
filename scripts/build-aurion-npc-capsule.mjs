@@ -28,7 +28,7 @@ export async function buildNpcCapsule(output, { allowDirty = false } = {}) {
   const esbuild = requireTsx("esbuild");
   const typescript = requireServer("typescript");
   const zodVersion = requireServer("zod/package.json").version;
-  if (esbuild.version !== "0.28.2" || typescript.version !== "5.9.3" || zodVersion !== "4.5.4") throw Error("NPC_CAPSULE_TOOLCHAIN_VERSION");
+  if (esbuild.version !== "0.28.2" || typescript.version !== "5.9.3" || zodVersion !== "4.6.1") throw Error("NPC_CAPSULE_TOOLCHAIN_VERSION");
   await mkdir(out, { recursive: true });
   if ((await readdir(out)).length) throw Error("NPC_CAPSULE_EMPTY_OUTPUT_REQUIRED");
   await esbuild.build({ absWorkingDir: root, entryPoints: [`${sourceDirectory}/index.ts`], outfile: path.join(out,"index.js"),

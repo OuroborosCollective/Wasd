@@ -31,7 +31,7 @@ export async function verifyNpcCapsule(directory, expected) {
   if (!exactKeys(manifest.workspaceFiles,["package.json","server/package.json","pnpm-workspace.yaml"]) || !Object.values(manifest.workspaceFiles).every(v=>hashPattern.test(v))) throw Error("NPC_CAPSULE_WORKSPACE_HASH_INVALID");
   const tc = manifest.toolchain;
   if (!exactKeys(tc,["esbuild","typescript","zod","nodeTarget","lockSha256","builderSha256","declarationConfigSha256"]) ||
-      tc.esbuild !== "0.28.2" || tc.typescript !== "5.9.3" || tc.zod !== "4.5.4" || tc.nodeTarget !== "node22" ||
+      tc.esbuild !== "0.28.2" || tc.typescript !== "5.9.3" || tc.zod !== "4.6.1" || tc.nodeTarget !== "node22" ||
       ![tc.lockSha256,tc.builderSha256,tc.declarationConfigSha256].every(v=>hashPattern.test(v))) throw Error("NPC_CAPSULE_TOOLCHAIN_INVALID");
   if (!exactKeys(manifest.files,outputNames) || !Object.values(manifest.files).every(v=>hashPattern.test(v))) throw Error("NPC_CAPSULE_FILE_SET_INVALID");
   for (const name of outputNames) if (hash(await readFile(path.join(root,name))) !== manifest.files[name]) throw Error(`NPC_CAPSULE_FILE_HASH_INVALID:${name}`);
