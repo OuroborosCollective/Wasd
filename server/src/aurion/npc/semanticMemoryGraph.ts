@@ -198,18 +198,21 @@ const verifiedGraphs = new WeakSet<object>();
 const textOrder = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
 const digest = (value: unknown) => createHash("sha256").update(stableCatalogStringify(value), "utf8").digest("hex");
 const same = (a: unknown, b: unknown) => stableCatalogStringify(a) === stableCatalogStringify(b);
-const assertId = (value: unknown, code: string): asserts value is string => {
+function assertId(value: unknown, code: string): asserts value is string {
   if (typeof value !== "string" || !idPattern.test(value)) throw new Error(code);
-};
-const assertHash = (value: unknown, code: string): asserts value is string => {
+}
+function assertRelationKey(value: unknown, code: string): asserts value is string {
+  if (typeof value !== "string" || value.length < 1 || value.length > 256 || !/^[A-Za-z0-9._:-]+$/.test(value)) throw new Error(code);
+}
+function assertHash(value: unknown, code: string): asserts value is string {
   if (typeof value !== "string" || !hashPattern.test(value)) throw new Error(code);
-};
-const assertRevision = (value: unknown, code: string): asserts value is string => {
+}
+function assertRevision(value: unknown, code: string): asserts value is string {
   if (typeof value !== "string" || !revisionPattern.test(value)) throw new Error(code);
-};
-const assertIndex = (value: unknown, code: string): asserts value is number => {
+}
+function assertIndex(value: unknown, code: string): asserts value is number {
   if (!Number.isInteger(value) || (value as number) < 0 || (value as number) > 2147483647) throw new Error(code);
-};
+}
 function deepFreeze<T>(value: T): T {
   if (value && typeof value === "object" && !Object.isFrozen(value)) {
     for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child);
@@ -408,14 +411,14 @@ export function isVerifiedPerformedActionEvidence(value: unknown): value is Veri
   return !!value && typeof value === "object" && verifiedPerformedActions.has(value as object);
 }
 
-type GraphBuildInput = Readonly<{
+export type NpcSemanticGraphBuildInput = Readonly<{
   memory: NpcMemoryV4;
   memoryReceipts: readonly ConfirmedNpcDecision[];
   performedActions?: readonly VerifiedPerformedActionEvidence[];
   previousGraph?: NpcSemanticMemoryGraph | null;
 }>;
 
-function buildNpcSemanticMemoryGraph(input: GraphBuildInput): NpcSemanticMemoryGraph {
+function buildNpcSemanticMemoryGraph(input: NpcSemanticGraphBuildInput): NpcSemanticMemoryGraph {
   const memory = verifyNpcMemoryEvidence(parseNpcMemoryV4(input.memory),input.memoryReceipts);
   if (memory.lastResolutionIndex < 0 || !memory.lastReceiptId) throw new Error("NPC_SEMANTIC_GRAPH_SOURCE_MEMORY_REQUIRED");
   const authority = npcAuthority();
@@ -490,10 +493,9 @@ function buildNpcSemanticMemoryGraph(input: GraphBuildInput): NpcSemanticMemoryG
       edges.push(sealEdge({version:NPC_SEMANTIC_GRAPH_VERSION,kind:"contradicts",relationKey:pair,fromNodeId:ids[0]!,toNodeId:ids[1]!,status:"active",validFromIndex:validFrom,validUntilIndex:validUntil,provenance:mergeProvenance(semanticFactProvenance(fact),semanticFactProvenance(other))},memory.npcId));
     }
   }
-  for (const [equivalent,latestId] of newestEquivalent) {
-    const [subject,predicate,value]=equivalent.split(":");
+  for (const latestId of newestEquivalent.values()) {
     const latest=semantic.find(f=>f.id===latestId);
-    if (!latest || subject!==latest.subjectId || predicate!==latest.predicate || value!==latest.value) continue;
+    if (!latest) continue;
     for (const older of semantic.filter(f=>f.id!==latest.id && f.subjectId===latest.subjectId && f.predicate===latest.predicate && f.value===latest.value && factStatus.get(f.id)==="superseded")) {
       edges.push(sealEdge({version:NPC_SEMANTIC_GRAPH_VERSION,kind:"supersedes",relationKey:`${latest.id}:${older.id}`,fromNodeId:factNodes.get(latest.id)!.id,toNodeId:factNodes.get(older.id)!.id,status:"active",validFromIndex:latest.validFromIndex,validUntilIndex:null,provenance:mergeProvenance(semanticFactProvenance(latest),semanticFactProvenance(older))},memory.npcId));
     }
@@ -558,7 +560,7 @@ function buildNpcSemanticMemoryGraph(input: GraphBuildInput): NpcSemanticMemoryG
   return graph;
 }
 
-export function compileNpcSemanticMemoryGraph(input: GraphBuildInput): NpcSemanticMemoryGraph {
+export function compileNpcSemanticMemoryGraph(input: NpcSemanticGraphBuildInput): NpcSemanticMemoryGraph {
   return buildNpcSemanticMemoryGraph(input);
 }
 
@@ -591,7 +593,10 @@ function parseEdge(raw: unknown, npcId:string): NpcSemanticGraphEdge {
   if (!raw || typeof raw!=="object") throw new Error("NPC_SEMANTIC_GRAPH_EDGE_INVALID");
   const edge=raw as unknown as NpcSemanticGraphEdge;
   if (edge.version!==NPC_SEMANTIC_GRAPH_VERSION || !edgeKinds.includes(edge.kind) || !statuses.includes(edge.status)) throw new Error("NPC_SEMANTIC_GRAPH_EDGE_INVALID");
-  for(const value of [edge.id,edge.relationKey,edge.fromNodeId,edge.toNodeId]) assertId(value,"NPC_SEMANTIC_GRAPH_EDGE_INVALID");
+  assertId(edge.id,"NPC_SEMANTIC_GRAPH_EDGE_INVALID");
+  assertRelationKey(edge.relationKey,"NPC_SEMANTIC_GRAPH_EDGE_INVALID");
+  assertId(edge.fromNodeId,"NPC_SEMANTIC_GRAPH_EDGE_INVALID");
+  assertId(edge.toNodeId,"NPC_SEMANTIC_GRAPH_EDGE_INVALID");
   assertIndex(edge.validFromIndex,"NPC_SEMANTIC_GRAPH_EDGE_INVALID");
   if(edge.validUntilIndex!==null){assertIndex(edge.validUntilIndex,"NPC_SEMANTIC_GRAPH_EDGE_INVALID");if(edge.validUntilIndex<=edge.validFromIndex)throw new Error("NPC_SEMANTIC_GRAPH_EDGE_INVALID");}
   if(!Array.isArray(edge.provenance)||!edge.provenance.length||edge.provenance.length>NPC_SEMANTIC_GRAPH_LIMITS.provenanceRefs)throw new Error("NPC_SEMANTIC_GRAPH_PROVENANCE_INVALID");
@@ -628,7 +633,7 @@ export function parseNpcSemanticMemoryGraph(value: unknown): NpcSemanticMemoryGr
   return deepFreeze(graph);
 }
 
-export function verifyNpcSemanticMemoryGraph(value: unknown, evidence: GraphBuildInput): NpcSemanticMemoryGraph {
+export function verifyNpcSemanticMemoryGraph(value: unknown, evidence: NpcSemanticGraphBuildInput): NpcSemanticMemoryGraph {
   const candidate=parseNpcSemanticMemoryGraph(value);
   const rebuilt=buildNpcSemanticMemoryGraph(evidence);
   if(!same(candidate,rebuilt))throw new Error("NPC_SEMANTIC_GRAPH_SOURCE_EVIDENCE_MISMATCH");
@@ -662,7 +667,6 @@ function activeAt(status:NpcSemanticValidity,from:number,until:number|null,index
 export function retrieveNpcSemanticMemoryGraph(graphValue:NpcSemanticMemoryGraph, queryValue:NpcSemanticGraphQuery):NpcSemanticGraphQueryResult {
   if(!verifiedGraphs.has(graphValue))throw new Error("NPC_SEMANTIC_GRAPH_VERIFIED_SOURCE_REQUIRED");
   const graph=parseNpcSemanticMemoryGraph(graphValue),query=normalizeQuery(queryValue);
-  if(query.logicalIndex<graph.generation && query.logicalIndex<0)throw new Error("NPC_SEMANTIC_RETRIEVAL_QUERY_INVALID");
   const activeNodes=graph.nodes.filter(node=>activeAt(node.status,node.validFromIndex,node.validUntilIndex,query.logicalIndex));
   const activeById=new Map(activeNodes.map(node=>[node.id,node]));
   const allowedEdges=graph.edges.filter(edge=>activeAt(edge.status,edge.validFromIndex,edge.validUntilIndex,query.logicalIndex)&&activeById.has(edge.fromNodeId)&&activeById.has(edge.toNodeId)&&(!query.edgeKinds.length||query.edgeKinds.includes(edge.kind)));
