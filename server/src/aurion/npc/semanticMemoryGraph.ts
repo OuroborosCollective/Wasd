@@ -541,23 +541,37 @@ function buildNpcSemanticMemoryGraph(input: NpcSemanticGraphBuildInput): NpcSema
   const retainedEdges=edges.filter(edge=>retainedIds.has(edge.fromNodeId)&&retainedIds.has(edge.toNodeId))
     .sort((a,b)=>edgePriority(a.kind)-edgePriority(b.kind) || statusPriority(a.status)-statusPriority(b.status) || b.validFromIndex-a.validFromIndex || textOrder(a.id,b.id))
     .slice(0,NPC_SEMANTIC_GRAPH_LIMITS.edges);
-  const canonicalNodes=[...retainedNodes].sort((a,b)=>textOrder(a.id,b.id));
-  const canonicalEdges=[...retainedEdges].sort((a,b)=>textOrder(a.id,b.id));
-  const unsigned={
-    version:NPC_SEMANTIC_GRAPH_VERSION,
-    retrievalVersion:NPC_SEMANTIC_RETRIEVAL_VERSION,
-    npcId:memory.npcId,
-    generation:memory.lastResolutionIndex,
-    authority,
-    memoryHash:memory.memoryHash,
-    previousGraphHash:previous?.graphHash ?? null,
-    nodes:canonicalNodes,
-    edges:canonicalEdges,
+  const sealGraph=(edgePrefix:readonly NpcSemanticGraphEdge[])=>{
+    const canonicalNodes=[...retainedNodes].sort((a,b)=>textOrder(a.id,b.id));
+    const canonicalEdges=[...edgePrefix].sort((a,b)=>textOrder(a.id,b.id));
+    const unsigned={
+      version:NPC_SEMANTIC_GRAPH_VERSION,
+      retrievalVersion:NPC_SEMANTIC_RETRIEVAL_VERSION,
+      npcId:memory.npcId,
+      generation:memory.lastResolutionIndex,
+      authority,
+      memoryHash:memory.memoryHash,
+      previousGraphHash:previous?.graphHash ?? null,
+      nodes:canonicalNodes,
+      edges:canonicalEdges,
+    };
+    const graph=deepFreeze({...unsigned,graphHash:digest(unsigned)});
+    return {graph,bytes:Buffer.byteLength(stableCatalogStringify(graph),"utf8")};
   };
-  const graph=deepFreeze({...unsigned,graphHash:digest(unsigned)});
-  if (Buffer.byteLength(stableCatalogStringify(graph),"utf8") > NPC_SEMANTIC_GRAPH_LIMITS.bytes) throw new Error("NPC_SEMANTIC_GRAPH_BYTE_LIMIT");
-  verifiedGraphs.add(graph);
-  return graph;
+  let sealed=sealGraph(retainedEdges);
+  if(sealed.bytes>NPC_SEMANTIC_GRAPH_LIMITS.bytes){
+    // Keep the highest-priority whole edges and never truncate provenance inside
+    // a retained element. Prefix size is monotone, so binary search is stable.
+    let low=0,high=retainedEdges.length;
+    while(low<high){
+      const mid=Math.ceil((low+high)/2),trial=sealGraph(retainedEdges.slice(0,mid));
+      if(trial.bytes<=NPC_SEMANTIC_GRAPH_LIMITS.bytes)low=mid;else high=mid-1;
+    }
+    sealed=sealGraph(retainedEdges.slice(0,low));
+  }
+  if(sealed.bytes>NPC_SEMANTIC_GRAPH_LIMITS.bytes)throw new Error("NPC_SEMANTIC_GRAPH_BYTE_LIMIT");
+  verifiedGraphs.add(sealed.graph);
+  return sealed.graph;
 }
 
 export function compileNpcSemanticMemoryGraph(input: NpcSemanticGraphBuildInput): NpcSemanticMemoryGraph {
