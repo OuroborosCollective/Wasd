@@ -369,6 +369,7 @@ test("AIM-294 graph generation is monotone and deterministic across long bounded
   assert.deepEqual(rebuilt,graph);
   assert.ok(graph.nodes.length<=npc.NPC_SEMANTIC_GRAPH_LIMITS.nodes);
   assert.ok(graph.edges.length<=npc.NPC_SEMANTIC_GRAPH_LIMITS.edges);
+  assert.ok(Buffer.byteLength(JSON.stringify(graph),"utf8")<=npc.NPC_SEMANTIC_GRAPH_LIMITS.bytes);
   assert.ok(graph.nodes.some(node=>node.status==="contradicted"||node.status==="superseded"));
 
   const query={logicalIndex:graph.generation,startKeys:["lyra"],maxDepth:4,maxCandidates:64,maxResults:32};
