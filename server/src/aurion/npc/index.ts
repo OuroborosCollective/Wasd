@@ -9,3 +9,4 @@ export type { MerchantDecisionRequests } from "./merchantRules.js";
 export * from "./multiMemory.js";
 export * from "./worldPolityRules.js";
 export * from "./actionGateway.js";
+export * from "./semanticMemoryGraph.js";

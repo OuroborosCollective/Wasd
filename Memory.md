@@ -248,3 +248,9 @@ Learned: Consumer revision pinning must include the actual frozen toolchain; unc
 Open: Aurion Step 26 host transaction/runtime proof remains separate.
 Next safe step: Re-run exact-head capsule evidence, merge #2855, then consume the merged WASD revision in Aurion.
 
+
+
+### 2026-09-19 — AIM-294 evidence-only semantic memory graph
+Änderung: Der bestehende Aurion-NPC-Capsule enthält jetzt den WASD-owned Semantic-Memory-Graph-v2-Vertrag mit typed Provenance, AIM-293-`performed_action` nur nach ActionReceipt→EffectReadback→MemoryLink, monotoner Generation sowie deterministic bounded Retrieval ohne Embedding-/LLM-Authority.
+Erkenntnis: Elementanzahl allein begrenzt die Graphgröße nicht; erst kanonisches Whole-Edge-Pruning hält das 512-KiB-Budget ein, ohne Provenance eines retained Elements abzuschneiden. Ein intern konsistenter Graph-Hash ist weiterhin keine Source-Evidence und Retrieval akzeptiert nur gegen echte Receipt-Evidence neu verifizierte Graphen.
+Evidence: Pre-Memory Exact-Head `b86225ccd1c2322938e835c9750d58ceda7b70c6`; 14/14 PR-Lanes SUCCESS; Capsule Run `35462449761`: Server-Typecheck PASS, 15/15 Source-Regressions PASS, 18/18 compiled Capsule-Tests PASS, Doppelbuild byte-identisch, unabhängiger Verifier VERIFIED; sourceSha256 `466c835cbae412e9c6a0aa851f99228216f31ae065cb944e4e8232ea59db7a85`, manifestSha256 `f9d86c83b2866cf62b7ef5713ead98b903dcaccccecadac9e0ec8fed5b577928`.

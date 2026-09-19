@@ -282,3 +282,121 @@ test("moved WASD world and polity rules preserve deterministic signal and diplom
   const polity=npc.resolvePolityState({polityId:"polity:emberfall",governmentType:"trade_republic",territoryIds:["windhollow","emberfall"],stability:72,activeDiplomacy:["trade","alliance"],warSignals:signals});
   assert.equal(polity.reactionHash,"69ffa961ac718922b7b54e93713dd5b3925775ad061e3944446a7a1aee9115bc");
 });
+
+
+test("AIM-294 graph requires verified source evidence and a complete performed-action readback chain", () => {
+  const {source,context}=merchantGatewayFixture(0);
+  const ready=npc.planMerchantAction(context);
+  assert.equal(ready.status,"ready");
+  const accepted=npc.validateMerchantAction({context,intent:ready.intent,lease:ready.proposedLease});
+  assert.equal(accepted.status,"validated");
+  const successor=fixture(accepted.receipt.resolutionIndex,{name:accepted.receipt.npcId,hub:accepted.receipt.originHubId});
+  const memory=npc.replayNpcMemoryV4(accepted.receipt.npcId,[source.confirmed,successor.confirmed]);
+  const effectReadback={
+    id:"aim294_effect_readback_1",
+    actionReceiptId:accepted.receipt.id,
+    effectsHash:accepted.receipt.effectsHash,
+    npcReceiptId:successor.confirmed.receiptId,
+    npcDecisionHash:successor.confirmed.snapshot.decision.decisionHash,
+    worldReceiptId:"aim294_world_receipt_1",
+    worldReactionHash:npc.npcHash(["world",accepted.receipt.id]),
+    polityId:`polity:${accepted.receipt.originHubId}`,
+    polityStateHash:npc.npcHash(["polity",accepted.receipt.id]),
+    marketStateHash:npc.npcHash(["market",accepted.receipt.id]),
+    inventoryStateHash:npc.npcHash(["inventory",accepted.receipt.id]),
+    sourceRevision:manifest.sourceRevision,
+    readbackHash:npc.npcHash(["effect-readback",accepted.receipt.id]),
+  };
+  const memoryLink={
+    id:"aim294_memory_link_1",
+    actionReceiptId:accepted.receipt.id,
+    effectReadbackId:effectReadback.id,
+    memoryReceiptId:"aim294_memory_receipt_1",
+    npcId:accepted.receipt.npcId,
+    resolutionIndex:accepted.receipt.resolutionIndex,
+    linkHash:npc.npcHash(["memory-link",accepted.receipt.id,effectReadback.id]),
+  };
+  const performed=npc.verifyPerformedActionEvidence({
+    sourceDecision:source.confirmed,
+    successorDecision:successor.confirmed,
+    actionReceipt:accepted.receipt,
+    effectReadback,
+    memoryLink,
+  });
+  const evidence={memory,memoryReceipts:[source.confirmed,successor.confirmed],performedActions:[performed]};
+  const graph=npc.compileNpcSemanticMemoryGraph(evidence);
+  assert.equal(graph.version,npc.NPC_SEMANTIC_GRAPH_VERSION);
+  assert.equal(graph.generation,memory.lastResolutionIndex);
+  assert.equal(graph.authority.sourceRevision,manifest.sourceRevision);
+  assert.equal(graph.edges.filter(edge=>edge.kind==="performed_action").length,1);
+  assert.ok(graph.nodes.some(node=>node.kind==="action"&&node.key===accepted.receipt.id));
+  assert.ok(graph.nodes.some(node=>node.kind==="polity"&&node.key===effectReadback.polityId));
+  assert.deepEqual(
+    npc.compileNpcSemanticMemoryGraph({...evidence,memoryReceipts:[successor.confirmed,source.confirmed]}),
+    graph,
+  );
+
+  const plannedOnly=npc.compileNpcSemanticMemoryGraph({memory,memoryReceipts:[source.confirmed,successor.confirmed]});
+  assert.equal(plannedOnly.edges.some(edge=>edge.kind==="performed_action"),false);
+
+  const lookalike=structuredClone(graph);
+  assert.throws(()=>npc.retrieveNpcSemanticMemoryGraph(lookalike,{logicalIndex:graph.generation,startKeys:[accepted.receipt.npcId]}),/VERIFIED_SOURCE_REQUIRED/);
+  const reverified=npc.verifyNpcSemanticMemoryGraph(JSON.stringify(graph),evidence);
+  const query={logicalIndex:graph.generation,startKeys:[accepted.receipt.npcId],maxDepth:4,maxCandidates:64,maxResults:32};
+  assert.equal(npc.retrieveNpcSemanticMemoryGraph(reverified,query).resultHash,npc.retrieveNpcSemanticMemoryGraph(graph,query).resultHash);
+  assert.throws(()=>npc.retrieveNpcSemanticMemoryGraph(graph,{...query,logicalIndex:graph.generation+1}),/QUERY_AFTER_GRAPH_GENERATION/);
+
+  assert.throws(()=>npc.compileNpcSemanticMemoryGraph({...evidence,performedActions:[structuredClone(performed)]}),/PERFORMED_ACTION_EVIDENCE_REQUIRED/);
+  assert.throws(()=>npc.verifyPerformedActionEvidence({
+    sourceDecision:source.confirmed,
+    successorDecision:successor.confirmed,
+    actionReceipt:accepted.receipt,
+    effectReadback:{...effectReadback,effectsHash:"0".repeat(64)},
+    memoryLink,
+  }),/EFFECT_READBACK_MISMATCH/);
+});
+
+test("AIM-294 graph generation is monotone and deterministic across long bounded histories", () => {
+  const history=Array.from({length:90},(_,i)=>fixture(i,{
+    name:"lyra",
+    hub:i%3===0?"emberfall":"observatory_threshold",
+    safety:i%2,
+    wealth:1-i%2,
+  }).confirmed);
+  const memory=npc.replayNpcMemoryV4("lyra",history);
+  const ids=npc.npcMemoryReceiptIds(memory);
+  const required=history.filter(receipt=>ids.includes(receipt.receiptId));
+  const graph=npc.compileNpcSemanticMemoryGraph({memory,memoryReceipts:required});
+  const rebuilt=npc.compileNpcSemanticMemoryGraph({memory,memoryReceipts:[...required].reverse()});
+  assert.deepEqual(rebuilt,graph);
+  assert.ok(graph.nodes.length<=npc.NPC_SEMANTIC_GRAPH_LIMITS.nodes);
+  assert.ok(graph.edges.length<=npc.NPC_SEMANTIC_GRAPH_LIMITS.edges);
+  assert.ok(Buffer.byteLength(JSON.stringify(graph),"utf8")<=npc.NPC_SEMANTIC_GRAPH_LIMITS.bytes);
+  assert.ok(graph.nodes.some(node=>node.status==="contradicted"||node.status==="superseded"));
+
+  const query={logicalIndex:graph.generation,startKeys:["lyra"],maxDepth:4,maxCandidates:64,maxResults:32};
+  const first=npc.retrieveNpcSemanticMemoryGraph(graph,query);
+  const second=npc.retrieveNpcSemanticMemoryGraph(rebuilt,query);
+  assert.deepEqual(second,first);
+  assert.ok(first.results.length<=32);
+  assert.ok(first.results.every(result=>result.status==="active"));
+  assert.throws(()=>npc.retrieveNpcSemanticMemoryGraph(graph,{...query,maxCandidates:65}),/BOUNDS_INVALID/);
+
+  const oldMemory=npc.replayNpcMemoryV4("lyra",[history[0]]);
+  assert.throws(()=>npc.compileNpcSemanticMemoryGraph({memory:oldMemory,memoryReceipts:[history[0]],previousGraph:graph}),/GENERATION_REGRESSION/);
+});
+
+
+test("AIM-294 graph preserves logical expiry and never promotes free-text memory into graph truth", () => {
+  const old=fixture(0,{name:"lyra",memory:["LLM says lyra secretly owns the kingdom"]});
+  const current=fixture(3500,{name:"lyra",safety:0,wealth:1,hub:"emberfall"});
+  const memory=npc.replayNpcMemoryV4("lyra",[old.confirmed,current.confirmed]);
+  const ids=npc.npcMemoryReceiptIds(memory);
+  const required=[old.confirmed,current.confirmed].filter(receipt=>ids.includes(receipt.receiptId));
+  const graph=npc.compileNpcSemanticMemoryGraph({memory,memoryReceipts:required});
+  assert.ok(graph.nodes.some(node=>node.kind==="semantic_fact"&&node.status==="expired"));
+  assert.equal(JSON.stringify(graph).includes("owns the kingdom"),false);
+  const result=npc.retrieveNpcSemanticMemoryGraph(graph,{logicalIndex:graph.generation,startKeys:["lyra"],maxDepth:4,maxCandidates:64,maxResults:32});
+  const expired=new Set(graph.nodes.filter(node=>node.status!=="active").map(node=>node.id));
+  assert.ok(result.results.every(entry=>!expired.has(entry.nodeId)));
+});
