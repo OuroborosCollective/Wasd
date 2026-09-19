@@ -230,6 +230,7 @@ export function merchantPolityStateHash(input:Readonly<{ polityId:string; versio
 }
 export function merchantActionEffectsHash(requests:MerchantDecisionRequests):string { return canonicalHash(requests); }
 export function merchantActionReceiptHash(receipt:Omit<MerchantActionReceipt,"receiptHash">):string { return canonicalHash(receipt); }
+export function merchantActionReceiptId(receipt:Omit<MerchantActionReceipt,"id"|"effectsHash"|"receiptHash">):string { return `nar_${canonicalHash(receipt).slice(0,56)}`; }
 function npcStateHash(npc:NpcEconomyState):string { return canonicalHash({ npcId:npc.npcId, currentHubId:npc.currentHubId, wealthCopper:npc.wealthCopper, hungerBps:npc.hungerBps, fatigueBps:npc.fatigueBps, tradeProwessBps:npc.tradeProwessBps, harvestYieldBps:npc.harvestYieldBps, memory:[...npc.memory] }); }
 function worldSeedHash(worldSeed:string):string { return createHash("sha256").update(worldSeed,"utf8").digest("hex"); }
 function sourceDecisionFrom(confirmed:ConfirmedNpcDecision):Readonly<{ sourceDecision:MerchantActionSourceDecision; planIsPlanned:boolean }> {
@@ -381,7 +382,7 @@ export function validateMerchantAction(input:Readonly<{context:MerchantGatewayCo
   if (context.logicalIndex<lease.issuedAtLogicalIndex||context.logicalIndex>lease.expiresAtLogicalIndex) return invalid(context,resolution,intent,"LEASE_EXPIRED");
   if (!same(lease,proposedLeaseFor(context,intent,target))) return invalid(context,resolution,intent,"LEASE_CONFLICT");
   const receiptCore={version:NPC_ACTION_RECEIPT_VERSION,npcId:intent.npcId,sourceDecision:intent.sourceDecision,resolutionIndex:intent.resolutionIndex,intentId:intent.id,leaseId:lease.id,authority:boundAuthority,action:resolution.action,originHubId:intent.originHubId,target:intent.target,worldSeedSha256:intent.worldSeedSha256,resolutionHash:resolution.deterministicHash,expectedEpoch:intent.expectedEpoch,npcStateHash:intent.expectedNpcHash,marketStateHash:intent.expectedMarketHash,polityStateHash:intent.expectedPolityHash,inventoryStateHash:context.inventory.stateHash};
-  const receiptId=`nar_${canonicalHash(receiptCore).slice(0,56)}`;
+  const receiptId=merchantActionReceiptId(receiptCore);
   const requests=requestsFromValidatedAction(context,resolution,receiptId);
   const unsignedReceipt={...receiptCore,id:receiptId,effectsHash:merchantActionEffectsHash(requests)};
   const receipt=deepFreeze({...unsignedReceipt,receiptHash:merchantActionReceiptHash(unsignedReceipt)});
