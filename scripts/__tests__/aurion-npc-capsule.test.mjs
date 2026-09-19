@@ -330,6 +330,7 @@ test("AIM-294 graph requires verified source evidence and a complete performed-a
   assert.equal(graph.authority.sourceRevision,manifest.sourceRevision);
   assert.equal(graph.edges.filter(edge=>edge.kind==="performed_action").length,1);
   assert.ok(graph.nodes.some(node=>node.kind==="action"&&node.key===accepted.receipt.id));
+  assert.ok(graph.nodes.some(node=>node.kind==="polity"&&node.key===effectReadback.polityId));
   assert.deepEqual(
     npc.compileNpcSemanticMemoryGraph({...evidence,memoryReceipts:[successor.confirmed,source.confirmed]}),
     graph,
@@ -343,6 +344,7 @@ test("AIM-294 graph requires verified source evidence and a complete performed-a
   const reverified=npc.verifyNpcSemanticMemoryGraph(JSON.stringify(graph),evidence);
   const query={logicalIndex:graph.generation,startKeys:[accepted.receipt.npcId],maxDepth:4,maxCandidates:64,maxResults:32};
   assert.equal(npc.retrieveNpcSemanticMemoryGraph(reverified,query).resultHash,npc.retrieveNpcSemanticMemoryGraph(graph,query).resultHash);
+  assert.throws(()=>npc.retrieveNpcSemanticMemoryGraph(graph,{...query,logicalIndex:graph.generation+1}),/QUERY_AFTER_GRAPH_GENERATION/);
 
   assert.throws(()=>npc.compileNpcSemanticMemoryGraph({...evidence,performedActions:[structuredClone(performed)]}),/PERFORMED_ACTION_EVIDENCE_REQUIRED/);
   assert.throws(()=>npc.verifyPerformedActionEvidence({
@@ -382,4 +384,19 @@ test("AIM-294 graph generation is monotone and deterministic across long bounded
 
   const oldMemory=npc.replayNpcMemoryV4("lyra",[history[0]]);
   assert.throws(()=>npc.compileNpcSemanticMemoryGraph({memory:oldMemory,memoryReceipts:[history[0]],previousGraph:graph}),/GENERATION_REGRESSION/);
+});
+
+
+test("AIM-294 graph preserves logical expiry and never promotes free-text memory into graph truth", () => {
+  const old=fixture(0,{name:"lyra",memory:["LLM says lyra secretly owns the kingdom"]});
+  const current=fixture(3500,{name:"lyra",safety:0,wealth:1,hub:"emberfall"});
+  const memory=npc.replayNpcMemoryV4("lyra",[old.confirmed,current.confirmed]);
+  const ids=npc.npcMemoryReceiptIds(memory);
+  const required=[old.confirmed,current.confirmed].filter(receipt=>ids.includes(receipt.receiptId));
+  const graph=npc.compileNpcSemanticMemoryGraph({memory,memoryReceipts:required});
+  assert.ok(graph.nodes.some(node=>node.kind==="semantic_fact"&&node.status==="expired"));
+  assert.equal(JSON.stringify(graph).includes("owns the kingdom"),false);
+  const result=npc.retrieveNpcSemanticMemoryGraph(graph,{logicalIndex:graph.generation,startKeys:["lyra"],maxDepth:4,maxCandidates:64,maxResults:32});
+  const expired=new Set(graph.nodes.filter(node=>node.status!=="active").map(node=>node.id));
+  assert.ok(result.results.every(entry=>!expired.has(entry.nodeId)));
 });
