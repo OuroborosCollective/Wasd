@@ -19,7 +19,7 @@
     "@wasd/types": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^22.20.2",
+    "@types/node": "^22.20.3",
     "typescript": "^5.8.0"
   }
 }
