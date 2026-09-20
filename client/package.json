@@ -28,7 +28,7 @@
     "@supabase/supabase-js": "^2.116.0",
     "@wasd/shared": "workspace:*",
     "firebase": "^12.19.0",
-    "framer-motion": "^12.43.0",
+    "framer-motion": "^13.4.0",
     "lucide-react": "^1.43.0",
     "mobx": "^6.15.4",
     "mobx-react-lite": "^4.1.1",
