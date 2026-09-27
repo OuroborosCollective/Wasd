@@ -20,7 +20,7 @@
     "@pixi/tilemap": "^5.0.2",
     "@wasd/shared": "workspace:*",
     "pixi-filters": "^6.1.5",
-    "pixi.js": "^8.20.1",
+    "pixi.js": "^8.21.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "socket.io-client": "^4.8.3"
