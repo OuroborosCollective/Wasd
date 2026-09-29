@@ -37,7 +37,7 @@
     "ioredis": "^5.11.0",
     "js-yaml": "^4.3.0",
     "jsonwebtoken": "^9.0.3",
-    "multer": "^2.3.0",
+    "multer": "^2.4.0",
     "openai": "^6.49.0",
     "pg": "^8.23.0",
     "posthog-node": "^5.51.8",
