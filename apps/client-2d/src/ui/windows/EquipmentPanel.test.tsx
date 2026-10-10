@@ -179,4 +179,70 @@ describe("EquipmentPanel UX & Accessibility", () => {
     });
     expect(dispatchUnequip).toHaveBeenCalledTimes(2);
   });
+
+  it("renders with modal dialog attributes and closes on Escape keydown", async () => {
+    const handleClose = vi.fn();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(
+        <DnDProvider>
+          <EquipmentPanel
+            playerId="test-player-1"
+            equipment={mockEquipment}
+            inventory={mockInventory}
+            paperdoll={mockPaperdoll}
+            onClose={handleClose}
+          />
+        </DnDProvider>
+      );
+    });
+
+    const dialog = container!.querySelector('[data-testid="equipment-panel-live"]');
+    expect(dialog).toBeTruthy();
+    expect(dialog?.getAttribute("role")).toBe("dialog");
+    expect(dialog?.getAttribute("aria-modal")).toBe("true");
+    expect(dialog?.getAttribute("aria-labelledby")).toBe("equipment-panel-title");
+
+    const title = container!.querySelector("#equipment-panel-title");
+    expect(title).toBeTruthy();
+    expect(title?.textContent).toContain("Equipment");
+
+    // Press Escape key
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies aria-hidden to decorative icons and provides clear aria-labels on inventory items", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(
+        <DnDProvider>
+          <EquipmentPanel
+            playerId="test-player-1"
+            equipment={mockEquipment}
+            inventory={mockInventory}
+            paperdoll={mockPaperdoll}
+          />
+        </DnDProvider>
+      );
+    });
+
+    const silhouettes = container!.querySelectorAll(".equip-slot-silhouette");
+    expect(silhouettes.length).toBeGreaterThan(0);
+    silhouettes.forEach((el) => {
+      expect(el.getAttribute("aria-hidden")).toBe("true");
+    });
+
+    const equipItemBtn = container!.querySelector('[data-testid="equip-item-copper_axe"]');
+    expect(equipItemBtn).toBeTruthy();
+    expect(equipItemBtn?.getAttribute("aria-label")).toBe("Equip Copper Axe (x1)");
+  });
 });

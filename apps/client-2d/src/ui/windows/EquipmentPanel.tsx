@@ -179,13 +179,13 @@ function PaperdollSlotCard({
       tabIndex={0}
       aria-label={ariaLabel}
     >
-      <div className="equip-slot-silhouette">{slotIcon(slot.slotId)}</div>
+      <div className="equip-slot-silhouette" aria-hidden="true">{slotIcon(slot.slotId)}</div>
       {iconPath ? (
         <div className="equip-slot-icon">
-          <img src={iconPath} alt={slot.title} className="tool-svg-icon" />
+          <img src={iconPath} alt="" aria-hidden="true" className="tool-svg-icon" />
         </div>
       ) : (
-        <span className="slot-icon-text">{slotIcon(slot.slotId)}</span>
+        <span className="slot-icon-text" aria-hidden="true">{slotIcon(slot.slotId)}</span>
       )}
       <span className="equip-slot-label">{formatSlotLabel(slot.slotId)}</span>
       <strong className="equip-slot-title">{slot.title}</strong>
@@ -265,9 +265,10 @@ function InventoryEquipmentButton({
       }}
       disabled={disabled}
       data-testid={`equip-item-${slot.itemId}`}
+      aria-label={`Equip ${itemDisplayName(slot)} (x${slot.quantity})`}
       title={`Equip ${itemDisplayName(slot)}`}
     >
-      {iconPath && <img src={iconPath} alt={itemDisplayName(slot)} className="tool-svg-icon" />}
+      {iconPath && <img src={iconPath} alt="" aria-hidden="true" className="tool-svg-icon" />}
       <span className="tool-name">{itemDisplayName(slot)}</span>
       <small>x{slot.quantity}</small>
     </button>
@@ -353,12 +354,33 @@ export function EquipmentPanel({
     void handleEquip(item.itemId);
   }, [handleEquip]);
 
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="equipment-panel wow-panel" data-player-id={resolvedPlayerId} data-testid="equipment-panel-live">
+    <div
+      className="equipment-panel wow-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="equipment-panel-title"
+      data-player-id={resolvedPlayerId}
+      data-testid="equipment-panel-live"
+    >
       <div className="equipment-header">
-        <h2>Equipment</h2>
+        <h2 id="equipment-panel-title">
+          <span aria-hidden="true">🛡️ </span>
+          Equipment
+        </h2>
         {onClose && (
           <button
             type="button"
@@ -408,7 +430,10 @@ export function EquipmentPanel({
       </div>
 
       <div className="available-tools">
-        <h3 className="subsection-title">Inventory Equipment</h3>
+        <h3 className="subsection-title">
+          <span aria-hidden="true">🎒 </span>
+          Inventory Equipment
+        </h3>
         {inventoryEquipment.length > 0 ? (
           <div className="tools-grid">
             {inventoryEquipment.map((slot) => (
