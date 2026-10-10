@@ -96,7 +96,8 @@ function skillBookFromSnapshot(snapshot: PlayerStatsSnapshot | null): SkillBookE
       nextLevelXP: Math.max(1, Math.floor(asNumber(skill.nextLevelXP, 1))),
       progressPercent: Math.max(0, Math.min(100, asNumber(skill.progressPercent, 0))),
     }))
-    .sort((a, b) => a.id.localeCompare(b.id));
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 function charFromStats(snapshot: PlayerStatsSnapshot): CharData {
