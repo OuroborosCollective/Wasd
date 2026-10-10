@@ -1,5 +1,5 @@
 import type { RequestHandler } from "express";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import {
   asSafeString,
   asyncRoute,
@@ -45,9 +45,13 @@ function signJwt(payload: Record<string, unknown>, secret: string): string {
   return `${header}.${body}.${signature}`;
 }
 
+function hashBuffer(value: string): Buffer {
+  return createHash("sha256").update(value, "utf8").digest();
+}
+
 function safeEqual(a: string, b: string): boolean {
-  const left = Buffer.from(a);
-  const right = Buffer.from(b);
+  const left = hashBuffer(a);
+  const right = hashBuffer(b);
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
