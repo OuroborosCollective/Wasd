@@ -15,6 +15,7 @@ import { areReplayRouter } from "../api/areReplayRoute.js";
 import { sdkBillingRouter } from "../api/sdkBillingRoute.js";
 import { adminRoute } from "../api/adminRoute.js";
 import { createPayPalRouter } from "../api/paypalRoute.js";
+import { mailRoute } from "../api/mailRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -513,6 +514,58 @@ describe("Sentinel Endpoint Protection", () => {
 
       expect(r.status).toBe(400);
       expect(r.body.error).toBe("productId and playerId required");
+    });
+  });
+
+  describe("/api/mail/send security controls", () => {
+    it("denies send-mail when unauthenticated or anonymous in production mode", async () => {
+      const origEnv = process.env.NODE_ENV;
+      const origGuest = process.env.ALLOW_GUEST_LOGIN;
+      const origDev = process.env.ALLOW_DEV_LOGIN;
+      const origDevPlayerId = process.env.ALLOW_DEV_PLAYER_ID;
+
+      process.env.NODE_ENV = "production";
+      process.env.ALLOW_GUEST_LOGIN = "false";
+      process.env.ALLOW_DEV_LOGIN = "false";
+      process.env.ALLOW_DEV_PLAYER_ID = "false";
+
+      const def = mailRoute();
+      const app = express();
+      app.use(express.json());
+      app.post(def.path, def.handler);
+
+      const r = await request(app)
+        .post("/api/mail/send")
+        .send({ to: "recipient", subject: "hello", body: "world" });
+
+      expect(r.status).toBe(401);
+
+      process.env.NODE_ENV = origEnv;
+      if (origGuest !== undefined) process.env.ALLOW_GUEST_LOGIN = origGuest; else delete process.env.ALLOW_GUEST_LOGIN;
+      if (origDev !== undefined) process.env.ALLOW_DEV_LOGIN = origDev; else delete process.env.ALLOW_DEV_LOGIN;
+      if (origDevPlayerId !== undefined) process.env.ALLOW_DEV_PLAYER_ID = origDevPlayerId; else delete process.env.ALLOW_DEV_PLAYER_ID;
+    });
+
+    it("allows mail dispatch when player identity is resolved", async () => {
+      const mockSendMail = vi.fn().mockResolvedValue({ accepted: true, mailId: "mail_123" });
+      const def = mailRoute({ sendMail: mockSendMail });
+      const app = express();
+      app.use(express.json());
+      app.post(def.path, def.handler);
+
+      const r = await request(app)
+        .post("/api/mail/send")
+        .set("X-Player-Id", "player_sender_99")
+        .send({ to: "recipient_user", subject: "Test Subject", body: "Hello World" });
+
+      expect(r.status).toBe(200);
+      expect(r.body.data.accepted).toBe(true);
+      expect(mockSendMail).toHaveBeenCalledWith({
+        to: "recipient_user",
+        subject: "Test Subject",
+        body: "Hello World",
+        senderId: "player_sender_99",
+      });
     });
   });
 });
