@@ -34,6 +34,24 @@ type ModuleRole = "core" | "attachment" | "detail_fx" | "single_icon" | "bluepri
 
 const BUCKETS: SemanticBucket[] = ["ui", "weapons", "armor", "items", "pets", "characters", "effects", "buildings", "roads", "dungeons", "decoration", "audio", "metadata", "unknown"];
 
+const BUCKET_ICONS: Record<SemanticBucket | "all", string> = {
+  all: "🎨",
+  ui: "🖥️",
+  weapons: "🗡️",
+  armor: "🛡️",
+  items: "🎒",
+  pets: "🐾",
+  characters: "👤",
+  effects: "✨",
+  buildings: "🏛️",
+  roads: "🛣️",
+  dungeons: "🏰",
+  decoration: "🪴",
+  audio: "🎵",
+  metadata: "📜",
+  unknown: "❓",
+};
+
 const RULES: Array<[SemanticBucket, RegExp]> = [
   ["pets", /\b(pet|pets|companion|familiar|mount|animal|cat|dog|wolf|fox|bird|dragonling|beast_pet)\b/],
   ["roads", /\b(road|roads|path|paths|way|ways|trail|street|bridge|crossing|pavement|cobble)\b/],
@@ -185,13 +203,96 @@ export function StitchAssetGalleryPanel() {
         <div className="stitch-gallery-stats"><strong>{manifest?.assets.length ?? 0}</strong><span>assets</span><strong>{manifest?.stats?.croppedImages ?? 0}</strong><span>cropped</span><strong>{manifest?.stats?.warnings ?? 0}</strong><span>warnings</span></div>
       </header>
 
-      {error && <div className="stitch-gallery-empty" data-testid="stitch-asset-gallery-missing"><strong>Manifest noch nicht verfügbar.</strong><p>{error}</p><p>Merge zuerst den Stitch-Import-PR, dann deploy/build. Danach zeigt dieses Panel die Assets automatisch.</p></div>}
+      {error && (
+        <div className="stitch-gallery-empty" data-testid="stitch-asset-gallery-missing">
+          <strong>Manifest not available yet.</strong>
+          <p>{error}</p>
+          <p>Merge the Stitch import PR first, then deploy/build. Afterwards, this panel will display the assets automatically.</p>
+        </div>
+      )}
 
       {!error && manifest && <>
         <div className="stitch-gallery-module-summary"><article><strong>{moduleCounts.core}</strong><span>module cores</span></article><article><strong>{moduleCounts.attachment}</strong><span>attachments</span></article><article><strong>{moduleCounts.detail_fx}</strong><span>details / fx</span></article><article><strong>{moduleCounts.single_icon}</strong><span>single affix icons</span></article></div>
-        <div className="stitch-gallery-toolbar"><button className={selectedBucket === "all" ? "active" : ""} onClick={() => setSelectedBucket("all")}>all <span>{enriched.length}</span></button>{BUCKETS.map((bucket) => <button key={bucket} className={selectedBucket === bucket ? "active" : ""} onClick={() => setSelectedBucket(bucket)}>{bucket} <span>{counts[bucket]}</span></button>)}</div>
-        <div className="stitch-gallery-filters"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search pets, roads, dungeons, modules, affix, id, path..." aria-label="Search Stitch assets" /><label><input type="checkbox" checked={showBlueprints} onChange={(event) => setShowBlueprints(event.target.checked)} /> show HTML UI blueprints</label></div>
-        <div className="stitch-gallery-grid" data-testid="stitch-asset-gallery-grid">{filtered.map(({ asset, bucket, name, role }) => <article className="stitch-gallery-card" key={asset.id} data-bucket={bucket}><div className="stitch-gallery-preview">{isPreviewableImage(asset) ? <img src={asset.src} alt={name} loading="lazy" /> : <div className="stitch-gallery-blueprint"><span>{asset.kind === "binary" ? "HTML" : asset.kind ?? "asset"}</span><small>{asset.ext || "blueprint"}</small></div>}</div><div className="stitch-gallery-card-body"><h3 title={asset.id}>{name}</h3><div className="stitch-gallery-tags"><span>{bucket}</span><span>{asset.category ?? "unknown"}</span><span>{asset.kind ?? "unknown"}</span><span>{usageRole(bucket, asset)}</span><span>{moduleContract(bucket, asset)}</span>{role !== "not_modular" && <span>module:{role}</span>}{asset.cropped && <span>cropped</span>}</div><p title={asset.sourcePath}>{asset.sourcePath}</p><code>{asset.id}</code></div></article>)}</div>
+        <div className="stitch-gallery-toolbar" role="toolbar" aria-label="Asset category filter options">
+          <button
+            className={selectedBucket === "all" ? "active" : ""}
+            aria-pressed={selectedBucket === "all"}
+            aria-label="Filter by all asset categories"
+            onClick={() => setSelectedBucket("all")}
+          >
+            <span aria-hidden="true">{BUCKET_ICONS.all}</span> all <span>{enriched.length}</span>
+          </button>
+          {BUCKETS.map((bucket) => (
+            <button
+              key={bucket}
+              className={selectedBucket === bucket ? "active" : ""}
+              aria-pressed={selectedBucket === bucket}
+              aria-label={`Filter assets by ${bucket} category`}
+              onClick={() => setSelectedBucket(bucket)}
+            >
+              <span aria-hidden="true">{BUCKET_ICONS[bucket]}</span> {bucket} <span>{counts[bucket]}</span>
+            </button>
+          ))}
+        </div>
+        <div className="stitch-gallery-filters">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search pets, roads, dungeons, modules, affix, id, path..."
+            aria-label="Search Stitch assets"
+            title="Search by asset ID, name, path or category"
+          />
+          <label>
+            <input type="checkbox" checked={showBlueprints} onChange={(event) => setShowBlueprints(event.target.checked)} /> show HTML UI blueprints
+          </label>
+        </div>
+        {filtered.length === 0 ? (
+          <div className="stitch-gallery-empty" data-testid="stitch-asset-gallery-no-results">
+            <strong>No matching assets found</strong>
+            <p>No assets found matching &quot;{query}&quot; in category &quot;{selectedBucket}&quot;.</p>
+            <button
+              type="button"
+              className="stitch-gallery-reset-btn"
+              onClick={() => {
+                setQuery("");
+                setSelectedBucket("all");
+              }}
+            >
+              Reset filters
+            </button>
+          </div>
+        ) : (
+          <div className="stitch-gallery-grid" data-testid="stitch-asset-gallery-grid">
+            {filtered.map(({ asset, bucket, name, role }) => (
+              <article className="stitch-gallery-card" key={asset.id} data-bucket={bucket}>
+                <div className="stitch-gallery-preview">
+                  {isPreviewableImage(asset) ? (
+                    <img src={asset.src} alt={name} loading="lazy" />
+                  ) : (
+                    <div className="stitch-gallery-blueprint">
+                      <span>{asset.kind === "binary" ? "HTML" : asset.kind ?? "asset"}</span>
+                      <small>{asset.ext || "blueprint"}</small>
+                    </div>
+                  )}
+                </div>
+                <div className="stitch-gallery-card-body">
+                  <h3 title={asset.id}>{name}</h3>
+                  <div className="stitch-gallery-tags">
+                    <span>{bucket}</span>
+                    <span>{asset.category ?? "unknown"}</span>
+                    <span>{asset.kind ?? "unknown"}</span>
+                    <span>{usageRole(bucket, asset)}</span>
+                    <span>{moduleContract(bucket, asset)}</span>
+                    {role !== "not_modular" && <span>module:{role}</span>}
+                    {asset.cropped && <span>cropped</span>}
+                  </div>
+                  <p title={asset.sourcePath}>{asset.sourcePath}</p>
+                  <code>{asset.id}</code>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </>}
     </section>
   );
