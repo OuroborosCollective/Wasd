@@ -38,7 +38,7 @@ describe("SkillProgressionPanel UX & Accessibility", () => {
     },
   ];
 
-  it("renders empty state with proper region landmark", async () => {
+  it("renders empty state with proper region landmark and decorative status icon", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -52,9 +52,13 @@ describe("SkillProgressionPanel UX & Accessibility", () => {
     expect(emptySection!.getAttribute("role")).toBe("region");
     expect(emptySection!.getAttribute("aria-label")).toBe("Skill Progression");
     expect(emptySection!.textContent).toContain("No live skill data yet.");
+
+    const hiddenSpan = emptySection!.querySelector("span[aria-hidden='true']");
+    expect(hiddenSpan).toBeTruthy();
+    expect(hiddenSpan!.textContent).toContain("⏳");
   });
 
-  it("renders live skills with progressbars, aria-valuetext, and hover title tooltips", async () => {
+  it("renders live skills with progressbars, aria-valuetext, category icons, and hover title tooltips", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -68,8 +72,14 @@ describe("SkillProgressionPanel UX & Accessibility", () => {
     expect(liveSection!.getAttribute("role")).toBe("region");
     expect(liveSection!.getAttribute("aria-label")).toBe("Skill Progression");
 
-    // Check Woodcutting progressbar
-    const woodBar = container!.querySelector("[data-testid='skill-progress-woodcutting'] [role='progressbar']");
+    // Check Woodcutting icon & progressbar
+    const woodRow = container!.querySelector("[data-testid='skill-progress-woodcutting']");
+    expect(woodRow).toBeTruthy();
+    const woodIcon = woodRow!.querySelector(".skill-row__header strong span[aria-hidden='true']");
+    expect(woodIcon).toBeTruthy();
+    expect(woodIcon!.textContent).toContain("🪓");
+
+    const woodBar = woodRow!.querySelector("[role='progressbar']");
     expect(woodBar).toBeTruthy();
     expect(woodBar!.getAttribute("aria-label")).toBe("Woodcutting progress to level 4");
     expect(woodBar!.getAttribute("aria-valuenow")).toBe("45");
@@ -78,8 +88,14 @@ describe("SkillProgressionPanel UX & Accessibility", () => {
     expect(woodBar!.getAttribute("aria-valuetext")).toBe("45% (450 / 1000 XP)");
     expect(woodBar!.getAttribute("title")).toBe("Woodcutting: 45% (450 / 1000 XP)");
 
-    // Check Mining progressbar
-    const mineBar = container!.querySelector("[data-testid='skill-progress-mining'] [role='progressbar']");
+    // Check Mining icon & progressbar
+    const mineRow = container!.querySelector("[data-testid='skill-progress-mining']");
+    expect(mineRow).toBeTruthy();
+    const mineIcon = mineRow!.querySelector(".skill-row__header strong span[aria-hidden='true']");
+    expect(mineIcon).toBeTruthy();
+    expect(mineIcon!.textContent).toContain("⛏️");
+
+    const mineBar = mineRow!.querySelector("[role='progressbar']");
     expect(mineBar).toBeTruthy();
     expect(mineBar!.getAttribute("aria-label")).toBe("Mining progress to level 2");
     expect(mineBar!.getAttribute("aria-valuenow")).toBe("0");
