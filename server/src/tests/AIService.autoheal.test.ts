@@ -273,4 +273,74 @@ describe("AIService AutoHeal integration", () => {
     const summary = await learningStore.summarize("npc:npc_001");
     expect(summary.total).toBe(0);
   });
+
+  it("benchmarks fast relational string comparison vs localeCompare for AILocalLearningStore sorting", async () => {
+    const store = new AILocalLearningStore(10_000);
+
+    for (let i = 0; i < 500; i++) {
+      const id = `learn-evt-${(i * 37) % 500}`;
+      await store.record({
+        id,
+        agentId: "ai-core",
+        memoryScope: "benchmark",
+        logicalIndex: i,
+        inputHash: `in-${i}`,
+        outputHash: `out-${i}`,
+        intent: "general_reasoning",
+        action: "say",
+        confidence: 0.9,
+        successScore: 1.0,
+        tags: [`tag-${i % 20}`, `category-${i % 5}`],
+        createdAt: 1000 + (i % 50),
+        metadata: {},
+      });
+    }
+
+    const testEvents = Array.from({ length: 500 }, (_, i) => ({
+      id: `learn-evt-${(i * 37) % 500}`,
+      createdAt: 1000 + (i % 50),
+      logicalIndex: i,
+    }));
+
+    const iterations = 2000;
+
+    // 1. Benchmark localeCompare sorting
+    const startLocale = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      [...testEvents].sort((a, b) => {
+        if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
+        if (a.logicalIndex !== b.logicalIndex) return a.logicalIndex - b.logicalIndex;
+        return a.id.localeCompare(b.id);
+      });
+    }
+    const durationLocale = performance.now() - startLocale;
+
+    // 2. Benchmark relational string comparison sorting
+    const startRelational = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      [...testEvents].sort((a, b) => {
+        if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
+        if (a.logicalIndex !== b.logicalIndex) return a.logicalIndex - b.logicalIndex;
+        return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+      });
+    }
+    const durationRelational = performance.now() - startRelational;
+
+    // Verify sort order equivalence
+    const sortedLocale = [...testEvents].sort((a, b) => {
+      if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
+      if (a.logicalIndex !== b.logicalIndex) return a.logicalIndex - b.logicalIndex;
+      return a.id.localeCompare(b.id);
+    });
+
+    const sortedRelational = [...testEvents].sort((a, b) => {
+      if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
+      if (a.logicalIndex !== b.logicalIndex) return a.logicalIndex - b.logicalIndex;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    });
+
+    expect(sortedRelational).toEqual(sortedLocale);
+
+    console.log(`[AILocalLearningStore Benchmark] localeCompare: ${durationLocale.toFixed(2)}ms, relational: ${durationRelational.toFixed(2)}ms (${(durationLocale / durationRelational).toFixed(2)}x speedup)`);
+  });
 });
