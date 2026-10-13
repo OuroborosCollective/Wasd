@@ -36,7 +36,8 @@ function stableQuestStateFile(players: PersistedQuestPlayerState[]): QuestStateF
     schemaVersion: 1,
     players: [...players]
       .map((player) => normalizePersistedQuestState(player, player.playerId))
-      .sort((a, b) => a.playerId.localeCompare(b.playerId)),
+      // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+      .sort((a, b) => (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0)),
   };
 }
 
