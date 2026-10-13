@@ -39,6 +39,19 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
 };
 
 /**
+ * Event type icons for visual category identification (WCAG 1.4.1 non-color reliance).
+ */
+const EVENT_TYPE_ICONS: Record<string, string> = {
+  resource_depleted: "🪵",
+  market_price_changed: "💰",
+  npc_activity_changed: "👥",
+  quest_completed: "✅",
+  combat_result: "⚔️",
+  governance_action: "⚖️",
+  legend_recorded: "📜",
+};
+
+/**
  * Get display label for an event type.
  */
 function getEventTypeLabel(type: string): string {
@@ -46,12 +59,10 @@ function getEventTypeLabel(type: string): string {
 }
 
 /**
- * Escape HTML to prevent injection from server data.
+ * Get category icon for an event type.
  */
-function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
+function getEventTypeIcon(type: string): string {
+  return EVENT_TYPE_ICONS[type] ?? "📡";
 }
 
 /**
@@ -60,9 +71,12 @@ function escapeHtml(text: string): string {
 function CausalCatchupEventRow({ event }: { event: CausalCatchupEventPayload }): React.ReactElement {
   return (
     <div className="causal-catchup-event" data-event-type={event.type}>
+      <span className="causal-catchup-event-icon" aria-hidden="true">
+        {getEventTypeIcon(event.type)}
+      </span>{" "}
       <span className="causal-catchup-event-type">{getEventTypeLabel(event.type)}</span>
       <span className="causal-catchup-event-tick">tick {event.tick}</span>
-      <span className="causal-catchup-event-region">{escapeHtml(event.regionId)}</span>
+      <span className="causal-catchup-event-region">{event.regionId}</span>
     </div>
   );
 }
@@ -97,10 +111,13 @@ export function CausalCatchupPanel({ summary, className }: CausalCatchupPanelPro
     <aside
       className={`causal-catchup-panel ${className ?? ""}`}
       aria-live="polite"
+      aria-labelledby="causal-catchup-title"
       data-event-count={typedSummary.eventCount}
     >
       <header className="causal-catchup-header">
-        <h3 className="causal-catchup-title">Causal Catchup</h3>
+        <h3 id="causal-catchup-title" className="causal-catchup-title">
+          Causal Catchup
+        </h3>
         <span className="causal-catchup-count">{typedSummary.eventCount} event(s)</span>
       </header>
 
@@ -122,7 +139,7 @@ export function CausalCatchupPanel({ summary, className }: CausalCatchupPanelPro
       </ul>
 
       <footer className="causal-catchup-footer">
-        Hash: <code>{escapeHtml(typedSummary.summaryHash.substring(0, 8))}...</code>
+        Hash: <code>{typedSummary.summaryHash.substring(0, 8)}...</code>
       </footer>
     </aside>
   );
