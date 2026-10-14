@@ -89,7 +89,7 @@ function CampNpcMarker({ npc, campStock, x, y, onTradeClick }: CampNpcMarkerProp
       title={`${npc.name} - ${npc.role} (Click to trade)`}
       aria-label={`${npc.name} camp worker, ${npc.activity}`}
     >
-      <span style={{ fontSize: "16px", lineHeight: 1 }}>{emoji}</span>
+      <span style={{ fontSize: "16px", lineHeight: 1 }} aria-hidden="true">{emoji}</span>
       <span style={{ fontSize: "8px", opacity: 0.8, maxWidth: "50px", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis" }}>
         {npc.activity}
       </span>
@@ -154,6 +154,8 @@ export function CampNpcMarkerLayer() {
     <>
       <div
         ref={containerRef}
+        role="region"
+        aria-label="Camp Worker Markers"
         data-testid="camp-npc-marker-layer"
         data-overlay-status={overlay.status}
         style={{
