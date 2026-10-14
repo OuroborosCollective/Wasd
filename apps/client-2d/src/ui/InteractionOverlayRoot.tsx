@@ -85,16 +85,28 @@ export function InteractionOverlayRoot() {
             className="interaction-panel"
             role="dialog"
             aria-modal="true"
-            aria-label={overlay.type}
+            aria-labelledby="interaction-panel-title"
           >
             <header className="interaction-panel-header">
-              <h2>
-                {overlay.type === 'TRADE' && 'TRADE'}
-                {overlay.type === 'CRAFT' && 'CRAFTING'}
-                {overlay.type === 'DIALOGUE' && 'DIALOGUE'}
+              <h2 id="interaction-panel-title">
+                {overlay.type === 'TRADE' && (
+                  <>
+                    <span aria-hidden="true">🛒 </span>TRADE
+                  </>
+                )}
+                {overlay.type === 'CRAFT' && (
+                  <>
+                    <span aria-hidden="true">🛠️ </span>CRAFTING
+                  </>
+                )}
+                {overlay.type === 'DIALOGUE' && (
+                  <>
+                    <span aria-hidden="true">💬 </span>DIALOGUE
+                  </>
+                )}
               </h2>
               <div className="interaction-header-actions">
-                <kbd className="interaction-esc-hint">ESC</kbd>
+                <kbd className="interaction-esc-hint" aria-hidden="true">ESC</kbd>
                 <button
                   type="button"
                   className="interaction-close"
