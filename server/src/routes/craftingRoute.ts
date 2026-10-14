@@ -1,5 +1,5 @@
 import express, { Router, type Response } from "express";
-import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
+import { resolveHttpPlayerIdentity, assertPlayerIdentityAllowed } from "../auth/PlayerIdentityResolver.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { worldTickAdapter } from "../core/are/WorldTickThinShellAdapter.js";
 import { craftingService } from "../crafting/CraftingService.js";
@@ -48,12 +48,14 @@ function parseRequestId(value: unknown): string | undefined {
   return /^[a-zA-Z0-9:_./-]{1,160}$/.test(trimmed) ? trimmed : undefined;
 }
 
-function requireProductionAuth(identity: { authenticated: boolean }, res: Response): boolean {
-  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+function checkProductionAuth(identity: Parameters<typeof assertPlayerIdentityAllowed>[0], res: Response): boolean {
+  try {
+    assertPlayerIdentityAllowed(identity);
+    return true;
+  } catch {
     res.status(401).json({ ok: false, error: "authenticated_player_required" });
     return false;
   }
-  return true;
 }
 
 function runtimeTick(): RuntimeTickContext | null {
@@ -98,7 +100,7 @@ function resolveCraftStation(input: {
 
 router.get("/recipes", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  if (!requireProductionAuth(identity, res)) return;
+  if (!checkProductionAuth(identity, res)) return;
   const tick = runtimeTick();
   if (!tick) return void res.status(503).json({ ok: false, error: "runtime_tick_unavailable" });
 
@@ -123,7 +125,7 @@ router.get("/recipes", async (req, res) => {
 
 router.post("/craft", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  if (!requireProductionAuth(identity, res)) return;
+  if (!checkProductionAuth(identity, res)) return;
   const recipeId = parseId(req.body?.recipeId);
   const stationId = req.body?.stationId === undefined ? undefined : parseId(req.body.stationId);
   const requestId = parseRequestId(req.body?.requestId ?? req.body?.intentId);
