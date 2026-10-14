@@ -1,4 +1,5 @@
 import express, { Router, type Response } from "express";
+import { rateLimit } from "express-rate-limit";
 import { resolveHttpPlayerIdentity, assertPlayerIdentityAllowed } from "../auth/PlayerIdentityResolver.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { worldTickAdapter } from "../core/are/WorldTickThinShellAdapter.js";
@@ -18,6 +19,14 @@ import { npcQuestRuntime } from "../quests/NpcQuestRuntime.js";
 
 const router = Router();
 router.use(express.json());
+
+const craftingLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { ok: false, error: "rate_limit_exceeded" },
+});
 
 interface RuntimeTickContext {
   readonly tick: number;
@@ -98,7 +107,7 @@ function resolveCraftStation(input: {
   return { station };
 }
 
-router.get("/recipes", async (req, res) => {
+router.get("/recipes", craftingLimiter, async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
   if (!checkProductionAuth(identity, res)) return;
   const tick = runtimeTick();
@@ -123,7 +132,7 @@ router.get("/recipes", async (req, res) => {
   }
 });
 
-router.post("/craft", async (req, res) => {
+router.post("/craft", craftingLimiter, async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
   if (!checkProductionAuth(identity, res)) return;
   const recipeId = parseId(req.body?.recipeId);
