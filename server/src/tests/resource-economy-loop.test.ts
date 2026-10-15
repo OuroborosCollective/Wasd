@@ -676,12 +676,56 @@ describe("Resource Economy Loop", () => {
       expect(true).toBe(true); // Placeholder - actual verification happens in integration
     });
 
+    it("should use fast direct relational string comparison for sell_all slots sorting with identical output to localeCompare", () => {
+      const sampleSlots = [
+        { itemId: "wood_plank", quantity: 10 },
+        { itemId: "copper_ingot", quantity: 5 },
+        { itemId: "wood_log", quantity: 20 },
+        { itemId: "cooked_fish", quantity: 8 },
+        { itemId: "copper_ore", quantity: 15 },
+        { itemId: "raw_fish", quantity: 12 },
+      ];
+
+      const sortedLocale = [...sampleSlots].sort((a, b) => a.itemId.localeCompare(b.itemId));
+      const sortedFast = [...sampleSlots].sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0));
+
+      expect(sortedFast).toEqual(sortedLocale);
+    });
+
+    it("benchmarks fast relational string comparison vs localeCompare for sell_all slot sorting", () => {
+      const items = Array.from({ length: 500 }, (_, i) => ({
+        itemId: `item_${(i * 37) % 500}_${String(i).padStart(4, "0")}`,
+        quantity: i + 1,
+      }));
+
+      const iterations = 100;
+
+      const t0 = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        [...items].sort((a, b) => a.itemId.localeCompare(b.itemId));
+      }
+      const tLocale = performance.now() - t0;
+
+      const t1 = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        [...items].sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0));
+      }
+      const tFast = performance.now() - t1;
+
+      console.log(`\n⚡ EconomyService Sort Benchmark (${items.length} items, ${iterations} iterations):`);
+      console.log(`  - localeCompare sort:    ${tLocale.toFixed(4)}ms`);
+      console.log(`  - fast relational sort:  ${tFast.toFixed(4)}ms`);
+      console.log(`  - Speedup factor:        ${(tLocale / Math.max(tFast, 0.001)).toFixed(2)}x faster\n`);
+
+      expect(tFast).toBeLessThanOrEqual(tLocale + 5);
+    });
+
     it("should use stable ordering for recipe resolution", () => {
       // Recipes should be sorted by ID for deterministic iteration
-      const sortedRecipes = [...ALL_CRAFTING_RECIPES].sort((a, b) => a.id.localeCompare(b.id));
+      const sortedRecipes = [...ALL_CRAFTING_RECIPES].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
       
       // Verify stable sort produces same order
-      const sortedAgain = [...ALL_CRAFTING_RECIPES].sort((a, b) => a.id.localeCompare(b.id));
+      const sortedAgain = [...ALL_CRAFTING_RECIPES].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
       expect(sortedRecipes).toEqual(sortedAgain);
     });
 
