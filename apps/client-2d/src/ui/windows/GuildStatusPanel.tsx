@@ -20,7 +20,9 @@ export function GuildStatusPanel({ snapshot }: GuildStatusPanelProps) {
         data-testid="guild-panel-waiting"
       >
         <article className="stitch-info" role="status" aria-live="polite">
-          <small>Guild Sync</small>
+          <small>
+            <span aria-hidden="true">⏳ </span>Guild Sync
+          </small>
           <b>waiting for server snapshot</b>
         </article>
       </div>
@@ -36,11 +38,15 @@ export function GuildStatusPanel({ snapshot }: GuildStatusPanelProps) {
         data-testid="guild-panel-empty"
       >
         <article className="stitch-info">
-          <small>Guild</small>
+          <small>
+            <span aria-hidden="true">🏰 </span>Guild
+          </small>
           <b>unclaimed</b>
         </article>
         <article className="stitch-info">
-          <small>Village Rights</small>
+          <small>
+            <span aria-hidden="true">🏘️ </span>Village Rights
+          </small>
           <b>requires 50 members</b>
         </article>
       </div>
@@ -55,19 +61,27 @@ export function GuildStatusPanel({ snapshot }: GuildStatusPanelProps) {
       data-testid="guild-panel-live"
     >
       <article className="stitch-info">
-        <small>Guild</small>
+        <small>
+          <span aria-hidden="true">🏰 </span>Guild
+        </small>
         <b>{guild.name ?? guild.id}</b>
       </article>
       <article className="stitch-info">
-        <small>Members</small>
+        <small>
+          <span aria-hidden="true">👥 </span>Members
+        </small>
         <b>{guild.memberCount}</b>
       </article>
       <article className="stitch-info">
-        <small>Rank</small>
+        <small>
+          <span aria-hidden="true">⭐ </span>Rank
+        </small>
         <b>{guild.rank ?? "member"}</b>
       </article>
       <article className="stitch-info">
-        <small>Village Eligible</small>
+        <small>
+          <span aria-hidden="true">🏘️ </span>Village Eligible
+        </small>
         <b>{guild.villageEligible ? "yes" : "no"}</b>
       </article>
     </div>
