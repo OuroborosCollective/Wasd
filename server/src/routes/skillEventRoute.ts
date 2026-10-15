@@ -15,7 +15,7 @@
  */
 
 import express, { Router } from "express";
-import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
+import { resolveHttpPlayerIdentity, assertPlayerIdentityAllowed } from "../auth/PlayerIdentityResolver.js";
 import { getSkillProgressionService } from "../skills/skillRuntime.js";
 import type { SkillId } from "../skills/SkillTypes.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
@@ -59,7 +59,9 @@ function parseXpAmount(value: unknown): number | null {
 router.post("/event", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
 
-  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+  try {
+    assertPlayerIdentityAllowed(identity);
+  } catch {
     res.status(401).json({
       ok: false,
       error: "authenticated_player_required",
@@ -120,7 +122,9 @@ router.post("/event", async (req, res) => {
 router.get("/state", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
 
-  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+  try {
+    assertPlayerIdentityAllowed(identity);
+  } catch {
     res.status(401).json({
       ok: false,
       error: "authenticated_player_required",
