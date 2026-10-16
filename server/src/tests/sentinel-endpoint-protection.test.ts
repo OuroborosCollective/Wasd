@@ -291,15 +291,15 @@ describe("Sentinel Endpoint Protection", () => {
   });
 
   describe("/api/leaderboard/refresh", () => {
-    it("allows refresh without token if no ADMIN_PANEL_TOKEN is configured", async () => {
+    it("denies refresh without token when no ADMIN_PANEL_TOKEN is configured (fail closed)", async () => {
       delete process.env.ADMIN_PANEL_TOKEN;
       delete process.env.AUTH_FALLBACK_PANEL_TOKEN;
       const app = express();
       app.use("/api/leaderboard", leaderboardRouter());
 
       const r = await request(app).post("/api/leaderboard/refresh");
-      expect(r.status).toBe(200);
-      expect(r.body.ok).toBe(true);
+      expect(r.status).toBe(403);
+      expect(r.body.error).toBe("forbidden");
     });
 
     it("denies refresh without token if ADMIN_PANEL_TOKEN is configured", async () => {
