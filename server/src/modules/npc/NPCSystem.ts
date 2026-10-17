@@ -382,18 +382,32 @@ export class NPCSystem {
             return idA < idB ? -1 : idA > idB ? 1 : 0;
         });
 
-        const playerContexts: PlayerPerceptionContext[] = sortedPlayers.map((player) => ({
-            id: player?.id != null && String(player.id).length > 0 ? String(player.id) : "unknown_player",
-            position: NPCSystem.vec3ForPerception(player?.position),
-            stealthLevel: Number.isFinite(Number(player?.stealthValue)) ? Number(player.stealthValue) : 0,
-            drift: NPCSystem.unit(player?.deltaDrift ?? player?.drift ?? player?.are?.deltaDrift ?? 0),
-            threat: NPCSystem.unit(player?.threat ?? player?.combatThreat ?? 0),
-        }));
+        // ⚡ Bolt Optimization: Single-pass player context construction & metric aggregation
+        // Pre-allocate array and accumulate sumDrift/sumThreat in 1 pass to avoid multiple .map() allocations and duplicate iterations per tick
+        const count = sortedPlayers.length;
+        const playerContexts: PlayerPerceptionContext[] = new Array(count);
+        let sumDrift = 0;
+        let sumThreat = 0;
+
+        for (let i = 0; i < count; i++) {
+            const player = sortedPlayers[i];
+            const drift = NPCSystem.unit(player?.deltaDrift ?? player?.drift ?? player?.are?.deltaDrift ?? 0);
+            const threat = NPCSystem.unit(player?.threat ?? player?.combatThreat ?? 0);
+            sumDrift += drift;
+            sumThreat += threat;
+            playerContexts[i] = {
+                id: player?.id != null && String(player.id).length > 0 ? String(player.id) : "unknown_player",
+                position: NPCSystem.vec3ForPerception(player?.position),
+                stealthLevel: Number.isFinite(Number(player?.stealthValue)) ? Number(player.stealthValue) : 0,
+                drift,
+                threat,
+            };
+        }
 
         const currentTick = Math.max(0, Math.trunc(Number.isFinite(Number(worldTime)) ? Number(worldTime) : 0));
-        const colonyUtility = NPCSystem.colonyUtilityFromPlayers(playerContexts);
-        const averageDrift = NPCSystem.average(playerContexts.map((player) => player.drift));
-        const averageThreat = NPCSystem.average(playerContexts.map((player) => player.threat));
+        const averageDrift = count > 0 ? sumDrift / count : 0;
+        const averageThreat = count > 0 ? sumThreat / count : 0;
+        const colonyUtility = count > 0 ? Math.max(0, Math.min(1, 1 - averageThreat)) : 0.5;
 
         for (const npc of this.cachedSortedNpcs) {
             if (npc.state === 'decomposition') continue;
