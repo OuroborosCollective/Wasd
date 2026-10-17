@@ -156,13 +156,27 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
   if (!isOpen) return null;
 
   return (
-    <div className="wow-inventory-overlay" role="dialog" aria-label="Crafting">
+    <div
+      className="wow-inventory-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Crafting"
+      aria-labelledby="crafting-window-title"
+    >
       <div className="wow-inventory-header">
-        <h2>CRAFTING</h2>
+        <h2 id="crafting-window-title">
+          <span aria-hidden="true">🔨 </span>CRAFTING
+        </h2>
         {onClose && (
-          <button className="wow-close-btn" onClick={onClose} aria-label="Close [ESC]" aria-keyshortcuts="Escape">
+          <button
+            className="wow-close-btn"
+            onClick={onClose}
+            aria-label="Close [ESC]"
+            aria-keyshortcuts="Escape"
+            title="Close crafting panel [ESC]"
+          >
             <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
-            ✕
+            <span aria-hidden="true">✕</span>
           </button>
         )}
       </div>
@@ -170,10 +184,12 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
       <div className="char-content">
         {snapshot.status !== "live" ? (
           <div className="crafting-empty" role="status">
-            Crafting {snapshot.status}. Actions remain blocked until a newer server revision arrives.
+            <span aria-hidden="true">⏳ </span>Crafting {snapshot.status}. Actions remain blocked until a newer server revision arrives.
           </div>
         ) : recipes.length === 0 ? (
-          <div className="crafting-empty"><p>No server crafting recipes available.</p></div>
+          <div className="crafting-empty">
+            <p><span aria-hidden="true">📜 </span>No server crafting recipes available.</p>
+          </div>
         ) : (
           <div className="crafting-list">
             {recipes.map((recipe) => {
@@ -199,11 +215,11 @@ export function CraftingWindow({ isOpen = true, onClose }: CraftingWindowProps) 
                   </div>
                   <div className="crafting-row__items">
                     <div className="crafting-row__ingredients">
-                      <span className="crafting-row__label">Input:</span>
+                      <span className="crafting-row__label"><span aria-hidden="true">📥 </span>Input:</span>
                       <span>{recipe.ingredients.map((item) => `${item.quantity}× ${item.itemId}`).join(", ")}</span>
                     </div>
                     <div className="crafting-row__outputs">
-                      <span className="crafting-row__label">Output:</span>
+                      <span className="crafting-row__label"><span aria-hidden="true">📦 </span>Output:</span>
                       <span>{recipe.outputs.map((item) => `${item.quantity}× ${item.itemId}`).join(", ")}</span>
                     </div>
                   </div>
