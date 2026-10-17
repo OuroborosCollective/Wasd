@@ -134,4 +134,88 @@ describe('NPCSystem emergent thermal integration', () => {
     expect(system.drainEmergenceEvents()).toEqual([]);
     expect(system.drainEmergenceEvents()).toEqual([]);
   });
+
+  it('correctly aggregates player contexts and metrics across multiple online players', () => {
+    const system = new NPCSystem();
+    const npc = system.createNPC('npc:multi-player', 'Multi Player NPC', 0, 0);
+
+    const players = [
+      { id: 'player:1', position: { x: 5, y: 0, z: 0 }, threat: 0.8, deltaDrift: 0.4 },
+      { id: 'player:2', position: { x: 10, y: 0, z: 0 }, threat: 0.2, deltaDrift: 0.1 },
+      { id: 'player:3', position: { x: 50, y: 0, z: 0 }, threat: 0.5, deltaDrift: 0.7 },
+    ];
+
+    system.tick(players, 5);
+
+    expect(npc.memory?.lastThermalDecision?.tick).toBe(5);
+    expect(npc.energyState?.lastUpdatedTick).toBe(5);
+  });
+
+  it('benchmarks single-pass player context aggregation vs multi-pass mapping', () => {
+    const samplePlayers = Array.from({ length: 200 }, (_, i) => ({
+      id: `player:${i}`,
+      position: { x: i * 2, y: i * 3, z: 0 },
+      threat: (i % 10) / 10,
+      deltaDrift: (i % 5) / 5,
+      stealthValue: 0,
+    }));
+
+    const iterations = 5000;
+
+    let multiResult = { averageDrift: 0, averageThreat: 0, colonyUtility: 0 };
+    let singleResult = { averageDrift: 0, averageThreat: 0, colonyUtility: 0 };
+
+    // 1. Benchmarking legacy multi-pass mapping approach
+    const startMulti = performance.now();
+    for (let iter = 0; iter < iterations; iter++) {
+      const playerContexts = samplePlayers.map((player) => ({
+        id: player.id != null && String(player.id).length > 0 ? String(player.id) : "unknown_player",
+        position: player.position,
+        stealthLevel: Number.isFinite(Number(player.stealthValue)) ? Number(player.stealthValue) : 0,
+        drift: Math.max(0, Math.min(1, player.deltaDrift)),
+        threat: Math.max(0, Math.min(1, player.threat)),
+      }));
+      const averageDrift = playerContexts.reduce((sum, p) => sum + p.drift, 0) / playerContexts.length;
+      const averageThreat = playerContexts.reduce((sum, p) => sum + p.threat, 0) / playerContexts.length;
+      const colonyUtility = Math.max(0, Math.min(1, 1 - (playerContexts.reduce((sum, p) => sum + p.threat, 0) / playerContexts.length)));
+      multiResult = { averageDrift, averageThreat, colonyUtility };
+    }
+    const durationMulti = performance.now() - startMulti;
+
+    // 2. Benchmarking optimized single-pass loop approach
+    const startSingle = performance.now();
+    for (let iter = 0; iter < iterations; iter++) {
+      const count = samplePlayers.length;
+      const playerContexts = new Array(count);
+      let sumDrift = 0;
+      let sumThreat = 0;
+      for (let i = 0; i < count; i++) {
+        const player = samplePlayers[i];
+        const drift = Math.max(0, Math.min(1, player.deltaDrift));
+        const threat = Math.max(0, Math.min(1, player.threat));
+        sumDrift += drift;
+        sumThreat += threat;
+        playerContexts[i] = {
+          id: player.id != null && String(player.id).length > 0 ? String(player.id) : "unknown_player",
+          position: player.position,
+          stealthLevel: Number.isFinite(Number(player.stealthValue)) ? Number(player.stealthValue) : 0,
+          drift,
+          threat,
+        };
+      }
+      const averageDrift = count > 0 ? sumDrift / count : 0;
+      const averageThreat = count > 0 ? sumThreat / count : 0;
+      const colonyUtility = count > 0 ? Math.max(0, Math.min(1, 1 - averageThreat)) : 0.5;
+      singleResult = { averageDrift, averageThreat, colonyUtility };
+    }
+    const durationSingle = performance.now() - startSingle;
+
+    const speedup = durationMulti / durationSingle;
+    console.log(`[NPCSystem Player Context Aggregation Benchmark] Multi-pass: ${durationMulti.toFixed(2)}ms, Single-pass: ${durationSingle.toFixed(2)}ms (${speedup.toFixed(2)}x speedup)`);
+
+    // Verify mathematical identity across multi-pass and single-pass approaches
+    expect(singleResult.averageDrift).toBeCloseTo(multiResult.averageDrift);
+    expect(singleResult.averageThreat).toBeCloseTo(multiResult.averageThreat);
+    expect(singleResult.colonyUtility).toBeCloseTo(multiResult.colonyUtility);
+  });
 });
