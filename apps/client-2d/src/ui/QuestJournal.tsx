@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import type { QuestState } from "../game/quests";
 
 interface Props {
@@ -9,10 +9,24 @@ interface Props {
 }
 
 export function QuestJournal({ open, quests, onClose, onTrack }: Props) {
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="quest-journal-modal-title"
       style={{
         position: "fixed",
         left: "50%",
@@ -38,12 +52,16 @@ export function QuestJournal({ open, quests, onClose, onTrack }: Props) {
           marginBottom: 14
         }}
       >
-        <h2 style={{ margin: 0, fontSize: 18 }}>Quest Journal</h2>
+        <h2 id="quest-journal-modal-title" style={{ margin: 0, fontSize: 18, display: "flex", alignItems: "center", gap: 8 }}>
+          <span aria-hidden="true">📜</span>
+          Quest Journal
+        </h2>
         <button
           type="button"
           className="wow-close-btn"
           onClick={onClose}
-          aria-label="Close [ESC]"
+          aria-label="Close quest journal [ESC]"
+          title="Close quest journal [ESC]"
           aria-keyshortcuts="Escape"
           style={{
             borderRadius: 4,
@@ -53,19 +71,21 @@ export function QuestJournal({ open, quests, onClose, onTrack }: Props) {
           }}
         >
           <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
-          ✕
+          <span aria-hidden="true">✕</span>
         </button>
       </header>
 
       <div style={{ display: "grid", gap: 12 }}>
         {quests.length === 0 ? (
           <p style={{ opacity: 0.6, fontStyle: "italic", textAlign: "center", margin: "20px 0" }}>
+            <span aria-hidden="true">📜 </span>
             No active quests in journal.
           </p>
         ) : (
           quests.map((quest) => (
             <article
               key={quest.id}
+              aria-label={`Quest: ${quest.title}`}
               style={{
                 padding: 12,
                 borderRadius: 14,
@@ -151,6 +171,7 @@ export function QuestJournal({ open, quests, onClose, onTrack }: Props) {
                           aria-valuemin={0}
                           aria-valuemax={objective.required}
                           aria-valuetext={`${objective.current} of ${objective.required} ${objective.label}`}
+                          title={`${objective.label}: ${objective.current}/${objective.required} (${progress}%)`}
                           style={{
                             height: 8,
                             background: "rgba(255, 255, 255, 0.1)",
@@ -179,6 +200,8 @@ export function QuestJournal({ open, quests, onClose, onTrack }: Props) {
                 <button
                   type="button"
                   onClick={() => onTrack(quest.id)}
+                  aria-label={`Track ${quest.title}`}
+                  title={`Track ${quest.title}`}
                   style={{
                     marginTop: 8,
                     padding: "4px 12px",
