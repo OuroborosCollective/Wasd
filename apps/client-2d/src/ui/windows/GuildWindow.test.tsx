@@ -40,13 +40,25 @@ describe("GuildWindow UX & Accessibility", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders guild information correctly", async () => {
+  it("renders guild information correctly with modal ARIA accessibility attributes", async () => {
     await act(async () => {
       const root = createRoot(container!);
       root.render(<GuildWindow isOpen={true} />);
     });
 
-    expect(container!.textContent).toContain("GUILD");
+    const overlay = container!.querySelector(".wow-inventory-overlay");
+    expect(overlay).toBeTruthy();
+    expect(overlay!.getAttribute("role")).toBe("dialog");
+    expect(overlay!.getAttribute("aria-modal")).toBe("true");
+    expect(overlay!.getAttribute("aria-labelledby")).toBe("guild-window-title");
+
+    const headerTitle = container!.querySelector("#guild-window-title");
+    expect(headerTitle).toBeTruthy();
+    expect(headerTitle!.textContent).toBe("GUILD");
+
+    const emblem = container!.querySelector(".guild-emblem");
+    expect(emblem!.getAttribute("aria-hidden")).toBe("true");
+
     expect(container!.textContent).toContain("Ouroboros Knights");
     expect(container!.textContent).toContain("Level 10");
     expect(container!.textContent).toContain("5,000");
@@ -54,7 +66,7 @@ describe("GuildWindow UX & Accessibility", () => {
     expect(container!.textContent).toContain("Seraphina");
   });
 
-  it("calls onClose when close button is clicked", async () => {
+  it("calls onClose when close button is clicked and has proper title tooltip", async () => {
     const handleClose = vi.fn();
     await act(async () => {
       const root = createRoot(container!);
@@ -65,6 +77,7 @@ describe("GuildWindow UX & Accessibility", () => {
     expect(closeBtn).toBeTruthy();
     expect(closeBtn.getAttribute("aria-label")).toBe("Close [ESC]");
     expect(closeBtn.getAttribute("aria-keyshortcuts")).toBe("Escape");
+    expect(closeBtn.getAttribute("title")).toBe("Close guild panel [ESC]");
 
     closeBtn.click();
     expect(handleClose).toHaveBeenCalledTimes(1);

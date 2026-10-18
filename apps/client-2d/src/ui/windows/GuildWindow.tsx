@@ -154,13 +154,25 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
   const onlineCount = members.filter(m => m.online).length;
 
   return (
-    <div className="wow-inventory-overlay" role="dialog" aria-label="Guild">
+    <div
+      className="wow-inventory-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Guild"
+      aria-labelledby="guild-window-title"
+    >
       <div className="wow-inventory-header">
-        <h2>GUILD</h2>
+        <h2 id="guild-window-title">GUILD</h2>
         {onClose && (
-          <button className="wow-close-btn" onClick={onClose} aria-label="Close [ESC]" aria-keyshortcuts="Escape">
+          <button
+            className="wow-close-btn"
+            onClick={onClose}
+            aria-label="Close [ESC]"
+            aria-keyshortcuts="Escape"
+            title="Close guild panel [ESC]"
+          >
             <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
-            ✕
+            <span aria-hidden="true">✕</span>
           </button>
         )}
       </div>
@@ -168,7 +180,7 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
       <div className="guild-content">
         {/* Guild Header */}
         <section className="guild-section guild-header-section">
-          <div className="guild-emblem">🏰</div>
+          <div className="guild-emblem" aria-hidden="true">🏰</div>
           <div className="guild-info">
             <h3 className="guild-name">{snapshot?.guildName ?? "No Guild"}</h3>
             <div className="guild-meta">
@@ -189,7 +201,7 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
 
         {/* Members List */}
         <section className="guild-section">
-          <h3>Members</h3>
+          <h3><span aria-hidden="true">👥 </span>Members</h3>
           <div className="guild-member-list">
             {members.length === 0 ? (
               <div className="guild-empty-state">No guild members</div>
@@ -211,7 +223,7 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
 
         {/* Quick Actions */}
         <section className="guild-section guild-actions-section">
-          <h3>Actions</h3>
+          <h3><span aria-hidden="true">⚡ </span>Actions</h3>
           <div className="guild-actions-grid">
             <button
               className="guild-action-btn"
@@ -219,7 +231,7 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
               title="Invite (Coming Soon)"
               aria-label="Invite (Coming Soon)"
             >
-              📢 Invite
+              <span aria-hidden="true">📢 </span>Invite
             </button>
             <button
               className="guild-action-btn"
@@ -227,7 +239,7 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
               title="Guild Info (Coming Soon)"
               aria-label="Guild Info (Coming Soon)"
             >
-              📜 Guild Info
+              <span aria-hidden="true">📜 </span>Guild Info
             </button>
             <button
               className="guild-action-btn"
@@ -235,7 +247,7 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
               title="Treasury (Coming Soon)"
               aria-label="Treasury (Coming Soon)"
             >
-              💰 Treasury
+              <span aria-hidden="true">💰 </span>Treasury
             </button>
             <button
               className="guild-action-btn"
@@ -243,7 +255,7 @@ export function GuildWindow({ isOpen = true, onClose }: GuildWindowProps) {
               title="War (Coming Soon)"
               aria-label="War (Coming Soon)"
             >
-              ⚔️ War
+              <span aria-hidden="true">⚔️ </span>War
             </button>
           </div>
         </section>
