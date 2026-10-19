@@ -31,7 +31,7 @@ describe("SyncStateOverlay UX & Accessibility", () => {
     expect(container!.textContent).toBe("");
   });
 
-  it("renders status overlay with proper ARIA attributes and title tooltip when waiting for snapshot", async () => {
+  it("renders status overlay with proper ARIA attributes, category icon, and title tooltip when waiting for snapshot", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -42,14 +42,18 @@ describe("SyncStateOverlay UX & Accessibility", () => {
 
     const overlay = container!.querySelector(".sync-state-overlay");
     expect(overlay).toBeTruthy();
-    expect(overlay!.textContent).toBe("Waiting for server snapshot");
+    expect(overlay!.textContent).toContain("Waiting for server snapshot");
     expect(overlay!.getAttribute("role")).toBe("status");
     expect(overlay!.getAttribute("aria-live")).toBe("polite");
     expect(overlay!.getAttribute("aria-label")).toBe("Network Synchronization State");
     expect(overlay!.getAttribute("title")).toBe("Network Synchronization State: Waiting for server snapshot");
+
+    const iconSpan = overlay!.querySelector("span[aria-hidden='true']");
+    expect(iconSpan).toBeTruthy();
+    expect(iconSpan!.textContent).toBe("⏳");
   });
 
-  it("renders status overlay when snapshot is stale", async () => {
+  it("renders status overlay with proper category icon when snapshot is stale", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -60,7 +64,11 @@ describe("SyncStateOverlay UX & Accessibility", () => {
 
     const overlay = container!.querySelector(".sync-state-overlay");
     expect(overlay).toBeTruthy();
-    expect(overlay!.textContent).toBe("Resync required");
+    expect(overlay!.textContent).toContain("Resync required");
     expect(overlay!.getAttribute("title")).toBe("Network Synchronization State: Resync required");
+
+    const iconSpan = overlay!.querySelector("span[aria-hidden='true']");
+    expect(iconSpan).toBeTruthy();
+    expect(iconSpan!.textContent).toBe("🛑");
   });
 });
