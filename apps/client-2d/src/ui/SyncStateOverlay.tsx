@@ -21,11 +21,26 @@ function labelForState(state: SyncFreshnessState): string {
   }
 }
 
+function iconForState(state: SyncFreshnessState): string {
+  switch (state) {
+    case "waiting":
+      return "⏳";
+    case "fresh":
+    case "stale_short":
+      return "⚡";
+    case "stale_medium":
+      return "⚠️";
+    case "stale_long":
+      return "🛑";
+  }
+}
+
 export function SyncStateOverlay({ latestServerTick, renderTick }: SyncStateOverlayProps): React.ReactElement | null {
   const state = classifySyncFreshness(latestServerTick, renderTick);
   if (state === "fresh") return null;
 
   const label = labelForState(state);
+  const icon = iconForState(state);
 
   return (
     <aside
@@ -35,6 +50,9 @@ export function SyncStateOverlay({ latestServerTick, renderTick }: SyncStateOver
       aria-label="Network Synchronization State"
       title={`Network Synchronization State: ${label}`}
     >
+      <span aria-hidden="true" style={{ marginRight: "0.4rem" }}>
+        {icon}
+      </span>
       {label}
     </aside>
   );
