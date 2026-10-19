@@ -65,7 +65,8 @@ export function compressCausalCatchup(events: readonly CausalCatchupEventInput[]
     (events ?? [])
       .map(normalizeEvent)
       .filter((event): event is CausalCatchupEvent => event !== null)
-      .sort((a, b) => a.tick - b.tick || b.significancePerMille - a.significancePerMille || a.eventId.localeCompare(b.eventId)),
+      // ⚡ Bolt Optimization: Replace slow localeCompare with direct string comparison for event IDs
+      .sort((a, b) => a.tick - b.tick || b.significancePerMille - a.significancePerMille || (a.eventId < b.eventId ? -1 : a.eventId > b.eventId ? 1 : 0)),
   );
 
   if (normalized.length === 0) {
