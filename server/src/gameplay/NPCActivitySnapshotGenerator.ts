@@ -14,7 +14,10 @@ export function generateNPCActivitySnapshot(input: NPCActivitySnapshotInput): NP
   const { tick, entities } = input;
   const entries: NPCActivityEntry[] = [];
   const allMemoryEvents: ActivityMemoryEvent[] = [];
-  const sortedEntities = [...entities].sort((a, b) => a.chunkKey.localeCompare(b.chunkKey) || a.entityId.localeCompare(b.entityId));
+  // ⚡ Bolt Optimization: Replace slow localeCompare with direct string comparisons for entity sorting
+  const sortedEntities = [...entities].sort((a, b) =>
+    a.chunkKey < b.chunkKey ? -1 : a.chunkKey > b.chunkKey ? 1 : a.entityId < b.entityId ? -1 : a.entityId > b.entityId ? 1 : 0
+  );
 
   for (const entity of sortedEntities) {
     const resolved = resolveActivity(entity);
@@ -53,7 +56,12 @@ export function generateNPCActivitySnapshot(input: NPCActivitySnapshotInput): NP
 }
 
 function sortActivityEntries(entries: NPCActivityEntry[]): NPCActivityEntry[] {
-  return [...entries].sort((a, b) => a.chunkKey.localeCompare(b.chunkKey) || a.entityId.localeCompare(b.entityId) || a.activity.localeCompare(b.activity));
+  // ⚡ Bolt Optimization: Replace slow localeCompare with direct string comparisons for entry sorting
+  return [...entries].sort((a, b) =>
+    a.chunkKey < b.chunkKey ? -1 : a.chunkKey > b.chunkKey ? 1 :
+    a.entityId < b.entityId ? -1 : a.entityId > b.entityId ? 1 :
+    a.activity < b.activity ? -1 : a.activity > b.activity ? 1 : 0
+  );
 }
 
 function generateSnapshotHash(tick: number, entries: NPCActivityEntry[]): string {

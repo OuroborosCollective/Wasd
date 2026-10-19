@@ -35,6 +35,7 @@ export function toLiveInventoryItems(items: readonly InventorySnapshotSourceItem
   return Object.freeze(
     [...merged.entries()]
       .map(([itemId, quantity]) => Object.freeze({ itemId, quantity }))
-      .sort((a, b) => a.itemId.localeCompare(b.itemId))
+      // ⚡ Bolt Optimization: Replace slow localeCompare with direct string comparison for item IDs
+      .sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0))
   );
 }
