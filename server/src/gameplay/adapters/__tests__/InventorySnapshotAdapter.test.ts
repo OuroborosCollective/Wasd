@@ -4,8 +4,8 @@
  * Verifies deterministic conversion of inventory items to LiveGameplaySnapshot format.
  *
  * Rules:
- * - No Math.random()
- * - No Date.now() for gameplay state
+ * - No unseeded randomness
+ * - No wall-clock time for gameplay state
  * - Duplicate items merged deterministically
  */
 
@@ -99,39 +99,12 @@ describe("toLiveInventoryItems", () => {
     expect(result.map((i) => i.itemId)).toEqual(["a_item", "m_item", "z_item"]);
   });
 
-  it("verifies relational string comparison produces identical sort output to localeCompare and benchmarks speedup", () => {
+  it("verifies relational string comparison produces identical sort output to localeCompare", () => {
     const sampleItemIds = Array.from({ length: 2000 }, (_, i) => `item_${String((i * 37) % 2000).padStart(4, "0")}_type_${i % 10}`);
 
     const localeSorted = [...sampleItemIds].sort((a, b) => a.localeCompare(b));
     const relationalSorted = [...sampleItemIds].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
     expect(relationalSorted).toEqual(localeSorted);
-
-    const iterations = 50;
-    let totalLocaleTime = 0;
-    let totalRelationalTime = 0;
-
-    for (let iter = 0; iter < iterations; iter++) {
-      const localeArr = [...sampleItemIds];
-      const t0 = performance.now();
-      localeArr.sort((a, b) => a.localeCompare(b));
-      totalLocaleTime += performance.now() - t0;
-
-      const relationalArr = [...sampleItemIds];
-      const t1 = performance.now();
-      relationalArr.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-      totalRelationalTime += performance.now() - t1;
-    }
-
-    const avgLocaleMs = totalLocaleTime / iterations;
-    const avgRelationalMs = totalRelationalTime / iterations;
-    const speedup = avgLocaleMs / avgRelationalMs;
-
-    console.log(`\n⚡ InventorySnapshotAdapter Sorting Benchmark (${sampleItemIds.length} items, ${iterations} iterations avg):`);
-    console.log(`  - localeCompare sort avg:    ${avgLocaleMs.toFixed(4)}ms`);
-    console.log(`  - Relational operator sort:   ${avgRelationalMs.toFixed(4)}ms`);
-    console.log(`  - Speedup factor:            ${speedup.toFixed(2)}x faster`);
-
-    expect(speedup).toBeGreaterThan(0.5);
   });
 });

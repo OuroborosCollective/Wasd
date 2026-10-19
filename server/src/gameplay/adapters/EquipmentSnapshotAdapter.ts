@@ -4,8 +4,8 @@
  * Converts various equipment source formats to LiveGameplayEquipmentSlot[].
  *
  * Rules:
- * - No Math.random()
- * - No Date.now() for gameplay state
+ * - No unseeded randomness
+ * - No wall-clock time for gameplay state
  * - Deterministic sort by slot
  */
 

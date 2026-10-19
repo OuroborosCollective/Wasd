@@ -5,8 +5,8 @@
  * Merges duplicate item IDs deterministically.
  *
  * Rules:
- * - No Math.random()
- * - No Date.now() for gameplay state
+ * - No unseeded randomness
+ * - No wall-clock time for gameplay state
  * - Deterministic sort by itemId
  */
 
