@@ -46,7 +46,7 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
         aria-busy="true"
         aria-live="polite"
       >
-        <small>Quest Sync</small>
+        <small><span aria-hidden="true">⏳ </span>Quest Sync</small>
         <strong>Waiting for server snapshot…</strong>
       </aside>
     );
@@ -60,7 +60,7 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
         aria-label="Quest preview"
         aria-busy="false"
       >
-        <small>Quest Preview</small>
+        <small><span aria-hidden="true">📜 </span>Quest Preview</small>
         <strong>No active quest</strong>
         <button
           type="button"
@@ -83,13 +83,13 @@ export function QuestPreviewPanel({ snapshot, onOpenJournal }: QuestPreviewPanel
       aria-busy="false"
     >
       <header>
-        <small>{quest.status}</small>
+        <small><span aria-hidden="true">📜 </span>{quest.status}</small>
         <strong>{quest.title}</strong>
       </header>
 
       {objective && (
         <div className="quest-preview-objective">
-          <span>{objective.label}</span>
+          <span><span aria-hidden="true">🎯 </span>{objective.label}</span>
           <b>
             {objective.current}/{objective.required}
             {objective.completed ? " ✓" : ""}
