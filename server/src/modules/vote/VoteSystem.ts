@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { VoteBannerStore } from "./VoteBannerStore.js";
 import { VoteProviderRegistry } from "./VoteProviderRegistry.js";
 import type {
@@ -60,6 +60,12 @@ function asFiniteNumber(value: unknown, fallback = 0): number {
 
 function toMs(hours: number): number {
   return Math.max(1, hours) * 60 * 60 * 1000;
+}
+
+function safeEqualText(a: string, b: string): boolean {
+  const left = createHash("sha256").update(a, "utf8").digest();
+  const right = createHash("sha256").update(b, "utf8").digest();
+  return left.length === right.length && timingSafeEqual(left, right);
 }
 
 export class VoteSystem {
@@ -502,7 +508,7 @@ export class VoteSystem {
       const progress = this.ensurePlayerVoteProgress(player);
       const session = progress.pendingSessions.find((s) => s.id === sessionId);
       if (!session) continue;
-      if (session.callbackToken !== token) {
+      if (!safeEqualText(session.callbackToken, token)) {
         return { ok: false, reason: "Invalid callback token." };
       }
       if (session.expiresAt <= now) {
