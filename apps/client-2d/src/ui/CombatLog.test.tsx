@@ -63,7 +63,7 @@ describe("CombatLog UX & Accessibility", () => {
     expect(logContainer?.getAttribute("aria-relevant")).toBe("additions");
   });
 
-  it("renders entries with role status, aria-label, and title tooltips", async () => {
+  it("renders entries with role status, aria-label, title tooltips, and hidden visual category icons", async () => {
     await act(async () => {
       const root = createRoot(container!);
       root.render(<CombatLog entries={mockEntries} />);
@@ -73,13 +73,19 @@ describe("CombatLog UX & Accessibility", () => {
     expect(statusItems.length).toBe(2);
 
     const firstItem = statusItems[0];
-    expect(firstItem.textContent).toBe("Damage 42");
+    expect(firstItem.textContent).toContain("Damage 42");
     expect(firstItem.getAttribute("aria-label")).toBe("Combat event: Damage 42");
     expect(firstItem.getAttribute("title")).toBe("Damage 42");
+    const firstIcon = firstItem.querySelector('[aria-hidden="true"]');
+    expect(firstIcon).toBeTruthy();
+    expect(firstIcon?.textContent).toBe("⚔️");
 
     const secondItem = statusItems[1];
-    expect(secondItem.textContent).toBe("Heal 15");
+    expect(secondItem.textContent).toContain("Heal 15");
     expect(secondItem.getAttribute("aria-label")).toBe("Combat event: Heal 15");
     expect(secondItem.getAttribute("title")).toBe("Heal 15");
+    const secondIcon = secondItem.querySelector('[aria-hidden="true"]');
+    expect(secondIcon).toBeTruthy();
+    expect(secondIcon?.textContent).toBe("💚");
   });
 });
