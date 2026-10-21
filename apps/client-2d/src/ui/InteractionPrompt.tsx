@@ -9,6 +9,8 @@ interface Props {
 export function InteractionPrompt({ target, onInteract }: Props) {
   if (!target) return null;
 
+  const categoryIcon = target.kind === "npc" ? "💬" : "📦";
+
   return (
     <button
       type="button"
@@ -39,6 +41,7 @@ export function InteractionPrompt({ target, onInteract }: Props) {
       <kbd className="cz-kbd" aria-hidden="true">
         E
       </kbd>
+      <span aria-hidden="true">{categoryIcon}</span>
       <span>{target.label}</span>
     </button>
   );
