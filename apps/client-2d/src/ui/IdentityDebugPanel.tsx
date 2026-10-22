@@ -57,26 +57,29 @@ export function IdentityDebugPanel({
       }}
     >
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 id="identity-debug-title" style={{ margin: 0, fontSize: 16 }}>
+        <h2 id="identity-debug-title" style={{ margin: 0, fontSize: 16, display: "flex", alignItems: "center", gap: 6 }}>
+          <span aria-hidden="true">🛡️</span>
           Identity Debug [P7]
         </h2>
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close identity debug panel"
-          title="Close identity debug panel"
-          style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 16 }}
+          aria-label="Close identity debug panel [ESC]"
+          title="Close identity debug panel [ESC]"
+          aria-keyshortcuts="Escape"
+          style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 16, display: "inline-flex", alignItems: "center", gap: 6 }}
         >
-          ✕
+          <kbd aria-hidden="true" style={{ fontSize: 10, padding: "2px 4px", borderRadius: 4, background: "rgba(255,255,255,0.12)", fontFamily: "inherit" }}>ESC</kbd>
+          <span aria-hidden="true">✕</span>
         </button>
       </header>
 
       <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
-        <div>Status: {identityStatus}</div>
-        <div>Stable Guest: {shortIdentity(stableGuestId)}</div>
-        <div>Session Token: {sessionToken ? shortIdentity(sessionToken) : "none"}</div>
-        <div>Player ID: {shortIdentity(playerId)}</div>
-        <div>Character ID: {characterId ? shortIdentity(characterId) : "none"}</div>
+        <div><span aria-hidden="true">⚡ </span>Status: {identityStatus}</div>
+        <div><span aria-hidden="true">👤 </span>Stable Guest: {shortIdentity(stableGuestId)}</div>
+        <div><span aria-hidden="true">🔑 </span>Session Token: {sessionToken ? shortIdentity(sessionToken) : "none"}</div>
+        <div><span aria-hidden="true">🆔 </span>Player ID: {shortIdentity(playerId)}</div>
+        <div><span aria-hidden="true">🎮 </span>Character ID: {characterId ? shortIdentity(characterId) : "none"}</div>
       </div>
 
       <button
@@ -91,9 +94,13 @@ export function IdentityDebugPanel({
           border: "1px solid rgba(255,65,108,.4)",
           background: "rgba(255,65,108,.16)",
           color: "#fff",
-          cursor: "pointer"
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6
         }}
       >
+        <span aria-hidden="true">🔄</span>
         Reset Local Identity
       </button>
     </div>

@@ -45,10 +45,14 @@ describe("IdentityDebugPanel Accessibility & Interaction", () => {
 
     const title = container!.querySelector("#identity-debug-title");
     expect(title).toBeTruthy();
-    expect(title!.textContent?.trim()).toBe("Identity Debug [P7]");
+    expect(title!.textContent).toContain("Identity Debug [P7]");
+
+    // Verify aria-hidden visual category icons
+    const ariaHiddenSpans = container!.querySelectorAll('span[aria-hidden="true"]');
+    expect(ariaHiddenSpans.length).toBeGreaterThanOrEqual(7);
   });
 
-  it("renders accessible close button and handles click", async () => {
+  it("renders accessible close button with aria-keyshortcuts and handles click", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -59,9 +63,14 @@ describe("IdentityDebugPanel Accessibility & Interaction", () => {
       root.render(<IdentityDebugPanel {...defaultProps} onClose={onClose} />);
     });
 
-    const closeBtn = container!.querySelector('button[aria-label="Close identity debug panel"]');
+    const closeBtn = container!.querySelector('button[aria-label="Close identity debug panel [ESC]"]');
     expect(closeBtn).toBeTruthy();
-    expect(closeBtn!.getAttribute("title")).toBe("Close identity debug panel");
+    expect(closeBtn!.getAttribute("title")).toBe("Close identity debug panel [ESC]");
+    expect(closeBtn!.getAttribute("aria-keyshortcuts")).toBe("Escape");
+
+    const kbd = closeBtn!.querySelector('kbd[aria-hidden="true"]');
+    expect(kbd).toBeTruthy();
+    expect(kbd!.textContent).toBe("ESC");
 
     await act(async () => {
       (closeBtn as HTMLButtonElement).click();
