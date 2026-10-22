@@ -26,7 +26,7 @@ describe("TradeOverlay UX & Accessibility", () => {
     vendorManifest: 'millbrook_starter_vendor'
   };
 
-  it("renders container with region role and aria-label", async () => {
+  it("renders container with region role, aria-label, and aria-hidden decorative item icon", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -39,6 +39,11 @@ describe("TradeOverlay UX & Accessibility", () => {
     expect(region).toBeTruthy();
     expect(region!.getAttribute('role')).toBe('region');
     expect(region!.getAttribute('aria-label')).toBe('Trade Offer');
+
+    const icon = container!.querySelector('.trade-item-row strong span');
+    expect(icon).toBeTruthy();
+    expect(icon!.getAttribute('aria-hidden')).toBe('true');
+    expect(icon!.textContent).toBe('📦');
   });
 
   it("renders purchase button with proper initial ARIA attributes and tooltips", async () => {
