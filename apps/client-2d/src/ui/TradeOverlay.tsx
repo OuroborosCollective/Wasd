@@ -41,7 +41,10 @@ export function TradeOverlay({ payload }: Props) {
 
       <div className="trade-item-row">
         <div>
-          <strong>Starter Rations</strong>
+          <strong>
+            <span aria-hidden="true" style={{ marginRight: '6px' }}>📦</span>
+            Starter Rations
+          </strong>
           <span>5x supplies for the first paths around Millbrook.</span>
         </div>
         <button
