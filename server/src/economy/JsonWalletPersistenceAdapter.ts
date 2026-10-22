@@ -22,7 +22,8 @@ interface WalletFile {
 function stableFile(wallets: PersistedWalletState[]): WalletFile {
   return {
     schemaVersion: 1,
-    players: [...wallets].sort((a, b) => a.playerId.localeCompare(b.playerId)),
+    // Bolt: Optimized player sorting using fast direct relational string comparison instead of slow localeCompare
+    players: [...wallets].sort((a, b) => (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0)),
   };
 }
 

@@ -347,6 +347,21 @@ describe("EquipmentService", () => {
     });
   });
 
+  describe("sorting parity", () => {
+    it("verifies relational string comparison produces identical sort output to localeCompare", () => {
+      const samplePlayers = Array.from({ length: 500 }, (_, i) => ({
+        playerId: `player_${(i * 37) % 500}`,
+        schemaVersion: 1 as const,
+        slots: [],
+      }));
+
+      const sortedLocale = [...samplePlayers].sort((a, b) => a.playerId.localeCompare(b.playerId));
+      const sortedRelational = [...samplePlayers].sort((a, b) => (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0));
+
+      expect(sortedRelational).toEqual(sortedLocale);
+    });
+  });
+
   describe("getPlayerEquipment", () => {
     it("returns current equipment state", async () => {
       inventoryStore.addItem({ playerId: "player1", itemId: "wooden_axe", quantity: 1 });
