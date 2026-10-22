@@ -8,6 +8,7 @@ packages:
   - "portal"
   - "server"
   - "backend"
+minimumReleaseAge: 0
 allowBuilds:
   "@firebase/util": true
   "@google/genai": true
