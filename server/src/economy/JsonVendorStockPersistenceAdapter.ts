@@ -22,7 +22,8 @@ interface StockFile {
 function stableFile(vendors: PersistedVendorStockState[]): StockFile {
   return {
     schemaVersion: 1,
-    vendors: [...vendors].sort((a, b) => a.vendorId.localeCompare(b.vendorId)),
+    // Bolt: Optimized vendor sorting using fast direct relational string comparison instead of slow localeCompare
+    vendors: [...vendors].sort((a, b) => (a.vendorId < b.vendorId ? -1 : a.vendorId > b.vendorId ? 1 : 0)),
   };
 }
 

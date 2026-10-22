@@ -22,9 +22,10 @@ interface EquipmentFile {
 function stableFile(players: PersistedPlayerEquipmentState[]): EquipmentFile {
   return {
     schemaVersion: 1,
+    // Bolt: Optimized player sorting using fast direct relational string comparison instead of slow localeCompare
     players: [...players]
       .map((player) => createPersistedPlayerEquipmentState(player.playerId, player))
-      .sort((a, b) => a.playerId.localeCompare(b.playerId)),
+      .sort((a, b) => (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0)),
   };
 }
 
