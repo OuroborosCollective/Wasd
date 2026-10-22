@@ -20,6 +20,10 @@ allowBuilds:
   "sharp": true
   "ssh2": true
 minimumReleaseAgeExclude:
+  - '@fastify/busboy'
+  - 'caniuse-lite'
+  - 'multer'
+  - 'node-releases'
   - '@types/node'
   - 'nanoid'
   - 'uuid'
