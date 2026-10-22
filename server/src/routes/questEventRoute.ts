@@ -19,7 +19,10 @@ import {
   questProgressionStore,
   type QuestEvent,
 } from "../quests/QuestProgressionStore.js";
-import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
+import {
+  resolveHttpPlayerIdentity,
+  assertPlayerIdentityAllowed,
+} from "../auth/PlayerIdentityResolver.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
 import { getSkillProgressionService } from "../skills/skillRuntime.js";
@@ -68,20 +71,6 @@ const QUEST_REWARDS: Record<string, RewardSpec> = {
   },
 };
 
-function isGuestHttpAllowed(): boolean {
-  const allowGuest = !["0", "false", "no"].includes(
-    process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase() || "",
-  );
-  const allowDev = !["0", "false", "no"].includes(
-    process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || "",
-  );
-  return allowGuest || allowDev || process.env.ALLOW_DEV_PLAYER_ID === "true";
-}
-
-function rejectUnauthenticatedInLockedProduction(identity: { authenticated: boolean }): boolean {
-  return process.env.NODE_ENV === "production" && !identity.authenticated && !isGuestHttpAllowed();
-}
-
 function parseQuestId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const questId = value.trim();
@@ -92,7 +81,9 @@ function parseQuestId(value: unknown): string | null {
 questEventRouter.post("/claim-reward", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req as Parameters<typeof resolveHttpPlayerIdentity>[0]);
 
-  if (rejectUnauthenticatedInLockedProduction(identity)) {
+  try {
+    assertPlayerIdentityAllowed(identity);
+  } catch {
     res.status(401).json({
       ok: false,
       error: "authenticated_player_required",
@@ -211,7 +202,9 @@ questEventRouter.post("/event", async (req, res) => {
 
   const identity = resolveHttpPlayerIdentity(req as Parameters<typeof resolveHttpPlayerIdentity>[0]);
 
-  if (rejectUnauthenticatedInLockedProduction(identity)) {
+  try {
+    assertPlayerIdentityAllowed(identity);
+  } catch {
     res.status(401).json({
       ok: false,
       error: "authenticated_player_required",
