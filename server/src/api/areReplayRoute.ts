@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import express from "express";
 import { authRequestHandler } from "../middleware/authRequestHandler.js";
 import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
-import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
+import { adminRateLimiter, sensitiveWriteRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import type { WorldTick } from "../core/are/index.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { attachSovereignBillingBridge } from "../market/SovereignBillingBridge.js";
@@ -135,7 +135,7 @@ export function areReplayRouter(tick: WorldTick) {
     res.json(report);
   });
 
-  router.post("/governance/directives", express.json({ limit: "96kb" }), (req, res) => {
+  router.post("/governance/directives", sensitiveWriteRateLimiter, express.json({ limit: "96kb" }), (req, res) => {
     try {
       const directive = sovereignGovernance.propose({ ...req.body, tick: Number(tickContextProvider.getContext().tickId) });
       const report = sovereignGovernance.getReport(Number(tickContextProvider.getContext().tickId));
@@ -146,7 +146,7 @@ export function areReplayRouter(tick: WorldTick) {
     }
   });
 
-  router.post("/governance/directives/:id/vote", express.json({ limit: "96kb" }), (req, res) => {
+  router.post("/governance/directives/:id/vote", sensitiveWriteRateLimiter, express.json({ limit: "96kb" }), (req, res) => {
     try {
       const vote = sovereignGovernance.vote({ ...req.body, directiveId: req.params.id, tick: Number(tickContextProvider.getContext().tickId) });
       const report = sovereignGovernance.getReport(Number(tickContextProvider.getContext().tickId));
