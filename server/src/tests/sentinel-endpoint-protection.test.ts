@@ -6,7 +6,7 @@ import { sovereignDeployRouter } from "../api/sovereignDeployRoute.js";
 import { areShadowLogRouter } from "../api/areShadowLogRoute.js";
 import { createSelfHealWorkshopRouter } from "../routes/selfHealWorkshopRoute.js";
 import { adminAuthMiddleware } from "../middleware/adminAuthMiddleware.js";
-import { adminRateLimiter } from "../middleware/rateLimitMiddleware.js";
+import { adminRateLimiter, sensitiveWriteRateLimiter } from "../middleware/rateLimitMiddleware.js";
 import { financeRouter } from "../api/financeRoute.js";
 import { createManifestResyncRouter } from "../api/manifestResyncRoute.js";
 import { voteRouter } from "../api/voteRoute.js";
@@ -20,11 +20,19 @@ describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
     delete process.env.ADMIN_PANEL_TOKEN;
     delete process.env.CONTENT_ADMIN_READONLY;
+    adminRateLimiter.resetKey?.("::ffff:127.0.0.1");
+    adminRateLimiter.resetKey?.("127.0.0.1");
+    sensitiveWriteRateLimiter.resetKey?.("::ffff:127.0.0.1");
+    sensitiveWriteRateLimiter.resetKey?.("127.0.0.1");
   });
 
   afterEach(() => {
     delete process.env.ADMIN_PANEL_TOKEN;
     delete process.env.CONTENT_ADMIN_READONLY;
+    adminRateLimiter.resetKey?.("::ffff:127.0.0.1");
+    adminRateLimiter.resetKey?.("127.0.0.1");
+    sensitiveWriteRateLimiter.resetKey?.("::ffff:127.0.0.1");
+    sensitiveWriteRateLimiter.resetKey?.("127.0.0.1");
     vi.restoreAllMocks();
   });
 
@@ -414,6 +422,38 @@ describe("Sentinel Endpoint Protection", () => {
   });
 
   describe("ARE Replay & SDK Billing routes timing-safe credential verification", () => {
+    it("rate limits governance directive creation and voting via sensitiveWriteRateLimiter", async () => {
+      const mockTick = {} as any;
+      const app = express();
+      app.use("/api/are-replay", areReplayRouter(mockTick));
+
+      // Test rate limiting on POST /governance/directives
+      for (let i = 0; i < 10; i++) {
+        await request(app)
+          .post("/api/are-replay/governance/directives")
+          .send({ title: `Directive ${i}`, kind: "ECONOMIC_RESTRUCTURE", sector: 1 });
+      }
+
+      const blockedPropose = await request(app)
+        .post("/api/are-replay/governance/directives")
+        .send({ title: "Rate limited directive", kind: "ECONOMIC_RESTRUCTURE", sector: 1 });
+      expect(blockedPropose.status).toBe(429);
+      expect(blockedPropose.body.error).toContain("Too many sensitive operations");
+
+      // Test rate limiting on POST /governance/directives/:id/vote
+      for (let i = 0; i < 10; i++) {
+        await request(app)
+          .post("/api/are-replay/governance/directives/dir1/vote")
+          .send({ choice: "AYE" });
+      }
+
+      const blockedVote = await request(app)
+        .post("/api/are-replay/governance/directives/dir1/vote")
+        .send({ choice: "AYE" });
+      expect(blockedVote.status).toBe(429);
+      expect(blockedVote.body.error).toContain("Too many sensitive operations");
+    });
+
     it("verifies admin key via constant-time comparison in /billing/credit and /governance/directives/:id/enact", async () => {
       process.env.SOVEREIGN_LAUNCH_KEY = "sovereign-launch-secret-777";
       const mockTick = {} as any;
@@ -486,10 +526,10 @@ describe("Sentinel Endpoint Protection", () => {
 
       const app = express();
       app.use(express.json());
-      app.use("/api/paypal", createPayPalRouter({ query: vi.fn().mockResolvedValue({ rows: [] }) }));
+      app.use("/api/paypal-test-auth", createPayPalRouter({ query: vi.fn().mockResolvedValue({ rows: [] }) }));
 
       const r = await request(app)
-        .post("/api/paypal/create-order")
+        .post("/api/paypal-test-auth/create-order")
         .send({ productId: "matrix_100", playerId: "forged_player_123" });
 
       expect(r.status).toBe(401);
@@ -504,10 +544,10 @@ describe("Sentinel Endpoint Protection", () => {
     it("rejects request if productId or playerId is missing", async () => {
       const app = express();
       app.use(express.json());
-      app.use("/api/paypal", createPayPalRouter({ query: vi.fn().mockResolvedValue({ rows: [] }) }));
+      app.use("/api/paypal-test-missing", createPayPalRouter({ query: vi.fn().mockResolvedValue({ rows: [] }) }));
 
       const r = await request(app)
-        .post("/api/paypal/create-order")
+        .post("/api/paypal-test-missing/create-order")
         .set("X-Player-Id", "guest_player")
         .send({});
 
