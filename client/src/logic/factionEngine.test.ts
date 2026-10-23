@@ -48,4 +48,40 @@ describe('FactionEngine deterministic 10Hz simulation', () => {
     expect(stats.cells).toBeGreaterThan(0);
     expect(stats.contestedCells).toBeGreaterThan(0);
   });
+
+  it('benchmarks fast relational string comparison vs localeCompare for faction sorting', () => {
+    const sampleFactions = Array.from({ length: 1000 }, (_, i) => ({
+      id: `faction_realm_${String((i * 37) % 1000).padStart(4, '0')}_node_${String((i * 91) % 500).padStart(4, '0')}`,
+      x: i % 10,
+      y: i % 10,
+      power: 10,
+      expansionRate: 1
+    }));
+
+    const iterations = 200;
+
+    // 1. Benchmark localeCompare sorting
+    const startLocale = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      [...sampleFactions].sort((a, b) => a.id.localeCompare(b.id));
+    }
+    const durationLocale = performance.now() - startLocale;
+
+    // 2. Benchmark fast direct relational operator sorting
+    const startRelational = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      [...sampleFactions].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    }
+    const durationRelational = performance.now() - startRelational;
+
+    const speedup = durationLocale / durationRelational;
+    console.log(`\n⚡ FactionEngine Sorting Benchmark (${sampleFactions.length} items, ${iterations} iterations):`);
+    console.log(`  - localeCompare sort:    ${durationLocale.toFixed(4)}ms`);
+    console.log(`  - fast relational sort:  ${durationRelational.toFixed(4)}ms`);
+    console.log(`  - Speedup factor:        ${speedup.toFixed(2)}x faster\n`);
+
+    const sortedLocale = [...sampleFactions].sort((a, b) => a.id.localeCompare(b.id));
+    const sortedRelational = [...sampleFactions].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    expect(sortedRelational).toEqual(sortedLocale);
+  });
 });
