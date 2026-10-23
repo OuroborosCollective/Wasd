@@ -37,3 +37,7 @@
 ## 2028-02-21 - [Modal Dialog vs Landmark Region Semantics]
 **Learning:** Pop-up/overlay panels (like CraftingWindow) with headers and close controls must retain `role="dialog"` rather than generic `role="region"`. Changing overlay containers to `role="region"` strips the dialog focus context from screen reader users when pop-up panels open.
 **Action:** Always maintain `role="dialog"` on pop-up overlay window containers and use `role="region"` only for inline, non-modal content sections.
+
+## 2028-02-22 - [Diagnostic Overlay Accessibility & Keyboard Scrollable Stack Traces]
+**Learning:** Diagnostic recovery shells (like `BootSurface`) that take over the screen during error states require `role="alertdialog"`, `aria-modal="true"`, `aria-labelledby`, and `aria-describedby` so screen readers immediately announce the error diagnostic state and focus context. Additionally, error log `<pre>` blocks should be made focusable with `tabIndex={0}` and labeled with `aria-label` so keyboard-only users can navigate into and scroll through long multi-line error stack traces.
+**Action:** When creating or standardizing error/diagnostic overlay screens, promote the container to `role="alertdialog"`, make scrollable pre/code blocks focusable (`tabIndex={0}`), and add informative tooltips and `aria-label`s to diagnostic action buttons.

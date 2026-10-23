@@ -76,6 +76,10 @@ export function BootSurface({
   if (isDiagnosticState) {
     return (
       <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="boot-diagnostic-title"
+        aria-describedby="boot-diagnostic-desc"
         data-testid="client-2d-boot-diagnostic"
         data-boot-state={bootState}
         style={{
@@ -115,6 +119,7 @@ export function BootSurface({
           </div>
 
           <h1
+            id="boot-diagnostic-title"
             style={{
               fontSize: 20,
               marginTop: 10,
@@ -122,10 +127,15 @@ export function BootSurface({
               color: bootState === "error" ? "#ff416c" : "#ffb347",
             }}
           >
-            ⚠ Areloria boot diagnostic
+            <span aria-hidden="true" style={{ marginRight: 6 }}>
+              {bootState === "error" ? "🚨" : "⚠️"}
+            </span>
+            Areloria boot diagnostic
           </h1>
 
           <p
+            id="boot-diagnostic-desc"
+            aria-live="polite"
             style={{
               marginTop: 14,
               lineHeight: 1.55,
@@ -141,6 +151,9 @@ export function BootSurface({
 
           {error && (
             <pre
+              tabIndex={0}
+              aria-label="Diagnostic error log and stack trace"
+              title="Scroll to view error details"
               style={{
                 marginTop: 16,
                 padding: 14,
@@ -170,6 +183,8 @@ export function BootSurface({
           >
             <button
               onClick={() => window.location.reload()}
+              aria-label="Reload application page"
+              title="Reload page (F5)"
               style={{
                 padding: "10px 20px",
                 borderRadius: 10,
@@ -195,6 +210,8 @@ export function BootSurface({
                   window.location.reload();
                 }
               }}
+              aria-label="Perform hard reset and reload application"
+              title="Clear state and perform hard reload"
               style={{
                 padding: "10px 20px",
                 borderRadius: 10,
