@@ -105,5 +105,10 @@ describe("LootFeed", () => {
     expect(statusItems[1].getAttribute("title")).toBe(
       "Wood Sword (common) - A simple starter blade."
     );
+
+    const hiddenIcons = container.querySelectorAll('[aria-hidden="true"]');
+    expect(hiddenIcons.length).toBe(2);
+    expect(hiddenIcons[0].textContent).toBe("🧪");
+    expect(hiddenIcons[1].textContent).toBe("⚔️");
   });
 });
