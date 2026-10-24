@@ -106,8 +106,12 @@ describe("GatheringToolsPanel UX & Accessibility", () => {
 
     const panel = container!.querySelector('[data-testid="gathering-tools-panel"]');
     expect(panel).toBeTruthy();
-    expect(panel!.textContent).toContain("🪓 Woodcutting");
+    expect(panel!.textContent).toContain("Woodcutting");
     expect(panel!.textContent).toContain("Wooden Axe");
+
+    // Verify decorative icons have aria-hidden="true"
+    const hiddenIcons = container!.querySelectorAll('span[aria-hidden="true"]');
+    expect(hiddenIcons.length).toBeGreaterThan(0);
   });
 
   it("renders with tool buttons having correct ARIA attributes and titles", async () => {

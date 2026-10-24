@@ -36,10 +36,10 @@ const REQUIRED_TOOL_SLOTS = new Set([
 ]);
 
 // Slot to skill mapping
-const SLOT_LABELS: Record<string, string> = {
-  woodcutting_tool: "🪓 Woodcutting",
-  mining_tool: "⛏️ Mining",
-  fishing_tool: "🎣 Fishing",
+const SLOT_LABELS: Record<string, { icon: string; label: string }> = {
+  woodcutting_tool: { icon: "🪓", label: "Woodcutting" },
+  mining_tool: { icon: "⛏️", label: "Mining" },
+  fishing_tool: { icon: "🎣", label: "Fishing" },
 };
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -199,26 +199,42 @@ export function GatheringToolsPanel({ equipment, inventory, onEquip }: Props) {
       <h3 className="panel-title">Equipment</h3>
 
       <div className="gathering-section">
-        <h4 className="section-title">Equipped Tools</h4>
+        <h4 className="section-title">
+          <span aria-hidden="true">🛠️</span> Equipped Tools
+        </h4>
         {equipped.length === 0 ? (
           <p className="empty-text">No tools equipped.</p>
         ) : (
           <ul className="equipped-list">
-            {equipped.map((slot) => (
-              <li key={slot.slotId} className="equipped-slot">
-                <span className="slot-label">{SLOT_LABELS[slot.slotId] ?? slot.slotId}:</span>
-                <span className="item-name">{slot.title}</span>
-                {slot.tier > 1 && (
-                  <span className="tier-badge" title={`Tier ${slot.tier} tool`}>T{slot.tier}</span>
-                )}
-              </li>
-            ))}
+            {equipped.map((slot) => {
+              const slotInfo = SLOT_LABELS[slot.slotId];
+              return (
+                <li key={slot.slotId} className="equipped-slot">
+                  <span className="slot-label">
+                    {slotInfo ? (
+                      <>
+                        <span aria-hidden="true">{slotInfo.icon}</span> {slotInfo.label}
+                      </>
+                    ) : (
+                      slot.slotId
+                    )}
+                    :
+                  </span>
+                  <span className="item-name">{slot.title}</span>
+                  {slot.tier > 1 && (
+                    <span className="tier-badge" title={`Tier ${slot.tier} tool`}>T{slot.tier}</span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
 
       <div className="gathering-section">
-        <h4 className="section-title">Available Tools</h4>
+        <h4 className="section-title">
+          <span aria-hidden="true">📦</span> Available Tools
+        </h4>
         {tools.length === 0 ? (
           <p className="empty-text">No gathering tools in inventory.</p>
         ) : (
@@ -259,7 +275,9 @@ export function GatheringToolsPanel({ equipment, inventory, onEquip }: Props) {
                           style={{ width: 32, height: 32, imageRendering: 'pixelated' }}
                         />
                       ) : (
-                        slot.itemId.includes("axe") ? "🪓" : slot.itemId.includes("pickaxe") ? "⛏️" : "🎣"
+                        <span aria-hidden="true">
+                          {slot.itemId.includes("axe") ? "🪓" : slot.itemId.includes("pickaxe") ? "⛏️" : "🎣"}
+                        </span>
                       );
                     })()}
                   </span>
@@ -275,7 +293,9 @@ export function GatheringToolsPanel({ equipment, inventory, onEquip }: Props) {
 
       {showClaimButton && (
         <div className="gathering-section claim-section">
-          <h4 className="section-title">Need Tools?</h4>
+          <h4 className="section-title">
+            <span aria-hidden="true">❓</span> Need Tools?
+          </h4>
           <p className="claim-description">
             Gather resources outside the starter village requires proper tools.
           </p>
