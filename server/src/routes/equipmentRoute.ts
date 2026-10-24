@@ -14,7 +14,7 @@
  */
 
 import { Router, json } from "express";
-import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
+import { resolveHttpPlayerIdentity, assertPlayerIdentityAllowed } from "../auth/PlayerIdentityResolver.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { equipmentService } from "../equipment/equipmentRuntime.js";
 import { isEquipmentSlotId } from "../equipment/EquipmentTypes.js";
@@ -42,14 +42,6 @@ function parseRequestId(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return /^[a-zA-Z0-9:_./-]{1,160}$/.test(trimmed) ? trimmed : undefined;
-}
-
-function requireProductionAuth(identity: { authenticated: boolean }, res: import("express").Response): boolean {
-  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
-    res.status(401).json({ ok: false, error: "authenticated_player_required" });
-    return false;
-  }
-  return true;
 }
 
 function resolveRuntimeTick(): RuntimeTickContext | null {
@@ -104,7 +96,12 @@ function canonicalEquipmentIntent(input: {
 
 router.get("/state", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  if (!requireProductionAuth(identity, res)) return;
+  try {
+    assertPlayerIdentityAllowed(identity);
+  } catch {
+    res.status(401).json({ ok: false, error: "authenticated_player_required" });
+    return;
+  }
 
   const runtime = requireRuntimeTick(res);
   if (!runtime) return;
@@ -130,7 +127,12 @@ router.get("/state", async (req, res) => {
 
 router.post("/equip", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  if (!requireProductionAuth(identity, res)) return;
+  try {
+    assertPlayerIdentityAllowed(identity);
+  } catch {
+    res.status(401).json({ ok: false, error: "authenticated_player_required" });
+    return;
+  }
 
   const itemId = parseItemId(req.body?.itemId);
   if (!itemId) return void res.status(400).json({ ok: false, error: "invalid_item_id" });
@@ -172,7 +174,12 @@ router.post("/equip", async (req, res) => {
 
 router.post("/unequip", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  if (!requireProductionAuth(identity, res)) return;
+  try {
+    assertPlayerIdentityAllowed(identity);
+  } catch {
+    res.status(401).json({ ok: false, error: "authenticated_player_required" });
+    return;
+  }
 
   const rawSlotId = parseItemId(req.body?.slotId);
   if (!rawSlotId) return void res.status(400).json({ ok: false, error: "invalid_slot_id" });
