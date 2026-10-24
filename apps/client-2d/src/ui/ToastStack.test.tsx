@@ -60,11 +60,13 @@ describe("ToastStack", () => {
     const statusItems = container.querySelectorAll('[role="status"]');
     expect(statusItems.length).toBe(2);
 
-    expect(statusItems[0].textContent).toBe("Item collected");
+    expect(statusItems[0].textContent).toContain("Item collected");
+    expect(statusItems[0].querySelector('[aria-hidden="true"]')?.textContent).toBe("ℹ️");
     expect(statusItems[0].getAttribute("aria-live")).toBe("polite");
     expect(statusItems[0].getAttribute("aria-atomic")).toBe("true");
 
-    expect(statusItems[1].textContent).toBe("Quest completed");
+    expect(statusItems[1].textContent).toContain("Quest completed");
+    expect(statusItems[1].querySelector('[aria-hidden="true"]')?.textContent).toBe("✅");
     expect(statusItems[1].getAttribute("aria-live")).toBe("polite");
     expect(statusItems[1].getAttribute("aria-atomic")).toBe("true");
   });
@@ -95,11 +97,13 @@ describe("ToastStack", () => {
     const alertItems = container.querySelectorAll('[role="alert"]');
     expect(alertItems.length).toBe(2);
 
-    expect(alertItems[0].textContent).toBe("Inventory full");
+    expect(alertItems[0].textContent).toContain("Inventory full");
+    expect(alertItems[0].querySelector('[aria-hidden="true"]')?.textContent).toBe("⚠️");
     expect(alertItems[0].getAttribute("aria-live")).toBe("assertive");
     expect(alertItems[0].getAttribute("aria-atomic")).toBe("true");
 
-    expect(alertItems[1].textContent).toBe("Connection failed");
+    expect(alertItems[1].textContent).toContain("Connection failed");
+    expect(alertItems[1].querySelector('[aria-hidden="true"]')?.textContent).toBe("🚨");
     expect(alertItems[1].getAttribute("aria-live")).toBe("assertive");
     expect(alertItems[1].getAttribute("aria-atomic")).toBe("true");
   });
