@@ -24,6 +24,20 @@ function colorForSeverity(severity: ClientToast["severity"]): string {
   }
 }
 
+function iconForSeverity(severity: ClientToast["severity"]): string {
+  switch (severity) {
+    case "success":
+      return "✅";
+    case "warning":
+      return "⚠️";
+    case "error":
+      return "🚨";
+    case "info":
+    default:
+      return "ℹ️";
+  }
+}
+
 export function ToastStack({ toasts }: Props) {
   return (
     <div
@@ -56,10 +70,16 @@ export function ToastStack({ toasts }: Props) {
               color: "#f5f7ff",
               font: "13px/1.4 system-ui, sans-serif",
               backdropFilter: "blur(10px)",
-              boxShadow: "0 10px 30px rgba(0,0,0,.28)"
+              boxShadow: "0 10px 30px rgba(0,0,0,.28)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8
             }}
           >
-            {toast.message}
+            <span aria-hidden="true" style={{ fontSize: "14px", flexShrink: 0 }}>
+              {iconForSeverity(toast.severity)}
+            </span>
+            <span>{toast.message}</span>
           </div>
         );
       })}
