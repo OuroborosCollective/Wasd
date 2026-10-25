@@ -37,3 +37,7 @@
 ## 2028-02-21 - [Modal Dialog vs Landmark Region Semantics]
 **Learning:** Pop-up/overlay panels (like CraftingWindow) with headers and close controls must retain `role="dialog"` rather than generic `role="region"`. Changing overlay containers to `role="region"` strips the dialog focus context from screen reader users when pop-up panels open.
 **Action:** Always maintain `role="dialog"` on pop-up overlay window containers and use `role="region"` only for inline, non-modal content sections.
+
+## 2028-02-22 - [Standardizing Full-Screen Loading Overlays with Live Region Landmark & Progressbar Semantics]
+**Learning:** Full-screen loading views (like WorldLoadingScreen) transition through multiple states (loading -> syncing -> online or error) that screen readers cannot announce unless the container is marked as `role="status"` with `aria-live="polite"`. Furthermore, progress bar graphics need `role="progressbar"` with `aria-valuenow` and `aria-valuetext` while raw percentage strings and geometric status icons should be marked `aria-hidden="true"` to prevent redundant screen reader vocalization.
+**Action:** Always wrap full-screen loading views with `role="status"` and `aria-live="polite"`, use WAI-ARIA `progressbar` attributes on loading indicators, mark errors with `role="alert"`, and hide decorative geometric status glyphs with `aria-hidden="true"`.
