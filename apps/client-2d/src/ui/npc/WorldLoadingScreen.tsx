@@ -149,9 +149,14 @@ export function WorldLoadingScreen({
   const config = STATUS_CONFIG[status];
   const isOnline = status === "online";
 
+  const roundedProgress = Math.round(displayProgress);
+
   return (
     <div
       className="world-loading-screen"
+      role="status"
+      aria-live="polite"
+      aria-label={`${worldName} - ${config.label}`}
       style={{
         position: "fixed",
         inset: 0,
@@ -167,6 +172,7 @@ export function WorldLoadingScreen({
     >
       {/* Background Grid Pattern */}
       <div
+        aria-hidden="true"
         style={{
           position: "absolute",
           inset: 0,
@@ -192,6 +198,7 @@ export function WorldLoadingScreen({
       >
         {/* Status Icon */}
         <div
+          aria-hidden="true"
           style={{
             fontSize: "48px",
             color: config.color,
@@ -234,6 +241,12 @@ export function WorldLoadingScreen({
         {/* Progress Bar (for loading/syncing) */}
         {config.showProgress && (
           <div
+            role="progressbar"
+            aria-valuenow={roundedProgress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuetext={`${roundedProgress}% loaded`}
+            aria-label={`${worldName} loading progress`}
             style={{
               width: "280px",
               height: "4px",
@@ -245,6 +258,7 @@ export function WorldLoadingScreen({
           >
             {/* Shimmer effect */}
             <div
+              aria-hidden="true"
               style={{
                 position: "absolute",
                 inset: 0,
@@ -259,6 +273,7 @@ export function WorldLoadingScreen({
             />
             {/* Progress fill */}
             <div
+              aria-hidden="true"
               style={{
                 position: "absolute",
                 left: 0,
@@ -276,6 +291,7 @@ export function WorldLoadingScreen({
         {/* Progress Percentage */}
         {config.showProgress && (
           <div
+            aria-hidden="true"
             style={{
               fontFamily: "Epilogue, sans-serif",
               fontSize: "12px",
@@ -284,13 +300,14 @@ export function WorldLoadingScreen({
               color: "#849396",
             }}
           >
-            {Math.round(displayProgress)}%
+            {roundedProgress}%
           </div>
         )}
 
         {/* Error Message */}
         {status === "error" && errorMessage && (
           <div
+            role="alert"
             style={{
               fontFamily: "Epilogue, sans-serif",
               fontSize: "12px",
@@ -320,6 +337,7 @@ export function WorldLoadingScreen({
           >
             {/* Heartbeat visualization */}
             <div
+              aria-hidden="true"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -363,6 +381,7 @@ export function WorldLoadingScreen({
       ].map((pos, i) => (
         <div
           key={i}
+          aria-hidden="true"
           style={{
             position: "absolute",
             width: "40px",
