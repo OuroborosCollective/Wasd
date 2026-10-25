@@ -18,7 +18,7 @@
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.31.0",
     "@nestjs/common": "^11.2.3",
-    "@opentelemetry/resources": "^2.11.0",
+    "@opentelemetry/resources": "^3.0.0",
     "@opentelemetry/sdk-node": "^0.222.0",
     "@posthog/ai": "^7.20.0",
     "@supabase/supabase-js": "^2.117.2",
