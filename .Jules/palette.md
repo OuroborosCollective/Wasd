@@ -37,3 +37,7 @@
 ## 2028-02-21 - [Modal Dialog vs Landmark Region Semantics]
 **Learning:** Pop-up/overlay panels (like CraftingWindow) with headers and close controls must retain `role="dialog"` rather than generic `role="region"`. Changing overlay containers to `role="region"` strips the dialog focus context from screen reader users when pop-up panels open.
 **Action:** Always maintain `role="dialog"` on pop-up overlay window containers and use `role="region"` only for inline, non-modal content sections.
+
+## 2028-02-22 - [Toast Severity Non-Color Reliance with Hidden Decorative Icons]
+**Learning:** Toast stack notifications that convey severity (info, success, warning, error) using background color alone violate WCAG 1.4.1 (Use of Color). Adding visual category icons wrapped in `<span aria-hidden="true">` provides instant non-color visual recognition and scanning while ensuring screen readers do not vocalize redundant emoji titles alongside the `role="status"` or `role="alert"` text message.
+**Action:** Always pair status notification color themes with explicit `aria-hidden="true"` visual category icons and flex alignment.

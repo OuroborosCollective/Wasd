@@ -60,11 +60,11 @@ describe("ToastStack", () => {
     const statusItems = container.querySelectorAll('[role="status"]');
     expect(statusItems.length).toBe(2);
 
-    expect(statusItems[0].textContent).toBe("Item collected");
+    expect(statusItems[0].textContent).toContain("Item collected");
     expect(statusItems[0].getAttribute("aria-live")).toBe("polite");
     expect(statusItems[0].getAttribute("aria-atomic")).toBe("true");
 
-    expect(statusItems[1].textContent).toBe("Quest completed");
+    expect(statusItems[1].textContent).toContain("Quest completed");
     expect(statusItems[1].getAttribute("aria-live")).toBe("polite");
     expect(statusItems[1].getAttribute("aria-atomic")).toBe("true");
   });
@@ -95,12 +95,35 @@ describe("ToastStack", () => {
     const alertItems = container.querySelectorAll('[role="alert"]');
     expect(alertItems.length).toBe(2);
 
-    expect(alertItems[0].textContent).toBe("Inventory full");
+    expect(alertItems[0].textContent).toContain("Inventory full");
     expect(alertItems[0].getAttribute("aria-live")).toBe("assertive");
     expect(alertItems[0].getAttribute("aria-atomic")).toBe("true");
 
-    expect(alertItems[1].textContent).toBe("Connection failed");
+    expect(alertItems[1].textContent).toContain("Connection failed");
     expect(alertItems[1].getAttribute("aria-live")).toBe("assertive");
     expect(alertItems[1].getAttribute("aria-atomic")).toBe("true");
+  });
+
+  it("renders aria-hidden severity icons for visual scanning and WCAG 1.4.1 non-color reliance", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    const toasts: ClientToast[] = [
+      { id: "1", message: "Info msg", severity: "info", createdAtMs: Date.now() },
+      { id: "2", message: "Success msg", severity: "success", createdAtMs: Date.now() },
+      { id: "3", message: "Warn msg", severity: "warning", createdAtMs: Date.now() },
+      { id: "4", message: "Error msg", severity: "error", createdAtMs: Date.now() }
+    ];
+
+    await act(async () => {
+      createRoot(container!).render(<ToastStack toasts={toasts} />);
+    });
+
+    const icons = container.querySelectorAll('[aria-hidden="true"]');
+    expect(icons.length).toBe(4);
+    expect(icons[0].textContent).toBe("ℹ️");
+    expect(icons[1].textContent).toBe("✅");
+    expect(icons[2].textContent).toBe("⚠️");
+    expect(icons[3].textContent).toBe("🚨");
   });
 });
