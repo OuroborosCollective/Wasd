@@ -6,6 +6,7 @@
  * Uses existing Express server if available.
  */
 
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { worldStateRegistry } from '../state/WorldStateRegistry.js';
 import { arelorianKernel } from '../systems/ArelorianKernel.js';
 import { deterministicNow } from '../determinism/AREDeterminism.js';
@@ -136,25 +137,37 @@ function parseCsvEnv(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
-function getValidApiKeys(): Set<string> {
+function hashBuffer(value: string): Buffer {
+  return createHash('sha256').update(value, 'utf8').digest();
+}
+
+function safeEqualText(a: string, b: string): boolean {
+  const left = hashBuffer(a);
+  const right = hashBuffer(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function getValidApiKeys(): string[] {
   const keys = parseCsvEnv(process.env.API_KEYS ?? process.env.API_KEY);
 
   if (process.env.NODE_ENV === 'production' && keys.length === 0) {
     throw new Error('API_KEY or API_KEYS must be configured in production.');
   }
 
-  return new Set(keys);
+  return keys;
 }
 
 function isAuthorizedRequest(req: any): boolean {
   const validApiKeys = getValidApiKeys();
-  if (validApiKeys.size === 0) {
+  if (validApiKeys.length === 0) {
     return process.env.NODE_ENV !== 'production';
   }
 
   const headerValue = req.headers?.[API_KEY_HEADER];
   const candidate = Array.isArray(headerValue) ? headerValue[0] : headerValue;
-  return typeof candidate === 'string' && validApiKeys.has(candidate);
+  if (typeof candidate !== 'string') return false;
+
+  return validApiKeys.some(apiKey => safeEqualText(candidate, apiKey));
 }
 
 function requireApiKey(req: any, res: any, next: any): void {

@@ -42,3 +42,8 @@
 **Vulnerability:** The Playtester monitor WebSocket stream (`PlaytesterMonitorStream`), WebRTC signaling server (`PlaytesterWebRTCSignaling`), and HTTP route access checks (`ServerBootstrap`) used relational `===` string comparisons to validate incoming query/header tokens against `PLAYTESTER_MONITOR_TOKEN`, exposing internal monitoring credentials to timing attacks.
 **Learning:** Custom WebSocket upgrade handlers and streaming endpoints often implement token authorization checks independently of standard Express auth middlewares, creating timing side-channel risks.
 **Prevention:** Always use SHA-256 digest hashing and `crypto.timingSafeEqual` via a `safeEqualText` helper for token comparisons in custom HTTP upgrade and WebSocket handlers.
+
+## 2026-09-10 - [Medium] APIServer API Key Timing Attack Vulnerability
+**Vulnerability:** The `APIServer` REST endpoint auth guard (`isAuthorizedRequest`) evaluated `x-api-key` headers using `Set.has()`, exposing configured API keys to potential timing analysis attacks.
+**Learning:** Custom REST API servers and standalone request handlers often rely on Set lookups or standard string equality for API key checks, creating timing side-channel risks.
+**Prevention:** Always hash candidate and configured API keys with SHA-256 and compare them using `crypto.timingSafeEqual` in constant time for API key verification.
