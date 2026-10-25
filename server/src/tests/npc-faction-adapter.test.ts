@@ -44,4 +44,32 @@ describe('NPCFactionAdapter', () => {
     expect(second).toBe(first);
     expect(second.tick).toBe(10);
   });
+
+  it('runs efficiently with 50 NPCs over 100 adapter ticks', () => {
+    const npcSystem = new NPCSystem();
+    const factions = ['town', 'raiders', 'outlaws', 'merchants', 'cultists'];
+    const roles = ['guard', 'merchant', 'farmer', 'mage', 'Enemy'];
+
+    for (let i = 0; i < 50; i++) {
+      const id = `npc_${String(i).padStart(3, '0')}`;
+      npcSystem.createNPC(id, `NPC ${i}`, (i * 17) % 500, (i * 23) % 500);
+      const npc = npcSystem.getNPC(id)!;
+      npc.faction = factions[i % factions.length];
+      npc.role = roles[i % roles.length];
+    }
+
+    const adapter = new NPCFactionAdapter();
+    const start = performance.now();
+
+    let snapshot;
+    for (let tick = 10; tick <= 1000; tick += 10) {
+      snapshot = adapter.tick({ tickCount: tick, npcSystem, worldSeed: 'benchmark-seed' });
+    }
+
+    const duration = performance.now() - start;
+    expect(snapshot).toBeDefined();
+    expect(snapshot!.decisions.length).toBe(50);
+    // Benchmark check: 100 ticks of 50 NPCs should execute rapidly (< 1000ms under parallel test runner load)
+    expect(duration).toBeLessThan(1000);
+  });
 });

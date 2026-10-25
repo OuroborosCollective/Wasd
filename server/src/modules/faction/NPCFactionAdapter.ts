@@ -58,6 +58,15 @@ function hashString(input: string): number {
   return h >>> 0;
 }
 
+// Bolt: Allocation-free FNV-1a integer hasher for tight 2D tile loops
+function hashInts(seed: number, a: number, b: number, c: number): number {
+  let h = seed;
+  h = Math.imul(h ^ (a >>> 0), 0x01000193) >>> 0;
+  h = Math.imul(h ^ (b & 0xffff), 0x01000193) >>> 0;
+  h = Math.imul(h ^ (c & 0xffff), 0x01000193) >>> 0;
+  return h >>> 0;
+}
+
 function safeInt(value: unknown, fallback = 0): number {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
@@ -103,6 +112,26 @@ function terrainFriction(type: TerrainType): number {
   }
 }
 
+// Bolt: Precompute 64x64 terrain friction values per worldSeed to avoid string template creation and hashing in inner loops.
+let cachedWorldSeed: string | null = null;
+let cachedFrictionGrid: Int32Array | null = null;
+
+function getTerrainFrictionGrid(worldSeed: string): Int32Array {
+  if (cachedWorldSeed === worldSeed && cachedFrictionGrid) {
+    return cachedFrictionGrid;
+  }
+  const grid = new Int32Array(GRID_SIZE * GRID_SIZE);
+  for (let x = 0; x < GRID_SIZE; x++) {
+    for (let y = 0; y < GRID_SIZE; y++) {
+      const terrain = terrainAt(x, y, worldSeed);
+      grid[x * GRID_SIZE + y] = terrainFriction(terrain.type);
+    }
+  }
+  cachedWorldSeed = worldSeed;
+  cachedFrictionGrid = grid;
+  return grid;
+}
+
 function traitFlagForNpc(npc: NPC): Record<string, boolean> {
   const role = String(npc.role ?? '').toLowerCase();
   const aggression = npc.traits?.aggression ?? 0.5;
@@ -127,7 +156,9 @@ function worldToTile(value: unknown): number {
 
 function buildFactionSources(npcs: readonly NPC[]): FactionSource[] {
   const grouped = new Map<string, { sx: number; sy: number; power: number; n: number; traits: Record<string, boolean> }>();
-  for (const npc of [...npcs].sort((a, b) => String(a.id).localeCompare(String(b.id)))) {
+  // Bolt: npcs array passed into buildFactionSources is already pre-sorted by NPC ID.
+  // Avoid redundant [...npcs].sort() pass and localeCompare calls.
+  for (const npc of npcs) {
     if (npc.state === 'decomposition') continue;
     const factionId = normalizeFactionId(npc);
     const x = worldToTile(npc.position?.x);
@@ -145,6 +176,7 @@ function buildFactionSources(npcs: readonly NPC[]): FactionSource[] {
     grouped.set(factionId, entry);
   }
 
+  // Bolt: Replace slow localeCompare with direct relational string comparisons (a < b ? -1 : a > b ? 1 : 0)
   return [...grouped.entries()].map(([id, g]) => ({
     id,
     x: clamp(Math.trunc(g.sx / Math.max(1, g.n)), 0, GRID_SIZE - 1),
@@ -152,7 +184,7 @@ function buildFactionSources(npcs: readonly NPC[]): FactionSource[] {
     power: clamp(g.power, 1, 80),
     expansionRate: 1.15,
     traits: g.traits,
-  })).sort((a, b) => a.id.localeCompare(b.id));
+  })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 function influenceTraitPermille(traits: Record<string, boolean>): number {
@@ -165,43 +197,67 @@ function influenceTraitPermille(traits: Record<string, boolean>): number {
 }
 
 function calculateInfluenceMap(factions: readonly FactionSource[], worldSeed: string, tick: number): InfluenceCell[][] {
-  const map: InfluenceCell[][] = Array.from({ length: GRID_SIZE }, () => Array.from({ length: GRID_SIZE }, () => ({ factionId: null, strength: 0, contested: false })));
-  const second: number[][] = Array.from({ length: GRID_SIZE }, () => Array.from({ length: GRID_SIZE }, () => 0));
+  // Bolt: Optimization - Use flat 1D arrays and zero-allocation integer hashing during evaluation loops to eliminate 4096+ intermediate object allocations and string concatenations per tick
+  const TOTAL_CELLS = GRID_SIZE * GRID_SIZE;
+  const primaryFaction = new Array<string | null>(TOTAL_CELLS).fill(null);
+  const primaryFactionHash = new Int32Array(TOTAL_CELLS);
+  const primaryStrength = new Int32Array(TOTAL_CELLS);
+  const secondaryStrength = new Int32Array(TOTAL_CELLS);
   const epoch = Math.trunc(tick / (FACTION_ADAPTER_HZ * 10));
+  const frictionGrid = getTerrainFrictionGrid(worldSeed);
+  const seedHash = hashString(worldSeed);
 
   for (const faction of factions) {
     const scaledPower = Math.trunc((faction.power * influenceTraitPermille(faction.traits)) / SCALE);
     const radius = clamp(Math.trunc(scaledPower * faction.expansionRate), 1, 24);
     const radiusSq = radius * radius;
+    const factionHash = hashString(faction.id);
+
     for (let x = Math.max(0, faction.x - radius); x <= Math.min(GRID_SIZE - 1, faction.x + radius); x++) {
       for (let y = Math.max(0, faction.y - radius); y <= Math.min(GRID_SIZE - 1, faction.y + radius); y++) {
         const dx = faction.x - x;
         const dy = faction.y - y;
         const distSq = dx * dx + dy * dy;
         if (distSq > radiusSq) continue;
-        const terrain = terrainAt(x, y, worldSeed);
+        const idx = x * GRID_SIZE + y;
+        const friction = frictionGrid[idx];
         const dist = intSqrt(distSq);
-        const effectiveDistance = Math.trunc((dist * terrainFriction(terrain.type)) / SCALE);
+        const effectiveDistance = Math.trunc((dist * friction) / SCALE);
         if (effectiveDistance > radius) continue;
         const falloff = SCALE - Math.trunc((effectiveDistance * SCALE) / radius);
-        const jitter = (hashString(`${worldSeed}|${epoch}|${faction.id}|${x}|${y}`) % 29) - 14;
+        const jitter = (hashInts(seedHash ^ epoch, factionHash, x, y) % 29) - 14;
         const strength = Math.max(0, Math.trunc((scaledPower * falloff * (SCALE + jitter)) / (SCALE * SCALE)));
         if (strength <= 0) continue;
-        const current = map[x][y];
-        if (strength > current.strength || (strength === current.strength && hashString(`${faction.id}|${x}|${y}`) < hashString(`${current.factionId ?? 'neutral'}|${x}|${y}`))) {
-          second[x][y] = current.strength;
-          map[x][y] = { factionId: faction.id, strength, contested: false };
+
+        const curStrength = primaryStrength[idx];
+        const curFactionHash = primaryFactionHash[idx];
+        if (strength > curStrength || (strength === curStrength && hashInts(0x811c9dc5, factionHash, x, y) < hashInts(0x811c9dc5, curFactionHash, x, y))) {
+          secondaryStrength[idx] = curStrength;
+          primaryStrength[idx] = strength;
+          primaryFaction[idx] = faction.id;
+          primaryFactionHash[idx] = factionHash;
         } else {
-          second[x][y] = Math.max(second[x][y], strength);
+          if (strength > secondaryStrength[idx]) {
+            secondaryStrength[idx] = strength;
+          }
         }
       }
     }
   }
 
-  for (let x = 0; x < GRID_SIZE; x++) for (let y = 0; y < GRID_SIZE; y++) {
-    const cell = map[x][y];
-    if (!cell.factionId) continue;
-    map[x][y] = { ...cell, contested: second[x][y] > 0 && cell.strength - second[x][y] <= 3 };
+  // Bolt: Build final 2D grid in a single pass without redundant intermediate object mutations
+  const map: InfluenceCell[][] = new Array(GRID_SIZE);
+  for (let x = 0; x < GRID_SIZE; x++) {
+    const row: InfluenceCell[] = new Array(GRID_SIZE);
+    for (let y = 0; y < GRID_SIZE; y++) {
+      const idx = x * GRID_SIZE + y;
+      const fId = primaryFaction[idx];
+      const str = primaryStrength[idx];
+      const secStr = secondaryStrength[idx];
+      const isContested = Boolean(fId) && secStr > 0 && (str - secStr <= 3);
+      row[y] = { factionId: fId, strength: str, contested: isContested };
+    }
+    map[x] = row;
   }
   return map;
 }
@@ -237,7 +293,12 @@ export class NPCFactionAdapter {
     if (tick > 0 && tick % REBUILD_EVERY_TICKS !== 0) return this.lastSnapshot;
 
     const worldSeed = opts.worldSeed ?? DEFAULT_WORLD_SEED;
-    const npcs = opts.npcSystem.getAllNPCs().sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    // Bolt: Use fast relational operator comparison (a < b ? -1 : a > b ? 1 : 0) instead of localeCompare
+    const npcs = opts.npcSystem.getAllNPCs().sort((a, b) => {
+      const idA = String(a.id);
+      const idB = String(b.id);
+      return idA < idB ? -1 : idA > idB ? 1 : 0;
+    });
     const factions = buildFactionSources(npcs);
     const influence = calculateInfluenceMap(factions, worldSeed, tick);
     const decisions: NPCFactionDecision[] = [];
