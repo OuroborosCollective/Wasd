@@ -24,6 +24,20 @@ function colorForSeverity(severity: ClientToast["severity"]): string {
   }
 }
 
+function iconForSeverity(severity: ClientToast["severity"]): string {
+  switch (severity) {
+    case "success":
+      return "✅";
+    case "warning":
+      return "⚠️";
+    case "error":
+      return "🚨";
+    case "info":
+    default:
+      return "ℹ️";
+  }
+}
+
 export function ToastStack({ toasts }: Props) {
   return (
     <div
@@ -49,6 +63,9 @@ export function ToastStack({ toasts }: Props) {
             aria-live={isAlert ? "assertive" : "polite"}
             aria-atomic="true"
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
               padding: "10px 12px",
               borderRadius: 14,
               border: "1px solid rgba(255,255,255,.12)",
@@ -59,7 +76,10 @@ export function ToastStack({ toasts }: Props) {
               boxShadow: "0 10px 30px rgba(0,0,0,.28)"
             }}
           >
-            {toast.message}
+            <span aria-hidden="true" style={{ fontSize: "14px", flexShrink: 0 }}>
+              {iconForSeverity(toast.severity)}
+            </span>
+            <span>{toast.message}</span>
           </div>
         );
       })}
