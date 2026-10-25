@@ -137,37 +137,37 @@ function parseCsvEnv(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
-function hashBuffer(value: string): Buffer {
-  return createHash('sha256').update(value, 'utf8').digest();
+function hashApiKey(key: string): Buffer {
+  return createHash('sha256').update(key, 'utf8').digest();
 }
 
-function safeEqualText(a: string, b: string): boolean {
-  const left = hashBuffer(a);
-  const right = hashBuffer(b);
+function compareApiKeySecure(suppliedKey: string, configuredKey: string): boolean {
+  const left = hashApiKey(suppliedKey);
+  const right = hashApiKey(configuredKey);
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
 function getValidApiKeys(): string[] {
-  const keys = parseCsvEnv(process.env.API_KEYS ?? process.env.API_KEY);
+  const configuredApiKeys = parseCsvEnv(process.env.API_KEYS ?? process.env.API_KEY);
 
-  if (process.env.NODE_ENV === 'production' && keys.length === 0) {
+  if (process.env.NODE_ENV === 'production' && configuredApiKeys.length === 0) {
     throw new Error('API_KEY or API_KEYS must be configured in production.');
   }
 
-  return keys;
+  return configuredApiKeys;
 }
 
 function isAuthorizedRequest(req: any): boolean {
-  const validApiKeys = getValidApiKeys();
-  if (validApiKeys.length === 0) {
+  const configuredApiKeys = getValidApiKeys();
+  if (configuredApiKeys.length === 0) {
     return process.env.NODE_ENV !== 'production';
   }
 
   const headerValue = req.headers?.[API_KEY_HEADER];
-  const candidate = Array.isArray(headerValue) ? headerValue[0] : headerValue;
-  if (typeof candidate !== 'string') return false;
+  const suppliedApiKey = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+  if (typeof suppliedApiKey !== 'string') return false;
 
-  return validApiKeys.some(apiKey => safeEqualText(candidate, apiKey));
+  return configuredApiKeys.some(configuredApiKey => compareApiKeySecure(suppliedApiKey, configuredApiKey));
 }
 
 function requireApiKey(req: any, res: any, next: any): void {
