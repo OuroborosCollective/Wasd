@@ -42,3 +42,8 @@
 **Vulnerability:** The Playtester monitor WebSocket stream (`PlaytesterMonitorStream`), WebRTC signaling server (`PlaytesterWebRTCSignaling`), and HTTP route access checks (`ServerBootstrap`) used relational `===` string comparisons to validate incoming query/header tokens against `PLAYTESTER_MONITOR_TOKEN`, exposing internal monitoring credentials to timing attacks.
 **Learning:** Custom WebSocket upgrade handlers and streaming endpoints often implement token authorization checks independently of standard Express auth middlewares, creating timing side-channel risks.
 **Prevention:** Always use SHA-256 digest hashing and `crypto.timingSafeEqual` via a `safeEqualText` helper for token comparisons in custom HTTP upgrade and WebSocket handlers.
+
+## 2026-10-26 - [High] Admin Command Route Default Fail-Open Authorization
+**Vulnerability:** The `/api/admin/command` route's `checkAuthorization` function returned `true` when no administrative tokens (`ADMIN_PANEL_TOKEN` or `GM_PANEL_TOKEN`) were set in the environment, defaulting to unauthenticated command execution.
+**Learning:** Checking for unconfigured tokens by defaulting to `true` (to allow dev testing) easily bypasses protection in production environments where token env vars might be omitted or misplaced.
+**Prevention:** Always fail closed (`return false`) when expected security credentials/tokens are absent, requiring explicit custom authorization callbacks for local testing overrides.
