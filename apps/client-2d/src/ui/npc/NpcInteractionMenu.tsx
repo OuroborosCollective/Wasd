@@ -140,6 +140,8 @@ export function NpcInteractionMenu({
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
             role="menuitem"
+            aria-selected={isSelected}
+            aria-label={`${item.label}${item.hasNotification ? " (New notification)" : ""}`}
             aria-keyshortcuts={item.shortcut}
             style={{
               // Animation: staggered entrance
@@ -194,6 +196,7 @@ export function NpcInteractionMenu({
 
               {/* Menu Icon */}
               <span
+                aria-hidden="true"
                 style={{
                   fontSize: "16px",
                   color: isDisabled ? "#3b494c" : colors.text,
@@ -223,6 +226,7 @@ export function NpcInteractionMenu({
               {/* Notification Dot */}
               {item.hasNotification && (
                 <span
+                  aria-hidden="true"
                   style={{
                     display: "inline-block",
                     width: "6px",
@@ -274,6 +278,7 @@ export function NpcInteractionMenu({
       {/* Hint Text */}
       <div
         className="mt-2 text-center"
+        aria-hidden="true"
         style={{
           fontFamily: "Epilogue, sans-serif",
           fontSize: "10px",
