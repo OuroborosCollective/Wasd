@@ -350,7 +350,7 @@ describe("Sentinel Endpoint Protection", () => {
   });
 
   describe("/api/admin/command", () => {
-    it("allows command execution without token if no ADMIN_PANEL_TOKEN is set", async () => {
+    it("fails closed (403) when no admin tokens are configured", async () => {
       delete process.env.ADMIN_PANEL_TOKEN;
       delete process.env.GM_PANEL_TOKEN;
       const def = adminRoute();
@@ -361,8 +361,31 @@ describe("Sentinel Endpoint Protection", () => {
       const r = await request(app)
         .post("/api/admin/command")
         .send({ command: "ping" });
-      expect(r.status).toBe(200);
-      expect(r.body.data.command).toBe("ping");
+      expect(r.status).toBe(403);
+      expect(r.body.error.code).toBe("admin_forbidden");
+    });
+
+    it("allows command execution with custom isAuthorized handler when tokens are unconfigured", async () => {
+      delete process.env.ADMIN_PANEL_TOKEN;
+      delete process.env.GM_PANEL_TOKEN;
+      const def = adminRoute({
+        isAuthorized: (authHeader) => authHeader === "Bearer custom-key",
+      });
+      const app = express();
+      app.use(express.json());
+      app.post(def.path, adminRateLimiter, def.handler);
+
+      const r1 = await request(app)
+        .post("/api/admin/command")
+        .send({ command: "ping" });
+      expect(r1.status).toBe(403);
+
+      const r2 = await request(app)
+        .post("/api/admin/command")
+        .set("Authorization", "Bearer custom-key")
+        .send({ command: "ping" });
+      expect(r2.status).toBe(200);
+      expect(r2.body.data.command).toBe("ping");
     });
 
     it("rejects command with 403 when ADMIN_PANEL_TOKEN is set and invalid/missing token is sent", async () => {
