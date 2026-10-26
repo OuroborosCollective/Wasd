@@ -6,7 +6,7 @@
  * Uses existing Express server if available.
  */
 
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { worldStateRegistry } from '../state/WorldStateRegistry.js';
 import { arelorianKernel } from '../systems/ArelorianKernel.js';
 import { deterministicNow } from '../determinism/AREDeterminism.js';
@@ -137,8 +137,10 @@ function parseCsvEnv(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+const API_KEY_HMAC_SALT = 'areloria_api_key_auth_v1';
+
 function hashBuffer(value: string): Buffer {
-  return createHash('sha256').update(value, 'utf8').digest();
+  return createHmac('sha256', API_KEY_HMAC_SALT).update(value, 'utf8').digest();
 }
 
 function safeEqualText(a: string, b: string): boolean {
