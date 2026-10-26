@@ -39,8 +39,9 @@ function checkAuthorization(
   const legacyPanel = process.env.GM_PANEL_TOKEN?.trim();
   const acceptedTokens = [panel, legacyPanel].filter((v): v is string => Boolean(v && v.length > 0));
 
+  // SECURITY: Fail closed when no admin tokens are configured to prevent unauthorized access to /api/admin/command
   if (acceptedTokens.length === 0) {
-    return true;
+    return false;
   }
 
   const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
