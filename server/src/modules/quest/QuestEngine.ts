@@ -95,7 +95,8 @@ export class QuestEngine {
       }
     }
 
-    mergedQuests.sort((a, b) => a.id.localeCompare(b.id));
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+    mergedQuests.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
     this.quests.clear();
     for (const quest of mergedQuests) {

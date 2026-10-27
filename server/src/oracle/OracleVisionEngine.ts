@@ -147,7 +147,8 @@ export class OracleVisionEngine {
           dungeonType,
         };
       })
-      .sort((a, b) => b.emergenceLikelihood - a.emergenceLikelihood || a.regionId.localeCompare(b.regionId));
+      // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+      .sort((a, b) => b.emergenceLikelihood - a.emergenceLikelihood || (a.regionId < b.regionId ? -1 : a.regionId > b.regionId ? 1 : 0));
   }
 
   static analyzeGhostTowns(ghostTowns: GhostTown[], state: { tick: number; stateHash: string }): OracleVision[] {
