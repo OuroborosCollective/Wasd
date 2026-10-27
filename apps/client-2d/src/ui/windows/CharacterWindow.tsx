@@ -390,9 +390,15 @@ export function CharacterWindow({
   const averageSkillProgress = getOverallProgress(snapshot);
 
   return (
-    <div className="wow-inventory-overlay" role="dialog" aria-label="Character">
+    <div
+      className="wow-inventory-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Character"
+      aria-labelledby="character-window-title"
+    >
       <div className="wow-inventory-header">
-        <h2>CHARACTER</h2>
+        <h2 id="character-window-title">CHARACTER</h2>
 
         {onClose && (
           <button
@@ -400,10 +406,13 @@ export function CharacterWindow({
             className="wow-close-btn"
             onClick={onClose}
             aria-label="Close [ESC]"
+            title="Close character window [ESC]"
             aria-keyshortcuts="Escape"
           >
-            <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
-            ✕
+            <kbd className="cz-kbd" aria-hidden="true">
+              ESC
+            </kbd>
+            <span aria-hidden="true">✕</span>
           </button>
         )}
 
@@ -424,7 +433,9 @@ export function CharacterWindow({
           </div>
 
           <div className="char-resource-row">
-            <span className="char-resource-icon">⚔️</span>
+            <span className="char-resource-icon" aria-hidden="true">
+              ⚔️
+            </span>
             <span className="char-resource-value">
               Total Level {totalLevel}
             </span>
@@ -463,7 +474,9 @@ export function CharacterWindow({
             </>
           ) : (
             <div className="char-resource-row">
-              <span className="char-resource-icon">⟳</span>
+              <span className="char-resource-icon" aria-hidden="true">
+                ⟳
+              </span>
               <span className="char-resource-value">Waiting for stats...</span>
             </div>
           )}
@@ -490,7 +503,9 @@ export function CharacterWindow({
           <h3>Resources</h3>
 
           <div className="char-resource-row">
-            <span className="char-resource-icon">💰</span>
+            <span className="char-resource-icon" aria-hidden="true">
+              💰
+            </span>
             <span className="char-resource-value">
               {snapshot?.gold ?? 0} Gold
             </span>
@@ -500,7 +515,7 @@ export function CharacterWindow({
 
       {allocating && (
         <div className="wow-pending-indicator" aria-live="polite">
-          <span>⟳</span> Allocating...
+          <span aria-hidden="true">⟳</span> Allocating...
         </div>
       )}
     </div>
