@@ -96,6 +96,24 @@ describe('InterestGrid', () => {
       grid.updatePosition('player1', 100, 100);
       expect(grid.hasObserver('player1')).toBe(true);
     });
+
+    it('benchmarks observer movement across chunk boundaries', () => {
+      grid.register('player1', 0, 0);
+      const iterations = 10000;
+      const startTime = performance.now();
+
+      for (let i = 0; i < iterations; i++) {
+        // Move back and forth across chunk boundary (chunk size = 64 tiles)
+        const tileX = (i % 2) * 128;
+        const tileY = ((i + 1) % 2) * 128;
+        grid.updatePosition('player1', tileX, tileY);
+      }
+
+      const duration = performance.now() - startTime;
+      console.log(`[InterestGrid Benchmark] ${iterations} cross-chunk updates executed in ${duration.toFixed(2)}ms (${(duration / iterations * 1000).toFixed(3)}µs/update)`);
+      expect(duration).toBeGreaterThan(0);
+      expect(grid.getSubscribedChunks('player1').length).toBeGreaterThan(0);
+    });
   });
 
   describe('getObserversInChunk', () => {

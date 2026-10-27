@@ -53,3 +53,7 @@
 ## 2028-06-28 - [Overwriting Transaction Errors in Health Check & Connection Roundtrips]
 **Learning:** In PersistenceManager, calling `testConnection()` frequently during health monitoring not only causes redundant database/Redis connection roundtrips but also overwrites previous critical transactional save/load errors in `this.lastError` if the connection test succeeds. Isolating connection test errors to `this.lastErrorFromConnection` prevents this state loss, and a 5-second TTL cache for connection tests prevents redundant network roundtrips.
 **Action:** Always isolate ephemeral connectivity checks from core transactional errors in stateful manager instances, and cache frequent connection checks using a TTL.
+
+## 2028-06-30 - [Optimizing InterestGrid position updates via single-pass Set reuse]
+**Learning:** Instantiating `new Set(array)` inside `.filter()` callbacks constructs `N` intermediate Set instances per element, turning linear set diffing into an $O(N^2)$ allocation bottleneck. Reusing an existing `Set<string>` stored on the entity state and constructing only one target `newChunksSet` reduces per-movement Set allocations from $2N$ down to $1$ and eliminates redundant chunk grid radius calculations.
+**Action:** Never instantiate `new Set()` inside array transformation/filter callbacks (`.filter(c => !new Set(newArray).has(c))`). Always construct target sets once outside loop iterations and leverage existing `Set` properties on state objects.

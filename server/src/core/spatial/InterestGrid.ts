@@ -123,13 +123,24 @@ export class InterestGrid {
       return;
     }
 
-    // Calculate old and new subscription sets
-    const oldChunks = this.getChunksInRadius(oldCx, oldCy, this.contract.broadcastRadiusChunks);
+    // Bolt: Optimization - Reuse existing interest.subscribedChunks Set and allocate a single newChunksSet.
+    // Replaced slow O(N^2) Set creation inside filter callbacks (which created 2*N Sets per move) with O(1) Set lookups.
     const newChunks = this.getChunksInRadius(newCx, newCy, this.contract.broadcastRadiusChunks);
+    const newChunksSet = new Set(newChunks);
 
-    // Find chunks to unsubscribe and subscribe
-    const toRemove = oldChunks.filter(c => !new Set(newChunks).has(c));
-    const toAdd = newChunks.filter(c => !new Set(oldChunks).has(c));
+    const toRemove: string[] = [];
+    for (const chunk of interest.subscribedChunks) {
+      if (!newChunksSet.has(chunk)) {
+        toRemove.push(chunk);
+      }
+    }
+
+    const toAdd: string[] = [];
+    for (const chunk of newChunks) {
+      if (!interest.subscribedChunks.has(chunk)) {
+        toAdd.push(chunk);
+      }
+    }
 
     // Update reverse index
     for (const chunk of toRemove) {
@@ -149,7 +160,7 @@ export class InterestGrid {
     // Update interest
     interest.tileX = tileX;
     interest.tileY = tileY;
-    interest.subscribedChunks = new Set(newChunks);
+    interest.subscribedChunks = newChunksSet;
     interest.lastUpdate = this.nextRevision();
   }
 
