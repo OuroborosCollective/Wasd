@@ -68,12 +68,13 @@ function entryCause(entry: HistoryEntry): string {
 }
 
 function allCompleteOracleVisions(result: ReturnType<typeof OracleVisionEngine.generateCompleteVision>): OracleVision[] {
+  // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
   return [
     ...result.warfrontVisions,
     ...result.ghostTownWarnings,
     ...result.fallenEntityVisions,
     ...result.ancientSecrets,
-  ].sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id));
+  ].sort((a, b) => b.priority - a.priority || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 function npcVisionType(oracleVision: OracleVision): NPCVision["type"] {

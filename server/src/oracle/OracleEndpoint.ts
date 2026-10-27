@@ -219,7 +219,8 @@ export class OracleEndpoint {
       }));
     }
 
-    return intents.sort((a, b) => b.priority - a.priority || a.intentHash.localeCompare(b.intentHash)).slice(0, maxIntents);
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+    return intents.sort((a, b) => b.priority - a.priority || (a.intentHash < b.intentHash ? -1 : a.intentHash > b.intentHash ? 1 : 0)).slice(0, maxIntents);
   }
 
   private static maybeCreatePlayerWhisper(input: {
@@ -283,7 +284,12 @@ export class OracleEndpoint {
     socialScore: number;
     regionId?: string;
   }): OracleCommunicationIntent | null {
-    const sorted = [...input.npcs].filter((npc) => npc.id).sort((a, b) => OracleEndpoint.cleanId(a.id).localeCompare(OracleEndpoint.cleanId(b.id)));
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+    const sorted = [...input.npcs].filter((npc) => npc.id).sort((a, b) => {
+      const cleanA = OracleEndpoint.cleanId(a.id);
+      const cleanB = OracleEndpoint.cleanId(b.id);
+      return cleanA < cleanB ? -1 : cleanA > cleanB ? 1 : 0;
+    });
     if (sorted.length === 0) return null;
     const selected = OracleEndpoint.pickDeterministic(sorted, { tick: input.tick, stateHash: input.stateHash, reason: "npc_bark" });
     const role = selected.role ?? "civilian";

@@ -431,4 +431,48 @@ describe("OracleEndpoint", () => {
       expect(hash1).toBe(hash2);
     });
   });
+
+  describe("sorting performance benchmark", () => {
+    it("verifies relational string comparison produces identical sort output to localeCompare for intent sorting", () => {
+      const sampleIntents = Array.from({ length: 50 }, (_, i) => ({
+        priority: i % 5,
+        intentHash: `hash_${(1000 - i * 17) % 997}`,
+      }));
+
+      const sortedWithLocale = [...sampleIntents].sort(
+        (a, b) => b.priority - a.priority || a.intentHash.localeCompare(b.intentHash)
+      );
+
+      const sortedWithRelational = [...sampleIntents].sort(
+        (a, b) => b.priority - a.priority || (a.intentHash < b.intentHash ? -1 : a.intentHash > b.intentHash ? 1 : 0)
+      );
+
+      expect(sortedWithRelational).toEqual(sortedWithLocale);
+    });
+
+    it("benchmarks direct relational string comparison vs localeCompare for oracle sorting", () => {
+      const items = Array.from({ length: 2000 }, (_, i) => ({
+        priority: i % 10,
+        intentHash: `hash_oracle_intent_${(i * 31) % 10000}_${(i * 13) % 5000}`,
+      }));
+
+      const iterations = 500;
+
+      const startLocale = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        [...items].sort((a, b) => b.priority - a.priority || a.intentHash.localeCompare(b.intentHash));
+      }
+      const localeDuration = performance.now() - startLocale;
+
+      const startRelational = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        [...items].sort((a, b) => b.priority - a.priority || (a.intentHash < b.intentHash ? -1 : a.intentHash > b.intentHash ? 1 : 0));
+      }
+      const relationalDuration = performance.now() - startRelational;
+
+      console.log(
+        `[Oracle Benchmark] localeCompare: ${localeDuration.toFixed(2)}ms, relational: ${relationalDuration.toFixed(2)}ms (${(localeDuration / relationalDuration).toFixed(2)}x speedup)`
+      );
+    });
+  });
 });

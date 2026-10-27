@@ -337,7 +337,8 @@ export class NpcQuestRuntime {
     return Object.freeze({
       ...state,
       appliedSourceMutations: Object.freeze(
-        [...this.getSourceMutationMap(playerId).values()].sort((a, b) => a.intentHash.localeCompare(b.intentHash)),
+        // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
+        [...this.getSourceMutationMap(playerId).values()].sort((a, b) => (a.intentHash < b.intentHash ? -1 : a.intentHash > b.intentHash ? 1 : 0)),
       ),
     });
   }
