@@ -179,13 +179,13 @@ function PaperdollSlotCard({
       tabIndex={0}
       aria-label={ariaLabel}
     >
-      <div className="equip-slot-silhouette">{slotIcon(slot.slotId)}</div>
+      <div className="equip-slot-silhouette" aria-hidden="true">{slotIcon(slot.slotId)}</div>
       {iconPath ? (
         <div className="equip-slot-icon">
           <img src={iconPath} alt={slot.title} className="tool-svg-icon" />
         </div>
       ) : (
-        <span className="slot-icon-text">{slotIcon(slot.slotId)}</span>
+        <span className="slot-icon-text" aria-hidden="true">{slotIcon(slot.slotId)}</span>
       )}
       <span className="equip-slot-label">{formatSlotLabel(slot.slotId)}</span>
       <strong className="equip-slot-title">{slot.title}</strong>
@@ -286,6 +286,20 @@ export function EquipmentPanel({
   const [pending, setPending] = useState<PendingAction>(null);
   const [rejection, setRejection] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   const paperdollSlots = useMemo(() => {
     if (paperdoll?.slots?.length) {
       return paperdoll.slots.map(equipmentSlotFromPaperdoll);
@@ -356,15 +370,23 @@ export function EquipmentPanel({
   if (!isOpen) return null;
 
   return (
-    <div className="equipment-panel wow-panel" data-player-id={resolvedPlayerId} data-testid="equipment-panel-live">
+    <div
+      className="equipment-panel wow-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="equipment-panel-title"
+      data-player-id={resolvedPlayerId}
+      data-testid="equipment-panel-live"
+    >
       <div className="equipment-header">
-        <h2>Equipment</h2>
+        <h2 id="equipment-panel-title">Equipment</h2>
         {onClose && (
           <button
             type="button"
             onClick={onClose}
             className="wow-close-btn"
-            aria-label="Close [ESC]"
+            aria-label="Close equipment panel [ESC]"
+            title="Close equipment panel [ESC]"
             aria-keyshortcuts="Escape"
           >
             <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
