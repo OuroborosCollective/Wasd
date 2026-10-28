@@ -91,4 +91,32 @@ describe("PaperdollPanel UX & Accessibility", () => {
     expect(slots[1].getAttribute("aria-label")).toBe("Mining: Copper Pickaxe");
     expect(slots[1].getAttribute("title")).toBe("Mining: Copper Pickaxe");
   });
+
+  it("renders visual slot category icons with aria-hidden='true'", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    const mockSnapshot: PaperdollSnapshot = {
+      character: {
+        displayName: "Valerius",
+        archetype: "Wanderer",
+      },
+      slots: [
+        { slotId: "weapon", itemId: "iron_sword", title: "Iron Sword" },
+        { slotId: "mining_tool", itemId: "copper_pickaxe", title: "Copper Pickaxe" },
+      ],
+    };
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(<PaperdollPanel paperdoll={mockSnapshot} />);
+    });
+
+    const icons = container!.querySelectorAll(".paperdoll-slot-icon");
+    expect(icons.length).toBe(2);
+    expect(icons[0].getAttribute("aria-hidden")).toBe("true");
+    expect(icons[0].textContent).toBe("⚔️");
+    expect(icons[1].getAttribute("aria-hidden")).toBe("true");
+    expect(icons[1].textContent).toBe("⛏️");
+  });
 });

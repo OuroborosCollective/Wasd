@@ -51,6 +51,9 @@ export function PaperdollPanel({ paperdoll }: Props) {
               aria-label={accessibleText}
               title={accessibleText}
             >
+              <span className="paperdoll-slot-icon" aria-hidden="true">
+                {slotIcon(slot.slotId)}
+              </span>
               <span className="paperdoll-slot-label">{slotLabel}</span>
               <strong className="paperdoll-slot-title">{slot.title}</strong>
             </article>
@@ -61,17 +64,34 @@ export function PaperdollPanel({ paperdoll }: Props) {
   );
 }
 
+const SLOT_LABELS: Record<string, string> = {
+  weapon: "Weapon",
+  helmet: "Helmet",
+  armor: "Armor",
+  boots: "Boots",
+  ring: "Ring",
+  amulet: "Amulet",
+  woodcutting_tool: "Woodcutting",
+  mining_tool: "Mining",
+  fishing_tool: "Fishing",
+};
+
+const SLOT_ICONS: Record<string, string> = {
+  weapon: "⚔️",
+  helmet: "⛑️",
+  armor: "🛡️",
+  boots: "👢",
+  ring: "💍",
+  amulet: "💎",
+  woodcutting_tool: "🪓",
+  mining_tool: "⛏️",
+  fishing_tool: "🎣",
+};
+
 function formatSlotLabel(slotId: string): string {
-  const labels: Record<string, string> = {
-    weapon: "Weapon",
-    helmet: "Helmet",
-    armor: "Armor",
-    boots: "Boots",
-    ring: "Ring",
-    amulet: "Amulet",
-    woodcutting_tool: "Woodcutting",
-    mining_tool: "Mining",
-    fishing_tool: "Fishing",
-  };
-  return labels[slotId] ?? slotId;
+  return SLOT_LABELS[slotId] ?? slotId;
+}
+
+function slotIcon(slotId: string): string {
+  return SLOT_ICONS[slotId] ?? "📦";
 }
