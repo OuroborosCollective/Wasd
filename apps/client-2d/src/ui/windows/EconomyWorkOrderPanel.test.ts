@@ -77,4 +77,46 @@ describe("parseVerifiedWorkOrderResponse", () => {
 
     expect(() => parseVerifiedWorkOrderResponse(payload)).toThrow(/revision_evidence/);
   });
+
+  it("benchmarks fast relational string comparison vs localeCompare for sorting work orders", () => {
+    const base = validResponse();
+    // Generate a set of 500 work orders with padded orderIds so string collation is identical
+    const count = 500;
+    const testOrders = Array.from({ length: count }, (_, i) => {
+      const vendorNum = String((i * 37) % 1000).padStart(4, "0");
+      const itemNum = String((i * 97) % 500).padStart(4, "0");
+      const orderId = `work_order:vendor_${vendorNum}:${itemNum}`;
+      return {
+        ...base.orders[0],
+        orderId,
+      };
+    });
+
+    const itemsForLocaleCompare = [...testOrders];
+    const itemsForRelational = [...testOrders];
+
+    // Verify sort order equivalence
+    const sortedLocale = [...itemsForLocaleCompare].sort((a, b) => a.orderId.localeCompare(b.orderId));
+    const sortedRelational = [...itemsForRelational].sort((a, b) => (a.orderId < b.orderId ? -1 : a.orderId > b.orderId ? 1 : 0));
+    expect(sortedRelational).toEqual(sortedLocale);
+
+    const iterations = 200;
+
+    // 1. Benchmark localeCompare sorting
+    const startLocale = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      [...testOrders].sort((a, b) => a.orderId.localeCompare(b.orderId));
+    }
+    const durationLocale = performance.now() - startLocale;
+
+    // 2. Benchmark fast relational sorting
+    const startRelational = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      [...testOrders].sort((a, b) => (a.orderId < b.orderId ? -1 : a.orderId > b.orderId ? 1 : 0));
+    }
+    const durationRelational = performance.now() - startRelational;
+
+    const speedup = durationLocale / (durationRelational || 0.001);
+    console.log(`[EconomyWorkOrder Benchmark] localeCompare: ${durationLocale.toFixed(2)}ms, relational: ${durationRelational.toFixed(2)}ms (${speedup.toFixed(2)}x speedup)`);
+  });
 });
