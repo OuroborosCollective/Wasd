@@ -179,4 +179,71 @@ describe("EquipmentPanel UX & Accessibility", () => {
     });
     expect(dispatchUnequip).toHaveBeenCalledTimes(2);
   });
+
+  it("renders with dialog role, modal ARIA attributes, and aria-hidden slot icons", async () => {
+    const handleClose = vi.fn();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(
+        <DnDProvider>
+          <EquipmentPanel
+            playerId="test-player-1"
+            equipment={mockEquipment}
+            inventory={mockInventory}
+            paperdoll={mockPaperdoll}
+            onClose={handleClose}
+          />
+        </DnDProvider>
+      );
+    });
+
+    const dialog = container!.querySelector('[role="dialog"]');
+    expect(dialog).toBeTruthy();
+    expect(dialog!.getAttribute("aria-modal")).toBe("true");
+    expect(dialog!.getAttribute("aria-labelledby")).toBe("equipment-panel-title");
+
+    const title = container!.querySelector("#equipment-panel-title");
+    expect(title).toBeTruthy();
+    expect(title!.textContent).toBe("Equipment");
+
+    const closeBtn = container!.querySelector(".wow-close-btn");
+    expect(closeBtn).toBeTruthy();
+    expect(closeBtn!.getAttribute("aria-label")).toBe("Close equipment panel [ESC]");
+    expect(closeBtn!.getAttribute("title")).toBe("Close equipment panel [ESC]");
+
+    const silhouettes = container!.querySelectorAll(".equip-slot-silhouette");
+    silhouettes.forEach((silhouette) => {
+      expect(silhouette.getAttribute("aria-hidden")).toBe("true");
+    });
+  });
+
+  it("triggers onClose when Escape key is pressed", async () => {
+    const handleClose = vi.fn();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(
+        <DnDProvider>
+          <EquipmentPanel
+            playerId="test-player-1"
+            equipment={mockEquipment}
+            inventory={mockInventory}
+            paperdoll={mockPaperdoll}
+            onClose={handleClose}
+          />
+        </DnDProvider>
+      );
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
 });
