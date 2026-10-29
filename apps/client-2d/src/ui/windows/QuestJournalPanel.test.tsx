@@ -47,6 +47,10 @@ describe("QuestJournalPanel Accessibility & UX", () => {
     expect(panel.getAttribute("aria-busy")).toBe("true");
     expect(panel.getAttribute("aria-live")).toBe("polite");
     expect(container!.textContent).toContain("waiting for server snapshot");
+
+    const iconSpan = panel.querySelector('small span[aria-hidden="true"]');
+    expect(iconSpan).toBeTruthy();
+    expect(iconSpan?.textContent).toBe("⏳");
   });
 
   it("renders empty state with WAI-ARIA region attributes", async () => {
@@ -74,6 +78,10 @@ describe("QuestJournalPanel Accessibility & UX", () => {
     expect(panel.getAttribute("role")).toBe("region");
     expect(panel.getAttribute("aria-label")).toBe("Quest Journal");
     expect(container!.textContent).toContain("no active quests");
+
+    const iconSpan = panel.querySelector('small span[aria-hidden="true"]');
+    expect(iconSpan).toBeTruthy();
+    expect(iconSpan?.textContent).toBe("📜");
   });
 
   it("renders active quests with card labels, progress bar tooltips, and claim button properties", async () => {
@@ -146,5 +154,17 @@ describe("QuestJournalPanel Accessibility & UX", () => {
     expect(claimButton).toBeTruthy();
     expect(claimButton.getAttribute("aria-label")).toBe("Claim reward for Clear Outpost");
     expect(claimButton.getAttribute("title")).toBe("Claim reward for Clear Outpost");
+
+    const claimIcon = claimButton.querySelector('span[aria-hidden="true"]');
+    expect(claimIcon).toBeTruthy();
+    expect(claimIcon?.textContent).toBe("🎁");
+
+    const activeHeaderIcon = questCards[0].querySelector('header small span[aria-hidden="true"]');
+    expect(activeHeaderIcon).toBeTruthy();
+    expect(activeHeaderIcon?.textContent).toBe("⏳");
+
+    const completedHeaderIcon = questCards[1].querySelector('header small span[aria-hidden="true"]');
+    expect(completedHeaderIcon).toBeTruthy();
+    expect(completedHeaderIcon?.textContent).toBe("⭐");
   });
 });
