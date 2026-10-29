@@ -26,6 +26,13 @@ function canClaimReward(quest: QuestSnapshot): boolean {
   return quest.status === "completed" && !hasRewardClaimed(quest);
 }
 
+function getQuestStatusIcon(status: string, rewardClaimed: boolean): string {
+  if (rewardClaimed) return "✅";
+  if (status === "completed") return "⭐";
+  if (status === "active" || status === "in_progress") return "⏳";
+  return "📜";
+}
+
 export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
   const [claimingQuestId, setClaimingQuestId] = useState<string | null>(null);
   const [lastInteractedQuestId, setLastInteractedQuestId] = useState<string | null>(null);
@@ -89,7 +96,10 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
         aria-live="polite"
       >
         <article className="stitch-info">
-          <small>Quest Sync</small>
+          <small>
+            <span aria-hidden="true" style={{ marginRight: "6px" }}>⏳</span>
+            Quest Sync
+          </small>
           <b>waiting for server snapshot</b>
         </article>
       </div>
@@ -105,7 +115,10 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
         aria-label="Quest Journal"
       >
         <article className="stitch-info">
-          <small>Quest Journal</small>
+          <small>
+            <span aria-hidden="true" style={{ marginRight: "6px" }}>📜</span>
+            Quest Journal
+          </small>
           <b>no active quests</b>
         </article>
       </div>
@@ -130,7 +143,12 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
             aria-label={`Quest: ${quest.title}`}
           >
             <header>
-              <small>{rewardClaimed ? "claimed" : quest.status}</small>
+              <small>
+                <span aria-hidden="true" style={{ marginRight: "4px" }}>
+                  {getQuestStatusIcon(quest.status, rewardClaimed)}
+                </span>
+                {rewardClaimed ? "claimed" : quest.status}
+              </small>
               <b>{quest.title}</b>
             </header>
 
@@ -173,7 +191,16 @@ export function QuestJournalPanel({ snapshot }: QuestJournalPanelProps) {
                 disabled={claimingQuestId === quest.id}
                 onClick={() => void claimReward(quest.id)}
               >
-                {claimingQuestId === quest.id ? "Claiming…" : "Claim Reward"}
+                {claimingQuestId === quest.id ? (
+                  "Claiming…"
+                ) : (
+                  <>
+                    <span aria-hidden="true" style={{ marginRight: "6px" }}>
+                      🎁
+                    </span>
+                    Claim Reward
+                  </>
+                )}
               </button>
             )}
 
