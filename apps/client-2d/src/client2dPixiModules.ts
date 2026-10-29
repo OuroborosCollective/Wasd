@@ -91,7 +91,8 @@ export class Client2DVisualTimerBus {
 
   schedule(id: string, delayMs: number, run: () => void): void {
     this.timers.push({ id, dueAt: this.nowMs + Math.max(0, delayMs), run });
-    this.timers.sort((a, b) => a.dueAt - b.dueAt || a.id.localeCompare(b.id));
+    // Bolt: Optimized timer sorting using fast direct relational comparison instead of slow localeCompare
+    this.timers.sort((a, b) => a.dueAt - b.dueAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   update(deltaMs: number): void {
