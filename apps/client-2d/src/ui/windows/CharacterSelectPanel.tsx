@@ -30,6 +30,7 @@ type StartPath = (typeof START_PATHS)[number];
 interface StartPathInfo {
   readonly label: string;
   readonly shortLabel: string;
+  readonly icon: string;
   readonly starterKit: readonly string[];
   readonly tutorialFocus: string;
   readonly firstResourceSpot: string;
@@ -40,6 +41,7 @@ const START_PATH_INFO: Record<StartPath, StartPathInfo> = {
   wanderer: {
     label: "Wanderer — Neutral Start",
     shortLabel: "Wanderer",
+    icon: "🧭",
     starterKit: ["Travel Ration", "Training Spear", "Waymark"],
     tutorialFocus: "Movement, talking to NPCs, first quest, and first combat.",
     firstResourceSpot: "Village square, training field, and first NPC at the waystone.",
@@ -48,6 +50,7 @@ const START_PATH_INFO: Record<StartPath, StartPathInfo> = {
   forager: {
     label: "Forager — Gathering Tutorial",
     shortLabel: "Forager",
+    icon: "🌿",
     starterKit: ["Gathering Bag", "Herb Knife", "Field Note"],
     tutorialFocus: "Finding herbs, berries, mushrooms, and simple natural materials.",
     firstResourceSpot: "Herb meadow at the edge of the forest with foraging nodes.",
@@ -56,6 +59,7 @@ const START_PATH_INFO: Record<StartPath, StartPathInfo> = {
   miner: {
     label: "Miner — Ore & Pickaxe",
     shortLabel: "Miner",
+    icon: "⛏️",
     starterKit: ["Simple Pickaxe", "Ore Bag", "Copper Mark"],
     tutorialFocus: "Mining stone, copper, ore veins, and robust materials.",
     firstResourceSpot: "Rock ridge north of the start with stone and copper veins.",
@@ -64,6 +68,7 @@ const START_PATH_INFO: Record<StartPath, StartPathInfo> = {
   angler: {
     label: "Angler — Water & Fishing Rod",
     shortLabel: "Angler",
+    icon: "🎣",
     starterKit: ["Simple Fishing Rod", "Bait Bag", "Small Net"],
     tutorialFocus: "Identifying fishing spots, catching fish, and learning to cook.",
     firstResourceSpot: "Pier at the nearby water with a marked fishing spot.",
@@ -72,6 +77,7 @@ const START_PATH_INFO: Record<StartPath, StartPathInfo> = {
   artisan: {
     label: "Artisan — Workbench & Crafting",
     shortLabel: "Artisan",
+    icon: "🛠️",
     starterKit: ["Tool Roll", "Wood Plank", "Recipe Card"],
     tutorialFocus: "Workbench use, first recipes, simple processing, and repair.",
     firstResourceSpot: "Workbench tent at the start camp with a crafting order.",
@@ -105,7 +111,12 @@ export function CharacterSelectPanel({ onCreated }: Props) {
       role="region"
       aria-label="Character Creation"
     >
-      <h2>Character Creation</h2>
+      <h2>
+        <span aria-hidden="true" style={{ marginRight: "8px" }}>
+          👤
+        </span>
+        Character Creation
+      </h2>
       <p>
         Create your first Areloria character. Areloria is classless: skills grow through use,
         not through a fixed class.
@@ -136,7 +147,7 @@ export function CharacterSelectPanel({ onCreated }: Props) {
         >
           {START_PATHS.map((id) => (
             <option key={id} value={id}>
-              {START_PATH_INFO[id].label}
+              {START_PATH_INFO[id].icon} {START_PATH_INFO[id].label}
             </option>
           ))}
         </select>
@@ -144,7 +155,12 @@ export function CharacterSelectPanel({ onCreated }: Props) {
 
       <article className="character-start-path-card" data-testid="character-start-path-card">
         <header>
-          <strong>{selectedPath.shortLabel}</strong>
+          <strong>
+            <span aria-hidden="true" style={{ marginRight: "6px" }}>
+              {selectedPath.icon}
+            </span>
+            {selectedPath.shortLabel}
+          </strong>
           <span>Start Path · No Class</span>
         </header>
         <dl>
@@ -242,7 +258,21 @@ export function CharacterSelectPanel({ onCreated }: Props) {
           }
         }}
       >
-        {isCreating ? "Creating..." : "Create Character"}
+        {isCreating ? (
+          <>
+            <span aria-hidden="true" style={{ marginRight: "6px" }}>
+              ⏳
+            </span>
+            Creating...
+          </>
+        ) : (
+          <>
+            <span aria-hidden="true" style={{ marginRight: "6px" }}>
+              ✨
+            </span>
+            Create Character
+          </>
+        )}
       </button>
 
       {status && (

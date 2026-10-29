@@ -59,6 +59,27 @@ describe("CharacterSelectPanel UX & Accessibility", () => {
     expect(submitBtn.getAttribute("title")).toBe("Create new character");
   });
 
+  it("renders visual category icons wrapped in aria-hidden='true' for WCAG compliance", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(<CharacterSelectPanel />);
+    });
+
+    const hiddenElements = container!.querySelectorAll('[aria-hidden="true"]');
+    expect(hiddenElements.length).toBeGreaterThanOrEqual(3);
+
+    const titleIcon = hiddenElements[0];
+    expect(titleIcon.textContent).toBe("👤");
+
+    const selectOptions = container!.querySelectorAll("#char-start-path-select option");
+    expect(selectOptions[0].textContent).toContain("🧭 Wanderer");
+    expect(selectOptions[1].textContent).toContain("🌿 Forager");
+    expect(selectOptions[2].textContent).toContain("⛏️ Miner");
+  });
+
   it("displays validation error with role='status' and aria-live='polite' when name is too short", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
