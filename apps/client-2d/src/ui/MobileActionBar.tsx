@@ -10,6 +10,13 @@ interface Props {
   onEquipment: () => void;
 }
 
+const SKILL_ICONS: Record<SkillId, string> = {
+  primary: "⚔️",
+  impact_buster: "💥",
+  interact: "💬",
+  pickup: "📦"
+};
+
 export function MobileActionBar({
   skills,
   onSkill,
@@ -63,7 +70,12 @@ export function MobileActionBar({
               touchAction: "none"
             }}
           >
-            <div>{def.label}</div>
+            <div>
+              <span aria-hidden="true" style={{ marginRight: 4 }}>
+                {SKILL_ICONS[skillId]}
+              </span>
+              {def.label}
+            </div>
             {disabled && (
               <small>{state.cooldownRemainingTicks}</small>
             )}
@@ -89,7 +101,7 @@ export function MobileActionBar({
             fontSize: 11
           }}
         >
-          INV
+          <span aria-hidden="true" style={{ marginRight: 2 }}>🎒</span>INV
         </button>
         <button
           type="button"
@@ -108,7 +120,7 @@ export function MobileActionBar({
             fontSize: 11
           }}
         >
-          EQ
+          <span aria-hidden="true" style={{ marginRight: 2 }}>🛡️</span>EQ
         </button>
         <button
           type="button"
@@ -127,7 +139,7 @@ export function MobileActionBar({
             fontSize: 11
           }}
         >
-          Q
+          <span aria-hidden="true" style={{ marginRight: 2 }}>📜</span>Q
         </button>
       </div>
     </div>
