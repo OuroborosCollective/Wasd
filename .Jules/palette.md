@@ -37,3 +37,7 @@
 ## 2028-02-21 - [Modal Dialog vs Landmark Region Semantics]
 **Learning:** Pop-up/overlay panels (like CraftingWindow) with headers and close controls must retain `role="dialog"` rather than generic `role="region"`. Changing overlay containers to `role="region"` strips the dialog focus context from screen reader users when pop-up panels open.
 **Action:** Always maintain `role="dialog"` on pop-up overlay window containers and use `role="region"` only for inline, non-modal content sections.
+
+## 2028-02-22 - [Mobile Action Bar Accessibility & Visual Scannability]
+**Learning:** Mobile touch action controls and utility buttons often rely strictly on text labels or background colors, making rapid visual recognition difficult during fast-paced gameplay. Adding visual category emojis (`⚔️`, `💥`, `💬`, `📦`, `🎒`, `🛡️`, `📜`) wrapped in `<span aria-hidden="true">` provides instant visual scanning and WCAG 1.4.1 non-color reliance while preventing duplicate character vocalization on screen readers.
+**Action:** Always wrap visual icons or emojis added for scannability in `<span aria-hidden="true">` elements when explicit ARIA labels or text descriptions are already present on the parent button.
