@@ -44,10 +44,19 @@ export function CombatLog({ entries }: Props) {
                   ? "#39ff14"
                   : "#f5f7ff",
             font: "12px/1.35 ui-monospace, monospace",
-            backdropFilter: "blur(8px)"
+            backdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center"
           }}
         >
-          {entry.text}
+          <span aria-hidden="true" style={{ marginRight: 6 }}>
+            {entry.kind === "damage"
+              ? "⚔️"
+              : entry.kind === "heal"
+                ? "💚"
+                : "📜"}
+          </span>
+          <span>{entry.text}</span>
         </div>
       ))}
     </div>

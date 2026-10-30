@@ -73,13 +73,15 @@ describe("CombatLog UX & Accessibility", () => {
     expect(statusItems.length).toBe(2);
 
     const firstItem = statusItems[0];
-    expect(firstItem.textContent).toBe("Damage 42");
+    expect(firstItem.textContent).toBe("⚔️Damage 42");
     expect(firstItem.getAttribute("aria-label")).toBe("Combat event: Damage 42");
     expect(firstItem.getAttribute("title")).toBe("Damage 42");
+    expect(firstItem.querySelector('[aria-hidden="true"]')?.textContent).toBe("⚔️");
 
     const secondItem = statusItems[1];
-    expect(secondItem.textContent).toBe("Heal 15");
+    expect(secondItem.textContent).toBe("💚Heal 15");
     expect(secondItem.getAttribute("aria-label")).toBe("Combat event: Heal 15");
     expect(secondItem.getAttribute("title")).toBe("Heal 15");
+    expect(secondItem.querySelector('[aria-hidden="true"]')?.textContent).toBe("💚");
   });
 });
