@@ -42,3 +42,8 @@
 **Vulnerability:** The Playtester monitor WebSocket stream (`PlaytesterMonitorStream`), WebRTC signaling server (`PlaytesterWebRTCSignaling`), and HTTP route access checks (`ServerBootstrap`) used relational `===` string comparisons to validate incoming query/header tokens against `PLAYTESTER_MONITOR_TOKEN`, exposing internal monitoring credentials to timing attacks.
 **Learning:** Custom WebSocket upgrade handlers and streaming endpoints often implement token authorization checks independently of standard Express auth middlewares, creating timing side-channel risks.
 **Prevention:** Always use SHA-256 digest hashing and `crypto.timingSafeEqual` via a `safeEqualText` helper for token comparisons in custom HTTP upgrade and WebSocket handlers.
+
+## 2026-10-31 - [High] Inverted Default Dev-Fallback in Endpoint Auth
+**Vulnerability:** The `/api/resource/gather` endpoint used an ad-hoc `envFlagEnabled` helper that checked `!["0", "false", "no"].includes(value)`, causing undefined environment variables (`ALLOW_GUEST_LOGIN`, `ALLOW_DEV_LOGIN`) to be treated as truthy in production and bypassing authentication requirements.
+**Learning:** Checking environment variables with "allow-unless-explicitly-false" semantics in security gates causes fail-open vulnerabilities when configurations are omitted in standard production environments.
+**Prevention:** Always rely on server-authoritative `assertPlayerIdentityAllowed(identity)` from `PlayerIdentityResolver.ts`, which enforces fail-closed semantics requiring explicit truthy opt-in (`"1"`, `"true"`, `"yes"`, `"on"`) for dev/guest fallbacks.
