@@ -42,6 +42,7 @@ export function normalizePersistedQuestState(
         title: String(quest.title ?? quest.id),
         description: String(quest.description ?? ""),
         status: quest.status ?? "available",
+        // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
         objectives: Array.isArray(quest.objectives)
           ? quest.objectives.map((objective) => ({
               id: String(objective.id),
@@ -49,9 +50,9 @@ export function normalizePersistedQuestState(
               current: Math.max(0, Number(objective.current ?? 0)),
               required: Math.max(1, Number(objective.required ?? 1)),
               completed: Boolean(objective.completed),
-            })).sort((a, b) => a.id.localeCompare(b.id))
+            })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
           : [],
-      })).sort((a, b) => a.id.localeCompare(b.id))
+      })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     : [];
 
   return {
