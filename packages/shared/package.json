@@ -37,7 +37,7 @@
     "eventemitter3": "^5.0.4",
     "ioredis": "^5.11.0",
     "nanoid": "^5.1.16",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@babylonjs/core": "^9.28.0",
