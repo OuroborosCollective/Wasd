@@ -94,6 +94,9 @@ export function NpcSpeechBubble({
 
   return (
     <div
+      role="status"
+      aria-live="polite"
+      aria-label={`${npcName} is ${variant}`}
       className="absolute z-50 pointer-events-auto"
       style={{
         maxWidth: "280px",
@@ -147,10 +150,12 @@ export function NpcSpeechBubble({
                 }}
                 title={`Emotion: ${emotion}`}
               >
-                {EMOTION_ICONS[emotion]}
+                <span aria-hidden="true">{EMOTION_ICONS[emotion]}</span>
               </span>
               {/* Variant Indicator */}
-              <span style={{ fontSize: "10px" }}>{colors.icon}</span>
+              <span style={{ fontSize: "10px" }}>
+                <span aria-hidden="true">{colors.icon}</span>
+              </span>
             </div>
           </div>
 
@@ -215,7 +220,10 @@ export function NpcSpeechBubble({
         {/* Dismiss Button (optional) */}
         {onDismiss && (
           <button
+            type="button"
             onClick={onDismiss}
+            aria-label="Dismiss speech bubble"
+            title="Dismiss speech bubble"
             className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center"
             style={{
               backgroundColor: "rgba(13, 21, 22, 0.9)",
@@ -223,9 +231,10 @@ export function NpcSpeechBubble({
               borderRadius: "0px",
               color: "#849396",
               fontSize: "10px",
+              cursor: "pointer",
             }}
           >
-            ✕
+            <span aria-hidden="true">✕</span>
           </button>
         )}
       </div>
