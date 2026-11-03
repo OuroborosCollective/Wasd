@@ -24,7 +24,7 @@ describe("CharacterWindow UX & Accessibility", () => {
     }
   });
 
-  it("renders dialog container with header close button and shortcut hint", async () => {
+  it("renders dialog container with header close button, aria-modal, aria-labelledby, and shortcut hint", async () => {
     const handleClose = vi.fn();
 
     await act(async () => {
@@ -34,11 +34,17 @@ describe("CharacterWindow UX & Accessibility", () => {
 
     const dialog = container!.querySelector('[role="dialog"]');
     expect(dialog).toBeTruthy();
-    expect(dialog?.getAttribute("aria-label")).toBe("Character");
+    expect(dialog?.getAttribute("aria-modal")).toBe("true");
+    expect(dialog?.getAttribute("aria-labelledby")).toBe("character-window-title");
+
+    const headerTitle = container!.querySelector("#character-window-title");
+    expect(headerTitle).toBeTruthy();
+    expect(headerTitle?.textContent).toBe("CHARACTER");
 
     const closeBtn = container!.querySelector(".wow-close-btn");
     expect(closeBtn).toBeTruthy();
     expect(closeBtn?.getAttribute("aria-label")).toBe("Close [ESC]");
+    expect(closeBtn?.getAttribute("title")).toBe("Close [ESC]");
     expect(closeBtn?.getAttribute("aria-keyshortcuts")).toBe("Escape");
   });
 
@@ -81,9 +87,7 @@ describe("CharacterWindow UX & Accessibility", () => {
       },
     };
 
-    await act(async () => {
-      characterWindowStore.receiveSnapshot(mockSnapshot);
-    });
+    characterWindowStore.receiveSnapshot(mockSnapshot);
 
     await act(async () => {
       const root = createRoot(container!);
@@ -108,5 +112,49 @@ describe("CharacterWindow UX & Accessibility", () => {
     expect(skillProgressBar?.getAttribute("aria-valuenow")).toBe("62");
     expect(skillProgressBar?.getAttribute("aria-valuetext")).toBe("Average Skill Progress: 63%");
     expect(skillProgressBar?.getAttribute("title")).toBe("Average Skill Progress: 63%");
+  });
+
+  it("applies animate-pulse to stat bar when current value is under 20% max", async () => {
+    const mockLowHpSnapshot: PlayerStatsSnapshot = {
+      playerId: "p1",
+      level: 5,
+      totalLevel: 15,
+      unspentStatPoints: 0,
+      hp: 15, // 15% HP -> Low vital threshold (<20%)
+      maxHp: 100,
+      mana: 40,
+      maxMana: 50,
+      stamina: 80,
+      maxStamina: 100,
+      gold: 100,
+      coreStats: {
+        strength: 10,
+        agility: 10,
+        intelligence: 10,
+      },
+      skills: {},
+    };
+
+    characterWindowStore.receiveSnapshot(mockLowHpSnapshot);
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(<CharacterWindow isOpen={true} />);
+    });
+
+    const hpBarTrack = Array.from(container!.querySelectorAll('[role="progressbar"]')).find(
+      (bar) => bar.getAttribute("aria-label") === "HP"
+    );
+    expect(hpBarTrack).toBeTruthy();
+
+    const fillElement = hpBarTrack?.querySelector(".char-bar-fill");
+    expect(fillElement).toBeTruthy();
+    expect(fillElement?.classList.contains("animate-pulse")).toBe(true);
+
+    const manaBarTrack = Array.from(container!.querySelectorAll('[role="progressbar"]')).find(
+      (bar) => bar.getAttribute("aria-label") === "Mana"
+    );
+    const manaFillElement = manaBarTrack?.querySelector(".char-bar-fill");
+    expect(manaFillElement?.classList.contains("animate-pulse")).toBe(false);
   });
 });
