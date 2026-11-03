@@ -216,7 +216,8 @@ export class EconomyService {
       const sellableSlots = snapshot.inventory.slots.filter((slot) => isSellable(slot.itemId));
       if (sellableSlots.length === 0) return { ok: false, sold: [], totalCoins: 0, newBalance: snapshot.wallet.balances.coin, reason: "nothing_to_sell" };
 
-      const sortedSlots = [...sellableSlots].sort((a, b) => a.itemId.localeCompare(b.itemId));
+      // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+      const sortedSlots = [...sellableSlots].sort((a, b) => (a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0));
       const sellOps: Array<{ itemId: string; quantity: number; unitPrice: number; basePrice: number; totalCoins: number; stockBefore: number; stockAfter: number; demandBand: DemandBand }> = [];
       let totalCoins = 0;
       for (const slot of sortedSlots) {
