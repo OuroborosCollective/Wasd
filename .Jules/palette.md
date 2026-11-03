@@ -37,3 +37,7 @@
 ## 2028-02-21 - [Modal Dialog vs Landmark Region Semantics]
 **Learning:** Pop-up/overlay panels (like CraftingWindow) with headers and close controls must retain `role="dialog"` rather than generic `role="region"`. Changing overlay containers to `role="region"` strips the dialog focus context from screen reader users when pop-up panels open.
 **Action:** Always maintain `role="dialog"` on pop-up overlay window containers and use `role="region"` only for inline, non-modal content sections.
+
+## 2028-02-22 - [Visual Non-Color Indicators in Floating Overlay Status Messages]
+**Learning:** Network status overlays and transient alerts that rely purely on text and border colors (like yellow/red borders for stale/disconnected sync states) can fail WCAG 1.4.1 (Use of Color) and take longer to scan visually. Adding distinct status category icons wrapped in `<span aria-hidden="true">` ensures immediate visual recognition for sighted users while preventing duplicate emoji vocalization for screen readers.
+**Action:** Always complement color-coded status overlays or badges with visual category icons wrapped in `<span aria-hidden="true">` alongside accessible text labels.
