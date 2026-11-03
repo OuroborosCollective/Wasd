@@ -17,7 +17,7 @@
 
 import { Router } from "express";
 import { json } from "express";
-import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
+import { assertPlayerIdentityAllowed, resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
 import { equipmentService } from "../equipment/equipmentRuntime.js";
 import { EQUIPMENT_DEFINITIONS } from "../equipment/EquipmentTypes.js";
@@ -74,7 +74,9 @@ async function hasToolsInInventory(playerId: string): Promise<boolean> {
 router.post("/claim-starter-tools", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
 
-  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+  try {
+    assertPlayerIdentityAllowed(identity);
+  } catch {
     res.status(401).json({ ok: false, error: "authenticated_player_required" });
     return;
   }
