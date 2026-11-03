@@ -80,15 +80,49 @@ describe("StorageOverlay UX & Accessibility", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders storage header and items correctly", async () => {
+  it("renders storage header, dialog accessibility attributes, and items correctly", async () => {
     await act(async () => {
       const root = createRoot(container!);
       root.render(<StorageOverlay isOpen={true} />);
     });
 
-    expect(container!.textContent).toContain("Storage Transfer");
+    const overlay = container!.querySelector(".storage-overlay");
+    expect(overlay).toBeTruthy();
+    expect(overlay!.getAttribute("role")).toBe("dialog");
+    expect(overlay!.getAttribute("aria-modal")).toBe("true");
+    expect(overlay!.getAttribute("aria-labelledby")).toBe("storage-dialog-title");
+
+    const headerTitle = container!.querySelector("#storage-dialog-title");
+    expect(headerTitle).toBeTruthy();
+    expect(headerTitle!.textContent).toContain("Storage Transfer");
+
     expect(container!.textContent).toContain("Wooden Chest");
     expect(container!.textContent).toContain("Player Inventory");
+  });
+
+  it("renders pending indicator with role=status when transfer intent is pending", async () => {
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(<StorageOverlay isOpen={true} />);
+    });
+
+    expect(container!.querySelector(".pending-indicator")).toBeNull();
+
+    await act(async () => {
+      storageStateStore.dispatchTransfer({
+        intent: "transfer",
+        fromStorageId: "player",
+        toStorageId: "chest_01",
+        fromSlotIndex: 0,
+        toSlotIndex: -1,
+      });
+    });
+
+    const pendingIndicator = container!.querySelector(".pending-indicator");
+    expect(pendingIndicator).toBeTruthy();
+    expect(pendingIndicator!.getAttribute("role")).toBe("status");
+    expect(pendingIndicator!.getAttribute("aria-live")).toBe("polite");
+    expect(pendingIndicator!.textContent).toContain("Transferring...");
   });
 
   it("calls onClose and dispatches client action when Escape key is pressed", async () => {
