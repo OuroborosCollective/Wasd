@@ -103,6 +103,9 @@ export function NpcContextWindow({
 
       <div
         className="fixed z-50"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="npc-context-title"
         style={{
           position: "fixed",
           zIndex: 4010,
@@ -136,6 +139,7 @@ export function NpcContextWindow({
             >
               <div className="flex flex-col gap-1" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <h2
+                  id="npc-context-title"
                   style={{
                     fontFamily: "Epilogue, sans-serif",
                     fontSize: "20px",
@@ -145,6 +149,7 @@ export function NpcContextWindow({
                     margin: 0,
                   }}
                 >
+                  <span aria-hidden="true">💬 </span>
                   {npc.name}
                 </h2>
                 <div className="flex items-center gap-2" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -160,7 +165,7 @@ export function NpcContextWindow({
                   >
                     {npc.role}
                   </span>
-                  <span style={{ color: "#3b494c" }}>|</span>
+                  <span style={{ color: "#3b494c" }} aria-hidden="true">|</span>
                   <span
                     style={{
                       fontFamily: "Epilogue, sans-serif",
@@ -180,6 +185,7 @@ export function NpcContextWindow({
                 onClick={onClose}
                 aria-label="Close dialogue [ESC]"
                 aria-keyshortcuts="Escape"
+                title="Close dialogue [ESC]"
                 className="flex items-center justify-center"
                 style={{
                   minWidth: 40,
@@ -207,7 +213,7 @@ export function NpcContextWindow({
                 }}
               >
                 <kbd className="cz-kbd" aria-hidden="true" style={{ margin: 0 }}>ESC</kbd>
-                ✕
+                <span aria-hidden="true">✕</span>
               </button>
             </div>
 
@@ -279,6 +285,8 @@ export function NpcContextWindow({
                       }}
                       onClick={onContinue}
                       aria-label="Continue dialogue [Space/Enter/E]"
+                      aria-keyshortcuts="Space Enter e"
+                      title="Continue dialogue [Space/Enter/E]"
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = "rgba(0, 229, 255, 0.2)";
                         e.currentTarget.style.borderColor = "#00e5ff";
@@ -296,7 +304,7 @@ export function NpcContextWindow({
                         e.currentTarget.style.borderColor = "rgba(0, 229, 255, 0.3)";
                       }}
                     >
-                      <span style={{ display: "inline-block", width: "8px", height: "8px", backgroundColor: "#00e5ff", animation: "dialogue-cursor 1s ease-in-out infinite" }} />
+                      <span aria-hidden="true" style={{ display: "inline-block", width: "8px", height: "8px", backgroundColor: "#00e5ff", animation: "dialogue-cursor 1s ease-in-out infinite" }} />
                       <span
                         style={{
                           fontFamily: "Epilogue, sans-serif",
@@ -314,7 +322,7 @@ export function NpcContextWindow({
                   )}
 
                   {dialogue.isFinished && (
-                    <div className="mt-3 pt-3" style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(132, 147, 150, 0.2)" }}>
+                    <div className="mt-3 pt-3" style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(132, 147, 150, 0.2)" }} role="status">
                       <span
                         style={{
                           fontFamily: "Epilogue, sans-serif",
@@ -325,6 +333,7 @@ export function NpcContextWindow({
                           textTransform: "uppercase",
                         }}
                       >
+                        <span aria-hidden="true">✅ </span>
                         Dialogue Complete
                       </span>
                     </div>
@@ -345,6 +354,7 @@ export function NpcContextWindow({
                   <div className="p-3" style={{ padding: 12, backgroundColor: "rgba(21, 29, 30, 0.6)", border: "1px solid rgba(80, 200, 120, 0.3)", borderRadius: "0px" }}>
                     <div className="flex items-center gap-2 mb-2" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                       <span style={{ fontFamily: "Epilogue, sans-serif", fontSize: "10px", fontWeight: "600", letterSpacing: "0.2em", color: quest.isNew ? "#50c878" : "#849396", textTransform: "uppercase" }}>
+                        <span aria-hidden="true">📜 </span>
                         {quest.isNew ? "● NEW QUEST" : "QUEST AVAILABLE"}
                       </span>
                     </div>

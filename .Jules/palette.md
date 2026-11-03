@@ -37,3 +37,7 @@
 ## 2028-02-21 - [Modal Dialog vs Landmark Region Semantics]
 **Learning:** Pop-up/overlay panels (like CraftingWindow) with headers and close controls must retain `role="dialog"` rather than generic `role="region"`. Changing overlay containers to `role="region"` strips the dialog focus context from screen reader users when pop-up panels open.
 **Action:** Always maintain `role="dialog"` on pop-up overlay window containers and use `role="region"` only for inline, non-modal content sections.
+
+## 2028-02-22 - [Standardizing NPC Dialogue Modal Accessibility & Keybind Navigation]
+**Learning:** NPC Context/Dialogue windows that serve as overlay modals require explicit `role="dialog"`, `aria-modal="true"`, and `aria-labelledby` referencing the title heading to convey modal context to screen reader users. Additionally, action triggers like 'Continue' with multi-key bindings (Space, Enter, E) should declare `aria-keyshortcuts` and matching `title` tooltips, while visual decorative icons and status markers must be isolated with `aria-hidden="true"`.
+**Action:** Always apply modal dialog roles and title associations to NPC overlay windows, expose multi-key shortcuts programmatically via `aria-keyshortcuts`, and mark decorative symbols as `aria-hidden="true"`.
