@@ -61,7 +61,7 @@ describe("LootFeed", () => {
     expect(container.firstElementChild).toBeNull();
   });
 
-  it("renders loot entries with correct ARIA attributes and title tooltips", async () => {
+  it("renders loot entries with correct ARIA attributes, category icons, and title tooltips", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -105,5 +105,10 @@ describe("LootFeed", () => {
     expect(statusItems[1].getAttribute("title")).toBe(
       "Wood Sword (common) - A simple starter blade."
     );
+
+    const ariaHiddenIcons = container.querySelectorAll('[aria-hidden="true"]');
+    expect(ariaHiddenIcons.length).toBe(2);
+    expect(ariaHiddenIcons[0].textContent?.trim()).toBe("🧪");
+    expect(ariaHiddenIcons[1].textContent?.trim()).toBe("⚔️");
   });
 });
