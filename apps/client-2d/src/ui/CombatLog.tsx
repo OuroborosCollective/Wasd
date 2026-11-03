@@ -27,29 +27,38 @@ export function CombatLog({ entries }: Props) {
         pointerEvents: "none"
       }}
     >
-      {entries.slice(0, 8).map((entry) => (
-        <div
-          key={entry.id}
-          role="status"
-          aria-label={`Combat event: ${entry.text}`}
-          title={entry.text}
-          style={{
-            padding: "7px 9px",
-            borderRadius: 10,
-            background: "rgba(0,0,0,.34)",
-            color:
-              entry.kind === "damage"
-                ? "#ff7a00"
-                : entry.kind === "heal"
-                  ? "#39ff14"
-                  : "#f5f7ff",
-            font: "12px/1.35 ui-monospace, monospace",
-            backdropFilter: "blur(8px)"
-          }}
-        >
-          {entry.text}
-        </div>
-      ))}
+      {entries.slice(0, 8).map((entry) => {
+        const icon =
+          entry.kind === "damage" ? "⚔️" : entry.kind === "heal" ? "💚" : "📜";
+
+        return (
+          <div
+            key={entry.id}
+            role="status"
+            aria-label={`Combat event: ${entry.text}`}
+            title={entry.text}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 9px",
+              borderRadius: 10,
+              background: "rgba(0,0,0,.34)",
+              color:
+                entry.kind === "damage"
+                  ? "#ff7a00"
+                  : entry.kind === "heal"
+                    ? "#39ff14"
+                    : "#f5f7ff",
+              font: "12px/1.35 ui-monospace, monospace",
+              backdropFilter: "blur(8px)"
+            }}
+          >
+            <span aria-hidden="true">{icon}</span>
+            <span>{entry.text}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
