@@ -35,10 +35,17 @@ describe("CharacterWindow UX & Accessibility", () => {
     const dialog = container!.querySelector('[role="dialog"]');
     expect(dialog).toBeTruthy();
     expect(dialog?.getAttribute("aria-label")).toBe("Character");
+    expect(dialog?.getAttribute("aria-modal")).toBe("true");
+    expect(dialog?.getAttribute("aria-labelledby")).toBe("character-window-title");
+
+    const titleEl = container!.querySelector("#character-window-title");
+    expect(titleEl).toBeTruthy();
+    expect(titleEl?.textContent).toBe("CHARACTER");
 
     const closeBtn = container!.querySelector(".wow-close-btn");
     expect(closeBtn).toBeTruthy();
     expect(closeBtn?.getAttribute("aria-label")).toBe("Close [ESC]");
+    expect(closeBtn?.getAttribute("title")).toBe("Close character window [ESC]");
     expect(closeBtn?.getAttribute("aria-keyshortcuts")).toBe("Escape");
   });
 
