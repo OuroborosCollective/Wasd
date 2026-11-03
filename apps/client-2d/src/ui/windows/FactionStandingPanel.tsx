@@ -8,18 +8,35 @@ const labelColors: Record<string, string> = {
   allied: "var(--st-emerald)",
 };
 
+const labelIcons: Record<string, string> = {
+  hostile: "⚔️",
+  neutral: "⚖️",
+  trusted: "🛡️",
+  allied: "🌟",
+};
+
 export function FactionStandingPanel({ snapshot }: { snapshot: LiveGameplaySnapshot }) {
   if (snapshot.status === "waiting") {
     return (
       <div className="stitch-grid-panel" data-testid="faction-panel-waiting">
-        <article className="stitch-info"><small>Faction Sync</small><b>waiting for server snapshot</b></article>
+        <article className="stitch-info">
+          <small>
+            <span aria-hidden="true">⏳ </span>Faction Sync
+          </small>
+          <b>waiting for server snapshot</b>
+        </article>
       </div>
     );
   }
   if (snapshot.factions.length === 0) {
     return (
       <div className="stitch-grid-panel" data-testid="faction-panel-empty">
-        <article className="stitch-info"><small>Factions</small><b>no standings yet</b></article>
+        <article className="stitch-info">
+          <small>
+            <span aria-hidden="true">📜 </span>Factions
+          </small>
+          <b>no standings yet</b>
+        </article>
       </div>
     );
   }
@@ -27,11 +44,15 @@ export function FactionStandingPanel({ snapshot }: { snapshot: LiveGameplaySnaps
     <div className="stitch-grid-panel" data-testid="faction-panel-live">
       {snapshot.factions.map((faction) => {
         const color = labelColors[faction.label] || "var(--st-gold)";
+        const icon = labelIcons[faction.label] || "📜";
         const progress = Math.min(100, Math.max(0, faction.standing));
         return (
           <article key={faction.id} className="stitch-info" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-              <small style={{ color, textTransform: "uppercase", fontWeight: "bold" }}>{faction.label}</small>
+              <small style={{ color, textTransform: "uppercase", fontWeight: "bold" }}>
+                <span aria-hidden="true">{icon} </span>
+                {faction.label}
+              </small>
               <small style={{ fontFamily: "monospace" }}>{faction.standing}%</small>
             </div>
             <b style={{ textShadow: `0 0 8px ${color}` }}>{faction.name}</b>
