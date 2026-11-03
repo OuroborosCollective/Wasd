@@ -320,9 +320,10 @@ export function getStitchAssetsByCategory(
   manifest: StitchRuntimeManifest,
   category: StitchAssetCategory,
 ): StitchRuntimeAsset[] {
+  // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
   return [...manifest.assets]
     .filter((asset) => asset.category === category)
-    .sort((a, b) => a.assetId.localeCompare(b.assetId));
+    .sort((a, b) => (a.assetId < b.assetId ? -1 : a.assetId > b.assetId ? 1 : 0));
 }
 
 /**
@@ -336,15 +337,18 @@ export function getFirstAssetByCategory(
 }
 
 export function getManualReviewEntries(manifest: StitchRuntimeManifest): readonly StitchReviewEntry[] {
-  return [...(manifest.manualReview ?? [])].sort((a, b) => a.assetId.localeCompare(b.assetId));
+  // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+  return [...(manifest.manualReview ?? [])].sort((a, b) => (a.assetId < b.assetId ? -1 : a.assetId > b.assetId ? 1 : 0));
 }
 
 export function getReferenceOnlyEntries(manifest: StitchRuntimeManifest): readonly StitchReviewEntry[] {
-  return [...(manifest.referenceOnly ?? [])].sort((a, b) => a.assetId.localeCompare(b.assetId));
+  // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+  return [...(manifest.referenceOnly ?? [])].sort((a, b) => (a.assetId < b.assetId ? -1 : a.assetId > b.assetId ? 1 : 0));
 }
 
 export function getQuarantineEntries(manifest: StitchRuntimeManifest): readonly StitchQuarantineEntry[] {
-  return [...manifest.quarantine].sort((a, b) => a.assetId.localeCompare(b.assetId));
+  // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare
+  return [...manifest.quarantine].sort((a, b) => (a.assetId < b.assetId ? -1 : a.assetId > b.assetId ? 1 : 0));
 }
 
 /**
