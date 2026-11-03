@@ -17,6 +17,14 @@ interface Props {
   skills: SkillSnapshot[];
 }
 
+const SKILL_ICONS: Record<string, string> = {
+  woodcutting: "🪓",
+  mining: "⛏️",
+  fishing: "🎣",
+  combat: "⚔️",
+  crafting: "🛠️",
+};
+
 export function SkillProgressionPanel({ skills }: Props) {
   if (!skills.length) {
     return (
@@ -26,7 +34,10 @@ export function SkillProgressionPanel({ skills }: Props) {
         role="region"
         aria-label="Skill Progression"
       >
-        <p className="are-text-muted">No live skill data yet.</p>
+        <p className="are-text-muted">
+          <span aria-hidden="true">⏳ </span>
+          No live skill data yet.
+        </p>
       </section>
     );
   }
@@ -43,11 +54,15 @@ export function SkillProgressionPanel({ skills }: Props) {
           const percent = Math.round(skill.progressRatio * 100);
           const progressText = `${percent}% (${skill.xp} / ${skill.xpForNextLevel} XP)`;
           const tooltip = `${skill.title}: ${progressText}`;
+          const icon = SKILL_ICONS[skill.id] || "⭐";
 
           return (
             <article key={skill.id} className="skill-row" data-testid={`skill-progress-${skill.id}`}>
               <div className="skill-row__header">
-                <strong>{skill.title}</strong>
+                <strong>
+                  <span aria-hidden="true">{icon} </span>
+                  {skill.title}
+                </strong>
                 <span className="skill-row__level">Lv. {skill.level}</span>
               </div>
 
