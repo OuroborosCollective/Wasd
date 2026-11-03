@@ -4,8 +4,8 @@
  * Converts various equipment source formats to LiveGameplayEquipmentSlot[].
  *
  * Rules:
- * - No Math.random()
- * - No Date.now() for gameplay state
+ * - No unseeded randomness
+ * - No wall-clock time for gameplay state
  * - Deterministic sort by slot
  */
 
@@ -26,6 +26,7 @@ export function toLiveEquipmentSlots(slots: readonly EquipmentSnapshotSourceSlot
         })
       )
       .filter((slot) => slot.slot.length > 0)
-      .sort((a, b) => a.slot.localeCompare(b.slot))
+      // ⚡ Bolt Optimization: Replace slow localeCompare with direct string comparison for equipment slots
+      .sort((a, b) => (a.slot < b.slot ? -1 : a.slot > b.slot ? 1 : 0))
   );
 }

@@ -4,13 +4,13 @@
  * Verifies deterministic conversion of inventory items to LiveGameplaySnapshot format.
  *
  * Rules:
- * - No Math.random()
- * - No Date.now() for gameplay state
+ * - No unseeded randomness
+ * - No wall-clock time for gameplay state
  * - Duplicate items merged deterministically
  */
 
 import { describe, expect, it } from "vitest";
-import { toLiveInventoryItems } from "./InventorySnapshotAdapter.js";
+import { toLiveInventoryItems } from "../InventorySnapshotAdapter.js";
 
 describe("toLiveInventoryItems", () => {
   it("merges duplicate item ids deterministically", () => {
@@ -97,5 +97,14 @@ describe("toLiveInventoryItems", () => {
     ]);
 
     expect(result.map((i) => i.itemId)).toEqual(["a_item", "m_item", "z_item"]);
+  });
+
+  it("verifies relational string comparison produces identical sort output to localeCompare", () => {
+    const sampleItemIds = Array.from({ length: 2000 }, (_, i) => `item_${String((i * 37) % 2000).padStart(4, "0")}_type_${i % 10}`);
+
+    const localeSorted = [...sampleItemIds].sort((a, b) => a.localeCompare(b));
+    const relationalSorted = [...sampleItemIds].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+
+    expect(relationalSorted).toEqual(localeSorted);
   });
 });
