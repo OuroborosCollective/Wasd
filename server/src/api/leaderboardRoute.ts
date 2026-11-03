@@ -97,7 +97,8 @@ function safeEqualText(a: string, b: string): boolean {
 function isRefreshAuthorized(req: Request): boolean {
   const expected = expectedRefreshToken();
   if (!expected) {
-    return true;
+    // Fail-closed: administrative cache refresh requires an expected token configured on server
+    return false;
   }
   const provided = providedRefreshToken(req);
   return provided.length > 0 && safeEqualText(provided, expected);
