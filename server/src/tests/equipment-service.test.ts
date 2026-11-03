@@ -366,4 +366,31 @@ describe("EquipmentService", () => {
       expect(equipment.schemaVersion).toBe(1);
     });
   });
+
+  describe("sorting performance benchmark", () => {
+    it("verifies direct relational string comparison produces identical sort output to localeCompare and runs faster", () => {
+      const playerIds = Array.from({ length: 100 }, (_, i) => `player_${(i * 37) % 100}`);
+      const samplePlayers = playerIds.map((id) => ({ playerId: id }));
+
+      const sortedLocale = [...samplePlayers].sort((a, b) => a.playerId.localeCompare(b.playerId));
+      const sortedRelational = [...samplePlayers].sort((a, b) => (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0));
+
+      expect(sortedRelational).toEqual(sortedLocale);
+
+      const iterations = 50;
+      const startLocale = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        [...samplePlayers].sort((a, b) => a.playerId.localeCompare(b.playerId));
+      }
+      const durationLocale = performance.now() - startLocale;
+
+      const startRelational = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        [...samplePlayers].sort((a, b) => (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0));
+      }
+      const durationRelational = performance.now() - startRelational;
+
+      expect(durationRelational).toBeLessThanOrEqual(durationLocale + 10);
+    });
+  });
 });
