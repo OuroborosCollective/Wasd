@@ -104,4 +104,64 @@ describe("authRoute", () => {
       );
     });
   });
+
+  describe("configured admin credentials validation", () => {
+    const originalEnv = { ...process.env };
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+      process.env.ARELORIA_ADMIN_USER = "admin_user";
+      process.env.ARELORIA_ADMIN_PASSWORD = "super_secret_admin_password_123";
+    });
+
+    afterEach(() => {
+      process.env = { ...originalEnv };
+      vi.restoreAllMocks();
+    });
+
+    it("succeeds and assigns admin role when credentials match", async () => {
+      const route = authRoute();
+      const mockReq = {
+        headers: {},
+        body: { username: "admin_user", password: "super_secret_admin_password_123" }
+      };
+      const mockRes = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn()
+      };
+
+      await route.handler(mockReq as any, mockRes as any, () => {});
+
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ok: true,
+          data: expect.objectContaining({
+            user: { username: "admin_user", role: "admin" }
+          })
+        })
+      );
+    });
+
+    it("denies login when admin password is wrong or length differs", async () => {
+      const route = authRoute();
+      const mockReq = {
+        headers: {},
+        body: { username: "admin_user", password: "short" }
+      };
+      const mockRes = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn()
+      };
+
+      await route.handler(mockReq as any, mockRes as any, () => {});
+
+      expect(mockRes.status).toHaveBeenCalledWith(401);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ok: false,
+          error: expect.objectContaining({ code: "invalid_credentials" })
+        })
+      );
+    });
+  });
 });
