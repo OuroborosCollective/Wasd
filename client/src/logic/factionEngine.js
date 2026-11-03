@@ -113,7 +113,8 @@ export class FactionEngine {
     const secondStrengthMap = this.createMap(() => 0);
     const contestedMap = this.createMap(() => false);
 
-    const stableFactions = this.normalizeFactions(factions).sort((a, b) => a.id.localeCompare(b.id));
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare in hot simulation loops
+    const stableFactions = this.normalizeFactions(factions).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
     for (const faction of stableFactions) {
       this.applyFactionInfluence({ faction, grid, ownerMap, strengthMap, secondStrengthMap, tick, worldSeed, previousInfluence });
@@ -279,7 +280,8 @@ export class FactionEngine {
   calculateLeylineManaMap(leylineNodes, grid) {
     this.assertGrid(grid);
     const manaMap = this.createMap(() => this.scale);
-    const nodes = this.normalizeLeylines(leylineNodes).sort((a, b) => a.id.localeCompare(b.id));
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare in hot simulation loops
+    const nodes = this.normalizeLeylines(leylineNodes).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
     for (const node of nodes) {
       const radius = Math.max(1, Math.floor(node.influenceRadius));
@@ -334,7 +336,8 @@ export class FactionEngine {
       }
     }
 
-    frontierCells.sort((a, b) => a.x - b.x || a.y - b.y || a.factionId.localeCompare(b.factionId));
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare in hot simulation loops
+    frontierCells.sort((a, b) => a.x - b.x || a.y - b.y || (a.factionId < b.factionId ? -1 : a.factionId > b.factionId ? 1 : 0));
     return frontierCells;
   }
 
@@ -408,7 +411,8 @@ export class FactionEngine {
     let manaMul = this.scale;
     let foodMul = this.scale;
 
-    const entries = Object.entries(factionTraits ?? {}).sort(([a], [b]) => a.localeCompare(b));
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare in hot simulation loops
+    const entries = Object.entries(factionTraits ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
     for (const [trait, active] of entries) {
       if (!active) continue;
       const traitData = this.traitMultipliers[trait];
@@ -444,7 +448,8 @@ export class FactionEngine {
 
   calculateTraitInfluencePermille(traits = {}) {
     let influence = this.scale;
-    const entries = Object.entries(traits ?? {}).sort(([a], [b]) => a.localeCompare(b));
+    // Bolt: Optimization - Direct string comparison is significantly faster than localeCompare in hot simulation loops
+    const entries = Object.entries(traits ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
     for (const [trait, active] of entries) {
       if (!active) continue;
       const traitData = this.traitMultipliers[trait];

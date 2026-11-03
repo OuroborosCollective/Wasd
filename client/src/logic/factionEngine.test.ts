@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FactionEngine, FACTION_TICK_HZ } from './factionEngine.js';
 
-function makeGrid(size, type = 'plains') {
+function makeGrid(size: number, type = 'plains') {
   return Array.from({ length: size }, () =>
     Array.from({ length: size }, () => ({ type }))
   );
@@ -47,5 +47,33 @@ describe('FactionEngine deterministic 10Hz simulation', () => {
     const stats = engine.calculateTotalYield('north', influence, grid, []);
     expect(stats.cells).toBeGreaterThan(0);
     expect(stats.contestedCells).toBeGreaterThan(0);
+  });
+
+  it('benchmarks relational string comparison vs localeCompare for faction sorting', () => {
+    const sampleFactions = Array.from({ length: 500 }, (_, i) => ({
+      id: `faction_zone_${String((i * 13) % 500).padStart(4, '0')}_node_${String(i).padStart(4, '0')}`
+    }));
+
+    // 1. Verify sort parity for padded IDs
+    const sortedRelational = [...sampleFactions].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const sortedLocale = [...sampleFactions].sort((a, b) => a.id.localeCompare(b.id));
+    expect(sortedRelational).toEqual(sortedLocale);
+
+    // 2. Measure speedup
+    const iterations = 2000;
+    const t0 = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      [...sampleFactions].sort((a, b) => a.id.localeCompare(b.id));
+    }
+    const durationLocale = performance.now() - t0;
+
+    const t1 = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      [...sampleFactions].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    }
+    const durationRelational = performance.now() - t1;
+
+    console.log(`[FactionEngine Sorting Benchmark] localeCompare: ${durationLocale.toFixed(2)}ms, relational: ${durationRelational.toFixed(2)}ms (${(durationLocale / durationRelational).toFixed(2)}x speedup)`);
+    expect(durationRelational).toBeLessThan(durationLocale);
   });
 });
