@@ -129,4 +129,36 @@ describe("VoteSystem", () => {
     expect(buff.totalRemainingMs).toBe(8 * 60 * 60 * 1000);
     expect(buff.blocks).toHaveLength(2);
   });
+
+  it("rejects invalid callback tokens in markCallbackVerified", () => {
+    const store = new VoteBannerStore(bannersFile);
+    const system = new VoteSystem(store);
+    const player = mkPlayer("player_c");
+
+    const banner = system.upsertBanner({
+      providerKey: "provider-c",
+      displayName: "Vote C",
+      bannerImage: "https://example.com/banner-c.png",
+      targetUrl: "https://example.com/vote-c",
+      verificationMode: "callback_token",
+      cooldownHours: 24,
+      buffHours: 4,
+    });
+
+    const created = system.createVoteSession(player, banner.internalId, "https://game.example.com");
+    expect(created.ok).toBe(true);
+
+    const invalidResult = system.markCallbackVerified([player], {
+      sessionId: created.session!.id,
+      callbackToken: "invalid-callback-token-12345",
+    });
+    expect(invalidResult.ok).toBe(false);
+    expect(invalidResult.reason).toBe("Invalid callback token.");
+
+    const validResult = system.markCallbackVerified([player], {
+      sessionId: created.session!.id,
+      callbackToken: created.session!.callbackToken,
+    });
+    expect(validResult.ok).toBe(true);
+  });
 });
