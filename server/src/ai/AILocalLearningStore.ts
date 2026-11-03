@@ -178,8 +178,9 @@ export class AILocalLearningStore implements IAILocalLearningStore {
       averageConfidence: this.roundRatio(confidenceSum / scoped.length),
       averageSuccessScore: this.roundRatio(successSum / scoped.length),
       latest: scoped.at(-1) ?? null,
+      // Bolt: Direct relational string comparison is significantly faster than localeCompare
       topTags: Object.entries(byTag)
-        .sort(([tagA, countA], [tagB, countB]) => countB - countA || tagA.localeCompare(tagB))
+        .sort(([tagA, countA], [tagB, countB]) => countB - countA || (tagA < tagB ? -1 : tagA > tagB ? 1 : 0))
         .slice(0, 25)
         .map(([tag, count]) => ({ tag, count })),
       updatedAt: scoped.at(-1)?.createdAt ?? null,
@@ -214,7 +215,8 @@ export class AILocalLearningStore implements IAILocalLearningStore {
     this.events.sort((a, b) => {
       if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
       if (a.logicalIndex !== b.logicalIndex) return a.logicalIndex - b.logicalIndex;
-      return a.id.localeCompare(b.id);
+      // Bolt: Direct relational string comparison is significantly faster than localeCompare
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
     });
   }
 
