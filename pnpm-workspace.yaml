@@ -20,6 +20,8 @@ allowBuilds:
   "sharp": true
   "ssh2": true
 minimumReleaseAgeExclude:
+  - 'electron-to-chromium'
+  - 'node-releases'
   - '@types/node'
   - 'nanoid'
   - 'uuid'
