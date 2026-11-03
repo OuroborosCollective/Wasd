@@ -35,7 +35,10 @@ export function ResourceNodePanel({ resources }: Props) {
   if (!resources.length) {
     return (
       <section data-testid="resource-panel-empty" className="are-window" role="region" aria-label="Resource Nodes">
-        <p className="are-text-muted">No live resource nodes yet.</p>
+        <p className="are-text-muted">
+          <span aria-hidden="true">🌱 </span>
+          No live resource nodes yet.
+        </p>
       </section>
     );
   }
@@ -68,9 +71,13 @@ export function ResourceNodePanel({ resources }: Props) {
 
               <div className="resource-row__status" role="status">
                 {node.status === "available" ? (
-                  <span className="resource-row__status--available">Available</span>
+                  <span className="resource-row__status--available">
+                    <span aria-hidden="true">✅ </span>
+                    Available
+                  </span>
                 ) : (
                   <span className="resource-row__status--depleted">
+                    <span aria-hidden="true">⏳ </span>
                     Respawns in {node.remainingTicks} ticks
                   </span>
                 )}
@@ -107,7 +114,15 @@ export function ResourceNodePanel({ resources }: Props) {
                     }, 1500);
                   }}
                 >
-                  {isGathering ? "Gathering..." : "Gather"}
+                  {isGathering ? (
+                    <>
+                      <span aria-hidden="true">⏳ </span>Gathering...
+                    </>
+                  ) : (
+                    <>
+                      <span aria-hidden="true">⚡ </span>Gather
+                    </>
+                  )}
                 </button>
               )}
             </article>
