@@ -22,6 +22,19 @@ interface Props {
   onClose: (id: GameplayPanelId) => void;
 }
 
+const PANEL_ICONS: Record<GameplayPanelId, string> = {
+  character: "👤",
+  quests: "📜",
+  skills: "⭐",
+  resources: "🌿",
+  inventory: "🎒",
+  crafting: "🛠️",
+  equipment: "🛡️",
+  modules: "🧩",
+  heartbeat: "⚡",
+  selfheal: "🩹",
+};
+
 function WindowFrame({
   id,
   title,
@@ -33,22 +46,30 @@ function WindowFrame({
   children: React.ReactNode;
   onClose: () => void;
 }) {
+  const icon = PANEL_ICONS[id] ?? "📦";
+
   return (
     <section
+      role="region"
+      aria-label={title}
       data-testid={`gameplay-window-${id}`}
       className={`gameplay-window gameplay-window--${id}`}
     >
       <header className="gameplay-window__header">
-        <strong>{title}</strong>
+        <strong>
+          <span aria-hidden="true">{icon} </span>
+          {title}
+        </strong>
         <button
           type="button"
           className="gameplay-window__close"
           onClick={onClose}
           aria-label={`Close ${title} [ESC]`}
+          title={`Close ${title} [ESC]`}
           aria-keyshortcuts="Escape"
         >
-          <kbd className="cz-kbd">ESC</kbd>
-          ✕
+          <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
+          <span aria-hidden="true">✕</span>
         </button>
       </header>
       <div className="gameplay-window__body">{children}</div>
