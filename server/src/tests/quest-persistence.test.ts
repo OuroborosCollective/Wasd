@@ -302,3 +302,61 @@ describe("createPersistedQuestState", () => {
     expect(normalized.playerId).toBe("fallback-id");
   });
 });
+
+describe("Quest persistence sorting optimization benchmark and parity", () => {
+  it("verifies relational string comparison produces identical sort output to localeCompare for quest snapshots and players", () => {
+    const testQuests = Array.from({ length: 100 }, (_, i) => ({
+      id: `quest_${(100 - i).toString().padStart(3, "0")}`,
+      title: `Quest ${(100 - i).toString().padStart(3, "0")}`,
+      description: "Description",
+      status: "available" as const,
+      objectives: [
+        { id: `obj_002`, label: "Obj 2", current: 0, required: 1, completed: false },
+        { id: `obj_001`, label: "Obj 1", current: 0, required: 1, completed: false },
+      ],
+    }));
+
+    const sortedByLocale = [...testQuests].sort((a, b) => a.id.localeCompare(b.id));
+    const sortedByRelational = [...testQuests].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
+    expect(sortedByRelational.map((q) => q.id)).toEqual(sortedByLocale.map((q) => q.id));
+
+    const normalized = normalizePersistedQuestState({ quests: testQuests }, "player_001");
+    expect(normalized.quests.map((q) => q.id)).toEqual(sortedByLocale.map((q) => q.id));
+    expect(normalized.quests[0].objectives.map((o) => o.id)).toEqual(["obj_001", "obj_002"]);
+  });
+
+  it("benchmarks direct relational string comparison vs localeCompare for quest persistence sorting", () => {
+    const sampleQuests = Array.from({ length: 500 }, (_, i) => ({
+      id: `quest_id_${(500 - i).toString().padStart(4, "0")}`,
+      title: `Quest Title ${(500 - i).toString().padStart(4, "0")}`,
+    }));
+
+    const iterations = 500;
+
+    // 1. Benchmarking legacy localeCompare sort
+    const startLocale = performance.now();
+    for (let iter = 0; iter < iterations; iter++) {
+      [...sampleQuests].sort((a, b) => a.id.localeCompare(b.id));
+    }
+    const durationLocale = performance.now() - startLocale;
+
+    // 2. Benchmarking direct relational string comparison
+    const startRelational = performance.now();
+    for (let iter = 0; iter < iterations; iter++) {
+      [...sampleQuests].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    }
+    const durationRelational = performance.now() - startRelational;
+
+    const speedup = durationLocale / (durationRelational || 1);
+    console.log(
+      `Quest Persistence Sort Benchmark (${iterations} iterations of ${sampleQuests.length} items):\n` +
+      `  - localeCompare sort:          ${durationLocale.toFixed(2)}ms\n` +
+      `  - direct relational sort:      ${durationRelational.toFixed(2)}ms\n` +
+      `  - Performance Speedup:         ${speedup.toFixed(2)}x faster`,
+    );
+
+    expect(durationRelational).toBeGreaterThan(0);
+    expect(durationLocale).toBeGreaterThan(0);
+  });
+});
