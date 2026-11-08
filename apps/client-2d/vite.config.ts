@@ -1,13 +1,20 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const sharedSrc = path.resolve(root, "../../packages/shared/src");
 
+let reactPlugin;
+try {
+  const reactModule = await import("../../client/node_modules/@vitejs/plugin-react/dist/index.js");
+  reactPlugin = (reactModule.default || reactModule)();
+} catch (e) {
+  reactPlugin = [];
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [reactPlugin],
   resolve: {
     alias: [
       { find: "@wasd/core-network", replacement: path.resolve(root, "./src/networkClient.ts") },
