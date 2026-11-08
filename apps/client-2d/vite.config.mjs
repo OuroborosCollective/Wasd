@@ -1,9 +1,21 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
+
+let react = () => [];
+try {
+  const mod = await import('../../client/node_modules/@vitejs/plugin-react/dist/index.js');
+  react = mod.default ?? mod;
+} catch {
+  try {
+    const mod = await import('@vitejs/plugin-react');
+    react = mod.default ?? mod;
+  } catch {
+    react = () => [];
+  }
+}
 
 export default defineConfig({
   plugins: [react()],
