@@ -24,7 +24,8 @@ function stableFile(players: PersistedPlayerEquipmentState[]): EquipmentFile {
     schemaVersion: 1,
     players: [...players]
       .map((player) => createPersistedPlayerEquipmentState(player.playerId, player))
-      .sort((a, b) => a.playerId.localeCompare(b.playerId)),
+      // Bolt: Optimized player ID sorting using fast direct relational string comparison instead of slow localeCompare
+      .sort((a, b) => (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0)),
   };
 }
 
