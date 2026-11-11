@@ -1,12 +1,20 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
+// Resolve plugin-react compatible with Vite 6
+let reactPlugin;
+try {
+  const pluginModule = await import('../../client/node_modules/@vitejs/plugin-react/dist/index.js');
+  reactPlugin = pluginModule.default;
+} catch {
+  reactPlugin = () => [];
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [reactPlugin()],
   resolve: {
     alias: [
       { find: '@wasd/core-network', replacement: path.resolve(root, './src/networkClient.ts') },
