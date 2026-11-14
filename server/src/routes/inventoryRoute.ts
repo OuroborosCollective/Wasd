@@ -14,7 +14,7 @@
  */
 
 import express, { Router } from "express";
-import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
+import { resolveHttpPlayerIdentity, assertPlayerIdentityAllowed } from "../auth/PlayerIdentityResolver.js";
 import { getInventoryService } from "../inventory/inventoryRuntime.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 
@@ -33,7 +33,9 @@ router.use(express.json());
 router.get("/state", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
 
-  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+  try {
+    assertPlayerIdentityAllowed(identity);
+  } catch {
     res.status(401).json({
       ok: false,
       error: "authenticated_player_required",
