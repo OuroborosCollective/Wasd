@@ -221,18 +221,23 @@ interface StatBarProps {
   current: number;
   max: number;
   color?: string;
+  icon?: string;
 }
 
-function StatBar({ label, current, max, color = "#c8b878" }: StatBarProps) {
+function StatBar({ label, current, max, color = "#c8b878", icon }: StatBarProps) {
   const safeMax = Math.max(1, clampNumber(max, 1));
   const safeCurrent = Math.min(safeMax, clampNumber(current, 0));
   const percent = Math.min(100, Math.max(0, (safeCurrent / safeMax) * 100));
+  const isLow = safeMax > 0 && safeCurrent / safeMax < 0.2;
   const valueText = `${label}: ${Math.floor(safeCurrent)} / ${Math.floor(safeMax)}`;
 
   return (
     <div className="char-bar-container">
       <div className="char-bar-label">
-        <span>{label}</span>
+        <span>
+          {icon && <span aria-hidden="true">{icon} </span>}
+          {label}
+        </span>
         <span>
           {Math.floor(safeCurrent)}/{Math.floor(safeMax)}
         </span>
@@ -249,7 +254,7 @@ function StatBar({ label, current, max, color = "#c8b878" }: StatBarProps) {
         title={valueText}
       >
         <div
-          className="char-bar-fill"
+          className={`char-bar-fill${isLow ? " animate-pulse" : ""}`}
           style={{
             width: `${percent}%`,
             backgroundColor: color,
@@ -264,16 +269,20 @@ interface ProgressBarProps {
   label: string;
   percent: number;
   color?: string;
+  icon?: string;
 }
 
-function ProgressBar({ label, percent, color = "#9ac0ff" }: ProgressBarProps) {
+function ProgressBar({ label, percent, color = "#9ac0ff", icon }: ProgressBarProps) {
   const safePercent = Math.min(100, Math.max(0, clampNumber(percent, 0)));
   const valueText = `${label}: ${safePercent.toFixed(0)}%`;
 
   return (
     <div className="char-bar-container">
       <div className="char-bar-label">
-        <span>{label}</span>
+        <span>
+          {icon && <span aria-hidden="true">{icon} </span>}
+          {label}
+        </span>
         <span>{safePercent.toFixed(0)}%</span>
       </div>
 
@@ -390,9 +399,14 @@ export function CharacterWindow({
   const averageSkillProgress = getOverallProgress(snapshot);
 
   return (
-    <div className="wow-inventory-overlay" role="dialog" aria-label="Character">
+    <div
+      className="wow-inventory-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="character-window-title"
+    >
       <div className="wow-inventory-header">
-        <h2>CHARACTER</h2>
+        <h2 id="character-window-title">CHARACTER</h2>
 
         {onClose && (
           <button
@@ -400,6 +414,7 @@ export function CharacterWindow({
             className="wow-close-btn"
             onClick={onClose}
             aria-label="Close [ESC]"
+            title="Close [ESC]"
             aria-keyshortcuts="Escape"
           >
             <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
@@ -424,13 +439,14 @@ export function CharacterWindow({
           </div>
 
           <div className="char-resource-row">
-            <span className="char-resource-icon">⚔️</span>
+            <span className="char-resource-icon" aria-hidden="true">⚔️</span>
             <span className="char-resource-value">
               Total Level {totalLevel}
             </span>
           </div>
 
           <ProgressBar
+            icon="⭐"
             label="Average Skill Progress"
             percent={averageSkillProgress}
             color="#9ac0ff"
@@ -438,23 +454,28 @@ export function CharacterWindow({
         </section>
 
         <section className="char-section" aria-label="Vitals">
-          <h3>Vitals</h3>
+          <h3>
+            <span aria-hidden="true">❤️ </span>Vitals
+          </h3>
 
           {snapshot ? (
             <>
               <StatBar
+                icon="❤️"
                 label="HP"
                 current={snapshot.hp}
                 max={snapshot.maxHp}
                 color="#e04040"
               />
               <StatBar
+                icon="🔮"
                 label="Mana"
                 current={snapshot.mana}
                 max={snapshot.maxMana}
                 color="#4080ff"
               />
               <StatBar
+                icon="⚡"
                 label="Stamina"
                 current={snapshot.stamina}
                 max={snapshot.maxStamina}
@@ -463,14 +484,16 @@ export function CharacterWindow({
             </>
           ) : (
             <div className="char-resource-row">
-              <span className="char-resource-icon">⟳</span>
+              <span className="char-resource-icon" aria-hidden="true">⟳</span>
               <span className="char-resource-value">Waiting for stats...</span>
             </div>
           )}
         </section>
 
         <section className="char-section" aria-label="Attributes">
-          <h3>Attributes</h3>
+          <h3>
+            <span aria-hidden="true">💪 </span>Attributes
+          </h3>
 
           <div className="char-stats-grid">
             {CORE_STAT_KEYS.map((stat) => (
@@ -487,10 +510,12 @@ export function CharacterWindow({
         </section>
 
         <section className="char-section" aria-label="Resources">
-          <h3>Resources</h3>
+          <h3>
+            <span aria-hidden="true">💰 </span>Resources
+          </h3>
 
           <div className="char-resource-row">
-            <span className="char-resource-icon">💰</span>
+            <span className="char-resource-icon" aria-hidden="true">💰</span>
             <span className="char-resource-value">
               {snapshot?.gold ?? 0} Gold
             </span>
@@ -500,7 +525,7 @@ export function CharacterWindow({
 
       {allocating && (
         <div className="wow-pending-indicator" aria-live="polite">
-          <span>⟳</span> Allocating...
+          <span aria-hidden="true">⟳</span> Allocating...
         </div>
       )}
     </div>
