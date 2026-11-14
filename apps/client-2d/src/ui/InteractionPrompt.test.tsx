@@ -62,6 +62,33 @@ describe("InteractionPrompt UX & Accessibility", () => {
     const kbd = container!.querySelector("kbd");
     expect(kbd).toBeTruthy();
     expect(kbd!.textContent?.trim()).toBe("E");
+    expect(kbd!.getAttribute("aria-hidden")).toBe("true");
+
+    // Must render the visual category icon wrapped in aria-hidden
+    const iconSpan = container!.querySelector("span[aria-hidden='true']");
+    expect(iconSpan).toBeTruthy();
+    expect(iconSpan!.textContent).toBe("💬");
+  });
+
+  it("renders loot category icon for loot target", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    const mockTarget: InteractionTarget = {
+      entityId: "loot-wood-1",
+      kind: "loot",
+      label: "Pick up Wood Log",
+      distance: 0.8,
+    };
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(<InteractionPrompt target={mockTarget} onInteract={() => {}} />);
+    });
+
+    const iconSpan = container!.querySelector("span[aria-hidden='true']");
+    expect(iconSpan).toBeTruthy();
+    expect(iconSpan!.textContent).toBe("📦");
   });
 
   it("calls onInteract when the interaction button is clicked", async () => {
