@@ -15,6 +15,7 @@ import { areReplayRouter } from "../api/areReplayRoute.js";
 import { sdkBillingRouter } from "../api/sdkBillingRoute.js";
 import { adminRoute } from "../api/adminRoute.js";
 import { createPayPalRouter } from "../api/paypalRoute.js";
+import { questEventRouter } from "../routes/questEventRoute.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -513,6 +514,105 @@ describe("Sentinel Endpoint Protection", () => {
 
       expect(r.status).toBe(400);
       expect(r.body.error).toBe("productId and playerId required");
+    });
+  });
+
+  describe("/api/quest security controls", () => {
+    it("denies /claim-reward and /event when unauthenticated in production mode with default/unset guest flags", async () => {
+      const origEnv = process.env.NODE_ENV;
+      const origGuest = process.env.ALLOW_GUEST_LOGIN;
+      const origDev = process.env.ALLOW_DEV_LOGIN;
+      const origDevPlayerId = process.env.ALLOW_DEV_PLAYER_ID;
+
+      process.env.NODE_ENV = "production";
+      delete process.env.ALLOW_GUEST_LOGIN;
+      delete process.env.ALLOW_DEV_LOGIN;
+      delete process.env.ALLOW_DEV_PLAYER_ID;
+
+      const app = express();
+      app.use("/api/quest", questEventRouter);
+
+      const claimRes = await request(app)
+        .post("/api/quest/claim-reward")
+        .send({ questId: "first_steps" });
+
+      expect(claimRes.status).toBe(401);
+      expect(claimRes.body).toEqual({
+        ok: false,
+        error: "authenticated_player_required",
+      });
+
+      const eventRes = await request(app)
+        .post("/api/quest/event")
+        .send({ type: "npc_talk", npcId: "elder_npc" });
+
+      expect(eventRes.status).toBe(401);
+      expect(eventRes.body).toEqual({
+        ok: false,
+        error: "authenticated_player_required",
+      });
+
+      process.env.NODE_ENV = origEnv;
+      if (origGuest !== undefined) process.env.ALLOW_GUEST_LOGIN = origGuest; else delete process.env.ALLOW_GUEST_LOGIN;
+      if (origDev !== undefined) process.env.ALLOW_DEV_LOGIN = origDev; else delete process.env.ALLOW_DEV_LOGIN;
+      if (origDevPlayerId !== undefined) process.env.ALLOW_DEV_PLAYER_ID = origDevPlayerId; else delete process.env.ALLOW_DEV_PLAYER_ID;
+    });
+
+    it("allows /event in production mode when authenticated", async () => {
+      const origEnv = process.env.NODE_ENV;
+      const origGuest = process.env.ALLOW_GUEST_LOGIN;
+      const origDev = process.env.ALLOW_DEV_LOGIN;
+      const origDevPlayerId = process.env.ALLOW_DEV_PLAYER_ID;
+
+      process.env.NODE_ENV = "production";
+      delete process.env.ALLOW_GUEST_LOGIN;
+      delete process.env.ALLOW_DEV_LOGIN;
+      delete process.env.ALLOW_DEV_PLAYER_ID;
+
+      const app = express();
+      // Inject authenticated user into request
+      app.use((req, _res, next) => {
+        (req as any).user = { id: "auth_player_1" };
+        next();
+      });
+      app.use("/api/quest", questEventRouter);
+
+      const eventRes = await request(app)
+        .post("/api/quest/event")
+        .send({ type: "npc_talk", npcId: "elder_npc" });
+
+      expect(eventRes.status).toBe(200);
+      expect(eventRes.body.ok).toBe(true);
+      expect(eventRes.body.playerId).toBe("auth_player_1");
+      expect(eventRes.body.authenticated).toBe(true);
+
+      process.env.NODE_ENV = origEnv;
+      if (origGuest !== undefined) process.env.ALLOW_GUEST_LOGIN = origGuest; else delete process.env.ALLOW_GUEST_LOGIN;
+      if (origDev !== undefined) process.env.ALLOW_DEV_LOGIN = origDev; else delete process.env.ALLOW_DEV_LOGIN;
+      if (origDevPlayerId !== undefined) process.env.ALLOW_DEV_PLAYER_ID = origDevPlayerId; else delete process.env.ALLOW_DEV_PLAYER_ID;
+    });
+
+    it("allows /event in production mode when ALLOW_GUEST_LOGIN is explicitly enabled", async () => {
+      const origEnv = process.env.NODE_ENV;
+      const origGuest = process.env.ALLOW_GUEST_LOGIN;
+
+      process.env.NODE_ENV = "production";
+      process.env.ALLOW_GUEST_LOGIN = "true";
+
+      const app = express();
+      app.use("/api/quest", questEventRouter);
+
+      const eventRes = await request(app)
+        .post("/api/quest/event")
+        .set("X-Player-Id", "guest_playtester_99")
+        .send({ type: "npc_talk", npcId: "elder_npc" });
+
+      expect(eventRes.status).toBe(200);
+      expect(eventRes.body.ok).toBe(true);
+      expect(eventRes.body.playerId).toBe("guest_playtester_99");
+
+      process.env.NODE_ENV = origEnv;
+      if (origGuest !== undefined) process.env.ALLOW_GUEST_LOGIN = origGuest; else delete process.env.ALLOW_GUEST_LOGIN;
     });
   });
 });

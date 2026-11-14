@@ -42,3 +42,8 @@
 **Vulnerability:** The Playtester monitor WebSocket stream (`PlaytesterMonitorStream`), WebRTC signaling server (`PlaytesterWebRTCSignaling`), and HTTP route access checks (`ServerBootstrap`) used relational `===` string comparisons to validate incoming query/header tokens against `PLAYTESTER_MONITOR_TOKEN`, exposing internal monitoring credentials to timing attacks.
 **Learning:** Custom WebSocket upgrade handlers and streaming endpoints often implement token authorization checks independently of standard Express auth middlewares, creating timing side-channel risks.
 **Prevention:** Always use SHA-256 digest hashing and `crypto.timingSafeEqual` via a `safeEqualText` helper for token comparisons in custom HTTP upgrade and WebSocket handlers.
+
+## 2026-11-04 - [Critical] Ad-hoc Guest Login Flag Inversion Causing Quest API Auth Bypass
+**Vulnerability:** The `/api/quest/claim-reward` and `/api/quest/event` endpoints used an ad-hoc `isGuestHttpAllowed()` implementation checking `!["0", "false", "no"].includes(ALLOW_GUEST_LOGIN || "")`, which evaluated to `true` when environment variables were undefined, bypassing authentication in locked production environments.
+**Learning:** Inverted exclusion checks (`!["0", "false", "no"].includes(val || "")`) on environment variables treat undefined/empty strings as truthy, creating silent authentication bypasses in production default configurations.
+**Prevention:** Avoid ad-hoc environment boolean checks; always use server-authoritative identity validation functions like `assertPlayerIdentityAllowed(identity)` from `PlayerIdentityResolver` that enforce explicit positive truthy checks (`["1", "true", "yes", "on"]`).
