@@ -1,12 +1,24 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
+// Resolve @vitejs/plugin-react (v4.x) from workspace to ensure compatibility with Vite 6
+let reactPlugin;
+try {
+  const req = createRequire(path.resolve(root, '../../client/package.json'));
+  const resolved = req.resolve('@vitejs/plugin-react');
+  const reactMod = await import(resolved);
+  reactPlugin = reactMod.default || reactMod;
+} catch {
+  const reactMod = await import('../../client/node_modules/@vitejs/plugin-react/dist/index.js');
+  reactPlugin = reactMod.default || reactMod;
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [reactPlugin()],
   resolve: {
     alias: [
       { find: '@wasd/core-network', replacement: path.resolve(root, './src/networkClient.ts') },
