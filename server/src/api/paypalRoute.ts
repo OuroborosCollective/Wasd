@@ -15,21 +15,11 @@ import {
   GLB_SUBSCRIPTION,
 } from "../modules/payment/PayPalService.js";
 import { db as dbInstance } from "../core/Database.js";
-import { resolveHttpPlayerIdentity, isDevPlayerIdentityFallbackEnabled } from "../auth/PlayerIdentityResolver.js";
+import { resolveHttpPlayerIdentity, assertPlayerIdentityAllowed } from "../auth/PlayerIdentityResolver.js";
 import { optionalAuthRequestHandler } from "../middleware/authRequestHandler.js";
 import { sensitiveWriteRateLimiter } from "../middleware/rateLimitMiddleware.js";
 
 type Database = typeof dbInstance;
-
-function isGuestHttpAllowed(): boolean {
-  const allowGuest = !["0", "false", "no"].includes(
-    process.env.ALLOW_GUEST_LOGIN?.trim().toLowerCase() || "",
-  );
-  const allowDev = !["0", "false", "no"].includes(
-    process.env.ALLOW_DEV_LOGIN?.trim().toLowerCase() || "",
-  );
-  return allowGuest || allowDev || process.env.ALLOW_DEV_PLAYER_ID === "true";
-}
 
 export function createPayPalRouter(dbParam?: any): Router {
   const db = dbParam || dbInstance;
@@ -52,8 +42,12 @@ export function createPayPalRouter(dbParam?: any): Router {
   // ── Create Order ───────────────────────────────────────────────────────────
   router.post("/create-order", sensitiveWriteRateLimiter, optionalAuthRequestHandler, async (req: Request, res: Response) => {
     try {
+      // Security: Enforce server-authoritative player identity checks in production.
+      // Prevents unauthenticated order creation when dev fallback is not explicitly enabled.
       const identity = resolveHttpPlayerIdentity(req);
-      if (process.env.NODE_ENV === "production" && !identity.authenticated && !isGuestHttpAllowed()) {
+      try {
+        assertPlayerIdentityAllowed(identity);
+      } catch {
         return res.status(401).json({ error: "authenticated_player_required" });
       }
 
