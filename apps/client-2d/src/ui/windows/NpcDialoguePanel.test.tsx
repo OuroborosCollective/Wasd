@@ -162,4 +162,53 @@ describe("NpcDialoguePanel UX & Accessibility", () => {
     expect(onComplete).toHaveBeenCalledWith("village_supply_order_001");
     expect(onTalk).toHaveBeenCalledWith("village_trader_001");
   });
+
+  it("renders visual category icons wrapped with aria-hidden=true for screen reader cleanliness", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    const activeSnapshot: LiveGameplaySnapshot = {
+      ...mockSnapshot,
+      npcMemories: [
+        {
+          npcId: "village_trader_001",
+          reputation: 5,
+          memoryEventCount: 3,
+          recentMemoryNotes: ["Traded 10 Oak Logs"],
+        },
+      ],
+      availableQuests: [],
+      activeQuests: [
+        {
+          questId: "village_supply_order_001",
+          state: "ready_to_complete",
+          objectives: [],
+          reward: {
+            coins: 50,
+            gatheringXp: 20,
+            craftingXp: 10,
+            reputation: 5,
+          },
+        },
+      ],
+    };
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(<NpcDialoguePanel snapshot={activeSnapshot} />);
+    });
+
+    const hiddenIcons = container!.querySelectorAll("[aria-hidden='true']");
+    expect(hiddenIcons.length).toBeGreaterThan(0);
+
+    const iconsText = Array.from(hiddenIcons).map((el) => el.textContent?.trim());
+    expect(iconsText).toContain("💬");
+    expect(iconsText).toContain("🧠");
+    expect(iconsText).toContain("🎯");
+    expect(iconsText).toContain("🎁");
+    expect(iconsText).toContain("💰");
+    expect(iconsText).toContain("🪵");
+    expect(iconsText).toContain("🛠️");
+    expect(iconsText).toContain("⭐");
+  });
 });

@@ -121,7 +121,7 @@ export function NpcDialoguePanel({
       </div>
 
       <div className="cz-npc-dialogue-state" data-testid="npc-dialogue-memory-state-village_trader_001">
-        <span className="cz-npc-dialogue-label">DIALOGUE</span>
+        <span className="cz-npc-dialogue-label"><span aria-hidden="true">💬 </span>DIALOGUE</span>
         <span className="cz-npc-dialogue-value">{dialogue.dialogueState}</span>
       </div>
       <div className="cz-npc-line" data-testid="npc-dialogue-line-village_trader_001">
@@ -131,7 +131,7 @@ export function NpcDialoguePanel({
       {memory && (
         <div className="cz-npc-direct-memory" data-testid="npc-direct-memory-village_trader_001">
           <div className="cz-npc-memory-section-header">
-            <span className="cz-npc-label">DIRECT MEMORY</span>
+            <span className="cz-npc-label"><span aria-hidden="true">🧠 </span>DIRECT MEMORY</span>
             <span className="cz-memory-count" data-testid="npc-memory-persisted-village_trader_001">
               [{memory.memoryEventCount}]
             </span>
@@ -158,7 +158,7 @@ export function NpcDialoguePanel({
       {activeQuest && (
         <div className="cz-quest-tracker" data-testid="quest-tracker-village_supply_order_001">
           <div className="cz-quest-header">
-            <span className="cz-quest-label">QUEST</span>
+            <span className="cz-quest-label"><span aria-hidden="true">🎯 </span>QUEST</span>
             <span className="cz-quest-title">{activeQuest.questId.replace(/_/g, " ").toUpperCase()}</span>
           </div>
           <ul className="cz-quest-objectives">
@@ -181,11 +181,11 @@ export function NpcDialoguePanel({
           </ul>
           {reward && (
             <div className="cz-quest-reward" data-testid="quest-reward-village_supply_order_001">
-              <span className="cz-reward-label">SERVER REWARD</span>
-              <span className="cz-reward-item">+{reward.coins} COINS</span>
-              <span className="cz-reward-item">+{reward.gatheringXp} GATH XP</span>
-              <span className="cz-reward-item">+{reward.craftingXp} CRFT XP</span>
-              <span className="cz-reward-item cz-reward-rep">+{reward.reputation} REP</span>
+              <span className="cz-reward-label"><span aria-hidden="true">🎁 </span>SERVER REWARD</span>
+              <span className="cz-reward-item"><span aria-hidden="true">💰 </span>+{reward.coins} COINS</span>
+              <span className="cz-reward-item"><span aria-hidden="true">🪵 </span>+{reward.gatheringXp} GATH XP</span>
+              <span className="cz-reward-item"><span aria-hidden="true">🛠️ </span>+{reward.craftingXp} CRFT XP</span>
+              <span className="cz-reward-item cz-reward-rep"><span aria-hidden="true">⭐ </span>+{reward.reputation} REP</span>
             </div>
           )}
         </div>
@@ -201,7 +201,7 @@ export function NpcDialoguePanel({
             title="Accept Village Supply Order"
             onClick={() => onAcceptQuest?.("village_supply_order_001")}
           >
-            ACCEPT ORDER
+            <span aria-hidden="true">📜 </span>ACCEPT ORDER
           </button>
         )}
         {canComplete && (
@@ -213,7 +213,7 @@ export function NpcDialoguePanel({
             title="Complete Village Supply Order"
             onClick={() => onCompleteQuest?.("village_supply_order_001")}
           >
-            COMPLETE ORDER
+            <span aria-hidden="true">✅ </span>COMPLETE ORDER
           </button>
         )}
         {activeQuest && onTalkToNpc && (
@@ -224,7 +224,7 @@ export function NpcDialoguePanel({
             title={`Talk to ${dialogue.displayName}`}
             onClick={() => onTalkToNpc(dialogue.npcId)}
           >
-            TALK TO {dialogue.displayName.toUpperCase()}
+            <span aria-hidden="true">💬 </span>TALK TO {dialogue.displayName.toUpperCase()}
           </button>
         )}
       </div>
