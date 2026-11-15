@@ -110,7 +110,7 @@ describe("GatheringToolsPanel UX & Accessibility", () => {
     expect(panel!.textContent).toContain("Wooden Axe");
   });
 
-  it("renders with tool buttons having correct ARIA attributes and titles", async () => {
+  it("renders with tool buttons having correct ARIA attributes, titles, and aria-hidden visual icons", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -128,6 +128,13 @@ describe("GatheringToolsPanel UX & Accessibility", () => {
     expect(toolBtn).toBeTruthy();
     expect(toolBtn.getAttribute("title")).toBe("Equip Copper Axe");
     expect(toolBtn.getAttribute("aria-label")).toBe("Equip Copper Axe to tool slot");
+
+    const toolIcon = toolBtn.querySelector(".tool-icon");
+    expect(toolIcon).toBeTruthy();
+    expect(toolIcon!.getAttribute("aria-hidden")).toBe("true");
+
+    const hiddenIcons = container!.querySelectorAll('[aria-hidden="true"]');
+    expect(hiddenIcons.length).toBeGreaterThan(0);
   });
 
   it("handles equip tool callback when tool button is clicked", async () => {
