@@ -44,4 +44,44 @@ describe('NPCFactionAdapter', () => {
     expect(second).toBe(first);
     expect(second.tick).toBe(10);
   });
+
+  it('preserves deterministic sort ordering identical to standard string comparison across multiple NPCs', () => {
+    const npcSystem = new NPCSystem();
+    const ids = ['npc_bravo', 'npc_alpha', 'npc_delta', 'npc_charlie', 'guard_01', 'guard_02'];
+    for (const id of ids) {
+      npcSystem.createNPC(id, `Name ${id}`, 16, 16);
+      const npc = npcSystem.getNPC(id)!;
+      npc.faction = id.startsWith('guard') ? 'town' : 'wilderness';
+    }
+
+    const adapter = new NPCFactionAdapter();
+    const snapshot = adapter.tick({ tickCount: 20, npcSystem, worldSeed: 'deterministic-seed' });
+
+    const decisionIds = snapshot.decisions.map(d => d.npcId);
+    const expectedSortedIds = [...ids].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    expect(decisionIds).toEqual(expectedSortedIds);
+  });
+
+  it('benchmarks performance of relational sorting and array initialization in faction tick', () => {
+    const npcSystem = new NPCSystem();
+    for (let i = 0; i < 100; i++) {
+      const id = `npc_${String(i).padStart(3, '0')}`;
+      npcSystem.createNPC(id, `NPC ${i}`, (i * 17) % 500, (i * 23) % 500);
+      const npc = npcSystem.getNPC(id)!;
+      npc.faction = `faction_${i % 4}`;
+    }
+
+    const adapter = new NPCFactionAdapter();
+    // Warm up
+    adapter.tick({ tickCount: 10, npcSystem, worldSeed: 'bench-world' });
+
+    const start = performance.now();
+    const iterations = 50;
+    for (let t = 1; t <= iterations; t++) {
+      adapter.tick({ tickCount: t * 10, npcSystem, worldSeed: 'bench-world' });
+    }
+    const duration = performance.now() - start;
+    expect(duration).toBeGreaterThan(0);
+    console.log(`[Bolt Benchmark] 50 faction simulation ticks for 100 NPCs took ${duration.toFixed(2)}ms (${(duration / iterations).toFixed(2)}ms/tick)`);
+  });
 });
