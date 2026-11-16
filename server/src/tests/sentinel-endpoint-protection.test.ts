@@ -15,6 +15,7 @@ import { areReplayRouter } from "../api/areReplayRoute.js";
 import { sdkBillingRouter } from "../api/sdkBillingRoute.js";
 import { adminRoute } from "../api/adminRoute.js";
 import { createPayPalRouter } from "../api/paypalRoute.js";
+import { createGameplaySnapshotRouter } from "../routes/gameplaySnapshot.js";
 
 describe("Sentinel Endpoint Protection", () => {
   beforeEach(() => {
@@ -513,6 +514,35 @@ describe("Sentinel Endpoint Protection", () => {
 
       expect(r.status).toBe(400);
       expect(r.body.error).toBe("productId and playerId required");
+    });
+  });
+
+  describe("/api/gameplay security controls", () => {
+    it("denies /api/gameplay/snapshot when unauthenticated in locked production mode", async () => {
+      const origEnv = process.env.NODE_ENV;
+      const origGuest = process.env.ALLOW_GUEST_LOGIN;
+      const origDev = process.env.ALLOW_DEV_LOGIN;
+      const origDevPlayerId = process.env.ALLOW_DEV_PLAYER_ID;
+
+      process.env.NODE_ENV = "production";
+      process.env.ALLOW_GUEST_LOGIN = "false";
+      process.env.ALLOW_DEV_LOGIN = "false";
+      process.env.ALLOW_DEV_PLAYER_ID = "false";
+
+      const app = express();
+      app.use("/api/gameplay", createGameplaySnapshotRouter());
+
+      const r = await request(app)
+        .get("/api/gameplay/snapshot")
+        .set("X-Player-Id", "unauthenticated-player");
+
+      expect(r.status).toBe(401);
+      expect(r.body.error).toBe("authenticated_player_required");
+
+      process.env.NODE_ENV = origEnv;
+      if (origGuest !== undefined) process.env.ALLOW_GUEST_LOGIN = origGuest; else delete process.env.ALLOW_GUEST_LOGIN;
+      if (origDev !== undefined) process.env.ALLOW_DEV_LOGIN = origDev; else delete process.env.ALLOW_DEV_LOGIN;
+      if (origDevPlayerId !== undefined) process.env.ALLOW_DEV_PLAYER_ID = origDevPlayerId; else delete process.env.ALLOW_DEV_PLAYER_ID;
     });
   });
 });
