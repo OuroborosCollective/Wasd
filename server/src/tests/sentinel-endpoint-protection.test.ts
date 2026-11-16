@@ -501,6 +501,34 @@ describe("Sentinel Endpoint Protection", () => {
       if (origDevPlayerId !== undefined) process.env.ALLOW_DEV_PLAYER_ID = origDevPlayerId; else delete process.env.ALLOW_DEV_PLAYER_ID;
     });
 
+    it("denies create-order when unauthenticated in production mode with default undefined environment variables", async () => {
+      const origEnv = process.env.NODE_ENV;
+      const origGuest = process.env.ALLOW_GUEST_LOGIN;
+      const origDev = process.env.ALLOW_DEV_LOGIN;
+      const origDevPlayerId = process.env.ALLOW_DEV_PLAYER_ID;
+
+      process.env.NODE_ENV = "production";
+      delete process.env.ALLOW_GUEST_LOGIN;
+      delete process.env.ALLOW_DEV_LOGIN;
+      delete process.env.ALLOW_DEV_PLAYER_ID;
+
+      const app = express();
+      app.use(express.json());
+      app.use("/api/paypal", createPayPalRouter({ query: vi.fn().mockResolvedValue({ rows: [] }) }));
+
+      const r = await request(app)
+        .post("/api/paypal/create-order")
+        .send({ productId: "matrix_100", playerId: "forged_player_123" });
+
+      expect(r.status).toBe(401);
+      expect(r.body.error).toBe("authenticated_player_required");
+
+      process.env.NODE_ENV = origEnv;
+      if (origGuest !== undefined) process.env.ALLOW_GUEST_LOGIN = origGuest; else delete process.env.ALLOW_GUEST_LOGIN;
+      if (origDev !== undefined) process.env.ALLOW_DEV_LOGIN = origDev; else delete process.env.ALLOW_DEV_LOGIN;
+      if (origDevPlayerId !== undefined) process.env.ALLOW_DEV_PLAYER_ID = origDevPlayerId; else delete process.env.ALLOW_DEV_PLAYER_ID;
+    });
+
     it("rejects request if productId or playerId is missing", async () => {
       const app = express();
       app.use(express.json());
