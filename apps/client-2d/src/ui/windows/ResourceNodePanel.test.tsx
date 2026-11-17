@@ -71,9 +71,15 @@ describe("ResourceNodePanel UX & Accessibility", () => {
     statusList.forEach((statusEl) => {
       expect(statusEl.getAttribute("role")).toBe("status");
     });
+
+    // Check visual status category icons with aria-hidden
+    const availableStatus = container!.querySelector(".resource-row__status--available");
+    const depletedStatus = container!.querySelector(".resource-row__status--depleted");
+    expect(availableStatus?.querySelector('[aria-hidden="true"]')?.textContent?.trim()).toBe("✅");
+    expect(depletedStatus?.querySelector('[aria-hidden="true"]')?.textContent?.trim()).toBe("⏳");
   });
 
-  it("renders empty state with appropriate region role and aria-label", async () => {
+  it("renders empty state with appropriate region role, aria-label, and visual category icon", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -86,9 +92,12 @@ describe("ResourceNodePanel UX & Accessibility", () => {
     expect(emptySection).toBeTruthy();
     expect(emptySection?.getAttribute("role")).toBe("region");
     expect(emptySection?.getAttribute("aria-label")).toBe("Resource Nodes");
+
+    const emptyIcon = emptySection?.querySelector('[aria-hidden="true"]');
+    expect(emptyIcon?.textContent?.trim()).toBe("🌱");
   });
 
-  it("adds loading states, aria-busy and disables the button on gather click", async () => {
+  it("adds loading states, aria-busy and disables the button on gather click with action icon updates", async () => {
     const dispatchSpy = vi.spyOn(window, "dispatchEvent");
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -102,6 +111,7 @@ describe("ResourceNodePanel UX & Accessibility", () => {
     expect(gatherBtn).toBeTruthy();
     expect(gatherBtn.getAttribute("aria-busy")).toBe("false");
     expect(gatherBtn.disabled).toBe(false);
+    expect(gatherBtn.querySelector('[aria-hidden="true"]')?.textContent?.trim()).toBe("⚡");
 
     // Trigger click within act
     await act(async () => {
@@ -115,9 +125,10 @@ describe("ResourceNodePanel UX & Accessibility", () => {
     expect(dispatchedEvent.detail.action).toBe("resource_gather");
     expect(dispatchedEvent.detail.payload.nodeId).toBe("node-tree-1");
 
-    // Button should now be disabled, showing Gathering... and aria-busy=true
+    // Button should now be disabled, showing Gathering... and aria-busy=true with hourglass icon
     expect(gatherBtn.disabled).toBe(true);
     expect(gatherBtn.getAttribute("aria-busy")).toBe("true");
-    expect(gatherBtn.textContent).toBe("Gathering...");
+    expect(gatherBtn.textContent).toContain("Gathering...");
+    expect(gatherBtn.querySelector('[aria-hidden="true"]')?.textContent?.trim()).toBe("⏳");
   });
 });
