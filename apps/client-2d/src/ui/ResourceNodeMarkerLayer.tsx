@@ -83,7 +83,7 @@ function ResourceMarker({ nodeId, title, kind, x, y, status, onGather }: Resourc
       title={`${title} - ${status === "available" ? `Tap to gather` : `Locked/Respawning...`}`}
       aria-label={`${title} resource node, ${status}`}
     >
-      <span style={{ fontSize: "18px", lineHeight: 1 }}>{icon}</span>
+      <span aria-hidden="true" style={{ fontSize: "18px", lineHeight: 1 }}>{icon}</span>
       <span style={{ fontSize: "9px", opacity: 0.7 }}>{title}</span>
       {gathering && (
         <span style={{ fontSize: "8px", color: "var(--st-aether, #00e5ff)" }}>gathering...</span>
@@ -219,7 +219,7 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
             }}
             title={`Lineage house ${id}`}
           >
-            🏠 {title}
+            <span aria-hidden="true">🏠 </span>{title}
           </div>
         );
       })}
@@ -246,7 +246,7 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
             }}
             title={`Lineage node ${point.id}`}
           >
-            ✦ NPC
+            <span aria-hidden="true">✦ </span>NPC
           </div>
         );
       })}
@@ -270,6 +270,8 @@ export function ResourceNodeMarkerLayer({ onGatherSuccess, getPlayerPosition }: 
       {lastError && (
         <div
           data-testid="resource-gather-feedback"
+          role="status"
+          aria-live="polite"
           style={{
             position: "absolute",
             bottom: 16,
