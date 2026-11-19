@@ -6,7 +6,7 @@
  */
 
 import express from "express";
-import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
+import { resolveHttpPlayerIdentity, assertPlayerIdentityAllowed } from "../auth/PlayerIdentityResolver.js";
 import { gatheringService } from "../resources/GatheringService.js";
 import { npcQuestRuntime } from "../quests/NpcQuestRuntime.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
@@ -25,18 +25,6 @@ type ValidTickContext = ReturnType<typeof tickContextProvider.getContext> & {
   tickIndex: number;
   tickId: number | string;
 };
-
-function envFlagEnabled(value: string | undefined): boolean {
-  return !["0", "false", "no"].includes(value?.trim().toLowerCase() || "");
-}
-
-function isGuestHttpAllowed(): boolean {
-  return (
-    envFlagEnabled(process.env.ALLOW_GUEST_LOGIN) ||
-    envFlagEnabled(process.env.ALLOW_DEV_LOGIN) ||
-    process.env.ALLOW_DEV_PLAYER_ID === "true"
-  );
-}
 
 function parseNodeId(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -77,7 +65,9 @@ function resolveValidTickContext(): ValidTickContext | null {
 
 router.post("/gather", async (req, res) => {
   const identity = resolveHttpPlayerIdentity(req);
-  if (process.env.NODE_ENV === "production" && !identity.authenticated && !isGuestHttpAllowed()) {
+  try {
+    assertPlayerIdentityAllowed(identity);
+  } catch {
     res.status(401).json({ ok: false, error: "authenticated_player_required" });
     return;
   }
