@@ -95,7 +95,8 @@ export class QuestEngine {
       }
     }
 
-    mergedQuests.sort((a, b) => a.id.localeCompare(b.id));
+    // ⚡ Bolt Optimization: Use fast direct relational operator comparison instead of slow localeCompare
+    mergedQuests.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
     this.quests.clear();
     for (const quest of mergedQuests) {
@@ -119,14 +120,20 @@ export class QuestEngine {
     const quest = this.quests.get(questId);
     if (!quest) return null;
     if (!player.quests) player.quests = [];
-    
+
+    // ⚡ Bolt Optimization: Pre-map player active/completed quests by ID to reduce O(N) searches to O(1)
+    const playerQuestsMap = new Map<string, any>();
+    for (const q of player.quests) {
+      if (q && q.id) playerQuestsMap.set(q.id, q);
+    }
+
     // Check if already started
-    if (player.quests.find((q: any) => q.id === questId)) return null;
+    if (playerQuestsMap.has(questId)) return null;
 
     // Check prerequisites
     if (quest.prerequisiteQuestIds && quest.prerequisiteQuestIds.length > 0) {
       for (const preId of quest.prerequisiteQuestIds) {
-        const preQuest = player.quests.find((q: any) => q.id === preId);
+        const preQuest = playerQuestsMap.get(preId);
         if (!preQuest || !preQuest.completed) {
           return null; // Prerequisite not met
         }
@@ -172,11 +179,19 @@ export class QuestEngine {
       return cachedStatus;
     }
 
+    // ⚡ Bolt Optimization: Pre-map player active/completed quests by ID once to transform O(M * N) array scans into O(M + N) map lookups
+    const playerQuestsMap = new Map<string, any>();
+    if (Array.isArray(player.quests)) {
+      for (const q of player.quests) {
+        if (q && q.id) playerQuestsMap.set(q.id, q);
+      }
+    }
+
     const status: any[] = [];
     this.quests.forEach((quest, id) => {
-      const playerQuest = player.quests ? player.quests.find((q: any) => q.id === id) : null;
+      const playerQuest = playerQuestsMap.get(id) ?? null;
       let state = "locked";
-      
+
       if (playerQuest && playerQuest.completed) {
         state = "completed";
       } else if (playerQuest) {
@@ -186,7 +201,7 @@ export class QuestEngine {
         let prereqsMet = true;
         if (quest.prerequisiteQuestIds) {
           for (const preId of quest.prerequisiteQuestIds) {
-            const preQuest = player.quests ? player.quests.find((q: any) => q.id === preId) : null;
+            const preQuest = playerQuestsMap.get(preId) ?? null;
             if (!preQuest || !preQuest.completed) {
               prereqsMet = false;
               break;
@@ -203,7 +218,7 @@ export class QuestEngine {
         }
         if (prereqsMet) state = "available";
       }
-      
+
       status.push({
         id,
         title: quest.title,

@@ -53,3 +53,7 @@
 ## 2028-06-28 - [Overwriting Transaction Errors in Health Check & Connection Roundtrips]
 **Learning:** In PersistenceManager, calling `testConnection()` frequently during health monitoring not only causes redundant database/Redis connection roundtrips but also overwrites previous critical transactional save/load errors in `this.lastError` if the connection test succeeds. Isolating connection test errors to `this.lastErrorFromConnection` prevents this state loss, and a 5-second TTL cache for connection tests prevents redundant network roundtrips.
 **Action:** Always isolate ephemeral connectivity checks from core transactional errors in stateful manager instances, and cache frequent connection checks using a TTL.
+
+## 2028-07-02 - [Optimizing QuestEngine Status Evaluations via O(1) Map Lookups]
+**Learning:** `QuestEngine.getQuestStatus` and `startQuest` were performing nested `player.quests.find(...)` array searches for every registered quest definition and prerequisite check, causing $O(M \cdot N)$ array scans per status evaluation (where $M$ is total quest definitions and $N$ is player quests). Pre-mapping `player.quests` by ID into a `Map` upfront transforms these checks into $O(1)$ lookups, reducing total complexity to $O(M + N)$ and eliminating thousands of inner loop iterations.
+**Action:** When evaluating state rules across collections of items against a player's active list, always build an $O(1)$ lookup Map upfront rather than calling `.find()` inside nested loops.

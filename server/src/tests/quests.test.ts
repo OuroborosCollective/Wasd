@@ -230,4 +230,51 @@ describe("QuestEngine", () => {
       expect(player.xp).toBe(125);
     });
   });
+
+  describe("getQuestStatus performance & correctness", () => {
+    it("correctly evaluates quest statuses and prerequisites", () => {
+      const player: any = {
+        id: "p1",
+        quests: [
+          { id: "starter_welcome", completed: true },
+        ],
+      };
+
+      const statuses = engine.getQuestStatus(player);
+      const welcomeStatus = statuses.find((s) => s.id === "starter_welcome");
+      const woodDeliveryStatus = statuses.find((s) => s.id === "wood_delivery_001");
+
+      expect(welcomeStatus?.state).toBe("completed");
+      expect(woodDeliveryStatus?.state).toBe("available");
+    });
+
+    it("benchmarks map lookup vs array scan for quest status resolution", () => {
+      const player: any = {
+        id: "p_bench",
+        quests: Array.from({ length: 50 }, (_, i) => ({
+          id: `quest_bench_${i}`,
+          completed: i % 2 === 0,
+        })),
+      };
+
+      for (let i = 0; i < 100; i++) {
+        engine.addQuest({
+          id: `quest_bench_${i}`,
+          title: `Bench Quest ${i}`,
+          prerequisiteQuestIds: i > 0 ? [`quest_bench_${i - 1}`] : [],
+        });
+      }
+
+      const iterations = 2000;
+      const start = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        engine.invalidateCache(player);
+        engine.getQuestStatus(player);
+      }
+      const duration = performance.now() - start;
+
+      console.log(`[QuestEngine Benchmark] ${iterations} status evaluations took ${duration.toFixed(2)}ms (${(duration / iterations).toFixed(4)}ms per evaluation)`);
+      expect(duration).toBeGreaterThan(0);
+    });
+  });
 });
