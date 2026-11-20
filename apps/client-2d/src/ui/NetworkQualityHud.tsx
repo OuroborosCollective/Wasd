@@ -24,6 +24,20 @@ function qualityColor(quality: Props["quality"]): string {
   }
 }
 
+function qualityIcon(quality: Props["quality"]): string {
+  switch (quality) {
+    case "good":
+      return "🟢";
+    case "ok":
+      return "🟡";
+    case "poor":
+      return "🟠";
+    case "offline":
+    default:
+      return "🔴";
+  }
+}
+
 export function NetworkQualityHud({
   rttMs,
   quality,
@@ -35,6 +49,9 @@ export function NetworkQualityHud({
 }: Props) {
   return (
     <div
+      role="status"
+      aria-live="polite"
+      aria-label="Network Quality Diagnostics"
       style={{
         position: "fixed",
         right: 10,
@@ -50,8 +67,9 @@ export function NetworkQualityHud({
         backdropFilter: "blur(10px)"
       }}
     >
-      <div style={{ color: qualityColor(quality), fontWeight: 800 }}>
-        NET {quality.toUpperCase()}
+      <div style={{ color: qualityColor(quality), fontWeight: 800, display: "flex", alignItems: "center", gap: 4 }}>
+        <span aria-hidden="true">{qualityIcon(quality)}</span>
+        <span>NET {quality.toUpperCase()}</span>
       </div>
       <div>rtt: {rttMs}ms</div>
       <div>pending: {pendingInputs}</div>
