@@ -1,10 +1,19 @@
 import React from "react";
 import type { LootFeedEntry } from "../game/loot";
-import { getItemDefinition } from "../game/items";
+import { getItemDefinition, type ItemKind } from "../game/items";
 
 interface Props {
   entries: LootFeedEntry[];
 }
+
+const KIND_ICONS: Record<ItemKind, string> = {
+  weapon: "⚔️",
+  armor: "🛡️",
+  consumable: "🧪",
+  material: "📦",
+  quest: "📜",
+  currency: "💰"
+};
 
 export function LootFeed({ entries }: Props) {
   if (entries.length === 0) return null;
@@ -29,6 +38,7 @@ export function LootFeed({ entries }: Props) {
         const def = getItemDefinition(entry.itemId);
         const name = def?.name ?? entry.itemId;
         const rarity = def?.rarity ? ` (${def.rarity})` : "";
+        const icon = def?.kind ? KIND_ICONS[def.kind] ?? "🎁" : "🎁";
         const ariaText = `Acquired ${entry.quantity} ${name}${rarity}`;
         const tooltip = def?.description
           ? `${name}${rarity} - ${def.description}`
@@ -47,10 +57,17 @@ export function LootFeed({ entries }: Props) {
               background: "rgba(0,0,0,.38)",
               color: "#f5f7ff",
               font: "12px/1.4 system-ui, sans-serif",
-              backdropFilter: "blur(8px)"
+              backdropFilter: "blur(8px)",
+              display: "flex",
+              alignItems: "center"
             }}
           >
-            +{entry.quantity} {name}
+            <span aria-hidden="true" style={{ marginRight: 6 }}>
+              {icon}
+            </span>
+            <span>
+              +{entry.quantity} {name}
+            </span>
           </div>
         );
       })}
