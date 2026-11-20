@@ -118,7 +118,7 @@ function PoiMarker({ poiId, type, title, x, y, discovered = true }: PoiMarkerPro
       title={discovered ? `${title} — Tap for details` : "Unknown location — Explore to discover"}
       aria-label={discovered ? `${title} world POI, ${type}` : "Unknown world POI"}
     >
-      <span style={{ fontSize: "20px", lineHeight: 1 }}>{emoji}</span>
+      <span style={{ fontSize: "20px", lineHeight: 1 }} aria-hidden="true">{emoji}</span>
       <span style={{ fontSize: "9px", opacity: 0.8, maxWidth: "60px", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis" }}>
         {displayTitle}
       </span>
@@ -206,6 +206,8 @@ export function WorldPoiMarkerLayer() {
   return (
     <div
       ref={containerRef}
+      role="region"
+      aria-label="World Point of Interest Markers"
       data-testid="world-poi-marker-layer"
       data-overlay-status={overlay.status}
       style={{
