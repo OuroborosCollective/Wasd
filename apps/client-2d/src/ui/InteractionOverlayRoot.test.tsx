@@ -47,6 +47,19 @@ describe("InteractionOverlayRoot UX & Accessibility", () => {
     const dialog = container!.querySelector('section[role="dialog"]');
     expect(dialog).toBeTruthy();
     expect(dialog!.getAttribute('aria-modal')).toBe('true');
+    expect(dialog!.getAttribute('aria-labelledby')).toBe('interaction-panel-title');
+
+    const titleEl = container!.querySelector('#interaction-panel-title');
+    expect(titleEl).toBeTruthy();
+    expect(titleEl!.textContent).toContain('TRADE');
+
+    const decorativeIcon = titleEl!.querySelector('span[aria-hidden="true"]');
+    expect(decorativeIcon).toBeTruthy();
+    expect(decorativeIcon!.textContent).toContain('🛒');
+
+    const escHint = container!.querySelector('.interaction-esc-hint');
+    expect(escHint).toBeTruthy();
+    expect(escHint!.getAttribute('aria-hidden')).toBe('true');
 
     // Close button attributes
     const closeBtn = container!.querySelector('button.interaction-close');
