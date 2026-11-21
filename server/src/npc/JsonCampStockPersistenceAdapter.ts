@@ -27,7 +27,8 @@ function normalizeState(state: CampStockStateSnapshot): CampStockStateSnapshot {
       Math.max(0, Math.floor(Number(quantity))),
     ])
     .filter((entry) => entry[1] > 0)
-    .sort((a, b) => a[0].localeCompare(b[0]));
+    // Bolt: Optimized item ID sorting using fast direct relational string comparisons instead of slow localeCompare
+    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   const items: Record<string, number> = Object.fromEntries(entries);
   return Object.freeze({
     items: Object.freeze(items),
@@ -46,7 +47,8 @@ function stableFile(stocks: readonly CampStockFileEntry[]): CampStockFile {
           poiId: String(entry.poiId),
           ...normalizeState(entry),
         }))
-        .sort((a, b) => a.poiId.localeCompare(b.poiId)),
+        // Bolt: Optimized POI ID sorting using fast direct relational string comparisons instead of slow localeCompare
+        .sort((a, b) => (a.poiId < b.poiId ? -1 : a.poiId > b.poiId ? 1 : 0)),
     ),
   });
 }
