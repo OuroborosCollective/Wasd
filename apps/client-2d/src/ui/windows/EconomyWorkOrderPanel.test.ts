@@ -77,4 +77,59 @@ describe("parseVerifiedWorkOrderResponse", () => {
 
     expect(() => parseVerifiedWorkOrderResponse(payload)).toThrow(/revision_evidence/);
   });
+
+  it("sorts work orders using fast relational comparison producing identical order to localeCompare", () => {
+    const payload = validResponse();
+    payload.orders = [
+      {
+        schemaVersion: 1,
+        orderId: "work_order:003:metal",
+        kind: "resource_supply",
+        npcId: "village_trader_001",
+        npcActorHash: "deadbeef",
+        vendorId: "village_trader_001",
+        itemId: "copper_ingot",
+        title: "Restock metal",
+        currentStock: 0,
+        requiredQuantity: 10,
+        tick: 144,
+        stateHash: "cafebabe",
+      },
+      {
+        schemaVersion: 1,
+        orderId: "work_order:001:timber",
+        kind: "resource_supply",
+        npcId: "village_trader_001",
+        npcActorHash: "deadbeef",
+        vendorId: "village_trader_001",
+        itemId: "wood_log",
+        title: "Restock timber",
+        currentStock: 1,
+        requiredQuantity: 5,
+        tick: 144,
+        stateHash: "cafebabe",
+      },
+      {
+        schemaVersion: 1,
+        orderId: "work_order:002:food",
+        kind: "resource_supply",
+        npcId: "village_trader_001",
+        npcActorHash: "deadbeef",
+        vendorId: "village_trader_001",
+        itemId: "cooked_fish",
+        title: "Restock food",
+        currentStock: 2,
+        requiredQuantity: 8,
+        tick: 144,
+        stateHash: "cafebabe",
+      },
+    ];
+
+    const parsed = parseVerifiedWorkOrderResponse(payload);
+    expect(parsed.orders.map((o) => o.orderId)).toEqual([
+      "work_order:001:timber",
+      "work_order:002:food",
+      "work_order:003:metal",
+    ]);
+  });
 });
