@@ -162,6 +162,14 @@ export function useStoragePlayerSnapshot(): StorageInventoryState | null {
   );
 }
 
+export function useStorageHasPendingIntent(): boolean {
+  return useSyncExternalStore(
+    (l) => storageStateStore.subscribe(l),
+    () => storageStateStore.hasPendingIntent(),
+    () => false
+  );
+}
+
 export function useStorageSnapshot(): StorageSnapshot | null {
   return useSyncExternalStore(
     (l) => storageStateStore.subscribe(l),
@@ -242,11 +250,11 @@ function StorageSlot({ slotIndex, item, isBlocked, isStorageSide, onTransfer }: 
       aria-label={ariaText}
       title={tooltip}
     >
-      {isBlocked && <span className="slot-spinner">⟳</span>}
+      {isBlocked && <span className="slot-spinner" aria-hidden="true">⟳</span>}
       {item && (
         <>
-          <span className="slot-icon">{getItemIcon(item)}</span>
-          {item.rarity === "legendary" && <span className="slot-glow" />}
+          <span className="slot-icon" aria-hidden="true">{getItemIcon(item)}</span>
+          {item.rarity === "legendary" && <span className="slot-glow" aria-hidden="true" />}
           <span className="slot-quantity">{slotIndex}</span>
         </>
       )}
@@ -265,6 +273,7 @@ interface StorageOverlayProps {
 export function StorageOverlay({ isOpen = true, onClose }: StorageOverlayProps) {
   const playerSnapshot = useStoragePlayerSnapshot();
   const storageSnapshot = useStorageSnapshot();
+  const hasPendingIntent = useStorageHasPendingIntent();
 
   // Handle WebSocket messages
   useEffect(() => {
@@ -385,10 +394,12 @@ export function StorageOverlay({ isOpen = true, onClose }: StorageOverlayProps) 
   const storageGridRows = Math.ceil(storageSnapshot.inventory.maxSlots / STORAGE_GRID_COLS);
 
   return (
-    <div className="storage-overlay" role="dialog" aria-label="Storage Transfer">
+    <div className="storage-overlay" role="dialog" aria-modal="true" aria-labelledby="storage-dialog-title">
       {/* Header */}
       <div className="storage-header">
-        <h2>Storage Transfer</h2>
+        <h2 id="storage-dialog-title">
+          <span aria-hidden="true">📦 </span>Storage Transfer
+        </h2>
         <button className="wow-close-btn" onClick={handleClose} aria-label="Close [ESC]" aria-keyshortcuts="Escape">
           <kbd className="cz-kbd" aria-hidden="true">ESC</kbd>
           ✕
@@ -401,7 +412,7 @@ export function StorageOverlay({ isOpen = true, onClose }: StorageOverlayProps) 
         
         {/* Left: Player Inventory */}
         <section className="storage-panel player-panel" aria-label="Player Inventory">
-          <h3>Player Inventory</h3>
+          <h3><span aria-hidden="true">🎒 </span>Player Inventory</h3>
           {playerSnapshot && (
             <div className="storage-weight">
               Weight: {playerSnapshot.currentWeight.toFixed(1)} / {playerSnapshot.maxWeight}
@@ -439,7 +450,7 @@ export function StorageOverlay({ isOpen = true, onClose }: StorageOverlayProps) 
 
         {/* Right: Storage Container */}
         <section className="storage-panel container-panel" aria-label="Storage Container">
-          <h3>{storageTypeLabel}</h3>
+          <h3><span aria-hidden="true">📦 </span>{storageTypeLabel}</h3>
           <div className="storage-weight">
             Weight: {storageSnapshot.inventory.currentWeight.toFixed(1)} / {storageSnapshot.inventory.maxWeight}
           </div>
@@ -468,9 +479,9 @@ export function StorageOverlay({ isOpen = true, onClose }: StorageOverlayProps) 
       </div>
 
       {/* Pending Intent Indicator */}
-      {storageStateStore.hasPendingIntent() && (
-        <div className="pending-indicator">
-          <span>⟳</span> Transferring...
+      {hasPendingIntent && (
+        <div className="pending-indicator" role="status" aria-live="polite">
+          <span aria-hidden="true">⟳ </span>Transferring...
         </div>
       )}
     </div>
