@@ -44,6 +44,10 @@ describe("GuildStatusPanel UX & Accessibility", () => {
     expect(statusArticle).toBeTruthy();
     expect(statusArticle?.getAttribute("aria-live")).toBe("polite");
     expect(container!.textContent).toContain("waiting for server snapshot");
+
+    const ariaHiddenIcon = container!.querySelector('[aria-hidden="true"]');
+    expect(ariaHiddenIcon).toBeTruthy();
+    expect(ariaHiddenIcon?.textContent).toContain("⏳");
   });
 
   it("renders unclaimed guild state with accessible region", async () => {
@@ -87,5 +91,8 @@ describe("GuildStatusPanel UX & Accessibility", () => {
     expect(panel?.getAttribute("aria-label")).toBe("Guild Status");
     expect(container!.textContent).toContain("Arelorian Vanguard");
     expect(container!.textContent).toContain("12");
+
+    const ariaHiddenIcons = container!.querySelectorAll('[aria-hidden="true"]');
+    expect(ariaHiddenIcons.length).toBe(4);
   });
 });
