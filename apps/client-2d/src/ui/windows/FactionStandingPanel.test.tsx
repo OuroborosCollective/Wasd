@@ -87,7 +87,7 @@ describe("FactionStandingPanel UX & Accessibility", () => {
     document.body.removeChild(container);
   });
 
-  it("renders live state with accessibility attributes and tooltips successfully", async () => {
+  it("renders live state with visual category icons, accessibility attributes and tooltips successfully", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -113,6 +113,12 @@ describe("FactionStandingPanel UX & Accessibility", () => {
     expect(secondBar.getAttribute("aria-valuenow")).toBe("15");
     expect(secondBar.getAttribute("aria-valuetext")).toBe("15% (hostile)");
     expect(secondBar.getAttribute("title")).toBe("Ashen Brotherhood Standing: 15% (hostile)");
+
+    // Verify visual icons are wrapped in aria-hidden="true" spans
+    const hiddenSpans = container!.querySelectorAll('span[aria-hidden="true"]');
+    expect(hiddenSpans.length).toBeGreaterThanOrEqual(2);
+    expect(hiddenSpans[0].textContent).toContain("🌟");
+    expect(hiddenSpans[1].textContent).toContain("⚔️");
 
     document.body.removeChild(container);
   });
