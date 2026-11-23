@@ -37,3 +37,7 @@
 ## 2028-02-21 - [Modal Dialog vs Landmark Region Semantics]
 **Learning:** Pop-up/overlay panels (like CraftingWindow) with headers and close controls must retain `role="dialog"` rather than generic `role="region"`. Changing overlay containers to `role="region"` strips the dialog focus context from screen reader users when pop-up panels open.
 **Action:** Always maintain `role="dialog"` on pop-up overlay window containers and use `role="region"` only for inline, non-modal content sections.
+
+## 2028-02-22 - [WCAG 1.1.1 and 1.4.1 Standardization in Gathering Tools Panel]
+**Learning:** In equipment and tools panels, coupling decorative tool emojis directly into textual labels (e.g. "🪓 Woodcutting") causes screen readers to redundantly announce the raw emoji names before the skill or slot name. Decoupling the visual icon into an `<span aria-hidden="true">` element protects assistive technology users from redundant auditory clutter (WCAG 1.1.1) while providing sighted players with distinct visual category markers for fast non-color visual scanning (WCAG 1.4.1).
+**Action:** When displaying slot or item categories with emojis, always separate the emoji icon into a dedicated `<span aria-hidden="true">` element and present clean text for the label.

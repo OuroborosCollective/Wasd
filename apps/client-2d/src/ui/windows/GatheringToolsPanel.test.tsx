@@ -106,8 +106,14 @@ describe("GatheringToolsPanel UX & Accessibility", () => {
 
     const panel = container!.querySelector('[data-testid="gathering-tools-panel"]');
     expect(panel).toBeTruthy();
-    expect(panel!.textContent).toContain("🪓 Woodcutting");
+    expect(panel!.getAttribute("role")).toBe("region");
+    expect(panel!.getAttribute("aria-label")).toBe("Gathering Tools");
+    expect(panel!.textContent).toContain("Woodcutting");
     expect(panel!.textContent).toContain("Wooden Axe");
+
+    // Verify decorative icons have aria-hidden="true"
+    const ariaHiddenIcons = panel!.querySelectorAll('span[aria-hidden="true"]');
+    expect(ariaHiddenIcons.length).toBeGreaterThan(0);
   });
 
   it("renders with tool buttons having correct ARIA attributes and titles", async () => {
