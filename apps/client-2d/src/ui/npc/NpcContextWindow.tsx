@@ -47,7 +47,7 @@ export function NpcContextWindow({
   }, [styleInjected]);
 
   React.useEffect(() => {
-    if (!isOpen || !dialogue.canContinue || !onContinue) return;
+    if (!isOpen) return;
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       const active = document.activeElement;
@@ -59,7 +59,13 @@ export function NpcContextWindow({
       ) {
         return;
       }
-      if (e.key === " " || e.key === "Enter" || e.key.toLowerCase() === "e") {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+      if (dialogue.canContinue && onContinue && (e.key === " " || e.key === "Enter" || e.key.toLowerCase() === "e")) {
         e.preventDefault();
         e.stopPropagation();
         onContinue();
@@ -70,7 +76,7 @@ export function NpcContextWindow({
     return () => {
       window.removeEventListener("keydown", handleGlobalKeyDown, true);
     };
-  }, [isOpen, dialogue.canContinue, onContinue]);
+  }, [isOpen, onClose, dialogue.canContinue, onContinue]);
 
   const handleAction = (action: MenuAction) => {
     onAction(action);
@@ -116,6 +122,9 @@ export function NpcContextWindow({
         }}
       >
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="npc-dialogue-title"
           style={{
             backgroundColor: "rgba(13, 21, 22, 0.92)",
             backdropFilter: "blur(24px)",
@@ -136,6 +145,7 @@ export function NpcContextWindow({
             >
               <div className="flex flex-col gap-1" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <h2
+                  id="npc-dialogue-title"
                   style={{
                     fontFamily: "Epilogue, sans-serif",
                     fontSize: "20px",
@@ -156,11 +166,15 @@ export function NpcContextWindow({
                       letterSpacing: "0.15em",
                       color: "#849396",
                       textTransform: "uppercase",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
                     }}
                   >
+                    <span aria-hidden="true">👤</span>
                     {npc.role}
                   </span>
-                  <span style={{ color: "#3b494c" }}>|</span>
+                  <span style={{ color: "#3b494c" }} aria-hidden="true">|</span>
                   <span
                     style={{
                       fontFamily: "Epilogue, sans-serif",
@@ -169,8 +183,12 @@ export function NpcContextWindow({
                       letterSpacing: "0.15em",
                       color: "#9d00ff",
                       textTransform: "uppercase",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
                     }}
                   >
+                    <span aria-hidden="true">🏛️</span>
                     {npc.faction}
                   </span>
                 </div>
@@ -180,6 +198,7 @@ export function NpcContextWindow({
                 onClick={onClose}
                 aria-label="Close dialogue [ESC]"
                 aria-keyshortcuts="Escape"
+                title={`Close ${npc.name} dialogue [ESC]`}
                 className="flex items-center justify-center"
                 style={{
                   minWidth: 40,
@@ -207,7 +226,7 @@ export function NpcContextWindow({
                 }}
               >
                 <kbd className="cz-kbd" aria-hidden="true" style={{ margin: 0 }}>ESC</kbd>
-                ✕
+                <span aria-hidden="true">✕</span>
               </button>
             </div>
 
@@ -296,7 +315,7 @@ export function NpcContextWindow({
                         e.currentTarget.style.borderColor = "rgba(0, 229, 255, 0.3)";
                       }}
                     >
-                      <span style={{ display: "inline-block", width: "8px", height: "8px", backgroundColor: "#00e5ff", animation: "dialogue-cursor 1s ease-in-out infinite" }} />
+                      <span aria-hidden="true" style={{ display: "inline-block", width: "8px", height: "8px", backgroundColor: "#00e5ff", animation: "dialogue-cursor 1s ease-in-out infinite" }} />
                       <span
                         style={{
                           fontFamily: "Epilogue, sans-serif",
@@ -344,14 +363,16 @@ export function NpcContextWindow({
                 {quest && (
                   <div className="p-3" style={{ padding: 12, backgroundColor: "rgba(21, 29, 30, 0.6)", border: "1px solid rgba(80, 200, 120, 0.3)", borderRadius: "0px" }}>
                     <div className="flex items-center gap-2 mb-2" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                      <span style={{ fontFamily: "Epilogue, sans-serif", fontSize: "10px", fontWeight: "600", letterSpacing: "0.2em", color: quest.isNew ? "#50c878" : "#849396", textTransform: "uppercase" }}>
-                        {quest.isNew ? "● NEW QUEST" : "QUEST AVAILABLE"}
+                      <span style={{ fontFamily: "Epilogue, sans-serif", fontSize: "10px", fontWeight: "600", letterSpacing: "0.2em", color: quest.isNew ? "#50c878" : "#849396", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <span aria-hidden="true">{quest.isNew ? "● " : "📜 "}</span>
+                        {quest.isNew ? "NEW QUEST" : "QUEST AVAILABLE"}
                       </span>
                     </div>
                     <h3 style={{ fontFamily: "Epilogue, sans-serif", fontSize: "14px", fontWeight: "700", color: "#dce4e5", margin: "0 0 4px 0" }}>{quest.name}</h3>
                     <p style={{ fontFamily: "Epilogue, sans-serif", fontSize: "12px", color: "#bac9cc", margin: "0 0 8px 0", lineHeight: "1.4" }}>{quest.objective}</p>
                     <div className="pt-2" style={{ paddingTop: 8, borderTop: "1px solid rgba(132, 147, 150, 0.2)" }}>
-                      <span style={{ fontFamily: "Epilogue, sans-serif", fontSize: "10px", fontWeight: "600", letterSpacing: "0.15em", color: "#ff7a00", textTransform: "uppercase" }}>
+                      <span style={{ fontFamily: "Epilogue, sans-serif", fontSize: "10px", fontWeight: "600", letterSpacing: "0.15em", color: "#ff7a00", textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <span aria-hidden="true">🎁</span>
                         Reward: {quest.reward}
                       </span>
                     </div>
