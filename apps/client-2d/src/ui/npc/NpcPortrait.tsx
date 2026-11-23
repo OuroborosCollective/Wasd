@@ -232,7 +232,7 @@ export function getFrameStyleClass(frameStyle: NpcVisualTraits["frameStyle"]): s
 // Generate SVG portrait based on visual traits (Diablo 4 cinematic style)
 export function generatePortraitSVG(traits: NpcVisualTraits, npcName: string): string {
   const { 
-    skinTone, hairColor, hairStyle, clothingPrimary, clothingSecondary,
+    category, skinTone, hairColor, hairStyle, clothingPrimary, clothingSecondary,
     armorLevel, hasCape, hasHood, expression, accessoryType,
     weaponType, backgroundColor, lightingColor, gender, race 
   } = traits;
