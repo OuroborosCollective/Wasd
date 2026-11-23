@@ -6,8 +6,15 @@ interface Props {
   onInteract: () => void;
 }
 
+const TARGET_ICONS: Record<InteractionTarget["kind"], string> = {
+  npc: "💬",
+  loot: "📦",
+};
+
 export function InteractionPrompt({ target, onInteract }: Props) {
   if (!target) return null;
+
+  const icon = TARGET_ICONS[target.kind] ?? "✦";
 
   return (
     <button
@@ -39,6 +46,9 @@ export function InteractionPrompt({ target, onInteract }: Props) {
       <kbd className="cz-kbd" aria-hidden="true">
         E
       </kbd>
+      <span aria-hidden="true" style={{ fontSize: "1.1rem" }}>
+        {icon}
+      </span>
       <span>{target.label}</span>
     </button>
   );
