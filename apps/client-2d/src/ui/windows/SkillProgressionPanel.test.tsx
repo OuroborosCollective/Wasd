@@ -52,6 +52,10 @@ describe("SkillProgressionPanel UX & Accessibility", () => {
     expect(emptySection!.getAttribute("role")).toBe("region");
     expect(emptySection!.getAttribute("aria-label")).toBe("Skill Progression");
     expect(emptySection!.textContent).toContain("No live skill data yet.");
+
+    const emptyIcon = emptySection!.querySelector("span[aria-hidden='true']");
+    expect(emptyIcon).toBeTruthy();
+    expect(emptyIcon!.textContent).toBe("⏳");
   });
 
   it("renders live skills with progressbars, aria-valuetext, and hover title tooltips", async () => {
@@ -68,8 +72,14 @@ describe("SkillProgressionPanel UX & Accessibility", () => {
     expect(liveSection!.getAttribute("role")).toBe("region");
     expect(liveSection!.getAttribute("aria-label")).toBe("Skill Progression");
 
-    // Check Woodcutting progressbar
-    const woodBar = container!.querySelector("[data-testid='skill-progress-woodcutting'] [role='progressbar']");
+    // Check Woodcutting row & progressbar
+    const woodRow = container!.querySelector("[data-testid='skill-progress-woodcutting']");
+    expect(woodRow).toBeTruthy();
+    const woodIcon = woodRow!.querySelector(".skill-row__header strong span[aria-hidden='true']");
+    expect(woodIcon).toBeTruthy();
+    expect(woodIcon!.textContent).toBe("🌿");
+
+    const woodBar = woodRow!.querySelector("[role='progressbar']");
     expect(woodBar).toBeTruthy();
     expect(woodBar!.getAttribute("aria-label")).toBe("Woodcutting progress to level 4");
     expect(woodBar!.getAttribute("aria-valuenow")).toBe("45");
@@ -78,12 +88,43 @@ describe("SkillProgressionPanel UX & Accessibility", () => {
     expect(woodBar!.getAttribute("aria-valuetext")).toBe("45% (450 / 1000 XP)");
     expect(woodBar!.getAttribute("title")).toBe("Woodcutting: 45% (450 / 1000 XP)");
 
-    // Check Mining progressbar
-    const mineBar = container!.querySelector("[data-testid='skill-progress-mining'] [role='progressbar']");
+    // Check Mining row & progressbar
+    const mineRow = container!.querySelector("[data-testid='skill-progress-mining']");
+    expect(mineRow).toBeTruthy();
+    const mineIcon = mineRow!.querySelector(".skill-row__header strong span[aria-hidden='true']");
+    expect(mineIcon).toBeTruthy();
+    expect(mineIcon!.textContent).toBe("⛏️");
+
+    const mineBar = mineRow!.querySelector("[role='progressbar']");
     expect(mineBar).toBeTruthy();
     expect(mineBar!.getAttribute("aria-label")).toBe("Mining progress to level 2");
     expect(mineBar!.getAttribute("aria-valuenow")).toBe("0");
     expect(mineBar!.getAttribute("aria-valuetext")).toBe("0% (0 / 100 XP)");
     expect(mineBar!.getAttribute("title")).toBe("Mining: 0% (0 / 100 XP)");
+  });
+
+  it("uses fallback category icon ⭐ for unrecognized skills with aria-hidden", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+
+    const customSkill: SkillSnapshot = {
+      id: "alchemy" as any,
+      title: "Alchemy",
+      level: 10,
+      xp: 2000,
+      xpForNextLevel: 5000,
+      progressRatio: 0.4,
+    };
+
+    await act(async () => {
+      const root = createRoot(container!);
+      root.render(<SkillProgressionPanel skills={[customSkill]} />);
+    });
+
+    const skillRow = container!.querySelector("[data-testid='skill-progress-alchemy']");
+    expect(skillRow).toBeTruthy();
+    const icon = skillRow!.querySelector(".skill-row__header strong span[aria-hidden='true']");
+    expect(icon).toBeTruthy();
+    expect(icon!.textContent).toBe("⭐");
   });
 });
