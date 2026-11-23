@@ -43,7 +43,7 @@ describe("MobileActionBar UX & Accessibility", () => {
     expect(toolbar!.getAttribute("aria-label")).toBe("Mobile action controls");
   });
 
-  it("renders skill action buttons with dynamic ARIA labels and title tooltips for cooldowns", async () => {
+  it("renders skill action buttons with dynamic ARIA labels, title tooltips, and hidden visual icons", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -71,15 +71,23 @@ describe("MobileActionBar UX & Accessibility", () => {
     expect(primaryBtn.disabled).toBe(true);
     expect(primaryBtn.getAttribute("title")).toBe("Hit (Cooldown: 3 ticks)");
 
+    const primaryIcon = primaryBtn.querySelector('span[aria-hidden="true"]');
+    expect(primaryIcon).toBeTruthy();
+    expect(primaryIcon!.textContent).toBe("⚔️");
+
     const impactBtn = container!.querySelector(
       'button[aria-label="Impact skill"]'
     ) as HTMLButtonElement;
     expect(impactBtn).toBeTruthy();
     expect(impactBtn.disabled).toBe(false);
     expect(impactBtn.getAttribute("title")).toBe("Impact");
+
+    const impactIcon = impactBtn.querySelector('span[aria-hidden="true"]');
+    expect(impactIcon).toBeTruthy();
+    expect(impactIcon!.textContent).toBe("💥");
   });
 
-  it("renders utility panel buttons with proper ARIA labels, tooltips, and shortcut keys", async () => {
+  it("renders utility panel buttons with proper ARIA labels, tooltips, shortcut keys, and hidden icons", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
@@ -105,16 +113,19 @@ describe("MobileActionBar UX & Accessibility", () => {
     expect(invBtn).toBeTruthy();
     expect(invBtn!.getAttribute("title")).toBe("Open Inventory (I)");
     expect(invBtn!.getAttribute("aria-keyshortcuts")).toBe("i");
+    expect(invBtn!.querySelector('span[aria-hidden="true"]')?.textContent).toBe("🎒");
 
     const eqBtn = container!.querySelector('button[aria-label="Open Equipment"]');
     expect(eqBtn).toBeTruthy();
     expect(eqBtn!.getAttribute("title")).toBe("Open Equipment (E)");
     expect(eqBtn!.getAttribute("aria-keyshortcuts")).toBe("e");
+    expect(eqBtn!.querySelector('span[aria-hidden="true"]')?.textContent).toBe("🛡️");
 
     const questBtn = container!.querySelector('button[aria-label="Open Quests"]');
     expect(questBtn).toBeTruthy();
     expect(questBtn!.getAttribute("title")).toBe("Open Quests (Q)");
     expect(questBtn!.getAttribute("aria-keyshortcuts")).toBe("q");
+    expect(questBtn!.querySelector('span[aria-hidden="true"]')?.textContent).toBe("📜");
 
     await act(async () => {
       (invBtn as HTMLButtonElement).click();
