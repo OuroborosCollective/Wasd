@@ -34,9 +34,10 @@ interface QuestStateFile {
 function stableQuestStateFile(players: PersistedQuestPlayerState[]): QuestStateFile {
   return {
     schemaVersion: 1,
+    // Bolt: Optimization - Direct relational string comparison is significantly faster than localeCompare
     players: [...players]
       .map((player) => normalizePersistedQuestState(player, player.playerId))
-      .sort((a, b) => a.playerId.localeCompare(b.playerId)),
+      .sort((a, b) => (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0)),
   };
 }
 
