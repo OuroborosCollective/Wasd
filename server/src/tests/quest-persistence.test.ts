@@ -302,3 +302,35 @@ describe("createPersistedQuestState", () => {
     expect(normalized.playerId).toBe("fallback-id");
   });
 });
+
+describe("sorting performance and determinism", () => {
+  it("produces identical sorted order to localeCompare for alphanumeric quest keys", () => {
+    const keys = Array.from({ length: 100 }, (_, i) => `quest_${(i * 37) % 100}`);
+    const localeSorted = [...keys].sort((a, b) => a.localeCompare(b));
+    const relationalSorted = [...keys].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    expect(relationalSorted).toEqual(localeSorted);
+  });
+
+  it("benchmarks direct relational string comparison vs localeCompare for quest state sorting", () => {
+    const testPlayers = Array.from({ length: 500 }, (_, i) => `player_${(i * 47) % 500}`);
+
+    const startLocale = performance.now();
+    for (let run = 0; run < 100; run++) {
+      [...testPlayers].sort((a, b) => a.localeCompare(b));
+    }
+    const localeDuration = performance.now() - startLocale;
+
+    const startRelational = performance.now();
+    for (let run = 0; run < 100; run++) {
+      [...testPlayers].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    }
+    const relationalDuration = performance.now() - startRelational;
+
+    const speedup = localeDuration / Math.max(relationalDuration, 0.001);
+    console.log(
+      `[QuestPersistence Benchmark] localeCompare: ${localeDuration.toFixed(2)}ms, relational: ${relationalDuration.toFixed(2)}ms (${speedup.toFixed(2)}x speedup)`,
+    );
+
+    expect(relationalDuration).toBeLessThanOrEqual(localeDuration + 10);
+  });
+});
