@@ -79,7 +79,7 @@ describe("CraftingWindow UX & Accessibility", () => {
     vi.clearAllMocks();
   });
 
-  it("calls onClose when Escape key is pressed", async () => {
+  it("calls onClose when Escape key is pressed and renders close button tooltips and aria-hidden icons", async () => {
     const onCloseSpy = vi.fn();
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -88,6 +88,11 @@ describe("CraftingWindow UX & Accessibility", () => {
       const root = createRoot(container!);
       root.render(<CraftingWindow isOpen={true} onClose={onCloseSpy} />);
     });
+
+    const closeBtn = container!.querySelector(".wow-close-btn");
+    expect(closeBtn).toBeTruthy();
+    expect(closeBtn!.getAttribute("title")).toBe("Close crafting panel [ESC]");
+    expect(closeBtn!.querySelector("span[aria-hidden='true']")!.textContent).toBe("✕");
 
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(onCloseSpy).toHaveBeenCalledTimes(1);
@@ -123,7 +128,23 @@ describe("CraftingWindow UX & Accessibility", () => {
     const overlay = container!.querySelector(".wow-inventory-overlay");
     expect(overlay).toBeTruthy();
     expect(overlay!.getAttribute("role")).toBe("dialog");
+    expect(overlay!.getAttribute("aria-modal")).toBe("true");
     expect(overlay!.getAttribute("aria-label")).toBe("Crafting");
+    expect(overlay!.getAttribute("aria-labelledby")).toBe("crafting-window-title");
+
+    // Header category icon & title check
+    const title = container!.querySelector("#crafting-window-title");
+    expect(title).toBeTruthy();
+    expect(title!.querySelector("span[aria-hidden='true']")!.textContent).toContain("🔨");
+
+    // Input and output visual category icons check
+    const inputLabel = container!.querySelector(".crafting-row__ingredients .crafting-row__label");
+    expect(inputLabel).toBeTruthy();
+    expect(inputLabel!.querySelector("span[aria-hidden='true']")!.textContent).toContain("📥");
+
+    const outputLabel = container!.querySelector(".crafting-row__outputs .crafting-row__label");
+    expect(outputLabel).toBeTruthy();
+    expect(outputLabel!.querySelector("span[aria-hidden='true']")!.textContent).toContain("📦");
 
     // Sword - Craftable
     const swordBtn = container!.querySelector("[data-testid='process-wooden_sword']") as HTMLButtonElement;
