@@ -1,6 +1,10 @@
 import express, { Router, type Response } from "express";
 import rateLimit from "express-rate-limit";
-import { resolveHttpPlayerIdentity } from "../auth/PlayerIdentityResolver.js";
+import {
+  resolveHttpPlayerIdentity,
+  assertPlayerIdentityAllowed,
+  type PlayerIdentity,
+} from "../auth/PlayerIdentityResolver.js";
 import { tickContextProvider } from "../core/are/TickSystemContextProvider.js";
 import { stableHash32 } from "../core/determinism/AREDeterminism.js";
 import { runtimeHistoryLog } from "../history/RuntimeHistoryLog.js";
@@ -119,12 +123,14 @@ function parsePosition(value: unknown): { x: number; y: number } | null {
   return { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };
 }
 
-function requireProductionAuth(identity: { authenticated: boolean }, res: Response): boolean {
-  if (process.env.NODE_ENV === "production" && !identity.authenticated) {
+function requireProductionAuth(identity: PlayerIdentity, res: Response): boolean {
+  try {
+    assertPlayerIdentityAllowed(identity);
+    return true;
+  } catch {
     res.status(401).json({ ok: false, error: "authenticated_player_required" });
     return false;
   }
-  return true;
 }
 
 function resolveRuntimeTickContext(): RuntimeTickContext | null {
